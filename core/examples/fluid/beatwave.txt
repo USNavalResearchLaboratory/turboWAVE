@@ -1,0 +1,88 @@
+// Keep the following line for generating twtest reports
+// TWTEST matplotlib zxyt=0,-1 phi.dvdat
+
+steps = 1000
+timestep = 0.08
+dump period = 0
+moving window = no
+neutralize = yes
+unit density = 1e+16
+append mode = true
+
+xboundary = ( periodic , periodic )
+yboundary = ( periodic , periodic )
+zboundary = ( absorbing , absorbing )
+
+// wp^-1 = 177.3 fs
+// c/wp = 53.14 um
+// E_br = 9.616 GV/m
+
+new grid
+{
+	corner = ( -32.0 , -0.50 , 0.0 )
+	dimensions = ( 128 , 1 , 512 )
+	cell size = ( 0.5 , 1.0 , 0.1 )
+	decomposition = ( 2 , 1 , 4 )
+}
+
+new coulomb electromagnetic module
+{
+	poisson boundary condition = ( open , open )
+}
+
+new pgc laser module
+{
+	carrier frequency = 31.0
+	propagator = adi
+}
+
+new pulse
+{
+	a = ( 0.2 , 0 , 0 )
+	direction = ( 0 , 0 , 1 )
+	focus position = ( 0 , 0 , 0 )
+	delay = 0
+	risetime = 40
+	holdtime = 0
+	falltime = 40
+	w = 30.5
+	r0 = ( 6 , 1e5 )
+}
+
+new pulse
+{
+	a = ( 0.2 , 0 , 0 )
+	direction = ( 0 , 0 , 1 )
+	focus position = ( 0 , 0 , 0 )
+	delay = 0
+	risetime = 40
+	holdtime = 0
+	falltime = 40
+	w = 31.5
+	r0 = ( 6 , 1e5 )
+}
+
+new fluid electrons
+{
+	charge = -1
+	mass = 1
+}
+
+generate piecewise electrons
+{
+	zpoints = { 0 10 41.2 51.2 }
+	zdensity = { 0 1 1 0 }
+	temperature = %1.0eV
+	shape = quintic
+}
+
+new box diagnostic
+{
+	filename = full
+	period = 100
+}
+
+new energy series
+{
+	period = 100
+}

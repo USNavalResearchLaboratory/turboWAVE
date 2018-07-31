@@ -1,0 +1,51 @@
+TurboWAVE-CAD setup for Anaconda
+
+0. Notes
+
+* Anaconda (almost) plays nicely with pythonocc, which is needed for CAD functions
+* Miniconda is better (a smaller Anaconda with less chance of package collisions)
+* This is all supposed to work the same on any platform
+
+1. Install Miniconda
+
+* If using Apple:
+   - Install XCode from App Store
+   - execute: xcode-select --install
+   - Install an X11 environment, e.g., XQuartz
+* Perform internet search to find Miniconda (Python3 version) installer and download
+* Run Miniconda (3.x) installer (execute: bash xxx, or sh xxx, where xxx is the .sh file).
+* Undefine PYTHONPATH variable (if defined)
+   - check login shells, such as .bash_profile
+* Close terminal window and open a new one
+
+2. Conda Environment
+
+* execute: conda create -n cad
+   - do not add any packages until cad is working
+* Here, "cad" can be some other name for the environment of your choice
+* execute: source activate cad
+The last line here activates the environment, so that all subsequent installations affect only it. Every time you enter a new shell you have to activate the virtual environment.
+
+IMPORTANT: Make sure you activate the environment for each terminal window you use
+
+3. Python Packages
+
+* The order here matters
+* execute: conda install -c dlr-sc -c oce -c pythonocc pythonocc-core
+* execute: conda install numpy
+
+4. Run TWCAD
+
+* Put the "stdin" you wish to render in a directory with twcad.py
+* It is safest to pare down stdin to the grid and region definitions, but in theory it is supposed to be able to parse any TW input file
+* execute: python twcad.py
+* A 3D CAD-type display should appear, showing every region that is defined.  You can use the mouse to rotate the view, and the wheel to zoom in and out.  The simulation domain is shown as a transparent box.
+* Maybe you don't want to see every region.  You can specify which regions to display by adding the region names to the command line, e.g., "python twcad.py my_region_1 my_region_2" would display only the two regions named.
+
+5. Exporting to STEP
+
+* Identify a region you want to export as a STEP file (you must pick one, but it may be compound)
+* Choose a name for the file
+* execute: python twcad.py [my_region] stepfile=[my_filename]
+* There may NOT be any spaces around the equals sign
+* Do include the extension .step in [my_filename]

@@ -1,0 +1,126 @@
+// radiation
+
+// new reaction = { e + N[+] -> N } rate = 4e-13 -0.5 0 e(:)
+// new reaction = { N2C -> N2B } rate = 2.8e7 0 0 N2C(:)
+// new reaction = { N2B -> N2A } rate = 1.5e5 0 0 N2B(:)
+
+// ionization and excitation
+
+new reaction = { N2 -> N2[+] : e -> e + e - 15.56 } rate = 7e-9 0.7 15.56 e(:30)
+new reaction = { N2 -> N2[+] : e -> e + e - 15.56 } rate = 4.5e-8 0.0 0.0 e(30:)
+new reaction = { e + N2[+] -> N + N[2D] + 3.51 } rate = 4.33e-8 -0.39 0.0 e(:)
+
+new reaction = { N2 -> N2A : e -> e - 6.17 } rate = 8.83e-9 -0.367 7.71 e(:8)
+new reaction = { N2 -> N2A : e -> e - 6.17 } rate = 1.02e-7 -1.135 14.51 e(8:)
+new reaction = { N2A -> N2 : e -> e + 6.17 } rate = 2.94e-9 -0.367 1.54 e(:8)
+new reaction = { N2A -> N2 : e -> e + 6.17 } rate = 3.40e-8 -1.135 8.34 e(8:)
+
+new reaction = { N2 -> N2B : e -> e - 7.35 } rate = 1.44e-8 -0.305 8.5 e(:4)
+new reaction = { N2 -> N2B : e -> e - 7.35 } rate = 6.78e-8 -0.89 11.46 e(4:)
+new reaction = { N2B -> N2 : e -> e + 7.35 } rate = 4.80e-9 -0.305 1.15 e(:4)
+new reaction = { N2B -> N2 : e -> e + 7.35 } rate = 2.26e-8 -0.89 4.11 e(4:)
+
+new reaction = { N2 -> N2C : e -> e - 11.0 } rate = 3.82e-8 -0.67 12.21 e(:5)
+new reaction = { N2 -> N2C : e -> e - 11.0 } rate = 1.16e-7 -1.06 14.67 e(5:)
+new reaction = { N2C -> N2 : e -> e + 11.0 } rate = 1.27e-8 -0.67 1.21 e(:5)
+new reaction = { N2C -> N2 : e -> e + 11.0 } rate = 3.88e-8 -1.06 3.67 e(5:)
+
+new reaction = { N2B -> N2C : e -> e - 3.65 } rate = 2.4e-8 -0.35 3.85 e(:)
+new reaction = { N2C -> N2B : e -> e + 3.65 } rate = 2.4e-8 -0.35 0.2 e(:)
+
+new reaction = { N2A -> N2B : e -> e - 1.18 } rate = 5.9e-9 -0.4 1.25 e(:)
+new reaction = { N2B -> N2A : e -> e + 1.18 } rate = 5.9e-9 -0.4 0.07 e(:)
+
+new reaction = { N2A -> N2[+] : e -> e + e - 9.39 } rate = 3.0e-9 1.2 9.41 e(:20)
+new reaction = { N2A -> N2[+] : e -> e + e - 9.39 } rate = 6.8e-8 0.0 0.0 e(20:)
+new reaction = { N2B -> N2[+] : e -> e + e - 8.21 } rate = 3.0e-9 1.2 8.23 e(:20)
+new reaction = { N2B -> N2[+] : e -> e + e - 8.21 } rate = 7.2e-8 0.0 0.0 e(20:)
+new reaction = { N2C -> N2[+] : e -> e + e - 4.56 } rate = 3.0e-9 1.2 4.58 e(:10)
+new reaction = { N2C -> N2[+] : e -> e + e - 4.56 } rate = 3.0e-8 0.0 0.0 e(10:)
+
+new reaction = { N2 + N2C -> N2 + N2B + 3.65v } rate = 1.1e-11 0 0 N2(:)
+new reaction = { N2 + N2B -> N2 + N2A + 1.18v } rate = 1.0e-11 0 0 N2(:)
+new reaction = { N2 + N2A -> N2 + N2 + 6.17v }	rate = 1.0e-12 0 0 N2(:)
+
+new reaction = { N -> N[2D] : e -> e - 2.37 } rate = 1.2e-8 0.07 2.79 e(:)
+new reaction = { N[2D] -> N : e -> e + 2.37 } rate = 0.6e-8 0.07 0.42 e(:)
+
+new reaction = { e + N2 + N[+] -> N2 + N + 14.54 } rate = 4e-31 -2.5 0 e(:)
+
+// multiple ionization of atomic nitrogen
+// reverse reactions from detailed balance
+
+new reaction = { N -> N[+] : e -> e + e - 14.54 } rate = 5.96e-9 0.67 15.0 e(:28)
+new reaction = { N -> N[+] : e -> e + e - 14.54 } rate = 3.47e-7 -0.2 47.5 e(28:)
+new reaction = { e + e + N[+] -> N + e + 14.54 } rate = 1.32e-30 -0.83 0.44 e(:28)
+new reaction = { e + e + N[+] -> N + e + 14.54 } rate = 7.66e-29 -1.7 33.0 e(28:)
+
+new reaction = { N[2D] -> N[+] : e -> e + e - 12.17 } rate = 5.96e-9 0.67 15.0 e(:28)
+new reaction = { N[2D] -> N[+] : e -> e + e - 12.17 } rate = 3.47e-7 -0.2 47.5 e(28:)
+
+new reaction = { N[+] -> N[2+] : e -> e + e - 29.6 } rate = 6.12e-9 0.42 30.6 e(:28)
+new reaction = { N[+] -> N[2+] : e -> e + e - 29.6 } rate = 1.11e-7 -0.17 56.1 e(28:)
+new reaction = { e + e + N[2+] -> N[+] + e + 29.6 } rate = 2.53e-30 -1.1 0.98 e(:28)
+new reaction = { e + e + N[2+] -> N[+] + e + 29.6 } rate = 4.59e-29 -1.7 26.5 e(28:)
+
+new reaction = { N[2+] -> N[3+] : e -> e + e - 47.5 } rate = 3.47e-9 0.35 50.9 e(:28)
+new reaction = { N[2+] -> N[3+] : e -> e + e - 47.5 } rate = 3.56e-8 -0.12 71.9 e(28:)
+new reaction = { e + e + N[3+] -> N[2+] + e + 47.5 } rate = 3.45e-30 -1.15 3.41 e(:28)
+new reaction = { e + e + N[3+] -> N[2+] + e + 47.5 } rate = 3.54e-29 -1.6 24.5 e(28:)
+
+new reaction = { N[3+] -> N[4+] : e -> e + e - 77.5 } rate = 2.08e-9 0.22 80.0 e(:40)
+new reaction = { N[3+] -> N[4+] : e -> e + e - 77.5 } rate = 1.01e-8 -0.07 100.3 e(40:)
+new reaction = { e + e + N[4+] -> N[3+] + e + 77.5 } rate = 1.72e-31 -1.28 2.49 e(:40)
+new reaction = { e + e + N[4+] -> N[3+] + e + 77.5 } rate = 8.35e-31 -1.57 22.8 e(40:)
+
+new reaction = { N[4+] -> N[5+] : e -> e + e - 97.9 } rate = 7.08e-10 0.21 101.0 e(:50)
+new reaction = { N[4+] -> N[5+] : e -> e + e - 97.9 } rate = 2.69e-9 -0.02 122.2 e(50:)
+new reaction = { e + e + N[5+] -> N[4+] + e + 97.9 } rate = 2.35e-31 -1.29 3.12 e(:50)
+new reaction = { e + e + N[5+] -> N[4+] + e + 97.9 } rate = 8.90e-31 -1.52 24.3 e(50:)
+
+// dissociation
+
+new reaction = { N2 + N2 -> N2 + N + N[2D] - 12.13 } rate = 7.4e-9 -0.75 9.75 N2(:)
+new reaction = { N2 + N -> N + N + N[2D] - 12.13 } rate = 4.0e-8 -1.5 9.75 N2(:)
+new reaction = { N2 + N[2D] -> N[2D] + N + N[2D] - 12.13 } rate = 4.0e-8 -1.5 9.75 N2(:)
+new reaction = { N2A + N2 -> N2 + N + N[2D] - 5.96 } rate = 7.4e-9 -0.75 3.58 N2(:)
+new reaction = { N2B + N2 -> N2 + N + N[2D] - 4.78 } rate = 7.4e-9 -0.75 3.58 N2(:)
+new reaction = { N2C + N2 -> N2 + N + N[2D] - 1.13 } rate = 7.4e-9 -0.75 3.58 N2(:)
+new reaction = { N2A + N[2D] -> N[2D] + N + N[2D] - 5.96 } rate = 4.0e-8 -1.5 3.58 N2(:)
+new reaction = { N2B + N[2D] -> N[2D] + N + N[2D] - 4.78 } rate = 4.0e-8 -1.5 3.58 N2(:)
+new reaction = { N2C + N[2D] -> N[2D] + N + N[2D] - 1.13 } rate = 4.0e-8 -1.5 3.58 N2(:)
+
+new reaction = { N2 -> N + N[2D] : e -> e - 12.13 } rate = 1.54e-8 0.45 12.11 e(:25)
+new reaction = { N2 -> N + N[2D] : e -> e - 12.13 } rate = 4.04e-8 0.0 0.0 e(25:)
+new reaction = { N2A -> N + N : e -> e - 3.59 } rate = 1.54e-8 0.45 8.46 e(:25)
+new reaction = { N2A -> N + N : e -> e - 3.59 } rate = 4.67e-8 0.0 0.0 e(25:)
+new reaction = { N2B -> N + N[2D] : e -> e - 4.88 } rate = 1.54e-8 0.45 8.11 e(:25)
+new reaction = { N2B -> N + N[2D] : e -> e - 4.88 } rate = 4.74e-8 0.0 0.0 e(25:)
+
+// association
+
+new reaction = { N + N + N2 -> N2 + N2 + 9.75 } rate = 2.3e-34 -0.75 0 N2(:)
+new reaction = { N + N + N2 -> N2A + N2 + 3.58 } rate = 4.6e-34 -0.75 0 N2(:)
+new reaction = { N + N + N -> N2 + N + 9.75 } rate = 1.2e-33 -1.5 0 N2(:)
+new reaction = { N + N + N -> N2A + N + 3.58 } rate = 2.4e-33 -1.5 0 N2(:)
+
+// charge exchange
+
+new reaction = { N + N2[+] -> N[+] + N2 + 1.04 } rate = 1.0e-12 0 0 N(:)
+
+// electronically excited vibrations
+
+new excitation = e -> N2  level = 1  rate = -4.04e-9,1.85e-8,-7.21e-9,1.43e-9,1.1
+new excitation = e -> N2  level = 2  rate = -2.84e-9,1.2e-8,-4.57e-9,8.76e-10,1.08
+new excitation = e -> N2  level = 3  rate = -1.75e-9,7.46e-9,-2.89e-9,5.55e-10,1.09
+new excitation = e -> N2  level = 4  rate = -1.25e-9,5.13e-9,-1.94e-9,3.64e-10,1.07
+new excitation = e -> N2  level = 5  rate = -9.69e-10,3.82e-9,-1.38e-9,2.51e-10,1.04
+new excitation = e -> N2  level = 6  rate = -7.64e-10,2.89e-9,-1.01e-9,1.74e-10,0.992
+new excitation = e -> N2  level = 7  rate = -5.64e-10,2.1e-9,-7.22e-10,1.24e-10,0.983
+new excitation = e -> N2  level = 8  rate = -1.82e-10,6.33e-10,-2.04e-10,3.26e-11,0.909
+
+// heavy particle excited vibrations
+
+new excitation = N2 -> N2  level = 0  rate = 8.5e-7 , 12.06
+
+

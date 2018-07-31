@@ -1,0 +1,41 @@
+// Best case scenario performance benchmark
+// 3D pusher with cubic shape = quadratic weights
+// Intel Xeon 16-core (Broadwell)
+// 62M pushes per second
+steps = 300
+timestep = 0.02
+dump period = 0
+moving window = no
+neutralize = yes
+unit density = 1e19
+
+xboundary = ( periodic , periodic )
+yboundary = ( periodic , periodic )
+zboundary = ( periodic , periodic )
+
+// wp^-1 = 5.60883 fs
+// c/wp = 1.68265 um
+// E_br = 304.208 GV/m
+
+new grid
+{
+	corner = ( 0.0 , 0.0 , 0.0 )
+	dimensions = ( 64 , 64 , 32 )
+	cell size = ( 0.05 , 0.05 , 0.05 )
+	decomposition = ( 4 , 4 , 2 )
+}
+
+new direct electromagnetic module
+{
+}
+
+new species e
+{
+	particles per cell = 4 4 4 when density = 1
+}
+
+generate uniform e
+{
+	density = 1
+}
+

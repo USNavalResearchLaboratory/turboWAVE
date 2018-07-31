@@ -1,0 +1,1142 @@
+// CI = collisional ionization
+// AI = associative ionization
+// R = recombination
+// NREC = neutral recombination
+// TD = thermal dissociation
+// DR = dissociative recombination
+// CE = charge exchange
+// DCE = dissociative charge exchange 
+// IMR = ion-molecule rearrangement
+// NR = neutral rearrangement
+// IR = ion recombination  
+// EX = de-excitation/excitation
+// DET = detachment 
+// DA = dissociative attachment
+// A = attachment
+
+// nitrogen.txt
+new reaction = { N2C -> N2[+] : e -> e + e - 4.56 } rate = 3.0e-9 1.2 4.58 e(:10) //CI1.1//
+new reaction = { N2C -> N2[+] : e -> e + e - 4.56 } rate = 3.0e-8 0.0 0.0 e(10:) //CI1.2//
+new reaction = { e + N2 + N[+] -> N2 + N + 14.54 } rate = 4e-31 -2.5 0 e(:) //R1//
+new reaction = { e + e + N[+] -> N + e + 14.54 } rate = 1.32e-30 -0.83 0.44 e(:28) //R2.1// 
+new reaction = { e + e + N[+] -> N + e + 14.54 } rate = 7.66e-29 -1.7 33.0 e(28:) //R2.2//
+new reaction = { N[+] -> N[2+] : e -> e + e - 29.6 } rate = 6.12e-9 0.42 30.6 e(:28) //CI3.1//
+new reaction = { N[+] -> N[2+] : e -> e + e - 29.6 } rate = 1.11e-7 -0.17 56.1 e(28:) //CI3.2//
+new reaction = { e + e + N[2+] -> N[+] + e + 29.6 } rate = 2.53e-30 -1.1 0.98 e(:28) //R3.1//
+new reaction = { e + e + N[2+] -> N[+] + e + 29.6 } rate = 4.59e-29 -1.7 26.5 e(28:) //R3.2//
+new reaction = { N[2+] -> N[3+] : e -> e + e - 47.5 } rate = 3.47e-9 0.35 50.9 e(:28) //CI4.1//
+new reaction = { N[2+] -> N[3+] : e -> e + e - 47.5 } rate = 3.56e-8 -0.12 71.9 e(28:) //CI4.2//
+new reaction = { e + e + N[3+] -> N[2+] + e + 47.5 } rate = 3.45e-30 -1.15 3.41 e(:28) //R4.1//
+new reaction = { e + e + N[3+] -> N[2+] + e + 47.5 } rate = 3.54e-29 -1.6 24.5 e(28:) //R4.2//
+new reaction = { N[3+] -> N[4+] : e -> e + e - 77.5 } rate = 2.08e-9 0.22 80.0 e(:40) //CI5.1//
+new reaction = { N[3+] -> N[4+] : e -> e + e - 77.5 } rate = 1.01e-8 -0.07 100.3 e(40:) //CI5.2//
+new reaction = { e + e + N[4+] -> N[3+] + e + 77.5 } rate = 1.72e-31 -1.28 2.49 e(:40) //R5.1//
+new reaction = { e + e + N[4+] -> N[3+] + e + 77.5 } rate = 8.35e-31 -1.57 22.8 e(40:) //R5.2//
+new reaction = { N[4+] -> N[5+] : e -> e + e - 97.9 } rate = 7.08e-10 0.21 101.0 e(:50) //CI6.1//
+new reaction = { N[4+] -> N[5+] : e -> e + e - 97.9 } rate = 2.69e-9 -0.02 122.2 e(50:) //CI6.2//
+new reaction = { e + e + N[5+] -> N[4+] + e + 97.9 } rate = 2.35e-31 -1.29 3.12 e(:50) //R6.1//
+new reaction = { e + e + N[5+] -> N[4+] + e + 97.9 } rate = 8.90e-31 -1.52 24.3 e(50:) //R6.2//
+
+// oxygen.txt
+new reaction = { O[+] + e + e -> O + e + 13.62 } rate = 2.59e-30 -1.07 1.13 e(:28) //R7.1//
+new reaction = { O[+] + e + e -> O + e + 13.62 } rate = 4.39e-29 -1.65 26.25 e(28:) //R7.2//
+new reaction = { O[+] -> O[2+] : e -> e + e - 35.12 } rate = 5.87e-9 0.41 36.84 e(:28) //CI7.1//
+new reaction = { O[+] -> O[2+] : e -> e + e - 35.12 } rate = 9.31e-8 -0.14 63.20 e(28:) //CI7.2//
+new reaction = { O[2+] + e + e -> O[+] + e + 35.12 } rate = 9.72e-31 -1.09 1.72 e(:28) //R8.1//
+new reaction = { O[2+] + e + e -> O[+] + e + 35.12 } rate = 1.54e-29 -1.64 28.08 e(28:) //R8.2//
+new reaction = { O[2+] -> O[3+] : e -> e + e - 54.94 } rate = 2.02e-9 0.45 55.94 e(:28) //CI8.1//
+new reaction = { O[2+] -> O[3+] : e -> e + e - 54.94 } rate = 3.04e-8 -0.08 82.22 e(28:) //CI8.2//
+new reaction = { O[3+] + e + e -> O[2+] + e + 54.94 } rate = 3.35e-31 -1.05 1.00 e(:28) //R9.1//
+new reaction = { O[3+] + e + e -> O[2+] + e + 54.94 } rate = 5.04e-30 -1.58 27.28 e(28:) //R9.2//
+new reaction = { O + O + O -> O2 + O + 5.11 } rate = 1.9e-33 -0.50 0.0 O(:) //NREC1//
+new reaction = { O2 + O2 -> O + O + O2 -5.11 } rate = 5.8e-9 -0.83 5.12 O2(:) //TD1//
+new reaction = { O + O + O2 -> O2 + O2 + 5.11 } rate = 8.6e-34 -0.33 0.0 O(:) //NREC2//
+
+// first page 
+new reaction = { N2 + N2 + N[+] -> N3[+] + N2 } rate = 1.25e-32 -2.00 0.00 N2(:) //IR1//
+new reaction = { N2 + N2 + N2[+] -> N4[+] + N2 } rate = 1.5e-32 -2.20 0.00 N2(:) //IR2//
+new reaction = { O2 + N2 + O2[+] -> O4[+] + N2 } rate = 3.3e-35 -3.20 0.00 N2(:) //IR3//
+new reaction = { O2 + O2 + O2[+] -> O4[+] + O2 } rate = 9.0e-35 -2.80 0.00 O2(:) //IR4//
+new reaction = { H2O + O2[+] + N2 -> O2[+].H2O + N2 } rate = 1.27e-34 -4.00 0.00 H2O(:) //IR5//
+new reaction = { H2O + O2[+] + N -> O2[+].H2O + N } rate = 1.27e-34 -4.00 0.00 H2O(:)  //IR6//
+new reaction = { H2O + O2[+] + O2 -> O2[+].H2O + O2 } rate = 1.27e-34 -4.00 0.00 H2O(:) //IR7//
+new reaction = { H2O + O2[+] + O -> O2[+].H2O + O } rate = 1.27e-34 -4.00 0.00 H2O(:)  //IR8//
+new reaction = { H2O + O2[+] + NO -> O2[+].H2O + NO } rate = 1.27e-34 -4.00 0.00 H2O(:) //IR9//
+new reaction = { H2O + O2[+] + N[2D] -> O2[+].H2O + N[2D] } rate = 1.27e-34 -4.00 0.00 H2O(:) //IR9-1//
+new reaction = { H2O + O2[+] + O2Delta -> O2[+].H2O + O2Delta } rate = 1.27e-34 -4.00 0.00 H2O(:) //IR9-2//
+new reaction = { H2O + O2[+] + O3 -> O2[+].H2O + O3 } rate = 1.27e-34 -4.00 0.00 H2O(:) //IR9-3//
+new reaction = { H2O + O2[+] + H2O -> O2[+].H2O + H2O } rate = 1.27e-34 -4.00 0.00 H2O(:) //IR9-4//
+new reaction = { H2O + O2[+] + NO2 -> O2[+].H2O + NO2 } rate = 1.27e-34 -4.00 0.00 H2O(:) //IR9-5//
+new reaction = { H2O + O2[+] + CO2 -> O2[+].H2O + CO2 } rate = 1.27e-34 -4.00 0.00 H2O(:) //IR9-6//
+new reaction = { H2O + O2[+] + N2A -> O2[+].H2O + N2A } rate = 1.27e-34 -4.00 0.00 H2O(:) //IR9-7//
+new reaction = { H2O + O2[+] + N2B -> O2[+].H2O + N2B } rate = 1.27e-34 -4.00 0.00 H2O(:) //IR9-8//
+new reaction = { H2O + O2[+] + N2C -> O2[+].H2O + N2C } rate = 1.27e-34 -4.00 0.00 H2O(:) //IR9-9//
+new reaction = { H2O + N2 + H3O[+] -> H3O[+].H2O + N2 } rate = 1.4e-33 -4.00 0.00 N2(:) //IR10//
+new reaction = { H2O + O2 + H3O[+] -> H3O[+].H2O + O2 } rate = 1.0e-33 -4.0 0.00 H2O(:) //IR11//
+new reaction = { H2O + N2 + NO[+] -> NO[+].H2O + N2 } rate = 5.6e-35 -4.00 0.00 N2(:) //IR12//
+new reaction = { H2O + O2 + NO[+] -> NO[+].H2O + O2 } rate = 6.25e-32 -2.00 0.00 H2O(:) //IR13//
+
+// second page - XX4 in source code (pctd1.f 1112)
+new reaction = { N2 + N2 -> N2 + N + N[2D] - 12.13 } rate = 7.4e-9 -0.75 9.75 N2(:) //TD2//
+new reaction = { N2 + O2 -> O2 + N + N[2D] - 12.13 } rate = 2.2e-9 -0.82 9.75 N2(:) //TD3//
+new reaction = { N2 + O2Delta -> O2Delta + N + N[2D] - 12.13 } rate = 2.2e-9 -0.82 9.75 N2(:)//TD4//
+new reaction = { N2 + NO -> NO + N + N[2D] - 12.13 } rate = 2.2e-9 -0.82 9.75 N2(:) //TD5//
+new reaction = { N2 + O -> O + N + N[2D] - 12.13 } rate = 2.2e-9 -0.82 9.75 N2(:) //TD6//  
+new reaction = { N2 + N -> N + N + N[2D] - 12.13 } rate = 4.0e-8 -1.50 9.75 N2(:) //TD7//
+new reaction = { N2 + N[2D] -> N[2D] + N + N[2D] - 12.13 } rate = 4.0e-8 -1.50 9.75 N2(:) //TD7-1//
+
+// second page second section - XX5 in source code (pctd1.f 1113)
+new reaction = { N2 + O2 -> N2 + O + O - 5.12 } rate = 2.7e-10 -1.70 5.12 N2(:) //TD8//
+new reaction = { N2 + O2Delta -> N2 + O + O - 5.12 } rate = 2.7e-10 -1.70 5.12 N2(:) //TD9//
+new reaction = { O2 + O2 -> O2 + O + O - 5.12 } rate = 5.8e-9 -0.83 5.12 O2(:) //TD10//
+new reaction = { O2 + O2Delta -> O2 + O + O - 5.12 } rate = 5.8e-9 -0.83 5.12 O2(:) //TD11//
+new reaction = { O + O2 -> O + O + O - 5.12 } rate = 1.3e-8 -1.00 5.12 O2(:) //TD12//
+new reaction = { O + O2Delta -> O + O + O - 5.12 } rate = 1.3e-8 -1.00 5.12 O2(:) //TD13//
+new reaction = { NO + O2 -> NO + O + O - 5.12 } rate = 1.16e-10 -1.80 5.12 O2(:) //TD14//
+new reaction = { NO + O2Delta -> NO + O + O - 5.12 } rate = 1.16e-10 -1.80 5.12 O2(:) //TD15//
+new reaction = { N + O2 -> N + O + O - 5.12 } rate = 1.16e-10 -1.80 5.12 O2(:) //TD16//  
+new reaction = { N[2D] + O2 -> N[2D] + O + O - 5.12 } rate = 1.16e-10 -1.80 5.12 O2(:) //TD17//  
+new reaction = { N + O2Delta -> N + O + O - 5.12 } rate = 1.16e-10 -1.80 5.12 O2(:) //TD18//
+new reaction = { N[2D] + O2Delta -> N[2D] + O + O - 5.12 } rate = 1.16e-10 -1.80 5.12 O2(:) //TD19//
+
+// second page third section - XX6 in source code (pctd1.f 1114)
+new reaction = { N2 + NO -> N2 + N + O - 7.68 } rate = 7.5e-5 0.00 6.5 N2(:) //TD20//
+new reaction = { N2 + NO -> N2 + N[2D] + O - 7.68 } rate = 7.5e-5 0.00 6.5 N2(:) //TD21//
+new reaction = { O2 + NO -> O2 + N + O - 7.68 } rate = 7.5e-5 0.00 6.5 O2(:) //TD22//
+new reaction = { O2Delta + NO -> O2 + N + O - 7.68 } rate = 7.5e-5 0.00 6.5 O2(:) //TD23//
+new reaction = { O2 + NO -> O2 + N[2D] + O - 7.68 } rate = 7.5e-5 0.00 6.5 O2(:) //TD24//
+new reaction = { O2Delta + NO -> O2 + N[2D] + O - 7.68 } rate = 7.5e-5 0.00 6.5 O2(:) //TD25//
+new reaction = { N + NO -> N + N + O - 7.68 } rate = 5.025e-9 -1.50 6.5 NO(:) //TD26//
+new reaction = { N + NO -> N + N[2D] + O - 7.68 } rate = 5.025e-9 -1.50 6.5 NO(:) //TD27//
+new reaction = { O + NO -> O + N + O - 7.68 } rate = 5.025e-9 -1.50 6.5 NO(:) //TD28//
+new reaction = { O + NO -> O + N[2D] + O - 7.68 } rate = 5.025e-9 -1.50 6.5 NO(:) //TD29//
+new reaction = { NO + NO -> NO + N + O - 7.68 } rate = 5.025e-9 -1.50 6.5 NO(:) //TD30//
+new reaction = { NO + NO -> NO + N[2D] + O - 7.68 } rate = 5.025e-9 -1.50 6.5 NO(:) //TD31//
+
+// second page, fourth section 
+new reaction = { N2A + N2 -> N2 + N + N[2D] - 5.96 } rate = 7.4e-9 -0.75 3.65 N2(:) //TD32//
+new reaction = { N2A + N[2D] -> N[2D] + N + N[2D] - 5.96 } rate = 4.0e-8 -1.5 3.65 N2(:) //TD33//
+new reaction = { N2A + N -> N + N + N[2D] - 5.96 } rate = 4.0e-8 -1.5 3.65 N(:) //TD34//
+new reaction = { N2A + O2 -> O2 + N + N[2D] - 5.96} rate = 2.2e-9 -0.82 3.65 O2(:) //TD35//
+new reaction = { N2A + O -> O + N + N[2D] - 5.96} rate = 2.2e-9 -0.82 3.65 O(:) //TD36//
+new reaction = { N2A + NO -> NO + N + N[2D] - 5.96} rate = 2.2e-9 -0.82 3.65 NO(:) //TD37//
+new reaction = { N2B + N2 -> N2 + N + N[2D] - 4.78 } rate = 7.4e-9 -0.75 3.65 N2(:) //TD38//
+new reaction = { N2B + N[2D] -> N[2D] + N + N[2D] - 4.78 } rate = 4.0e-8 -1.5 3.65 N2(:) //TD39//
+new reaction = { N2B + N -> N + N + N[2D] - 4.78 } rate = 4.0e-8 -1.5 3.65 N(:) //TD40//
+new reaction = { N2B + O2 -> O2 + N + N[2D] - 4.78 } rate = 2.2e-9 -0.82 3.65 O2(:) //TD41//
+new reaction = { N2B + O -> O + N + N[2D] - 4.78 } rate = 2.2e-9 -0.82 3.65 O(:) //TD42//
+new reaction = { N2B + NO -> NO + N + N[2D] - 4.78 } rate = 2.2e-9 -0.82 3.65 NO(:) //TD43//
+new reaction = { N2C + N2 -> N2 + N + N[2D] - 1.13 } rate = 7.4e-9 -0.75 3.65 N2(:) //TD44//
+new reaction = { N2C + N[2D] -> N[2D] + N + N[2D] - 1.13 } rate = 4.0e-8 -1.5 3.65 N2(:) //TD45//
+new reaction = { N2C + N -> N + N + N[2D] - 1.13 } rate = 4.0e-8 -1.5 3.65 N(:) //TD46//
+new reaction = { N2C + O2 -> O2 + N + N[2D] - 1.13 } rate = 2.2e-9 -0.82 3.65 O2(:) //TD47//
+new reaction = { N2C + O -> O + N + N[2D] - 1.13 } rate = 2.2e-9 -0.82 3.65 O(:) //TD48//
+new reaction = { N2C + NO -> NO + N + N[2D] - 1.13 } rate = 2.2e-9 -0.82 3.65 NO(:) //TD49//
+new reaction = { N2 + N[2D] -> N + N[2D] + N[2D] - 12.13 } rate = 4.0e-8 -1.50 9.75 N2(:) //TD50//
+
+// third page 
+new reaction = { O2 + N[+] -> O2[+] + N[2D] + 2.48 } rate = 2.8e-10 0.00 0.00 N[+](:) //CE1//CHMAIR memo has N instead of N[2D], which is not in CHMAIR source code (pctd1.f 346)
+new reaction = { O2Delta + N[+] -> O2[+] + N[2D] + 3.46 } rate = 2.8e-10 0.00 0.00 N[+](:) //CE2//
+new reaction = { O2 + N2[+] -> O2[+] + N2 + 3.52 } rate = 2.7e-11 -0.8 0.00 N2[+](:0.3) //CE3.1//
+new reaction = { O2 + N2[+] -> O2[+] + N2 + 3.52 } rate = 4.2e-11 1.4 0.00 N2[+](0.3:) //CE3.2//
+new reaction = { O2Delta + N2[+] -> O2[+] + N2 + 4.5 } rate = 2.7e-11 -0.8 0.00 N2[+](:0.3) //CE4.1//
+new reaction = { O2Delta + N2[+] -> O2[+] + N2 + 4.5 } rate = 4.2e-11 1.4 0.00 N2[+](0.3:) //CE4.2//
+new reaction = { O2 + N3[+] -> NO[+] + N2 + O + 6.66 } rate = 8.8e-12 -0.52 0.00 N3[+](:) //IMR1//rate checked with source code: pctc1.f:404
+new reaction = { O2Delta + N3[+] -> NO[+] + N2 + O + 7.64 } rate = 8.8e-12 -0.52 0.00 N3[+](:) //IMR2//
+new reaction = { O2 + N4[+] -> O2[+] + N2 + N2 + 3.52 } rate = 2.5e-10 0.00 0.00 O2(:) //DCE1//  
+new reaction = { O2Delta + N4[+] -> O2[+] + N2 + N2 + 4.5 } rate = 2.5e-10 0.00 0.00 O2(:) //DCE2//
+new reaction = { O2 + O[+] -> O2[+] + O + 1.5 } rate = 4.6e-12 -0.4 0.00 O[+](:0.15) //CE5.1//
+new reaction = { O2 + O[+] -> O2[+] + O + 1.5 } rate = 1.0e-10 1.2 0.00 O[+](0.15:) //CE5.2//
+new reaction = { O2Delta + O[+] -> O2[+] + O + 2.48 } rate = 4.6e-12 -0.4 0.00 O[+](:0.15) //CE6.1//
+new reaction = { O2Delta + O[+] -> O2[+] + O + 2.48 } rate = 1.0e-10 1.2 0.00 O[+](0.15:) //CE6.2//
+new reaction = { N2 + O[+] -> NO[+] + N + 1.12 } rate = 3.1e-11 -1.00 0.00 N2(:0.65) //IMR3.1//
+new reaction = { N2 + O[+] -> NO[+] + N + 1.12 } rate = 1.2e-10 2.00 0.00 N2(0.65:0.67) //IMR3.2//
+new reaction = { N2 + O[+] -> NO[+] + N + 1.12 } rate = 8.5e-11 1.20 0.00 N2(0.67:)//IMR3.3//
+new reaction = { O2 + H2O[+] -> O2[+].H2O + 0.55 } rate = 2e-10 0.00 0.00 H2O[+](:) //CE7// ? .H2O is crossed out in notes
+new reaction = { O2Delta + H2O[+] -> O2[+].H2O + 1.53 } rate = 2e-10 0.00 0.00 H2O[+](:) //CE8// ? .H2O is crossed out in notes
+new reaction = { H2O + N[+] -> H2O[+] + N + 1.93 } rate = 2.8e-9 0.00 0.00 H2O(:) //CE9//rate confirmed in pctb1.f:890 
+new reaction = { H2O + N2[+] -> H2O[+] + N2 + 2.97 } rate = 2.8e-9 0.00 0.00 H2O(:) //CE10//
+new reaction = { H2O + N3[+] -> H2O[+] + N2 + N + 1.94 } rate = 3.3e-10 0.00 0.00 H2O(:) //CE11//rate confirmed in pctb1.f:892
+new reaction = { H2O + N4[+] -> H2O[+] + N2 + N2 + 2.97 } rate = 3.0e-9 0.00 0.00 H2O(:) //CE12//
+new reaction = { H2O + O[+] -> H2O[+] + O + 1.0 } rate = 5.2e-9 0.00 0.00 H2O(:) //CE13//
+new reaction = { H2O + O[+][2D] -> H2O[+] + O + 4.3 } rate = 5.2e-9 0.00 0.00 H2O(:) //CE14// 
+new reaction = { O2 + O[+][2D] -> O2[+] + O + 4.88 } rate = 3.0e-10 0.00 0.00 O2(:) //CE15//
+new reaction = { O2Delta + O[+][2D] -> O2[+] + O + 5.86 } rate = 3.0e-10 0.00 0.00 O2Delta(:) //CE16//
+new reaction = { O2 + N[2D] -> O + NO + 3.7 } rate = 4.7e-11 0.5 0.00 N[2D](:) //NR1//
+new reaction = { O2Delta + N[2D] -> O + NO + 4.68 } rate = 4.7e-11 0.5 0.00 N[2D](:) //NR2//
+new reaction = { N2 + O -> N + NO - 3.25 } rate = 1.3e-10 0.00 3.27 N2(:) //NR3//
+new reaction = { NO + N -> N2 + O + 3.25 } rate = 8.2e-11 0.00 0.035 NO(:)  //NR4//
+new reaction = { NO + N[2D] -> N2 + O + 5.62 } rate = 8.2e-11 0.00 0.035 NO(:) //NR5//
+new reaction = { N + O2 -> O + NO + 1.5 } rate = 1.3e-10 1.00 0.27 N(:) //NR6//
+new reaction = { N + O2Delta -> O + NO + 2.38 } rate = 1.3e-10 1.00 0.00 N(:) //NR7//
+new reaction = { NO + O -> N + O2 - 1.4 } rate = 2.9e-11 1.00 1.68 NO(:) //NR8//
+new reaction = { NO + O2[+] -> NO[+] + O2 + 2.8 } rate = 4.4e-10 0.00 0.00 NO(:) //NR9//
+
+// fourth page
+new reaction = { O[+][2D] + NO -> NO[+] + O + 7.68 } rate = 1.0e-11 0.00 0.00 NO(:) //CE17//
+new reaction = { O[+] + NO -> NO[+] + O + 4.3 } rate = 2.5e-13 0.00 0.00 NO(:) //CE18//
+new reaction = { N[2D] + O -> NO[+] + e - 0.39 } rate = 1.57e-12 1.00 0.38 O(:) //AI1//rate from source code: pctd1.f:1892
+new reaction = { N + O -> NO[+] + e - 2.76 } rate = 3.92e-12 1.00 2.76 O(:) //AI2//rate from source code: pctd1.f:1893
+new reaction = { N + N2[+] -> N[+] + N2 + 1.04 } rate = 1.0e-12 0.00 0.00 N2[+](:) //CE19//
+new reaction = { N[2D] + N2[+] -> N[+] + N2 + 3.41 } rate = 1.0e-12 0.00 0.00 N2[+](:) //CE20//
+new reaction = { NO + N2[+] -> N2 + NO[+] + 6.42 } rate = 3.3e-10 0.00 0.00 NO(:) //CE21//
+new reaction = { NO + O4[+] -> NO[+] + O2 + O2 + 2.80 } rate = 5.0e-10 0.00 0.00 NO(:) //DCE3//
+new reaction = { N2 + O[+][2D] -> N2[+] + O + 1.36 } rate = 5.0e-10 0.00 0.00 N2(:) //CE22//
+new reaction = { O + N2[+] -> NO[+] + N[2D] + 0.69 } rate = 2.8e-11 -0.44 0.00 O(:0.13) //IMR4.1,1//
+new reaction = { O + N2[+] -> NO[+] + N[2D] + 0.69 } rate = -4.2e-12 -0.23 0.00 O(:0.13) //IMR4.1,2//
+new reaction = { O + N2[+] -> NO[+] + N[2D] + 0.69 } rate = 1.1e-10 0.2 0.00 O(0.13:) //IMR4.2,1//
+new reaction = { O + N2[+] -> NO[+] + N[2D] + 0.69 } rate = 1.62e-11 0.41 0.00 O(0.13:) //IMR4.2,2//
+new reaction = { O + N2[+] -> O[+] + N2 + 1.92 } rate = 4.2e-12 -0.23 0.00 O(:0.13) //CE23.1//
+new reaction = { O + N2[+] -> O[+] + N2 + 1.92 } rate = 1.62e-11 0.41 0.00 O(0.13:) //CE23.2//
+new reaction = { O + N[+] -> O[+] + N + 0.90 } rate = 1.0e-12 0.00 0.00 O(:) //CE24//rate checked in source code: pctb1.f:903
+new reaction = { NO + N[+] -> NO[+] + N + 5.30 } rate = 9.0e-10 0.00 0.00 NO(:) //CE25//rate checked in source code: pctb1.f:904
+new reaction = { N + O2[+] -> NO[+] + O + 4.18 } rate = 1.2e-10 0.00 0.00 O2[+](:) //IMR5//
+new reaction = { N[2D] + O2[+] -> NO[+] + O + 6.55 } rate = 1.2e-10 0.00 0.00 O2[+](:) //IMR6//
+new reaction = { N[+] + O2 -> NO[+] + O + 6.66 } rate = 3.1e-10 0.00 0.00 N(:) //IMR7//rate checked in source code: pctb1.f:906
+new reaction = { N[+] + O2Delta -> NO[+] + O + 7.64 } rate = 3.1e-10 0.00 0.00 N(:) //IMR8//
+new reaction = { O + O2[-] -> O[-] + O2 } rate = 1.5e-10 0.00 0.00 O(:) //IMR9//
+new reaction = { N + O2[-] -> O[-] + NO + 1.38 } rate = 1.6e-10 0.00 0.00 O2[-](:) //IMR10// 
+new reaction = { N[2D] + O2[-] -> O[-] + NO + 3.75 } rate = 1.6e-10 0.00 0.00 O2[-](:) //IMR11//
+
+// fifth page 
+new reaction = { N + N + N2 -> N2 + N2 + 9.75 } rate = 2.3e-34 -0.75 0.00 N2(:) //NREC3//
+new reaction = { N + N[2D] + N2 -> N2 + N2 + 9.75 } rate = 2.3e-34 -0.75 0.00 N2(:) //NREC4//
+new reaction = { N[2D] + N[2D] + N2 -> N2 + N2 + 9.75 } rate = 2.3e-34 -0.75 0.00 N2(:) //NREC5//
+new reaction = { N + N + N2 -> N2A + N2 + 3.58 } rate = 4.6e-34 -0.75 0.00 N2(:) //NREC6//
+new reaction = { N + N[2D] + N2 -> N2A + N2 + 3.58 } rate = 4.6e-34 -0.75 0.00 N2(:) //NREC7//
+new reaction = { N[2D] + N[2D] + N2 -> N2A + N2 + 3.58 } rate = 4.6e-34 -0.75 0.00 N2(:) //NREC8//
+new reaction = { N + N + N -> N2 + N + 9.75 } rate = 1.23333e-33 -1.5 0.00 N(:) //NREC9//
+new reaction = { N + N + N -> N2 + N[2D] + 9.75 } rate = 1.23333e-33 -1.5 0.00 N(:) //NREC10//
+new reaction = { N + N[2D] + N[2D] -> N2 + N + 9.75 } rate = 1.23333e-33 -1.5 0.00 N(:) //NREC11//
+new reaction = { N + N[2D] + N[2D] -> N2 + N[2D] + 9.75 } rate = 1.23333e-33 -1.5 0.00 N(:) //NREC12//
+new reaction = { N + N + N[2D] -> N2 + N + 9.75 } rate = 1.23333e-33 -1.5 0.00 N(:) //NREC13//
+new reaction = { N + N + N[2D] -> N2 + N[2D] + 9.75 } rate = 1.23333e-33 -1.5 0.00 N(:) //NREC14//
+new reaction = { N + N + N -> N2A + N + 3.58 } rate = 2.466666e-33 -1.5 0.00 N(:) //NREC15//
+new reaction = { N + N + N -> N2A + N[2D] + 3.58 } rate = 2.466666e-33 -1.5 0.00 N(:) //NREC16//
+new reaction = { N + N + N[2D] -> N2A + N + 3.58 } rate = 2.466666e-33 -1.5 0.00 N(:) //NREC17//
+new reaction = { N + N + N[2D] -> N2A + N[2D] + 3.58 } rate = 2.466666e-33 -1.5 0.00 N(:) //NREC18//
+new reaction = { N + N[2D] + N[2D] -> N2A + N + 3.58 } rate = 2.466666e-33 -1.5 0.00 N(:) //NREC19//
+new reaction = { N + N[2D] + N[2D] -> N2A + N[2D] + 3.58 } rate = 2.466666e-33 -1.5 0.00 N(:) //NREC20//
+new reaction = { O + O + N2 -> O2 + N2 } rate = 2.0e-34 -0.82 0.00 O(:) //NREC21//
+new reaction = { O + O + O2 -> O2 + O2 } rate = 8.6e-34 -0.33 0.00 O(:) //NREC22//
+new reaction = { O + O + O2 -> O2 + O2Delta } rate = 8.6e-34 -0.33 0.00 O(:) //NREC23//
+new reaction = { O + O + O2Delta -> O2 + O2 } rate = 8.6e-34 -0.33 0.00 O(:) //NREC24//
+new reaction = { O + O + O2Delta -> O2 + O2Delta } rate = 8.6e-34 -0.33 0.00 O(:) //NREC25//
+new reaction = { O + O + O -> O2 + O } rate = 1.9e-33 -0.50 0.00 O(:) //NREC26//
+new reaction = { O + O + N -> O2 + N } rate = 1.7e-35 -1.30 0.00 O(:) //NREC27//
+new reaction = { O + O + N[2D] -> O2 + N[2D] } rate = 1.7e-35 -1.30 0.00 O(:) //NREC28//
+new reaction = { O + O + NO -> O2 + NO } rate = 1.7e-35 -1.30 0.00 O(:) //NREC29//
+new reaction = { N2 + O + N -> NO + N2 } rate = 1.1e-32 0.00 0.00 O(:) //NREC30//
+new reaction = { O2 + O + N -> NO + O2 } rate = 1.1e-32 0.00 0.00 O(:) //NREC31//
+new reaction = { O2Delta + O + N -> NO + O2Delta } rate = 1.1e-32 0.00 0.00 O(:) //NREC32//
+new reaction = { N + N[2D] + O2 -> N2 + O2 } rate = 6.66666e-35 -0.82 0.00 N(:) //NREC33//
+new reaction = { N[2D] + N[2D] + O2 -> N2 + O2 } rate = 6.66666e-35 -0.82 0.00 O2(:) //NREC34//
+new reaction = { N + N + O2 -> N2 + O2 } rate = 6.66666e-35 -0.82 0.00 N(:) //NREC35//
+new reaction = { N + N + O2 -> N2A + O2 } rate = 1.333333e-34 -0.82 0.00 N(:) //NREC36//
+new reaction = { N + N[2D] + O2 -> N2A + O2 } rate = 1.333333e-34 -0.82 0.00 N(:) //NREC37//
+new reaction = { N[2D] + N[2D] + O2 -> N2A + O2 } rate = 1.333333e-34 -0.82 0.00 O2(:) //NREC38//
+new reaction = { N + N + NO -> N2 + NO } rate = 6.66666e-35 -0.82 0.00 N(:) //NREC39//
+new reaction = { N + N[2D] + NO -> N2 + NO } rate = 6.66666e-35 -0.82 0.00 N(:) //NREC40//
+new reaction = { N[2D] + N[2D] + NO -> N2 + NO } rate = 6.66666e-35 -0.82 0.00 NO(:) //NREC41//
+new reaction = { N + N + NO -> N2A + NO } rate = 1.333333e-34 -0.82 0.00 N(:) //NREC42//
+new reaction = { N + N[2D] + NO -> N2A + NO } rate = 1.333333e-34 -0.82 0.00 N(:) //NREC43//
+new reaction = { N[2D] + N[2D] + NO -> N2A + NO } rate = 1.333333e-34 -0.82 0.00 NO(:) //NREC44//
+new reaction = { NO + O + N -> NO + NO } rate = 7.2e-32 -1.50 0.00 NO(:) //NREC45//
+new reaction = { N + O + N -> NO + N } rate = 7.2e-32 -1.50 0.00 O(:) //NREC46//
+new reaction = { N + O + N[2D] -> NO + N[2D] } rate = 7.2e-32 -1.50 0.00 O(:) //NREC47//
+new reaction = { O + O + N -> NO + O } rate = 7.2e-32 -1.50 0.00 O(:) //NREC48//
+new reaction = { O + O + N[2D] -> NO + O } rate = 7.2e-32 -1.50 0.00 O(:) //NREC49//
+
+// sixth page
+new reaction = { O2[+].H2O + H2O -> H3O[+] + O2 + O } rate = 2e-10 0.00 0.00 H2O(:) //IMR12// ? O not in source code but then equation not balanced
+new reaction = { O2[+].H2O + O2 -> O4[+] + H2O } rate = 2e-10 0.00 0.2 O2(:) //IMR13//
+new reaction = { O2[+].H2O + H2O -> H3O[+].OH + O2 } rate = 1.9e-9 0.00 0.00 H2O(:) //IMR14//
+new reaction = { H3O[+].OH + N2 -> H3O[+] + N2 + OH } rate = 5.94e-7 -5.00 1.12 N2(:) //IMR15//
+new reaction = { H3O[+].OH + N -> H3O[+] + N + OH } rate = 5.94e-7 -5.00 1.12 N(:) //TD51//
+new reaction = { H3O[+].OH + O2 -> H3O[+] + O2 + OH } rate = 5.94e-7 -5.00 1.12 O2(:) //TD52//
+new reaction = { H3O[+].OH + O -> H3O[+] + O + OH } rate = 5.94e-7 -5.00 1.12 O(:) //TD53//
+new reaction = { H3O[+].OH + NO -> H3O[+] + NO + OH } rate = 5.94e-7 -5.00 1.12 NO(:) //TD54//
+new reaction = { H3O[+].OH + N[2D] -> H3O[+] + N[2D] + OH } rate = 5.94e-7 -5.00 1.12 NO(:) //TD54-9//
+new reaction = { H3O[+].OH + O2Delta -> H3O[+] + O2Delta + OH } rate = 5.94e-7 -5.00 1.12 NO(:) //TD54-1//
+new reaction = { H3O[+].OH + O3 -> H3O[+] + O3 + OH } rate = 5.94e-7 -5.00 1.12 NO(:) //TD54-2//
+new reaction = { H3O[+].OH + H2O -> H3O[+] + H2O + OH } rate = 5.94e-7 -5.00 1.12 NO(:) //TD54-3//
+new reaction = { H3O[+].OH + NO2 -> H3O[+] + NO2 + OH } rate = 5.94e-7 -5.00 1.12 NO(:) //TD54-4//
+new reaction = { H3O[+].OH + CO2 -> H3O[+] + CO2 + OH } rate = 5.94e-7 -5.00 1.12 NO(:) //TD54-5//
+new reaction = { H3O[+].OH + N2A -> H3O[+] + N2A + OH } rate = 5.94e-7 -5.00 1.12 NO(:) //TD54-6//
+new reaction = { H3O[+].OH + N2B -> H3O[+] + N2B + OH } rate = 5.94e-7 -5.00 1.12 NO(:) //TD54-7//
+new reaction = { H3O[+].OH + N2C -> H3O[+] + N2C + OH } rate = 5.94e-7 -5.00 1.12 NO(:) //TD54-8//
+new reaction = { H3O[+].H2O + N2 -> H3O[+] + N2 + H2O } rate = 3.6e-9 -4.00 1.38 N2(:) //TD55//
+new reaction = { H3O[+].H2O + O2 -> H3O[+] + O2 + H2O } rate = 2.6e-9 -4.00 1.38 H3O[+].H2O(:) //TD56//
+new reaction = { NO[+].H2O + N2 -> NO[+] + N2 + H2O } rate = 3.9e-9 -4.00 0.7 N2(:) //TD57//
+new reaction = { NO[+].H2O + O2 -> NO[+] + O2 + H2O } rate = 2.8e-9 -4.00 0.7 O2(:) //TD58//
+new reaction = { O2[+].H2O + N2 -> O2[+] + H2O + N2 } rate = 3.9e-12 -4.00 0.46 N2(:) //TD59//
+new reaction = { O2[+].H2O + N -> O2[+] + H2O + N } rate = 3.9e-12 -4.00 0.46 N(:) //TD60//
+new reaction = { O2[+].H2O + O2 -> O2[+] + H2O + O2 } rate = 3.9e-12 -4.00 0.46 O2(:) //TD61//
+new reaction = { O2[+].H2O + O -> O2[+] + H2O + O } rate = 3.9e-12 -4.00 0.46 O(:) //TD62//
+new reaction = { O2[+].H2O + NO -> O2[+] + H2O + NO } rate = 3.9e-12 -4.00 0.46 NO(:) //TD63//
+new reaction = { O2[+].H2O + N[2D] -> O2[+] + H2O + N[2D] } rate = 3.9e-12 -4.00 0.46 NO(:) //TD63-1//
+new reaction = { O2[+].H2O + O2Delta -> O2[+] + H2O + O2Delta } rate = 3.9e-12 -4.00 0.46 NO(:) //TD63-2//
+new reaction = { O2[+].H2O + O3 -> O2[+] + H2O + O3 } rate = 3.9e-12 -4.00 0.46 NO(:) //TD63-3//
+new reaction = { O2[+].H2O + H2O -> O2[+] + H2O + H2O } rate = 3.9e-12 -4.00 0.46 NO(:) //TD63-4//
+new reaction = { O2[+].H2O + NO2 -> O2[+] + H2O + NO2 } rate = 3.9e-12 -4.00 0.46 NO(:) //TD63-5//
+new reaction = { O2[+].H2O + CO2 -> O2[+] + H2O + CO2 } rate = 3.9e-12 -4.00 0.46 NO(:) //TD63-6//
+new reaction = { O2[+].H2O + N2A -> O2[+] + H2O + N2A } rate = 3.9e-12 -4.00 0.46 NO(:) //TD63-7//
+new reaction = { O2[+].H2O + N2B -> O2[+] + H2O + N2B } rate = 3.9e-12 -4.00 0.46 NO(:) //TD63-8//
+new reaction = { O2[+].H2O + N2C -> O2[+] + H2O + N2C } rate = 3.9e-12 -4.00 0.46 NO(:) //TD63-9//
+new reaction = { N4[+] + N2 -> N2[+] + N2 + N2 } rate = 1.5e-29 -2.20 -0.6 N2(:) //TD64//
+new reaction = { N4[+] + N -> N2[+] + N2 + N } rate = 1.5e-29 -2.20 -0.6 N(:) //TD65//
+new reaction = { N4[+] + O2 -> N2[+] + N2 + O2 } rate = 1.5e-29 -2.20 -0.6 O2(:) //TD66/
+new reaction = { N4[+] + O -> N2[+] + N2 + O } rate = 1.5e-29 -2.20 -0.6 O(:) //TD67//
+new reaction = { N4[+] + NO -> N2[+] + N2 + NO } rate = 1.5e-29 -2.20 -0.6 NO(:) //TD68//
+new reaction = { N4[+] + N[2D] -> N2[+] + N2 + N[2D] } rate = 1.5e-29 -2.20 -0.6 NO(:) //TD68-1//
+new reaction = { N4[+] + O2Delta -> N2[+] + N2 + O2Delta } rate = 1.5e-29 -2.20 -0.6 NO(:) //TD68-2//
+new reaction = { N4[+] + O3 -> N2[+] + N2 + O3 } rate = 1.5e-29 -2.20 -0.6 NO(:) //TD68-3//
+new reaction = { N4[+] + H2O -> N2[+] + N2 + H2O } rate = 1.5e-29 -2.20 -0.6 NO(:) //TD68-4//
+new reaction = { N4[+] + NO2 -> N2[+] + N2 + NO2 } rate = 1.5e-29 -2.20 -0.6 NO(:) //TD68-5//
+new reaction = { N4[+] + CO2 -> N2[+] + N2 + CO2 } rate = 1.5e-29 -2.20 -0.6 NO(:) //TD68-6//
+new reaction = { N4[+] + N2A -> N2[+] + N2 + N2A } rate = 1.5e-29 -2.20 -0.6 NO(:) //TD68-7//
+new reaction = { N4[+] + N2B -> N2[+] + N2 + N2B } rate = 1.5e-29 -2.20 -0.6 NO(:) //TD68-8//
+new reaction = { N4[+] + N2C -> N2[+] + N2 + N2C } rate = 1.5e-29 -2.20 -0.6 NO(:) //TD68-9//
+new reaction = { O4[+] + N2 -> O2[+] + O2 + N2 } rate = 3.0e-25 -2.8 -0.43 N2(:) //TD69//
+new reaction = { O4[+] + N -> O2[+] + O2 + N } rate = 3.0e-25 -2.8 -0.43 N(:) //TD70//
+new reaction = { O4[+] + O2 -> O2[+] + O2 + O2 } rate = 3.0e-25 -2.8 -0.43 O2(:) //TD71//
+new reaction = { O4[+] + O -> O2[+] + O2 + O } rate = 3.0e-25 -2.8 -0.43 O(:) //TD72//
+new reaction = { O4[+] + NO -> O2[+] + O2 + NO } rate = 3.0e-25 -2.8 -0.43 NO(:) //TD73//
+new reaction = { O4[+] + N[2D] -> O2[+] + O2 + N[2D] } rate = 3.0e-25 -2.8 -0.43 NO(:) //TD73-1//
+new reaction = { O4[+] + O2Delta -> O2[+] + O2 + O2Delta } rate = 3.0e-25 -2.8 -0.43 NO(:) //TD73-2//
+new reaction = { O4[+] + O3 -> O2[+] + O2 + O3 } rate = 3.0e-25 -2.8 -0.43 NO(:) //TD73-3//
+new reaction = { O4[+] + H2O -> O2[+] + O2 + H2O } rate = 3.0e-25 -2.8 -0.43 NO(:) //TD73-4//
+new reaction = { O4[+] + NO2 -> O2[+] + O2 + NO2 } rate = 3.0e-25 -2.8 -0.43 NO(:) //TD73-5//
+new reaction = { O4[+] + CO2 -> O2[+] + O2 + CO2 } rate = 3.0e-25 -2.8 -0.43 NO(:) //TD73-6//
+new reaction = { O4[+] + N2A -> O2[+] + O2 + N2A } rate = 3.0e-25 -2.8 -0.43 NO(:) //TD73-7//
+new reaction = { O4[+] + N2B -> O2[+] + O2 + N2B } rate = 3.0e-25 -2.8 -0.43 NO(:) //TD73-8//
+new reaction = { O4[+] + N2C -> O2[+] + O2 + N2C } rate = 3.0e-25 -2.8 -0.43 NO(:) //TD73-9//
+
+// sixth page - second section 
+new reaction = { O4[+] + H2O -> O2[+].H2O + O2 } rate = 1.5e-9 0.00 0.00 H2O(:) //IMR16//
+new reaction = { H2O[+] + H2O -> H3O[+] + OH + 2.37 } rate = 1.8e-9 0.00 0.00 H2O(:) //IMR17//
+new reaction = { H3O[+].OH + H2O -> H3O[+].H2O + OH } rate = 1.4e-9 0.00 0.00 H2O(:) //IMR18//
+
+// seventh page 
+new reaction = { O2 + N[2D] -> N + O2 + 2.37 } rate = 6e-12 0.00 0.00 O2(:) //EX1//
+new reaction = { O2Delta + N[2D] -> N + O2Delta + 2.37 } rate = 6e-12 0.00 0.00 O2Delta(:) //EX2//
+new reaction = { O + N[2D] -> O + N + 2.37 } rate = 1.8e-12 0.00 0.00 O(:) //EX3//
+new reaction = { NO + N[2D] -> N + NO + 2.37 } rate = 7e-11 0.00 0.00 NO(:) //EX4//
+
+// seventh page - second section 
+new reaction = { O2 + O2[-] -> O2 + O2 + e } rate = 1.7e-9 0.5 0.48 O2(:) //DET1///
+new reaction = { N2 + O2[-] -> O2 + N2 + e } rate = 4.8e-10 1.5 0.45 N2(:) //DET2//
+new reaction = { O + O[-] -> O2 + e + 5.12 } rate = 2e-10 0.00 0.00 O(:) //DET3//
+new reaction = { O + O[-] -> O + O + e } rate = 2.3e-9 0.00 2.25 O(:) //DET4//
+new reaction = { O2 + O[-] -> O + O2 + e } rate = 2.3e-9 0.00 2.25 O2(:) //DET5//
+new reaction = { O2Delta + O[-] -> O + O2Delta + e } rate = 2.3e-9 0.00 2.25 O2Delta(:) //DET6//
+new reaction = { N + O[-] -> NO + e + 6.5 } rate = 2e-10 0.00 0.00 O[-](:) //DET7//
+new reaction = { N[2D] + O[-] -> NO + e + 8.82 } rate = 2e-10 0.00 0.00 O[-](:) //DET8//
+
+// seventh page - third section 
+new reaction = { O[+] -> O[+][2D] : e -> e - 3.3 } rate = 2.99e-8 -0.5 3.3 e(:) //EX5//
+new reaction = { O[+][2D] -> O[+] : e -> e + 3.3 } rate = 1.3e-8 -0.5 0.00 e(:) //EX6//
+new reaction = { N -> N[2D] : e -> e - 2.37 } rate = 1.2e-8 0.07 2.79 e(:) //EX7//
+new reaction = { N[2D] -> N : e -> e + 2.37 } rate = 0.6e-8 0.07 0.42 e(:) //EX8//
+new reaction = { O2 -> O2Delta : e -> e - 0.98 } rate = 4.84e-10 0.721 1.47 e(:1.6) //EX9.1//
+new reaction = { O2 -> O2Delta : e -> e - 0.98 } rate = 3.97e-8 -1.025 7.207 e(1.6:) //EX9.2//
+new reaction = { O2Delta -> O2 : e -> e + 0.98 } rate = 8.02e-32 -0.779 0.37 e(:1.6) //EX10.1//
+new reaction = { O2Delta -> O2 : e -> e + 0.98 } rate = 6.57e-30 -2.525 0.6207 e(1.6:) //EX10.2// 
+
+// eighth page - K(number) and KQ(number)
+new reaction = { O + O2 + N2 -> O3 + N2 } rate = 1.1e-34 0.00 0.043 O(:) //NREC50//
+new reaction = { O + O2Delta + N2 -> O3 + N2 } rate = 1.1e-34 0.00 0.043 O(:) //NREC51//
+new reaction = { O + O2 + N -> O3 + N } rate = 1.1e-34 0.00 0.043 O(:) //NREC52//
+new reaction = { O + O2Delta + N -> O3 + N } rate = 1.1e-34 0.00 0.043 O(:) //NREC53//
+new reaction = { O + O2 + O2 -> O3 + O2 } rate = 1.1e-34 0.00 0.043 O(:) //NREC54//
+new reaction = { O + O2Delta + O2 -> O3 + O2 } rate = 1.1e-34 0.00 0.043 O(:) //NREC55//
+new reaction = { O + O2 + O -> O3 + O } rate = 1.1e-34 0.00 0.043 O(:) //NREC56//
+new reaction = { O + O2Delta + O -> O3 + O } rate = 1.1e-34 0.00 0.043 O(:) //NREC57//
+new reaction = { O + O2 + NO -> O3 + NO } rate = 1.1e-34 0.00 0.043 O(:) //NREC56-1//
+new reaction = { O + O2Delta + NO -> O3 + NO } rate = 1.1e-34 0.00 0.043 O(:) //NREC57-1//
+new reaction = { O + O2 + N[2D] -> O3 + N[2D] } rate = 1.1e-34 0.00 0.043 O(:) //NREC56-2//
+new reaction = { O + O2Delta + N[2D] -> O3 + N[2D] } rate = 1.1e-34 0.00 0.043 O(:) //NREC57-2//
+new reaction = { O + O2 + O3 -> O3 + O3 } rate = 1.1e-34 0.00 0.043 O(:) //NREC56-3//
+new reaction = { O + O2Delta + O3 -> O3 + O3 } rate = 1.1e-34 0.00 0.043 O(:) //NREC57-3//
+new reaction = { O + O2 + O2Delta -> O3 + O2Delta } rate = 1.1e-34 0.00 0.043 O(:) //NREC56-4//
+new reaction = { O + O2Delta + O2Delta -> O3 + O2Delta } rate = 1.1e-34 0.00 0.043 O(:) //NREC57-4//
+new reaction = { O + O2 + H2O -> O3 + H2O } rate = 1.1e-34 0.00 0.043 O(:) //NREC56-5//
+new reaction = { O + O2Delta + H2O -> O3 + H2O } rate = 1.1e-34 0.00 0.043 O(:) //NREC57-5//
+new reaction = { O + O2 + NO2 -> O3 + NO2 } rate = 1.1e-34 0.00 0.043 O(:) //NREC56-6//
+new reaction = { O + O2Delta + NO2 -> O3 + NO2 } rate = 1.1e-34 0.00 0.043 O(:) //NREC57-6//
+new reaction = { O + O2 + CO2 -> O3 + CO2 } rate = 1.1e-34 0.00 0.043 O(:) //NREC56-7//
+new reaction = { O + O2Delta + CO2 -> O3 + CO2 } rate = 1.1e-34 0.00 0.043 O(:) //NREC57-7//
+new reaction = { O + O2 + N2A -> O3 + N2A } rate = 1.1e-34 0.00 0.043 O(:) //NREC56-8//
+new reaction = { O + O2Delta + N2A -> O3 + N2A } rate = 1.1e-34 0.00 0.043 O(:) //NREC57-8//
+new reaction = { O + O2 + N2B -> O3 + N2B } rate = 1.1e-34 0.00 0.043 O(:) //NREC56-9//
+new reaction = { O + O2Delta + N2B -> O3 + N2B } rate = 1.1e-34 0.00 0.043 O(:) //NREC57-9//
+new reaction = { O + O2 + N2C -> O3 + N2C } rate = 1.1e-34 0.00 0.043 O(:) //NREC56-10//
+new reaction = { O + O2Delta + N2C -> O3 + N2C } rate = 1.1e-34 0.00 0.043 O(:) //NREC57-10//
+new reaction = { O2[-] + O -> O3 + e } rate = 1.5e-20 0.00 0.00 O(:) //DET10//
+new reaction = { O4[+] + O -> O3 + O2[+] } rate = 3e-20 0.00 0.00 O(:) //IMR19// ? rate (-20 could be -10) 
+new reaction = { O3 + e -> O2[-] + O } rate = 2.13e-12 -1.5 1.13 O3(:) //DET11//
+new reaction = { O3 + e -> O[-] + O2 } rate = 3.6366e-14 -1.5 0.00 O3(:) //DET12//
+new reaction = { O3 + N -> O2 + NO } rate = 5.7e-13 0.00 0.00 O3(:) //NR10//
+new reaction = { O3 + N[2D] -> O2 + NO } rate = 5.7e-13 0.00 0.00 O3(:) //NR11//
+new reaction = { O3 + O[-] -> O3[-] + O } rate = 5.3e-10 0.00 0.00 O3(:) //CE26//
+new reaction = { O3[-] + O -> O2[-] + O2 } rate = 3.2e-10 0.00 0.00 O(:) //IMR20//
+new reaction = { O3[-] + CO2 -> CO3[-] + O2 } rate = 9.02e-11 -0.49 0.00 CO2(:) //IMR21//
+new reaction = { O3[-] + NO -> NO2[-] + O2 } rate = 4.59e-13 -0.49 0.00 NO(:) //IMR22//
+new reaction = { O4[-] + O -> O3[-] + O2 } rate = 4.0e-10 0.00 0.00 O(:) //IMR23//
+new reaction = { O2[-] + O2 + N2 -> O4[-] + N2 } rate = 8.75e-33 -1.0 0.00 O2(:) //IR14//
+new reaction = { O2[-] + O2 + O2 -> O4[-] + O2 } rate = 8.75e-33 -1.0 0.00 O2(:) //IR15//
+new reaction = { O2[-] + O2 + N -> O4[-] + N } rate = 8.75e-33 -1.0 0.00 O2(:) //IR16//
+new reaction = { O2[-] + O2 + O -> O4[-] + O } rate = 8.75e-33 -1.0 0.00 O2(:) //IR17//
+new reaction = { O2[-] + O2 + NO -> O4[-] + NO } rate = 8.75e-33 -1.0 0.00 O2(:) //IR18//
+new reaction = { O2[-] + O2 + N[2D] -> O4[-] + N[2D] } rate = 8.75e-33 -1.0 0.00 O2(:) //IR18-1//
+new reaction = { O2[-] + O2 + O2Delta -> O4[-] + O2Delta } rate = 8.75e-33 -1.0 0.00 O2(:) //IR18-2//
+new reaction = { O2[-] + O2 + O3 -> O4[-] + O3 } rate = 8.75e-33 -1.0 0.00 O2(:) //IR18-3//
+new reaction = { O2[-] + O2 + H2O -> O4[-] + H2O } rate = 8.75e-33 -1.0 0.00 O2(:) //IR18-4//
+new reaction = { O2[-] + O2 + NO2 -> O4[-] + NO2 } rate = 8.75e-33 -1.0 0.00 O2(:) //IR18-5//
+new reaction = { O2[-] + O2 + CO2 -> O4[-] + CO2 } rate = 8.75e-33 -1.0 0.00 O2(:) //IR18-6//
+new reaction = { O2[-] + O2 + N2A -> O4[-] + N2A } rate = 8.75e-33 -1.0 0.00 O2(:) //IR18-7//
+new reaction = { O2[-] + O2 + N2B -> O4[-] + N2B } rate = 8.75e-33 -1.0 0.00 O2(:) //IR18-8//
+new reaction = { O2[-] + O2 + N2C -> O4[-] + N2C } rate = 8.75e-33 -1.0 0.00 O2(:) //IR18-9//
+new reaction = { O2[-] + O2Delta + N2 -> O4[-] + N2 } rate = 8.75e-33 -1.0 0.00 O2Delta(:) //IR19//
+new reaction = { O2[-] + O2Delta + N -> O4[-] + N } rate = 8.75e-33 -1.0 0.00 O2Delta(:) //IR20//
+new reaction = { O2[-] + O2Delta + O2 -> O4[-] + O2 } rate = 8.75e-33 -1.0 0.00 O2Delta(:) //IR21//
+new reaction = { O2[-] + O2Delta + O -> O4[-] + O } rate = 8.75e-33 -1.0 0.00 O2Delta(:) //IR22//
+new reaction = { O2[-] + O2Delta + NO -> O4[-] + NO } rate = 8.75e-33 -1.0 0.00 O2Delta(:) //IR23//
+new reaction = { O2[-] + O2Delta + N[2D] -> O4[-] + NO } rate = 8.75e-33 -1.0 0.00 O2Delta(:) //IR23-9//
+new reaction = { O2[-] + O2Delta + O2Delta -> O4[-] + NO } rate = 8.75e-33 -1.0 0.00 O2Delta(:) //IR23-8//
+new reaction = { O2[-] + O2Delta + O3 -> O4[-] + O3 } rate = 8.75e-33 -1.0 0.00 O2Delta(:) //IR23-1//
+new reaction = { O2[-] + O2Delta + H2O -> O4[-] + H2O } rate = 8.75e-33 -1.0 0.00 O2Delta(:) //IR23-2//
+new reaction = { O2[-] + O2Delta + NO2 -> O4[-] + NO2 } rate = 8.75e-33 -1.0 0.00 O2Delta(:) //IR23-3//
+new reaction = { O2[-] + O2Delta + CO2 -> O4[-] + CO2 } rate = 8.75e-33 -1.0 0.00 O2Delta(:) //IR23-4//
+new reaction = { O2[-] + O2Delta + N2A -> O4[-] + N2A } rate = 8.75e-33 -1.0 0.00 O2Delta(:) //IR23-5//
+new reaction = { O2[-] + O2Delta + N2B -> O4[-] + N2B } rate = 8.75e-33 -1.0 0.00 O2Delta(:) //IR23-6//
+new reaction = { O2[-] + O2Delta + N2C -> O4[-] + N2C } rate = 8.75e-33 -1.0 0.00 O2Delta(:) //IR23-7//
+new reaction = { O4[-] + CO2 -> CO4[-] + O2 } rate = 4.3e-10 0.00 0.00 CO2(:) //IRMR24//
+new reaction = { O4[-] + NO -> NO3[-] + O2 } rate = 2.5e-10 0.00 0.00 NO(:) //IMR25//
+new reaction = { CO3[-] + O -> O2[-] + CO2 } rate = 1.1e-10 0.00 0.00 O(:) //IMR26//
+new reaction = { O[-] + CO2 + N2 -> CO3[-] + N2 } rate = 7.75e-30 -1.00 0.00 CO2(:) //IR24//
+new reaction = { O[-] + CO2 + N -> CO3[-] + N } rate = 7.75e-30 -1.00 0.00 CO2(:) //IR25// 
+new reaction = { O[-] + CO2 + O2 -> CO3[-] + O2 } rate = 7.75e-30 -1.00 0.00 CO2(:) //IR26// 
+new reaction = { O[-] + CO2 + O -> CO3[-] + O } rate = 7.75e-30 -1.00 0.00 CO2(:) //IR27// 
+new reaction = { O[-] + CO2 + NO -> CO3[-] + NO } rate = 7.75e-30 -1.00 0.00 CO2(:) //IR28//
+new reaction = { O[-] + CO2 + N[2D] -> CO3[-] + NO } rate = 7.75e-30 -1.00 0.00 CO2(:) //IR28-1// 
+new reaction = { O[-] + CO2 + O2Delta -> CO3[-] + NO } rate = 7.75e-30 -1.00 0.00 CO2(:) //IR28-2// 
+new reaction = { O[-] + CO2 + O3 -> CO3[-] + O3 } rate = 7.75e-30 -1.00 0.00 CO2(:) //IR28-3// 
+new reaction = { O[-] + CO2 + H2O -> CO3[-] + H2O } rate = 7.75e-30 -1.00 0.00 CO2(:) //IR28-4// 
+new reaction = { O[-] + CO2 + NO2 -> CO3[-] + NO2 } rate = 7.75e-30 -1.00 0.00 CO2(:) //IR28-5// 
+new reaction = { O[-] + CO2 + CO2 -> CO3[-] + CO2 } rate = 7.75e-30 -1.00 0.00 CO2(:) //IR28-6// 
+new reaction = { O[-] + CO2 + N2A -> CO3[-] + N2A } rate = 7.75e-30 -1.00 0.00 CO2(:) //IR28-7// 
+new reaction = { O[-] + CO2 + N2B -> CO3[-] + N2B } rate = 7.75e-30 -1.00 0.00 CO2(:) //IR28-8// 
+new reaction = { O[-] + CO2 + N2C -> CO3[-] + N2C } rate = 7.75e-30 -1.00 0.00 CO2(:) //IR28-9// 
+new reaction = { CO3[-] + NO -> NO2[-] + CO2 } rate = 1.9e-13 -1.1 0.00 NO(:) //IMR27/
+new reaction = { CO4[-] + NO -> NO3[-] + CO2 } rate = 4.8e-11 0.00 0.00 NO(:) //IMR28//
+new reaction = { O3 + NO2[-] -> O2 + NO3[-] } rate = 1.8e-11 0.00 0.00 O3(:) //IMR29//
+new reaction = { O2[-] + NO2 -> NO2[-] + O2 } rate = 1.2e-9 0.00 0.00 O2[-](:) //CE26++//
+
+// ninth page - to find in source code, put number in brackets and also search KQ(number)
+new reaction = { O[-] + NO2 -> NO2[-] + O } rate = 1.2e-9 0.00 0.00 NO2(:) //CE27//
+new reaction = { CO4[-] + O -> CO3[-] + O2 } rate = 1.5e-10 0.00 0.00 O(:) //IMR30//
+new reaction = { O + NO + N2 -> NO2 + N2 } rate = 1.55e-32 0.00 0.05 O(:) //NREC58//
+new reaction = { O + NO2 -> O2 + NO } rate = 9.1e-12 0.00 0.00 O(:) //NR12//
+new reaction = { NO + O3 -> O2 + NO2 } rate = 2.1e-12 0.00 0.125 NO(:) //NR13//
+new reaction = { NO + NO + O2 -> NO2 + NO2 } rate = 3.3e-30 0.00 0.096 NO(:) //NR14//
+new reaction = { NO + NO + O2Delta -> NO2 + NO2 } rate = 3.3e-30 0.00 0.096 NO(:) //NR15//
+new reaction = { N + NO2 -> NO + NO } rate = 6e-12 0.00 0.00 NO2(:) //NR16//
+new reaction = { N[2D] + NO2 -> NO + NO } rate = 6e-12 0.00 0.00 NO2(:) //NR17//
+new reaction = { N + NO2 -> N2 + O2 } rate = 6e-12 0.00 0.00 NO2(:) //NR18//
+new reaction = { N[2D] + NO2 -> N2 + O2 } rate = 6e-12 0.00 0.00 NO2(:) //NR19//
+new reaction = { N + NO2 -> N2 + O + O } rate = 6e-12 0.00 0.00 NO2(:) //NR20//
+new reaction = { N[2D] + NO2 -> N2 + O + O } rate = 6e-12 0.00 0.00 NO2(:) //NR21//
+new reaction = { O[-] + O2 + N2 -> O3[-] + N2 } rate = 2.75e-32 -1.00 0.00 N2(:) //IR29// 
+new reaction = { O[-] + O2 + N -> O3[-] + N } rate = 2.75e-32 -1.00 0.00 N(:) //IR30//
+new reaction = { O[-] + O2 + O2 -> O3[-] + O2 } rate = 2.75e-32 -1.00 0.00 O2(:) //IR31//
+new reaction = { O[-] + O2 + O -> O3[-] + O } rate = 2.75e-32 -1.00 0.00 O(:) //IR32//
+new reaction = { O[-] + O2 + NO -> O3[-] + NO } rate = 2.75e-32 -1.00 0.00 N(:) //IR33//
+new reaction = { O[-] + O2 + N[2D] -> O3[-] + N[2D] } rate = 2.75e-32 -1.00 0.00 N(:) //IR33-1//
+new reaction = { O[-] + O2 + O2Delta -> O3[-] + O2Delta } rate = 2.75e-32 -1.00 0.00 N(:) //IR33-2//
+new reaction = { O[-] + O2 + O3 -> O3[-] + O3 } rate = 2.75e-32 -1.00 0.00 N(:) //IR33-3//
+new reaction = { O[-] + O2 + H2O -> O3[-] + H2O } rate = 2.75e-32 -1.00 0.00 N(:) //IR33-4//
+new reaction = { O[-] + O2 + NO2 -> O3[-] + NO2 } rate = 2.75e-32 -1.00 0.00 N(:) //IR33-5//
+new reaction = { O[-] + O2 + CO2 -> O3[-] + CO2 } rate = 2.75e-32 -1.00 0.00 N(:) //IR33-6//
+new reaction = { O[-] + O2 + N2A -> O3[-] + N2A } rate = 2.75e-32 -1.00 0.00 N(:) //IR33-7//
+new reaction = { O[-] + O2 + N2B -> O3[-] + N2B } rate = 2.75e-32 -1.00 0.00 N(:) //IR33-8//
+new reaction = { O[-] + O2 + N2C -> O3[-] + N2C } rate = 2.75e-32 -1.00 0.00 N(:) //IR33-9//
+new reaction = { O[-] + O2Delta + N2 -> O3[-] + N2 } rate = 2.75e-32 -1.00 0.00 N2(:) /IR34//
+new reaction = { O[-] + O2Delta + N -> O3[-] + N  } rate = 2.75e-32 -1.00 0.00 N(:) //IR35//
+new reaction = { O[-] + O2Delta + O2 -> O3[-] + O2 } rate = 2.75e-32 -1.00 0.00 O2(:) //IR36//
+new reaction = { O[-] + O2Delta + O -> O3[-] + O } rate = 2.75e-32 -1.00 0.00 O(:) //IR37//
+new reaction = { O[-] + O2Delta + NO -> O3[-] + NO } rate = 2.75e-32 -1.00 0.00 NO(:) //IR38//
+new reaction = { O[-] + O2Delta + N[2D] -> O3[-] + N[2D] } rate = 2.75e-32 -1.00 0.00 NO(:) //IR38-1//
+new reaction = { O[-] + O2Delta + O2Delta -> O3[-] + O2Delta } rate = 2.75e-32 -1.00 0.00 NO(:) //IR38-2//
+new reaction = { O[-] + O2Delta + O3 -> O3[-] + O3 } rate = 2.75e-32 -1.00 0.00 NO(:) //IR38-3//
+new reaction = { O[-] + O2Delta + H2O -> O3[-] + H2O } rate = 2.75e-32 -1.00 0.00 NO(:) //IR38-4//
+new reaction = { O[-] + O2Delta + NO2 -> O3[-] + NO2 } rate = 2.75e-32 -1.00 0.00 NO(:) //IR38-5//
+new reaction = { O[-] + O2Delta + CO2 -> O3[-] + CO2 } rate = 2.75e-32 -1.00 0.00 NO(:) //IR38-6//
+new reaction = { O[-] + O2Delta + N2A -> O3[-] + N2A } rate = 2.75e-32 -1.00 0.00 NO(:) //IR38-7//
+new reaction = { O[-] + O2Delta + N2B -> O3[-] + N2B } rate = 2.75e-32 -1.00 0.00 NO(:) //IR38-8//
+new reaction = { O[-] + O2Delta + N2C -> O3[-] + N2C } rate = 2.75e-32 -1.00 0.00 NO(:) //IR38-9//
+new reaction = { O[-] + NO + N2 -> NO2[-] + N2 } rate = 2.5e-31 -1.00 0.00 NO(:) //IR39//
+new reaction = { O[-] + NO + N -> NO2[-] + N } rate = 2.5e-31 -1.00 0.00 NO(:) //IR40//
+new reaction = { O[-] + NO + O2 -> NO2[-] + O2 } rate = 2.5e-31 -1.00 0.00 NO(:) //IR41//
+new reaction = { O[-] + NO + O -> NO2[-] + O } rate = 2.5e-31 -1.00 0.00 NO(:) //IR42//
+new reaction = { O[-] + NO + NO -> NO2[-] + NO } rate = 2.5e-31 -1.00 0.00 NO(:) //IR43//
+new reaction = { O[-] + NO + N[2D] -> NO2[-] + N[2D] } rate = 2.5e-31 -1.00 0.00 NO(:) //IR43-1//
+new reaction = { O[-] + NO + O2Delta -> NO2[-] + O2Delta } rate = 2.5e-31 -1.00 0.00 NO(:) //IR43-2//
+new reaction = { O[-] + NO + O3 -> NO2[-] + O3 } rate = 2.5e-31 -1.00 0.00 NO(:) //IR43-3//
+new reaction = { O[-] + NO + H2O -> NO2[-] + H2O } rate = 2.5e-31 -1.00 0.00 NO(:) //IR43-4//
+new reaction = { O[-] + NO + NO2 -> NO2[-] + NO2 } rate = 2.5e-31 -1.00 0.00 NO(:) //IR43-5//
+new reaction = { O[-] + NO + CO2 -> NO2[-] + CO2 } rate = 2.5e-31 -1.00 0.00 NO(:) //IR43-6//
+new reaction = { O[-] + NO + N2A -> NO2[-] + N2A } rate = 2.5e-31 -1.00 0.00 NO(:) //IR43-7//
+new reaction = { O[-] + NO + N2B -> NO2[-] + N2B } rate = 2.5e-31 -1.00 0.00 NO(:) //IR43-8//
+new reaction = { O[-] + NO + N2C -> NO2[-] + N2C } rate = 2.5e-31 -1.00 0.00 NO(:) //IR43-9//
+new reaction = { O2[-] + CO2 + N2 -> CO4[-] + N2 } rate = 5.0e-31 -1.00 0.00 CO2(:) //IR44//
+new reaction = { O2[-] + CO2 + N -> CO4[-] + N } rate = 5.0e-31 -1.00 0.00 CO2(:) //IR45//
+new reaction = { O2[-] + CO2 + O2 -> CO4[-] + O2 } rate = 5.0e-31 -1.00 0.00 CO2(:) //IR46//
+new reaction = { O2[-] + CO2 + O -> CO4[-] + O } rate = 5.0e-31 -1.00 0.00 CO2(:) //IR47//
+new reaction = { O2[-] + CO2 + NO -> CO4[-] + NO } rate = 5.0e-31 -1.00 0.00 CO2(:) //IR48//
+new reaction = { O2[-] + CO2 + N[2D] -> CO4[-] + N[2D] } rate = 5.0e-31 -1.00 0.00 CO2(:) //IR48-1//
+new reaction = { O2[-] + CO2 + O2Delta -> CO4[-] + O2Delta } rate = 5.0e-31 -1.00 0.00 CO2(:) //IR48-2//
+new reaction = { O2[-] + CO2 + O3 -> CO4[-] + O3 } rate = 5.0e-31 -1.00 0.00 CO2(:) //IR48-3//
+new reaction = { O2[-] + CO2 + H2O -> CO4[-] + H2O } rate = 5.0e-31 -1.00 0.00 CO2(:) //IR48-4//
+new reaction = { O2[-] + CO2 + NO2 -> CO4[-] + NO2 } rate = 5.0e-31 -1.00 0.00 CO2(:) //IR48-5//
+new reaction = { O2[-] + CO2 + CO2 -> CO4[-] + CO2 } rate = 5.0e-31 -1.00 0.00 CO2(:) //IR48-6//
+new reaction = { O2[-] + CO2 + N2A -> CO4[-] + N2A } rate = 5.0e-31 -1.00 0.00 CO2(:) //IR48-7//
+new reaction = { O2[-] + CO2 + N2B -> CO4[-] + N2B } rate = 5.0e-31 -1.00 0.00 CO2(:) //IR48-8//
+new reaction = { O2[-] + CO2 + N2C -> CO4[-] + N2C } rate = 5.0e-31 -1.00 0.00 CO2(:) //IR48-9//
+new reaction = { O2[-] + O3 -> O3[-] + O2 } rate = 4.0e-10 0.00 0.00 O3(:) //CE28//
+new reaction = { O2[-] + N[2D] -> e + NO2 } rate = 3.0e-10 0.00 0.00 O2[-](:) //DET13//
+new reaction = { O2[-] + N -> e + NO2 } rate = 3.0e-10 0.00 0.00 O2[-](:) //DET14//
+new reaction = { O2[-] + O2Delta -> e + O2 + O2 } rate = 2.0e-10 0.00 0.00 O2[-](:) //DET15// 
+new reaction = { O2[-] + NO + N2 -> NO3[-] + N2 } rate = 3.25e-32 -1.00 0.00 NO(:) //IR49//
+new reaction = { O2[-] + NO + N -> NO3[-] + N } rate = 3.25e-32 -1.00 0.00 NO(:) //IR50//
+new reaction = { O2[-] + NO + O2 -> NO3[-] + O2 } rate = 3.25e-32 -1.00 0.00 NO(:) //IR51//
+new reaction = { O2[-] + NO + O -> NO3[-] + O } rate = 3.25e-32 -1.00 0.00 NO(:) //IR52//
+new reaction = { O2[-] + NO + NO -> NO3[-] + NO } rate = 3.25e-32 -1.00 0.00 NO(:) //IR53//
+new reaction = { O2[-] + NO + N[2D] -> NO3[-] + N[2D] } rate = 3.25e-32 -1.00 0.00 NO(:) //IR53-1//
+new reaction = { O2[-] + NO + O2Delta -> NO3[-] + O2Delta } rate = 3.25e-32 -1.00 0.00 NO(:) //IR532//
+new reaction = { O2[-] + NO + O3 -> NO3[-] + O3 } rate = 3.25e-32 -1.00 0.00 NO(:) //IR53-3//
+new reaction = { O2[-] + NO + H2O -> NO3[-] + H2O } rate = 3.25e-32 -1.00 0.00 NO(:) //IR53-4//
+new reaction = { O2[-] + NO + NO2 -> NO3[-] + NO2 } rate = 3.25e-32 -1.00 0.00 NO(:) //IR53-5//
+new reaction = { O2[-] + NO + CO2 -> NO3[-] + CO2 } rate = 3.25e-32 -1.00 0.00 NO(:) //IR53-6//
+new reaction = { O2[-] + NO + N2A -> NO3[-] + N2A } rate = 3.25e-32 -1.00 0.00 NO(:) //IR53-7//
+new reaction = { O2[-] + NO + N2B -> NO3[-] + N2B } rate = 3.25e-32 -1.00 0.00 NO(:) //IR53-8//
+new reaction = { O2[-] + NO + N2C -> NO3[-] + N2C } rate = 3.25e-32 -1.00 0.00 NO(:) //IR53-9//
+new reaction = { O2[-] + N + N2 -> NO2[-] + N2 } rate = 2.5e-31 0.00 0.00 N2(:) //IR54//
+new reaction = { O2[-] + N + N -> NO2[-] + N } rate = 2.5e-31 0.00 0.00 N(:) //IR55//
+new reaction = { O2[-] + N + O2 -> NO2[-] + O2 } rate = 2.5e-31 0.00 0.00 O2(:) //IR56//
+new reaction = { O2[-] + N + O -> NO2[-] + O } rate = 2.5e-31 0.00 0.00 O(:) //IR57//
+new reaction = { O2[-] + N + NO -> NO2[-] + NO } rate = 2.5e-31 0.00 0.00 NO(:) //IR58//
+new reaction = { O2[-] + N + N[2D] -> NO2[-] + N[2D] } rate = 2.5e-31 0.00 0.00 NO(:) //IR58-1//
+new reaction = { O2[-] + N + O2Delta -> NO2[-] + O2Delta } rate = 2.5e-31 0.00 0.00 NO(:) //IR58-2//
+new reaction = { O2[-] + N + O3 -> NO2[-] + O3 } rate = 2.5e-31 0.00 0.00 NO(:) //IR58-3//
+new reaction = { O2[-] + N + H2O -> NO2[-] + H2O } rate = 2.5e-31 0.00 0.00 NO(:) //IR58-4//
+new reaction = { O2[-] + N + NO2 -> NO2[-] + NO2 } rate = 2.5e-31 0.00 0.00 NO(:) //IR58-5//
+new reaction = { O2[-] + N + CO2 -> NO2[-] + CO2 } rate = 2.5e-31 0.00 0.00 NO(:) //IR58-6//
+new reaction = { O2[-] + N + N2A -> NO2[-] + N2A } rate = 2.5e-31 0.00 0.00 NO(:) //IR58-7//
+new reaction = { O2[-] + N + N2B -> NO2[-] + N2B } rate = 2.5e-31 0.00 0.00 NO(:) //IR58-8//
+new reaction = { O2[-] + N + N2C -> NO2[-] + N2C } rate = 2.5e-31 0.00 0.00 NO(:) //IR58-9//
+new reaction = { O2[-] + N[2D] + N2 -> NO2[-] + N2 } rate = 2.5e-31 0.00 0.00 N2(:) //IR59//
+new reaction = { O2[-] + N[2D] + N -> NO2[-] + N } rate = 2.5e-31 0.00 0.00 N(:) //IR60//
+new reaction = { O2[-] + N[2D] + O2 -> NO2[-] + O2 } rate = 2.5e-31 0.00 0.00 O2(:) //IR61//
+new reaction = { O2[-] + N[2D] + O -> NO2[-] + O } rate = 2.5e-31 0.00 0.00 O(:) //IR62//
+new reaction = { O2[-] + N[2D] + NO -> NO2[-] + NO } rate = 2.5e-31 0.00 0.00 NO(:) //IR63//
+new reaction = { O2[-] + N[2D] + N[2D] -> NO2[-] + N[2D] } rate = 2.5e-31 0.00 0.00 NO(:) //IR63-1//
+new reaction = { O2[-] + N[2D] + O2Delta -> NO2[-] + O2Delta } rate = 2.5e-31 0.00 0.00 NO(:) //IR63-2//
+new reaction = { O2[-] + N[2D] + O3 -> NO2[-] + O3 } rate = 2.5e-31 0.00 0.00 NO(:) //IR63-3//
+new reaction = { O2[-] + N[2D] + H2O -> NO2[-] + H2O } rate = 2.5e-31 0.00 0.00 NO(:) //IR63-4//
+new reaction = { O2[-] + N[2D] + NO2 -> NO2[-] + NO2 } rate = 2.5e-31 0.00 0.00 NO(:) //IR63-5//
+new reaction = { O2[-] + N[2D] + CO2 -> NO2[-] + CO2 } rate = 2.5e-31 0.00 0.00 NO(:) //IR63-6//
+new reaction = { O2[-] + N[2D] + N2A -> NO2[-] + N2A } rate = 2.5e-31 0.00 0.00 NO(:) //IR63-7//
+new reaction = { O2[-] + N[2D] + N2B -> NO2[-] + N2B } rate = 2.5e-31 0.00 0.00 NO(:) //IR63-8//
+new reaction = { O2[-] + N[2D] + N2C -> NO2[-] + N2C } rate = 2.5e-31 0.00 0.00 NO(:) //IR63-9//
+new reaction = { O2[-] + NO -> NO2[-] + O } rate = 1.00e-12 0.00 0.00 NO(:) //IMR31//
+
+// tenth page 
+new reaction = { O3[-] + NO2 -> NO3[-] + O2 } rate = 2.0e-11 0.00 0.00 NO2(:) //IMR32//
+new reaction = { O4[-] + O3 -> O3[-] + O2 + O2 } rate = 5.0e-10 0.00 0.00 O3(:) //DCE4//
+new reaction = { CO4[-] + O3 -> O3[-] + CO2 + O2 } rate = 5.4e-10 0.00 0.00 O3(:) //DCE5//
+new reaction = { CO3[-] + NO2 -> NO3[-] + CO2 } rate = 8.0e-11 0.00 0.00 NO2(:) //IMR33//
+
+// eleventh page 
+new reaction = { e + O2 -> O[-] + O - 5.12 } rate = 2.75e-10 -0.5 5.00 e(:) //DA1//
+new reaction = { e + O2Delta -> O[-] + O - 4.14 } rate = 2.75e-10 -0.5 5.00 e(:) //DA2//
+new reaction = { e + O2 + O2 -> O2[-] + O2 } rate = 3.64e-31 -1.00 0.052 e(:) //A1//
+new reaction = { e + O2 + O2Delta -> O2[-] + O2Delta } rate = 3.64e-31 -1.00 0.052 e(:) //A2//
+new reaction = { e + O2 + N2 -> O2[-] + N2 } rate = 5.4e-34 -2.68 0.115 e(:) //A3// ? rate (-31 could be -34)
+new reaction = { e + O2 + H2O -> O2[-] + H2O } rate = 1.4e-29 0.00 0.00 e(:) //A4//
+
+// eleventh page, second section
+new reaction = { N2 -> N2[+] : e -> e + e - 15.56 } rate = 7e-9 0.7 15.56 e(:30) //CI9.1//
+new reaction = { N2 -> N2[+] : e -> e + e - 15.56 } rate = 4.5e-8 0.0 0.0 e(30:) //CI9.2//
+new reaction = { O2 -> O2[+] : e -> e + e - 12.1 } rate = 1.27e-9 1.36 11.41 e(:6.0) //CI10.1//
+new reaction = { O2 -> O2[+] : e -> e + e - 12.1 } rate = 1.77e-8 0.57 18.69 e(6.0:) //CI10.2//
+new reaction = { N -> N[+] : e -> e + e - 14.54 } rate = 5.96e-9 0.67 14.971 e(:28) //CI11.1//
+new reaction = { N -> N[+] : e -> e + e - 14.54 } rate = 3.47e-7 -0.201 47.54 e(28:) //CI11.2//
+new reaction = { N[2D] -> N[+] : e -> e + e - 12.17 } rate = 5.96e-9 0.67 15.0 e(:28) //CI12.1//
+new reaction = { N[2D] -> N[+] : e -> e + e - 12.17 } rate = 3.47e-7 -0.2 47.5 e(28:) //CI12.2//
+new reaction = { O -> O[+] : e -> e + e - 13.62 } rate = 1.57e-8 0.43 14.75 e(:28)//CI13.1//
+new reaction = { O -> O[+] : e -> e + e - 13.62 } rate = 2.65e-7 -0.15 39.87 e(28:) //CI13.2//
+new reaction = { NO -> NO[+] : e -> e + e - 9.26 } rate = 3.63e-9 1.026 9.034 e(:4) //CI14.1//
+new reaction = { NO -> NO[+] : e -> e + e - 9.26 } rate = 1.41e-8 0.645 12.355 e(4:) //CI14.2//
+new reaction = { N2 -> N + N[2D] : e -> e - 12.13 } rate = 1.54e-8 0.45 12.11 e(:25) //TD74.1// 
+new reaction = { N2 -> N + N[2D] : e -> e - 12.13 } rate = 4.04e-8 0.0 0.0 e(25:) //TD74.2//
+new reaction = { O2 -> O + O : e -> e - 5.11 } rate = 5.72e-10 0.50 8.4 e(:100) //TD75,1//
+new reaction = { O2 -> O + O : e -> e - 5.11 } rate = 1.30e-10 1.50 8.4 e(:100) //TD75,2//
+new reaction = { O2 -> O + O : e -> e - 5.11 } rate = 3.83e-9 0.50 4.5 e(:100) //TD75,3//
+new reaction = { O2 -> O + O : e -> e - 5.11 } rate = 1.70e-9 1.50 4.5 e(:100) //TD75,4//
+
+// twelfth page - NEXRAT in source code
+new reaction = { N2C -> N2B } rate = 2.8e7 0.00 0.00 N2C(:) //EX11// photon emitted and assumed to leave system (3.65eV emitted as radiation)
+new reaction = { N2B -> N2A } rate = 1.5e5 0.00 0.00 N2B(:) //EX12// photon emitted and assumed to leave system (1.18eV emitted as radiation)
+new reaction = { N2 + N2C -> N2 + N2B + 3.65v } rate = 1.1e-11 0.00 0.00 N2(:) //EX13// 
+new reaction = { O2 + N2C -> O2 + N2B + 3.65v } rate = 3.0e-10 0.00 0.00 O2(:) //EX14//
+new reaction = { N2 + N2B -> N2 + N2A + 1.18v } rate = 1.0e-11 0.00 0.00 N2(:) //EX15// 
+new reaction = { O2 + N2B -> O2 + N2A + 1.18v } rate = 1.0e-11 0.00 0.00 O2(:) //EX16//
+new reaction = { O + N2A -> O + N2 + 6.1v } rate = 2.0e-11 0.00 0.00 O(:) //EX17//
+new reaction = { N2 + N2A -> N2 + N2 + 6.17v } rate = 1.0e-12 0.00 0.00 N2(:) //EX18//
+new reaction = { O2 + N2A -> O + O + N2 + 0.98v } rate = 5.0e-12 0.00 0.00 O2(:) //TD76//
+new reaction = { N2B -> N2C : e -> e - 3.65 } rate = 2.4e-8 -0.35 3.85 e(:) //EX19//
+new reaction = { N2C -> N2B : e -> e + 3.65 } rate = 2.4e-8 -0.35 0.2 e(:) //EX20//
+new reaction = { N2 -> N2C : e -> e - 11.0 } rate = 3.82e-8 -0.67 12.21 e(:5) //EX21.1//
+new reaction = { N2 -> N2C : e -> e - 11.0 } rate = 1.16e-7 -1.06 14.67 e(5:) //EX21.2//
+new reaction = { N2C -> N2 : e -> e + 11.0 } rate = 1.27e-8 -0.67 1.21 e(:5) //EX22.1//
+new reaction = { N2C -> N2 : e -> e + 11.0 } rate = 3.88e-8 -1.06 3.67 e(5:) //EX22.2//
+new reaction = { N2A -> N2B : e -> e - 1.18 } rate = 5.9e-9 -0.4 1.25 e(:) //EX23//
+new reaction = { N2B -> N2A : e -> e + 1.18 } rate = 5.9e-9 -0.4 0.07 e(:) //EX24//
+new reaction = { N2 -> N2B : e -> e - 7.35 } rate = 1.44e-8 -0.305 8.5 e(:4) //EX25.1,1//
+new reaction = { N2 -> N2B : e -> e - 7.35 } rate = 6.78e-8 -0.89 11.46 e(4:) //EX25.1,2//
+new reaction = { N2B -> N2 : e -> e + 7.35 } rate = 4.80e-9 -0.305 1.15 e(:4) //EX25.2,1//
+new reaction = { N2B -> N2 : e -> e + 7.35 } rate = 2.26e-8 -0.89 4.11 e(4:) //EX25.2,2//
+new reaction = { N2 -> N2A : e -> e - 6.17 } rate = 8.83e-9 -0.367 7.71 e(:8) //EX26.1//
+new reaction = { N2 -> N2A : e -> e - 6.17 } rate = 1.02e-7 -1.135 14.51 e(8:) //EX26.2//
+new reaction = { N2A -> N2 : e -> e + 6.17 } rate = 2.94e-9 -0.367 1.54 e(:8) //EX27.1//
+new reaction = { N2A -> N2 : e -> e + 6.17 } rate = 3.40e-8 -1.135 8.34 e(8:) //EX27.2//
+
+// thirteenth page 
+new reaction = { N2A -> N2[+] : e -> e + e - 9.39 } rate = 3.0e-9 1.2 9.41 e(:20) //CI15.1//
+new reaction = { N2A -> N2[+] : e -> e + e - 9.39 } rate = 6.8e-8 0.0 0.0 e(20:) //CI15.2//
+new reaction = { N2B -> N2[+] : e -> e + e - 8.21 } rate = 3.0e-9 1.2 8.23 e(:20) //CI16.1//
+new reaction = { N2B -> N2[+] : e -> e + e - 8.21 } rate = 7.2e-8 0.0 0.0 e(20:) //CI16.2//
+new reaction = { N2A -> N + N : e -> e - 3.59 } rate = 1.54e-8 0.45 8.46 e(:25) //TD77.1//
+new reaction = { N2A -> N + N : e -> e - 3.59 } rate = 4.67e-8 0.0 0.0 e(25:) //TD77.2//
+new reaction = { N2B -> N + N[2D] : e -> e - 4.88 } rate = 1.54e-8 0.45 8.11 e(:25) //TD78.1//
+new reaction = { N2B -> N + N[2D] : e -> e - 4.88 } rate = 4.74e-8 0.0 0.0 e(25:) //TD78.2//
+
+// thirteenth page - second section (photon emission) // deleted this entire section in stdin (rates that are 0 make the program crash)
+new reaction = { N2 -> N2 : e -> e } rate = 0.00 0.00 0.00 N2(:) //EX28// ? energy, rate (SGN2$)
+new reaction = { O2 -> O2 : e -> e } rate = 0.00 0.00 0.00 O2(:) //EX29// ? energy, rate (SGO2)
+new reaction = { N[+] -> N[+] : e -> e } rate = 0.00 0.00 0.00 N[+](:) //EX30// ? energy, rate (CNPP)
+new reaction = { O[+] -> O[+] : e -> e } rate = 0.00 0.00 0.00 O[+](:) //EX31// ? energy, rate (COPP)
+new reaction = { N -> N : e -> e } rate = 0.00 0.00 0.00 N(:) //EX32// ? energy, rate (RN)
+new reaction = { N[2D] -> N[2D] : e -> e } rate = 0.00 0.00 0.00 N[2D](:) //EX33// ? energy, rate (RN2O)
+new reaction = { O -> O : e -> e } rate = 0.00 0.00 0.00 O(:) //EX34// ? energy, rate (RO)
+
+// fourteenth page 
+new reaction = { N2[+] + e -> N + N[2D] + 3.51 } rate = 4.33e-8 -0.39 0.00 e(:) //R10//rate checked in pctc1.f:77
+new reaction = { N4[+] + e -> N2 + N2 + 15.58 } rate = 3.2e-7 -0.5 0.00 e(:) //DR2//
+new reaction = { N3[+] + e -> N2 + N + 14.54 } rate = 1.8e-8 -1.0 0.00 e(:) //DR3//
+new reaction = { O2[+] + e -> O + O + 6.96 } rate = 1.5e-8 -0.7 0.00 e(:0.1) //DR4.1//
+new reaction = { O2[+] + e -> O + O + 6.96 } rate = 2.1e-8 -0.56 0.00 e(0.1:) //DR4.2//
+new reaction = { O4[+] + e -> O2 + O2 + 12.06 } rate = 3.4e-8 -1.0 0.00 e(:) //DR5//
+new reaction = { H2O[+] + e -> H2O + 7.5 } rate = 1.2e-8 -0.5 0.00 e(:) //R11//
+new reaction = { H3O[+] + e -> H3O + 12.0 } rate = 2.6e-8 -1.2 0.00 e(:) //R12//
+new reaction = { O2[+].H2O + e -> O2 + H2O + 12.0 } rate = 7.2e-7 -0.2 0.00 e(:) //DR6//
+new reaction = { H3O[+].OH + e -> H3O.OH + 12.0 } rate = 9.6e-7 -0.2 0.00 e(:) //R13//
+new reaction = { H3O[+].H2O -> H3O.H2O + 12.0 } rate = 4.2e-6 -0.05 0.00 e(:) //DR7//
+new reaction = { NO[+] + e -> N[2D] + O + 0.96 } rate = 2.00e-8 -0.83 0.00 e(:) //DR8//fixed rate based on switch
+new reaction = { NO[+] + e -> N + O + 0.96 } rate = 2.00e-8 -0.83 0.00 e(:) //DR9//fixed rate based on switch
+new reaction = { NO[+].H2O + e -> NO + H2O + 9.2 } rate = 9.56e-7 -0.2 0.00 e(:) /DR10//
+
+// fifteenth page // ? not sure whether energy transferred to electrons or gas, e.g. 14.54
+new reaction = { e + e + N3[+] -> e + N + N2 + 14.54 } rate = 5.15e-27 -4.5 0.00 e(:) //DR11//
+new reaction = { e + N2 + N3[+] -> N2 + N + N2 + 14.54 } rate = 6.5e-31 -4.5 0.00 e(:) //DR12//
+new reaction = { e + N + N3[+] -> N + N + N2 + 14.54 } rate = 6.5e-31 -4.5 0.00 e(:) //DR13//
+new reaction = { e + O2 + N3[+] -> O2 + N + N2 + 14.54 } rate = 6.5e-31 -4.5 0.00 e(:) //DR14//
+new reaction = { e + O + N3[+] -> O + N + N2 + 14.54 } rate = 6.5e-31 -4.5 0.00 e(:) //DR15//
+new reaction = { e + NO + N3[+] -> NO + N + NO + 14.54 } rate = 6.5e-31 -4.5 0.00 e(:) //DR16//
+new reaction = { e + N[2D] + N3[+] -> NO + N + N[2D] + 14.54 } rate = 6.5e-31 -4.5 0.00 e(:) //DR16-2//
+new reaction = { e + O2Delta + N3[+] -> NO + N + O2Delta + 14.54 } rate = 6.5e-31 -4.5 0.00 e(:) //DR16-3//
+new reaction = { e + O3 + N3[+] -> NO + N + O3 + 14.54 } rate = 6.5e-31 -4.5 0.00 e(:) //DR16-4//
+new reaction = { e + H2O + N3[+] -> NO + N + H2O + 14.54 } rate = 6.5e-31 -4.5 0.00 e(:) //DR16-5//
+new reaction = { e + NO2 + N3[+] -> NO + N + NO2 + 14.54 } rate = 6.5e-31 -4.5 0.00 e(:) //DR16-6//
+new reaction = { e + CO2 + N3[+] -> NO + N + CO2 + 14.54 } rate = 6.5e-31 -4.5 0.00 e(:) //DR16-7//
+new reaction = { e + N2A + N3[+] -> NO + N + N2A + 14.54 } rate = 6.5e-31 -4.5 0.00 e(:) //DR16-8//
+new reaction = { e + N2B + N3[+] -> NO + N + N2B + 14.54 } rate = 6.5e-31 -4.5 0.00 e(:) //DR16-9//
+new reaction = { e + N2C + N3[+] -> NO + N + N2C + 14.54 } rate = 6.5e-31 -4.5 0.00 e(:) //DR16-1//
+new reaction = { e + e + N2[+] -> N2 + e + 15.58 } rate = 5.15e-27 -4.5 0.00 e(:) //R14//
+new reaction = { e + N2 + N2[+] -> N2 + N2 + 15.58 } rate = 6.5e-31 -2.5 0.00 e(:) //R15//
+new reaction = { e + N + N2[+] -> N2 + N + 15.58 } rate = 6.5e-31 -2.5 0.00 e(:) //R16//
+new reaction = { e + O2 + N2[+] -> N2 + O2 + 15.58 } rate = 6.5e-31 -2.5 0.00 e(:) //R17//
+new reaction = { e + O + N2[+] -> N2 + O + 15.58 } rate = 6.5e-31 -2.5 0.00 e(:) //R18//
+new reaction = { e + NO + N2[+] -> N2 + NO + 15.58 } rate = 6.5e-31 -2.5 0.00 e(:) //R19//
+new reaction = { e + N[2D] + N2[+] -> N2 + N[2D] + 15.58 } rate = 6.5e-31 -2.5 0.00 e(:) //R19-1//
+new reaction = { e + O2Delta + N2[+] -> N2 + O2Delta + 15.58 } rate = 6.5e-31 -2.5 0.00 e(:) //R19-2//
+new reaction = { e + O3 + N2[+] -> N2 + O3 + 15.58 } rate = 6.5e-31 -2.5 0.00 e(:) //R19-3//
+new reaction = { e + H2O + N2[+] -> N2 + H2O + 15.58 } rate = 6.5e-31 -2.5 0.00 e(:) //R19-4//
+new reaction = { e + NO2 + N2[+] -> N2 + NO2 + 15.58 } rate = 6.5e-31 -2.5 0.00 e(:) //R19-5//
+new reaction = { e + CO2 + N2[+] -> N2 + CO2 + 15.58 } rate = 6.5e-31 -2.5 0.00 e(:) //R19-6//
+new reaction = { e + N2A + N2[+] -> N2 + N2A + 15.58 } rate = 6.5e-31 -2.5 0.00 e(:) //R19-7//
+new reaction = { e + N2B + N2[+] -> N2 + N2B + 15.58 } rate = 6.5e-31 -2.5 0.00 e(:) //R19-8//
+new reaction = { e + N2C + N2[+] -> N2 + N2C + 15.58 } rate = 6.5e-31 -2.5 0.00 e(:) //R19-9//
+new reaction = { e + e + N4[+] -> N2 + N2 + e + 15.58 } rate = 5.15e-27 -4.5 0.00 e(:) //DR17//
+new reaction = { e + N2 + N4[+] -> N2 + N2 + N2 + 15.58 } rate = 6.5e-31 -2.5 0.00 e(:) //DR18//
+new reaction = { e + N + N4[+] -> N2 + N2 + N + 15.58 } rate = 6.5e-31 -2.5 0.00 e(:) //DR19//
+new reaction = { e + O2 + N4[+] -> N2 + N2 + O2 + 15.58 } rate = 6.5e-31 -2.5 0.00 e(:) /DR20//
+new reaction = { e + O + N4[+] -> N2 + N2 + O + 15.58 } rate = 6.5e-31 -2.5 0.00 e(:) //DR21//
+new reaction = { e + NO + N4[+] -> N2 + N2 + NO + 15.58 } rate = 6.5e-31 -2.5 0.00 e(:) //DR22//
+new reaction = { e + N[2D] + N4[+] -> N2 + N2 + N[2D] + 15.58 } rate = 6.5e-31 -2.5 0.00 e(:) //DR22-1//
+new reaction = { e + O2Delta + N4[+] -> N2 + N2 + O2Delta + 15.58 } rate = 6.5e-31 -2.5 0.00 e(:) //DR22-2//
+new reaction = { e + O3 + N4[+] -> N2 + N2 + O3 + 15.58 } rate = 6.5e-31 -2.5 0.00 e(:) //DR22-3//
+new reaction = { e + H2O + N4[+] -> N2 + N2 + H2O + 15.58 } rate = 6.5e-31 -2.5 0.00 e(:) //DR22-4//
+new reaction = { e + NO2 + N4[+] -> N2 + N2 + NO2 + 15.58 } rate = 6.5e-31 -2.5 0.00 e(:) //DR22-5//
+new reaction = { e + CO2 + N4[+] -> N2 + N2 + CO2 + 15.58 } rate = 6.5e-31 -2.5 0.00 e(:) //DR22-6//
+new reaction = { e + N2A + N4[+] -> N2 + N2 + N2A + 15.58 } rate = 6.5e-31 -2.5 0.00 e(:) //DR22-7//
+new reaction = { e + N2B + N4[+] -> N2 + N2 + N2B + 15.58 } rate = 6.5e-31 -2.5 0.00 e(:) //DR22-8//
+new reaction = { e + N2C + N4[+] -> N2 + N2 + N2C + 15.58 } rate = 6.5e-31 -2.5 0.00 e(:) //DR22-9//
+new reaction = { e + e + O2[+] -> O2 + e + 12.06 } rate = 5.15e-27 -4.5 0.00 e(:) //R20//
+new reaction = { e + N2 + O2[+] -> O2 + N2 + 12.06 } rate = 6.5e-31 -2.5 0.00 e(:) //R21//
+new reaction = { e + N + O2[+] -> O2 + N + 12.06 } rate = 6.5e-31 -2.5 0.00 e(:) //R22//
+new reaction = { e + O2 + O2[+] -> O2 + O2 + 12.06 } rate = 6.5e-31 -2.5 0.00 e(:) //R23//
+new reaction = { e + O + O2[+] -> O2 + O + 12.06 } rate = 6.5e-31 -2.5 0.00 e(:) //R24//
+new reaction = { e + NO + O2[+] -> O2 + NO + 12.06 } rate = 6.5e-31 -2.5 0.00 e(:) //R25//
+new reaction = { e + N[2D] + O2[+] -> O2 + N[2D] + 12.06 } rate = 6.5e-31 -2.5 0.00 e(:) //R25-1//
+new reaction = { e + O2Delta + O2[+] -> O2 + O2Delta + 12.06 } rate = 6.5e-31 -2.5 0.00 e(:) //R25-2//
+new reaction = { e + O3 + O2[+] -> O2 + O3 + 12.06 } rate = 6.5e-31 -2.5 0.00 e(:) //R25-3//
+new reaction = { e + H2O + O2[+] -> O2 + H2O + 12.06 } rate = 6.5e-31 -2.5 0.00 e(:) //R25-4//
+new reaction = { e + NO2 + O2[+] -> O2 + NO2 + 12.06 } rate = 6.5e-31 -2.5 0.00 e(:) //R25-5//
+new reaction = { e + CO2 + O2[+] -> O2 + CO2 + 12.06 } rate = 6.5e-31 -2.5 0.00 e(:) //R25-6//
+new reaction = { e + N2A + O2[+] -> O2 + N2A + 12.06 } rate = 6.5e-31 -2.5 0.00 e(:) //R25-7//
+new reaction = { e + N2B + O2[+] -> O2 + N2B + 12.06 } rate = 6.5e-31 -2.5 0.00 e(:) //R25-8//
+new reaction = { e + N2C + O2[+] -> O2 + N2C + 12.06 } rate = 6.5e-31 -2.5 0.00 e(:) //R25-9//
+new reaction = { e + e + O4[+] -> O2 + O2 + e + 12.06 } rate = 5.15e-27 -4.5 0.00 e(:) //DR23//
+new reaction = { e + N2 + O4[+] -> O2 + O2 + N2 + 12.06 } rate = 6.5e-31 -2.5 0.00 e(:) //DR24//
+new reaction = { e + N + O4[+] -> O2 + O2 + N + 12.06 } rate = 6.5e-31 -2.5 0.00 e(:) //DR25//
+new reaction = { e + O2 + O4[+] -> O2 + O2 + O2 + 12.06 } rate = 6.5e-31 -2.5 0.00 e(:) //DR26//
+new reaction = { e + O + O4[+] -> O2 + O2 + O + 12.06 } rate = 6.5e-31 -2.5 0.00 e(:) //DR27//
+new reaction = { e + NO + O4[+] -> O2 + O2 + NO + 12.06 } rate = 6.5e-31 -2.5 0.00 e(:) //DR28//
+new reaction = { e + N[2D] + O4[+] -> O2 + O2 + N[2D] + 12.06 } rate = 6.5e-31 -2.5 0.00 e(:) //DR28-1//
+new reaction = { e + O2Delta + O4[+] -> O2 + O2 + O2Delta + 12.06 } rate = 6.5e-31 -2.5 0.00 e(:) //DR28-2//
+new reaction = { e + O3 + O4[+] -> O2 + O2 + O3 + 12.06 } rate = 6.5e-31 -2.5 0.00 e(:) //DR28-3//
+new reaction = { e + H2O + O4[+] -> O2 + O2 + H2O + 12.06 } rate = 6.5e-31 -2.5 0.00 e(:) //DR28-4//
+new reaction = { e + NO2 + O4[+] -> O2 + O2 + NO2 + 12.06 } rate = 6.5e-31 -2.5 0.00 e(:) //DR28-5//
+new reaction = { e + CO2 + O4[+] -> O2 + O2 + CO2 + 12.06 } rate = 6.5e-31 -2.5 0.00 e(:) //DR28-6//
+new reaction = { e + N2A + O4[+] -> O2 + O2 + N2A + 12.06 } rate = 6.5e-31 -2.5 0.00 e(:) //DR28-7//
+new reaction = { e + N2B + O4[+] -> O2 + O2 + N2B + 12.06 } rate = 6.5e-31 -2.5 0.00 e(:) //DR28-8//
+new reaction = { e + N2C + O4[+] -> O2 + O2 + N2C + 12.06 } rate = 6.5e-31 -2.5 0.00 e(:) //DR28-9//
+new reaction = { e + N2 + H2O[+] -> H2O + N2 + 12.06 } rate = 6.5e-31 -2.5 0.00 e(:)//R26//
+new reaction = { e + N + H2O[+] -> H2O + N + 12.06 } rate = 6.5e-31 -2.5 0.00 e(:) //R27//
+new reaction = { e + O2 + H2O[+] -> H2O + O2 + 12.06 } rate = 6.5e-31 -2.5 0.00 e(:) //R28//
+new reaction = { e + O + H2O[+] -> H2O + O + 12.06 } rate = 6.5e-31 -2.5 0.00 e(:) //R29//
+new reaction = { e + NO + H2O[+] -> H2O + NO + 12.06 } rate = 6.5e-31 -2.5 0.00 e(:) //R30//
+new reaction = { e + N[2D] + H2O[+] -> H2O + N[2D] + 12.06 } rate = 6.5e-31 -2.5 0.00 e(:) //R30-1//
+new reaction = { e + O2Delta + H2O[+] -> H2O + O2Delta + 12.06 } rate = 6.5e-31 -2.5 0.00 e(:) //R30-2//
+new reaction = { e + O3 + H2O[+] -> H2O + O3 + 12.06 } rate = 6.5e-31 -2.5 0.00 e(:) //R30-3//
+new reaction = { e + H2O + H2O[+] -> H2O + H2O + 12.06 } rate = 6.5e-31 -2.5 0.00 e(:) //R30-4//
+new reaction = { e + NO2 + H2O[+] -> H2O + NO2 + 12.06 } rate = 6.5e-31 -2.5 0.00 e(:) //R30-5//
+new reaction = { e + CO2 + H2O[+] -> H2O + CO2 + 12.06 } rate = 6.5e-31 -2.5 0.00 e(:) //R30-6//
+new reaction = { e + N2A + H2O[+] -> H2O + N2A + 12.06 } rate = 6.5e-31 -2.5 0.00 e(:) //R30-7//
+new reaction = { e + N2B + H2O[+] -> H2O + N2B + 12.06 } rate = 6.5e-31 -2.5 0.00 e(:) //R30-8//
+new reaction = { e + N2C + H2O[+] -> H2O + N2C + 12.06 } rate = 6.5e-31 -2.5 0.00 e(:) //R30-9//
+new reaction = { e + e + H2O[+] -> H2O + e + 12.06 } rate = 5.15e-27 -4.5 0.00 e(:) //R31//
+new reaction = { e + N2 + H3O[+] -> H3O + N2 + 12.06 } rate = 6.5e-31 -2.5 0.00 e(:) //R32//
+new reaction = { e + N + H3O[+] -> H3O + N + 12.06 } rate = 6.5e-31 -2.5 0.00 e(:) //R33//
+new reaction = { e + O2 + H3O[+] -> H3O + O2 + 12.06 } rate = 6.5e-31 -2.5 0.00 e(:) //R34//
+new reaction = { e + O + H3O[+] -> H3O + O + 12.06 } rate = 6.5e-31 -2.5 0.00 e(:) //R35//
+new reaction = { e + NO + H3O[+] -> H3O + NO + 12.06 } rate = 6.5e-31 -2.5 0.00 e(:) //R36//
+new reaction = { e + N[2D] + H3O[+] -> H3O + N[2D] + 12.06 } rate = 6.5e-31 -2.5 0.00 e(:) //R36-1//
+new reaction = { e + O2Delta + H3O[+] -> H3O + O2Delta + 12.06 } rate = 6.5e-31 -2.5 0.00 e(:) //R36-2//
+new reaction = { e + O3 + H3O[+] -> H3O + O3 + 12.06 } rate = 6.5e-31 -2.5 0.00 e(:) //R36-3//
+new reaction = { e + H2O + H3O[+] -> H3O + H2O + 12.06 } rate = 6.5e-31 -2.5 0.00 e(:) //R36-4//
+new reaction = { e + NO2 + H3O[+] -> H3O + NO2 + 12.06 } rate = 6.5e-31 -2.5 0.00 e(:) //R36-5//
+new reaction = { e + CO2 + H3O[+] -> H3O + CO2 + 12.06 } rate = 6.5e-31 -2.5 0.00 e(:) //R36-6//
+new reaction = { e + N2A + H3O[+] -> H3O + N2A + 12.06 } rate = 6.5e-31 -2.5 0.00 e(:) //R36-7//
+new reaction = { e + N2B + H3O[+] -> H3O + N2B + 12.06 } rate = 6.5e-31 -2.5 0.00 e(:) //R36-8//
+new reaction = { e + N2C + H3O[+] -> H3O + N2C + 12.06 } rate = 6.5e-31 -2.5 0.00 e(:) //R36-9//
+new reaction = { e + e + O2[+].H2O -> O2 + H2O + e + 12.06 } rate = 5.15e-27 -4.5 0.00 e(:) //DR29//
+new reaction = { e + N2 + O2[+].H2O -> O2 + H2O + N2 + 12.06 } rate = 6.5e-31 -2.5 0.00 e(:) //DR30//
+new reaction = { e + N + O2[+].H2O -> O2 + H2O + N + 12.06 } rate = 6.5e-31 -2.5 0.00 e(:) //DR31//
+new reaction = { e + O2 + O2[+].H2O -> O2 + H2O + O2 + 12.06 } rate = 6.5e-31 -2.5 0.00 e(:) //DR32//
+new reaction = { e + O + O2[+].H2O -> O2 + H2O + O + 12.06 } rate = 6.5e-31 -2.5 0.00 e(:) //DR33//
+new reaction = { e + NO + O2[+].H2O -> O2 + H2O + NO + 12.06 } rate = 6.5e-31 -2.5 0.00 e(:) //DR34//
+new reaction = { e + N[2D] + O2[+].H2O -> O2 + H2O + N[2D] + 12.06 } rate = 6.5e-31 -2.5 0.00 e(:) //DR34-1//
+new reaction = { e + O2Delta + O2[+].H2O -> O2 + H2O + O2Delta + 12.06 } rate = 6.5e-31 -2.5 0.00 e(:) //DR34-2//
+new reaction = { e + O3 + O2[+].H2O -> O2 + H2O + O3 + 12.06 } rate = 6.5e-31 -2.5 0.00 e(:) //DR34-3//
+new reaction = { e + H2O + O2[+].H2O -> O2 + H2O + H2O + 12.06 } rate = 6.5e-31 -2.5 0.00 e(:) //DR34-4//
+new reaction = { e + NO2 + O2[+].H2O -> O2 + H2O + NO2 + 12.06 } rate = 6.5e-31 -2.5 0.00 e(:) //DR34-5//
+new reaction = { e + CO2 + O2[+].H2O -> O2 + H2O + CO2 + 12.06 } rate = 6.5e-31 -2.5 0.00 e(:) //DR34-6//
+new reaction = { e + N2A + O2[+].H2O -> O2 + H2O + N2A + 12.06 } rate = 6.5e-31 -2.5 0.00 e(:) //DR34-7//
+new reaction = { e + N2B + O2[+].H2O -> O2 + H2O + N2B + 12.06 } rate = 6.5e-31 -2.5 0.00 e(:) //DR34-8//
+new reaction = { e + N2C + O2[+].H2O -> O2 + H2O + N2C + 12.06 } rate = 6.5e-31 -2.5 0.00 e(:) //DR34-9//
+new reaction = { e + e + H3O[+].OH -> H3O.OH + e + 12.06 } rate = 5.15e-27 -4.5 0.00 e(:) //R37//
+new reaction = { e + N2 + H3O[+].OH -> H3O.OH + N2 + 12.06 } rate = 6.5e-31 -2.5 0.00 e(:) //R38//
+new reaction = { e + N + H3O[+].OH -> H3O.OH + N + 12.06 } rate = 6.5e-31 -2.5 0.00 e(:) //R39//
+new reaction = { e + O2 + H3O[+].OH -> H3O.OH + O2 + 12.06 } rate = 6.5e-31 -2.5 0.00 e(:) //R40//
+new reaction = { e + O + H3O[+].OH -> H3O.OH + O + 12.06 } rate = 6.5e-31 -2.5 0.00 e(:) //R41//
+new reaction = { e + NO + H3O[+].OH -> H3O.OH + NO + 12.06 } rate = 6.5e-31 -2.5 0.00 e(:) //R42-1//
+new reaction = { e + N[2D] + H3O[+].OH -> H3O.OH + N[2D] + 12.06 } rate = 6.5e-31 -2.5 0.00 e(:) //R42-2//
+new reaction = { e + O2Delta + H3O[+].OH -> H3O.OH + O2Delta + 12.06 } rate = 6.5e-31 -2.5 0.00 e(:) //R42-3//
+new reaction = { e + O3 + H3O[+].OH -> H3O.OH + O3 + 12.06 } rate = 6.5e-31 -2.5 0.00 e(:) //R42-4//
+new reaction = { e + H2O + H3O[+].OH -> H3O.OH + H2O + 12.06 } rate = 6.5e-31 -2.5 0.00 e(:) //R42-5//
+new reaction = { e + NO2 + H3O[+].OH -> H3O.OH + NO2 + 12.06 } rate = 6.5e-31 -2.5 0.00 e(:) //R42-6//
+new reaction = { e + CO2 + H3O[+].OH -> H3O.OH + CO2 + 12.06 } rate = 6.5e-31 -2.5 0.00 e(:) //R42-7//
+new reaction = { e + N2A + H3O[+].OH -> H3O.OH + N2A + 12.06 } rate = 6.5e-31 -2.5 0.00 e(:) //R42-8//
+new reaction = { e + N2B + H3O[+].OH -> H3O.OH + N2B + 12.06 } rate = 6.5e-31 -2.5 0.00 e(:) //R42-9//
+new reaction = { e + N2C + H3O[+].OH -> H3O.OH + N2C + 12.06 } rate = 6.5e-31 -2.5 0.00 e(:) //R42//
+new reaction = { e + e + H3O[+].H2O -> H3O.H2O + e + 12.06 } rate = 5.15e-27 -4.5 0.00 e(:) //R43//
+new reaction = { e + N2 + H3O[+].H2O -> H3O.H2O + N2 + 12.06 } rate = 6.5e-31 -2.5 0.00 e(:) //R44//
+new reaction = { e + N + H3O[+].H2O -> H3O.H2O + N + 12.06 } rate = 6.5e-31 -2.5 0.00 e(:) //R45//
+new reaction = { e + O2 + H3O[+].H2O -> H3O.H2O + O2 + 12.06 } rate = 6.5e-31 -2.5 0.00 e(:) //R46//
+new reaction = { e + O + H3O[+].H2O -> H3O.H2O + O + 12.06 } rate = 6.5e-31 -2.5 0.00 e(:) //R47// 
+new reaction = { e + NO + H3O[+].H2O -> H3O.H2O + NO + 12.06 } rate = 6.5e-31 -2.5 0.00 e(:) //R48//
+new reaction = { e + N[2D] + H3O[+].H2O -> H3O.H2O + N[2D] + 12.06 } rate = 6.5e-31 -2.5 0.00 e(:) //R48-1//
+new reaction = { e + O2Delta + H3O[+].H2O -> H3O.H2O + O2Delta + 12.06 } rate = 6.5e-31 -2.5 0.00 e(:) //R48-2//
+new reaction = { e + O3 + H3O[+].H2O -> H3O.H2O + O3 + 12.06 } rate = 6.5e-31 -2.5 0.00 e(:) //R48-3//
+new reaction = { e + NO2 + H3O[+].H2O -> H3O.H2O + NO2 + 12.06 } rate = 6.5e-31 -2.5 0.00 e(:) //R48-4//
+new reaction = { e + H2O + H3O[+].H2O -> H3O.H2O + H2O + 12.06 } rate = 6.5e-31 -2.5 0.00 e(:) //R48-5//
+new reaction = { e + CO2 + H3O[+].H2O -> H3O.H2O + CO2 + 12.06 } rate = 6.5e-31 -2.5 0.00 e(:) //R48-6//
+new reaction = { e + N2A + H3O[+].H2O -> H3O.H2O + N2A + 12.06 } rate = 6.5e-31 -2.5 0.00 e(:) //R48-7//
+new reaction = { e + N2B + H3O[+].H2O -> H3O.H2O + N2B + 12.06 } rate = 6.5e-31 -2.5 0.00 e(:) //R48-8//
+new reaction = { e + N2C + H3O[+].H2O -> H3O.H2O + N2C + 12.06 } rate = 6.5e-31 -2.5 0.00 e(:) //R48-9//
+new reaction = { e + e + NO[+] -> NO + e + 9.26 } rate = 6.02e-31 -0.474 -0.226 e(:4) //R49.1//
+new reaction = { e + e + NO[+] -> NO + e + 9.26 } rate = 2.34e-30 -0.855 3.095 e(4:) //R49.2//
+new reaction = { e + N2 + NO[+] -> NO + N2 + 9.26 } rate = 6.5e-31 -2.5 0.00 e(:) //R50//
+new reaction = { e + N + NO[+] -> NO + N + 9.26 } rate = 6.5e-31 -2.5 0.00 e(:) //R51//
+new reaction = { e + O2 + NO[+] -> NO + O2 + 9.26 } rate = 6.5e-31 -2.5 0.00 e(:) //R52//
+new reaction = { e + O + NO[+] -> NO + O + 9.26 } rate = 6.5e-31 -2.5 0.00 e(:) //R53//
+new reaction = { e + NO + NO[+] -> NO + NO + 9.26 } rate = 6.5e-31 -2.5 0.00 e(:) //R54//
+new reaction = { e + N[2D] + NO[+] -> NO + N[2D] + 9.26 } rate = 6.5e-31 -2.5 0.00 e(:) //R54-1//
+new reaction = { e + O2Delta + NO[+] -> NO + O2Delta + 9.26 } rate = 6.5e-31 -2.5 0.00 e(:) //R54-2//
+new reaction = { e + O3 + NO[+] -> NO + O3 + 9.26 } rate = 6.5e-31 -2.5 0.00 e(:) //R54-3//
+new reaction = { e + H2O + NO[+] -> NO + H2O + 9.26 } rate = 6.5e-31 -2.5 0.00 e(:) //R54-4//
+new reaction = { e + NO2 + NO[+] -> NO + NO2 + 9.26 } rate = 6.5e-31 -2.5 0.00 e(:) //R54-5//
+new reaction = { e + CO2 + NO[+] -> NO + CO2 + 9.26 } rate = 6.5e-31 -2.5 0.00 e(:) //R54-6//
+new reaction = { e + N2A + NO[+] -> NO + N2A + 9.26 } rate = 6.5e-31 -2.5 0.00 e(:) //R54-7//
+new reaction = { e + N2B + NO[+] -> NO + N2B + 9.26 } rate = 6.5e-31 -2.5 0.00 e(:) //R54-8//
+new reaction = { e + N2C + NO[+] -> NO + N2C + 9.26 } rate = 6.5e-31 -2.5 0.00 e(:) //R54-9//
+new reaction = { e + e + O[+][2D] -> O + e + 16.9 } rate = 5.15e-27 -4.5 0.00 e(:) //R55//
+new reaction = { e + N2 + O[+][2D] -> O + N2 + 16.9 } rate = 6.5e-31 -2.5 0.00 e(:) //R56//
+new reaction = { e + N + O[+][2D] -> O + N + 16.9 } rate = 6.5e-31 -2.5 0.00 e(:) //R57//
+new reaction = { e + O2 + O[+][2D] -> O + O2 + 16.9 } rate = 6.5e-31 -2.5 0.00 e(:) //R58//
+new reaction = { e + O + O[+][2D] -> O + O + 16.9 } rate = 6.5e-31 -2.5 0.00 e(:) //R59//
+new reaction = { e + NO + O[+][2D] -> O + NO + 16.9 } rate = 6.5e-31 -2.5 0.00 e(:) //R60//
+new reaction = { e + N[2D] + O[+][2D] -> O + N[2D] + 16.9 } rate = 6.5e-31 -2.5 0.00 e(:) //R60-1//
+new reaction = { e + O2Delta + O[+][2D] -> O + O2Delta + 16.9 } rate = 6.5e-31 -2.5 0.00 e(:) //R60-2//
+new reaction = { e + O3 + O[+][2D] -> O + O3 + 16.9 } rate = 6.5e-31 -2.5 0.00 e(:) //R60-3//
+new reaction = { e + H2O + O[+][2D] -> O + H2O + 16.9 } rate = 6.5e-31 -2.5 0.00 e(:) //R60-4//
+new reaction = { e + NO2 + O[+][2D] -> O + NO2 + 16.9 } rate = 6.5e-31 -2.5 0.00 e(:) //R60-5//
+new reaction = { e + CO2 + O[+][2D] -> O + CO2 + 16.9 } rate = 6.5e-31 -2.5 0.00 e(:) //R60-6//
+new reaction = { e + N2A + O[+][2D] -> O + N2A + 16.9 } rate = 6.5e-31 -2.5 0.00 e(:) //R60-7//
+new reaction = { e + N2B + O[+][2D] -> O + N2B + 16.9 } rate = 6.5e-31 -2.5 0.00 e(:) //R60-8//
+new reaction = { e + N2C + O[+][2D] -> O + N2C + 16.9 } rate = 6.5e-31 -2.5 0.00 e(:) //R60-9//
+new reaction = { e + e + NO[+].H2O -> NO + H2O + e + 12.06 } rate = 5.15e-27 -4.5 0.00 e(:) //DR35//
+new reaction = { e + N2 + NO[+].H2O -> NO + H2O + N2 + 12.06 } rate = 6.5e-31 -2.5 0.00 e(:) //DR36//
+new reaction = { e + N + NO[+].H2O -> NO + H2O + N + 12.06 } rate = 6.5e-31 -2.5 0.00 e(:) //DR37//
+new reaction = { e + O2 + NO[+].H2O -> NO + H2O + O2 + 12.06 } rate = 6.5e-31 -2.5 0.00 e(:) //DR38//
+new reaction = { e + O + NO[+].H2O -> NO + H2O + O + 12.06 } rate = 6.5e-31 -2.5 0.00 e(:) //DR39//
+new reaction = { e + NO + NO[+].H2O -> NO + H2O + NO + 12.06 } rate = 6.5e-31 -2.5 0.00 e(:) //DR40//
+new reaction = { e + N[2D] + NO[+].H2O -> NO + H2O + N[2D] + 12.06 } rate = 6.5e-31 -2.5 0.00 e(:) //DR40-1//
+new reaction = { e + O2Delta + NO[+].H2O -> NO + H2O + O2Delta + 12.06 } rate = 6.5e-31 -2.5 0.00 e(:) //DR40-2//
+new reaction = { e + O3 + NO[+].H2O -> NO + H2O + O3 + 12.06 } rate = 6.5e-31 -2.5 0.00 e(:) //DR40-3//
+new reaction = { e + H2O + NO[+].H2O -> NO + H2O + H2O + 12.06 } rate = 6.5e-31 -2.5 0.00 e(:) //DR40-4//
+new reaction = { e + NO2 + NO[+].H2O -> NO + H2O + NO2 + 12.06 } rate = 6.5e-31 -2.5 0.00 e(:) //DR40-5//
+new reaction = { e + CO2 + NO[+].H2O -> NO + H2O + CO2 + 12.06 } rate = 6.5e-31 -2.5 0.00 e(:) //DR40-6//
+new reaction = { e + N2A + NO[+].H2O -> NO + H2O + N2A + 12.06 } rate = 6.5e-31 -2.5 0.00 e(:) //DR40-7//
+new reaction = { e + N2B + NO[+].H2O -> NO + H2O + N2B + 12.06 } rate = 6.5e-31 -2.5 0.00 e(:) //DR40-8//
+new reaction = { e + N2C + NO[+].H2O -> NO + H2O + N2C + 12.06 } rate = 6.5e-31 -2.5 0.00 e(:) //DR40-9//
+
+// sixteenth page
+new reaction = { O[-] + N[+] -> N + O + 14.54 } rate = 2.3e-8 -0.5 0.00 O[-](:) //IR64//
+new reaction = { O[-] + N[+] + N2 -> N + O + N2 + 14.54 } rate = 8.4e-30 -2.5 0.00 O[-](:) //IR64-1//
+new reaction = { O[-] + N[+] + N -> N + O + N + 14.54 } rate = 8.4e-30 -2.5 0.00 O[-](:) //IR64-2//
+new reaction = { O[-] + N[+] + O2 -> N + O + O2 + 14.54 } rate = 8.4e-30 -2.5 0.00 O[-](:) //IR64-3//
+new reaction = { O[-] + N[+] + O -> N + O + O + 14.54 } rate = 8.4e-30 -2.5 0.00 O[-](:) //IR64-4//
+new reaction = { O[-] + N[+] + NO -> N + O + NO + 14.54 } rate = 8.4e-30 -2.5 0.00 O[-](:) //IR64-5//
+new reaction = { O[-] + N[+] + N[2D] -> N + O + N[2D] + 14.54 } rate = 8.4e-30 -2.5 0.00 O[-](:) //IR64-6//
+new reaction = { O[-] + N[+] + O2Delta -> N + O + O2Delta + 14.54 } rate = 8.4e-30 -2.5 0.00 O[-](:) //IR64-7//
+new reaction = { O[-] + N[+] + O3 -> N + O + O3 + 14.54 } rate = 8.4e-30 -2.5 0.00 O[-](:) //IR64-8//
+new reaction = { O[-] + N[+] + H2O -> N + O + H2O + 14.54 } rate = 8.4e-30 -2.5 0.00 O[-](:) //IR64-9//
+new reaction = { O[-] + N[+] + NO2 -> N + O + NO2 + 14.54 } rate = 8.4e-30 -2.5 0.00 O[-](:) //IR64-10//
+new reaction = { O[-] + N[+] + CO2 -> N + O + CO2 + 14.54 } rate = 8.4e-30 -2.5 0.00 O[-](:) //IR64-11//
+new reaction = { O[-] + N[+] + N2A -> N + O + N2A + 14.54 } rate = 8.4e-30 -2.5 0.00 O[-](:) //IR64-12//
+new reaction = { O[-] + N[+] + N2B -> N + O + N2B + 14.54 } rate = 8.4e-30 -2.5 0.00 O[-](:) //IR64-13//
+new reaction = { O[-] + N[+] + N2C -> N + O + N2C + 14.54 } rate = 8.4e-30 -2.5 0.00 O[-](:) //IR64-14//
+new reaction = { O2[-] + N[+] -> N + O2 + 14.54 } rate = 2.3e-8 -0.5 0.00 O2[-](:) //IR65//
+new reaction = { O2[-] + N[+] + N2 -> N + O2 + N2 + 14.54 } rate = 8.4e-30 -2.5 0.00 O2[-](:) //IR65-1//
+new reaction = { O2[-] + N[+] + N -> N + O2 + N + 14.54 } rate = 8.4e-30 -2.5 0.00 O2[-](:) //IR65-2//
+new reaction = { O2[-] + N[+] + O2 -> N + O2 + O2 + 14.54 } rate = 8.4e-30 -2.5 0.00 O2[-](:) //IR65-3//
+new reaction = { O2[-] + N[+] + O -> N + O2 + O + 14.54 } rate = 8.4e-30 -2.5 0.00 O2[-](:) //IR65-4//
+new reaction = { O2[-] + N[+] + NO -> N + O2 + NO + 14.54 } rate = 8.4e-30 -2.5 0.00 O2[-](:) //IR65-5//
+new reaction = { O2[-] + N[+] + N[2D] -> N + O2 + N[2D] + 14.54 } rate = 8.4e-30 -2.5 0.00 O2[-](:) //IR65-6//
+new reaction = { O2[-] + N[+] + O2Delta -> N + O2 + O2Delta + 14.54 } rate = 8.4e-30 -2.5 0.00 O2[-](:) //IR65-7//
+new reaction = { O2[-] + N[+] + O3 -> N + O2 + O3 + 14.54 } rate = 8.4e-30 -2.5 0.00 O2[-](:) //IR65-8//
+new reaction = { O2[-] + N[+] + H2O -> N + O2 + H2O + 14.54 } rate = 8.4e-30 -2.5 0.00 O2[-](:) //IR65-9//
+new reaction = { O2[-] + N[+] + NO2 -> N + O2 + NO2 + 14.54 } rate = 8.4e-30 -2.5 0.00 O2[-](:) //IR65-10//
+new reaction = { O2[-] + N[+] + CO2 -> N + O2 + CO2 + 14.54 } rate = 8.4e-30 -2.5 0.00 O2[-](:) //IR65-11//
+new reaction = { O2[-] + N[+] + N2A -> N + O2 + N2A + 14.54 } rate = 8.4e-30 -2.5 0.00 O2[-](:) //IR65-12//
+new reaction = { O2[-] + N[+] + N2B -> N + O2 + N2B + 14.54 } rate = 8.4e-30 -2.5 0.00 O2[-](:) //IR65-13//
+new reaction = { O2[-] + N[+] + N2C -> N + O2 + N2C + 14.54 } rate = 8.4e-30 -2.5 0.00 O2[-](:) //IR65-14//
+new reaction = { O[-] + N3[+] -> O + N2 + N + 14.54 } rate = 7.9e-9 -0.5 0.00 O[-](:) //IR66//
+new reaction = { O[-] + N3[+] + N2 -> O + N2 + N + N2 + 14.54 } rate = 8.4e-30 -2.5 0.00 O[-](:) //IR66-1//
+new reaction = { O[-] + N3[+] + N -> O + N2 + N + N + 14.54 } rate = 8.4e-30 -2.5 0.00 O[-](:) //IR66-2//
+new reaction = { O[-] + N3[+] + O2 -> O + N2 + N + O2 + 14.54 } rate = 8.4e-30 -2.5 0.00 O[-](:) //IR66-3//
+new reaction = { O[-] + N3[+] + O -> O + N2 + N + O + 14.54 } rate = 8.4e-30 -2.5 0.00 O[-](:) //IR66-4//
+new reaction = { O[-] + N3[+] + NO -> O + N2 + N + NO + 14.54 } rate = 8.4e-30 -2.5 0.00 O[-](:) //IR66-5//
+new reaction = { O[-] + N3[+] + N[2D] -> O + N2 + N + N[2D] + 14.54 } rate = 8.4e-30 -2.5 0.00 O[-](:) //IR66-6//
+new reaction = { O[-] + N3[+] + O2Delta -> O + N2 + N + O2Delta + 14.54 } rate = 8.4e-30 -2.5 0.00 O[-](:) //IR66-7//
+new reaction = { O[-] + N3[+] + O3 -> O + N2 + N + O3 + 14.54 } rate = 8.4e-30 -2.5 0.00 O[-](:) //IR66-8//
+new reaction = { O[-] + N3[+] + H2O -> O + N2 + N + H2O + 14.54 } rate = 8.4e-30 -2.5 0.00 O[-](:) //IR66-9//
+new reaction = { O[-] + N3[+] + NO2 -> O + N2 + N + NO2 + 14.54 } rate = 8.4e-30 -2.5 0.00 O[-](:) //IR66-10//
+new reaction = { O[-] + N3[+] + CO2 -> O + N2 + N + CO2 + 14.54 } rate = 8.4e-30 -2.5 0.00 O[-](:) //IR66-11//
+new reaction = { O[-] + N3[+] + N2A -> O + N2 + N + N2A + 14.54 } rate = 8.4e-30 -2.5 0.00 O[-](:) //IR66-12//
+new reaction = { O[-] + N3[+] + N2B -> O + N2 + N + N2B + 14.54 } rate = 8.4e-30 -2.5 0.00 O[-](:) //IR66-13//
+new reaction = { O[-] + N3[+] + N2C -> O + N2 + N + N2C + 14.54 } rate = 8.4e-30 -2.5 0.00 O[-](:) //IR66-14//
+new reaction = { O2[-] + N3[+] -> O2 + N2 + N + 14.54 } rate = 7.9e-9 -0.5 0.00 O2[-](:) //IR67//
+new reaction = { O2[-] + N3[+] + N2 -> O2 + N2 + N + N2 + 14.54 } rate = 8.4e-30 -2.5 0.00 O2[-](:) //IR67-1//
+new reaction = { O2[-] + N3[+] + N -> O2 + N2 + N + N + 14.54 } rate = 8.4e-30 -2.5 0.00 O2[-](:) //IR67-2//
+new reaction = { O2[-] + N3[+] + O -> O2 + N2 + N + O + 14.54 } rate = 8.4e-30 -2.5 0.00 O2[-](:) //IR67-3//
+new reaction = { O2[-] + N3[+] + O2 -> O2 + N2 + N + O2 + 14.54 } rate = 8.4e-30 -2.5 0.00 O2[-](:) //IR67-4//
+new reaction = { O2[-] + N3[+] + NO -> O2 + N2 + N + NO + 14.54 } rate = 8.4e-30 -2.5 0.00 O2[-](:) //IR67-5//
+new reaction = { O2[-] + N3[+] + N[2D] -> O2 + N2 + N + N[2D] + 14.54 } rate = 8.4e-30 -2.5 0.00 O2[-](:) //IR67-6//
+new reaction = { O2[-] + N3[+] + O2Delta -> O2 + N2 + N + O2Delta + 14.54 } rate = 8.4e-30 -2.5 0.00 O2[-](:) //IR67-7//
+new reaction = { O2[-] + N3[+] + O3 -> O2 + N2 + N + O3 + 14.54 } rate = 8.4e-30 -2.5 0.00 O2[-](:) //IR67-8//
+new reaction = { O2[-] + N3[+] + H2O -> O2 + N2 + N + H2O + 14.54 } rate = 8.4e-30 -2.5 0.00 O2[-](:) //IR67-9//
+new reaction = { O2[-] + N3[+] + NO2 -> O2 + N2 + N + NO2 + 14.54 } rate = 8.4e-30 -2.5 0.00 O2[-](:) //IR67-10//
+new reaction = { O2[-] + N3[+] + CO2 -> O2 + N2 + N + CO2 + 14.54 } rate = 8.4e-30 -2.5 0.00 O2[-](:) //IR67-11//
+new reaction = { O2[-] + N3[+] + N2A -> O2 + N2 + N + N2A + 14.54 } rate = 8.4e-30 -2.5 0.00 O2[-](:) //IR67-12//
+new reaction = { O2[-] + N3[+] + N2B -> O2 + N2 + N + N2B + 14.54 } rate = 8.4e-30 -2.5 0.00 O2[-](:) //IR67-13//
+new reaction = { O2[-] + N3[+] + N2C -> O2 + N2 + N + N2C + 14.54 } rate = 8.4e-30 -2.5 0.00 O2[-](:) //IR67-14//
+new reaction = { O[-] + N2[+] -> O + N2 + 15.58 } rate = 2.3e-8 -0.5 0.00 O[-](:) //IR68//
+new reaction = { O[-] + N2[+] + N2 -> O + N2 + N2 + 15.58 } rate = 8.4e-30 -2.5 0.00 O[-](:) //IR68-1//
+new reaction = { O[-] + N2[+] + N -> O + N2 + N + 15.58 } rate = 8.4e-30 -2.5 0.00 O[-](:) //IR68-2//
+new reaction = { O[-] + N2[+] + O2 -> O + N2 + O2 + 15.58 } rate = 8.4e-30 -2.5 0.00 O[-](:) //IR68-3//
+new reaction = { O[-] + N2[+] + O -> O + N2 + O + 15.58 } rate = 8.4e-30 -2.5 0.00 O[-](:) //IR68-4//
+new reaction = { O[-] + N2[+] + NO -> O + N2 + NO + 15.58 } rate = 8.4e-30 -2.5 0.00 O[-](:) //IR68-5//
+new reaction = { O[-] + N2[+] + N[2D] -> O + N2 + N[2D] + 15.58 } rate = 8.4e-30 -2.5 0.00 O[-](:) //IR68-6//
+new reaction = { O[-] + N2[+] + O2Delta -> O + N2 + O2Delta + 15.58 } rate = 8.4e-30 -2.5 0.00 O[-](:) //IR68-7//
+new reaction = { O[-] + N2[+] + O3 -> O + N2 + O3 + 15.58 } rate = 8.4e-30 -2.5 0.00 O[-](:) //IR68-8//
+new reaction = { O[-] + N2[+] + H2O -> O + N2 + H2O + 15.58 } rate = 8.4e-30 -2.5 0.00 O[-](:) //IR68-9//
+new reaction = { O[-] + N2[+] + NO2 -> O + N2 + NO2 + 15.58 } rate = 8.4e-30 -2.5 0.00 O[-](:) //IR68-10//
+new reaction = { O[-] + N2[+] + CO2 -> O + N2 + CO2 + 15.58 } rate = 8.4e-30 -2.5 0.00 O[-](:) //IR68-11//
+new reaction = { O[-] + N2[+] + N2A -> O + N2 + N2A + 15.58 } rate = 8.4e-30 -2.5 0.00 O[-](:) //IR68-12//
+new reaction = { O[-] + N2[+] + N2B -> O + N2 + N2B + 15.58 } rate = 8.4e-30 -2.5 0.00 O[-](:) //IR68-13//
+new reaction = { O[-] + N2[+] + N2C -> O + N2 + N2C + 15.58 } rate = 8.4e-30 -2.5 0.00 O[-](:) //IR68-14//
+new reaction = { O2[-] + N2[+] -> O2 + N2 + 15.58 } rate = 2.3e-8 -0.5 0.00 O2[-](:) //IR69//
+new reaction = { O2[-] + N2[+] + N2 -> O2 + N2 + N2 + 15.58 } rate = 8.4e-30 -2.5 0.00 O2[-](:) //IR69-1//
+new reaction = { O2[-] + N2[+] + N -> O2 + N2 + N + 15.58 } rate = 8.4e-30 -2.5 0.00 O2[-](:) //IR69-2//
+new reaction = { O2[-] + N2[+] + O2 -> O2 + N2 + O2 + 15.58 } rate = 8.4e-30 -2.5 0.00 O2[-](:) //IR69-3//
+new reaction = { O2[-] + N2[+] + O -> O2 + N2 + NO + 15.58 } rate = 8.4e-30 -2.5 0.00 O2[-](:) //IR69-4//
+new reaction = { O2[-] + N2[+] + NO -> O2 + N2 + NO + 15.58 } rate = 8.4e-30 -2.5 0.00 O2[-](:) //IR69-5//
+new reaction = { O2[-] + N2[+] + N[2D] -> O2 + N2 + N[2D] + 15.58 } rate = 8.4e-30 -2.5 0.00 O2[-](:) //IR69-6//
+new reaction = { O2[-] + N2[+] + O2Delta -> O2 + N2 + O2Delta + 15.58 } rate = 8.4e-30 -2.5 0.00 O2[-](:) //IR69-7//
+new reaction = { O2[-] + N2[+] + O3 -> O2 + N2 + O3 + 15.58 } rate = 8.4e-30 -2.5 0.00 O2[-](:) //IR69-8//
+new reaction = { O2[-] + N2[+] + H2O -> O2 + N2 + H2O + 15.58 } rate = 8.4e-30 -2.5 0.00 O2[-](:) //IR69-9//
+new reaction = { O2[-] + N2[+] + NO2 -> O2 + N2 + NO2 + 15.58 } rate = 8.4e-30 -2.5 0.00 O2[-](:) //IR69-10//
+new reaction = { O2[-] + N2[+] + CO2 -> O2 + N2 + CO2 + 15.58 } rate = 8.4e-30 -2.5 0.00 O2[-](:) //IR69-11//
+new reaction = { O2[-] + N2[+] + N2A -> O2 + N2 + N2A + 15.58 } rate = 8.4e-30 -2.5 0.00 O2[-](:) //IR69-12//
+new reaction = { O2[-] + N2[+] + N2B -> O2 + N2 + N2B + 15.58 } rate = 8.4e-30 -2.5 0.00 O2[-](:) //IR69-13//
+new reaction = { O2[-] + N2[+] + N2C -> O2 + N2 + N2C + 15.58 } rate = 8.4e-30 -2.5 0.00 O2[-](:) //IR69-14//
+new reaction = { O[-] + N4[+] -> O + N2 + N2 + 15.58 } rate = 7.9e-9 -0.5 0.00 O[-](:) //IR70//
+new reaction = { O[-] + N4[+] + N2 -> O + N2 + N2 + N2 + 15.58 } rate = 8.4e-30 -2.5 0.00 O[-](:) //IR70-1//
+new reaction = { O[-] + N4[+] + N -> O + N2 + N2 + N + 15.58 } rate = 8.4e-30 -2.5 0.00 O[-](:) //IR70-2//
+new reaction = { O[-] + N4[+] + O2 -> O + N2 + N2 + O2 + 15.58 } rate = 8.4e-30 -2.5 0.00 O[-](:) //IR70-3//
+new reaction = { O[-] + N4[+] + O -> O + N2 + N2 + O + 15.58 } rate = 8.4e-30 -2.5 0.00 O[-](:) //IR70-4//
+new reaction = { O[-] + N4[+] + NO -> O + N2 + N2 + NO + 15.58 } rate = 8.4e-30 -2.5 0.00 O[-](:) //IR70-5//
+new reaction = { O[-] + N4[+] + N[2D] -> O + N2 + N2 + N[2D] + 15.58 } rate = 8.4e-30 -2.5 0.00 O[-](:) //IR70-6//
+new reaction = { O[-] + N4[+] + O2Delta -> O + N2 + N2 + O2Delta + 15.58 } rate = 8.4e-30 -2.5 0.00 O[-](:) //IR70-7//
+new reaction = { O[-] + N4[+] + O3 -> O + N2 + N2 + O3 + 15.58 } rate = 8.4e-30 -2.5 0.00 O[-](:) //IR70-8//
+new reaction = { O[-] + N4[+] + H2O -> O + N2 + N2 + H2O + 15.58 } rate = 8.4e-30 -2.5 0.00 O[-](:) //IR70-9//
+new reaction = { O[-] + N4[+] + CO2 -> O + N2 + N2 + CO2 + 15.58 } rate = 8.4e-30 -2.5 0.00 O[-](:) //IR70-10//
+new reaction = { O[-] + N4[+] + NO2 -> O + N2 + N2 + NO2 + 15.58 } rate = 8.4e-30 -2.5 0.00 O[-](:) //IR70-11//
+new reaction = { O[-] + N4[+] + N2A -> O + N2 + N2 + N2A + 15.58 } rate = 8.4e-30 -2.5 0.00 O[-](:) //IR70-12//
+new reaction = { O[-] + N4[+] + N2B -> O + N2 + N2 + N2B + 15.58 } rate = 8.4e-30 -2.5 0.00 O[-](:) //IR70-13//
+new reaction = { O[-] + N4[+] + N2C -> O + N2 + N2 + N2C + 15.58 } rate = 8.4e-30 -2.5 0.00 O[-](:) //IR70-14//
+new reaction = { O2[-] + N4[+] -> O2 + N2 + N2 + 15.58 } rate = 7.9e-9 -0.5 0.00 O2[-](:) //IR71//
+new reaction = { O2[-] + N4[+] + N2 -> O2 + N2 + N2 + N2 + 15.58 } rate = 8.4e-30 -2.5 0.00 O2[-](:) //IR71-1//
+new reaction = { O2[-] + N4[+] + N -> O2 + N2 + N2 + N + 15.58 } rate = 8.4e-30 -2.5 0.00 O2[-](:) //IR71-2//
+new reaction = { O2[-] + N4[+] + O2 -> O2 + N2 + N2 + O2 + 15.58 } rate = 8.4e-30 -2.5 0.00 O2[-](:) //IR71-3//
+new reaction = { O2[-] + N4[+] + O -> O2 + N2 + N2 + O + 15.58 } rate = 8.4e-30 -2.5 0.00 O2[-](:) //IR71-4//
+new reaction = { O2[-] + N4[+] + NO -> O2 + N2 + N2 + NO + 15.58 } rate = 8.4e-30 -2.5 0.00 O2[-](:) //IR71-5//
+new reaction = { O2[-] + N4[+] + N[2D] -> O2 + N2 + N2 + N[2D] + 15.58 } rate = 8.4e-30 -2.5 0.00 O2[-](:) //IR71-6//
+new reaction = { O2[-] + N4[+] + O2Delta -> O2 + N2 + N2 + O2Delta + 15.58 } rate = 8.4e-30 -2.5 0.00 O2[-](:) //IR71-7//
+new reaction = { O2[-] + N4[+] + CO2 -> O2 + N2 + N2 + CO2 + 15.58 } rate = 8.4e-30 -2.5 0.00 O2[-](:) //IR71-8//
+new reaction = { O2[-] + N4[+] + H2O -> O2 + N2 + N2 + H2O + 15.58 } rate = 8.4e-30 -2.5 0.00 O2[-](:) //IR71-9//
+new reaction = { O2[-] + N4[+] + NO2 -> O2 + N2 + N2 + NO2 + 15.58 } rate = 8.4e-30 -2.5 0.00 O2[-](:) //IR71-10//
+new reaction = { O2[-] + N4[+] + O3 -> O2 + N2 + N2 + O3 + 15.58 } rate = 8.4e-30 -2.5 0.00 O2[-](:) //IR71-11//
+new reaction = { O2[-] + N4[+] + N2A -> O2 + N2 + N2 + N2A + 15.58 } rate = 8.4e-30 -2.5 0.00 O2[-](:) //IR71-12//
+new reaction = { O2[-] + N4[+] + N2B -> O2 + N2 + N2 + N2B + 15.58 } rate = 8.4e-30 -2.5 0.00 O2[-](:) //IR71-13//
+new reaction = { O2[-] + N4[+] + N2C -> O2 + N2 + N2 + N2C + 15.58 } rate = 8.4e-30 -2.5 0.00 O2[-](:) //IR71-14//
+
+// sixteenth page - second section
+new reaction = { O[-] + O[+] -> O + O + 13.6 } rate = 2.3e-8 -0.5 0.00 O[-](:) //IR72// 
+new reaction = { O[-] + O[+] + N2 -> O + O + N2 + 13.6 } rate = 8.4e-30 -2.5 0.00 O[-](:) //IR72-1// 
+new reaction = { O[-] + O[+] + N -> O + O + N + 13.6 } rate = 8.4e-30 -2.5 0.00 O[-](:) //IR72-2// 
+new reaction = { O[-] + O[+] + O2 -> O + O + O2 + 13.6 } rate = 8.4e-30 -2.5 0.00 O[-](:) //IR72-3// 
+new reaction = { O[-] + O[+] + O -> O + O + O + 13.6 } rate = 8.4e-30 -2.5 0.00 O[-](:) //IR72-4// 
+new reaction = { O[-] + O[+] + NO -> O + O + NO + 13.6 } rate = 8.4e-30 -2.5 0.00 O[-](:) //IR72-5// 
+new reaction = { O[-] + O[+] + N[2D] -> O + O + N[2D] + 13.6 } rate = 8.4e-30 -2.5 0.00 O[-](:) //IR72-6// 
+new reaction = { O[-] + O[+] + O2Delta -> O + O + O2Delta + 13.6 } rate = 8.4e-30 -2.5 0.00 O[-](:) //IR72-7// 
+new reaction = { O[-] + O[+] + O3 -> O + O + O3 + 13.6 } rate = 8.4e-30 -2.5 0.00 O[-](:) //IR72-8// 
+new reaction = { O[-] + O[+] + H2O -> O + O + H2O + 13.6 } rate = 8.4e-30 -2.5 0.00 O[-](:) //IR72-9// 
+new reaction = { O[-] + O[+] + NO2 -> O + O + NO2 + 13.6 } rate = 8.4e-30 -2.5 0.00 O[-](:) //IR72-10// 
+new reaction = { O[-] + O[+] + CO2 -> O + O + CO2 + 13.6 } rate = 8.4e-30 -2.5 0.00 O[-](:) //IR72-11// 
+new reaction = { O[-] + O[+] + N2A -> O + O + N2A + 13.6 } rate = 8.4e-30 -2.5 0.00 O[-](:) //IR72-12// 
+new reaction = { O[-] + O[+] + N2B -> O + O + N2B + 13.6 } rate = 8.4e-30 -2.5 0.00 O[-](:) //IR72-13// 
+new reaction = { O[-] + O[+] + N2C -> O + O + N2C + 13.6 } rate = 8.4e-30 -2.5 0.00 O[-](:) //IR72-14// 
+new reaction = { O2[-] + O[+] -> O2 + O + 13.6 } rate = 2.3e-8 -0.5 0.00 O[+](:) //IR73//
+new reaction = { O2[-] + O[+] + N2 -> O2 + O + N2 + 13.6 } rate = 8.4e-30 -2.5 0.00 O[+](:) //IR73-1//
+new reaction = { O2[-] + O[+] + N -> O2 + O + N + 13.6 } rate = 8.4e-30 -2.5 0.00 O[+](:) //IR73-2//
+new reaction = { O2[-] + O[+] + O2 -> O2 + O + O2 + 13.6 } rate = 8.4e-30 -2.5 0.00 O[+](:) //IR73-3//
+new reaction = { O2[-] + O[+] + O -> O2 + O + O + 13.6 } rate = 8.4e-30 -2.5 0.00 O[+](:) //IR73-4//
+new reaction = { O2[-] + O[+] + NO -> O2 + O + NO + 13.6 } rate = 8.4e-30 -2.5 0.00 O[+](:) //IR73-5//
+new reaction = { O2[-] + O[+] + N[2D] -> O2 + O + N[2D] + 13.6 } rate = 8.4e-30 -2.5 0.00 O[+](:) //IR73-6//
+new reaction = { O2[-] + O[+] + O2Delta -> O2 + O + O2Delta + 13.6 } rate = 8.4e-30 -2.5 0.00 O[+](:) //IR73-7//
+new reaction = { O2[-] + O[+] + O3 -> O2 + O + O3 + 13.6 } rate = 8.4e-30 -2.5 0.00 O[+](:) //IR73-8//
+new reaction = { O2[-] + O[+] + H2O -> O2 + O + H2O + 13.6 } rate = 8.4e-30 -2.5 0.00 O[+](:) //IR73-9//
+new reaction = { O2[-] + O[+] + NO2 -> O2 + O + NO2 + 13.6 } rate = 8.4e-30 -2.5 0.00 O[+](:) //IR73-10//
+new reaction = { O2[-] + O[+] + CO2 -> O2 + O + CO2 + 13.6 } rate = 8.4e-30 -2.5 0.00 O[+](:) //IR73-11//
+new reaction = { O2[-] + O[+] + N2A -> O2 + O + N2A + 13.6 } rate = 8.4e-30 -2.5 0.00 O[+](:) //IR73-12//
+new reaction = { O2[-] + O[+] + N2B -> O2 + O + N2B + 13.6 } rate = 8.4e-30 -2.5 0.00 O[+](:) //IR73-13//
+new reaction = { O2[-] + O[+] + N2C -> O2 + O + N2C + 13.6 } rate = 8.4e-30 -2.5 0.00 O[+](:) //IR73-14//
+new reaction = { O[-] + O[+][2D] -> O + O + 16.9 } rate = 2.3e-8 -0.5 0.00 O[-](:) //IR74//
+new reaction = { O[-] + O[+][2D] + N2 -> O + O + N2 + 16.9 } rate = 8.4e-30 -2.5 0.00 O[-](:) //IR74-1//
+new reaction = { O[-] + O[+][2D] + N -> O + O + N + 16.9 } rate = 8.4e-30 -2.5 0.00 O[-](:) //IR74-2//
+new reaction = { O[-] + O[+][2D] + O2 -> O + O + O2 + 16.9 } rate = 8.4e-30 -2.5 0.00 O[-](:) //IR74-3//
+new reaction = { O[-] + O[+][2D] + O -> O + O + O + 16.9 } rate = 8.4e-30 -2.5 0.00 O[-](:) //IR74-4//
+new reaction = { O[-] + O[+][2D] + NO -> O + O + NO + 16.9 } rate = 8.4e-30 -2.5 0.00 O[-](:) //IR74-5//
+new reaction = { O[-] + O[+][2D] + N[2D] -> O + O + N[2D] + 16.9 } rate = 8.4e-30 -2.5 0.00 O[-](:) //IR74-6//
+new reaction = { O[-] + O[+][2D] + O2Delta -> O + O + O2Delta + 16.9 } rate = 8.4e-30 -2.5 0.00 O[-](:) //IR74-7//
+new reaction = { O[-] + O[+][2D] + O3 -> O + O + O3 + 16.9 } rate = 8.4e-30 -2.5 0.00 O[-](:) //IR74-8//
+new reaction = { O[-] + O[+][2D] + H2O -> O + O + H2O + 16.9 } rate = 8.4e-30 -2.5 0.00 O[-](:) //IR74-9//
+new reaction = { O[-] + O[+][2D] + NO2 -> O + O + NO2 + 16.9 } rate = 8.4e-30 -2.5 0.00 O[-](:) //IR74-10//
+new reaction = { O[-] + O[+][2D] + CO2 -> O + O + CO2 + 16.9 } rate = 8.4e-30 -2.5 0.00 O[-](:) //IR74-11//
+new reaction = { O[-] + O[+][2D] + N2A -> O + O + N2A + 16.9 } rate = 8.4e-30 -2.5 0.00 O[-](:) //IR74-13//
+new reaction = { O[-] + O[+][2D] + N2B -> O + O + N2B + 16.9 } rate = 8.4e-30 -2.5 0.00 O[-](:) //IR74-12//
+new reaction = { O[-] + O[+][2D] + N2C -> O + O + N2C + 16.9 } rate = 8.4e-30 -2.5 0.00 O[-](:) //IR74-14//
+new reaction = { O2[-] + O[+][2D] -> O2 + O + 16.9 } rate = 2.3e-8 -0.5 0.00 O2[-](:) //IR75//
+new reaction = { O2[-] + O[+][2D] + N2 -> O2 + O + N2 + 16.9 } rate = 8.4e-30 -2.5 0.00 O2[-](:) //IR75-1//
+new reaction = { O2[-] + O[+][2D] + N -> O2 + O + N + 16.9 } rate = 8.4e-30 -2.5 0.00 O2[-](:) //IR75-2//
+new reaction = { O2[-] + O[+][2D] + O2 -> O2 + O + O2 + 16.9 } rate = 8.4e-30 -2.5 0.00 O2[-](:) //IR75-3//
+new reaction = { O2[-] + O[+][2D] + O -> O2 + O + O + 16.9 } rate = 8.4e-30 -2.5 0.00 O2[-](:) //IR75-4//
+new reaction = { O2[-] + O[+][2D] + NO -> O2 + O + NO + 16.9 } rate = 8.4e-30 -2.5 0.00 O2[-](:) //IR75-5//
+new reaction = { O2[-] + O[+][2D] + N[2D] -> O2 + O + N[2D] + 16.9 } rate = 8.4e-30 -2.5 0.00 O2[-](:) //IR75-6//
+new reaction = { O2[-] + O[+][2D] + O2Delta -> O2 + O + O2Delta + 16.9 } rate = 8.4e-30 -2.5 0.00 O2[-](:) //IR75-7//
+new reaction = { O2[-] + O[+][2D] + O3 -> O2 + O + O3 + 16.9 } rate = 8.4e-30 -2.5 0.00 O2[-](:) //IR75-8//
+new reaction = { O2[-] + O[+][2D] + H2O -> O2 + O + H2O + 16.9 } rate = 8.4e-30 -2.5 0.00 O2[-](:) //IR75-9//
+new reaction = { O2[-] + O[+][2D] + CO2 -> O2 + O + CO2 + 16.9 } rate = 8.4e-30 -2.5 0.00 O2[-](:) //IR75-10//
+new reaction = { O2[-] + O[+][2D] + NO2 -> O2 + O + NO2 + 16.9 } rate = 8.4e-30 -2.5 0.00 O2[-](:) //IR75-11//
+new reaction = { O2[-] + O[+][2D] + N2A -> O2 + O + N2A + 16.9 } rate = 8.4e-30 -2.5 0.00 O2[-](:) //IR75-12//
+new reaction = { O2[-] + O[+][2D] + N2B -> O2 + O + N2B + 16.9 } rate = 8.4e-30 -2.5 0.00 O2[-](:) //IR75-13//
+new reaction = { O2[-] + O[+][2D] + N2C -> O2 + O + N2C + 16.9 } rate = 8.4e-30 -2.5 0.00 O2[-](:) //IR75-14//
+new reaction = { O[-] + O2[+] -> O + O2 + 12.06 } rate = 2.3e-8 -0.5 0.00 O[-](:)  //IR76//
+new reaction = { O[-] + O2[+] + N2 -> O + O2 + N2 + 12.06 } rate = 8.4e-30 -2.5 0.00 O[-](:) //IR76-1//
+new reaction = { O[-] + O2[+] + N -> O + O2 + N + 12.06 } rate = 8.4e-30 -2.5 0.00 O[-](:) //IR76-2//
+new reaction = { O[-] + O2[+] + O2 -> O + O2 + O2 + 12.06 } rate = 8.4e-30 -2.5 0.00 O[-](:) //IR76-3//
+new reaction = { O[-] + O2[+] + O -> O + O2 + O + 12.06 } rate = 8.4e-30 -2.5 0.00 O[-](:) //IR76-4//
+new reaction = { O[-] + O2[+] + NO -> O + O2 + NO + 12.06 } rate = 8.4e-30 -2.5 0.00 O[-](:) //IR76-5//
+new reaction = { O[-] + O2[+] + N[2D] -> O + O2 + N[2D] + 12.06 } rate = 8.4e-30 -2.5 0.00 O[-](:) //IR76-6//
+new reaction = { O[-] + O2[+] + O2Delta -> O + O2 + O2Delta + 12.06 } rate = 8.4e-30 -2.5 0.00 O[-](:) //IR76-7//
+new reaction = { O[-] + O2[+] + O3 -> O + O2 + O3 + 12.06 } rate = 8.4e-30 -2.5 0.00 O[-](:) //IR76-8//
+new reaction = { O[-] + O2[+] + H2O -> O + O2 + H2O + 12.06 } rate = 8.4e-30 -2.5 0.00 O[-](:) //IR76-9//
+new reaction = { O[-] + O2[+] + NO2 -> O + O2 + NO2 + 12.06 } rate = 8.4e-30 -2.5 0.00 O[-](:) //IR76-10//
+new reaction = { O[-] + O2[+] + CO2 -> O + O2 + CO2 + 12.06 } rate = 8.4e-30 -2.5 0.00 O[-](:) //IR76-11//
+new reaction = { O[-] + O2[+] + N2A -> O + O2 + N2A + 12.06 } rate = 8.4e-30 -2.5 0.00 O[-](:) //IR76-12//
+new reaction = { O[-] + O2[+] + N2B -> O + O2 + N2B + 12.06 } rate = 8.4e-30 -2.5 0.00 O[-](:) //IR76-13//
+new reaction = { O[-] + O2[+] + N2C -> O + O2 + N2C + 12.06 } rate = 8.4e-30 -2.5 0.00 O[-](:) //IR76-14//
+new reaction = { O2[-] + O2[+] -> O2 + O2 + 12.06 } rate = 2.3e-8 -0.5 0.00 O2[-](:) //IR77//
+new reaction = { O2[-] + O2[+] + N2 -> O2 + O2 + N2 + 12.06 } rate = 8.4e-30 -2.5 0.00 O2[-](:) //IR77-1//
+new reaction = { O2[-] + O2[+] + N -> O2 + O2 + N + 12.06 } rate = 8.4e-30 -2.5 0.00 O2[-](:) //IR77-2//
+new reaction = { O2[-] + O2[+] + O2 -> O2 + O2 + O2 + 12.06 } rate = 8.4e-30 -2.5 0.00 O2[-](:) //IR77-3//
+new reaction = { O2[-] + O2[+] + O -> O2 + O2 + O + 12.06 } rate = 8.4e-30 -2.5 0.00 O2[-](:) //IR77-4//
+new reaction = { O2[-] + O2[+] + NO -> O2 + O2 + NO + 12.06 } rate = 8.4e-30 -2.5 0.00 O2[-](:) //IR77-5//
+new reaction = { O2[-] + O2[+] + N[2D] -> O2 + O2 + N[2D] + 12.06 } rate = 8.4e-30 -2.5 0.00 O2[-](:) //IR77-6//
+new reaction = { O2[-] + O2[+] + O2Delta -> O2 + O2 + O2Delta + 12.06 } rate = 8.4e-30 -2.5 0.00 O2[-](:) //IR77-7//
+new reaction = { O2[-] + O2[+] + O3 -> O2 + O2 + O3 + 12.06 } rate = 8.4e-30 -2.5 0.00 O2[-](:) //IR77-8//
+new reaction = { O2[-] + O2[+] + H2O -> O2 + O2 + H2O + 12.06 } rate = 8.4e-30 -2.5 0.00 O2[-](:) //IR77-9//
+new reaction = { O2[-] + O2[+] + NO2 -> O2 + O2 + NO2 + 12.06 } rate = 8.4e-30 -2.5 0.00 O2[-](:) //IR77-10//
+new reaction = { O2[-] + O2[+] + CO2 -> O2 + O2 + CO2 + 12.06 } rate = 8.4e-30 -2.5 0.00 O2[-](:) //IR77-11//
+new reaction = { O2[-] + O2[+] + N2A -> O2 + O2 + N2A + 12.06 } rate = 8.4e-30 -2.5 0.00 O2[-](:) //IR77-12//
+new reaction = { O2[-] + O2[+] + N2B -> O2 + O2 + N2B + 12.06 } rate = 8.4e-30 -2.5 0.00 O2[-](:) //IR77-13//
+new reaction = { O2[-] + O2[+] + N2C -> O2 + O2 + N2C + 12.06 } rate = 8.4e-30 -2.5 0.00 O2[-](:) //IR77-14//
+new reaction = { O[-] + O4[+] -> O + O2 + O2 + 12.06 } rate = 7.9e-9 -0.5 0.00 O[-](:) //IR78//
+new reaction = { O[-] + O4[+] + N2 -> O + O2 + O2 + N2 + 12.06 } rate = 8.4e-30 -2.5 0.00 O[-](:) //IR78-1//
+new reaction = { O[-] + O4[+] + N -> O + O2 + O2 + N + 12.06 } rate = 8.4e-30 -2.5 0.00 O[-](:) //IR78-2//
+new reaction = { O[-] + O4[+] + O2 -> O + O2 + O2 + O2 + 12.06 } rate = 8.4e-30 -2.5 0.00 O[-](:) //IR78-3//
+new reaction = { O[-] + O4[+] + O -> O + O2 + O2 + O + 12.06 } rate = 8.4e-30 -2.5 0.00 O[-](:) //IR78-4//
+new reaction = { O[-] + O4[+] + NO -> O + O2 + O2 + NO + 12.06 } rate = 8.4e-30 -2.5 0.00 O[-](:) //IR78-5//
+new reaction = { O[-] + O4[+] + N[2D] -> O + O2 + O2 + N[2D] + 12.06 } rate = 8.4e-30 -2.5 0.00 O[-](:) //IR78-6//
+new reaction = { O[-] + O4[+] + O2Delta -> O + O2 + O2 + O2Delta + 12.06 } rate = 8.4e-30 -2.5 0.00 O[-](:) //IR78-7//
+new reaction = { O[-] + O4[+] + O3 -> O + O2 + O2 + O3 + 12.06 } rate = 8.4e-30 -2.5 0.00 O[-](:) //IR78-8//
+new reaction = { O[-] + O4[+] + NO2 -> O + O2 + O2 + NO2 + 12.06 } rate = 8.4e-30 -2.5 0.00 O[-](:) //IR78-9//
+new reaction = { O[-] + O4[+] + H2O -> O + O2 + O2 + H2O + 12.06 } rate = 8.4e-30 -2.5 0.00 O[-](:) //IR78-10//
+new reaction = { O[-] + O4[+] + CO2 -> O + O2 + O2 + CO2 + 12.06 } rate = 8.4e-30 -2.5 0.00 O[-](:) //IR78-11//
+new reaction = { O[-] + O4[+] + N2A -> O + O2 + O2 + N2A + 12.06 } rate = 8.4e-30 -2.5 0.00 O[-](:) //IR78-12//
+new reaction = { O[-] + O4[+] + N2B -> O + O2 + O2 + N2B + 12.06 } rate = 8.4e-30 -2.5 0.00 O[-](:) //IR78-13//
+new reaction = { O[-] + O4[+] + N2C -> O + O2 + O2 + N2C + 12.06 } rate = 8.4e-30 -2.5 0.00 O[-](:) //IR78-14//
+new reaction = { O2[-] + O4[+] -> O2 + O2 + O2 + 12.06 } rate = 7.9e-9 -0.5 0.00 O2[-](:) //IR79//
+new reaction = { O2[-] + O4[+] + N2 -> O2 + O2 + O2 + N2 + 12.06 } rate = 8.4e-30 -2.5 0.00 O2[-](:) //IR79-1//
+new reaction = { O2[-] + O4[+] + N -> O2 + O2 + O2 + N + 12.06 } rate = 8.4e-30 -2.5 0.00 O2[-](:) //IR79-2//
+new reaction = { O2[-] + O4[+] + O2 -> O2 + O2 + O2 + O2 + 12.06 } rate = 8.4e-30 -2.5 0.00 O2[-](:) //IR79-3//
+new reaction = { O2[-] + O4[+] + O -> O2 + O2 + O2 + O + 12.06 } rate = 8.4e-30 -2.5 0.00 O2[-](:) //IR79-4//
+new reaction = { O2[-] + O4[+] + NO -> O2 + O2 + O2 + NO + 12.06 } rate = 8.4e-30 -2.5 0.00 O2[-](:) //IR79-5//
+new reaction = { O2[-] + O4[+] + N[2D] -> O2 + O2 + O2 + N[2D] + 12.06 } rate = 8.4e-30 -2.5 0.00 O2[-](:) //IR79-6//
+new reaction = { O2[-] + O4[+] + O2Delta -> O2 + O2 + O2 + O2Delta + 12.06 } rate = 8.4e-30 -2.5 0.00 O2[-](:) //IR79-7//
+new reaction = { O2[-] + O4[+] + O3 -> O2 + O2 + O2 + O3 + 12.06 } rate = 8.4e-30 -2.5 0.00 O2[-](:) //IR79-8//
+new reaction = { O2[-] + O4[+] + H2O -> O2 + O2 + O2 + H2O + 12.06 } rate = 8.4e-30 -2.5 0.00 O2[-](:) //IR79-9//
+new reaction = { O2[-] + O4[+] + NO2 -> O2 + O2 + O2 + NO2 + 12.06 } rate = 8.4e-30 -2.5 0.00 O2[-](:) //IR79-10//
+new reaction = { O2[-] + O4[+] + CO2 -> O2 + O2 + O2 + CO2 + 12.06 } rate = 8.4e-30 -2.5 0.00 O2[-](:) //IR79-11//
+new reaction = { O2[-] + O4[+] + N2A -> O2 + O2 + O2 + N2A + 12.06 } rate = 8.4e-30 -2.5 0.00 O2[-](:) //IR79-12//
+new reaction = { O2[-] + O4[+] + N2B -> O2 + O2 + O2 + N2B + 12.06 } rate = 8.4e-30 -2.5 0.00 O2[-](:) //IR79-13//
+new reaction = { O2[-] + O4[+] + N2C -> O2 + O2 + O2 + N2C + 12.06 } rate = 8.4e-30 -2.5 0.00 O2[-](:) //IR79-14//
+
+// sixteenth page - third section 
+new reaction = { O[-] + NO[+] -> O + NO + 9.26 } rate = 2.3e-8 -0.5 0.00 O[-](:) //IR80//
+new reaction = { O[-] + NO[+] + N2 -> O + NO + N2 + 9.26 } rate = 8.4e-30 -2.5 0.00 O[-](:) //IR80-1//
+new reaction = { O[-] + NO[+] + N -> O + NO + N + 9.26 } rate = 8.4e-30 -2.5 0.00 O[-](:) //IR80-2//
+new reaction = { O[-] + NO[+] + O2 -> O + NO + O2 + 9.26 } rate = 8.4e-30 -2.5 0.00 O[-](:) //IR80-3//
+new reaction = { O[-] + NO[+] + O -> O + NO + O + 9.26 } rate = 8.4e-30 -2.5 0.00 O[-](:) //IR80-4//
+new reaction = { O[-] + NO[+] + NO -> O + NO + NO + 9.26 } rate = 8.4e-30 -2.5 0.00 O[-](:) //IR80-5//
+new reaction = { O[-] + NO[+] + N[2D] -> O + NO + N[2D] + 9.26 } rate = 8.4e-30 -2.5 0.00 O[-](:) //IR80-6//
+new reaction = { O[-] + NO[+] + O2Delta -> O + NO + O2Delta + 9.26 } rate = 8.4e-30 -2.5 0.00 O[-](:) //IR80-7//
+new reaction = { O[-] + NO[+] + O3 -> O + NO + O3 + 9.26 } rate = 8.4e-30 -2.5 0.00 O[-](:) //IR80-8//
+new reaction = { O[-] + NO[+] + H2O -> O + NO + H2O + 9.26 } rate = 8.4e-30 -2.5 0.00 O[-](:) //IR80-9//
+new reaction = { O[-] + NO[+] + NO2 -> O + NO + NO2 + 9.26 } rate = 8.4e-30 -2.5 0.00 O[-](:) //IR80-10//
+new reaction = { O[-] + NO[+] + CO2 -> O + NO + CO2 + 9.26 } rate = 8.4e-30 -2.5 0.00 O[-](:) //IR80-11//
+new reaction = { O[-] + NO[+] + N2A -> O + NO + N2A + 9.26 } rate = 8.4e-30 -2.5 0.00 O[-](:) //IR80-12//
+new reaction = { O[-] + NO[+] + N2B -> O + NO + N2B + 9.26 } rate = 8.4e-30 -2.5 0.00 O[-](:) //IR80-13//
+new reaction = { O[-] + NO[+] + N2C -> O + NO + N2C + 9.26 } rate = 8.4e-30 -2.5 0.00 O[-](:) //IR80-14//
+new reaction = { O2[-] + NO[+] -> NO + O2 + 9.26 } rate = 2.3e-8 -0.5 0.00 O2[-](:) //IR81//
+new reaction = { O2[-] + NO[+] + N2 -> NO + O2 + N2 + 9.26 } rate = 8.4e-30 -2.5 0.00 O2[-](:) //IR81-1//
+new reaction = { O2[-] + NO[+] + N -> NO + O2 + N + 9.26 } rate = 8.4e-30 -2.5 0.00 O2[-](:) //IR81-2//
+new reaction = { O2[-] + NO[+] + O2 -> NO + O2 + O2 + 9.26 } rate = 8.4e-30 -2.5 0.00 O2[-](:) //IR81-3//
+new reaction = { O2[-] + NO[+] + O -> NO + O2 + O + 9.26 } rate = 8.4e-30 -2.5 0.00 O2[-](:) //IR81-4//
+new reaction = { O2[-] + NO[+] + NO -> NO + O2 + NO + 9.26 } rate = 8.4e-30 -2.5 0.00 O2[-](:) //IR81-5//
+new reaction = { O2[-] + NO[+] + N[2D] -> NO + O2 + N[2D] + 9.26 } rate = 8.4e-30 -2.5 0.00 O2[-](:) //IR81-6//
+new reaction = { O2[-] + NO[+] + O2Delta -> NO + O2 + O2Delta + 9.26 } rate = 8.4e-30 -2.5 0.00 O2[-](:) //IR81-7//
+new reaction = { O2[-] + NO[+] + O3 -> NO + O2 + O3 + 9.26 } rate = 8.4e-30 -2.5 0.00 O2[-](:) //IR81-8//
+new reaction = { O2[-] + NO[+] + H2O -> NO + O2 + H2O + 9.26 } rate = 8.4e-30 -2.5 0.00 O2[-](:) //IR81-9//
+new reaction = { O2[-] + NO[+] + CO2 -> NO + O2 + CO2 + 9.26 } rate = 8.4e-30 -2.5 0.00 O2[-](:) //IR81-10//
+new reaction = { O2[-] + NO[+] + NO2 -> NO + O2 + NO2 + 9.26 } rate = 8.4e-30 -2.5 0.00 O2[-](:) //IR81-11//
+new reaction = { O2[-] + NO[+] + N2A -> NO + O2 + N2A + 9.26 } rate = 8.4e-30 -2.5 0.00 O2[-](:) //IR81-12//
+new reaction = { O2[-] + NO[+] + N2B -> NO + O2 + N2B + 9.26 } rate = 8.4e-30 -2.5 0.00 O2[-](:) //IR81-13//
+new reaction = { O2[-] + NO[+] + N2C -> NO + O2 + N2C + 9.26 } rate = 8.4e-30 -2.5 0.00 O2[-](:) //IR81-14//
+
+// sixteenth page - fourth section - products/reactants didn’t match so corrected them - doesn’t seem to appear in the source code
+new reaction = { O[-] + H2O[+] -> O + H2O + 12.06 } rate = 2.3e-8 -0.5 0.00 O[-](:) //IR82//
+new reaction = { O2[-] + H2O[+] -> O2 + H2O + 12.06 } rate = 2.3e-8 -0.5 0.00 O2[-](:) //IR83//
+new reaction = { O[-] + H3O[+] -> O + H3O + 12.06 } rate = 7.9e-9 -0.5 0.00 O[-](:) //IR84//
+new reaction = { O2[-] + H3O[+] -> O2 + H3O + 12.06 } rate = 7.9e-9 -0.5 0.00 O2[-](:) //IR85//
+new reaction = { O[-] + O2[+].H2O -> O2 + O + H2O + 12.06 } rate = 7.9e-9 -0.5 0.00 O[-](:) //IR86//
+new reaction = { O2[-] + O2[+].H2O -> O2 + O2 + H2O + 12.06 } rate = 7.9e-9 -0.5 0.00 O2[-](:) //IR87//
+new reaction = { O[-] + H3O[+].OH -> O + H3O.OH + 12.06 } rate = 7.9e-9 -0.5 0.00 O[-](:) //IR88//
+new reaction = { O2[-] + H3O[+].OH -> O2 + H3O.OH + 12.06 } rate = 7.9e-9 -0.5 0.00 O2[-](:) //IR89//
+new reaction = { O[-] + H3O[+].H2O -> O + H3O.H2O + 12.06 } rate = 7.9e-9 -0.5 0.00 O[-](:) //IR90//
+new reaction = { O2[-] + H3O[+].H2O -> O2 + H3O.H2O + 12.06 } rate = 7.9e-9 -0.5 0.00 O2[-](:) //IR91//
+new reaction = { O[-] + NO[+].H2O -> O + NO + H2O + 12.06 } rate = 7.9e-9 -0.5 0.00 O[-](:) //IR92//
+new reaction = { O2[-] + NO[+].H2O -> O2 + NO + H2O + 12.06 } rate =  7.9e-9 -0.5 0.00 O2[-](:) //IR93//
+
+// seventeenth page - products/reactants didn’t match so corrected them
+new reaction = { O2Delta + O2[+].H2O -> O2[+] + O2 + H2O } rate = 1e-10 0.00 0.00 O2[+].H2O(:) //IMR34//
+new reaction = { H2O + NO[+].H2O -> H3O[+].H2O + N } rate = 7.0e-11 0.00 0.00 H2O(:) //IMR35//
+new reaction = { O2[-] + O2Delta -> O + O + O2 + e - 4.14 } rate = 2.0e-10 0.00 0.00 O2[-](:) //DET16//
+new reaction = { O[-] + O2Delta -> O + O + O + e - 4.14 } rate = 3.0e-10 0.00 0.00 O[-](:) //DET17//
+

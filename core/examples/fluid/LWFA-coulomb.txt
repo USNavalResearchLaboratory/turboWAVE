@@ -1,0 +1,61 @@
+// Keep the following line for generating twtest reports
+// TWTEST matplotlib zxyt=0,-1 phi.dvdat
+
+steps = 1000
+timestep = 0.04
+dump period = 0
+moving window = no
+neutralize = yes
+unit density = 1.1e+17
+append mode = true
+
+xboundary = ( periodic , periodic )
+yboundary = ( periodic , periodic )
+zboundary = ( absorbing , absorbing )
+
+// wp^-1 = 53.4781 fs
+// c/wp = 16.0434 um
+// E_br = 31.9056 GV/m
+
+new grid
+{
+	corner = ( -32.0 , -0.5 , 0.0 )
+	dimensions = ( 256 , 1 , 512 )
+	cell size = ( 0.25 , 1.0 , 0.05 )
+	decomposition = ( 1 , 1 , 1 )
+}
+
+new coulomb electromagnetic module
+{
+	poisson boundary condition = open open
+}
+
+new wave
+{
+	a = 0.0 0.5 0.0
+	r0 = ( 1e5 , 10 )
+	w = 4
+	risetime = 3
+	holdtime = 0
+	falltime = 3
+	delay = 25
+	focus position = ( 0 , 0 , 25 )
+	direction = ( 0 , 0 , 1 )
+}
+
+new fluid electrons
+{
+}
+
+generate piecewise electrons
+{
+	zdensity = { 0.0 1.0 1.0 0.0 }
+	zpoints = { 0.0 5.0 20.6 25.6 }
+	shape = quintic
+	temperature = %1.0eV
+}
+
+new box diagnostic
+{
+	period = 100
+}

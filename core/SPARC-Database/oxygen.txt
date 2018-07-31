@@ -1,0 +1,35 @@
+// Atomic oxygen ionization from W. Lotz, Astrophys. J., Suppl. 14, 207 (1967)
+// Reverse from detailed balance (need to revisit degeneracy factors)
+
+new reaction = { O -> O[+] : e -> e + e - 13.62 } rate = 1.57e-8 0.43 14.75 e(:28)
+new reaction = { O -> O[+] : e -> e + e - 13.62 } rate = 2.65e-7 -0.15 39.87 e(28:)
+new reaction = { O[+] + e + e -> O + e + 13.62 } rate = 2.59e-30 -1.07 1.13 e(:28)
+new reaction = { O[+] + e + e -> O + e + 13.62 } rate = 4.39e-29 -1.65 26.25 e(28:)
+
+new reaction = { O[+] -> O[2+] : e -> e + e - 35.12 } rate = 5.87e-9 0.41 36.84 e(:28)
+new reaction = { O[+] -> O[2+] : e -> e + e - 35.12 } rate = 9.31e-8 -0.14 63.20 e(28:)
+new reaction = { O[2+] + e + e -> O[+] + e + 35.12 } rate = 9.72e-31 -1.09 1.72 e(:28)
+new reaction = { O[2+] + e + e -> O[+] + e + 35.12 } rate = 1.54e-29 -1.64 28.08 e(28:)
+
+new reaction = { O[2+] -> O[3+] : e -> e + e - 54.94 } rate = 2.02e-9 0.45 55.94 e(:28)
+new reaction = { O[2+] -> O[3+] : e -> e + e - 54.94 } rate = 3.04e-8 -0.08 82.22 e(28:)
+new reaction = { O[3+] + e + e -> O[2+] + e + 54.94 } rate = 3.35e-31 -1.05 1.00 e(:28)
+new reaction = { O[3+] + e + e -> O[2+] + e + 54.94 } rate = 5.04e-30 -1.58 27.28 e(28:)
+
+// Oxygen dissociation from CHMAIR
+
+new reaction = { O2 -> O + O : e -> e - 5.11 } rate = 5.72e-10 0.50 8.4 e(:100)
+new reaction = { O2 -> O + O : e -> e - 5.11 } rate = 1.30e-10 1.50 8.4 (e:100)
+new reaction = { O2 -> O + O : e -> e - 5.11 } rate = 3.83e-9 0.50 4.5 (e:100)
+new reaction = { O2 -> O + O : e -> e - 5.11 } rate = 1.70e-9 1.50 4.5 (e:100)
+
+new reaction = { O2 + O2 -> O + O + O2 -5.11 } rate = 5.8e-9 -0.83 5.12 O2(:)
+new reaction = { O2 + O -> O + O + O - 5.11 } rate = 1.3e-8 -1.00 5.12 O(:)
+new reaction = { O + O + O2 -> O2 + O2 + 5.11 } rate = 8.6e-34 -0.33 0.0 O(:)
+new reaction = { O + O + O -> O2 + O + 5.11 } rate = 1.9e-33 -0.50 0.0 O(:)
+
+// O2 Ionization and Recombination from CHMAIR
+
+new reaction = { e + O2 -> e + e + O2[+] - 12.1 } rate = 1.27e-9 1.36 11.41 e(:6.0)
+new reaction = { e + O2 -> e + e + O2[+] - 12.1 } rate = 1.77e-8 0.57 18.69 e(6.0:)
+new reaction = { O2[+] + e -> O + O + 6.99 } rate = 2.1e-8 -0.5 0.0 e(:)

@@ -1,0 +1,194 @@
+# Windows NMAKE makefile for turboWAVE
+# Invoke from developer command prompt using nmake /F winmakefile
+# D. Gordon, Naval Research Laboratory
+
+# 'make' or 'make tw3d' produces optimized executable
+# 'make debug' produces debugging executable
+
+all: tw3d
+debug: tw3d_debug
+
+TW_Compiler = cl
+TW_Linker = cl
+CCFLAGS = /EHsc /c /O2
+DBFLAGS = /EHsc /c /Yd /Od
+LIB_PATH =
+LIBS =
+
+# Note: From this point almost everything is identical to GNU makefile.
+# Exception is we don't have to check definition of TW_MPI since that is always assumed.
+# Also Microsoft uses .obj extension, and /Fe instead of -o for named executable.
+
+BASE_HEADERS = definitions.h tw_mpi.h tasks.h ctools.h 3dmath.h metricSpace.h 3dfields.h region.h tw_iterator.h
+SIM_HEADERS = $(BASE_HEADERS) functions.h physics.h numerics.h computeTool.h elliptic.h parabolic.h hyperbolic.h fft.h injection.h input.h diagnostics.h module.h sim.h
+MODULE_HEADERS = fieldSolve.h electrostatic.h laserSolve.h fluid.h quantum.h particles.h solidState.h
+tw3d: 3dfields.cl particles.cl elliptic.cl hyperbolic.cl quantum.cl Main.obj TW_MPI.obj Tasks.obj MetricSpace.obj 3DFields.obj Region.obj FFT.obj Physics.obj Numerics.obj ComputeTool.obj Parabolic.obj Elliptic.obj Hyperbolic.obj Functions.obj Grid.obj Module.obj FieldSolve.obj Electrostatic.obj LaserSolve.obj Fluid.obj Quantum.obj SolidState.obj Particles.obj Pusher.obj Diagnostics.obj Injection.obj Input.obj
+	$(TW_Linker) /Fetw3d Main.obj TW_MPI.obj Tasks.obj MetricSpace.obj 3DFields.obj Region.obj FFT.obj Physics.obj Numerics.obj ComputeTool.obj Parabolic.obj Elliptic.obj Hyperbolic.obj Functions.obj Grid.obj Module.obj FieldSolve.obj Electrostatic.obj LaserSolve.obj Fluid.obj Quantum.obj SolidState.obj Particles.obj Pusher.obj Diagnostics.obj Injection.obj Input.obj $(LIB_PATH) $(LIBS)
+tw3d_debug: 3dfields.cl particles.cl elliptic.cl hyperbolic.cl quantum.cl Main.d TW_MPI.d Tasks.d MetricSpace.d 3DFields.d Region.d FFT.d Physics.d Numerics.d ComputeTool.d Parabolic.d Elliptic.d Hyperbolic.d Functions.d Grid.d Module.d FieldSolve.d Electrostatic.d LaserSolve.d Fluid.d Quantum.d SolidState.d Particles.d Pusher.d Diagnostics.d Injection.d Input.d
+	$(TW_Linker) /Fetw3d Main.obj TW_MPI.obj Tasks.obj MetricSpace.obj 3DFields.obj Region.obj FFT.obj Physics.obj Numerics.obj ComputeTool.obj Parabolic.obj Elliptic.obj Hyperbolic.obj Functions.obj Grid.obj Module.obj FieldSolve.obj Electrostatic.obj LaserSolve.obj Fluid.obj Quantum.obj SolidState.obj Particles.obj Pusher.obj Diagnostics.obj Injection.obj Input.obj $(LIB_PATH) $(LIBS)
+
+Main.obj: Main.cpp $(SIM_HEADERS)
+	$(TW_Compiler) $(CCFLAGS) Main.cpp
+
+TW_MPI.obj: TW_MPI.cpp definitions.h tw_mpi.h
+	$(TW_Compiler) $(CCFLAGS) TW_MPI.cpp
+
+Tasks.obj: Tasks.cpp definitions.h tasks.h
+	$(TW_Compiler) $(CCFLAGS) Tasks.cpp
+
+MetricSpace.obj: MetricSpace.cpp $(BASE_HEADERS)
+	$(TW_Compiler) $(CCFLAGS) MetricSpace.cpp
+
+3DFields.obj: 3DFields.cpp $(BASE_HEADERS) fft.h
+	$(TW_Compiler) $(CCFLAGS) 3DFields.cpp
+
+Region.obj: Region.cpp $(BASE_HEADERS)
+	$(TW_Compiler) $(CCFLAGS) Region.cpp
+
+FFT.obj: FFT.cpp definitions.h fft.h
+	$(TW_Compiler) $(CCFLAGS) FFT.cpp
+
+Physics.obj: Physics.cpp $(BASE_HEADERS) physics.h functions.h
+	$(TW_Compiler) $(CCFLAGS) Physics.cpp
+
+Numerics.obj: Numerics.cpp $(BASE_HEADERS) numerics.h
+	$(TW_Compiler) $(CCFLAGS) Numerics.cpp
+
+ComputeTool.obj: ComputeTool.cpp $(BASE_HEADERS) numerics.h computeTool.h
+	$(TW_Compiler) $(CCFLAGS) ComputeTool.cpp
+
+Elliptic.obj: Elliptic.cpp $(BASE_HEADERS) numerics.h computeTool.h elliptic.h
+	$(TW_Compiler) $(CCFLAGS) Elliptic.cpp
+
+Parabolic.obj: Parabolic.cpp $(BASE_HEADERS) numerics.h computeTool.h parabolic.h
+	$(TW_Compiler) $(CCFLAGS) Parabolic.cpp
+
+Hyperbolic.obj: Hyperbolic.cpp $(BASE_HEADERS) numerics.h computeTool.h hyperbolic.h
+	$(TW_Compiler) $(CCFLAGS) Hyperbolic.cpp
+
+Functions.obj: Functions.cpp definitions.h ctools.h functions.h
+	$(TW_Compiler) $(CCFLAGS) Functions.cpp
+
+Grid.obj: Grid.cpp $(SIM_HEADERS) $(MODULE_HEADERS)
+	$(TW_Compiler) $(CCFLAGS) Grid.cpp
+
+Module.obj: Module.cpp $(SIM_HEADERS) $(MODULE_HEADERS)
+	$(TW_Compiler) $(CCFLAGS) Module.cpp
+
+FieldSolve.obj: FieldSolve.cpp $(SIM_HEADERS) fieldSolve.h
+	$(TW_Compiler) $(CCFLAGS) FieldSolve.cpp
+
+Electrostatic.obj: Electrostatic.cpp $(SIM_HEADERS) fieldSolve.h electrostatic.h
+	$(TW_Compiler) $(CCFLAGS) Electrostatic.cpp
+
+LaserSolve.obj: LaserSolve.cpp $(SIM_HEADERS) fieldSolve.h laserSolve.h
+	$(TW_Compiler) $(CCFLAGS) LaserSolve.cpp
+
+Fluid.obj: Fluid.cpp $(SIM_HEADERS) fieldSolve.h fluid.h
+	$(TW_Compiler) $(CCFLAGS) Fluid.cpp
+
+Quantum.obj: Quantum.cpp $(SIM_HEADERS) fieldSolve.h quantum.h
+	$(TW_Compiler) $(CCFLAGS) Quantum.cpp
+
+SolidState.obj: SolidState.cpp $(SIM_HEADERS) solidState.h
+	$(TW_Compiler) $(CCFLAGS) SolidState.cpp
+
+Particles.obj: Particles.cpp $(SIM_HEADERS) particles.h fieldSolve.h laserSolve.h
+	$(TW_Compiler) $(CCFLAGS) Particles.cpp
+
+Pusher.obj: Pusher.cpp $(SIM_HEADERS) particles.h fieldSolve.h laserSolve.h
+	$(TW_Compiler) $(CCFLAGS) Pusher.cpp
+
+Diagnostics.obj: Diagnostics.cpp $(SIM_HEADERS)
+	$(TW_Compiler) $(CCFLAGS) Diagnostics.cpp
+
+Injection.obj: Injection.cpp $(SIM_HEADERS)
+	$(TW_Compiler) $(CCFLAGS) Injection.cpp
+
+Input.obj: Input.cpp $(SIM_HEADERS)
+	$(TW_Compiler) $(CCFLAGS) Input.cpp
+
+################################################
+#              DEBUG DEPENDENCIES              #
+################################################
+
+Main.d: Main.cpp $(SIM_HEADERS)
+	$(TW_Compiler) $(DBFLAGS) Main.cpp
+
+TW_MPI.d: TW_MPI.cpp definitions.h tw_mpi.h
+	$(TW_Compiler) $(DBFLAGS) TW_MPI.cpp
+
+Tasks.d: Tasks.cpp definitions.h tasks.h
+	$(TW_Compiler) $(DBFLAGS) Tasks.cpp
+
+MetricSpace.d: MetricSpace.cpp $(BASE_HEADERS)
+	$(TW_Compiler) $(DBFLAGS) MetricSpace.cpp
+
+3DFields.d: 3DFields.cpp $(BASE_HEADERS) fft.h
+	$(TW_Compiler) $(DBFLAGS) 3DFields.cpp
+
+Region.d: Region.cpp $(BASE_HEADERS)
+	$(TW_Compiler) $(DBFLAGS) Region.cpp
+
+FFT.d: FFT.cpp definitions.h fft.h
+	$(TW_Compiler) $(DBFLAGS) FFT.cpp
+
+Physics.d: Physics.cpp $(BASE_HEADERS) physics.h functions.h
+	$(TW_Compiler) $(DBFLAGS) Physics.cpp
+
+Numerics.d: Numerics.cpp $(BASE_HEADERS) numerics.h
+	$(TW_Compiler) $(DBFLAGS) Numerics.cpp
+
+ComputeTool.d: ComputeTool.cpp $(BASE_HEADERS) numerics.h computeTool.h
+	$(TW_Compiler) $(DBFLAGS) ComputeTool.cpp
+
+Elliptic.d: Elliptic.cpp $(BASE_HEADERS) numerics.h computeTool.h elliptic.h
+	$(TW_Compiler) $(DBFLAGS) Elliptic.cpp
+
+Parabolic.d: Parabolic.cpp $(BASE_HEADERS) numerics.h computeTool.h parabolic.h
+	$(TW_Compiler) $(DBFLAGS) Parabolic.cpp
+
+Hyperbolic.d: Hyperbolic.cpp $(BASE_HEADERS) numerics.h computeTool.h hyperbolic.h
+	$(TW_Compiler) $(DBFLAGS) Hyperbolic.cpp
+
+Functions.d: Functions.cpp definitions.h ctools.h functions.h
+	$(TW_Compiler) $(DBFLAGS) Functions.cpp
+
+Grid.d: Grid.cpp $(SIM_HEADERS) $(MODULE_HEADERS)
+	$(TW_Compiler) $(DBFLAGS) Grid.cpp
+
+Module.d: Module.cpp $(SIM_HEADERS) $(MODULE_HEADERS)
+	$(TW_Compiler) $(DBFLAGS) Module.cpp
+
+FieldSolve.d: FieldSolve.cpp $(SIM_HEADERS) fieldSolve.h
+	$(TW_Compiler) $(DBFLAGS) FieldSolve.cpp
+
+Electrostatic.d: Electrostatic.cpp $(SIM_HEADERS) fieldSolve.h electrostatic.h
+	$(TW_Compiler) $(DBFLAGS) Electrostatic.cpp
+
+LaserSolve.d: LaserSolve.cpp $(SIM_HEADERS) fieldSolve.h laserSolve.h
+	$(TW_Compiler) $(DBFLAGS) LaserSolve.cpp
+
+Fluid.d: Fluid.cpp $(SIM_HEADERS) fieldSolve.h fluid.h
+	$(TW_Compiler) $(DBFLAGS) Fluid.cpp
+
+Quantum.d: Quantum.cpp $(SIM_HEADERS) fieldSolve.h quantum.h
+	$(TW_Compiler) $(DBFLAGS) Quantum.cpp
+
+SolidState.d: SolidState.cpp $(SIM_HEADERS) solidState.h
+	$(TW_Compiler) $(DBFLAGS) SolidState.cpp
+
+Particles.d: Particles.cpp $(SIM_HEADERS) particles.h fieldSolve.h laserSolve.h
+	$(TW_Compiler) $(DBFLAGS) Particles.cpp
+
+Pusher.d: Pusher.cpp $(SIM_HEADERS) particles.h fieldSolve.h laserSolve.h
+	$(TW_Compiler) $(DBFLAGS) Pusher.cpp
+
+Diagnostics.d: Diagnostics.cpp $(SIM_HEADERS)
+	$(TW_Compiler) $(DBFLAGS) Diagnostics.cpp
+
+Injection.d: Injection.cpp $(SIM_HEADERS)
+	$(TW_Compiler) $(DBFLAGS) Injection.cpp
+
+Input.d: Input.cpp $(SIM_HEADERS)
+	$(TW_Compiler) $(DBFLAGS) Input.cpp

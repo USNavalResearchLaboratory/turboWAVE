@@ -1,0 +1,4 @@
+/* Put this in ~/.jupyter/custom to extend the width of the
+   cell (and hence the DataViewer plotting area) */
+.container { width:100% !important; }
+

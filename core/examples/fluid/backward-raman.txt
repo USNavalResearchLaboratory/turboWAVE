@@ -1,0 +1,89 @@
+// Keep the following line for generating twtest reports
+// TWTEST matplotlib ztxy=0,0 Ex.dvdat
+
+steps = 200000
+timestep = 0.018
+dump period = 0
+moving window = no
+neutralize = yes
+unit density = 1.0e17
+append mode = true
+
+xboundary = ( periodic , periodic )
+yboundary = ( periodic , periodic )
+zboundary = ( absorbing , absorbing )
+
+// wp^-1 = 56 fs
+// c/wp = 16.8 um
+// E_br = 3.04e10 V/m
+
+new grid
+{
+	corner = ( -0.5 , -0.5 , 0.0 )
+	dimensions = ( 1 , 1 , 60000 )
+	cell size = ( 1.0 , 1.0 , 0.02 )
+	decomposition = ( 1 , 1 , 1 )
+}
+
+new coulomb electromagnetic module
+{
+	poisson boundary condition = dirichlet neumann
+}
+
+new wave // probe
+{
+	type = plane
+	a = 1e-3 0.0 0.0
+	w = 9.96
+	risetime = 100
+	holdtime = 0
+	falltime = 100
+	delay = 1200
+	focus position = ( 0 , 0 , 0 )
+	direction = ( 0 , 0 , 1 )
+}
+
+new wave // pump
+{
+	type = plane
+	a = 0.02 0.0 0.0
+	w = 10.96
+	risetime = 1500
+	holdtime = 0
+	falltime = 1500
+	delay = 0
+	focus position = ( 0 , 0 , 1200 )
+	direction = ( 0 , 0 , -1 )
+}
+
+new fluid gas
+{
+	initial ionization fraction = .01
+	neutral cross section = 1e-15
+	coulomb collisions = true
+
+	ionization model = adk
+	ionization potential = 100.0 // suppress ionization
+	protons = 1
+	electrons = 1
+}
+
+generate piecewise gas
+{
+	loading = deterministic
+	zpoints = { 0 100 1100 1200 }
+	zdensity = { 1.0 100.0 100.0 1.0 }
+	shape = quintic
+	temperature = %1.0eV
+}
+
+new box diagnostic
+{
+	filename = full
+	period = 2000
+}
+
+new energy diagnostic
+{
+	period = 100
+}

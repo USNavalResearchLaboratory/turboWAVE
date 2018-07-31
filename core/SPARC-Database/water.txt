@@ -1,0 +1,106 @@
+// dissociation energies : H2O = 5.1 , OH = 4.4 , H2 = 4.48 , O2 = 5.11
+// ionization energies : H = 13.6 , H2O = 12.6 , OH = 12.95 , H2 = 15.43 , O = 13.57 , O2 = 12.1
+// proton affinities : O = 5.01 , H = 2.65 , H2O = 7.38
+// electron affinities : O = 1.45 , H2 = 1.09 , OH = 1.83 , H = 0.76 , O2 = 0.46
+
+// electron impact with water from Y. Itikawa and N. Mason, J. Phys. Chem. Ref. Data 34 no. 1, 1-22 (2005)
+// These are fits to rates obtained by integrating the cross sections
+// H2O[+] recombination from detailed balance
+
+new reaction = { H2O -> H2O[+] : e -> e + e - 12.6 } rate = 2.48e-11 1.5 0 e(:100)
+new reaction = { H2O -> H2O[+] : e -> e + e - 12.6 } rate = 3.00e-8 0.23 18.6 e(:)
+
+new reaction = { H2O -> H + OH[+] : e -> e + e - 18.1 } rate = 2.39e-9 0.61 18.8 e(:21.7)
+new reaction = { H2O -> H + OH[+] : e -> e + e - 18.1 } rate = 1.20e-8 0.20 26.2 e(21.7:)
+
+new reaction = { H2O -> H[+] + OH : e -> e + e - 17.0 } rate = 3.97e-10 1.05 20.2 e(:13.7)
+new reaction = { H2O -> H[+] + OH : e -> e + e - 17.0 } rate = 9.06e-9 0.25 34.2 e(13.7:)
+
+new reaction = { e + H2O -> H[-] + OH - 4.34 } rate = 6.87e-13 2.08 -0.09 e(0.09:0.544)
+new reaction = { e + H2O -> H[-] + OH - 4.34 } rate = 1.63e-10 0.79 3.32 e(0.544:1.72)
+new reaction = { e + H2O -> H[-] + OH - 4.34 } rate = 2.96e-9 -1.39 6.34 e(1.72:)
+
+new reaction = { e + H2O -> H + H + O[-] - 8.0 } rate = 1.96e-11 0.77 4.11 e(:2.17)
+new reaction = { e + H2O -> H + H + O[-] - 8.0 } rate = 4.82e-10 -1.19 7.76 e(2.17:)
+
+new reaction = { e + H2O -> H + OH[-] - 3.27 } rate = 5.20e-12 0.81 3.73 e(:1.72)
+new reaction = { e + H2O -> H + OH[-] - 3.27 } rate = 1.11e-10 -1.27 7.05 e(1.72:)
+
+// Hydronium ion, from UMIST database for astrochemistry
+
+new reaction = { H2O[+] + H2O -> H3O[+] + OH + 2.37 } rate = 2.1e-9 0 0 H2O(:)
+new reaction = { OH[+] + H2O -> H3O[+] + O + 2.37 } rate = 1.3e-9 0 0 H2O(:)
+new reaction = { H3O[+] + e -> H2O + H + 6.22 } rate = 1.74e-8 -0.5 0 e(:)
+new reaction = { H3O[+] + e -> OH + H + H + 1.11 } rate = 4.15e-8 -0.5 0 e(:)
+
+// OH and H2 from R. Riahi et al., Eur. Phys. J. D 40, 223-230 (2006)
+
+new reaction = { OH -> OH[+] : e -> e + e - 12.95 } rate = 1.99e-10 1.78 13.8 e(:)
+new reaction = { OH -> O + H : e -> e - 4.4 } rate = 2.08e-7 -0.76 6.91 e(:)
+new reaction = { OH[+] -> O + H[+] : e -> e - 5.01 } rate = 1.63e-4 -2.04 15.1 e(:)
+
+new reaction = { H2 -> H2[+] : e -> e + e - 15.43 } rate = 1.03e-8 1.61 17.9 e(:)
+new reaction = { H2 -> H + H : e -> e - 4.48 } rate = 2.51e-7 -0.8 10.9 e(:)
+new reaction = { H2[+] -> H[+] + H : e -> e - 2.65 } rate = 1.79e-7 -0.87 6.92 e(:)
+
+// Detachment : based on Slinker notes on CHMAIR
+// assuming that all collisional detachment rates similar to that of O[-] + O -> O + O + e
+
+new reaction = { O[-] + H2O -> O + H2O + e - 1.45 } rate = 2.3e-9 0.0 2.24 O(:)
+new reaction = { H[-] + H2O -> H + H2O + e - 0.76 } rate = 2.3e-9 0.0 2.24 O(:)
+new reaction = { OH[-] + H2O -> OH + H2O + e - 1.83 } rate = 2.3e-9 0.0 2.24 O(:)
+
+// association, from Oran memo report 4131 (note in MR T is in K)
+
+new reaction = { H + H + H -> H2 + H + 4.48 } rate = 1.55e-34 -1.0 0.0 H(:)
+new reaction = { H + H + H2 -> H2 + H2 + 4.48 } rate = 1.55e-34 -1.0 0.0 H(:)
+new reaction = { O + OH -> H + O2 + 0.72 } rate = 3.74e-11 0.28 0.0 O(:10)
+new reaction = { H + H + OH -> H2O + H + 5.10 } rate = 4.61e-34 -2.0 0.0 H(:)
+
+// Atomic hyrogen ionization from W. Lotz, Astrophys. J., Suppl. 14, 207 (1967)
+// Reverse from detailed balance
+
+new reaction = { H -> H[+] : e -> e + e - 13.6 } rate = 7.78e-9 0.41 13.6 e(:20)
+new reaction = { H -> H[+] : e -> e + e - 13.6 } rate = 1.31e-7 -0.24 32.57 e(20:)
+new reaction = { H[+] + e + e -> H + e + 13.6 } rate = 6.38e-31 -1.09 0.0 e(:20)
+new reaction = { H[+] + e + e -> H + e + 13.6 } rate = 1.07e-29 -1.74 18.97 e(20:)
+
+// Atomic oxygen ionization from W. Lotz, American Astronomical Society, 1966
+// Reverse from detailed balance (need to revisit degeneracy factors)
+
+new reaction = { O -> O[+] : e -> e + e - 13.62 } rate = 1.57e-8 0.43 14.75 e(:28)
+new reaction = { O -> O[+] : e -> e + e - 13.62 } rate = 2.65e-7 -0.15 39.87 e(28:)
+new reaction = { O[+] + e + e -> O + e + 13.62 } rate = 2.59e-30 -1.07 1.13 e(:28)
+new reaction = { O[+] + e + e -> O + e + 13.62 } rate = 4.39e-29 -1.65 26.25 e(28:)
+
+new reaction = { O[+] -> O[2+] : e -> e + e - 35.12 } rate = 5.87e-9 0.41 36.84 e(:28)
+new reaction = { O[+] -> O[2+] : e -> e + e - 35.12 } rate = 9.31e-8 -0.14 63.20 e(28:)
+new reaction = { O[2+] + e + e -> O[+] + e + 35.12 } rate = 9.72e-31 -1.09 1.72 e(:28)
+new reaction = { O[2+] + e + e -> O[+] + e + 35.12 } rate = 1.54e-29 -1.64 28.08 e(28:)
+
+new reaction = { O[2+] -> O[3+] : e -> e + e - 54.94 } rate = 2.02e-9 0.45 55.94 e(:28)
+new reaction = { O[2+] -> O[3+] : e -> e + e - 54.94 } rate = 3.04e-8 -0.08 82.22 e(28:)
+new reaction = { O[3+] + e + e -> O[2+] + e + 54.94 } rate = 3.35e-31 -1.05 1.00 e(:28)
+new reaction = { O[3+] + e + e -> O[2+] + e + 54.94 } rate = 5.04e-30 -1.58 27.28 e(28:)
+
+// Oxygen dissociation from CHMAIR
+
+new reaction = { O2 -> O + O : e -> e - 5.11 } rate = 5.72e-10 0.50 8.4 e(:100)
+new reaction = { O2 -> O + O : e -> e - 5.11 } rate = 1.30e-10 1.50 8.4 (e:100)
+new reaction = { O2 -> O + O : e -> e - 5.11 } rate = 3.83e-9 0.50 4.5 (e:100)
+new reaction = { O2 -> O + O : e -> e - 5.11 } rate = 1.70e-9 1.50 4.5 (e:100)
+
+new reaction = { O2 + O2 -> O + O + O2 -5.11 } rate = 5.8e-9 -0.83 5.12 O2(:)
+new reaction = { O2 + O -> O + O + O - 5.11 } rate = 1.3e-8 -1.00 5.12 O(:)
+new reaction = { O + O + O2 -> O2 + O2 + 5.11 } rate = 8.6e-34 -0.33 0.0 O(:)
+new reaction = { O + O + O -> O2 + O + 5.11 } rate = 1.9e-33 -0.50 0.0 O(:)
+
+// 3-body recombination of water ion (db)
+
+new reaction = { e + e + H2O[+] -> e + H2O + 12.6 } rate = 4.92e-30 -1.27 6.0 e(:)
+
+// O2 Ionization and Recombination from CHMAIR
+
+new reaction = { e + O2 -> e + e + O2[+] - 12.1 } rate = 1.27e-9 1.36 11.41 e(:6.0)
+new reaction = { e + O2 -> e + e + O2[+] - 12.1 } rate = 1.77e-8 0.57 18.69 e(6.0:)
+new reaction = { O2[+] + e -> O + O + 6.99 } rate = 2.1e-8 -0.5 0.0 e(:)

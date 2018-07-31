@@ -1,0 +1,115 @@
+// Keep the following line for generating twtest reports
+// TWTEST matplotlib zxyt=64,-1 air.dvdat
+
+steps = 2
+timestep = 0.005
+dump period = 0
+moving window = no
+neutralize = no
+unit density = 1e19
+
+xboundary = ( reflecting , reflecting )
+yboundary = ( reflecting , reflecting )
+zboundary = ( reflecting , reflecting )
+
+// wp^-1 = 5.60883 fs
+// c/wp = 1.68265 um
+// E_br = 304.208 GV/m
+
+new grid
+{
+	corner = ( -32 , -32 , -32 )
+	dimensions = ( 128 , 128 , 128 )
+	cell size = ( 0.5 , 0.5 , 0.5 )
+	decomposition = ( 1 , 1 , 1 )
+}
+
+// We will make a sphere with 4 cones situated at the vertices of
+// an imaginary pyramid, with their tips pointed at the sphere.
+// Embed this object in ambient air.
+
+// Note how translation and rotation directives are sequenced.
+// These directives should be thought of as operations.
+
+new region true_sphere s1
+{
+	radius = 5
+	// leave in the default position, at the origin
+}
+
+new region cone c1
+{
+	tip radius = 0
+	base radius = 5
+	length = 15
+
+	rotation about x = 180
+	translation = 0 0 20
+}
+
+new region cone c2
+{
+	tip radius = 0
+	base radius = 5
+	length = 15
+
+	rotation about y = -45
+	translation = 14 0 -14
+}
+
+new region cone c3
+{
+	tip radius = 0
+	base radius = 5
+	length = 15
+
+	rotation about y = -45
+	translation = 14 0 -14
+	rotation about z = 120
+}
+
+new region cone c4
+{
+	tip radius = 0
+	base radius = 5
+	length = 15
+
+	rotation about y = -45
+	translation = 14 0 -14
+	rotation about z = -120
+}
+
+new region union u1
+{
+	elements = { s1 , c1 , c2 , c3 , c4 }
+}
+
+new conductor
+{
+	clipping region = u1
+}
+
+new chemistry
+{
+}
+
+new chemical air
+{
+	charge = 0.0
+	mass = 51078.5
+	cv = 2.5
+	mobile = true
+	thermometric conductivity = 0.2
+	kinematic viscosity = 0.15
+}
+
+generate uniform air
+{
+	density = 1.0
+	temperature = %300K
+}
+
+new box diagnostic
+{
+	period = 2
+}

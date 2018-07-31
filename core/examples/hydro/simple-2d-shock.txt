@@ -1,0 +1,72 @@
+// Keep the following line for generating twtest reports
+// TWTEST matplotlib xyzt=0,-1 air.dvdat
+
+// Same physical problem as 1d shock example (numerical parameters coarsened somewhat)
+// Asymmetries intentionally put into wall boundary conditions and initial conditions
+// Due to boundary conditions mass and energy can be lost
+steps = 5000
+timestep = %30ps
+dtmax = %100ps
+maxtime = %100ns
+dump period = 0
+moving window = no
+neutralize = yes
+unit density = 2.8e+19
+
+xboundary = ( open  reflecting )
+yboundary = ( open  open )
+zboundary = ( open  open )
+
+// wp^-1 = 3.350 fs
+// c/wp = 1.004 um
+// E_br = 5.088e6 kV/cm
+
+new grid
+{
+	corner = ( -500 , -500 , -0.5 )
+	dimensions = ( 200 200 1 )
+	cell size = ( 5 5 1 )
+	decomposition = ( 2  2  1 )
+	geometry = cartesian
+	adaptive timestep = on
+}
+
+new chemistry
+{
+	epsilon factor = 0.001
+	radiation model = none
+}
+
+new chemical air
+{
+	charge = 0.0
+	mass = 51078.5
+	cv = 2.5
+	mobile = true
+	thermometric conductivity = 0.2
+	kinematic viscosity = 0.15
+}
+
+generate uniform air
+{
+	density = %2.8e19cm-3
+	temperature = %300K
+}
+
+generate gaussian air
+{
+	type = energy
+	position = 100 -100 0
+	density = %11500Jcm3
+	size = 20 20 20
+}
+
+new box diagnostic
+{
+	time period = %4ns
+}
+
+new energy diagnostic
+{
+	time period = %4ns
+}

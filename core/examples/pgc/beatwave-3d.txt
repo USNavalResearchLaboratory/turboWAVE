@@ -1,0 +1,93 @@
+// problem size not appropriate for desktop
+// NERSC Edison: 11 nodes, 7.5 minutes
+// NERSC Cori-KNL: 8 nodes, 10 minutes
+steps = 1000
+timestep = 0.08
+dump period = 0
+moving window = no
+neutralize = yes
+unit density = 1e+16
+append mode = true
+
+xboundary = ( periodic , periodic )
+yboundary = ( periodic , periodic )
+zboundary = ( absorbing , absorbing )
+
+// wp^-1 = 177.3 fs
+// c/wp = 53.14 um
+// E_br = 9.616 GV/m
+
+new grid
+{
+	corner = ( -32.0 , -32.0 , 0.0 )
+	dimensions = ( 128 , 128 , 512 )
+	cell size = ( 0.5 , 0.5 , 0.1 )
+	decomposition = ( 4 , 4 , 16 )
+}
+
+new coulomb electromagnetic module
+{
+	poisson boundary condition = ( open , open )
+}
+
+new pgc laser module
+{
+	carrier frequency = 31.0
+	propagator = adi
+}
+
+new pulse
+{
+	a = ( 0.5 , 0 , 0 )
+	direction = ( 0 , 0 , 1 )
+	focus position = ( 0 , 0 , 0 )
+	delay = 0
+	risetime = 40
+	holdtime = 0
+	falltime = 40
+	w = 30.5
+	r0 = ( 6 , 6 )
+}
+
+new pulse
+{
+	a = ( 0.5 , 0 , 0 )
+	direction = ( 0 , 0 , 1 )
+	focus position = ( 0 , 0 , 0 )
+	delay = 0
+	risetime = 40
+	holdtime = 0
+	falltime = 40
+	w = 31.5
+	r0 = ( 6 , 6 )
+}
+
+new species electrons
+{
+	charge = -1
+	mass = 1
+	emission temperature = ( 0.1 , 0.1 , 0.1 )
+	particles per cell = ( 2 , 2 , 4 ) when density = 1
+	zboundary = emitting emitting
+}
+
+generate uniform electrons
+{
+	loading = deterministic
+	particle density = fixed
+	density = 1
+	thermal momentum = ( 0.1 , 0.1 , 0.1 )
+}
+
+new box diagnostic
+{
+	filename = full
+	period = 1000
+}
+
+new energy series
+{
+	period = 100
+}
+
+

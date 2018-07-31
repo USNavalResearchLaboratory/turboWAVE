@@ -1,0 +1,8 @@
+To swap in a new compiler we have something like:
+module swap PrgEnv-cray PrgEnv-intel (old followed by new)
+
+To see the available modules:
+module avail
+
+To see the installed modules:
+module list

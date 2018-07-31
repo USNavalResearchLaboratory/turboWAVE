@@ -1,0 +1,80 @@
+// NOTE: size of example not suitable for desktop machine
+// NERSC Cori-Haswell: 8 nodes, 27 minutes
+// NERSC Cori-KNL: 8 nodes, 43 minutes
+steps = 1500
+timestep = 0.04
+dump period = 0
+moving window = yes
+neutralize = yes
+unit density = 1e19
+
+xboundary = ( periodic , periodic )
+yboundary = ( periodic , periodic )
+zboundary = ( reflecting , reflecting )
+
+// wp^-1 = 5.60883 fs
+// c/wp = 1.68265 um
+// E_br = 304.208 GV/m
+
+new grid
+{
+	corner = ( -64 , -64 , -51.2 )
+	dimensions = ( 256 , 256 , 1024 )
+	cell size = ( 0.5 , 0.5 , 0.05 )
+	decomposition = ( 16 , 16 , 2 )
+}
+
+new region rect r1
+{
+	bounds = -40 40 -40 40 10 40
+	move with window = false
+}
+
+new direct electromagnetic module
+{
+	elliptical solver = facr
+	layer thickness = 8
+	reflection coefficient = 1e-4
+}
+
+new wave
+{
+	a = 2.5 0.0 0.0
+	w = 5.0
+	r0 = ( 10 , 10 )
+	delay = 1
+	risetime = 3
+	holdtime = 0
+	falltime = 3
+}
+
+new species electrons
+{
+	particles per cell = 2 2 4 when density = 1
+	sort period = 4
+}
+
+generate uniform electrons
+{
+	clipping region = r1
+	density = 1.0
+	loading = deterministic
+}
+
+new box diagnostic
+{
+	period = 800
+	skip = 2 2 2
+}
+
+new phase space plot for electrons
+{
+	filename = zpz
+	abcissa = z
+	ordinate = pz
+	dimensions = 200 200
+	period = 100
+	minimum = -50 0
+	maximum = 0 20
+}
+

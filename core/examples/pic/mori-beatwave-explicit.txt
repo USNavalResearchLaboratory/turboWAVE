@@ -1,0 +1,87 @@
+// Keep the following line for generating twtest reports
+// TWTEST matplotlib zxyt=0,11 phi.dvdat
+
+steps = 7500
+timestep = 0.04
+dump period = 0
+moving window = no
+neutralize = yes
+unit density = 1e+19
+append mode = true
+
+xboundary = ( periodic , periodic )
+yboundary = ( periodic , periodic )
+zboundary = ( absorbing , absorbing )
+
+// wp^-1 = 5.60883 fs
+// c/wp = 1.68265 um
+// E_br = 304.208 GV/m
+
+new grid
+{
+	corner = ( -32.0 , -0.5 , 0.0 )
+	dimensions = ( 128 , 1 , 1200 )
+	cell size = ( 0.5 , 1.0 , 0.05 )
+	decomposition = ( 1 , 1 , 1 )
+}
+
+new coulomb electromagnetic module
+{
+	poisson boundary condition = ( dirichlet , neumann )
+}
+
+new wave
+{
+	a = ( 0 , 0.56 , 0 )
+	direction = ( 0 , 0 , 1 )
+	focus position = ( 0 , 0 , 0 )
+	delay = 0
+	risetime = 300
+	holdtime = 0
+	falltime = 300
+	w = 4
+	r0 = ( 1e5 , 10 )
+	exponent = ( 1 , 1 ) // odd induces cos^(exponent+1)
+}
+
+new wave
+{
+	a = ( 0 , 0.56 , 0 )
+	direction = ( 0 , 0 , 1 )
+	focus position = ( 0 , 0 , 0 )
+	delay = 0
+	risetime = 300
+	holdtime = 0
+	falltime = 300
+	w = 5
+	r0 = ( 1e5 , 10 )
+	exponent = ( 1 , 1 ) // odd induces cos^(exponent+1)
+}
+
+new species electrons
+{
+	charge = -1
+	mass = 1
+	emission temperature = ( 0.1 , 0.1 , 0.1 )
+	particles per cell = ( 4 , 1 , 4 ) when density = 1
+	zboundary = emitting emitting
+}
+
+generate uniform electrons
+{
+	loading = deterministic
+	particle density = fixed
+	density = 1
+	thermal momentum = ( 0.1 , 0.1 , 0.1 )
+}
+
+new box diagnostic
+{
+	filename = full
+	period = 500
+}
+
+new energy series
+{
+	period = 200
+}

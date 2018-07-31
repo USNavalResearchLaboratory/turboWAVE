@@ -1,0 +1,80 @@
+// Keep the following line for generating twtest reports
+// TWTEST matplotlib zxyt=0,-1 e.dvdat
+
+// Radially polarized pulse in corrugated channel
+// (pulse is arbitrary, i.e., not matched)
+steps = 2000
+timestep = 0.08
+dump period = 0
+moving window = no
+neutralize = yes
+unit density = 1e19
+append mode = true
+
+xboundary = ( axisymmetric , reflecting )
+yboundary = ( periodic , periodic )
+zboundary = ( reflecting , reflecting )
+
+new grid
+{
+	corner = ( 0.0 , -3.14159 , 0.0 )
+	dimensions = ( 128 , 1 , 2048 )
+	cell size = ( 0.5 , 6.28318 , 0.1 )
+	decomposition = ( 1 , 1 , 1 )
+	geometry = cylindrical
+}
+
+new curvilinear direct module
+{
+	elliptical solver = eigenmode
+}
+
+new wave
+{
+	a = 0.1 0.0 0.0
+	w = 4.0
+	r0 = 20 20
+	type = hermite
+	mode = 1 0
+	focus position = 0 0 40
+	delay = 0
+	risetime = 20
+	falltime = 20
+}
+
+new species e
+{
+	particles per cell = 4 1 4 when density = 1.0
+}
+
+new region rect r1
+{
+	bounds = 0 50 -1e5 1e5 40 1e5
+	move with window = false
+}
+
+generate corrugated e
+{
+	position = 0 0 40
+	clipping region = r1
+
+	// parameters defining the tapered corrugated channel
+	a0 = 0.25
+	gamma0 = 10
+	w0 = 15.8
+	wp0 = 1.0
+	km = 0.1083
+	delta = 0.9
+	rchannel = 7.46
+
+	// parameters defining the particle loading
+	thermal momentum = 0.0 0.0 0.0
+	drift momentum = 0.0 0.0 0.0
+	loading = deterministic
+	particle density = variable
+}
+
+new box diagnostic
+{
+	period = 100
+}

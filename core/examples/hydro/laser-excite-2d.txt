@@ -1,0 +1,141 @@
+// Keep the following line for generating twtest reports
+// TWTEST matplotlib zxyt=0,-1 Ar2[+].dvdat 2.0
+
+// SPARC input file to model 2D axisymmetric laser excitation of an Argon plasma
+// This includes photo and collisional ionization
+// Increasing laser intensity may require timestep reduction
+// If you want electrostatic fields, set plasma model = quasineutral
+// (quasineutral model will be slow)
+append mode = on
+steps = 2000
+timestep = %100fs
+dtmax = %100fs
+dump period = 0
+moving window = no
+neutralize = yes
+unit density = 2.8e+19
+
+xboundary = ( axisymmetric  open )
+yboundary = ( periodic  periodic )
+zboundary = ( open  open )
+
+// wp^-1 = 3.350 fs
+// c/wp = 1.004 um
+// E_br = 5.088e6 kV/cm
+
+new grid
+{
+	corner = ( 0.0 , -3.1416 , -2000 )
+	dimensions = ( 100 1 200 )
+	cell size = ( 1.0 6.2832 20.0 )
+	decomposition = ( 2  1  4 )
+	geometry = cylindrical
+	adaptive timestep = off
+}
+
+new chemistry
+{
+	epsilon factor = 1e-4
+	radiation model = none
+	laser model = vacuum
+	plasma model = neutral
+	// following affects accuracy of electrostatic field
+	// (quasineutral model only)
+	tolerance = 1e-3
+}
+
+new pulse
+{
+	a = .002 0 0
+	w = 10
+	r0 = 30 30
+	delay = 0
+	risetime = %100ps
+	holdtime = 0
+	falltime = %100ps
+}
+
+new chemical e
+{
+	charge = -1.0
+	mass = 1.0
+	cv = 1.5
+}
+
+new group heavies
+{
+	new chemical Ar[+]
+	{
+		charge = 1.0
+		mass = 73439
+		cv = 1.5
+	}
+	new chemical Ar2[+]
+	{
+		charge = 1.0
+		mass = 146879
+		cv = 2.5
+	}
+	new chemical Ar
+	{
+		charge = 0.0
+		mass = 73440
+		cv = 1.5
+		ionization potential = 1.16
+		ionization model = adk
+		protons = 18
+		electrons = 18
+		ion species = Ar[+]
+		electron species = e
+	}
+	mobile = true
+}
+
+new collision = e <-> Ar[+] , coulomb
+new collision = e <-> Ar , cross section = 1.0 // This cross section is fictitious
+new collision = e <-> Ar2[+] , coulomb
+
+// detailed balanced impact ionization and 3-body recombination
+new reaction = { Ar -> Ar[+] : e -> e + e - 15.76 } rate = 5.33e-5 -3.0 15.76 e(:)
+new reaction = { Ar[+] + e + e -> Ar + e + 15.76 } rate = 8.75e-27 -4.5 0.0 e(:)
+
+// radiative recombination, photon is assumed to leave system
+new reaction = { Ar[+] + e -> Ar } rate = 2.7e-13 -0.5 0.0 e(:)
+
+// molecular argon
+new reaction = { Ar[+] + Ar + Ar -> Ar2[+] + Ar + 2.61 } rate = 2.55e-31 0.0 0.0 e(:)
+new reaction = { Ar2[+] + e -> Ar + Ar + 13.15 } rate = 5.4e-8 -0.667 0.0 e(:)
+
+generate uniform Ar
+{
+	density = 1.0
+	temperature = %300K
+}
+
+generate uniform Ar[+]
+{
+	density = 1e-8
+	temperature = %300K
+}
+
+generate uniform Ar2[+]
+{
+	density = 1e-8
+	temperature = %300K
+}
+
+generate uniform e
+{
+	density = 2e-8
+	temperature = %300K
+}
+
+new box diagnostic
+{
+	time period = %10ps
+}
+
+new energy diagnostic
+{
+	time period = %10ps
+}

@@ -1,0 +1,58 @@
+#!/bin/bash
+# provide a common interface for remote HPC machines
+# Examples:
+# 1) hpc ed login // login to edison
+# 2) hpc hop put "*.inp" // put all files with extension .inp in hopper scratch directory
+# 3) hpc pol get "gemini/plotfiles/*.dat" // get all .dat files from polar subdirectory
+# 4) hpc cori update // put all files in WD into ~/turbowave
+# note use of quotes enables wildcards
+
+case "$1" in
+	"ed" )
+		LOPT=
+		LOGIN=gordond@edison.nersc.gov
+		WORKDIR=/scratch2/scratchdirs/gordond;;
+	"cori" )
+		LOPT=
+		LOGIN=gordond@cori.nersc.gov
+		WORKDIR=/global/cscratch1/sd/gordond;;
+	"pol" )
+		LOPT="-F /Users/gordon/.ssh/ssh_config"
+		LOGIN=gordondf@polar.cmf.nrl.navy.mil
+		WORKDIR=/lustre/cmf/scratch/g/gordondf;;
+	"onyx" )
+		LOPT=
+		LOGIN=gordon@onyx.erdc.hpc.mil
+		WORKDIR=/p/work/gordon;;
+	"top" )
+		LOPT=
+		LOGIN=gordon@topaz.erdc.hpc.mil
+		WORKDIR=/p/work2/gordon;;
+	* )
+		echo "Unrecognized remote machine (first argument)"
+		exit 1;;
+esac
+	
+case "$2" in
+	"login" )
+		ssh $LOPT $LOGIN;;
+	"put" )
+		if test -z "$3"
+		then
+			echo "Missing argument to put"
+		else
+			scp $3 ${LOGIN}:${WORKDIR}
+		fi;;
+	"get" )
+		if test -z "$3"
+		then
+			echo "Missing argument to get"
+		else
+			scp ${LOGIN}:${WORKDIR}/$3 .
+		fi;;
+	"update" )
+		scp * ${LOGIN}:~/turbowave;;
+	* )
+		echo "Unrecognized action (second argument = login , put , get)"
+		exit 1;;
+esac

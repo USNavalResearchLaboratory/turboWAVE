@@ -1,0 +1,134 @@
+new chemical H2
+{
+	charge = 0.0
+	mass = 3674
+	cv = 2.5
+	vibrational energy = 0.5
+}
+
+new chemical H2B
+{
+	charge = 0.0
+	mass = 3674
+	cv = 2.5
+	vibrational energy = 0.5
+}
+
+new chemical H2C
+{
+	charge = 0.0
+	mass = 3674
+	cv = 2.5
+	vibrational energy = 0.5
+}
+
+new chemical H2[+]
+{
+	charge = 1.0
+	mass = 3673
+	cv = 2.5
+	vibrational energy = 0.5
+}
+
+new chemical H
+{
+	charge = 0.0
+	mass = 1837
+	cv = 1.5
+}
+
+new chemical H[2p]
+{
+	charge = 0.0
+	mass = 1837
+	cv = 1.5
+}
+
+new chemical H[2s]
+{
+	charge = 0.0
+	mass = 1837
+	cv = 1.5
+}
+
+new chemical H[3]
+{
+	charge = 0.0
+	mass = 1837
+	cv = 1.5
+}
+
+new chemical H[+]
+{
+	charge = 1.0
+	mass = 1836
+	cv = 1.5
+}
+
+new chemical H[-]
+{
+	charge = -1.0
+	mass = 1838
+	cv = 1.5
+}
+
+// Following from R. Riahi et al., Eur. Phys. J. D 40, 223-230 (2006)
+
+new reaction = { H2 -> H2[+] : e -> e + e - 15.43 }  rate = 1.03e-8 1.61 17.9 e(:20)
+new reaction = { H2 -> H + H : e -> e - 4.48 } rate = 2.51e-7 -0.8 10.9 e(:)
+new reaction = { H2[+] -> H[+] + H : e -> e - 2.65 } rate = 1.79e-7 -0.87 6.92 e(:)
+
+// Following from Oran memo report 4131
+
+new reaction = { H + H + H -> H2 + H + 4.48 } rate = 1.8e-30 -1.0 0.0 H(:)
+new reaction = { H + H + H2 -> H2 + H2 + 4.48 } rate = 1.8e-30 -1.0 0.0 H(:)
+
+// Hyrogen ionization from W. Lotz, Astrophys. J., Suppl. 14, 207 (1967)
+// Reverse from detailed balance
+
+new reaction = { H -> H[+] : e -> e + e - 13.6 } rate = 7.78e-9 0.41 13.6 e(:20)
+new reaction = { H -> H[+] : e -> e + e - 13.6 } rate = 1.31e-7 -0.24 32.57 e(20:)
+new reaction = { H[+] + e + e -> H + e + 13.6 } rate = 6.38e-31 -1.09 0.0 e(:20)
+new reaction = { H[+] + e + e -> H + e + 13.6 } rate = 1.07e-29 -1.74 18.97 e(20:)
+
+// fits to reaction rates from R.K. Janev et al., "elementary processes in hydrogen-helium plasmas", Springer-Verlag, 1987
+
+new reaction = { H -> H[2p] : e -> e - 10.2 }
+	janev_rate = -2.8150e1 , 1.0098e1 , -4.7720 , 1.4678 , -2.9798e-1 , 3.8616e-2 , -3.0517e-3 , 1.3355e-4 , -2.4761e-6 e(:)
+
+new reaction = { H -> H[2s] : e -> e - 10.2 }
+	janev_rate = -2.8333e1 , 9.5874 , -4.8336 , 1.4159 , -2.5379e-1 , 2.8007e-2 , -1.8714e-3 , 6.9867e-5 , -1.1238e-6 e(:)
+
+new reaction = { H -> H[3] : e -> e - 12.1 }
+	janev_rate = -3.1137e1 , 1.1705e1 , -5.5981 , 1.6685 , -3.1868e-1 , 3.8517e-2 , -2.8452e-3 , 1.1715e-4 , -2.0593e-6 e(:)
+	
+new reaction = { H[2p] -> H[3] : e -> e - 1.9 }
+	janev_rate = -1.5158e1 , 1.9240 , -9.2753e-1 , 3.3704e-1 , -8.7582e-2 , 1.4091e-2 , -1.3252e-3 , 6.6720e-5 , -1.3876e-6 e(:)
+	
+new reaction = { H[2s] -> H[3] : e -> e - 1.9 }
+	janev_rate = -1.5158e1 , 1.9240 , -9.2753e-1 , 3.3704e-1 , -8.7582e-2 , 1.4091e-2 , -1.3252e-3 , 6.6720e-5 , -1.3876e-6 e(:)
+
+new reaction = { H[2s] -> H[+] : e -> e + e - 3.4 }
+	janev_rate = -1.9735e1 , 3.9927 , -1.7734 , 5.3320e-1 , -1.1810e-1 , 1.7631e-2 , -1.6160e-3 , 8.0939e-5 , -1.6867e-6 e(:)
+	
+new reaction = { H[3] -> H[+] : e -> e + e - 1.5 }
+	janev_rate = -1.5670e1 , 1.7197 , -8.3650e-1 , 2.6428e-1 , -6.5278e-2 , 1.0669e-2 , -1.0415e-3 , 5.4572e-5 , -1.1775e-6 e(:)
+	
+new reaction = { H2 -> H2B : e -> e - 12.1 }
+	janev_rate = -3.0819e1 , 1.0389e1 , -4.2598 , 1.1812 , -2.2775e-1 , 2.9006e-2 , -2.2876e-3 , 1.0043e-4 , -1.8699e-6 e(:)
+	
+new reaction = { H2 -> H2C : e -> e - 12.4 }
+	janev_rate = -3.3482e1 , 1.3717e1 , -5.9226 , 1.7097 , -3.5052e-1 , 4.8344e-2 , -4.1314e-3 , 1.9484e-4 , -3.8543e-6 e(:)
+	
+new reaction = { e + H2 -> H[-] + H - 3.72 } // assumes v>3
+	janev_rate = -1.7744e1 , -6.2070e-1 , -2.8114e-1 , 2.5410e-2 , 6.6435e-3 , -8.8776e-4 , -3.7058e-4 , 9.3135e-5 , -5.9958e-6 e(:)
+	
+new reaction = { H[-] -> H : e -> e + e - 0.76 }
+	janev_rate = -1.8018e1 , 2.3609 , -2.8274e-1 , 1.6233e-2 , -3.3650e-2 , 1.1783e-2 , -1.6562e-3 , 1.0683e-4 , -2.6313e-6 e(:)
+	
+new reaction = { H[-] -> H[+] : e -> e + e + e - 14.36 }
+	janev_rate = -3.6371e1 , 1.5868e1 , -6.4783 , 1.7351 , -3.2335e-1 , 4.0205e-2 , -3.1148e-3 , 1.3478e-4 , -2.4786e-6 e(:)
+	
+new excitation = e -> H2 level = 1 janev_rate = -2.0172125e1, 9.5639522e-1, -6.9314742e-1, 1.6736715e-1, -3.2287628e-2, 5.8386032e-3, -8.5805426e-4, 7.4563116e-5, -2.6669783e-6
+new excitation = e -> H2 level = 2 janev_rate = -2.2655076e1, 2.2399435, -1.0994265, 2.3390276e-1, -2.5285111e-2, 6.8513024e-4, 1.2534261e-4, -1.2534750e-5, 3.5458928e-7
+

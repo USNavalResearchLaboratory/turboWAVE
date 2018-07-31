@@ -1,0 +1,132 @@
+// SPARC input file to model relaxation of a 2D axisymmetric Argon plasma
+// Here we are showing how to extract data at a single instant
+// (see end of this file)
+// if you want electrostatic field, set plasma model = quasineutral
+steps = 3000
+timestep = %0.1ns
+dtmax = %1ns
+dump period = 0
+moving window = no
+neutralize = yes
+unit density = 2.8e+19
+
+xboundary = ( axisymmetric  open )
+yboundary = ( periodic  periodic )
+zboundary = ( open  open )
+
+// wp^-1 = 3.350 fs
+// c/wp = 1.004 um
+// E_br = 5.088e6 kV/cm
+
+new grid
+{
+	corner = ( 0.0 , -3.1416 , -50.0 )
+	dimensions = ( 100 1 200 )
+	cell size = ( 0.5 6.2832 0.5 )
+	decomposition = ( 2  1  4 )
+	geometry = cylindrical
+	adaptive timestep = on
+}
+
+new chemistry
+{
+	epsilon factor = 1e-4
+	radiation model = none
+	plasma model = neutral
+	// If using quasineutral model, the following sets the tolerance
+	tolerance = 1e-3
+}
+
+new chemical e
+{
+	charge = -1.0
+	mass = 1.0
+	cv = 1.5
+}
+
+new group heavies
+{
+	new chemical Ar
+	{
+		charge = 0.0
+		mass = 73440
+		cv = 1.5
+	}
+	new chemical Ar[+]
+	{
+		charge = 1.0
+		mass = 73439
+		cv = 1.5
+	}
+	new chemical Ar2[+]
+	{
+		charge = 1.0
+		mass = 146879
+		cv = 2.5
+	}
+	mobile = true
+}
+
+new collision = e <-> Ar[+] , coulomb
+new collision = e <-> Ar , cross section = 1.0 // This cross section is fictitious
+new collision = e <-> Ar2[+] , coulomb
+
+// detailed balanced impact ionization and 3-body recombination
+new reaction = { Ar -> Ar[+] : e -> e + e - 15.76 } rate = 5.33e-5 -3.0 15.76 e(:)
+new reaction = { Ar[+] + e + e -> Ar + e + 15.76 } rate = 8.75e-27 -4.5 0.0 e(:)
+
+// radiative recombination, photon is assumed to leave system
+new reaction = { Ar[+] + e -> Ar } rate = 2.7e-13 -0.5 0.0 e(:)
+
+// molecular argon
+new reaction = { Ar[+] + Ar + Ar -> Ar2[+] + Ar + 2.61 } rate = 2.55e-31 0.0 0.0 e(:)
+new reaction = { Ar2[+] + e -> Ar + Ar + 13.15 } rate = 5.4e-8 -0.667 0.0 e(:)
+
+generate uniform Ar
+{
+	density = 1
+	temperature = %300K
+}
+
+generate uniform Ar[+]
+{
+	density = 1e-8
+	temperature = %300K
+}
+
+generate uniform Ar2[+]
+{
+	density = 1e-8
+	temperature = %300K
+}
+
+generate uniform e
+{
+	density = 2e-8
+	temperature = %300K
+}
+
+generate gaussian Ar[+]
+{
+	density = 0.1
+	size = 5 10 10
+	temperature = %300K
+}
+
+generate gaussian e
+{
+	density = 0.1
+	size = 5 10 10
+	temperature = %2.0eV
+}
+
+new box diagnostic
+{
+	// start writing at 8 ns
+	t0 = %8ns
+	// stop writing time: t1-t0 must exceed the maximum time step
+	t1 = %100ns
+	// set period to go past t1 so we only get 1 write-out
+	// do not specify this in units of steps
+	time period = %100ns
+}

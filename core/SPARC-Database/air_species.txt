@@ -1,0 +1,338 @@
+
+new chemical e
+{
+	charge = -1.0
+	mass = 1.0
+	cv = 1.5
+}
+
+new group heavies
+{
+	new chemical N2
+	{
+		charge = 0.0
+		mass = 51442
+		cv = 2.5
+		vibrational energy = 0.3 // energy (eV) between vibrational levels
+
+	}
+	new chemical N2[+]
+	{
+		charge = 1.0
+		mass = 51441
+		cv = 2.5
+	}
+	new chemical N2A
+	{
+		charge = 0.0
+		mass = 51442
+		cv = 2.5
+	}
+	new chemical N2B
+	{
+		charge = 0.0
+		mass = 51442
+		cv = 2.5
+	}
+	new chemical N2C
+	{
+		charge = 0.0
+		mass = 51442
+		cv = 2.5
+	}
+	new chemical N
+	{
+		charge = 0.0
+		mass = 25721
+		cv = 1.5
+	}
+	new chemical N[+] 
+	{
+		charge = 1.0
+		mass = 25720
+		cv = 1.5
+	}
+	new chemical N[2+] 
+	{
+		charge = 2.0
+		mass = 25719
+		cv = 1.5
+	}
+	new chemical N[3+] 
+	{
+		charge = 3.0
+		mass = 25718
+		cv = 1.5
+	}
+	new chemical N[4+] 
+	{
+		charge = 4.0
+		mass = 25717
+		cv = 1.5
+	}
+	new chemical N[5+] 
+	{
+		charge = 5.0
+		mass = 25716
+		cv = 1.5
+	}
+	new chemical N[2D] 
+	{
+		charge = 0.0
+		mass = 25721
+		cv = 1.5
+	}
+	new chemical N3
+	{
+		charge = 0.0
+		mass = 77163
+		cv = 3.0
+	}
+	new chemical N3[+]
+	{
+		charge = 1.0
+		mass = 77162
+		cv = 3.0
+	}
+	new chemical N4
+	{
+		charge = 0.0
+		mass = 102884
+		cv = 3.0
+	}
+	new chemical N4[+]
+	{
+		charge = 1.0
+		mass = 102883
+		cv = 3.0
+	}
+
+	new chemical O2
+	{
+		charge = 0.0
+		mass = 58774
+		cv = 2.5
+	}
+	new chemical O2[+]
+	{
+		charge = 1.0
+		mass = 58773
+		cv = 2.5
+	}
+	new chemical O2[-]	
+	{
+		charge = -1.0
+		mass = 58775
+		cv = 2.5
+	}
+	new chemical O2Delta
+	{
+		charge = 0.0
+		mass = 58774
+		cv = 2.5
+	}
+	new chemical O
+	{
+		charge = 0.0
+		mass = 29387
+		cv = 1.5
+	}
+	new chemical O[+]
+	{
+		charge = 1.0
+		mass = 29386
+		cv = 1.5
+	}
+	new chemical O[-]
+	{ 
+		charge = -1.0
+		mass = 29388
+		cv = 1.5
+	}
+	new chemical O[2+]
+	{
+		charge = 2.0
+		mass = 29385
+		cv = 1.5
+	}
+	new chemical O[3+]
+	{
+		charge = 3.0
+		mass = 29384
+		cv = 1.5
+	}
+	new chemical O[4+]
+	{	
+		charge = 4.0
+		mass = 29383
+		cv = 1.5
+	}
+	new chemical O[+][2D]
+	{	
+		charge = 1.0
+		mass = 29386
+		cv = 1.5
+	}
+	new chemical O3
+	{
+		charge = 0.0
+		mass = 88161
+		cv = 3.0
+	}
+	new chemical O3[-]
+	{
+		charge = -1.0
+		mass = 88162
+		cv = 3.0
+	}		
+	new chemical O3[+]
+	{
+		charge = 1.0
+		mass = 88160
+		cv = 3.0
+	}
+	new chemical O4
+	{
+		charge = 0.0
+		mass = 117548
+		cv = 3.0
+	}
+	new chemical O4[+]
+	{
+		charge = 1.0
+		mass = 117547
+		cv = 3.0
+	}
+	new chemical O4[-]
+	{
+		charge = -1.0
+		mass = 117549
+		cv = 3.0
+	}
+
+	new chemical NO 
+	{
+		charge = 0.0
+		mass = 55108
+		cv = 2.5
+	}
+	new chemical NO[+]
+	{
+		charge = 1.0
+		mass = 55107
+		cv = 2.5
+	}
+	new chemical NO2
+	{
+		charge = 0.0
+		mass = 84495
+		cv = 3.0
+	}
+	new chemical NO2[-]
+	{
+		charge = -1.0
+		mass = 84496
+		cv = 3.0
+	}
+	new chemical NO3[-]
+	{
+		charge = -1.0
+		mass = 113882
+		cv = 3.0
+	}
+	new chemical CO2
+	{
+		charge = 0.0
+		mass = 80814
+		cv = 3.0
+	}
+	new chemical CO3
+	{
+		charge = 0.0
+		mass = 110201
+		cv = 3.0
+	}
+	new chemical CO3[-]
+	{
+		charge = -1.0
+		mass = 110202
+		cv = 3.0
+	}
+	new chemical CO4[-]
+	{
+		charge = -1.0
+		mass = 139589
+		cv = 3.0
+	}
+
+	new chemical H2O
+	{
+		charge = 0.0
+		mass = 33061
+		cv = 3.0
+	}
+	new chemical H2O[+]
+	{
+		charge = 1.0
+		mass = 33060
+		cv = 3.0
+	}
+	new chemical H3O
+	{
+		charge = 0.0
+		mass = 34898
+		cv = 3.0
+	}
+	new chemical H3O[+]
+	{
+		charge = 1.0
+		mass = 34897
+		cv = 3.0
+	}
+
+	new chemical O2[+].H2O
+	{
+		charge = 1.0
+		mass = 91834
+		cv = 3.0
+	}
+	new chemical H3O.OH
+	{
+		charge = 0.0
+		mass = 66122
+		cv = 3.0
+	}
+	new chemical H3O[+].OH
+	{
+		charge = 1.0
+		mass = 66121
+		cv = 3.0
+	}
+	new chemical H3O.H2O
+	{
+		charge = 0.0
+		mass = 67959
+		cv = 3.0
+	}
+	new chemical H3O[+].H2O
+	{
+		charge = 1.0
+		mass = 67958
+		cv = 3.0
+	}
+	new chemical NO[+].H2O
+	{
+		charge = 1.0
+		mass = 88168
+		cv = 3.0
+	}
+	new chemical OH
+	{
+		charge = 0.0
+		mass = 31224
+		cv = 2.5
+	}
+
+	mobile = true	
+}
+

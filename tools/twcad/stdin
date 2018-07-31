@@ -1,0 +1,101 @@
+// Set unit density so lengths are in centimeters.
+// Only needed to test unit conversion macros.
+// IMPORTANT: mixing conventional and normalized lengths can lead to gaps in geometry
+// (depending on precision of unit density)
+unit density = 2.8e11
+
+new grid
+{
+	geometry = cartesian
+	corner = ( -6.4 , -6.4 , 0.0 )
+	dimensions = (128,128,128)
+	cell size = (0.1,0.1,0.1)
+	decomposition = ( 2 , 2 , 2 )
+	// this comment tests the comment stripping code
+}
+
+new region rect r1
+{
+	rotation about x = 45
+	// note that bounds also performs an implicit translation,
+	// so placement with respect to other transformations matters.
+	bounds = %-1cm %.01m %-10mm %10000um 2 3
+}
+
+new region circ c1
+{
+	translation = 1 0 2
+	radius = 0.5
+}
+
+new region circ !c1
+{
+	translation = 1 0 2
+	radius = 0.5
+	complement = true
+}
+
+new region intersection i1
+{
+	elements = { r1 , !c1 }
+	translation = 3.0 3.0 2.0
+}
+
+new region cylinder cyl1
+{
+	radius = 1
+	length = 2
+	rotation about x = 30
+	rotation about z = 90
+	translation = 0 0 6.4
+}
+
+new region rounded_cylinder rcyl1
+{
+	radius = 1
+	length = 3
+	rotation about y = 90
+	translation = -3.0 -3.0 8.0
+}
+
+new region torus tor1
+{
+	translation = 3.0 3.0 8.0
+	minor radius = 0.5
+	major radius = 2
+}
+
+new region cone cone1
+{
+	length = 2.0
+	base radius = 2.0
+	tip radius = 0.25
+	rotation about y = 25
+	translation = 3.0 -3.0 4.0
+}
+
+// In the following we want to make a tube with a lip
+// We construct it so that it rotates about the COM of the cylindrical part
+// Therefore leave the cylindrical shell in the default position
+// It will be translated in the union after the rotation
+
+new region cylindrical_shell cs1
+{
+	length = 2.0
+	inner radius = 1.5
+	outer radius = 2.0
+}
+
+new region torus tor2
+{
+	major radius = 1.75
+	minor radius = 0.25
+	translation = 0 0 1.0
+}
+
+new region union u1
+{
+	elements = { cs1 , tor2 }
+	rotation about x = 30
+	translation = -3 3 3
+}

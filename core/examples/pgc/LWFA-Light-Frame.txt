@@ -1,0 +1,69 @@
+// Keep the following line for generating twtest reports
+// TWTEST matplotlib zxyt=0,-1 Ez.dvdat
+
+steps = 500
+timestep = 0.08
+dump period = 0
+moving window = yes
+neutralize = yes
+unit density = 1.1e+17
+append mode = true
+
+xboundary = ( periodic , periodic )
+yboundary = ( periodic , periodic )
+zboundary = ( absorbing , absorbing )
+
+// wp^-1 = 53.4781 fs
+// c/wp = 16.0434 um
+// E_br = 31.9056 GV/m
+
+new grid
+{
+	corner = ( -16.0 , -0.5 , -25.6 )
+	dimensions = ( 128 , 1 , 256 )
+	cell size = ( 0.25 , 1.0 , 0.1 )
+	decomposition = ( 1 , 1 , 1 )
+}
+
+new direct electromagnetic module
+{
+}
+
+new pgc laser module
+{
+	carrier frequency = 50
+	propagator = adi
+	//propagator = spectral
+}
+
+new pulse
+{
+	a = 0.5 0.0 0.0
+	r0 = ( 5 , 1e5 )
+	w = 50
+	risetime = 3
+	holdtime = 0
+	falltime = 3
+	delay = 5
+	focus position = ( 0 , 0 , 0 )
+	direction = ( 0 , 0 , 1 )
+}
+
+new species electrons
+{
+	particles per cell = 4 1 4 when density = 1
+}
+
+generate piecewise electrons
+{
+	zdensity = { 0.0 1.0 1.0 }
+	zpoints = { 0.0 10.0 10000.0 }
+	loading = deterministic
+	particle density = variable
+	shape = quintic
+}
+
+new box diagnostic
+{
+	period = 50
+}

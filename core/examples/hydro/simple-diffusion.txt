@@ -1,0 +1,73 @@
+// Keep the following line for generating twtest reports
+// TWTEST matplotlib xtyz=0,-1 T_M(group).dvdat 0.3
+
+// SPARC simulation illustrating heat diffusion
+// Approach is to create a density hole, but in pressure equilibrium
+// This is accomplished by loading energy density uniformly
+// N.b. in this situation adaptive time stepping is dangerous because
+// rate estimates tend to come out near zero
+// If outer b.c. is reflecting mass and energy should be conserved to several digits
+append mode = on
+steps = 10000
+timestep = 2.8e5
+dump period = 0
+moving window = no
+neutralize = yes
+unit density = 2.8e+19
+
+xboundary = ( axisymmetric  reflecting )
+yboundary = ( periodic  periodic )
+zboundary = ( periodic  periodic )
+
+// wp^-1 = 3.350 fs
+// c/wp = 1.004 um
+// E_br = 5.088e6 kV/cm
+
+new grid
+{
+	corner = ( 0.0 , -3.1416 , -0.5 )
+	dimensions = ( 2000 1 1 )
+	cell size = ( 0.5 6.2832 1.0 )
+	decomposition = ( 1  1  1 )
+	geometry = cylindrical
+	adaptive timestep = off
+}
+
+new chemistry
+{
+	epsilon factor = 1e-4
+	radiation model = none
+}
+
+new chemical M
+{
+	charge = 0.0
+	mass = 50000
+	cv = 2.5
+	thermometric conductivity = 10.0
+	kinematic viscosity = 1.0
+}
+
+generate piecewise M
+{
+	xpoints = { 0.0 100.0 1e5 }
+	xdensity = { 0.5 1.0 1.0 }
+	shape = quintic
+	temperature = %0.00001K // no energy here, add it uniformly below
+}
+
+generate uniform M
+{
+	type = energy
+	density = %0.23Jcm3
+}
+
+new box diagnostic
+{
+	period = 100
+}
+
+new energy diagnostic
+{
+	period = 100
+}

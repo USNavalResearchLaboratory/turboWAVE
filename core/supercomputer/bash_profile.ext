@@ -1,0 +1,26 @@
+# begin .bash_profile.ext
+
+[ -e $HOME/.dbgdot ] && echo "entering .bash_profile.ext"
+#
+# User additions to .bash_profile go in this file
+#
+export NERSC_HOST=`/usr/common/usg/bin/nersc_host`
+
+if [ $NERSC_HOST == "davinci" ]
+then
+#  Replace the following line with personal settings for davinci
+  touch /dev/null
+fi
+
+if [ $NERSC_HOST == "datatran" ]
+then
+#  Replace the following line with personal settings for datatran
+  touch /dev/null
+fi
+
+# TurboWAVE does not like darshan : unload it!
+module unload darshan
+
+[ -e $HOME/.dbgdot ] && echo "exiting .bash_profile.ext"
+
+# end .bash_profile.ext

@@ -1,0 +1,77 @@
+// Keep the following line for generating twtest reports
+// TWTEST matplotlib xyzt=0,-1 zpz.dvdat 5.0
+
+steps = 2000
+timestep = 0.04
+dump period = 0
+moving window = yes
+neutralize = yes
+unit density = 1e19
+
+xboundary = ( periodic , periodic )
+yboundary = ( periodic , periodic )
+zboundary = ( reflecting , reflecting )
+
+// wp^-1 = 5.60883 fs
+// c/wp = 1.68265 um
+// E_br = 304.208 GV/m
+
+new grid
+{
+	corner = ( -64 , -0.5 , -51.2 )
+	dimensions = ( 256 , 1 , 1024 )
+	cell size = ( 0.5 , 1.0 , 0.05 )
+	decomposition = ( 2 , 1 , 2 )
+}
+
+new region rect r1
+{
+	bounds = -40 40 -1e5 1e5 10 40
+	move with window = false
+}
+
+new direct electromagnetic module
+{
+	elliptical solver = facr
+	layer thickness = 8
+	reflection coefficient = 1e-4
+}
+
+new wave
+{
+	a = 2.5 0.0 0.0
+	w = 5.0
+	r0 = ( 10 , 1e5 )
+	delay = 1
+	risetime = 3
+	holdtime = 0
+	falltime = 3
+}
+
+new species electrons
+{
+	particles per cell = 4 1 4 when density = 1
+}
+
+generate uniform electrons
+{
+	clipping region = r1
+	density = 1.0
+	loading = deterministic
+}
+
+new box diagnostic
+{
+	period = 100
+}
+
+new phase space plot for electrons
+{
+	filename = zpz
+	abcissa = z
+	ordinate = pz
+	dimensions = 200 200
+	period = 100
+	minimum = -50 0
+	maximum = 0 20
+}

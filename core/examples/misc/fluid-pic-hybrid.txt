@@ -1,0 +1,83 @@
+// Keep the following line for generating twtest reports
+// TWTEST matplotlib zxyt=0,-1 beam.dvdat
+
+steps = 500
+timestep = 0.08
+dump period = 0
+moving window = yes
+neutralize = yes
+unit density = 1.1e+17
+append mode = true
+
+xboundary = ( periodic , periodic )
+yboundary = ( periodic , periodic )
+zboundary = ( absorbing , absorbing )
+
+// wp^-1 = 53.4781 fs
+// c/wp = 16.0434 um
+// E_br = 31.9056 GV/m
+
+new grid
+{
+	corner = ( -16.0 , -0.5 , -12.8 )
+	dimensions = ( 128 , 1 , 128 )
+	cell size = ( 0.25 , 1 , 0.1 )
+	decomposition = ( 1 , 1 , 1 )
+}
+
+new direct electromagnetic module
+{
+}
+
+new pgc laser module
+{
+	carrier frequency = 50
+	propagator = adi
+}
+
+new pulse
+{
+	a = ( 0.5 , 0.0 , 0.0 )
+	r0 = ( 5 , 1e5 )
+	w = 50
+	risetime = 3
+	holdtime = 0
+	falltime = 3
+	delay = 1
+	focus position = ( 0 , 0 , 0 )
+	direction = ( 0 , 0 , 1 )
+}
+
+new species beam
+{
+	particles per cell = 10 1 10 when density = 1e-6
+}
+
+new fluid electrons
+{
+	mass = 1
+	charge = -1
+}
+
+generate piecewise electrons
+{
+	symmetry = none
+	zdensity = { 0 1 1 }
+	zpoints = { 0.0 30.0 100000.0 }
+	thermal momentum = ( 0.01 , 0.01 , 0.01 )
+	shape = quintic
+}
+
+generate gaussian beam
+{
+	density = 1e-6
+	drift momentum = 0 0 10
+	position = 0 0 -6
+	size = 2 2 2
+	particle density = fixed
+}
+
+new box diagnostic
+{
+	period = 50
+}

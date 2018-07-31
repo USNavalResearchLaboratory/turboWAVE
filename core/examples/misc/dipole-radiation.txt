@@ -1,0 +1,82 @@
+// Keep the following line for generating twtest reports
+// TWTEST matplotlib zxyt=0,-1 Ey.dvdat
+
+steps = 1000
+timestep = 0.5
+dump period = 0
+moving window = no
+neutralize = yes
+unit density = 2.8e+19
+
+xboundary = ( open  open )
+yboundary = ( open  open )
+zboundary = ( open  open )
+
+// wp^-1 = 3.35 fs
+// c/wp = 1.00 um
+
+new grid
+{
+	corner = ( -256 , -0.5 , -256 )
+	dimensions = ( 512 1 512 )
+	cell size = ( 1.0 1.0 1.0 )
+	decomposition = ( 1  1  1 )
+}
+
+new region rect antenna_rect
+{
+	bounds = ( -1.0 , 1.0 , -1e5 , 1e5 , -1.0 , 1.0 )
+}
+
+new direct EM module
+{
+	elliptical solver = facr
+	layers = 16 16 0 0 16 16
+	reflection coefficient = 1e-4
+}
+
+// Conductor object serves as antenna
+// Conducting regions must not overlap PML regions
+new conductor
+{
+	clipping region = antenna_rect
+	current type = electric
+	enable electromagnetic = false // make the antenna invisible to EM waves
+	py = { 1.0 } // polarization density
+	w = { 0.3 } // frequency
+	phase = { 0.0 }
+	gaussian size = ( 1e5 , 1e5 , 1e5 )
+	delay = 0
+	risetime = 10.0
+	holdtime = 1000.0
+	falltime = 10.0
+}
+
+// Build a cavity around the source with a small hole
+new region circ walls
+{
+	radius = 100
+}
+new region circ cavity
+{
+	radius = 90
+	complement = true
+}
+new region rect tunnel
+{
+	bounds = ( 85 , 105 , -5 , 5 , -8 , 8 )
+	complement = true
+}
+new region intersection full_structure
+{
+	elements = { walls , cavity , tunnel }
+}
+new conductor
+{
+	clipping region = full_structure
+}
+
+new box diagnostic
+{
+	period = 25
+}

@@ -1,0 +1,98 @@
+// Keep the following line for generating twtest reports
+// TWTEST matplotlib zxyt=0,-1 Ex.dvdat
+
+steps = 2000
+timestep = 0.007
+dump period = 0
+moving window = no
+neutralize = no
+unit density = 1e19
+// expect vg = 0.680, vphase = 0.696
+xboundary = ( periodic , periodic )
+yboundary = ( periodic , periodic )
+zboundary = ( absorbing , absorbing )
+
+// wp^-1 = 5.6059 fs
+// c/wp = 1.6806 um
+// E_br = 3.0407e6 kV/cm
+// E_br = 3.0407e11 V/m
+
+new grid
+{
+	corner = ( -12.8 , -0.5 , 0 )
+	dimensions = ( 512 , 1 , 2000 )
+	cell size = ( .05 , 1.0 , 0.01 )
+	decomposition = ( 2 , 1 , 1 )
+}
+
+new region circ c1
+{
+	radius = 3
+	translation = 0 0 10
+}
+
+new direct electromagnetic module
+{
+	reflection coefficient = 1e-3
+	layers = 4 4 0 0 4 4
+}
+
+new wave // laser pulse
+{
+	a = 0.003 0 0
+	w = 3
+	r0 = ( 3 1e5 )
+	focus position = 0 0 7
+	delay = 0
+	risetime = 3
+	holdtime = 0.0
+	falltime = 3
+}
+
+// 3 oscillator model for fused silica
+
+new bound osc1
+{
+	resonance = 156 156 156
+	damping = 0 0 0
+	strength = 1.0 1.0 1.0
+	b = -4.19e14
+}
+
+new bound osc2
+{
+	resonance = 91.2 91.2 91.2
+	damping = 0 0 0
+	strength = 1.0 1.0 1.0
+}
+
+new bound osc3
+{
+	resonance = 1.31 1.31 1.31
+	damping = 0 0 0
+	strength = 1.0 1.0 1.0
+}
+
+generate uniform osc1
+{
+	density = 16558
+	clipping region = c1
+}
+
+generate uniform osc2
+{
+	density = 3498
+	clipping region = c1
+}
+
+generate uniform osc3
+{
+	density = 1.011
+	clipping region = c1
+}
+
+new box diagnostic
+{
+	filename = full
+	period = 500
+}

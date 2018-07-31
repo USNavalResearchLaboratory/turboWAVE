@@ -1,0 +1,10 @@
+.DS_Store
+*.o
+*.pyc
+*.dvdat
+*.egg-info
+tw3d
+docs/_build/
+tools/twutils/dist/
+tools/twutils/build/
+tools/twtest/*.gif
