@@ -112,7 +112,13 @@ struct EquilibriumGroup:Module
 	// K = thermal conductivity, visc = dynamic viscosity
 	tw::Int T,Tv,P,K,visc;
 	// Following is used to limit motion by zeroing forces on this group
+	tw::Int Cv; // ASHER_MOD -- in order to implement Caloric EOSs we need to allow Cv[T] to be a function of T
+				// this means that it will now be treated as an EOS quantity
 	tw::Float forceFilter;
+
+	// ASHER_MOD
+	// EOSDataTool *eosMixData;
+	EOSMixture *eosMixData; 
 
 	std::valarray<tw::Float> mass,charge,cvm,excitationEnergy,thermo_cond_cvm,k_visc_m;
 
@@ -164,6 +170,7 @@ struct EquilibriumGroup:Module
 	}
 
 	EquilibriumGroup(Grid* theGrid);
+	virtual ~EquilibriumGroup(); // ASHER_MOD
 	virtual void Initialize();
 
 	void ReadOneChemical(std::stringstream& inputString);
@@ -186,11 +193,20 @@ struct Chemical:Module
 	IonizationData ionization;
 	tw::Float excitationEnergy,thermometricConductivity,kinematicViscosity;
 
+  	// ASHER_MOD
+  	std::string eosName; // name of EOS model to be used (specified in input)
+  	tw::Float GRUN;    // Reference Gruneisen parameter (pecified in input)
+	tw::Float n0;   // Reference density
+	tw::Float c0;   // y - intercept of Hugoniot fit (usually appriximately speed of sound)
+	tw::Float S1;   // coefficient of linear fit of Hugoniot data
+	EOSDataTool *eosData; 
+
 	// electron motion in lattice
 	tw::Float effectiveMass,transitionDensity;
 	tw::Complex permittivity;
 
 	Chemical(Grid* theGrid);
+	virtual ~Chemical();
 	virtual void Initialize();
 
 	bool GenerateFluid(Field& f,bool init);

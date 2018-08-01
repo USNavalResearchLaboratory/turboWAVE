@@ -11,6 +11,8 @@
 #include "elliptic.h"
 #include "hyperbolic.h"
 
+#include "physics.h" // ASHER_MOD
+
 //////////////////////////
 //                      //
 //  COMPUTE TOOL CLASS  //
@@ -100,6 +102,27 @@ ComputeTool* ComputeTool::CreateObjectFromType(tw_tool theType,MetricSpace *ms,T
 		case lorentzPropagator:
 			ans = new LorentzPropagator(ms,tsk,shared);
 			break;
+		case eosDataTool: // ASHER_MOD
+			ans = new EOSDataTool(ms,tsk,shared); 
+			break;
+		case eosIdealGas:
+			ans = new EOSIdealGas(ms,tsk,shared);
+			break;
+		case eosIdealGasElectrons:
+			ans = new EOSIdealGasElectrons(ms,tsk,shared);
+			break;
+		case eosMixture:
+			ans = new EOSMixture(ms,tsk,shared);
+			break;
+		case eosIdealGasMix:
+			ans = new EOSIdealGasMix(ms,tsk,shared);
+			break;		
+		case eosMieGruneisen:
+			ans = new EOSMieGruneisen(ms,tsk,shared);
+			break;	
+		case eosMieGruneisen2:
+			ans = new EOSMieGruneisen2(ms,tsk,shared);
+			break;	
 	}
 	return ans;
 }

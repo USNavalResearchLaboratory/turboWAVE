@@ -16,15 +16,15 @@ debug: tw3d_debug copy_files
 
 # Uncomment exactly one platform
 
-#PLATFORM = OSX
-PLATFORM = LINUX
+PLATFORM = OSX
+#PLATFORM = LINUX
 #PLATFORM = CRAY
 #PLATFORM = SGI
 
 # Uncomment one, and at most one, of the following to use hardware acceleration
 # N.b. specific accelerator devices can be specified in the turboWAVE input file
 
-HARDWARE_ACCEL = OMP
+#HARDWARE_ACCEL = OMP
 #HARDWARE_ACCEL = APPLE_CL
 #HARDWARE_ACCEL = CUDA
 #HARDWARE_ACCEL = RADEON_PRO
@@ -38,8 +38,8 @@ COMPILER_PREF = GNU
 
 # Specify a package manager preference (ignored in some cases)
 
-#PACKAGE_PREF = HOMEBREW
-PACKAGE_PREF = MACPORTS
+PACKAGE_PREF = HOMEBREW
+#PACKAGE_PREF = MACPORTS
 
 # END INPUT VARIABLES BLOCK
 #################################################
