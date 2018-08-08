@@ -1619,13 +1619,12 @@ void KleinGordon::Initialize()
 		Normalize();
 		UpdateJ4();
 	}
-	else
-		FormPotentials(owner->elapsedTime);
 
 	#ifdef USE_OPENCL
 
 	psi_r.SendToComputeBuffer();
 	psi_i.SendToComputeBuffer();
+	Ao4.SendToComputeBuffer();
 	A4.SendToComputeBuffer();
 	clSetKernelArg(updatePsi,4,sizeof(m0),&m0);
 	clSetKernelArg(updatePsi,5,sizeof(q0),&q0);
@@ -2003,13 +2002,12 @@ void Dirac::Initialize()
 		Normalize();
 		UpdateJ4();
 	}
-	else
-		FormPotentials(owner->elapsedTime);
 
 	#ifdef USE_OPENCL
 
 	psi_r.SendToComputeBuffer();
 	psi_i.SendToComputeBuffer();
+	Ao4.SendToComputeBuffer();
 	A4.SendToComputeBuffer();
 	clSetKernelArg(leapFrog,0,sizeof(cl_mem),&psi_r.computeBuffer);
 	clSetKernelArg(leapFrog,1,sizeof(cl_mem),&psi_i.computeBuffer);

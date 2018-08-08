@@ -768,7 +768,7 @@ Specific Diagnostics
 
 		.. py:function:: skip = ( sx , sy , sz )
 
-			Defines a reduced grid produced by downsampling the full grid.  The reduction factor is the product of the three skipping parameters.
+			Defines a reduced grid produced by downsampling the full grid.  The reduction factor is the product of the three skipping parameters.  Note the centroid of the sampling points is shifted.
 
 			:param int sx: advance this many cells in the x-direction between writes
 			:param int sy: advance this many cells in the y-direction between writes

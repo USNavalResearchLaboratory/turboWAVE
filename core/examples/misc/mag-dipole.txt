@@ -1,0 +1,52 @@
+// Keep the following line for generating twtest reports
+// TWTEST matplotlib zxyt=32,-1 Ex.dvdat
+
+steps = 200
+timestep = 0.1
+dump period = 0
+moving window = no
+
+xboundary = ( absorbing , absorbing )
+yboundary = ( absorbing , absorbing )
+zboundary = ( absorbing , absorbing )
+
+// wp^-1 = 5.60883 fs
+// c/wp = 1.68265 um
+// E_br = 304.208 GV/m
+
+new grid
+{
+	corner = ( -12.8 , -12.8 , -12.8 )
+	dimensions = ( 128 , 128 , 128)
+	cell size = ( 0.2 , 0.2 , 0.2 )
+	decomposition = ( 2 , 2 , 2 )
+}
+
+new dirac equation module
+{
+	soft core potential , charge = 1.0 , radius = 1.0
+	new wavefunction
+	{
+		type = random
+		size = 10 10 10
+	}
+}
+
+new wave
+{
+	type = multipole
+	mode = 1 0
+	a = 0.0 1.0 0.0
+	w = 1.0
+	focus position = 0 0 0
+	delay = 10
+	risetime = 6.28
+	holdtime = 0
+	falltime = 6.28
+}
+
+new box diagnostic
+{
+	period = 10
+	skip = 2 2 2
+}

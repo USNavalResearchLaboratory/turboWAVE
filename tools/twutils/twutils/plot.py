@@ -95,7 +95,7 @@ class plotter:
 		else:
 			return self.vmax_global_log10-dyn_range , self.vmax_global_log10
 
-	def start_plot(self,slicing_spec='zxty',slice_to_plot=(0,0)):
+	def start_plot(self,slicing_spec='zxty',slice_to_plot=(0,0),lib='matplotlib'):
 		'''Not directly called.
 		Returns data,dict
 		data = the numpy array with the 2D slice data
@@ -122,10 +122,13 @@ class plotter:
 			data_slice = np.take(data_slice,[slice_to_plot[1]],axis=axes[3])
 			data_slice = np.squeeze(data_slice,axis=(axes[2],axes[3]))
 
-		# MPL plot data is accessed as [v,h]
-		# We are taking horizontal to be listed first
-		if axes[0]<axes[1]:
-				data_slice = data_slice.swapaxes(0,1)
+		# matplotlib plot data is accessed as [v,h]
+		# mayavi plot data is accessed as [h,v]
+		# twutils is supposed to put horizontal as the axis listed first
+		if axes[0]<axes[1] and lib=='matplotlib':
+			data_slice = data_slice.swapaxes(0,1)
+		if axes[1]<axes[0] and lib=='mayavi':
+			data_slice = data_slice.swapaxes(0,1)
 
 		h0 = phys_dims[axes[0]*2]
 		h1 = phys_dims[axes[0]*2+1]
@@ -135,10 +138,59 @@ class plotter:
 		plot_dict = { 'extent' : [h0,h1,v0,v1] }
 		plot_dict['xlabel'] = 'Axis'+str(axes[0])
 		plot_dict['ylabel'] = 'Axis'+str(axes[1])
-		plot_dict['dims'] = (self.dims4()[axes[0]],self.dims4()[axes[1]])
+		plot_dict['dims'] = [self.dims4()[axes[0]],self.dims4()[axes[1]]]
 		return data_slice,plot_dict
 
-	def falsecolor2d(self,slicing_spec='zxty',slice_to_plot=(0,0),dyn_range=0.0):
+	def volume3d(self,slicing_spec='xyzt',slice_to_plot=0,dyn_range=0.0):
+		'''Returns data,dict
+		data = the numpy array with the 3D slice data
+		dict = a plotting dictionary to be used externally with mayavi
+		The dictionary keys have the same names as mayavi function arguments.  Available keys:
+		"extent", "xlabel", "ylabel", "zlabel", "dims", "vmin", "vmax"
+		Inputs:
+		slicing_spec is a 4 character code ordering the axes, e.g., zxty
+		The first 3 characters are the plotting volume, the last is the slicing axis
+		slice_to_plot is an integer selecting a point on the slicing axis'''
+		if len(slicing_spec)!=4:
+			raise TypeError('The slicing_spec was not 4 characters.')
+		phys_dims = self.phys_dims4()
+		axes = get_axis_info(slicing_spec)
+		if axes[0]>axes[1] or axes[0]>axes[2] or axes[1]>axes[2]:
+			raise ValueError('The plotting axes have to be in order at present.')
+		if not self.buffered:
+			tpos = slicing_spec.find('t')
+			if tpos<3:
+				raise ValueError('Time cannot be a plotting axis unless the plotter is buffered.')
+			self.data = dv.GetFrameArray(self.file_to_plot,slice_to_plot,c_order=True)
+			data_slice = self.data
+		else:
+			data_slice = np.take(self.data,[slice_to_plot],axis=axes[3])
+			data_slice = np.squeeze(data_slice,axis=(axes[3],))
+
+		x0 = phys_dims[axes[0]*2]
+		x1 = phys_dims[axes[0]*2+1]
+		y0 = phys_dims[axes[1]*2]
+		y1 = phys_dims[axes[1]*2+1]
+		z0 = phys_dims[axes[2]*2]
+		z1 = phys_dims[axes[2]*2+1]
+
+		plot_dict = { 'extent' : [x0,x1,y0,y1,z0,z1] }
+		plot_dict['xlabel'] = 'Axis'+str(axes[0])
+		plot_dict['ylabel'] = 'Axis'+str(axes[1])
+		plot_dict['zlabel'] = 'Axis'+str(axes[2])
+		plot_dict['dims'] = [self.dims4()[axes[0]],self.dims4()[axes[1]],self.dims4()[axes[2]]]
+		if dyn_range==0.0:
+			plot_dict['vmin'] = np.min(data_slice)
+			plot_dict['vmax'] = np.max(data_slice)
+		else:
+			maxval = np.max(np.abs(data_slice))
+			logmax = np.log10(maxval)
+			plot_dict['vmin'] = logmax-dyn_range
+			plot_dict['vmax'] = logmax
+			data_slice = np.log10(np.abs(data_slice)+self.small_pos)
+		return data_slice,plot_dict
+
+	def falsecolor2d(self,slicing_spec='zxty',slice_to_plot=(0,0),dyn_range=0.0,lib='matplotlib'):
 		'''Returns data,dict
 		data = the numpy array with the 2D slice data
 		dict = a plotting dictionary to be used externally with MPL
@@ -150,7 +202,7 @@ class plotter:
 		slice_to_plot is a tuple (s3,s4) selecting a point in the slicing plane'''
 		#my_aspect = 'equal'
 		my_aspect = 'auto'
-		data_slice,plot_dict = self.start_plot(slicing_spec,slice_to_plot)
+		data_slice,plot_dict = self.start_plot(slicing_spec,slice_to_plot,lib)
 		plot_dict['aspect'] = my_aspect
 		if dyn_range==0.0:
 			plot_dict['vmin'] = np.min(data_slice)
@@ -160,7 +212,7 @@ class plotter:
 			logmax = np.log10(maxval)
 			plot_dict['vmin'] = logmax-dyn_range
 			plot_dict['vmax'] = logmax
-			data_slice = np.log10(np.abs(data_slice))
+			data_slice = np.log10(np.abs(data_slice)+self.small_pos)
 		return data_slice,plot_dict
 
 	def lineout(self,slicing_spec='xyzt',slice_to_plot=(0,0,0),dyn_range=0.0):
