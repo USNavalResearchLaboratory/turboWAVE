@@ -930,6 +930,10 @@ void EquilibriumGroup::BoxDiagnosticHeader(GridDataDescriptor* box)
 	std::string filename;
 	filename = "T_" + name;
 	owner->WriteBoxDataHeader(filename,box);
+	filename = "P_" + name;                  // ASHER_MOD -- add pressure to diagnostic
+	owner->WriteBoxDataHeader(filename,box);
+	filename = "Cv_" + name;                 // ASHER_MOD -- add heat capacitance to the diagnostic
+	owner->WriteBoxDataHeader(filename,box);
 	filename = "K_" + name;
 	owner->WriteBoxDataHeader(filename,box);
 	filename = "X_" + name;
@@ -950,6 +954,16 @@ void EquilibriumGroup::BoxDiagnose(GridDataDescriptor* box)
 
 	filename = "T_" + name;
 	CopyFieldData(chemBoss->scratch,Element(0),chemBoss->eos1,Element(T));
+	chemBoss->scratch *= chemBoss->fluxMask;
+	owner->WriteBoxData(filename,box,&chemBoss->scratch(0,0,0),chemBoss->scratch.Stride());
+
+	filename = "P_" + name;
+	CopyFieldData(chemBoss->scratch,Element(0),chemBoss->eos1,Element(P));
+	chemBoss->scratch *= chemBoss->fluxMask;
+	owner->WriteBoxData(filename,box,&chemBoss->scratch(0,0,0),chemBoss->scratch.Stride());
+
+	filename = "Cv_" + name;
+	CopyFieldData(chemBoss->scratch,Element(0),chemBoss->eos1,Element(Cv));
 	chemBoss->scratch *= chemBoss->fluxMask;
 	owner->WriteBoxData(filename,box,&chemBoss->scratch(0,0,0),chemBoss->scratch.Stride());
 
@@ -1362,7 +1376,7 @@ void Chemistry::Initialize()
 	// The 5 components per group of the EOS array (T,Tv,P,K,visc) are not counted
 	totalElements = 0;
 	for (i=0;i<group.size();i++)
-		totalElements += group[i]->chemical.size() + 5;
+		totalElements += group[i]->chemical.size() + 6; // ASHER_MOD -- now that I'm including Cv in the EOS
 
 	if (!owner->restarted)
 	{
@@ -1432,6 +1446,8 @@ void Chemistry::Initialize()
 		group[i]->P = j++;
 		group[i]->K = j++;
 		group[i]->visc = j++;
+
+		group[i]->Cv  = j++; // ASHER_MOD -- let Cv have its own index
 
 		group[i]->e.low = k;
 		group[i]->e.high = k + group[i]->chemical.size() - 1;
@@ -2301,7 +2317,7 @@ void Chemistry::HydroAdvance(const axisSpec& axis,tw::Float dt)
 
 		for (tw::Int c=0;c<group.size();c++)
 		{
-			convector.SetDensityElements(Element(group[c]->e.low,group[c]->e.high+5));
+			convector.SetDensityElements(Element(group[c]->e.low,group[c]->e.high+6));
 			convector.SetVelocityElement(0);
 			#pragma omp parallel
 			{
@@ -2844,7 +2860,7 @@ void Chemistry::WriteData(std::ofstream& outFile)
 
 	i = state1.Components();
 	outFile.write((char *)&i,sizeof(tw::Int));
-	i = group.size()*5;
+	i = group.size()*6; // ASHER_MOD -- there are 6 EOSs now...
 	outFile.write((char *)&i,sizeof(tw::Int));
 
 	eos1.WriteData(outFile);
