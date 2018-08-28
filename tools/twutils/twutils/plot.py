@@ -184,7 +184,7 @@ class plotter:
 			plot_dict['vmax'] = np.max(data_slice)
 		else:
 			maxval = np.max(np.abs(data_slice))
-			logmax = np.log10(maxval)
+			logmax = np.log10(maxval+self.small_pos)
 			plot_dict['vmin'] = logmax-dyn_range
 			plot_dict['vmax'] = logmax
 			data_slice = np.log10(np.abs(data_slice)+self.small_pos)
@@ -209,7 +209,7 @@ class plotter:
 			plot_dict['vmax'] = np.max(data_slice)
 		else:
 			maxval = np.max(np.abs(data_slice))
-			logmax = np.log10(maxval)
+			logmax = np.log10(maxval+self.small_pos)
 			plot_dict['vmin'] = logmax-dyn_range
 			plot_dict['vmax'] = logmax
 			data_slice = np.log10(np.abs(data_slice)+self.small_pos)

@@ -7,4 +7,5 @@ tw3d
 docs/_build/
 tools/twutils/dist/
 tools/twutils/build/
+tools/twtest/*.png
 tools/twtest/*.gif

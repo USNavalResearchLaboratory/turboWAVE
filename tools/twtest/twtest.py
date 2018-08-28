@@ -162,9 +162,9 @@ html_doc += '<!DOCTYPE html>'
 html_doc += '<html><head><title>TurboWAVE Report</title></head>'
 html_doc += '<body>'
 
-html_doc += '<h1>TurboWAVE Test Suite Report</h1>'
+html_doc += '<h1 style="background-color:black;color:white;">TurboWAVE Test Suite Report</h1>\n\n'
 
-html_doc += '<h2>Version Information</h2>'
+html_doc += '<h2 style="background-color:rgb(0,20,100);color:white;">Version Information</h2>\n\n'
 html_doc += '<p>Date of report : ' + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 mpi_procs,omp_threads = parse_tw_args(sys.argv[2:])
 html_doc += '<p>Requested MPI processes = ' + str(mpi_procs) + '</p>'
@@ -193,7 +193,7 @@ try:
 		html_doc += l
 	html_doc += '</pre></blockquote>'
 except:
-	html_doc += 'ERROR: something went wrong in trying to call git for versioning information.'
+	html_doc += '<p>ERROR: something went wrong in trying to call git for versioning information.</p>'
 
 
 try:
@@ -206,7 +206,7 @@ try:
 	for cat in category_list:
 		print('=====================================')
 		print('Category',cat)
-		html_doc += '<h2>"' + cat + '" Subdirectory</h2>'
+		html_doc += '\n\n<h2 style="background-color:rgb(0,20,100);color:white;">"' + cat + '" Subdirectory</h2>\n\n'
 		ex_path_list = glob.glob(tw_root+'/core/examples/'+cat+'/*')
 		ex_path_list = sorted(ex_path_list,key=lambda s: s.split('/')[-1][0])
 		ex_list = []
@@ -218,7 +218,7 @@ try:
 		for i,ex_path in enumerate(ex_path_list):
 			print('--------------------------------------')
 			print('Example',ex_list[i])
-			html_doc += '<h3>"' + ex_list[i] + '" Example</h3>'
+			html_doc += '\n<h3 style="background-color:rgb(100,250,200);">"' + ex_list[i] + '" Example</h3>\n'
 
 			subprocess.run(["cp",ex_path,"stdin"])
 			fig_dict,input_dict = parse_input_file(ex_path)
@@ -275,7 +275,7 @@ try:
 except:
 	traceback.print_exc()
 	print('Unrecoverable error, attempting to close report...')
-	html_doc += '<h2>REPORT ENDS PREMATURELY</h2>'
+	html_doc += '\n\n<h2>REPORT ENDS PREMATURELY</h2>\n\n'
 
 html_doc += '</body></html>'
 

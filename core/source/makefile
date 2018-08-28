@@ -108,7 +108,7 @@ ifeq ($(PLATFORM),LINUX)
 		CCFLAGS = -c -std=c++11 -O3
 		DBFLAGS = -c -g -std=c++11 -O0
 		LIB_PATH =
-		LIBS = $(LIBS0)
+		LIBS = $(LIBS0) -pthread
 	endif
 	ifeq ($(HARDWARE_ACCEL),OMP)
 		CCFLAGS = -c -std=c++11 -O3 -march=native -fopenmp# -Rpass-analysis=loop-vectorize

@@ -740,6 +740,17 @@ EquilibriumGroup::EquilibriumGroup(Grid* theGrid):Module(theGrid)
 	name = "Group";
 	typeCode = equilibriumGroup;
 	forceFilter = 1.0;
+
+	// ASHER_MOD
+	//eosMixData = (EOSMixture *)owner->AddPrivateTool(eosIdealGasMix); // For bug testing with original EOS calc
+	eosMixData = (EOSMixture *)owner->AddPrivateTool(eosMixture);
+	//
+}
+
+// ASHER_MOD -- EquilibriumGroup now needs a destructor because of eosMixData
+EquilibriumGroup::~EquilibriumGroup()
+{
+	owner->RemoveTool(eosMixData);
 }
 
 void EquilibriumGroup::ReadOneChemical(std::stringstream& inputString)
@@ -753,6 +764,30 @@ void EquilibriumGroup::ReadOneChemical(std::stringstream& inputString)
 	temp->name = name;
 	name += "(group)";
 	temp->ReadInputFileBlock(inputString);
+	// ASHER_MOD
+	// Select from a number of EOS models based on input
+	if (temp->eosName=="IdealGas") {
+		if (temp->mass==1.0) {
+		temp->eosData = (EOSDataTool*)owner->AddPrivateTool(eosIdealGasElectrons);
+		} else {
+		temp->eosData = (EOSDataTool*)owner->AddPrivateTool(eosIdealGas);
+		}
+	}
+
+	if (temp->eosName=="MieGruneisen") {
+	temp->eosData = (EOSDataTool*)owner->AddPrivateTool(eosMieGruneisen);
+	// let the EOS Object know what the input Gruneisen Parameter is
+	((EOSMieGruneisen*)(temp->eosData))->GRUN = temp->GRUN;
+	}
+	if (temp->eosName=="MieGruneisen2") {
+	temp->eosData = (EOSDataTool*)owner->AddPrivateTool(eosMieGruneisen2);
+	// let the EOS Object know what the input Gruneisen Parameter is
+	((EOSMieGruneisen2*)(temp->eosData))->GRUN = temp->GRUN;
+	((EOSMieGruneisen2*)(temp->eosData))->n0 = temp->n0;
+	((EOSMieGruneisen2*)(temp->eosData))->c0 = temp->c0;
+	((EOSMieGruneisen2*)(temp->eosData))->S1 = temp->S1;
+	}
+	eosMixData->eosComponents.push_back(temp->eosData);
 }
 
 void EquilibriumGroup::ReadInputFileBlock(std::stringstream& inputString)
@@ -772,6 +807,30 @@ void EquilibriumGroup::ReadInputFileBlock(std::stringstream& inputString)
 			owner->module.push_back(temp);
 			inputString >> temp->name;
 			temp->ReadInputFileBlock(inputString);
+			// ASHER_MOD
+			// Select from a number of EOS models based on input
+			if (temp->eosName=="IdealGas") {
+				if (temp->mass==1.0) {
+				temp->eosData = (EOSDataTool*)owner->AddPrivateTool(eosIdealGasElectrons);
+				} else {
+				temp->eosData = (EOSDataTool*)owner->AddPrivateTool(eosIdealGas);
+				}
+			}
+			if (temp->eosName=="MieGruneisen") {
+				temp->eosData = (EOSDataTool*)owner->AddPrivateTool(eosMieGruneisen);
+				// let the EOS Object know what the input Gruneisen Parameter is
+				((EOSMieGruneisen*)(temp->eosData))->GRUN = temp->GRUN;
+			}
+			if (temp->eosName=="MieGruneisen2") {
+			temp->eosData = (EOSDataTool*)owner->AddPrivateTool(eosMieGruneisen2);
+				// let the EOS Object know what the input Gruneisen Parameter is
+				((EOSMieGruneisen2*)(temp->eosData))->GRUN = temp->GRUN;
+				((EOSMieGruneisen2*)(temp->eosData))->n0 = temp->n0;
+				((EOSMieGruneisen2*)(temp->eosData))->c0 = temp->c0;
+				((EOSMieGruneisen2*)(temp->eosData))->S1 = temp->S1;
+			}
+			eosMixData->eosComponents.push_back(temp->eosData);
+
 		}
 		if (word=="mobile")
 		{
@@ -871,6 +930,10 @@ void EquilibriumGroup::BoxDiagnosticHeader(GridDataDescriptor* box)
 	std::string filename;
 	filename = "T_" + name;
 	owner->WriteBoxDataHeader(filename,box);
+	filename = "P_" + name;                  // ASHER_MOD -- add pressure to diagnostic
+	owner->WriteBoxDataHeader(filename,box);
+	filename = "Cv_" + name;                 // ASHER_MOD -- add heat capacitance to the diagnostic
+	owner->WriteBoxDataHeader(filename,box);
 	filename = "K_" + name;
 	owner->WriteBoxDataHeader(filename,box);
 	filename = "X_" + name;
@@ -891,6 +954,16 @@ void EquilibriumGroup::BoxDiagnose(GridDataDescriptor* box)
 
 	filename = "T_" + name;
 	CopyFieldData(chemBoss->scratch,Element(0),chemBoss->eos1,Element(T));
+	chemBoss->scratch *= chemBoss->fluxMask;
+	owner->WriteBoxData(filename,box,&chemBoss->scratch(0,0,0),chemBoss->scratch.Stride());
+
+	filename = "P_" + name;
+	CopyFieldData(chemBoss->scratch,Element(0),chemBoss->eos1,Element(P));
+	chemBoss->scratch *= chemBoss->fluxMask;
+	owner->WriteBoxData(filename,box,&chemBoss->scratch(0,0,0),chemBoss->scratch.Stride());
+
+	filename = "Cv_" + name;
+	CopyFieldData(chemBoss->scratch,Element(0),chemBoss->eos1,Element(Cv));
 	chemBoss->scratch *= chemBoss->fluxMask;
 	owner->WriteBoxData(filename,box,&chemBoss->scratch(0,0,0),chemBoss->scratch.Stride());
 
@@ -948,6 +1021,20 @@ Chemical::Chemical(Grid* theGrid):Module(theGrid)
 	transitionDensity = 1.0; // effective mass comes in for density >> transitionDensity
 	permittivity = tw::Complex(1.0,0.0);
 	indexInGroup = 0;
+
+	// ASHER_MOD
+	eosName = "IdealGas"; // default unless specified otherwise
+	GRUN    = 2.0;        // currently it defaults to the value of Cu at room temperature (0.1 for H20),
+	n0 = 3.3e3;           // not that there is any reason why it should.
+	c0 = 1.3248e-5;       // Note these parameters are meaningless if you're using the IdealGas model.
+	S1 = 1.5;
+}
+
+// ASHER_MOD -- Chemical now needs a destructor because of the eosData
+Chemical::~Chemical()
+{
+	// ASHER_MOD
+	owner->RemoveTool(eosData);
 }
 
 void Chemical::Initialize()
@@ -1106,6 +1193,35 @@ void Chemical::ReadInputFileTerm(std::stringstream& inputString,std::string& com
 	{
 		inputString >> word >> cvm;
 	}
+	// ASHER_MOD
+	// EOS Model to use
+	if (command=="EOS") {
+		inputString >> word >> word;
+		eosName = word;
+	}
+	// dimensionless Gruneisen parameter (if Gruneisen Model is used)
+	if (command=="GRUN") {
+		inputString >> word;
+		inputString >> GRUN;
+	}
+
+	// Reference Density
+	if (command=="n0") {
+		inputString >> word;
+		inputString >> n0;
+	}
+
+	// y - intercept of Hugoniot fit (usually appriximately speed of sound)
+	if (command=="c0") {
+		inputString >> word;
+		inputString >> c0;
+	}
+
+	// coefficient of linear fit of Hugoniot data
+	if (command=="S1") {
+		inputString >> word;
+		inputString >> S1;
+	}
 }
 
 void Chemical::ReadData(std::ifstream& inFile)
@@ -1257,19 +1373,20 @@ void Chemistry::Initialize()
 	// Find number of state variables characterizing the whole system
 	// For each group we have:
 	// density1,density2,...,npx,npy,npz,U,Xi
-	// The 5 components per group of the EOS array (T,Tv,P,K,visc) are not counted
+	// The 6 components per group of the EOS array (T,Tv,P,K,visc,Cv) are not counted
 	totalElements = 0;
 	for (i=0;i<group.size();i++)
-		totalElements += group[i]->chemical.size() + 5;
-
+		totalElements += group[i]->chemical.size() + 5; // ASHER_MOD -- now that I'm including Cv in the EOS
+		// DFG -- should still be 5, refers to hydro array only; changed back also in HydroAdvance()
+		// DFG -- perhaps should introduce some helper object in EOS tools to avoid hard coding these
 	if (!owner->restarted)
 	{
 		state0.Initialize(totalElements,*this,owner);
 		state1.Initialize(totalElements,*this,owner);
 		creationRate.Initialize(totalElements,*this,owner);
 		destructionRate.Initialize(totalElements,*this,owner);
-		eos0.Initialize(group.size()*5,*this,owner);
-		eos1.Initialize(group.size()*5,*this,owner);
+		eos0.Initialize(group.size()*6,*this,owner); // ASHER_MOD -- now that I'm including Cv in the EOS
+		eos1.Initialize(group.size()*6,*this,owner); // there are 6 elements inside these (5->6)
 	}
 
 	// variables defining normal component boundary conditions
@@ -1330,6 +1447,8 @@ void Chemistry::Initialize()
 		group[i]->P = j++;
 		group[i]->K = j++;
 		group[i]->visc = j++;
+
+		group[i]->Cv  = j++; // ASHER_MOD -- let Cv have its own index
 
 		group[i]->e.low = k;
 		group[i]->e.high = k + group[i]->chemical.size() - 1;
@@ -2232,6 +2351,21 @@ void Chemistry::ApplyEOS(Field& hydro,Field& eos)
 	// Here we also compute transport coefficients and impose assumed conditions such as quasineutrality
 	// Finally, we throw an error if numerical failure is detected
 
+	// ASHER_MOD -- loop over groups and use eos object functions
+	for (tw::Int c=0;c<group.size();c++)
+	{
+		if (group[c]->chemical[0]!=electrons)
+		{
+//			((EOSIdealGasMix *)(group[c]->eosMixData))->ApplyEOS( *group[c],group[c]->mass,group[c]->charge,group[c]->cvm,
+			group[c]->eosMixData->ApplyEOS( group[c]->mass,group[c]->charge,group[c]->cvm,
+											group[c]->excitationEnergy,group[c]->thermo_cond_cvm,group[c]->k_visc_m,
+											group[c]->e,group[c]->T,group[c]->Tv,group[c]->P,group[c]->K,
+											group[c]->visc,group[c]->Cv,group[c]->npx,group[c]->npy,group[c]->npz,
+											group[c]->U,group[c]->Xi,ie,nu_e,hydro,eos);
+		}
+	}
+
+
 	#pragma omp parallel
 	{
 		tw::Float ntot,ne,ionChargeDensity,nm,nmcv,epsvn,nv,KE,IE;
@@ -2245,23 +2379,25 @@ void Chemistry::ApplyEOS(Field& hydro,Field& eos)
 			{
 				if (group[c]->chemical[0]!=electrons)
 				{
-					ntot = group[c]->DensitySum(hydro,cell);
-					nm = group[c]->DensityWeightedSum(hydro,group[c]->mass,cell);
-					nmcv = group[c]->DensityWeightedSum(hydro,group[c]->cvm,cell);
-					epsvn = group[c]->DensityWeightedSum(hydro,group[c]->excitationEnergy,cell);
-					nv = group[c]->ConditionalDensitySum(hydro,group[c]->excitationEnergy,cell);
-					KE = 0.5*nm*Norm(group[c]->Velocity(hydro,cell));
-					IE = hydro(cell,group[c]->U) - KE;
-					if (IE<=0.0)
-					{
-						hydro(cell,group[c]->U) = KE*1.00001 + tw::small_pos;
-						IE = hydro(cell,group[c]->U) - KE;
-					}
-					eos(cell,group[c]->T) = IE/(tw::small_pos + nmcv);
-					eos(cell,group[c]->Tv) = (epsvn/(nv+tw::small_pos))/log(1.0001 + epsvn/(hydro(cell,group[c]->Xi)+tw::small_pos));
-					eos(cell,group[c]->P) = ntot * eos(cell,group[c]->T);
-					eos(cell,group[c]->K) = group[c]->DensityWeightedSum(hydro,group[c]->thermo_cond_cvm,cell); // thermometricConductivity * nmcv;
-					eos(cell,group[c]->visc) = group[c]->DensityWeightedSum(hydro,group[c]->k_visc_m,cell); // kinematicViscosity * nm;
+					// ASHER_MOD : Comments for original EOS calculations here for reference
+
+					// ntot = group[c]->DensitySum(hydro,cell);
+					// nm = group[c]->DensityWeightedSum(hydro,group[c]->mass,cell);
+					// nmcv = group[c]->DensityWeightedSum(hydro,group[c]->cvm,cell);
+					// epsvn = group[c]->DensityWeightedSum(hydro,group[c]->excitationEnergy,cell);
+					// nv = group[c]->ConditionalDensitySum(hydro,group[c]->excitationEnergy,cell);
+					// KE = 0.5*nm*Norm(group[c]->Velocity(hydro,cell));
+					// IE = hydro(cell,group[c]->U) - KE;
+					// if (IE<=0.0)
+					// {
+					// 	hydro(cell,group[c]->U) = KE*1.00001 + tw::small_pos;
+					// 	IE = hydro(cell,group[c]->U) - KE;
+					// }
+					// eos(cell,group[c]->T) = IE/(tw::small_pos + nmcv);
+					// eos(cell,group[c]->Tv) = (epsvn/(nv+tw::small_pos))/log(1.0001 + epsvn/(hydro(cell,group[c]->Xi)+tw::small_pos));
+					// eos(cell,group[c]->P) = ntot * eos(cell,group[c]->T);
+					// eos(cell,group[c]->K) = group[c]->DensityWeightedSum(hydro,group[c]->thermo_cond_cvm,cell); // thermometricConductivity * nmcv;
+					// eos(cell,group[c]->visc) = group[c]->DensityWeightedSum(hydro,group[c]->k_visc_m,cell); // kinematicViscosity * nm;
 
 					ionChargeDensity += group[c]->DensityWeightedSum(hydro,group[c]->charge,cell);
 					ionVelocity += group[c]->Velocity(hydro,cell);
@@ -2276,18 +2412,34 @@ void Chemistry::ApplyEOS(Field& hydro,Field& eos)
 				hydro(cell,electrons->group->npy) = ne*electrons->mass*ionVelocity.y/tw::Float(group.size()-1);
 				hydro(cell,electrons->group->npz) = ne*electrons->mass*ionVelocity.z/tw::Float(group.size()-1);
 
-				// EOS for electrons
-				nmcv = 1.5*ne;
-				eos(cell,electrons->group->T) = hydro(cell,electrons->group->U)/(tw::small_pos + nmcv);
-				eos(cell,electrons->group->Tv) = 0.0;
-				eos(cell,electrons->group->P) = ne*eos(cell,electrons->group->T);
-				eos(cell,electrons->group->K) = 3.2*ne*eos(cell,electrons->group->T)/(electrons->mass*nu_e(cell));
-				eos(cell,electrons->group->visc) = 0.0;
-				// Braginskii has for e-viscosity 0.73*ne*eos(cell,electrons->group->T)/nu_e(cell)
-				// However, we are forcing electrons to move with ions and so should not diffuse velocity field
+				// // EOS for electrons
+				// nmcv = 1.5*ne;
+				// eos(cell,electrons->group->T) = hydro(cell,electrons->group->U)/(tw::small_pos + nmcv);
+				// eos(cell,electrons->group->Tv) = 0.0;
+				// eos(cell,electrons->group->P) = ne*eos(cell,electrons->group->T);
+				// eos(cell,electrons->group->K) = 3.2*ne*eos(cell,electrons->group->T)/(electrons->mass*nu_e(cell));
+				// eos(cell,electrons->group->visc) = 0.0;
+				// // Braginskii has for e-viscosity 0.73*ne*eos(cell,electrons->group->T)/nu_e(cell)
+				// // However, we are forcing electrons to move with ions and so should not diffuse velocity field
 			}
 		}
 	}
+
+
+	// ASHER_MOD -- electron EOSs have the be calculated after the quasineutrality-ensuring hydro advance
+	for (tw::Int c=0;c<group.size();c++)
+	{
+		if (group[c]->chemical[0]==electrons)
+		{
+			// so far only does an ideal gas case
+			electrons->eosData->ApplyEOS(   electrons->mass,electrons->charge,electrons->cvm,
+											electrons->excitationEnergy,electrons->thermometricConductivity,electrons->kinematicViscosity,
+											electrons->group->e,electrons->group->T,electrons->group->Tv,electrons->group->P,electrons->group->K,
+											electrons->group->visc,group[c]->Cv,electrons->group->npx,electrons->group->npy,electrons->group->npz,
+											electrons->group->U,electrons->group->Xi,ie,nu_e,hydro,eos);
+		}
+	}
+
 
 	// Check for numerical failure, defined by NaN in the hydro state vector
 	tw::Int badCells = 0;
@@ -2709,7 +2861,7 @@ void Chemistry::WriteData(std::ofstream& outFile)
 
 	i = state1.Components();
 	outFile.write((char *)&i,sizeof(tw::Int));
-	i = group.size()*5;
+	i = group.size()*6; // ASHER_MOD -- there are 6 EOSs now...
 	outFile.write((char *)&i,sizeof(tw::Int));
 
 	eos1.WriteData(outFile);

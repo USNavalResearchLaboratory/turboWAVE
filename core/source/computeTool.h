@@ -35,7 +35,8 @@ enum tw_tool {		nullTool,
 					eigenmodePropagator, adiPropagator, isotropicPropagator,
 					iterativePoissonSolver, facrPoissonSolver, eigenmodePoissonSolver, ellipticSolver1D,
 					generalParabolicPropagator, schroedingerPropagator,
-					yeePropagatorPML, lorentzPropagator };
+					yeePropagatorPML, lorentzPropagator, eosDataTool, eosIdealGas, eosIdealGasElectrons, // ASHER_MOD
+					eosMixture, eosIdealGasMix, eosMieGruneisen, eosMieGruneisen2  };
 
 struct ComputeTool
 {
