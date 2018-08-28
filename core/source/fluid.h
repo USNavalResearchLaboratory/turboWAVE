@@ -118,7 +118,7 @@ struct EquilibriumGroup:Module
 
 	// ASHER_MOD
 	// EOSDataTool *eosMixData;
-	EOSMixture *eosMixData; 
+	EOSMixture *eosMixData;
 
 	std::valarray<tw::Float> mass,charge,cvm,excitationEnergy,thermo_cond_cvm,k_visc_m;
 
@@ -173,7 +173,7 @@ struct EquilibriumGroup:Module
 	virtual ~EquilibriumGroup(); // ASHER_MOD
 	virtual void Initialize();
 
-	void ReadOneChemical(std::stringstream& inputString);
+	void ReadOneChemical(std::stringstream& inputString,const std::string& chem_name);
 	virtual void ReadInputFileBlock(std::stringstream& inputString);
 	virtual void ReadData(std::ifstream& inFile);
 	virtual void WriteData(std::ofstream& outFile);
@@ -194,12 +194,12 @@ struct Chemical:Module
 	tw::Float excitationEnergy,thermometricConductivity,kinematicViscosity;
 
   	// ASHER_MOD
-  	std::string eosName; // name of EOS model to be used (specified in input)
-  	tw::Float GRUN;    // Reference Gruneisen parameter (pecified in input)
-	tw::Float n0;   // Reference density
-	tw::Float c0;   // y - intercept of Hugoniot fit (usually appriximately speed of sound)
-	tw::Float S1;   // coefficient of linear fit of Hugoniot data
-	EOSDataTool *eosData; 
+  // 	std::string eosName; // name of EOS model to be used (specified in input)
+  // 	tw::Float GRUN;    // Reference Gruneisen parameter (pecified in input)
+	// tw::Float n0;   // Reference density
+	// tw::Float c0;   // y - intercept of Hugoniot fit (usually appriximately speed of sound)
+	// tw::Float S1;   // coefficient of linear fit of Hugoniot data
+	EOSDataTool *eosData;
 
 	// electron motion in lattice
 	tw::Float effectiveMass,transitionDensity;
@@ -210,6 +210,7 @@ struct Chemical:Module
 	virtual void Initialize();
 
 	bool GenerateFluid(Field& f,bool init);
+	void DefaultEOS();
 
 	virtual void ReadInputFileTerm(std::stringstream& inputString,std::string& command);
 	virtual void ReadData(std::ifstream& inFile);

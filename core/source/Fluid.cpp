@@ -744,7 +744,6 @@ EquilibriumGroup::EquilibriumGroup(Grid* theGrid):Module(theGrid)
 	// ASHER_MOD
 	//eosMixData = (EOSMixture *)owner->AddPrivateTool(eosIdealGasMix); // For bug testing with original EOS calc
 	eosMixData = (EOSMixture *)owner->AddPrivateTool(eosMixture);
-	//
 }
 
 // ASHER_MOD -- EquilibriumGroup now needs a destructor because of eosMixData
@@ -753,84 +752,35 @@ EquilibriumGroup::~EquilibriumGroup()
 	owner->RemoveTool(eosMixData);
 }
 
-void EquilibriumGroup::ReadOneChemical(std::stringstream& inputString)
+void EquilibriumGroup::ReadOneChemical(std::stringstream& inputString,const std::string& chem_name)
 {
-	Chemical *temp = new Chemical(owner);
-	temp->chemBoss = chemBoss;
-	temp->group = this;
-	chemical.push_back(temp);
-	chemBoss->chemical.push_back(temp);
-	owner->module.push_back(temp);
-	temp->name = name;
-	name += "(group)";
-	temp->ReadInputFileBlock(inputString);
-	// ASHER_MOD
-	// Select from a number of EOS models based on input
-	if (temp->eosName=="IdealGas") {
-		if (temp->mass==1.0) {
-		temp->eosData = (EOSDataTool*)owner->AddPrivateTool(eosIdealGasElectrons);
-		} else {
-		temp->eosData = (EOSDataTool*)owner->AddPrivateTool(eosIdealGas);
-		}
+	Chemical *new_chem = new Chemical(owner);
+	new_chem->name = chem_name;
+	if (chem_name=="")
+	{
+		// this group was created automatically for one chemical
+		new_chem->name = name;
+		name += "(group)";
 	}
-
-	if (temp->eosName=="MieGruneisen") {
-	temp->eosData = (EOSDataTool*)owner->AddPrivateTool(eosMieGruneisen);
-	// let the EOS Object know what the input Gruneisen Parameter is
-	((EOSMieGruneisen*)(temp->eosData))->GRUN = temp->GRUN;
-	}
-	if (temp->eosName=="MieGruneisen2") {
-	temp->eosData = (EOSDataTool*)owner->AddPrivateTool(eosMieGruneisen2);
-	// let the EOS Object know what the input Gruneisen Parameter is
-	((EOSMieGruneisen2*)(temp->eosData))->GRUN = temp->GRUN;
-	((EOSMieGruneisen2*)(temp->eosData))->n0 = temp->n0;
-	((EOSMieGruneisen2*)(temp->eosData))->c0 = temp->c0;
-	((EOSMieGruneisen2*)(temp->eosData))->S1 = temp->S1;
-	}
-	eosMixData->eosComponents.push_back(temp->eosData);
+	new_chem->chemBoss = chemBoss;
+	new_chem->group = this;
+	chemical.push_back(new_chem);
+	chemBoss->chemical.push_back(new_chem);
+	owner->module.push_back(new_chem);
+	new_chem->ReadInputFileBlock(inputString);
+	new_chem->DefaultEOS();
+	eosMixData->eosComponents.push_back(new_chem->eosData);
 }
 
 void EquilibriumGroup::ReadInputFileBlock(std::stringstream& inputString)
 {
-	Chemical *temp;
 	std::string word;
 	do {
 		inputString >> word;
 		if (word=="new")
 		{
-			inputString >> word;
-			temp = new Chemical(owner);
-			temp->chemBoss = chemBoss;
-			temp->group = this;
-			chemical.push_back(temp);
-			chemBoss->chemical.push_back(temp);
-			owner->module.push_back(temp);
-			inputString >> temp->name;
-			temp->ReadInputFileBlock(inputString);
-			// ASHER_MOD
-			// Select from a number of EOS models based on input
-			if (temp->eosName=="IdealGas") {
-				if (temp->mass==1.0) {
-				temp->eosData = (EOSDataTool*)owner->AddPrivateTool(eosIdealGasElectrons);
-				} else {
-				temp->eosData = (EOSDataTool*)owner->AddPrivateTool(eosIdealGas);
-				}
-			}
-			if (temp->eosName=="MieGruneisen") {
-				temp->eosData = (EOSDataTool*)owner->AddPrivateTool(eosMieGruneisen);
-				// let the EOS Object know what the input Gruneisen Parameter is
-				((EOSMieGruneisen*)(temp->eosData))->GRUN = temp->GRUN;
-			}
-			if (temp->eosName=="MieGruneisen2") {
-			temp->eosData = (EOSDataTool*)owner->AddPrivateTool(eosMieGruneisen2);
-				// let the EOS Object know what the input Gruneisen Parameter is
-				((EOSMieGruneisen2*)(temp->eosData))->GRUN = temp->GRUN;
-				((EOSMieGruneisen2*)(temp->eosData))->n0 = temp->n0;
-				((EOSMieGruneisen2*)(temp->eosData))->c0 = temp->c0;
-				((EOSMieGruneisen2*)(temp->eosData))->S1 = temp->S1;
-			}
-			eosMixData->eosComponents.push_back(temp->eosData);
-
+			inputString >> word >> word;
+			ReadOneChemical(inputString,word);
 		}
 		if (word=="mobile")
 		{
@@ -1021,20 +971,14 @@ Chemical::Chemical(Grid* theGrid):Module(theGrid)
 	transitionDensity = 1.0; // effective mass comes in for density >> transitionDensity
 	permittivity = tw::Complex(1.0,0.0);
 	indexInGroup = 0;
-
-	// ASHER_MOD
-	eosName = "IdealGas"; // default unless specified otherwise
-	GRUN    = 2.0;        // currently it defaults to the value of Cu at room temperature (0.1 for H20),
-	n0 = 3.3e3;           // not that there is any reason why it should.
-	c0 = 1.3248e-5;       // Note these parameters are meaningless if you're using the IdealGas model.
-	S1 = 1.5;
+	eosData = NULL;
 }
 
 // ASHER_MOD -- Chemical now needs a destructor because of the eosData
 Chemical::~Chemical()
 {
-	// ASHER_MOD
-	owner->RemoveTool(eosData);
+	if (eosData!=NULL)
+		owner->RemoveTool(eosData);
 }
 
 void Chemical::Initialize()
@@ -1127,13 +1071,32 @@ bool Chemical::GenerateFluid(Field& f,bool init)
 	return didGenerate;
 }
 
+void Chemical::DefaultEOS()
+{
+	if (eosData==NULL)
+	{
+		if (mass==1.0)
+			eosData = (EOSDataTool*)owner->AddPrivateTool(eosHotElectrons);
+		else
+			eosData = (EOSDataTool*)owner->AddPrivateTool(eosIdealGas);
+	}
+}
+
 void Chemical::ReadInputFileTerm(std::stringstream& inputString,std::string& command)
 {
 	tw::Int i;
 	std::string word;
+	tw_tool requestedTool;
 	UnitConverter uc(owner->unitDensityCGS);
 	Module::ReadInputFileTerm(inputString,command);
 	ionization.ReadInputFileTerm(inputString,command);
+	requestedTool = EOSDataTool::ReadInputFileTerm_GetToolType(inputString,command);
+	if (requestedTool!=nullTool)
+	{
+			eosData = (EOSDataTool*)owner->AddPrivateTool(requestedTool);
+			eosData->ReadInputFileBlock(inputString);
+	}
+
 	if (command=="ion") // eg, ion species = N3
 	{
 		inputString >> word >> word >> word;
@@ -1192,35 +1155,6 @@ void Chemical::ReadInputFileTerm(std::stringstream& inputString,std::string& com
 	if (command=="cv") // eg, cv = 2.5 (this is really m*cv, or m*cv/kB)
 	{
 		inputString >> word >> cvm;
-	}
-	// ASHER_MOD
-	// EOS Model to use
-	if (command=="EOS") {
-		inputString >> word >> word;
-		eosName = word;
-	}
-	// dimensionless Gruneisen parameter (if Gruneisen Model is used)
-	if (command=="GRUN") {
-		inputString >> word;
-		inputString >> GRUN;
-	}
-
-	// Reference Density
-	if (command=="n0") {
-		inputString >> word;
-		inputString >> n0;
-	}
-
-	// y - intercept of Hugoniot fit (usually appriximately speed of sound)
-	if (command=="c0") {
-		inputString >> word;
-		inputString >> c0;
-	}
-
-	// coefficient of linear fit of Hugoniot data
-	if (command=="S1") {
-		inputString >> word;
-		inputString >> S1;
 	}
 }
 

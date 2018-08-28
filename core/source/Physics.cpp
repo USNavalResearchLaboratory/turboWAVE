@@ -342,44 +342,23 @@ EOSDataTool::EOSDataTool(MetricSpace *m,Task *tsk, bool shared) : ComputeTool(m,
 	typeCode = eosDataTool;
 }
 
-
-EOSDataTool::~EOSDataTool()
+tw_tool EOSDataTool::ReadInputFileTerm_GetToolType(std::stringstream& inputString,std::string& command)
 {
-// In subclasses which use table arrays, they must be destroyed in an overloaded version of this function.
+	std::string word;
+	if (command=="eos") // e.g., eos = mie-gruneisen , gruneisen parameter = 2.0
+	{
+		inputString >> word >> word;
+		if (word=="ideal_gas" || word=="ideal-gas")
+			return eosIdealGas;
+		if (word=="hot_electrons" || word=="hot-electrons")
+			return eosHotElectrons;
+		if (word=="mie_gruneisen" || word=="mie-gruneisen")
+			return eosMieGruneisen;
+		if (word=="mie_gruneisen2" || word=="mie-gruneisen2")
+			return eosMieGruneisen2;
+	}
+	return nullTool;
 }
-
-void EOSDataTool::Initialize()
-{
-	ComputeTool::Initialize();
- // When this is overloaded by an appripriate subclass, table arrays may perhaps be initialized here.
-}
-
-void EOSDataTool::ApplyEOS(
-								std::valarray<tw::Float> mass,std::valarray<tw::Float> charge, std::valarray<tw::Float> cvm,
-								std::valarray<tw::Float> excitationEnergy, std::valarray<tw::Float> thermo_cond_cvm,
-								std::valarray<tw::Float> k_visc_m, Element& e,
-								tw::Int T,tw::Int Tv,tw::Int P,tw::Int K,tw::Int visc,
-								tw::Int Cv,
-								tw::Int npx,tw::Int npy,tw::Int npz,tw::Int U,tw::Int Xi,
-								tw::Int ie, ScalarField& nu_e,
-								Field& hydro, Field& eos)
-{
-	// include statements here
-}
-
-void EOSDataTool::ApplyEOS(
-								tw::Float mass,tw::Float charge,tw::Float cvm,
-								tw::Float excitationEnergy,tw::Float thermometricConductivity,
-								tw::Float kinematicViscosity, Element& e,
-								tw::Int T,tw::Int Tv,tw::Int P,tw::Int K,tw::Int visc,
-								tw::Int Cv,
-								tw::Int npx,tw::Int npy,tw::Int npz,tw::Int U,tw::Int Xi,
-								tw::Int ie, ScalarField& nu_e,
-								Field& hydro, Field& eos)
-{
-	// include statements here
-}
-
 
 ////////////////////////////////
 //                            //
@@ -393,16 +372,6 @@ EOSIdealGas::EOSIdealGas(MetricSpace *m, Task *tsk,bool shared) : EOSDataTool(m,
 	typeCode = eosIdealGas;
 }
 
-EOSIdealGas::~EOSIdealGas()
-{
-}
-
-void EOSIdealGas::Initialize()
-{
-	EOSDataTool::Initialize();
-}
-
-
 void EOSIdealGas::ApplyEOS(
 								tw::Float mass,tw::Float charge,tw::Float cvm,
 								tw::Float excitationEnergy,tw::Float thermometricConductivity,
@@ -413,46 +382,37 @@ void EOSIdealGas::ApplyEOS(
 								tw::Int ie, ScalarField& nu_e,
 								Field& hydro, Field& eos)
 {
-	tw::Float ne;
-
-	// loop over cells
-	for (CellIterator cell(*space,false);cell<cell.end();++cell)
+	#pragma omp parallel firstprivate(ie,P,T,K,visc,thermometricConductivity,kinematicViscosity)
 	{
-		ne = hydro(cell,ie);
-		// T and Tv are calculated at the EOSMixture level
-		//
-		// eos(cell,T) = IE/(tw::small_pos + nmcv); // do temperature in EOSMixture loop?
-		// eos(cell,Tv) = (epsvn/(nv+tw::small_pos))/log(1.0001 + epsvn/(hydro(cell,Xi)+tw::small_pos)); // in EOSMix loop
-		eos(cell,P) = ne*eos(cell,T);
-		eos(cell,K) = thermometricConductivity*ne;//thermometricConductivity*nmcv;
-		eos(cell,visc) = kinematicViscosity*ne;//kinematicViscosity*nm;
+		tw::Float ne;
+		for (CellIterator cell(*space,false);cell<cell.end();++cell)
+		{
+			ne = hydro(cell,ie);
+			// T and Tv are calculated at the EOSMixture level
+			//
+			// eos(cell,T) = IE/(tw::small_pos + nmcv); // do temperature in EOSMixture loop?
+			// eos(cell,Tv) = (epsvn/(nv+tw::small_pos))/log(1.0001 + epsvn/(hydro(cell,Xi)+tw::small_pos)); // in EOSMix loop
+			eos(cell,P) = ne*eos(cell,T);
+			eos(cell,K) = thermometricConductivity*ne;//thermometricConductivity*nmcv;
+			eos(cell,visc) = kinematicViscosity*ne;//kinematicViscosity*nm;
+		}
 	}
-
 }
 
 
 /////////////////////////////////
 //                             //
-// Ideal Gas Law for electrons //
+//    EOS for hot electrons    //
 //                             //
 /////////////////////////////////
-EOSIdealGasElectrons::EOSIdealGasElectrons(MetricSpace *m, Task *tsk,bool shared) : EOSDataTool(m,tsk,shared)
+
+EOSHotElectrons::EOSHotElectrons(MetricSpace *m, Task *tsk,bool shared) : EOSDataTool(m,tsk,shared)
 {
-	name = "eos_ideal_gas_electrons";
-	typeCode = eosIdealGasElectrons;
+	name = "eos_hot_electrons";
+	typeCode = eosHotElectrons;
 }
 
-EOSIdealGasElectrons::~EOSIdealGasElectrons()
-{
-}
-
-void EOSIdealGasElectrons::Initialize()
-{
-	EOSDataTool::Initialize();
-}
-
-
-void EOSIdealGasElectrons::ApplyEOS(
+void EOSHotElectrons::ApplyEOS(
 								tw::Float mass,tw::Float charge,tw::Float cvm,
 								tw::Float excitationEnergy,tw::Float thermometricConductivity,
 								tw::Float kinematicViscosity, Element& e,
@@ -462,24 +422,24 @@ void EOSIdealGasElectrons::ApplyEOS(
 								tw::Int ie, ScalarField& nu_e,
 								Field& hydro, Field& eos)
 {
-	tw::Float ne, nmcv;
-
-	// loop over cells
-	for (CellIterator cell(*space,false);cell<cell.end();++cell)
+	#pragma omp parallel firstprivate(ie,P,T,K,visc)
 	{
-		ne = hydro(cell,ie);
-
-		// EOS for electrons
-		nmcv = 1.5*ne;
-		eos(cell,T) = hydro(cell,U)/(tw::small_pos + nmcv);
-		eos(cell,Tv) = 0.0;
-		eos(cell,P) = ne*eos(cell,T);
-		eos(cell,K) = 3.2*ne*eos(cell,T)/(mass*nu_e(cell));
-		eos(cell,visc) = 0.0;
-		// Braginskii has for e-viscosity 0.73*ne*eos(cell,electrons->group->T)/nu_e(cell)
-		// However, we are forcing electrons to move with ions and so should not diffuse velocity field
+		tw::Float ne, nmcv;
+		// loop over cells
+		for (CellIterator cell(*space,false);cell<cell.end();++cell)
+		{
+			ne = hydro(cell,ie);
+			// EOS for electrons
+			nmcv = 1.5*ne;
+			eos(cell,T) = hydro(cell,U)/(tw::small_pos + nmcv);
+			eos(cell,Tv) = 0.0;
+			eos(cell,P) = ne*eos(cell,T);
+			eos(cell,K) = 3.2*ne*eos(cell,T)/(mass*nu_e(cell));
+			eos(cell,visc) = 0.0;
+			// Braginskii has for e-viscosity 0.73*ne*eos(cell,electrons->group->T)/nu_e(cell)
+			// However, we are forcing electrons to move with ions and so should not diffuse velocity field
+		}
 	}
-
 }
 
 
@@ -500,15 +460,6 @@ EOSMixture::EOSMixture(MetricSpace *m, Task *tsk,bool shared) : EOSDataTool(m,ts
 	eos_tmp2.Initialize(5,*space,task);
 }
 
-EOSMixture::~EOSMixture()
-{
-}
-
-void EOSMixture::Initialize()
-{
-	EOSDataTool::Initialize();
-}
-
 void EOSMixture::ApplyEOS(
 								std::valarray<tw::Float> mass,std::valarray<tw::Float> charge, std::valarray<tw::Float> cvm,
 								std::valarray<tw::Float> excitationEnergy, std::valarray<tw::Float> thermo_cond_cvm,
@@ -527,41 +478,40 @@ void EOSMixture::ApplyEOS(
 
 	// loop over cells and calculate temperature
 	// only the subsequent EOSs are calculated and updated accordingly
-	// an EqiulibriumGroup is defined to have a single temperature, after all
+	// an EquilibriumGroup is defined to have a single temperature, after all
 	for (CellIterator cell(*space,false);cell<cell.end();++cell)
+	{
+		// total density at this cell
+		ntot = this->DensitySum(e,hydro,cell);
+		// total mass density at this cell
+		nm = this->DensityWeightedSum(e,hydro,mass,cell);
+		nmcv = this->DensityWeightedSum(e,hydro,cvm,cell);
+		epsvn = this->DensityWeightedSum(e,hydro,excitationEnergy,cell);
+		nv = this->ConditionalDensitySum(e,hydro,excitationEnergy,cell);
+
+		//chemVelocity = vec3(hydro(cell,npx),hydro(cell,npy),hydro(cell,npz))/(tw::small_pos + nm);
+		KE = 0.5*nm*Norm(this->Velocity(e,npx,npy,npz,hydro,mass,cell));
+		IE = hydro(cell,U) - KE;
+		if (IE<=0.0)
 		{
-			// total density at this cell
-			ntot = this->DensitySum(e,hydro,cell);
-			// total mass density at this cell
-			nm = this->DensityWeightedSum(e,hydro,mass,cell);
-			nmcv = this->DensityWeightedSum(e,hydro,cvm,cell);
-			epsvn = this->DensityWeightedSum(e,hydro,excitationEnergy,cell);
-			nv = this->ConditionalDensitySum(e,hydro,excitationEnergy,cell);
-
-			//chemVelocity = vec3(hydro(cell,npx),hydro(cell,npy),hydro(cell,npz))/(tw::small_pos + nm);
-			KE = 0.5*nm*Norm(this->Velocity(e,npx,npy,npz,hydro,mass,cell));
+			hydro(cell,U) = KE*1.00001 + tw::small_pos;
 			IE = hydro(cell,U) - KE;
-			if (IE<=0.0)
-			{
-				hydro(cell,U) = KE*1.00001 + tw::small_pos;
-				IE = hydro(cell,U) - KE;
-			}
+		}
 
-			// calculate temperature
-			eos_tmp(cell,0) = IE/(tw::small_pos + nmcv);
-			eos_tmp(cell,1) = IE; // pass on internal energy to eosComponents
+		// calculate temperature
+		eos_tmp(cell,0) = IE/(tw::small_pos + nmcv);
+		eos_tmp(cell,1) = IE; // pass on internal energy to eosComponents
 
-			eos_tmp2(cell,0) = IE/(tw::small_pos + nmcv);
-			// I imagine the vibrational temperature is also at equilibrium by definition
-			eos_tmp2(cell,1) = (epsvn/(nv+tw::small_pos))/log(1.0001 + epsvn/(hydro(cell,Xi)+tw::small_pos));
-
+		eos_tmp2(cell,0) = IE/(tw::small_pos + nmcv);
+		// I imagine the vibrational temperature is also at equilibrium by definition
+		eos_tmp2(cell,1) = (epsvn/(nv+tw::small_pos))/log(1.0001 + epsvn/(hydro(cell,Xi)+tw::small_pos));
 	}
 
 
 	// loop over elements (Chemical objects) of the group
 	n_idx = e.low;
-	for (tw::Int s=0;s<eosComponents.size();s++) {
-
+	for (tw::Int s=0;s<eosComponents.size();s++)
+	{
 		// for (CellIterator cell(*space,false);cell<cell.end();++cell)
 		// {
 		// 		eos_tmp(cell,0) = 0.0;
@@ -582,9 +532,10 @@ void EOSMixture::ApplyEOS(
 		for (CellIterator cell(*space,false);cell<cell.end();++cell)
 		{
 			// if first element then wipe eos_tmp2
-			if (s == 0) {
-//				eos_tmp2(cell,0) = 0.0;
-//				eos_tmp2(cell,1) = 0.0;
+			if (s == 0)
+			{
+//			eos_tmp2(cell,0) = 0.0;
+//			eos_tmp2(cell,1) = 0.0;
 			 	eos_tmp2(cell,2) = 0.0;
 			 	eos_tmp2(cell,3) = 0.0;
 			 	eos_tmp2(cell,4) = 0.0;
@@ -658,15 +609,6 @@ EOSIdealGasMix::EOSIdealGasMix(MetricSpace *m, Task *tsk,bool shared) : EOSMixtu
 	typeCode = eosIdealGasMix;
 }
 
-EOSIdealGasMix::~EOSIdealGasMix()
-{
-}
-
-void EOSIdealGasMix::Initialize()
-{
-	EOSDataTool::Initialize();
-}
-
 void EOSIdealGasMix::ApplyEOS(
 								std::valarray<tw::Float> mass,std::valarray<tw::Float> charge, std::valarray<tw::Float> cvm,
 								std::valarray<tw::Float> excitationEnergy, std::valarray<tw::Float> thermo_cond_cvm,
@@ -717,17 +659,9 @@ EOSMieGruneisen::EOSMieGruneisen(MetricSpace *m, Task *tsk,bool shared) : EOSDat
 {
 	name = "eos_mie_gruneisen";
 	typeCode = eosMieGruneisen;
+	GRUN = 2.0; // value for Cu on p. 257 of "Shock Wave Physics and Equation of State Modeling"
+	// GRUN = 0.1; // value for water in the above book.
 }
-
-EOSMieGruneisen::~EOSMieGruneisen()
-{
-}
-
-void EOSMieGruneisen::Initialize()
-{
-	EOSDataTool::Initialize();
-}
-
 
 void EOSMieGruneisen::ApplyEOS(
 								tw::Float mass,tw::Float charge,tw::Float cvm,
@@ -743,21 +677,23 @@ void EOSMieGruneisen::ApplyEOS(
 
 	tw::Float IE;
 
-	// GRUN = 2.0; // value for Cu on p. 257 of "Shock Wave Physics and Equation of State Modeling"
-	// GRUN = 0.1; // value for water in the above book.
-
 	// loop over cells
 	for (CellIterator cell(*space,false);cell<cell.end();++cell)
 	{
 		ne = hydro(cell,ie);
 		IE = eos(cell,Tv);
 
-		eos(cell,P) = GRUN*eos(cell,Tv); // 'eos(cell,Tv)' is actuall IE at this point
+		eos(cell,P) = GRUN*eos(cell,Tv); // 'eos(cell,Tv)' is actually IE at this point
 		eos(cell,K) = thermometricConductivity*ne;//thermometricConductivity*nmcv;
 		eos(cell,visc) = kinematicViscosity*ne;//kinematicViscosity*nm;
-
 	}
+}
 
+void EOSMieGruneisen::ReadInputFileBlock(std::stringstream& inputString)
+{
+	// expected form is : gruneisen parameter = 2.0
+	std::string word;
+	inputString >> word >> word >> word >> GRUN;
 }
 
 
@@ -772,18 +708,19 @@ EOSMieGruneisen2::EOSMieGruneisen2(MetricSpace *m, Task *tsk,bool shared) : EOSD
 {
 	name = "eos_mie_gruneisen2";
 	typeCode = eosMieGruneisen2;
+	// Hugoniot data fit for Cu
+	n0 = 3.3e3;
+	c0 = 1.3248e-5;
+	S1 = 1.5;
+
+	// Hugoniot data fit for H20
+	// n0 = 1334.0;
+	// c0 = 5.197e-6;
+	// S1 = 1.8153;
+
+	GRUN = 2.0; // value for Cu on p. 257 of "Shock Wave Physics and Equation of State Modeling"
+	// GRUN = 0.1; // value for water in the above book.
 }
-
-EOSMieGruneisen2::~EOSMieGruneisen2()
-{
-}
-
-
-void EOSMieGruneisen2::Initialize()
-{
-	EOSDataTool::Initialize();
-}
-
 
 void EOSMieGruneisen2::ApplyEOS(
 								tw::Float mass,tw::Float charge,tw::Float cvm,
@@ -800,19 +737,6 @@ void EOSMieGruneisen2::ApplyEOS(
 
 	tw::Float IE, IE0, IE1, P0, P1, DP;
 
-	// Hugoniot data fit for Cu
-	// n0 = 3.3e3;
-	// c0 = 1.3248e-5;
-	// S1 = 1.5;
-
-	// Hugoniot data fit for H20
-	// n0 = 1334.0;
-	// c0 = 5.197e-6;
-	// S1 = 1.8153;
-
-	// GRUN = 2.0; // value for Cu on p. 257 of "Shock Wave Physics and Equation of State Modeling"
-	// GRUN = 0.1; // value for water in the above book.
-
 	// loop over cells
 	for (CellIterator cell(*space,false);cell<cell.end();++cell)
 	{
@@ -822,15 +746,34 @@ void EOSMieGruneisen2::ApplyEOS(
 		mu = ne/n0 - 1.0;
 
 		// from <http://bluevistasw.com/2016/02/16/mie-gruneisen-eos-implementation/>
-		if (mu >= 0){
+		if (mu >= 0)
 			eos(cell,P) = mass*n0*c0*c0*mu*(1.0 + (1.0 - GRUN*(mu+1.0)/2.0)*mu)/(1.0 - (S1-1.0)*mu) + GRUN*(mu+1.0)*IE;
-		} else {
+		else
 			eos(cell,P) = mass*n0*c0*c0*mu + GRUN*(mu+1.0)*IE;
-		}
 
 		eos(cell,K) = thermometricConductivity*ne;//thermometricConductivity*nmcv;
 		eos(cell,visc) = kinematicViscosity*ne;//kinematicViscosity*nm;
 
 	}
+}
 
+void EOSMieGruneisen2::ReadInputFileBlock(std::stringstream& inputString)
+{
+	std::string command,word;
+	do
+	{
+		inputString >> command;
+		if (command=="gruneisen") // eg, gruneisen parameter = 2.0
+			inputString >> word >> word >> GRUN;
+		if (command=="reference") // eg, reference density = 1.0
+			inputString >> word >> word >> n0;
+		if (command=="hugoniot")
+		{
+			inputString >> word;
+			if (word=="intercept")
+				inputString >> word >> c0;
+			if (word=="slope")
+				inputString >> word >> S1;
+		}
+	} while (command!="}");
 }

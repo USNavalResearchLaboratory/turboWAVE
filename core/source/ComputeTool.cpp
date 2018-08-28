@@ -103,26 +103,26 @@ ComputeTool* ComputeTool::CreateObjectFromType(tw_tool theType,MetricSpace *ms,T
 			ans = new LorentzPropagator(ms,tsk,shared);
 			break;
 		case eosDataTool: // ASHER_MOD
-			ans = new EOSDataTool(ms,tsk,shared); 
+			ans = new EOSDataTool(ms,tsk,shared);
 			break;
 		case eosIdealGas:
 			ans = new EOSIdealGas(ms,tsk,shared);
 			break;
-		case eosIdealGasElectrons:
-			ans = new EOSIdealGasElectrons(ms,tsk,shared);
+		case eosHotElectrons:
+			ans = new EOSHotElectrons(ms,tsk,shared);
 			break;
 		case eosMixture:
 			ans = new EOSMixture(ms,tsk,shared);
 			break;
 		case eosIdealGasMix:
 			ans = new EOSIdealGasMix(ms,tsk,shared);
-			break;		
+			break;
 		case eosMieGruneisen:
 			ans = new EOSMieGruneisen(ms,tsk,shared);
-			break;	
+			break;
 		case eosMieGruneisen2:
 			ans = new EOSMieGruneisen2(ms,tsk,shared);
-			break;	
+			break;
 	}
 	return ans;
 }

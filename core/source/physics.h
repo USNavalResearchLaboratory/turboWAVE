@@ -102,8 +102,10 @@ struct IonizationData
 // This is the master class of all EOS computation related objects
 struct EOSDataTool:ComputeTool
 {
+	EOSDataTool(MetricSpace *m,Task *tsk,bool shared);
+
 	// The following are modifications of functions copied over from the EquilibriumGroup class
-	// definition in 'fluid.h'. They seem to be an integral part of the calculation of 
+	// definition in 'fluid.h'. They seem to be an integral part of the calculation of
 	// various EOS-related quantities, and so may be advantageous to have them included inside
 	// the EOSDataTool object. Some arguments were added because EOSDataTool cannot directly
 	// access the EquilibriumGroup's internal variables.
@@ -139,12 +141,7 @@ struct EOSDataTool:ComputeTool
 		return tw::vec3(f(cell,npx),f(cell,npy),f(cell,npz))/(tw::small_pos + nm);
 	}
 
-
-	EOSDataTool(MetricSpace *m,Task *tsk,bool shared);
-	virtual ~EOSDataTool();
-	virtual void Initialize();
-
-	// The following functions have many arguments because EOSDataTool cannot directly access 
+	// The following functions have many arguments because EOSDataTool cannot directly access
 	// the many EOS related internal variables of EquilibriumGroup, and therefore must be
 	// passed on as function arguments. In the long term we hope to migrate these terms into
 	// the EOSDataTool object, and if they need to referenced in the EquilibriumGroup level,
@@ -159,7 +156,7 @@ struct EOSDataTool:ComputeTool
 								tw::Int Cv,
 								tw::Int npx,tw::Int npy,tw::Int npz,tw::Int U,tw::Int Xi,
 								tw::Int ie, ScalarField& nu_e,
-								Field& hydro, Field& eos);
+								Field& hydro, Field& eos) {;}
 
 	// mass, charge, and cvm are simply float values for a single Chemical object (including electrons)
     // notice two new arguments, 'ie' and 'nu_e', which are actually elements of Chemistry
@@ -171,21 +168,20 @@ struct EOSDataTool:ComputeTool
 								tw::Int Cv,
 								tw::Int npx,tw::Int npy,tw::Int npz,tw::Int U,tw::Int Xi,
 								tw::Int ie, ScalarField& nu_e,
-								Field& hydro, Field& eos);
+								Field& hydro, Field& eos) {;}
 
-
+	static tw_tool ReadInputFileTerm_GetToolType(std::stringstream& inputString,std::string& command);
+	virtual void ReadInputFileBlock(std::stringstream& inputString) {;}
 };
 
 // EOS Calculation for a single Chemical object with ideal gas properties,
 //   embedded in an EqiulibriumGroup object that uses EOSMixture
 //
 // The following is different from the EOSIdealGasMixture in that the calculations are
-// made at the eosData (or Chemical) level. 
+// made at the eosData (or Chemical) level.
 struct EOSIdealGas:EOSDataTool
 {
 	EOSIdealGas(MetricSpace *m,Task *tsk,bool shared);
-	virtual ~EOSIdealGas();
-	virtual void Initialize();
 
 	// mass, charge, and cvm are simply float values for electrons
     // notice two new arguments, 'ie' and 'nu_e', which are actually elements of Chemistry
@@ -198,7 +194,6 @@ struct EOSIdealGas:EOSDataTool
 								tw::Int npx,tw::Int npy,tw::Int npz,tw::Int U,tw::Int Xi,
 								tw::Int ie, ScalarField& nu_e,
 								Field& hydro, Field& eos);
-
 };
 
 // EOS calculations for the electrons, treating them like a type of ideal gas
@@ -206,13 +201,11 @@ struct EOSIdealGas:EOSDataTool
 // This contains the same calculations that were originally embedded in Turbowave
 // Since they are EOS calculations of a particular Chemical type, I place it here
 // as its own EOSDataTool object. Currently this is the only electron EOS model
-// there is, but in the future we may include other electron models 
+// there is, but in the future we may include other electron models
 // (like Thomas-Fermi, etc.)
-struct EOSIdealGasElectrons:EOSDataTool
+struct EOSHotElectrons:EOSDataTool
 {
-	EOSIdealGasElectrons(MetricSpace *m,Task *tsk,bool shared);
-	virtual ~EOSIdealGasElectrons();
-	virtual void Initialize();
+	EOSHotElectrons(MetricSpace *m,Task *tsk,bool shared);
 
 	virtual void ApplyEOS(
 								tw::Float mass,tw::Float charge,tw::Float cvm,
@@ -227,7 +220,7 @@ struct EOSIdealGasElectrons:EOSDataTool
 
 // EOS calculations for a EquilibriumGroup object, which may contain one or multiple Chemical objects
 //
-// This contains a vector of EOSDataTools, each EOSData corresponding to the EOS of an EqiulibriumGroup 
+// This contains a vector of EOSDataTools, each EOSData corresponding to the EOS of an EqiulibriumGroup
 // component chemical. The EOS quantities that are singular to the group (like T, Tv) are calculated
 // at the EOSMixture level, and the EOS quantities that have different model contributions for each
 // Chemical (like P, visc), are calculated at the eosData level and added/weighted at the
@@ -238,8 +231,6 @@ struct EOSMixture:EOSDataTool
 	Field eos_tmp, eos_tmp2;
 
 	EOSMixture(MetricSpace *m,Task *tsk,bool shared);
-	virtual ~EOSMixture();
-	virtual void Initialize();
 
 	virtual void ApplyEOS(
 								std::valarray<tw::Float> mass,std::valarray<tw::Float> charge, std::valarray<tw::Float> cvm,
@@ -250,7 +241,6 @@ struct EOSMixture:EOSDataTool
 								tw::Int npx,tw::Int npy,tw::Int npz,tw::Int U,tw::Int Xi,
 								tw::Int ie, ScalarField& nu_e,
 								Field& hydro, Field& eos);
-
 };
 
 // EOS for a mix of gases, assuming all components are ideal gases
@@ -264,8 +254,6 @@ struct EOSIdealGasMix:EOSMixture
 	std::vector<EOSDataTool*> eosComponents;
 
 	EOSIdealGasMix(MetricSpace *m,Task *tsk,bool shared);
-	virtual ~EOSIdealGasMix();
-	virtual void Initialize();
 
 	virtual void ApplyEOS(
 								std::valarray<tw::Float> mass,std::valarray<tw::Float> charge, std::valarray<tw::Float> cvm,
@@ -276,7 +264,6 @@ struct EOSIdealGasMix:EOSMixture
 								tw::Int npx,tw::Int npy,tw::Int npz,tw::Int U,tw::Int Xi,
 								tw::Int ie, ScalarField& nu_e,
 								Field& hydro, Field& eos);
-
 };
 
 // This is the most basic implementation of the MieGruneisen EOS
@@ -291,8 +278,6 @@ struct EOSMieGruneisen:EOSDataTool
 	tw::Float GRUN; // Gruneisen coefficient
 
 	EOSMieGruneisen(MetricSpace *m,Task *tsk,bool shared);
-	virtual ~EOSMieGruneisen();
-	virtual void Initialize();
 
 	virtual void ApplyEOS(
 								tw::Float mass,tw::Float charge,tw::Float cvm,
@@ -303,6 +288,8 @@ struct EOSMieGruneisen:EOSDataTool
 								tw::Int npx,tw::Int npy,tw::Int npz,tw::Int U,tw::Int Xi,
 								tw::Int ie, ScalarField& nu_e,
 								Field& hydro, Field& eos);
+
+	virtual void ReadInputFileBlock(std::stringstream& inputString);
 };
 
 // This is a MieGruneisen EOS that assumes \rho * GRUN = const., and a linear Hugoniot fit
@@ -318,8 +305,6 @@ struct EOSMieGruneisen2:EOSDataTool
 	tw::Float S1;   // coefficient of linear fit of Hugoniot data
 
 	EOSMieGruneisen2(MetricSpace *m,Task *tsk,bool shared);
-	virtual ~EOSMieGruneisen2();
-	virtual void Initialize();
 
 	virtual void ApplyEOS(
 								tw::Float mass,tw::Float charge,tw::Float cvm,
@@ -330,5 +315,6 @@ struct EOSMieGruneisen2:EOSDataTool
 								tw::Int npx,tw::Int npy,tw::Int npz,tw::Int U,tw::Int Xi,
 								tw::Int ie, ScalarField& nu_e,
 								Field& hydro, Field& eos);
-};
 
+	virtual void ReadInputFileBlock(std::stringstream& inputString);
+};

@@ -1513,12 +1513,12 @@ void Grid::ReadInputFile()
 				if (parBoss==NULL)
 					module.push_back(parBoss = new Kinetics(this));
 
-				Species *temp = new Species(this);
-				temp->parBoss = parBoss;
-				module.push_back(temp);
-				parBoss->species.push_back(temp);
-				inputString >> temp->name;
-				temp->ReadInputFileBlock(inputString);
+				Species *new_species = new Species(this);
+				new_species->parBoss = parBoss;
+				module.push_back(new_species);
+				parBoss->species.push_back(new_species);
+				inputString >> new_species->name;
+				new_species->ReadInputFileBlock(inputString);
 			}
 
 			if (com2=="chemistry")
@@ -1527,30 +1527,20 @@ void Grid::ReadInputFile()
 				module.back()->ReadInputFileBlock(inputString);
 			}
 
-			if (com2=="group")
+			if (com2=="group" || com2=="chemical")
 			{
 				if (chemBoss==NULL)
 					module.push_back(chemBoss = new Chemistry(this));
 
-				EquilibriumGroup *temp = new EquilibriumGroup(this);
-				temp->chemBoss = chemBoss;
-				module.push_back(temp);
-				chemBoss->group.push_back(temp);
-				inputString >> temp->name;
-				temp->ReadInputFileBlock(inputString);
-			}
-
-			if (com2=="chemical") // add a group with just one chemical
-			{
-				if (chemBoss==NULL)
-					module.push_back(chemBoss = new Chemistry(this));
-
-				EquilibriumGroup *temp = new EquilibriumGroup(this);
-				temp->chemBoss = chemBoss;
-				module.push_back(temp);
-				chemBoss->group.push_back(temp);
-				inputString >> temp->name;
-				temp->ReadOneChemical(inputString);
+				EquilibriumGroup *new_group = new EquilibriumGroup(this);
+				new_group->chemBoss = chemBoss;
+				module.push_back(new_group);
+				chemBoss->group.push_back(new_group);
+				inputString >> new_group->name;
+				if (com2=="group")
+					new_group->ReadInputFileBlock(inputString);
+				else
+					new_group->ReadOneChemical(inputString,"");
 			}
 
 			if (com2=="reaction" || com2=="thermalization" || com2=="excitation" || com2=="collision")

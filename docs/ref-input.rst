@@ -316,6 +316,49 @@ Laser radiation, which in this context is a label for radiation in the paraxial 
 
 	This object is the same as the :ref:`wave object <wave-obj>` in all respects except that it is for use with enveloped field solvers.
 
+.. _eos:
+
+Equation of State Shared Directives
+-----------------------------------
+
+.. note::
+	As of this writing EOS is a moving target.  The interface may change.
+
+.. py:function:: eos = ideal-gas
+
+	Directs a module to use the ideal gas equation of state
+
+.. py:function:: eos = hot-electrons
+
+	Directs a module to use the ideal gas equation of state along with Braginskii electron transport coefficients
+
+.. py:function:: eos = mie-gruneisen , gruneisen parameter = grun
+
+	Directs a module to use the simplified mie-gruneisen equation of state
+	:param float grun: the gruneisen parameter relating density, temperature, and pressure
+
+.. py:function:: eos = mie-gruneisen2 { directives }
+
+	Directs a module to use the full mie-gruneisen equation of state
+
+	:param block directives: the following directives are supported:
+
+		.. py:function:: gruneisen parameter = grun
+
+			:param float grun: the gruneisen parameter relating density, temperature, and pressure
+
+		.. py:function:: reference density = nref
+
+			:param float nref: the reference density for the Hugoniot data
+
+		.. py:function:: hugoniot intercept = c0
+
+			:param float c0: y-intercept of the Hugoniot curve, typically the speed of sound
+
+		.. py:function:: hugoniot slope = s1
+
+			:param float s1: slope of the Hugoniot curve at the reference density
+
 .. _ionization:
 
 Ionization Shared Directives

@@ -93,7 +93,7 @@ SPARC Hydro Modules
 	:param str name: name given to the chemical species
 	:param block directives: The following directives are supported:
 
-		Shared directives: see :ref:`ionization`
+		Shared directives: see :ref:`ionization`, :ref:`eos`
 
 		.. py:function:: mass = m0
 
