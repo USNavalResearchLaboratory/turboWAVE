@@ -335,6 +335,7 @@ Equation of State Shared Directives
 .. py:function:: eos = mie-gruneisen , gruneisen parameter = grun
 
 	Directs a module to use the simplified mie-gruneisen equation of state
+	
 	:param float grun: the gruneisen parameter relating density, temperature, and pressure
 
 .. py:function:: eos = mie-gruneisen2 { directives }
