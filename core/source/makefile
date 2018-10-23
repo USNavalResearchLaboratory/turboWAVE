@@ -6,6 +6,7 @@
 # 'make tw3d' produces optimized executable (no copy files)
 # 'make tw3d_debug' produces debugging executable (no copy files)
 # 'make copy_files' copies files only
+# 'make clean' removes all object files and the tw3d executable
 # For specific platforms and hardware accelerators comment/uncomment variable definitions below
 
 all: tw3d copy_files
@@ -16,8 +17,8 @@ debug: tw3d_debug copy_files
 
 # Uncomment exactly one platform
 
-#PLATFORM = OSX
-PLATFORM = LINUX
+PLATFORM = OSX
+#PLATFORM = LINUX
 #PLATFORM = CRAY
 #PLATFORM = SGI
 
@@ -31,8 +32,8 @@ HARDWARE_ACCEL = OMP
 
 # Specify a preference for compiler (ignored in some cases)
 
-COMPILER_PREF = GNU
-#COMPILER_PREF = LLVM_CLANG
+#COMPILER_PREF = GNU
+COMPILER_PREF = LLVM_CLANG
 #COMPILER_PREF = INTEL
 #COMPILER_PREF = CRAY
 
@@ -48,9 +49,13 @@ ifndef HARDWARE_ACCEL
 	HARDWARE_ACCEL = NONE
 endif
 
+ifndef PACKAGE_PREF
+	PACKAGE_PREF = NONE
+endif
+
 ifeq ($(PLATFORM),OSX)
 	ifeq ($(HARDWARE_ACCEL),NONE)
-		TW_Compiler = clang++
+		TW_Compiler = clang++ -stdlib=libc++
 		TW_Linker = clang++
 		CCFLAGS = -c -std=c++11 -O3
 		DBFLAGS = -c -g -std=c++11 -O0
@@ -66,25 +71,28 @@ ifeq ($(PLATFORM),OSX)
 		LIBS = -lc++ -framework OpenCL
 	endif
 	ifeq ($(HARDWARE_ACCEL),OMP)
+		ifeq ($(PACKAGE_PREF),NONE)
+			TW_Compiler = "ERROR: bad settings."
+		endif
 		ifeq ($(PACKAGE_PREF),MACPORTS)
-			# Tested for Mac OS 10.13
+			# Tested for Mac OS 10.14
 			# Remember to run port select clang mp-clang-x.x
-			TW_Compiler = /opt/local/bin/clang++
+			TW_Compiler = /opt/local/bin/clang++ -stdlib=libc++
 			TW_Linker = /opt/local/bin/clang++
 			CCFLAGS = -c -O3 -std=c++11 -march=native -fopenmp -I/opt/local/include
 			#CCFLAGS = -c -O3 -std=c++11 -fopenmp -Rpass-analysis=loop-vectorize -I/opt/local/include
 			DBFLAGS = -c -g -O0 -std=c++11 -fopenmp -I/opt/local/include
-			LIB_PATH = -L/opt/local/lib
+			LIB_PATH = -L/opt/local/lib -Wl,-rpath,/opt/local/lib
 			LIBS = -lc++ -fopenmp
-		else
-			# DEFAULT TO HOMEBREW
+		endif
+		ifeq ($(PACKAGE_PREF),HOMEBREW)
 			# Tested for Mac OS 10.13
-			TW_Compiler = /usr/local/opt/llvm/bin/clang++
+			TW_Compiler = /usr/local/opt/llvm/bin/clang++ -stdlib=libc++
 			TW_Linker = /usr/local/opt/llvm/bin/clang++
 			CCFLAGS = -c -O3 -std=c++11 -march=native -fopenmp -I/usr/local/opt/llvm/include/
 			#CCFLAGS = -c -O3 -std=c++11 -fopenmp -Rpass-analysis=loop-vectorize -I/usr/local/opt/llvm/include
 			DBFLAGS = -c -g -O0 -std=c++11 -fopenmp -I/usr/local/opt/llvm/include/
-			LIB_PATH = -L/usr/local/opt/llvm/lib
+			LIB_PATH = -L/usr/local/opt/llvm/lib -Wl,-rpath,/usr/local/opt/llvm/lib
 			LIBS = -lc++ -fopenmp
 		endif
 	endif
@@ -95,7 +103,7 @@ endif
 
 ifeq ($(PLATFORM),LINUX)
 	ifeq ($(COMPILER_PREF),LLVM_CLANG)
-		TW_Compiler = clang++
+		TW_Compiler = clang++ -stdlib=libc++
 		TW_Linker = clang++
 		LIBS0 = -lc++
 	else

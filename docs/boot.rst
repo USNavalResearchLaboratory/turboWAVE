@@ -20,7 +20,7 @@ The native viewer for Windows is dated, however, and is not being updated.
 For Linux, visualization is accomplished using either command line Python scripts,
 or using interactive Python notebooks.
 
-Desktop OS's that are explicitly supported at the time of this writing include MacOS 10.13, RHEL 7.4 and clones, Ubuntu 16.04, and Windows 10.  Supercomputer platforms that are known to work well include Cray and SGI.
+Desktop OS's that are explicitly supported at the time of this writing include MacOS 10.13, RHEL 7.5 and clones, Ubuntu 18.04, and Windows 10.  Supercomputer platforms that are known to work well include Cray and SGI.
 
 Hardware
 --------

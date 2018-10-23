@@ -1,4 +1,4 @@
-AMD GPGPU on Ubuntu 16.04
+AMD GPGPU on Ubuntu 18.04
 =========================
 
 .. caution::
@@ -8,27 +8,23 @@ AMD GPGPU on Ubuntu 16.04
 Driver
 ------
 
-Graphics drivers can change rapidly, so internet searches may figure prominently into your installation effort.
-As of this writing the driver to use for AMD is the radeon-pro driver.  This typically supports AMD workstation class GPU and AMD or Intel CPU.  However, AMD gaming class GPU or APU may not be supported.
+It is possible to install all the necessary packages using ``apt`` (no need to visit AMD website).
 
-#. Find the radeon-pro software for ubuntu 16 (use internet search)
-#. Download and unpack radeon-pro software with archive manager
-#. Navigate to unpacked directory
-#. :samp:`sudo ./amd-gpu-install`
-#. Reboot the system
-#. The radeon-pro files should be in :samp:`/opt/amdgpu-pro/`.  To fill in the paths below you may need to dig around in this directory.  For the headers, you are looking for the :samp:`CL` directory.  For the libraries, you are looking for :samp:`libOpenCL.so`.
-#. Edit :samp:`~/.bashrc`
+	#. :samp:`sudo apt update`
+	#. :samp:`sudo add-apt-repository ppa:oibaf/graphics-drivers`
+	#. :samp:`sudo apt install mesa-opencl-icd`
+	#. :samp:`sudo apt update`
 
-	- Add line :samp:`export PATH=/opt/amdgpu-pro/bin:$PATH`
-	- Add line :samp:`export CPATH=/opt/amdgpu-pro/{subpath_to_headers}:$CPATH`
-	- Add line :samp:`export LIBRARY_PATH=/opt/amdgpu-pro/{subpath_to_libraries}:$LIBRARY_PATH`
-	- Add line :samp:`export LD_LIBRARY_PATH=/opt/amdgpu-pro/{subpath_to_libraries}:$LIBRARY_PATH`
-	- Remember, no spaces around equals sign.
+Display Recovery
+------------------
 
-#. Close all terminal windows, open a new one.
-#. :samp:`clinfo`
-#. If the above command gives a device listing which includes your CPU and your GPU the installation likely succeeded.
+Installing graphics drivers in Linux can sometimes cause you to lose your display.  If this happens, try to switch to console mode by pressing :samp:`Ctrl-Alt-F2` (you may have to try different function keys).  If this succeeds you can issue the following commands to rollback the graphics driver:
 
+	#. :samp:`sudo apt install ppa-purge`
+	#. :samp:`ppa-purge ppa:oibaf/graphics-drivers`
+	#. Reboot using :samp:`sudo reboot`
+
+Of course upon doing this GPU support may be lost.
 
 Compile with OpenCL
 -------------------

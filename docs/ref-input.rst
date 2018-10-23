@@ -335,6 +335,7 @@ Equation of State Shared Directives
 .. py:function:: eos = mie-gruneisen , gruneisen parameter = grun
 
 	Directs a module to use the simplified mie-gruneisen equation of state
+	
 	:param float grun: the gruneisen parameter relating density, temperature, and pressure
 
 .. py:function:: eos = mie-gruneisen2 { directives }
@@ -589,7 +590,7 @@ Specific Matter Loading Profiles
 
 .. py:function:: generate column name { directives }
 
-	Generate density column within the clippgin region.
+	Generate density column within the clipping region.
 
 		:math:`n(x,y,z) = Z(z)\exp(-x^2/\sigma_x^2 - y^2/\sigma_y^2)`
 
@@ -611,7 +612,7 @@ Specific Matter Loading Profiles
 
 .. py:function:: generate gaussian name { directives }
 
-	Generate density column within the clippgin region.
+	Generate a Gaussian ellipsoid within the clipping region.
 
 		:math:`n(x,y,z) = n_0 \exp(-x^2/\sigma_x^2 - y^2/\sigma_y^2 - z^2/\sigma_z^2)`
 

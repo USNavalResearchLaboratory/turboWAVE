@@ -28,7 +28,7 @@ The developer toolset is installed in :samp:`/opt/rh/` and has to be specially e
 Configure File System
 ---------------------
 
-#. Put the turboWAVE components (:samp:`core` and :samp:`tools`) into some directory, denoted :samp:`{twroot}`.
+#. Get the turboWAVE components, see :doc:`getting-components`. You should end up with a new directory containing at least ``core`` and ``tools``.  This directory can be renamed if desired.  We refer to it generically as :samp:`{twroot}` throughout this documentation.
 #. Open a terminal window
 #. :samp:`cd ~`
 #. :samp:`mkdir bin`

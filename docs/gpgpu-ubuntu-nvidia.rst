@@ -1,4 +1,4 @@
-NVIDIA GPGPU on Ubuntu 16.04
+NVIDIA GPGPU on Ubuntu 18.04
 ============================
 
 .. caution::
@@ -8,30 +8,27 @@ NVIDIA GPGPU on Ubuntu 16.04
 Driver
 ------
 
-Graphics drivers can change rapidly, so internet searches may figure prominently into your installation effort.
-NVIDIA GPGPU devices use CUDA software, which includes OpenCL.  This typically supports NVIDIA devices only.
+It is possible to install all the necessary packages using ``apt`` (no need to visit NVIDIA website).
 
-#. Find the Debian local install file for NVIDIA CUDA (use internet search)
-#. OS=linux, Arch=x86_64, Dist=Ubuntu, Vers=16.04, Installer=deb(local)
-#. Do NOT use the runfile
-#. Navigate to downloaded file in the terminal
+	#. :samp:`sudo apt update`
+	#. :samp:`sudo add-apt-repository ppa:graphics-drivers/ppa`
+	#. :samp:`sudo apt install nvidia-driver-{XXX}`
 
-	- :samp:`sudo dpkg -i {downloaded_file}`
-	- :samp:`sudo apt update`
-	- :samp:`sudo apt install cuda`
-	- :samp:`sudo apt update`
+		* Replace :samp:`{XXX}` with the version of your choice.  As of this writing the latest is 396.  Get a current list using :samp:`apt search nvidia-driver`.
+		* As an alternative :samp:`sudo ubuntu-drivers autoinstall` is supposed to automatically select a suitable version.
 
-#. The CUDA files should be in :samp:`/usr/local/cuda/`.  At the time of writing the paths below are correct, but NVIDIA can change them.  For the headers, you need the directory containing the :samp:`CL` directory.  For the libraries, you need the one containing :samp:`libOpenCL.so`.
-#. Edit :samp:`~/.bashrc`
+	#. :samp:`sudo apt update`
 
-	- Add line :samp:`export PATH=/usr/local/cuda/bin:$PATH`
-	- Add line :samp:`export CPATH=/usr/local/cuda/include:$CPATH`
-	- Add line :samp:`export LIBRARY_PATH=/usr/local/cuda/lib64:$LIBRARY_PATH`
-	- Add line :samp:`export LD_LIBRARY_PATH=/usr/local/cuda/lib64:$LIBRARY_PATH`
+Display Recovery
+------------------
 
-#. Remember, no spaces around equals sign.
-#. Close all terminal windows.
+Installing graphics drivers in Linux can sometimes cause you to lose your display.  If this happens, try to switch to console mode by pressing :samp:`Ctrl-Alt-F2` (you may have to try different function keys).  If this succeeds you can issue the following commands to rollback the graphics driver:
 
+	#. :samp:`sudo apt install ppa-purge`
+	#. :samp:`ppa-purge ppa:graphics-drivers/ppa`
+	#. Reboot using :samp:`sudo reboot`
+
+Of course upon doing this GPU support may be lost.
 
 Compile with OpenCL
 -------------------

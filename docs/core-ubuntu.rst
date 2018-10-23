@@ -1,29 +1,26 @@
-Core Install for Ubuntu 16.04
+Core Install for Ubuntu 18.04
 =============================
 
-As of this writing, the default LLVM-clang compiler on Ubuntu fails to compile due to a bug in OpenMP support.  One must explicitly install LLVM 5.0 to resolve the issue.  One can choose to install either GCC, LLVM, or both.
+In the following, one can choose to install either GCC, LLVM, or both.
 
 Install GCC
 -----------
 
 #. Open a terminal window
 #. :samp:`sudo apt update`
-#. :samp:`sudo apt install g++`
-#. :samp:`sudo apt install libomp-dev`
+#. :samp:`sudo apt install g++ libomp-dev`
 
-Install LLVM 5.0
-----------------
+Install LLVM
+------------
 
 #. Open a terminal window
 #. :samp:`sudo apt update`
-#. :samp:`sudo apt install llvm-5.0`
-#. :samp:`sudo apt install clang-5.0`
-#. :samp:`sudo apt install libc++-dev`
+#. :samp:`sudo apt install llvm clang libc++-dev libc++abi-dev`
 
 Configure File System
 ---------------------
 
-#. Put the turboWAVE components (:samp:`core` and :samp:`tools`) into some directory, denoted :samp:`{twroot}`.
+#. Get the turboWAVE components, see :doc:`getting-components`. You should end up with a new directory containing at least ``core`` and ``tools``.  This directory can be renamed if desired.  We refer to it generically as :samp:`{twroot}` throughout this documentation.
 #. Open a terminal window
 #. :samp:`cd ~`
 #. :samp:`mkdir bin`
@@ -33,7 +30,6 @@ Configure File System
 	* :samp:`echo $0` prints the currently running shell
 	* :samp:`chsh -s /bin/bash` changes the default to bash
 
-#. Edit :samp:`~/.bashrc`, adding the line :samp:`export PATH=/usr/lib/llvm-5.0/bin/:$PATH`
 #. Edit :samp:`~/.bashrc`, adding the line :samp:`export PATH=~/bin/:$PATH`
 #. When exporting variables in bash, do not put spaces around the equals sign.
 #. Close all terminal windows.

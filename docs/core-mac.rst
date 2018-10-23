@@ -12,7 +12,7 @@ Simple Install
 
 	MacOS treats :file:`~/.bash_profile` differently from linux. Linux runs it only upon login at the OS level.  MacOS runs it for each new interactive terminal session.  That is why for linux we edit :file:`~/.bashrc` rather than :file:`~/.bash_profile`.
 
-#. Put the turboWAVE components (:samp:`core` and :samp:`tools`) into some directory, denoted :samp:`{twroot}`.
+#. Get the turboWAVE components, see :doc:`getting-components`. You should end up with a new directory containing at least ``core`` and ``tools``.  This directory can be renamed if desired.  We refer to it generically as :samp:`{twroot}` throughout this documentation.
 #. Install XCode from the App Store
 #. Install the XCode command line tools.  Go to the terminal and type :samp:`xcode-select --install`.  Respond affirmatively to the prompts.
 #. :samp:`cd ~`
@@ -35,10 +35,11 @@ Simple Install
 Advanced Install with Homebrew
 ,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
 
-#. Put the turboWAVE components (:samp:`core` and :samp:`tools`) into some directory, denoted :samp:`{twroot}`.
+#. Get the turboWAVE components, see :doc:`getting-components`. You should end up with a new directory containing at least ``core`` and ``tools``.  This directory can be renamed if desired.  We refer to it generically as :samp:`{twroot}` throughout this documentation.
 #. Install XCode from the App Store
 #. Install the XCode command line tools.  Go to the terminal and type :samp:`xcode-select --install`.  Respond affirmatively to the prompts.
-#. Perform internet search to find Homebrew installation instructions and carry out
+#. Perform internet search to find Homebrew installation instructions and carry out.
+#. In the terminal type :samp:`brew update`
 #. In the terminal type :samp:`brew install llvm`
 #. :samp:`cd ~`
 #. :samp:`mkdir bin`
@@ -61,16 +62,13 @@ Advanced Install with Homebrew
 Advanced Install with MacPorts
 ,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
 
-#. Put the turboWAVE components (:samp:`core` and :samp:`tools`) into some directory, denoted :samp:`{twroot}`.
+#. Get the turboWAVE components, see :doc:`getting-components`. You should end up with a new directory containing at least ``core`` and ``tools``.  This directory can be renamed if desired.  We refer to it generically as :samp:`{twroot}` throughout this documentation.
 #. Install XCode from the App Store
 #. Install the XCode command line tools.  Go to the terminal and type :samp:`xcode-select --install`.  Respond affirmatively to the prompts.
 #. Perform internet search to find MacPorts installation instructions and carry out
 #. In the terminal type :samp:`port selfupdate`
-#. :samp:`sudo port install llvm-5.0`
-#. :samp:`sudo port install clang-5.0`
-#. :samp:`sudo port install clang_select`
-#. :samp:`sudo port install libcxx`
-#. :samp:`sudo port select clang mp-clang-5.0`
+#. :samp:`sudo port install llvm-7.0 clang-7.0`
+#. :samp:`sudo port select clang mp-clang-7.0`
 #. :samp:`cd ~`
 #. :samp:`mkdir bin`
 #. :samp:`mkdir Run`

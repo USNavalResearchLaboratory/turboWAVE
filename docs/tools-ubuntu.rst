@@ -1,4 +1,4 @@
-Tools Install for Ubuntu 16.04
+Tools Install for Ubuntu 18.04
 ==============================
 
 .. caution::
@@ -18,7 +18,6 @@ Python 3 Conda Environment
 #. :samp:`source activate {NAME}`
 #. You are now in an isolated conda environment.  The environment must be activated each time you open a new terminal window.
 #. :samp:`conda install scipy matplotlib jupyter nb_conda`
-#. :samp:`conda install -c conda-forge widgetsnbextension`
 #. If there are problems with Jupyter notebooks any or all of the following may be tried:
 
 	* :samp:`conda install widgetsnbextension={n}`, where :samp:`{n}` is some older version.
