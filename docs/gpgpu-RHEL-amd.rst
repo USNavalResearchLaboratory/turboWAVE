@@ -8,6 +8,14 @@ AMD GPGPU on RHEL 7.3
 Driver
 -------
 
+.. warning::
+
+	The procedure here is not ideal.  It would be preferable to use the ``yum`` package installer to update the appropriate kernel module, but at present this does not seem to be available from the usual repositories.  The below may work but likely breaks after any kernel update.
+
+.. tip::
+
+	Keep an eye on ELRepo and RPMFusion repositories for better options.
+
 Graphics drivers can change rapidly, so internet searches may figure prominently into your installation effort.
 As of this writing the driver to use for AMD is the radeon-pro driver.  This typically supports AMD workstation class GPU and AMD or Intel CPU.  However, AMD gaming class GPU or APU may not be supported.
 

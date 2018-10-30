@@ -8,30 +8,17 @@ NVIDIA GPGPU on RHEL 7.5
 Driver
 ------
 
-Graphics drivers can change rapidly, so internet searches may figure prominently into your installation effort.
-NVIDIA GPGPU devices use CUDA software, which includes OpenCL.  This typically supports NVIDIA devices only.
+#. :samp:`sudo yum update`
+#. :samp:`sudo yum install ocl-icd clinfo`
+#. Perform internet search to find instructions for installing ``ELRepo``, and carry out.
+#. :samp:`sudo yum install kmod-nvidia`
+#. Reboot the system
+#. :samp:`clinfo` should give a listing of platforms and devices, if the installation succeeded.
+#. If there is a problem compiling (see below), you may need to explicitly create a symbolic link as follows:
 
-#. Find the RPM local install file for NVIDIA CUDA (use internet search)
-#. OS=linux, Arch=x86_64, Dist=CentOS or RHEL, Vers=7, Installer=rpm(local)
-#. Do NOT use the runfile
-#. Navigate to downloaded file in the terminal
-#. Execute the commands described on the NVIDIA CUDA download page, e.g.:
-
-	- :samp:`sudo rpm -i {downloaded_file}`
-	- :samp:`sudo yum clean all`
-	- :samp:`sudo yum install cuda`
-
-#. The CUDA files should be in :samp:`/usr/local/cuda/`.  At the time of writing the paths below are correct, but NVIDIA can change them.  For the headers, you need the directory containing the :samp:`CL` directory.  For the libraries, you need the one containing :samp:`libOpenCL.so`.
-#. Edit :samp:`~/.bashrc`
-
-	- Add line :samp:`export PATH=/usr/local/cuda/bin:$PATH`
-	- Add line :samp:`export CPATH=/usr/local/cuda/include:$CPATH`
-	- Add line :samp:`export LIBRARY_PATH=/usr/local/cuda/lib64:$LIBRARY_PATH`
-	- Add line :samp:`export LD_LIBRARY_PATH=/usr/local/cuda/lib64:$LIBRARY_PATH`
-	- Remember, no spaces around equals sign.
+	* :samp:`sudo ln -s /usr/lib64/libOpenCL.so.1.0.0 /usr/lib64/libOpenCL.so`
 
 #. Close all terminal windows
-
 
 Compile with OpenCL
 --------------------

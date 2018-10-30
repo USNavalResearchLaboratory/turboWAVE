@@ -164,18 +164,15 @@ Modifying the GRUB2 menu
 There are situations where you may want to customize or repair the GRUB2 menu.
 For example, you may need to pass customized arguments to the linux kernel.
 
-There are two ways you can modify the GRUB2 menu:
-
- 	1.	during booting
-	2.	after loading an OS
-
 The menu that is presented by GRUB2 is formed from entries in ``grub.cfg``.
 The menu entries can be modified on the fly by highlighting a menu item with the arrow keys
 and pressing ``e``.  This will display the section of ``grub.cfg`` which you can edit.  **The
 changes made in this way are not permanent**.  After making the changes, you can press :samp:`Control-x` to
 load and run the selected OS.
 
-You can make permanent changes to the GRUB2 menu by editing the set of files in
+You can make permanent changes to the GRUB2 menu in two ways.  The simple way is to edit ``/etc/default/grub``.  If all you want to do is add or subtract kernel arguments, simply edit the string assigned to ``GRUB_CMDLINE_LINUX``, and run the grub update utility.
+
+You can make more elaborate changes by editing the set of files in
 ``/etc/grub.d/``, followed by running the grub update utility.  If you edit ``10_linux``
 you will be modifying how you load the OS you are currently
 working in.  If you edit ``30_os-prober`` you will be modifying how other OS's are loaded.
