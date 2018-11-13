@@ -8,134 +8,45 @@
 
 FieldSolver::FieldSolver(Grid* theGrid):Module(theGrid)
 {
-	updateOrderingIndex = 3;
-	tolerance = 1e-8;
-	overrelaxation = 1.9;
-	ellipticSolver = (EllipticSolver*)owner->AddPrivateTool(facrPoissonSolver);
-	x0 = neumannWall; x1 = neumannWall;
-	y0 = neumannWall; y1 = neumannWall;
-	z0 = natural; z1 = dirichletCell;
+	updateSequencePriority = 3;
+	ellipticSolver = NULL;
 }
 
 FieldSolver::~FieldSolver()
 {
-	owner->RemoveTool(ellipticSolver);
+	if (ellipticSolver!=NULL)
+		owner->RemoveTool(ellipticSolver);
 }
 
 void FieldSolver::Initialize()
 {
-	if (ellipticSolver!=NULL)
-	{
-		ellipticSolver->tolerance = tolerance;
-		ellipticSolver->overrelaxation = overrelaxation;
-	}
+	Module::Initialize();
+	if (ellipticSolver==NULL)
+		ellipticSolver = (EllipticSolver*)owner->CreateTool("facr_poisson_solver",facrPoissonSolver);
 }
 
-void FieldSolver::ReadInputFileTerm(std::stringstream& inputString,std::string& command)
+void FieldSolver::ReadInputFileDirective(std::stringstream& inputString,const std::string& command)
 {
 	std::string word;
 
-	Module::ReadInputFileTerm(inputString,command);
+	Module::ReadInputFileDirective(inputString,command);
 
-	if (command=="tolerance")
-	{
-		inputString >> word >> tolerance;
-	}
-	if (command=="overrelaxation")
-	{
-		inputString >> word >> overrelaxation;
-	}
-	if (command=="elliptic" || command=="elliptical")  // eg, elliptic solver = iterative
-	{
-		inputString >> word >> word >> word;
-		if (word=="iterative")
-		{
-			owner->RemoveTool(ellipticSolver);
-			ellipticSolver = (EllipticSolver*)owner->AddPrivateTool(iterativePoissonSolver);
-			*owner->tw_out << "Use iterative solver" << std::endl;
-		}
-		if (word=="facr")
-		{
-			owner->RemoveTool(ellipticSolver);
-			ellipticSolver = (EllipticSolver*)owner->AddPrivateTool(facrPoissonSolver);
-			*owner->tw_out << "Use FACR solver" << std::endl;
-		}
-		if (word=="eigenmode")
-		{
-			owner->RemoveTool(ellipticSolver);
-			ellipticSolver = (EllipticSolver*)owner->AddPrivateTool(eigenmodePoissonSolver);
-			*owner->tw_out << "Use eigenmode solver" << std::endl;
-		}
-	}
-	if (command=="poisson") // eg, poisson boundary condition z = (open,open)
-	{
-		boundarySpec lowBC,highBC;
-		std::string whichAxis,theBC;
-		inputString >> word >> word >> whichAxis;
-		if (whichAxis=="=")
-			whichAxis = "z";
-		else
-			inputString >> word;
+	ellipticSolver = (EllipticSolver*)owner->ToolFromDirective(inputString,command);
 
-		inputString >> word;
-		if (word=="none")
-			lowBC = none;
-		if (word=="open")
-			lowBC = natural;
-		if (word=="dirichlet")
-			lowBC = dirichletCell;
-		if (word=="neumann")
-			lowBC = neumannWall;
-
-		inputString >> word;
-		if (word=="none")
-			highBC = none;
-		if (word=="open")
-			highBC = natural;
-		if (word=="dirichlet")
-			highBC = dirichletCell;
-		if (word=="neumann")
-			highBC = neumannWall;
-
-		if (whichAxis=="x") { x0 = lowBC; x1 = highBC; }
-		if (whichAxis=="y") { y0 = lowBC; y1 = highBC; }
-		if (whichAxis=="z") { z0 = lowBC; z1 = highBC; }
-
-		(*owner->tw_out) << "Poisson " << whichAxis << " BC = (" << lowBC << "," << highBC << ")" << std::endl;
-	}
+	if (ellipticSolver!=NULL)
+		ellipticSolver->ReadInputFileDirective(inputString,command);
 }
 
 void FieldSolver::ReadData(std::ifstream& inFile)
 {
 	Module::ReadData(inFile);
-	inFile.read((char*)&tolerance,sizeof(tw::Float));
-	inFile.read((char*)&overrelaxation,sizeof(tw::Float));
-	inFile.read((char*)&x0,sizeof(boundarySpec));
-	inFile.read((char*)&x1,sizeof(boundarySpec));
-	inFile.read((char*)&y0,sizeof(boundarySpec));
-	inFile.read((char*)&y1,sizeof(boundarySpec));
-	inFile.read((char*)&z0,sizeof(boundarySpec));
-	inFile.read((char*)&z1,sizeof(boundarySpec));
-
-	tw_tool ellipticSolverType;
-	inFile.read((char*)&ellipticSolverType,sizeof(tw_tool));
-	owner->RemoveTool(ellipticSolver);
-	ellipticSolver = (EllipticSolver*)owner->AddPrivateTool(ellipticSolverType);
+	ellipticSolver = (EllipticSolver*)owner->LoadRestartedTool(inFile);
 }
 
 void FieldSolver::WriteData(std::ofstream& outFile)
 {
 	Module::WriteData(outFile);
-	outFile.write((char*)&tolerance,sizeof(tw::Float));
-	outFile.write((char*)&overrelaxation,sizeof(tw::Float));
-	outFile.write((char*)&x0,sizeof(boundarySpec));
-	outFile.write((char*)&x1,sizeof(boundarySpec));
-	outFile.write((char*)&y0,sizeof(boundarySpec));
-	outFile.write((char*)&y1,sizeof(boundarySpec));
-	outFile.write((char*)&z0,sizeof(boundarySpec));
-	outFile.write((char*)&z1,sizeof(boundarySpec));
-
-	outFile.write((char*)&ellipticSolver->typeCode,sizeof(tw_tool));
+	ellipticSolver->SaveToolReference(outFile);
 }
 
 
@@ -333,11 +244,11 @@ void Electromagnetic::ForceQuasistaticVectorPotential(Field& A4,ScalarField& DtP
 	ellipticSolver->gammaBeam = 1.0;
 }
 
-void Electromagnetic::ReadInputFileTerm(std::stringstream& inputString,std::string& command)
+void Electromagnetic::ReadInputFileDirective(std::stringstream& inputString,const std::string& command)
 {
 	std::string word;
 
-	FieldSolver::ReadInputFileTerm(inputString,command);
+	FieldSolver::ReadInputFileDirective(inputString,command);
 
 	if (command=="dipole") // eg, dipole center = 0 0 0
 	{
@@ -653,7 +564,7 @@ void Electromagnetic::CustomDiagnose()
 CoulombSolver::CoulombSolver(Grid* theGrid):Electromagnetic(theGrid)
 {
 	name = "Coulomb-EM";
-	typeCode = coulombSolver;
+	typeCode = tw::module_type::coulombSolver;
 	A4.Initialize(8,*this,owner);
 
 	L1.Initialize(theGrid,theGrid,&theGrid->wave,zAxis,lowSide,1,5);
@@ -674,7 +585,9 @@ void CoulombSolver::Initialize()
 {
 	Electromagnetic::Initialize();
 
-	ellipticSolver->SetBoundaryConditions(scratch2,periodic,periodic,periodic,periodic,z0,z1);
+	// Overrides the boundary conditions set by the tool
+	ellipticSolver->SetBoundaryConditions(periodic,periodic,periodic,periodic,z0,z1);
+	ellipticSolver->SetBoundaryConditions(scratch2);
 
 	SetExteriorBoundaryConditionsE(A4,Element(1),Element(2),Element(3));
 	SetExteriorBoundaryConditionsE(A4,Element(5),Element(6),Element(7));
@@ -915,7 +828,7 @@ void CoulombSolver::PointDiagnose(std::ofstream& outFile,const weights_3D& w)
 DirectSolver::DirectSolver(Grid* theGrid):Electromagnetic(theGrid)
 {
 	name = "Direct-EM";
-	typeCode = directSolver;
+	typeCode = tw::module_type::directSolver;
 	yeeTool = (YeePropagatorPML*)owner->AddPrivateTool(yeePropagatorPML);
 	enforceChargeConservation = true;
 	layerThicknessX0 = 0;
@@ -1153,11 +1066,11 @@ void DirectSolver::MoveWindow()
 	A.DownwardCopy(zAxis,1);
 }
 
-void DirectSolver::ReadInputFileTerm(std::stringstream& inputString,std::string& command)
+void DirectSolver::ReadInputFileDirective(std::stringstream& inputString,const std::string& command)
 {
 	std::string word;
 
-	Electromagnetic::ReadInputFileTerm(inputString,command);
+	Electromagnetic::ReadInputFileDirective(inputString,command);
 	if (command=="enforce") // eg, enforce charge conservation = yes
 	{
 		inputString >> word >> word >> word >> word;
@@ -1268,7 +1181,7 @@ void DirectSolver::Update()
 CurvilinearDirectSolver::CurvilinearDirectSolver(Grid* theGrid):DirectSolver(theGrid)
 {
 	name = "Curvilinear-EM";
-	typeCode = curvilinearDirectSolver;
+	typeCode = tw::module_type::curvilinearDirectSolver;
 	A.Initialize(6,*this,owner);
 }
 

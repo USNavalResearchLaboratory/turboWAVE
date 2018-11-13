@@ -196,11 +196,11 @@ void Region::ReadInputFileBlock(std::stringstream& inputString)
 	do
 	{
 		inputString >> com;
-		ReadInputFileTerm(inputString,com);
+		ReadInputFileDirective(inputString,com);
 	} while (com!="}");
 }
 
-void Region::ReadInputFileTerm(std::stringstream& inputString,const std::string& com)
+void Region::ReadInputFileDirective(std::stringstream& inputString,const std::string& com)
 {
 	std::string word;
 	tw::Float theta;
@@ -348,9 +348,9 @@ bool TrueSphere::Inside(const tw::vec3& pos,const MetricSpace& ds) const
 	return complement ^ (Norm(p_cart-c_cart)<sqr(rbox.x));
 }
 
-void BoxArrayRegion::ReadInputFileTerm(std::stringstream& inputString,const std::string& com)
+void BoxArrayRegion::ReadInputFileDirective(std::stringstream& inputString,const std::string& com)
 {
-	Region::ReadInputFileTerm(inputString,com);
+	Region::ReadInputFileDirective(inputString,com);
 	std::string word;
 	if (com=="size")
 		inputString >> word >> size.x >> size.y >> size.z;
@@ -372,9 +372,9 @@ void BoxArrayRegion::WriteData(std::ofstream& outFile)
 	outFile.write((char *)&spacing,sizeof(tw::vec3));
 }
 
-void TorusRegion::ReadInputFileTerm(std::stringstream& inputString,const std::string& com)
+void TorusRegion::ReadInputFileDirective(std::stringstream& inputString,const std::string& com)
 {
-	Region::ReadInputFileTerm(inputString,com);
+	Region::ReadInputFileDirective(inputString,com);
 	std::string word;
 	if (com=="minor")
 		inputString >> word >> word >> minorRadius;
@@ -397,9 +397,9 @@ void TorusRegion::WriteData(std::ofstream& outFile)
 	outFile.write((char *)&majorRadius,sizeof(tw::Float));
 }
 
-void ConeRegion::ReadInputFileTerm(std::stringstream& inputString,const std::string& com)
+void ConeRegion::ReadInputFileDirective(std::stringstream& inputString,const std::string& com)
 {
-	Region::ReadInputFileTerm(inputString,com);
+	Region::ReadInputFileDirective(inputString,com);
 	std::string word;
 	if (com=="tip" || com=="minor")
 		inputString >> word >> word >> minorRadius;
@@ -424,9 +424,9 @@ void ConeRegion::WriteData(std::ofstream& outFile)
 	outFile.write((char *)&majorRadius,sizeof(tw::Float));
 }
 
-void TangentOgiveRegion::ReadInputFileTerm(std::stringstream& inputString,const std::string& com)
+void TangentOgiveRegion::ReadInputFileDirective(std::stringstream& inputString,const std::string& com)
 {
-	Region::ReadInputFileTerm(inputString,com);
+	Region::ReadInputFileDirective(inputString,com);
 	std::string word;
 	if (com=="tip" || com=="minor")
 		inputString >> word >> word >> tipRadius;
@@ -451,9 +451,9 @@ void TangentOgiveRegion::WriteData(std::ofstream& outFile)
 	outFile.write((char *)&bodyRadius,sizeof(tw::Float));
 }
 
-void CylindricalShellRegion::ReadInputFileTerm(std::stringstream& inputString,const std::string& com)
+void CylindricalShellRegion::ReadInputFileDirective(std::stringstream& inputString,const std::string& com)
 {
-	Region::ReadInputFileTerm(inputString,com);
+	Region::ReadInputFileDirective(inputString,com);
 	std::string word;
 	if (com=="inner" || com=="minor")
 		inputString >> word >> word >> innerRadius;

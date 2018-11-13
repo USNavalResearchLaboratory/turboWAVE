@@ -68,11 +68,11 @@ void Profile::ReadInputFileBlock(std::stringstream& inputString,bool neutralize)
 	do
 	{
 		inputString >> com;
-		ReadInputFileTerm(inputString,com);
+		ReadInputFileDirective(inputString,com);
 	} while (com!="}");
 }
 
-void Profile::ReadInputFileTerm(std::stringstream& inputString,const std::string& com)
+void Profile::ReadInputFileDirective(std::stringstream& inputString,const std::string& com)
 {
     std::string word;
 
@@ -220,10 +220,10 @@ tw::Float Profile::GetValue(const tw::vec3& pos,const MetricSpace& ds)
 	return theRgn->Inside(pos,ds) ? 1.0 : 0.0;
 }
 
-void UniformProfile::ReadInputFileTerm(std::stringstream& inputString,const std::string& com)
+void UniformProfile::ReadInputFileDirective(std::stringstream& inputString,const std::string& com)
 {
     std::string word;
-	Profile::ReadInputFileTerm(inputString,com);
+	Profile::ReadInputFileDirective(inputString,com);
 	if (com=="density")
 		inputString >> word >> density;
 }
@@ -245,10 +245,10 @@ tw::Float UniformProfile::GetValue(const tw::vec3& pos,const MetricSpace& ds)
 	return theRgn->Inside(pos,ds) ? density : 0.0;
 }
 
-void GaussianProfile::ReadInputFileTerm(std::stringstream& inputString,const std::string& com)
+void GaussianProfile::ReadInputFileDirective(std::stringstream& inputString,const std::string& com)
 {
     std::string word;
-	Profile::ReadInputFileTerm(inputString,com);
+	Profile::ReadInputFileDirective(inputString,com);
 	if (com=="density")
 		inputString >> word >> density;
 	if (com=="size")
@@ -280,10 +280,10 @@ tw::Float GaussianProfile::GetValue(const tw::vec3& pos,const MetricSpace& ds)
 	return theRgn->Inside(pos,ds) ? dens : 0.0;
 }
 
-void ChannelProfile::ReadInputFileTerm(std::stringstream& inputString,const std::string& com)
+void ChannelProfile::ReadInputFileDirective(std::stringstream& inputString,const std::string& com)
 {
     std::string word;
-	Profile::ReadInputFileTerm(inputString,com);
+	Profile::ReadInputFileDirective(inputString,com);
 	if (com=="radius")
 		throw tw::FatalError("Channel radius no longer supported.  Use polynomial coefficients.");
 	if (com=="coefficients")
@@ -347,10 +347,10 @@ tw::Float ChannelProfile::GetValue(const tw::vec3& pos,const MetricSpace& ds)
 	return theRgn->Inside(pos,ds) ? dens : 0.0;
 }
 
-void ColumnProfile::ReadInputFileTerm(std::stringstream& inputString,const std::string& com)
+void ColumnProfile::ReadInputFileDirective(std::stringstream& inputString,const std::string& com)
 {
     std::string word;
-	Profile::ReadInputFileTerm(inputString,com);
+	Profile::ReadInputFileDirective(inputString,com);
 	if (com=="size")
 		inputString >> word >> beamSize.x >> beamSize.y >> beamSize.z;
 	if (com=="zpoints") // eg, zpoints = { 0 1 2 3 }
@@ -432,9 +432,9 @@ void PiecewiseProfile::Initialize(MetricSpace *ds)
 	}
 }
 
-void PiecewiseProfile::ReadInputFileTerm(std::stringstream& inputString,const std::string& com)
+void PiecewiseProfile::ReadInputFileDirective(std::stringstream& inputString,const std::string& com)
 {
-	Profile::ReadInputFileTerm(inputString,com);
+	Profile::ReadInputFileDirective(inputString,com);
 	if (com=="xpoints") // eg, xpoints = { 0 1 2 3 }
 		tw::input::ReadArray(x,inputString);
 	if (com=="ypoints") // eg, ypoints = { 0 1 2 3 }
@@ -620,10 +620,10 @@ tw::Float PiecewiseProfile::GetValue(const tw::vec3& pos,const MetricSpace& ds)
 	return theRgn->Inside(pos,ds) ? dens : 0.0;
 }
 
-void CorrugatedProfile::ReadInputFileTerm(std::stringstream& inputString,const std::string& com)
+void CorrugatedProfile::ReadInputFileDirective(std::stringstream& inputString,const std::string& com)
 {
     std::string word;
-	Profile::ReadInputFileTerm(inputString,com);
+	Profile::ReadInputFileDirective(inputString,com);
 	if (com=="a0")
 		inputString >> word >> a0;
 	if (com=="gamma0")

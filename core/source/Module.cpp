@@ -19,13 +19,14 @@ Module::Module(Grid* theGrid)
 {
 	name = "Generic";
 	owner = theGrid;
+	super = NULL;
 	programFilename = "";
 	buildLog = "";
 	dt = theGrid->dt;
 	dth = theGrid->dth;
 	dti = 1.0/dt;
-	updateOrderingIndex = 1;
-	typeCode = nullModule;
+	updateSequencePriority = 1;
+	typeCode = tw::module_type::nullModule;
 	suppressNextUpdate = false;
 	DiscreteSpace::operator=(*theGrid);
 }
@@ -38,6 +39,11 @@ Module::~Module()
 		clReleaseProgram(program);
 
 	#endif
+}
+
+bool Module::AddSubmodule(Module* sub)
+{
+	return false;
 }
 
 void Module::InitializeCLProgram(const std::string& filename)
@@ -70,8 +76,6 @@ void Module::Initialize()
 
 void Module::ReadData(std::ifstream& inFile)
 {
-	inFile >> name;
-	inFile.ignore();
 	DiscreteSpace::ReadData(inFile);
 	inFile.read((char *)&dt,sizeof(tw::Float));
 	inFile.read((char *)&dth,sizeof(tw::Float));
@@ -103,91 +107,21 @@ void Module::ReadInputFileBlock(std::stringstream& inputString)
 	do
 	{
 		inputString >> com;
-		ReadInputFileTerm(inputString,com);
+		ReadInputFileDirective(inputString,com);
 	} while (com!="}");
 }
 
-void Module::ReadInputFileTerm(std::stringstream& inputString,std::string& command)
+bool Module::ReadQuasitoolBlock(const std::vector<std::string>& preamble,std::stringstream& inputString)
 {
-	std::string word;
+	return false;
+}
 
-	if (command=="name") // eg, name = He
-	{
-		inputString >> word;
-		inputString >> name;
-	}
+void Module::ReadInputFileDirective(std::stringstream& inputString,const std::string& command)
+{
 }
 
 void Module::StartDiagnostics()
 {
-}
-
-Module* Module::CreateObjectFromFile(std::ifstream& inFile,Grid *theGrid)
-{
-	tw_module typeCode;
-	Module *ans;
-	inFile.read((char*)&typeCode,sizeof(tw_module));
-	switch (typeCode)
-	{
-		case nullModule:
-			break;
-		case curvilinearDirectSolver:
-			ans = new CurvilinearDirectSolver(theGrid);
-			break;
-		case electrostatic:
-			ans = new Electrostatic(theGrid);
-			break;
-		case coulombSolver:
-			ans = new CoulombSolver(theGrid);
-			break;
-		case directSolver:
-			ans = new DirectSolver(theGrid);
-			break;
-		case qsLaser:
-			ans = new QSSolver(theGrid);
-			break;
-		case pgcLaser:
-			ans = new PGCSolver(theGrid);
-			break;
-		case boundElectrons:
-			ans = new BoundElectrons(theGrid);
-			break;
-		case fluidFields:
-			ans = new Fluid(theGrid);
-			break;
-		case equilibriumGroup:
-			ans = new EquilibriumGroup(theGrid);
-			break;
-		case chemical:
-			ans = new Chemical(theGrid);
-			break;
-		case chemistry:
-			ans = new Chemistry(theGrid);
-			break;
-		case species:
-			ans = new Species(theGrid);
-			break;
-		case kinetics:
-			ans = new Kinetics(theGrid);
-			break;
-		case atomicPhysics:
-			ans = new AtomicPhysics(theGrid);
-			break;
-		case schroedingerModule:
-			ans = new Schroedinger(theGrid);
-			break;
-		case pauliModule:
-			ans = new Pauli(theGrid);
-			break;
-		case kleinGordon:
-			ans = new KleinGordon(theGrid);
-			break;
-		case dirac:
-			ans = new Dirac(theGrid);
-			break;
-	}
-	ans->ReadData(inFile);
-	return ans;
 }
 
 void Module::WarningMessage(std::ostream *theStream)
@@ -201,4 +135,150 @@ void Module::WarningMessage(std::ostream *theStream)
 		for (tw::Int i=0;i<profile.size();i++)
 			if (profile[i]->theRgn->moveWithWindow==true && profile[i]->theRgn->name!="entire")
 				*theStream << "WARNING : region " << profile[i]->theRgn->name << " in motion in module " << name << std::endl;
+}
+
+////// STATIC MEMBERS FOLLOW
+
+bool Module::SingularType(tw::module_type theType)
+{
+	return theType==tw::module_type::kinetics || theType==tw::module_type::chemistry;
+}
+
+tw::module_type Module::CreateSupermoduleTypeFromSubmoduleKey(const std::string& key)
+{
+	if (key=="species")
+		return tw::module_type::kinetics;
+	if (key=="chemical")
+		return tw::module_type::group;
+	if (key=="group")
+		return tw::module_type::chemistry;
+	return tw::module_type::nullModule;
+}
+
+bool Module::QuasitoolNeedsModule(const std::vector<std::string>& preamble)
+{
+	bool ans = false;
+	ans = ans || (preamble[0]=="phase");
+	ans = ans || (preamble[0]=="orbit");
+	ans = ans || (preamble[0]=="detector");
+	ans = ans || (preamble[0]=="reaction");
+	ans = ans || (preamble[0]=="collision");
+	ans = ans || (preamble[0]=="excitation");
+	return ans;
+}
+
+tw::module_type Module::CreateTypeFromInput(const std::vector<std::string>& preamble)
+{
+	if (preamble[0]=="curvilinear" && preamble[1]=="direct")
+		return tw::module_type::curvilinearDirectSolver;
+	if (preamble[0]=="coulomb")
+		return tw::module_type::coulombSolver;
+	if (preamble[0]=="electrostatic")
+		return tw::module_type::electrostatic;
+	if (preamble[0]=="direct")
+		return tw::module_type::directSolver;
+	if (preamble[0]=="quasistatic")
+		return tw::module_type::qsLaser;
+	if (preamble[0]=="pgc" || preamble[0]=="PGC")
+		return tw::module_type::pgcLaser;
+	if (preamble[0]=="bound")
+		return tw::module_type::boundElectrons;
+	if (preamble[0]=="schroedinger" || preamble[0]=="atomic")
+		return tw::module_type::schroedinger;
+	if (preamble[0]=="pauli")
+		return tw::module_type::pauli;
+	if (preamble[0]=="klein")
+		return tw::module_type::kleinGordon;
+	if (preamble[0]=="dirac")
+		return tw::module_type::dirac;
+	if (preamble[0]=="fluid")
+		return tw::module_type::fluidFields;
+	if (preamble[0]=="chemistry")
+		return tw::module_type::chemistry;
+	if (preamble[0]=="group")
+		return tw::module_type::equilibriumGroup;
+	if (preamble[0]=="chemical")
+		return tw::module_type::chemical;
+	if (preamble[0]=="species")
+		return tw::module_type::species;
+	if (preamble[0]=="kinetics")
+		return tw::module_type::kinetics;
+	return tw::module_type::nullModule;
+}
+
+Module* Module::CreateObjectFromType(const std::string& name,tw::module_type theType,Grid* theGrid)
+{
+	Module *ans;
+	switch (theType)
+	{
+		case tw::module_type::nullModule:
+			ans = NULL;
+			break;
+		case tw::module_type::curvilinearDirectSolver:
+			ans = new CurvilinearDirectSolver(name,theGrid);
+			break;
+		case tw::module_type::electrostatic:
+			ans = new Electrostatic(name,theGrid);
+			break;
+		case tw::module_type::coulombSolver:
+			ans = new CoulombSolver(name,theGrid);
+			break;
+		case tw::module_type::directSolver:
+			ans = new DirectSolver(name,theGrid);
+			break;
+		case tw::module_type::qsLaser:
+			ans = new QSSolver(name,theGrid);
+			break;
+		case tw::module_type::pgcLaser:
+			ans = new PGCSolver(name,theGrid);
+			break;
+		case tw::module_type::boundElectrons:
+			ans = new BoundElectrons(name,theGrid);
+			break;
+		case tw::module_type::fluidFields:
+			ans = new Fluid(name,theGrid);
+			break;
+		case tw::module_type::equilibriumGroup:
+			ans = new EquilibriumGroup(name,theGrid);
+			break;
+		case tw::module_type::chemical:
+			ans = new Chemical(name,theGrid);
+			break;
+		case tw::module_type::chemistry:
+			ans = new Chemistry(name,theGrid);
+			break;
+		case tw::module_type::species:
+			ans = new Species(name,theGrid);
+			break;
+		case tw::module_type::kinetics:
+			ans = new Kinetics(name,theGrid);
+			break;
+		case tw::module_type::schroedinger:
+			ans = new Schroedinger(name,theGrid);
+			break;
+		case tw::module_type::pauli:
+			ans = new Pauli(name,theGrid);
+			break;
+		case tw::module_type::kleinGordon:
+			ans = new KleinGordon(name,theGrid);
+			break;
+		case tw::module_type::dirac:
+			ans = new Dirac(name,theGrid);
+			break;
+	}
+	return ans;
+}
+
+Module* Module::CreateObjectFromFile(std::ifstream& inFile,Grid *theGrid)
+{
+	// This might work, but the containment heierarchy better be sorted.
+	tw::module_type theType;
+	std::string name;
+	Module *ans;
+	inFile.read((char*)&theType,sizeof(tw::module_type));
+	inFile >> name;
+	inFile.ignore();
+	ans = CreateObjectFromType(name,theType,theGrid);
+	ans->ReadData(inFile);
+	return ans;
 }

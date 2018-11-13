@@ -14,7 +14,7 @@
 Electrostatic::Electrostatic(Grid* theGrid):FieldSolver(theGrid)
 {
 	name = "Electrostatic";
-	typeCode = electrostatic;
+	typeCode = tw::module_type::electrostatic;
 	phi.Initialize(*this,owner);
 	source.Initialize(*this,owner);
 	Ef.Initialize(*this,owner);
@@ -34,7 +34,7 @@ Electrostatic::Electrostatic(Grid* theGrid):FieldSolver(theGrid)
 
 	sources.SetBoundaryConditions(zAxis,dirichletCell,dirichletCell);
 	sources.SetBoundaryConditions(Element(3),zAxis,normalFluxFixed,normalFluxFixed);
-	
+
 	if (owner->gridGeometry!=cartesian)
 	{
 		Ef.SetBoundaryConditions(Element(0),xAxis,dirichletWall,neumannWall);
@@ -45,9 +45,6 @@ Electrostatic::Electrostatic(Grid* theGrid):FieldSolver(theGrid)
 	electrodePotential = 0.0;
 	slewRate = 0.0;
 
-	x0 = x1 = y0 = y1 = neumannWall;
-	z0 = natural;
-	z1 = natural;
 	lbc = 0.0;
 	rbc = 0.0;
 }
@@ -55,9 +52,7 @@ Electrostatic::Electrostatic(Grid* theGrid):FieldSolver(theGrid)
 void Electrostatic::Initialize()
 {
 	FieldSolver::Initialize();
-
-	ellipticSolver->SetBoundaryConditions(phi,x0,x1,y0,y1,z0,z1);
-
+	ellipticSolver->SetBoundaryConditions(phi);
 	SetupElectrodePotential();
 	SetupInitialPotential();
 
@@ -78,11 +73,11 @@ void Electrostatic::Reset()
 	sources = 0.0;
 }
 
-void Electrostatic::ReadInputFileTerm(std::stringstream& inputString,std::string& command)
+void Electrostatic::ReadInputFileDirective(std::stringstream& inputString,const std::string& command)
 {
 	std::string word;
 	tw::Float lbc0,rbc0;
-	FieldSolver::ReadInputFileTerm(inputString,command);
+	FieldSolver::ReadInputFileDirective(inputString,command);
 	if (command=="external") // eg, external potential = ( 0.0 , 1.0 )
 	{
 		inputString >> word >> word >> lbc0 >> rbc0;

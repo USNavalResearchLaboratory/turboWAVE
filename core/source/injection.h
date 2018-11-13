@@ -44,7 +44,7 @@ struct Profile
 	virtual void Initialize(MetricSpace *ds) {;}
 	virtual tw::Float GetValue(const tw::vec3& pos,const MetricSpace& ds);
 	virtual void ReadInputFileBlock(std::stringstream& inputString,bool neutralize);
-	virtual void ReadInputFileTerm(std::stringstream& inputString,const std::string& command);
+	virtual void ReadInputFileDirective(std::stringstream& inputString,const std::string& command);
 	static Profile* CreateObjectFromFile(std::vector<Region*>& rgnList,std::ifstream& inFile);
 	virtual void ReadData(std::ifstream& inFile);
 	virtual void WriteData(std::ofstream& outFile);
@@ -56,7 +56,7 @@ struct UniformProfile:Profile
 
 	UniformProfile(std::vector<Region*>& rgnList):Profile(rgnList) { profileSpec = uniformProfile; }
 	virtual tw::Float GetValue(const tw::vec3& pos,const MetricSpace& ds);
-	virtual void ReadInputFileTerm(std::stringstream& inputString,const std::string& command);
+	virtual void ReadInputFileDirective(std::stringstream& inputString,const std::string& command);
 	virtual void ReadData(std::ifstream& inFile);
 	virtual void WriteData(std::ofstream& outFile);
 };
@@ -68,7 +68,7 @@ struct GaussianProfile:Profile
 
 	GaussianProfile(std::vector<Region*>& rgnList):Profile(rgnList) { profileSpec = gaussianProfile; }
 	virtual tw::Float GetValue(const tw::vec3& pos,const MetricSpace& ds);
-	virtual void ReadInputFileTerm(std::stringstream& inputString,const std::string& command);
+	virtual void ReadInputFileDirective(std::stringstream& inputString,const std::string& command);
 	virtual void ReadData(std::ifstream& inFile);
 	virtual void WriteData(std::ofstream& outFile);
 };
@@ -80,7 +80,7 @@ struct ChannelProfile:Profile
 
 	ChannelProfile(std::vector<Region*>& rgnList):Profile(rgnList) { profileSpec = channelProfile; }
 	virtual tw::Float GetValue(const tw::vec3& pos,const MetricSpace& ds);
-	virtual void ReadInputFileTerm(std::stringstream& inputString,const std::string& command);
+	virtual void ReadInputFileDirective(std::stringstream& inputString,const std::string& command);
 	virtual void ReadData(std::ifstream& inFile);
 	virtual void WriteData(std::ofstream& outFile);
 };
@@ -92,7 +92,7 @@ struct ColumnProfile:Profile
 
 	ColumnProfile(std::vector<Region*>& rgnList):Profile(rgnList) { profileSpec = columnProfile; }
 	virtual tw::Float GetValue(const tw::vec3& pos,const MetricSpace& ds);
-	virtual void ReadInputFileTerm(std::stringstream& inputString,const std::string& command);
+	virtual void ReadInputFileDirective(std::stringstream& inputString,const std::string& command);
 	virtual void ReadData(std::ifstream& inFile);
 	virtual void WriteData(std::ofstream& outFile);
 };
@@ -104,7 +104,7 @@ struct PiecewiseProfile:Profile
 	PiecewiseProfile(std::vector<Region*>& rgnList):Profile(rgnList) { profileSpec = piecewiseProfile; }
 	virtual void Initialize(MetricSpace *ds);
 	virtual tw::Float GetValue(const tw::vec3& pos,const MetricSpace& ds);
-	virtual void ReadInputFileTerm(std::stringstream& inputString,const std::string& command);
+	virtual void ReadInputFileDirective(std::stringstream& inputString,const std::string& command);
 	virtual void ReadData(std::ifstream& inFile);
 	virtual void WriteData(std::ofstream& outFile);
 };
@@ -115,7 +115,7 @@ struct CorrugatedProfile:Profile
 
 	CorrugatedProfile(std::vector<Region*>& rgnList):Profile(rgnList) { profileSpec = corrugatedProfile; }
 	virtual tw::Float GetValue(const tw::vec3& pos,const MetricSpace& ds);
-	virtual void ReadInputFileTerm(std::stringstream& inputString,const std::string& command);
+	virtual void ReadInputFileDirective(std::stringstream& inputString,const std::string& command);
 	virtual void ReadData(std::ifstream& inFile);
 	virtual void WriteData(std::ofstream& outFile);
 };

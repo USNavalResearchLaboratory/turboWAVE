@@ -13,7 +13,7 @@ BoundElectrons::BoundElectrons(Grid* theGrid) : Module(theGrid)
 {
 	name = "bound";
 	typeCode = boundElectrons;
-	updateOrderingIndex = 2;
+	updateSequencePriority = 2;
 	q0 = -1.0;
 	m0 = 1.0;
 	resFreq = 10.0;
@@ -288,11 +288,11 @@ void BoundElectrons::Update()
 }
 #endif
 
-void BoundElectrons::ReadInputFileTerm(std::stringstream& inputString,std::string& command)
+void BoundElectrons::ReadInputFileDirective(std::stringstream& inputString,const std::string& command)
 {
 	std::string word;
 
-	Module::ReadInputFileTerm(inputString,command);
+	Module::ReadInputFileDirective(inputString,command);
 
 	if (command=="charge")
 	{

@@ -15,6 +15,9 @@
 
 void ReduceInputFile(std::ifstream& inFile,std::stringstream& out)
 {
+	// Strips comments
+	// Strips decorative punctuation tokens (commas,parenthesis)
+	// Inserts spaces before and after equals signs and curly braces
 	bool ignoreUntilMark,ignoreUntilEOL;
 	char charNow,nextChar;
 
@@ -131,21 +134,6 @@ void PreprocessInputFile(std::ifstream& inFile,std::stringstream& out)
 			tw::input::NormalizeInput(uc,word);
 		out << word << " ";
 	}
-}
-
-void ExitInputFileBlock(std::stringstream& inputString)
-{
-	std::string word;
-	tw::Int leftCount=0;
-	tw::Int rightCount=0;
-	do
-	{
-		inputString >> word;
-		if (word=="{")
-			leftCount++;
-		if (word=="}")
-			rightCount++;
-	} while (leftCount==0 || leftCount>rightCount);
 }
 
 
@@ -313,9 +301,6 @@ Grid::Grid()
 	binaryFormat = 3;
 
 	dumpPeriod = 0;
-	sortPeriod = 0;
-	sortX = sortY = 0;
-	sortZ = 1;
 
 	bc0[1] = cyclic;
 	bc1[1] = cyclic;
@@ -667,45 +652,120 @@ void Grid::FundamentalCycle()
 		AntiMoveWindow();
 }
 
-ComputeTool* Grid::AddPrivateTool(tw_tool whichTool)
+bool Grid::MangleModuleName(std::string& name)
 {
-	computeTool.push_back(ComputeTool::CreateObjectFromType(whichTool,this,this,false));
+	bool trouble,did_mangle;
+	tw::Int id = 2;
+	std::string mangled(name);
+	do
+	{
+		trouble = false;
+		for (tw::Int i=0;i<module.size();i++)
+			if (module[i]->name==mangled)
+				trouble = true;
+		if (trouble)
+			mangled = name + std::to_string(id);
+		id++;
+	} while (trouble);
+	did_mangle = (name!=mangled);
+	name = mangled;
+	return did_mangle;
+}
+
+Module* Grid::GetModule(const std::string& name)
+{
+	for (tw::Int i=0;i<module.size();i++)
+		if (module[i]->name==name)
+			return module[i];
+	throw tw::FatalError("Could not find module: " + name);
+	return NULL;
+}
+
+void Grid::MangleToolName(std::string& name)
+{
+	bool trouble,did_mangle;
+	tw::Int id = 2;
+	std::string mangled(name);
+	do
+	{
+		trouble = false;
+		for (tw::Int i=0;i<computeTool.size();i++)
+			if (computeTool[i]->name==mangled)
+				trouble = true;
+		if (trouble)
+			mangled = name + std::to_string(id);
+		id++;
+	} while (trouble);
+	did_mangle = (name!=mangled);
+	name = mangled;
+	return did_mangle;
+}
+
+ComputeTool* Grid::CreateTool(const std::string& basename,tw::tool_type theType)
+{
+	std::string name(basename);
+	MangleToolName(name);
+	(*tw_out) << "Creating Tool " << name << "..." << std::endl;
+	computeTool.push_back(ComputeTool::CreateObjectFromType(name,theType,this,this));
 	computeTool.back()->refCount++;
 	return computeTool.back();
 }
 
-ComputeTool* Grid::AddSharedTool(tw_tool whichTool)
+ComputeTool* Grid::GetTool(const std::string& name)
 {
-	int i;
-	for (i=0;i<computeTool.size();i++)
-		if (computeTool[i]->typeCode==whichTool && computeTool[i]->sharedTool)
+	for (tw::Int i=0;i<computeTool.size();i++)
+	{
+		if (computeTool[i]->name==name)
 		{
 			computeTool[i]->refCount++;
 			return computeTool[i];
 		}
+	}
+	throw tw::FatalError("Could not find tool: " + name);
+	return NULL;
+}
 
-	computeTool.push_back(ComputeTool::CreateObjectFromType(whichTool,this,this,true));
-	computeTool.back()->refCount++;
-	return computeTool.back();
+ComputeTool* Grid::LoadRestartedTool(std::ifstream& inFile)
+{
+	// Read in the name and find the tool
+	// No need to read data, it has already happened.
+	std::string tmp;
+	inFile >> tmp;
+	inFile.ignore();
+	return GetTool(tmp);
+}
+
+ComputeTool* Grid::ToolFromDirective(std::stringstream& inputString,const std::string& command)
+{
+	std::string word;
+	tw::tool_type type;
+	// Handle retrieval of named tools
+	if (command=="get")
+	{
+		inputString >> word >> word >> word >> word >> word; // tool with name = [name]
+		return GetTool(word);
+	}
+	// Handle creation of new tools on the fly
+	type = ComputeTool::CreateTypeFromDirective(inputString,command);
+	if (type!=tw::tool_type::nullTool)
+		return CreateTool("tool",type);
+	// If no tool return null pointer.  Modules have to be written to handle this.
+	return NULL;
 }
 
 bool Grid::RemoveTool(ComputeTool *theTool)
 {
-	int i,toolIndex = -1;
-	for (i=0;i<computeTool.size();i++)
-		if (computeTool[i]==theTool)
-			toolIndex = i;
-
-	if (toolIndex==-1)
-		return false;
-
-	computeTool[toolIndex]->refCount--;
-	if (computeTool[toolIndex]->refCount==0)
+	auto iter = std::find(computeTool.begin(),computeTool.end(),theTool);
+	if (iter==computeTool.end())
+		throw tw::FatalError("Attempt to remove a non-existant tool.");
+	(*iter)->refCount--;
+	if ((*iter)->refCount==0)
 	{
-		delete computeTool[toolIndex];
-		computeTool.erase(computeTool.begin()+toolIndex);
+		delete *iter;
+		computeTool.erase(iter);
+		return true;
 	}
-	return true;
+	return false;
 }
 
 void Grid::SetupTimeInfo(tw::Float dt)
@@ -754,8 +814,6 @@ void Grid::ReadData(std::ifstream& inFile)
 {
 	tw::Int i;
 	tw::Int num;
-	Chemistry *chemBoss = NULL;
-	Kinetics *parBoss = NULL;
 
 	Task::ReadData(inFile);
 	MetricSpace::ReadData(inFile);
@@ -783,10 +841,6 @@ void Grid::ReadData(std::ifstream& inFile)
 	inFile.read((char *)&compensation,sizeof(tw::Int));
 	inFile.read((char *)&stepsToTake,sizeof(tw::Int));
 	inFile.read((char *)&dumpPeriod,sizeof(tw::Int));
-	inFile.read((char *)&sortPeriod,sizeof(tw::Int));
-	inFile.read((char *)&sortX,sizeof(tw::Int));
-	inFile.read((char *)&sortY,sizeof(tw::Int));
-	inFile.read((char *)&sortZ,sizeof(tw::Int));
 	inFile.read((char *)&binaryFormat,sizeof(tw::Int));
 	inFile.read((char *)bc0,sizeof(tw_boundary_spec)*4);
 	inFile.read((char *)bc1,sizeof(tw_boundary_spec)*4);
@@ -820,33 +874,28 @@ void Grid::ReadData(std::ifstream& inFile)
 	gaussianDeviate = new GaussianDeviate(1);
 	gaussianDeviate->ReadData(inFile);
 
+	// Read ComputeTool objects
+
+	inFile.read((char *)&num,sizeof(num));
+	for (i=0;i<num;i++)
+	{
+		computeTool.push_back(ComputeTool::CreateObjectFromFile(inFile,this,this));
+		(*tw_out) << "Installed Tool " << computeTool.back()->name << std::endl;
+	}
+
+	// Read Modules
+	// Quasi-tools are read at the same time
+
 	inFile.read((char *)&num,sizeof(tw::Int));
 	for (i=0;i<num;i++)
 	{
 		module.push_back(Module::CreateObjectFromFile(inFile,this));
-		if (module.back()->typeCode==kinetics)
-			parBoss = (Kinetics*)module.back();
-		if (module.back()->typeCode==chemistry)
-			chemBoss = (Chemistry*)module.back();
-		if (module.back()->typeCode==species)
-		{
-			parBoss->species.push_back((Species*)module.back());
-			((Species*)module.back())->parBoss = parBoss;
-		}
-		if (module.back()->typeCode==chemical)
-		{
-			chemBoss->chemical.push_back((Chemical*)module.back());
-			chemBoss->group.back()->chemical.push_back((Chemical*)module.back());
-			((Chemical*)module.back())->chemBoss = chemBoss;
-			((Chemical*)module.back())->group = chemBoss->group.back();
-		}
-		if (module.back()->typeCode==equilibriumGroup)
-		{
-			chemBoss->group.push_back((EquilibriumGroup*)module.back());
-			((EquilibriumGroup*)module.back())->chemBoss = chemBoss;
-		}
+		// try to have Module::ReadData figure out to populate containment structures for both modules and tools.
 		(*tw_out) << "Installed Module " << module.back()->name << std::endl;
 	}
+
+	// Read Grid managed objects
+	// Probably most of them should be tools.
 
 	inFile.read((char *)&num,sizeof(tw::Int));
 	for (i=0;i<num;i++)
@@ -871,6 +920,8 @@ void Grid::ReadData(std::ifstream& inFile)
 		conductor.push_back(new Conductor(clippingRegion));
 		conductor.back()->ReadData(inFile);
 	}
+
+	// Read Grid managed diagnostics
 
 	inFile.read((char *)&num,sizeof(tw::Int));
 	for (i=0;i<num;i++)
@@ -927,10 +978,6 @@ void Grid::WriteData(std::ofstream& outFile)
 	outFile.write((char *)&compensation,sizeof(tw::Int));
 	outFile.write((char *)&stepsToTake,sizeof(tw::Int));
 	outFile.write((char *)&dumpPeriod,sizeof(tw::Int));
-	outFile.write((char *)&sortPeriod,sizeof(tw::Int));
-	outFile.write((char *)&sortX,sizeof(tw::Int));
-	outFile.write((char *)&sortY,sizeof(tw::Int));
-	outFile.write((char *)&sortZ,sizeof(tw::Int));
 	outFile.write((char *)&binaryFormat,sizeof(tw::Int));
 	outFile.write((char *)bc0,sizeof(tw_boundary_spec)*4);
 	outFile.write((char *)bc1,sizeof(tw_boundary_spec)*4);
@@ -1089,11 +1136,11 @@ std::string Grid::InputFileFirstPass()
 					} while (com2!="}");
 				}
 				else
-					ExitInputFileBlock(inputString);
+					tw::input::ExitInputFileBlock(inputString);
 			}
 
 			if (com1=="generate")
-				ExitInputFileBlock(inputString);
+				tw::input::ExitInputFileBlock(inputString);
 
 			if (com1=="open")
 			{
@@ -1240,10 +1287,12 @@ void Grid::GridFromInputFile()
 
 		if (com1=="new")
 		{
-			inputString >> com2;
+			std::vector<std::string> preamble = tw::input::EnterInputFileBlock(inputString,"{");
 
-			if (com2=="grid")
+			if (preamble[0]=="grid")
 			{
+				if (preamble.size()!=1)
+					throw tw::FatalError("Ill-formed grid block.")
 				do
 				{
 					inputString >> com2;
@@ -1324,33 +1373,57 @@ void Grid::GridFromInputFile()
 	#endif
 }
 
+void Grid::ReadSubmoduleBlock(std::stringstream& inputString,Module *sup)
+{
+	// To be called by supermodules that want to add submodules while
+	// reading their own input file block.
+
+	// Get the preamble = words that come between "new" and the opening brace
+	std::vector<std::string> preamble = tw::input::EnterInputFileBlock(inputString,"{");
+	// if an object has a name, it is expected to be the last string in the preamble
+	std::string object_name(preamble.back());
+
+	tw::module_type whichModule = Module::CreateTypeFromInput(preamble);
+	if (whichModule!=tw::module_type::nullModule)
+	{
+		if (Module::SingularType(whichModule))
+			if (module_type_exists(whichModule))
+				throw tw::FatalError("Singular module type was created twice.  Check order of input file.");
+		createdModuleTypes.push_back(whichModule);
+		MangleModuleName(object_name);
+		(*tw_out) << "Installing Module " << object_name << "..." << std::endl;
+		module.push_back(Module::CreateObjectFromType(object_name,whichModule,this));
+		module.back()->ReadInputFileBlock(inputString);
+	}
+	else
+		throw tw::FatalError("Module type not recognized: " + preamble[0]);
+
+	bool added = sup->AddSubmodule(module.back());
+	if (!added)
+		throw tw::FatalError("Unhandled " + preamble[0] + ". Check order of input file.");
+}
+
 void Grid::ReadInputFile()
 {
 	Lock();
 
-	tw::Int i;
-	std::string com1,com2,word,filename;
-
-	std::string name;
-	tw::Float w0,k0;
+	std::string com1,word;
 	Profile* theProfile;
-
-	Chemistry *chemBoss = NULL;
-	Kinetics *parBoss = NULL;
-	Electromagnetic *EMBoss = NULL;
-
-	w0 = 0.0;
-	k0 = 0.0;
+	std::ifstream inFile;
+	std::stringstream inputString;
 
 	(*tw_out) << std::endl << "Reading Input File..." << std::endl << std::endl;
 
-	std::ifstream inFile;
-	std::stringstream inputString;
 	OpenInputFile(inFile);
 	PreprocessInputFile(inFile,inputString);
 	inFile.close();
 
 	inputString.seekg(0);
+
+	bool module_type_exists = [&] (tw::module_type whichType)
+	{
+		return std::find(createdModuleTypes.begin(),createdModuleTypes.end(),whichType) != createdModuleTypes.end();
+	};
 
 	do
 	{
@@ -1358,227 +1431,125 @@ void Grid::ReadInputFile()
 
 		if (com1=="new")
 		{
-			inputString >> com2;
+			// Get the preamble = words that come between "new" and the opening brace
+			std::vector<std::string> preamble = tw::input::EnterInputFileBlock(inputString,"{");
+			// if an object has a name, it is expected to be the last string in the preamble
+			std::string object_name(preamble.back());
 
-			if (com2=="wave")
+			// Straight tool installation
+			tw::tool_type whichTool = ComputeTool::CreateTypeFromInput(preamble);
+			if (whichTool!=tw::tool_type::nullTool)
+			{
+				(*tw_out) << "Installing Tool " << object_name << "..." << std::endl;
+				if (MangleToolName(object_name))
+					throw tw::FatalError("Encountered duplicate tool name.");
+				computeTool.push_back(ComputeTool::CreateObjectFromType(object_name,whichTool,this,this));
+				computeTool.back()->ReadInputFileBlock(inputString);
+			}
+
+			// Handle modules whose creation is automatically triggered by another module
+			// Must do this before reading in the submodule
+			tw::module_type super_type = Module::CreateSupermoduleTypeFromSubmoduleKey(preamble[0]);
+			if (super_type!=tw::module_type::nullModule)
+				if (!module_type_exists(super_type) || !Module::SingularType(super_type))
+				{
+					(*tw_out) << "Installing super-Module automatically..." << std::endl;
+					createdModuleTypes.push_back(super_type);
+					object_name = "super";
+					MangleModuleName(object_name);
+					module.push_back(Module::CreateObjectFromType(object_name,super_type,this));
+				}
+
+			// Straight module installation
+			tw::module_type whichModule = Module::CreateTypeFromInput(preamble);
+			if (whichModule!=tw::module_type::nullModule)
+			{
+				if (Module::SingularType(whichModule))
+					if (module_type_exists(whichModule))
+						throw tw::FatalError("Singular module type was created twice.  Check order of input file.");
+				createdModuleTypes.push_back(whichModule);
+				MangleModuleName(object_name);
+				(*tw_out) << "Installing Module " << object_name << "..." << std::endl;
+				module.push_back(Module::CreateObjectFromType(object_name,whichModule,this));
+				module.back()->ReadInputFileBlock(inputString);
+			}
+
+			// Handle containment of submodules
+			// This is used for supermodules that were automatically created.
+			// Submodules that are defined inside a supermodule block should never see this code.
+			// The most recently created valid supermodule is selected.
+			if (super_type!=tw::module_type::nullModule)
+			{
+				bool added = false;
+				for (auto it=module.end();it>=module.begin();--it)
+				{
+					added = (*it)->AddSubmodule(module.back());
+					if (added)
+						break;
+				}
+				if (!added)
+					throw tw::FatalError("Unhandled " + preamble[0] + ". Check order of input file.");
+			}
+
+			// Handle low level objects (not modules or tools) that should be owned by a module
+			// The module must know how to read the block, or delegate it to the quasitool
+			if (Module::QuasitoolNeedsModule(preamble))
+			{
+				bool processed = false;
+				for (tw::Int i=0;i<module.size();i++)
+					processed = processed || module[i]->ReadQuasitoolBlock(preamble,inputString)
+				if (!processed)
+					throw tw::FatalError("Unhandled " + preamble[0] + ". Check order of input file.");
+			}
+
+			// Need to add code to:
+			// check if laser solvers installed a propagator
+			// auto creation of groups (perhaps let chemistry object handle upon initialization)
+
+			// The remaining objects are explicitly managed by Grid
+			// Perhaps they should be repackaged as ComputeTool objects
+
+			if (preamble[0]=="wave")
 			{
 				wave.push_back(new Wave(gaussianDeviate));
-				wave.back()->ReadInputFile(inputString,com2);
+				wave.back()->ReadInputFile(inputString,preamble[0]);
 				wave.back()->pulseShape.delay += dth;
 			}
 
-			if (com2=="pulse")
+			if (preamble[0]=="pulse")
 			{
 				pulse.push_back(new Pulse(gaussianDeviate));
-				pulse.back()->ReadInputFile(inputString,com2);
-				if (w0==0.0)
-				{
-					(*tw_out) << "WARNING: pulse declared before laser solver" << std::endl;
-					pulse.back()->w0 = pulse.back()->w;
-					pulse.back()->k0 = pulse.back()->w * pulse.back()->nrefr;
-				}
-				else
-				{
-					pulse.back()->w0 = w0;
-					pulse.back()->k0 = k0;
-				}
+				pulse.back()->ReadInputFile(inputString,preamble[0]);
 			}
 
-			if (com2=="region")
+			if (preamble[0]=="region")
 			{
-				inputString >> word;
-				Region *curr = Region::CreateObjectFromString(clippingRegion,word);
-				inputString >> curr->name;
-				curr->ReadInputFileBlock(inputString);
-				clippingRegion.push_back(curr);
+				clippingRegion.push_back(Region::CreateObjectFromString(clippingRegion,preamble[1]));
+				clippingRegion.back()->name = preamble[2];
+				clippingRegion.back()->ReadInputFileBlock(inputString);
 			}
 
-			if (com2=="conductor")
+			if (preamble[0]=="conductor")
 			{
 				conductor.push_back(new Conductor(clippingRegion));
-				conductor.back()->ReadInputFile(inputString,com2);
+				conductor.back()->ReadInputFile(inputString,preamble[0]);
 			}
 
-			if (com2=="electrostatic") // eg, new electrostatic field solver
-			{
-				inputString >> word >> word;
-				(*tw_out) << "Install Electrostatic Field Solver" << std::endl;
-				module.push_back(new Electrostatic(this));
-				module.back()->ReadInputFileBlock(inputString);
-			}
-
-			if (com2=="coulomb") // eg, new coulomb field solver
-			{
-				inputString >> word >> word;
-				(*tw_out) << "Install Coulomb Solver" << std::endl;
-				EMBoss = new CoulombSolver(this);
-				module.push_back(EMBoss);
-				module.back()->ReadInputFileBlock(inputString);
-			}
-
-			if (com2=="PML" || com2=="pml" || com2=="direct")
-			{
-				inputString >> word >> word;
-				(*tw_out) << "Install Direct Solver" << std::endl;
-				EMBoss = new DirectSolver(this);
-				module.push_back(EMBoss);
-				module.back()->ReadInputFileBlock(inputString);
-			}
-
-			if (com2=="curvilinear")
-			{
-				inputString >> word;
-				if (word=="direct") // eg, new curvilinear direct solver
-				{
-					inputString >> word;
-					(*tw_out) << "Install Curvilinear Direct Solver" << std::endl;
-					EMBoss = new CurvilinearDirectSolver(this);
-					module.push_back(EMBoss);
-					module.back()->ReadInputFileBlock(inputString);
-				}
-				if (word=="coulomb") // eg, new curvilinear coulomb solver
-				{
-					throw tw::FatalError("curvilinear Coulomb not supported this version");
-				}
-			}
-
-			if (com2=="quasistatic") // eg, new quasistatic laser module
-			{
-				inputString >> word >> word;
-				(*tw_out) << "Install QS Laser Solver" << std::endl;
-				module.push_back(new QSSolver(this));
-				module.back()->ReadInputFileBlock(inputString);
-				w0 = ((LaserSolver*)module.back())->laserFreq;
-				k0 = w0;
-				if (((LaserSolver*)module.back())->propagator==NULL)
-					throw tw::FatalError("no laser propagator was specified");
-			}
-
-			if (com2=="pgc" || com2=="PGC") // eg, new PGC laser module
-			{
-				inputString >> word >> word;
-				(*tw_out) << "Install PGC Laser Solver" << std::endl;
-				module.push_back(new PGCSolver(this));
-				module.back()->ReadInputFileBlock(inputString);
-				w0 = ((LaserSolver*)module.back())->laserFreq;
-				k0 = w0;
-				if (((LaserSolver*)module.back())->propagator==NULL)
-					throw tw::FatalError("no laser propagator was specified");
-			}
-
-			if (com2=="bound")
-			{
-				module.push_back(new BoundElectrons(this));
-				inputString >> module.back()->name;
-				module.back()->ReadInputFileBlock(inputString);
-			}
-
-			if (com2=="atomic" || com2=="schroedinger") // eg, new atomic physics module
-			{
-				inputString >> word >> word;
-				module.push_back(new Schroedinger(this));
-				module.back()->ReadInputFileBlock(inputString);
-			}
-
-			if (com2=="pauli") // eg, new pauli equation module
-			{
-				inputString >> word >> word;
-				module.push_back(new Pauli(this));
-				module.back()->ReadInputFileBlock(inputString);
-			}
-
-			if (com2=="klein") // eg, new klein gordon module
-			{
-				inputString >> word >> word;
-				module.push_back(new KleinGordon(this));
-				module.back()->ReadInputFileBlock(inputString);
-			}
-
-			if (com2=="dirac") // eg, new dirac module
-			{
-				inputString >> word;
-				module.push_back(new Dirac(this));
-				module.back()->ReadInputFileBlock(inputString);
-			}
-
-			if (com2=="fluid")
-			{
-				module.push_back(new Fluid(this));
-				inputString >> module.back()->name;
-				module.back()->ReadInputFileBlock(inputString);
-			}
-
-			if (com2=="species")
-			{
-				if (parBoss==NULL)
-					module.push_back(parBoss = new Kinetics(this));
-
-				Species *new_species = new Species(this);
-				new_species->parBoss = parBoss;
-				module.push_back(new_species);
-				parBoss->species.push_back(new_species);
-				inputString >> new_species->name;
-				new_species->ReadInputFileBlock(inputString);
-			}
-
-			if (com2=="chemistry")
-			{
-				module.push_back(chemBoss = new Chemistry(this));
-				module.back()->ReadInputFileBlock(inputString);
-			}
-
-			if (com2=="group" || com2=="chemical")
-			{
-				if (chemBoss==NULL)
-					module.push_back(chemBoss = new Chemistry(this));
-
-				EquilibriumGroup *new_group = new EquilibriumGroup(this);
-				new_group->chemBoss = chemBoss;
-				module.push_back(new_group);
-				chemBoss->group.push_back(new_group);
-				inputString >> new_group->name;
-				if (com2=="group")
-					new_group->ReadInputFileBlock(inputString);
-				else
-					new_group->ReadOneChemical(inputString,"");
-			}
-
-			if (com2=="reaction" || com2=="thermalization" || com2=="excitation" || com2=="collision")
-			{
-				if (chemBoss==NULL)
-					throw tw::FatalError("encountered reaction/thermalization/excitation/collision before chemicals were defined");
-				chemBoss->ReadInputFileTerm(inputString,com2);
-			}
-
-			if (com2=="phase" || com2=="orbit" || com2=="detector")
-			{
-				if (parBoss==NULL)
-					throw tw::FatalError("encountered a particle diagnostic before species were defined");
-				parBoss->ReadInputFileTerm(inputString,com2);
-			}
-
-			if (com2=="far-field") // eg, new far-field diagnostic { ... }
-			{
-				if (EMBoss==NULL)
-					throw tw::FatalError("encountered far-field diagnostic before field solver was defined");
-				EMBoss->ReadInputFileTerm(inputString,com2);
-			}
-
-			if (com2=="energy") // eg, new energy series { ... }
+			if (preamble[0]=="energy") // eg, new energy series { ... }
 			{
 				inputString >> word >> word;
 				energyDiagnostic.push_back(new EnergySeriesDescriptor(clippingRegion));
 				energyDiagnostic.back()->ReadInputFile(inputString);
 			}
 
-			if (com2=="point") // eg, new point series { ... }
+			if (preamble[0]=="point") // eg, new point series { ... }
 			{
 				inputString >> word	>> word;
 				pointDiagnostic.push_back(new PointSeriesDescriptor(clippingRegion));
 				pointDiagnostic.back()->ReadInputFile(inputString);
 			}
 
-			if (com2=="box") // eg, new box series { ... }
+			if (preamble[0]=="box") // eg, new box series { ... }
 			{
 				inputString >> word >> word;
 				boxDiagnostic.push_back(new GridDataDescriptor(clippingRegion));
@@ -1588,13 +1559,13 @@ void Grid::ReadInputFile()
 
 		if (com1=="generate")
 		{
-			inputString >> com2;
-			inputString >> name >> word;
-			theProfile = tw::input::GetProfile(this,name,com2);
+			std::string key,name;
+			inputString >> key >> name >> word;
+			theProfile = tw::input::GetProfile(this,name,key);
 
 			if (theProfile!=NULL)
 			{
-				(*tw_out) << "Create " << com2 << " " << name << std::endl;
+				(*tw_out) << "Create " << key << " " << name << std::endl;
 				theProfile->ReadInputFileBlock(inputString,neutralize);
 				(*tw_out) << "   Clipping region = " << theProfile->theRgn->name << std::endl;
 			}
@@ -1661,12 +1632,6 @@ void Grid::ReadInputFile()
 		{
 			inputString >> word >> word >> dumpPeriod;
 			(*tw_out) << "Dump Period = " << dumpPeriod << std::endl;
-		}
-
-		if (com1=="sort") // eg, sort = ( 0 , 0 , 1 ) every 100 steps
-		{
-			inputString >> word >> sortX >> sortY >> sortZ >> word >> sortPeriod >> word;
-			(*tw_out) << "Sort Period = " << sortPeriod << std::endl;
 		}
 
 		if (com1=="neutralize") // eg, neutralize = yes

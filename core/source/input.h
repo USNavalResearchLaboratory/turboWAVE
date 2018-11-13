@@ -16,6 +16,12 @@ namespace tw
 		void ReadBoundaryTerm(tw_boundary_spec *low,tw_boundary_spec *high,std::stringstream& theString,std::string& command);
 
 		void NormalizeInput(const UnitConverter& uc,std::string& in_out);
+
+		bool GetQuotedString(std::string& str);
+
+		std::vector<std::string> EnterInputFileBlock(std::stringstream& inputString,const std::string& end_key);
+
+		void ExitInputFileBlock(std::stringstream& inputString);
 	}
 }
 

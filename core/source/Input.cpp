@@ -154,3 +154,44 @@ void tw::input::NormalizeInput(const UnitConverter& uc,std::string& in_out)
 		}
 	}
 }
+
+bool tw::input::GetQuotedString(std::string& str)
+{
+	bool isLeftQuote = str.front()=='\'' || str.front()=='\"';
+	bool isRightQuote = str.back()=='\'' || str.back()=='\"';
+	if (isLeftQuote && isRightQuote)
+	{
+		str.pop_back();
+		str = str.substr(1)
+		return true;
+	}
+	return false;
+}
+
+std::vector<std::string> tw::input::EnterInputFileBlock(std::stringstream& inputString,const std::string& end_key)
+{
+	std::string word;
+	std::vector<std::string> preamble;
+	do
+	{
+		inputString >> word;
+		if (word!=end_key)
+			preamble.push_back(std::string(word));
+	} while (word!=end_key)
+	return preamble;
+}
+
+void tw::input::ExitInputFileBlock(std::stringstream& inputString)
+{
+	std::string word;
+	tw::Int leftCount=0;
+	tw::Int rightCount=0;
+	do
+	{
+		inputString >> word;
+		if (word=="{")
+			leftCount++;
+		if (word=="}")
+			rightCount++;
+	} while (leftCount==0 || leftCount>rightCount);
+}

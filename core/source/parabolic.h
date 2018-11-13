@@ -7,7 +7,7 @@ struct LaserPropagator:ComputeTool
 	tw_polarization_type polarization;
 	bool movingWindow;
 
-	LaserPropagator(MetricSpace *m,Task *tsk,bool shared);
+	LaserPropagator(const std::string& name,MetricSpace *m,Task *tsk);
 	virtual ~LaserPropagator();
 	void SetData(tw::Float w0,tw::Float dt,tw_polarization_type pol,bool mov);
 	void SetBoundaryConditions(ComplexField& a0,ComplexField& a1,ComplexField& chi);
@@ -19,7 +19,7 @@ struct EigenmodePropagator:LaserPropagator
 	std::valarray<tw::Float> eigenvalue,hankel,inverseHankel;
 	GlobalIntegrator<tw::Complex>* globalIntegrator;
 
-	EigenmodePropagator(MetricSpace *m,Task *tsk,bool shared);
+	EigenmodePropagator(const std::string& name,MetricSpace *m,Task *tsk);
 	virtual ~EigenmodePropagator();
 	virtual void Initialize();
 	virtual void Advance(ComplexField& a0,ComplexField& a1,ComplexField& chi);
@@ -33,7 +33,7 @@ struct ADIPropagator:LaserPropagator
 	std::valarray<tw::Complex> Y1,Y2,Y3;
 	bool evenTime;
 
-	ADIPropagator(MetricSpace *m,Task *tsk,bool shared);
+	ADIPropagator(const std::string& name,MetricSpace *m,Task *tsk);
 	virtual ~ADIPropagator();
 	virtual void Initialize();
 	virtual void Advance(ComplexField& a0,ComplexField& a1,ComplexField& chi);
@@ -47,7 +47,7 @@ struct SchroedingerPropagator:ComputeTool
 {
 	std::vector<GlobalIntegrator<tw::Complex>*> globalIntegrator;
 
-	SchroedingerPropagator(MetricSpace *m,Task *tsk,bool shared);
+	SchroedingerPropagator(const std::string& name,MetricSpace *m,Task *tsk);
 	virtual ~SchroedingerPropagator();
 	virtual void Initialize();
 	virtual void DepositCurrent(const axisSpec& axis,ComplexField& psi0,ComplexField& psi1,Field& A4,Field& J4,tw::Complex dt);
@@ -60,7 +60,7 @@ struct ParabolicSolver:ComputeTool
 {
 	std::vector<GlobalIntegrator<tw::Float>*> globalIntegrator;
 
-	ParabolicSolver(MetricSpace *m,Task *tsk,bool shared);
+	ParabolicSolver(const std::string& name,MetricSpace *m,Task *tsk);
 	virtual ~ParabolicSolver();
 	virtual void Initialize();
 
@@ -91,7 +91,7 @@ struct IsotropicPropagator:ComputeTool
 	GlobalIntegrator<tw::Complex>* zGlobalIntegrator;
 	std::valarray<tw::Complex> Z1,Z2,Z3;
 
-	IsotropicPropagator(MetricSpace *m,Task *tsk,bool shared);
+	IsotropicPropagator(const std::string& name,MetricSpace *m,Task *tsk);
 	virtual ~IsotropicPropagator();
 	virtual void Initialize();
 

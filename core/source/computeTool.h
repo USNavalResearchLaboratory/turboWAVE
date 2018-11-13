@@ -2,50 +2,32 @@
 // They retain pointers to MetricSpace (grid information) and Task (access to MPI communicators).
 // A facility for interfacing with OpenCL kernels is provided.
 
-// All ComputeTool types must be named in the enumerated type tw_tool.
-// These can be any unique name in the global namespace.
+// Each class of tool has a unique identifier of type tw::tool_type.
+// Each instance of a tool has a unique name encoded as a string.
+// To avoid duplicate names, there is an automatic name mangling mechanism.
+// Automatic mangling relies on always creating a tool via Grid::CreateTool
 
-// NEVER create ComputeTool instances directly.
-// To create an instance of a specific tool, call Grid::AddSharedTool or Grid::AddPrivateTool
-// with a tw_tool type-code as the argument.  The former call creates a tool that is shared
-// between modules (subsequent calls return a pointer to the existing tool).  The latter creates
-// a new tool each time it is called.
+// Module and ComputeTool are somewhat similar.
+// ComputeTool is intended to be heavy on computations, light on data ownership.
+// Module is intended to own and manage data, while delegating heavy computations.
 
-// ComputeTools should typically be instantiated in Module constructors.
-// Grid::PrepareSimulation calls ComputeTool::Initialize before Module::Initialize.
-
-// Information from Modules is passed to ComputeTools in arguments of methods of derived classes.
-// These methods need not follow any particular protocol.
-// A method that advances data in time is conventionally called "Advance."
-
-// ComputeTools should be designed so that data that would be needed for a restart is
-// external to the tool (i.e., all state data is directly owned by Modules).
-
-// Adding a new type of tool:
-// 1. Give it a name (type-code) and add to the tw_tool enumerated type
-// 2. Define the interface in a header file
-//   2a. Needs at least constructor and some defining method or methods (e.g., Advance)
-//   2b. Overriding Initialize is optional
-// 3. Define the implementation in a cpp file that includes the new/modified header
-//   3a. Module-owned fields can be passed in as arguments by reference
-//   3b. space and task members provide grid and domain decomposition information
-// 4. Add a case to static member CreateObjectFromType
-
-enum tw_tool {		nullTool,
-					eigenmodePropagator, adiPropagator, isotropicPropagator,
-					iterativePoissonSolver, facrPoissonSolver, eigenmodePoissonSolver, ellipticSolver1D,
-					generalParabolicPropagator, schroedingerPropagator,
-					yeePropagatorPML, lorentzPropagator, eosDataTool, eosIdealGas, eosHotElectrons, // ASHER_MOD
-					eosMixture, eosIdealGasMix, eosMieGruneisen, eosMieGruneisen2  };
+namespace tw
+{
+	enum class tool_type {		nullTool,
+		eigenmodePropagator, adiPropagator, isotropicPropagator,
+		iterativePoissonSolver, facrPoissonSolver, eigenmodePoissonSolver, ellipticSolver1D,
+		generalParabolicPropagator, schroedingerPropagator,
+		yeePropagatorPML, lorentzPropagator, eosData, eosIdealGas, eosHotElectrons, // ASHER_MOD
+		eosMixture, eosIdealGasMix, eosMieGruneisen, eosMieGruneisen2  };
+}
 
 struct ComputeTool
 {
 	MetricSpace *space;
 	Task *task;
-	tw_tool typeCode;
+	tw::tool_type typeCode;
 	std::string name;
-	bool sharedTool; // if true only one instance per MPI task
-	int refCount; // used to manage releasing shared tools from memory
+	int refCount; // how many modules currently using
 
 	// OpenCL Support
 	private:
@@ -56,11 +38,20 @@ struct ComputeTool
 	cl_program program;
 	#endif
 
-	ComputeTool(MetricSpace *ms,Task *tsk,bool shared);
+	ComputeTool(const std::string& name,MetricSpace *ms,Task *tsk);
 	virtual ~ComputeTool();
 	virtual void Initialize();
 	void InitializeCLProgram(const std::string& filename);
-	static ComputeTool* CreateObjectFromType(tw_tool theType,MetricSpace *ms,Task *tsk,bool shared);
 	virtual void WarningMessage(std::ostream *theStream);
 	virtual void StatusMessage(std::ostream *theStream) {;}
+	virtual void ReadInputFileBlock(std::stringstream& inputString);
+	virtual void ReadInputFileDirective(std::stringstream& inputString,const std::string& command);
+	virtual void ReadData(std::ifstream& inFile);
+	virtual void WriteData(std::ofstream& outFile);
+	virtual void SaveToolReference(std::ofstream& outFile);
+
+	static tw::tool_type CreateTypeFromInput(const std::vector<std::string>& preamble);
+	static ComputeTool* CreateObjectFromType(const std::string& name,tw::tool_type theType,MetricSpace *ms,Task *tsk);
+	static ComputeTool* CreateObjectFromFile(std::ifstream& inFile,MetricSpace *ms,Task *tsk);
+	static tw::tool_type CreateTypeFromDirective(std::stringstream& inputString,const std::string& command);
 };

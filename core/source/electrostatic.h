@@ -11,7 +11,7 @@ struct Electrostatic:FieldSolver
 	virtual void ExchangeResources();
 	virtual void Reset();
 	virtual void Update();
-	virtual void ReadInputFileTerm(std::stringstream& inputString,std::string& command);
+	virtual void ReadInputFileDirective(std::stringstream& inputString,const std::string& command);
 	virtual void ReadData(std::ifstream& inFile);
 	virtual void WriteData(std::ofstream& outFile);
 

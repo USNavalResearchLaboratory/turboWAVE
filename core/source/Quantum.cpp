@@ -698,10 +698,10 @@ tw::vec4 AtomicPhysics::GetA4AtOrigin()
 	return A;
 }
 
-void AtomicPhysics::ReadInputFileTerm(std::stringstream& inputString,std::string& command)
+void AtomicPhysics::ReadInputFileDirective(std::stringstream& inputString,const std::string& command)
 {
 	std::string word;
-	Module::ReadInputFileTerm(inputString,command);
+	Module::ReadInputFileDirective(inputString,command);
 	// note: examples of charge are geared toward atomic units
 	// if using natural units, unit of charge is sqrt(alpha) ~ 0.085
 	// at present unit conversions are not performed in quantum modules---you have to enter it as it will be used

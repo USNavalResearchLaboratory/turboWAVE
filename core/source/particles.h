@@ -194,7 +194,6 @@ struct LoadingData
 
 struct Species:Module
 {
-	Kinetics *parBoss;
 	tw::Float restMass,charge;
 	tw::vec3 emissionTemp;
 	tw::vec3 distributionInCell;
@@ -250,7 +249,8 @@ struct Species:Module
 	void DepositInitialCharge(const tw::vec3& pos,tw::Float macroCharge);
 	void CalculateDensity(ScalarField& dens);
 
-	virtual void ReadInputFileTerm(std::stringstream& inputString,std::string& command);
+	virtual void ReadInputFileDirective(std::stringstream& inputString,const std::string& command);
+	virtual bool ReadQuasitoolBlock(const std::vector<std::string>& preamble,std::stringstream& inputString);
 	virtual void ReadData(std::ifstream& inFile);
 	virtual void WriteData(std::ofstream& outFile);
 	virtual void EnergyHeadings(std::ofstream& outFile);
@@ -269,7 +269,7 @@ struct Species:Module
 
 struct Kinetics:Module
 {
-	std::vector<Species*> species;
+	std::vector<Species*> species; // explicitly typed copy of submodule list
 
 	ScalarField rho00;
 	Field* sources;
@@ -278,6 +278,7 @@ struct Kinetics:Module
 
 	Kinetics(Grid* theGrid);
 	virtual void Initialize();
+	virtual bool AddSubmodule(Module* sub);
 	virtual void ExchangeResources();
 	virtual bool InspectResource(void* resource,const std::string& description);
 	virtual void Update();
@@ -289,7 +290,6 @@ struct Kinetics:Module
 	virtual void EnergyColumns(std::vector<tw::Float>& cols,std::vector<bool>& avg,const Region& theRgn);
 	tw::Float KineticEnergy(const Region& theRgn);
 
-	virtual void ReadInputFileTerm(std::stringstream& inputString,std::string& command);
 	virtual void ReadData(std::ifstream& inFile);
 	virtual void WriteData(std::ofstream& outFile);
 };

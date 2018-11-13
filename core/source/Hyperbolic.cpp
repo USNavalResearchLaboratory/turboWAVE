@@ -17,7 +17,7 @@
 //////////////////////////////////////////
 
 
-YeePropagatorPML::YeePropagatorPML(MetricSpace *m,Task *tsk,bool shared) : ComputeTool(m,tsk,shared)
+YeePropagatorPML::YeePropagatorPML(const std::string& name,MetricSpace *m,Task *tsk) : ComputeTool(name,m,tsk)
 {
 	name = "yee_update_tool";
 	typeCode = yeePropagatorPML;
@@ -358,7 +358,7 @@ void YeePropagatorPML::UpdateInteriorBoundaryB(Field& A,const ScalarField& condu
 //////////////////////////////////////////////
 
 
-LorentzPropagator::LorentzPropagator(MetricSpace *m,Task *tsk,bool shared) : ComputeTool(m,tsk,shared)
+LorentzPropagator::LorentzPropagator(const std::string& name,MetricSpace *m,Task *tsk) : ComputeTool(name,m,tsk)
 {
 	name = "lorentz_propagator_tool";
 	typeCode = lorentzPropagator;

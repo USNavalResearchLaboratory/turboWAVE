@@ -23,6 +23,19 @@ void Kinetics::Initialize()
 	Module::Initialize();
 }
 
+bool Kinetics::AddSubmodule(Module* sub)
+{
+	if (sub->typeCode==tw::module_type::species)
+	{
+		species.push_back(sub);
+		submodule.push_back(sub);
+		sub->super = this;
+		return true;
+	}
+	else
+		return false;
+}
+
 void Kinetics::ExchangeResources()
 {
 	PublishResource(&rho00,"kinetics:rho00");
@@ -229,8 +242,8 @@ void Kinetics::Ionize()
 	{
 		IonizationData& ionization = species[s]->ionization;
 		std::vector<Particle>& particle = species[s]->particle;
-		s1 = species[ionization.ionSpecies];
-		s2 = species[ionization.electronSpecies];
+		s1 = (Species*)owner->module[ionization.ionSpecies];
+		s2 = (Species*)owner->module[ionization.electronSpecies];
 		m0 = species[s]->restMass;
 		q0 = species[s]->charge;
 
@@ -347,69 +360,6 @@ tw::Float Kinetics::KineticEnergy(const Region& theRgn)
 		}
 	}
 	return ans;
-}
-
-void Kinetics::ReadInputFileTerm(std::stringstream& inputString,std::string& command)
-{
-	tw::Int i;
-	std::string word;
-	if (command=="phase") // eg, new phase space plot for electrons { ... }
-	{
-		inputString >> word >> word >> word >> word;
-		if (species.size()==0)
-			(*owner->tw_out) << "Couldn't find species " << word << std::endl;
-		else
-		{
-			for (i=0;i<species.size();i++)
-				if (species[i]->name==word)
-					break;
-			if (species[i]->name==word)
-			{
-				species[i]->phaseSpacePlot.push_back(new PhaseSpaceDescriptor(owner->clippingRegion));
-				species[i]->phaseSpacePlot.back()->ReadInputFile(inputString);
-			}
-			else
-				(*owner->tw_out) << "Couldn't find species " << word << std::endl;
-		}
-	}
-	if (command=="orbit") // eg, new orbit diagnostic for electrons { ... }
-	{
-		inputString >> word	>> word >> word;
-		if (species.size()==0)
-			(*owner->tw_out) << "Couldn't find species " << word << std::endl;
-		else
-		{
-			for (i=0;i<species.size();i++)
-				if (species[i]->name==word)
-					break;
-			if (species[i]->name==word)
-			{
-				species[i]->orbitDiagnostic.push_back(new ParticleOrbitDescriptor(owner->clippingRegion));
-				species[i]->orbitDiagnostic.back()->ReadInputFile(inputString);
-			}
-			else
-				(*owner->tw_out) << "Couldn't find species " << word << std::endl;
-		}
-	}
-	if (command=="detector") // eg, new detector diagnostic for electrons { ... }
-	{
-		inputString >> word	>> word >> word;
-		if (species.size()==0)
-			(*owner->tw_out) << "Couldn't find species " << word << std::endl;
-		else
-		{
-			for (i=0;i<species.size();i++)
-				if (species[i]->name==word)
-					break;
-			if (species[i]->name==word)
-			{
-				species[i]->detector.push_back(new ParticleDetectorDescriptor(owner->clippingRegion));
-				species[i]->detector.back()->ReadInputFile(inputString);
-			}
-			else
-				(*owner->tw_out) << "Couldn't find species " << word << std::endl;
-		}
-	}
 }
 
 void Kinetics::ReadData(std::ifstream& inFile)
@@ -1148,12 +1098,12 @@ void Species::FinishMoveWindow()
 	}
 }
 
-void Species::ReadInputFileTerm(std::stringstream& inputString,std::string& command)
+void Species::ReadInputFileDirective(std::stringstream& inputString,const std::string& command)
 {
 	tw::Int i;
 	std::string word;
 
-	ionization.ReadInputFileTerm(inputString,command);
+	ionization.ReadInputFileDirective(inputString,command);
 
 	if (command=="sort") // eg, sort period = 100
 	{
@@ -1192,19 +1142,36 @@ void Species::ReadInputFileTerm(std::stringstream& inputString,std::string& comm
 	if (command=="ion") // eg, ion species = N3
 	{
 		inputString >> word >> word >> word;
-		for (i=0;i<parBoss->species.size();i++)
-			if (parBoss->species[i]->name==word)
-				ionization.ionSpecies = i;
+		ionization.ionSpecies = owner->FindModule(word);
 	}
 	if (command=="electron") // eg, electron species = electrons
 	{
 		inputString >> word >> word >> word;
-		for (i=0;i<parBoss->species.size();i++)
-			if (parBoss->species[i]->name==word)
-				ionization.electronSpecies = i;
+		ionization.electronSpecies = owner->FindModule(word);
 	}
 	if (command=="xboundary" || command=="yboundary" || command=="zboundary" ) // eg, xboundary = emitting emitting
 		tw::input::ReadBoundaryTerm(bc0,bc1,inputString,command);
+}
+
+bool Species::ReadQuasitoolBlock(const std::vector<std::string>& preamble,std::stringstream& inputString)
+{
+	std::string key(preamble[0]);
+	std::string requested_name(preamble.back());
+	if (command=="phase" && requested_name==name) // eg, new phase space plot for electrons { ... }
+	{
+		phaseSpacePlot.push_back(new PhaseSpaceDescriptor(owner->clippingRegion));
+		phaseSpacePlot.back()->ReadInputFile(inputString);
+	}
+	if (command=="orbit" && requested_name==name) // eg, new orbit diagnostic for electrons { ... }
+	{
+		orbitDiagnostic.push_back(new ParticleOrbitDescriptor(owner->clippingRegion));
+		orbitDiagnostic.back()->ReadInputFile(inputString);
+	}
+	if (command=="detector" && requested_name==name) // eg, new detector diagnostic for electrons { ... }
+	{
+		detector.push_back(new ParticleDetectorDescriptor(owner->clippingRegion));
+		detector.back()->ReadInputFile(inputString);
+	}
 }
 
 void Species::ReadData(std::ifstream& inFile)

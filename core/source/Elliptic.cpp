@@ -16,16 +16,11 @@
 //////////////////////////////////
 
 
-EllipticSolver::EllipticSolver(MetricSpace *m,Task *tsk,bool shared) : ComputeTool(m,tsk,shared)
+EllipticSolver::EllipticSolver(const std::string& name,MetricSpace *m,Task *tsk) : ComputeTool(name,m,tsk)
 {
 	coeff = NULL;
 	x0 = x1 = y0 = y1 = z0 = z1 = none;
-	maxIterations = 1000;
-	tolerance = 1e-8;
-	overrelaxation = 1.9;
-	minimumNorm = tw::small_pos;
 	gammaBeam = 1.0;
-	name = "elliptic_solver";
 }
 
 void EllipticSolver::Initialize()
@@ -75,7 +70,14 @@ void EllipticSolver::SetCoefficients(ScalarField *coefficients)
 	coeff = coefficients;
 }
 
-void EllipticSolver::SetBoundaryConditions(ScalarField& phi,boundarySpec x0,boundarySpec x1,boundarySpec y0,boundarySpec y1,boundarySpec z0,boundarySpec z1)
+void EllipticSolver::SetBoundaryConditions(ScalarField& phi)
+{
+	phi.SetBoundaryConditions(xAxis,x0,x1);
+	phi.SetBoundaryConditions(yAxis,y0,y1);
+	phi.SetBoundaryConditions(zAxis,z0,z1);
+}
+
+void EllipticSolver::SetBoundaryConditions(boundarySpec x0,boundarySpec x1,boundarySpec y0,boundarySpec y1,boundarySpec z0,boundarySpec z1)
 {
 	this->x0 = x0;
 	this->y0 = y0;
@@ -83,9 +85,6 @@ void EllipticSolver::SetBoundaryConditions(ScalarField& phi,boundarySpec x0,boun
 	this->x1 = x1;
 	this->y1 = y1;
 	this->z1 = z1;
-	phi.SetBoundaryConditions(xAxis,x0,x1);
-	phi.SetBoundaryConditions(yAxis,y0,y1);
-	phi.SetBoundaryConditions(zAxis,z0,z1);
 }
 
 void EllipticSolver::SaveBoundaryConditions()
@@ -145,6 +144,68 @@ void EllipticSolver::ZeroModeGhostCellValues(tw::Float *phi0,tw::Float *phiN1,Sc
 	}
 }
 
+void EllipticSolver::ReadInputFileDirective(std::stringstream& inputString,const std::string& command)
+{
+	ComputeTool::ReadInputFileDirective(inputString,command);
+	if (command=="poisson") // eg, poisson boundary condition z = (open,open)
+	{
+		boundarySpec lowBC,highBC;
+		std::string whichAxis,theBC;
+		inputString >> word >> word >> whichAxis;
+		if (whichAxis=="=")
+			whichAxis = "z";
+		else
+			inputString >> word;
+
+		inputString >> word;
+		if (word=="none")
+			lowBC = none;
+		if (word=="open")
+			lowBC = natural;
+		if (word=="dirichlet")
+			lowBC = dirichletCell;
+		if (word=="neumann")
+			lowBC = neumannWall;
+
+		inputString >> word;
+		if (word=="none")
+			highBC = none;
+		if (word=="open")
+			highBC = natural;
+		if (word=="dirichlet")
+			highBC = dirichletCell;
+		if (word=="neumann")
+			highBC = neumannWall;
+
+		if (whichAxis=="x") { x0 = lowBC; x1 = highBC; }
+		if (whichAxis=="y") { y0 = lowBC; y1 = highBC; }
+		if (whichAxis=="z") { z0 = lowBC; z1 = highBC; }
+	}
+}
+
+void EllipticSolver::ReadData(std::ifstream& inFile)
+{
+	ComputeTool::ReadData(inFile);
+	inFile.read((char*)&x0,sizeof(x0));
+	inFile.read((char*)&x1,sizeof(x1));
+	inFile.read((char*)&y0,sizeof(y0));
+	inFile.read((char*)&y1,sizeof(y1));
+	inFile.read((char*)&z0,sizeof(z0));
+	inFile.read((char*)&z1,sizeof(z1));
+	inFile.read((char*)&gammaBeam,sizeof(gammaBeam));
+}
+
+void EllipticSolver::WriteData(std::ofstream& outFile)
+{
+	ComputeTool::WriteData(outFile);
+	outFile.write((char*)&x0,sizeof(x0));
+	outFile.write((char*)&x1,sizeof(x1));
+	outFile.write((char*)&y0,sizeof(y0));
+	outFile.write((char*)&y1,sizeof(y1));
+	outFile.write((char*)&z0,sizeof(z0));
+	outFile.write((char*)&z1,sizeof(z1));
+	outFile.write((char*)&gammaBeam,sizeof(gammaBeam));
+}
 
 
 /////////////////////////////////
@@ -155,10 +216,9 @@ void EllipticSolver::ZeroModeGhostCellValues(tw::Float *phi0,tw::Float *phiN1,Sc
 
 
 
-EllipticSolver1D::EllipticSolver1D(MetricSpace *m,Task *tsk,bool shared) : EllipticSolver(m,tsk,shared)
+EllipticSolver1D::EllipticSolver1D(const std::string& name,MetricSpace *m,Task *tsk) : EllipticSolver(name,m,tsk)
 {
-	name = "1d_elliptic_solver";
-	typeCode = ellipticSolver1D;
+	typeCode = tw::tool_type::ellipticSolver1D;
 	globalIntegrator = NULL;
 }
 
@@ -257,15 +317,18 @@ void EllipticSolver1D::Solve(ScalarField& phi,ScalarField& source,tw::Float mul)
 
 
 
-IterativePoissonSolver::IterativePoissonSolver(MetricSpace *m,Task *tsk,bool shared) : EllipticSolver(m,tsk,shared)
+IterativePoissonSolver::IterativePoissonSolver(const std::string& name,MetricSpace *m,Task *tsk) : EllipticSolver(name,m,tsk)
 {
-	name = "iterative_solver";
-	typeCode = iterativePoissonSolver;
+	typeCode = tw::tool_type::iterativePoissonSolver;
 	const tw::Int xDim = space->Dim(1);
 	const tw::Int yDim = space->Dim(2);
 	const tw::Int zDim = space->Dim(3);
 	mask1 = new char[xDim*yDim*zDim];
 	mask2 = new char[xDim*yDim*zDim];
+	maxIterations = 1000;
+	tolerance = 1e-8;
+	overrelaxation = 1.9;
+	minimumNorm = tw::small_pos;
 	iterationsPerformed = 0;
 	normSource = 0.0;
 	normResidualAchieved = 0.0;
@@ -502,6 +565,33 @@ void IterativePoissonSolver::StatusMessage(std::ostream *theStream)
 	*theStream << "   Norm[residual] = " << normResidualAchieved << std::endl;
 }
 
+void IterativePoissonSolver::ReadInputFileDirective(std::stringstream& inputString,const std::string& command)
+{
+	EllipticSolver::ReadInputFileDirective(inputString,command);
+	if (command=="tolerance")
+	{
+		inputString >> word >> tolerance;
+	}
+	if (command=="overrelaxation")
+	{
+		inputString >> word >> overrelaxation;
+	}
+}
+
+void IterativePoissonSolver::ReadData(std::ifstream& inFile)
+{
+	EllipticSolver::ReadData(inFile);
+	inFile.read((char*)&tolerance,sizeof(tolerance));
+	inFile.read((char*)&overrelaxation,sizeof(overrelaxation));
+}
+
+void IterativePoissonSolver::WriteData(std::ofstream& outFile)
+{
+	EllipticSolver::WriteData(outFile);
+	outFile.write((char*)&tolerance,sizeof(tolerance));
+	outFile.write((char*)&overrelaxation,sizeof(overrelaxation));
+}
+
 
 ///////////////////////////////
 //                           //
@@ -510,14 +600,13 @@ void IterativePoissonSolver::StatusMessage(std::ostream *theStream)
 ///////////////////////////////
 
 
-PoissonSolver::PoissonSolver(MetricSpace *m,Task *tsk,bool shared) : EllipticSolver(m,tsk,shared)
+PoissonSolver::PoissonSolver(const std::string& name,MetricSpace *m,Task *tsk) : EllipticSolver(name,m,tsk)
 {
 	globalIntegrator = NULL;
 	z0 = dirichletWall;
 	z1 = neumannWall;
 	x0 = x1 = y0 = y1 = periodic;
-	name = "FACR_solver";
-	typeCode = facrPoissonSolver;
+	typeCode = tw::tool_type::facrPoissonSolver;
 }
 
 PoissonSolver::~PoissonSolver()
@@ -726,13 +815,12 @@ void PoissonSolver::Solve(ScalarField& phi,ScalarField& source,tw::Float mul)
 ////////////////////////////////
 
 
-EigenmodePoissonSolver::EigenmodePoissonSolver(MetricSpace *m,Task *tsk,bool shared) : EllipticSolver(m,tsk,shared)
+EigenmodePoissonSolver::EigenmodePoissonSolver(const std::string& name,MetricSpace *m,Task *tsk) : EllipticSolver(name,m,tsk)
 {
 	globalIntegrator = NULL;
 	z0 = dirichletWall;
 	z1 = dirichletWall;
-	name = "eigenmode_solver";
-	typeCode = eigenmodePoissonSolver;
+	typeCode = tw::tool_type::eigenmodePoissonSolver;
 }
 
 EigenmodePoissonSolver::~EigenmodePoissonSolver()

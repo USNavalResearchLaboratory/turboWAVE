@@ -20,16 +20,15 @@
 //////////////////////////
 
 
-ComputeTool::ComputeTool(MetricSpace *ms,Task *tsk,bool shared)
+ComputeTool::ComputeTool(const std::string& name,MetricSpace *ms,Task *tsk)
 {
 	// Do not create ComputeTools directly.
-	// Instances are created through Grid::AddSharedTool or Grid::AddPrivateTool
+	// Instances are created through Grid::CreateTool
+	this->name = name;
 	space = ms;
 	task = tsk;
-	typeCode = nullTool;
-	sharedTool = false;
+	typeCode = tw::tool_type::nullTool;
 	refCount = 0;
-	name = "tw_tool";
 	programFilename = "";
 	buildLog = "";
 }
@@ -58,73 +57,18 @@ void ComputeTool::InitializeCLProgram(const std::string& filename)
 	#endif
 }
 
-ComputeTool* ComputeTool::CreateObjectFromType(tw_tool theType,MetricSpace *ms,Task *tsk,bool shared)
+void ComputeTool::ReadInputFileDirective(std::stringstream& inputString,const std::string& command)
 {
-	// Called by Grid::AddSharedTool or Grid::AddPrivateTool
-	ComputeTool *ans;
-	switch (theType)
+}
+
+void ComputeTool::ReadInputFileBlock(std::stringstream& inputString)
+{
+	std::string com;
+	do
 	{
-		case nullTool:
-			break;
-		case eigenmodePropagator:
-			ans = new EigenmodePropagator(ms,tsk,shared);
-			break;
-		case adiPropagator:
-			ans = new ADIPropagator(ms,tsk,shared);
-			break;
-		//case conservativePropagator:
-	//		ans = new ConservativePropagator(ms,tsk,shared);
-	//		break;
-		case isotropicPropagator:
-			ans = new IsotropicPropagator(ms,tsk,shared);
-			break;
-		case generalParabolicPropagator:
-			ans = new ParabolicSolver(ms,tsk,shared);
-			break;
-		case schroedingerPropagator:
-			ans = new SchroedingerPropagator(ms,tsk,shared);
-			break;
-		case iterativePoissonSolver:
-			ans = new IterativePoissonSolver(ms,tsk,shared);
-			break;
-		case ellipticSolver1D:
-			ans = new EllipticSolver1D(ms,tsk,shared);
-			break;
-		case facrPoissonSolver:
-			ans = new PoissonSolver(ms,tsk,shared);
-			break;
-		case eigenmodePoissonSolver:
-			ans = new EigenmodePoissonSolver(ms,tsk,shared);
-			break;
-		case yeePropagatorPML:
-			ans = new YeePropagatorPML(ms,tsk,shared);
-			break;
-		case lorentzPropagator:
-			ans = new LorentzPropagator(ms,tsk,shared);
-			break;
-		case eosDataTool: // ASHER_MOD
-			ans = new EOSDataTool(ms,tsk,shared);
-			break;
-		case eosIdealGas:
-			ans = new EOSIdealGas(ms,tsk,shared);
-			break;
-		case eosHotElectrons:
-			ans = new EOSHotElectrons(ms,tsk,shared);
-			break;
-		case eosMixture:
-			ans = new EOSMixture(ms,tsk,shared);
-			break;
-		case eosIdealGasMix:
-			ans = new EOSIdealGasMix(ms,tsk,shared);
-			break;
-		case eosMieGruneisen:
-			ans = new EOSMieGruneisen(ms,tsk,shared);
-			break;
-		case eosMieGruneisen2:
-			ans = new EOSMieGruneisen2(ms,tsk,shared);
-			break;
-	}
-	return ans;
+		inputString >> com;
+		ReadInputFileDirective(inputString,com);
+	} while (com!="}");
 }
 
 void ComputeTool::WarningMessage(std::ostream *theStream)
@@ -135,4 +79,199 @@ void ComputeTool::WarningMessage(std::ostream *theStream)
 		*theStream << "WARNING : Build log for " << programFilename << " is not empty:" << std::endl;
 		*theStream << buildLog << std::endl;
 	}
+}
+
+void ComputeTool::ReadData(std::ifstream& inFile)
+{
+}
+
+void ComputeTool::WriteData(std::ofstream& outFile)
+{
+	outFile.write((char *)&typeCode,sizeof(tw::tool_type));
+	outFile << name << " ";
+}
+
+void ComputeTool::SaveToolReference(std::ofstream& outFile)
+{
+	// Parent object should call this to save reference to tool in restart file
+	outFile << name << " ";
+}
+
+tw::tool_type ComputeTool::CreateTypeFromInput(const std::vector<std::string>& preamble)
+{
+	// For creating a named tool at the root level
+	std::string type("");
+	for (int i=1;i<preamble.size();i++)
+		type = type + preamble[i-1] + " ";
+	type.pop_back();
+
+	if (type=="eigenmode propagator tool")
+		return tw::tool_type::eigenmodePropagator;
+	if (type=="adi propagator tool")
+		return tw::tool_type::adiPropagator;
+	if (type=="isotropic propagator tool")
+		return tw::tool_type::isotropicPropagator;
+	if (type=="parabolic propagator tool")
+		return tw::tool_type::generalParabolicPropagator;
+	if (type=="schroedinger propagator tool")
+		return tw::tool_type::schroedingerPropagator;
+	if (type=="iterative elliptic tool")
+		return tw::tool_type::iterativePoissonSolver;
+	if (type=="1d elliptic tool")
+		return tw::tool_type::ellipticSolver1D;
+	if (type=="facr elliptic tool")
+		return tw::tool_type::facrPoissonSolver;
+	if (type=="eigenmode elliptic tool")
+		return tw::tool_type::eigenmodePoissonSolver;
+	if (type=="yee propagator tool")
+		return tw::tool_type::yeePropagatorPML;
+	if (type=="lorentz propagator tool")
+		return tw::tool_type::lorentzPropagator;
+	if (type=="eos data tool")
+		return tw::tool_type::eosData;
+	if (type=="eos ideal gas tool")
+		return tw::tool_type::eosIdealGas;
+	if (type=="eos hot electron tool")
+		return tw::tool_type::eosHotElectrons;
+	if (type=="eos mix tool")
+		return tw::tool_type::eosMixture;
+	if (type=="eos ideal gas mix tool")
+		return tw::tool_type::eosIdealGasMix;
+	if (type=="eos mie gruneisen tool")
+		return tw::tool_type::eosMieGruneisen;
+	if (type=="eos mie gruneisen2 tool")
+		return tw::tool_type::eosMieGruneisen2;
+	return tw::tool_type::nullTool;
+}
+
+tw::tool_type ComputeTool::CreateTypeFromDirective(std::stringstream& inputString,const std::string& command)
+{
+	// For creating tools on the fly inside a module block
+	std::string word;
+	if (command=="elliptic" || command=="elliptical")
+	{
+		inputString >> word >> word >> word;
+		if (word=="1d")
+			return tw::tool_type::ellipticSolver1D;
+		if (word=="iterative")
+			return tw::tool_type::iterativePoissonSolver;
+		if (word=="facr")
+			return tw::tool_type::facrPoissonSolver;
+		if (word=="eigenmode")
+			return tw::tool_type::eigenmodePoissonSolver;
+	}
+	if (command=="propagator")
+	{
+		inputString >> word >> word;
+		if (word=="eigenmode")
+			return tw::tool_type::eigenmodePropagator;
+		if (word=="adi")
+			return tw::tool_type::adiPropagator;
+		if (word=="isotropic")
+			return tw::tool_type::isotropicPropagator;
+		if (word=="parabolic")
+			return tw::tool_type::generalParabolicPropagator;
+		if (word=="schroedinger")
+			return tw::tool_type::schroedingerPropagator;
+		if (word=="yee")
+			return tw::tool_type::yeePropagatorPML;
+		if (word=="lorentz")
+			return tw::tool_type::lorentzPropagator;
+	}
+	if (command=="eos")
+	{
+		inputString >> word >> word;
+		if (word=="ideal-gas")
+			return tw::tool_type::eosIdealGas;
+		if (word=="hot-electron")
+			return tw::tool_type::eosHotElectrons;
+		if (word=="mix")
+			return tw::tool_type::eosMixture;
+		if (word=="ideal-gas-mix")
+			return tw::tool_type::eosIdealGasMix;
+		if (word=="mie-gruneisen")
+			return tw::tool_type::eosMieGruneisen;
+		if (word=="mie-gruneisen2")
+			return tw::tool_type::eosMieGruneisen2;
+	}
+	return tw::tool_type::nullTool;
+}
+
+ComputeTool* ComputeTool::CreateObjectFromType(const std::string& name,tw::tool_type theType,MetricSpace *ms,Task *tsk)
+{
+	ComputeTool *ans;
+	switch (theType)
+	{
+		case tw::tool_type::nullTool:
+			ans = NULL;
+			break;
+		case tw::tool_type::eigenmodePropagator:
+			ans = new EigenmodePropagator(name,ms,tsk);
+			break;
+		case tw::tool_type::adiPropagator:
+			ans = new ADIPropagator(name,ms,tsk);
+			break;
+		case tw::tool_type::isotropicPropagator:
+			ans = new IsotropicPropagator(name,ms,tsk);
+			break;
+		case tw::tool_type::generalParabolicPropagator:
+			ans = new ParabolicSolver(name,ms,tsk);
+			break;
+		case tw::tool_type::schroedingerPropagator:
+			ans = new SchroedingerPropagator(name,ms,tsk);
+			break;
+		case tw::tool_type::iterativePoissonSolver:
+			ans = new IterativePoissonSolver(name,ms,tsk);
+			break;
+		case tw::tool_type::ellipticSolver1D:
+			ans = new EllipticSolver1D(name,ms,tsk);
+			break;
+		case tw::tool_type::facrPoissonSolver:
+			ans = new PoissonSolver(name,ms,tsk);
+			break;
+		case tw::tool_type::eigenmodePoissonSolver:
+			ans = new EigenmodePoissonSolver(name,ms,tsk);
+			break;
+		case tw::tool_type::yeePropagatorPML:
+			ans = new YeePropagatorPML(name,ms,tsk);
+			break;
+		case tw::tool_type::lorentzPropagator:
+			ans = new LorentzPropagator(name,ms,tsk);
+			break;
+		case tw::tool_type::eosData:
+			ans = new EOSDataTool(name,ms,tsk);
+			break;
+		case tw::tool_type::eosIdealGas:
+			ans = new EOSIdealGas(name,ms,tsk);
+			break;
+		case tw::tool_type::eosHotElectrons:
+			ans = new EOSHotElectrons(name,ms,tsk);
+			break;
+		case tw::tool_type::eosMixture:
+			ans = new EOSMixture(name,ms,tsk);
+			break;
+		case tw::tool_type::eosIdealGasMix:
+			ans = new EOSIdealGasMix(name,ms,tsk);
+			break;
+		case tw::tool_type::eosMieGruneisen:
+			ans = new EOSMieGruneisen(name,ms,tsk);
+			break;
+		case tw::tool_type::eosMieGruneisen2:
+			ans = new EOSMieGruneisen2(name,ms,tsk);
+			break;
+	}
+	return ans;
+}
+
+ComputeTool* ComputeTool::CreateObjectFromFile(std::ifstream& inFile,MetricSpace *ms,Task *tsk)
+{
+	tw::tool_type theType;
+	std::string name;
+	ComputeTool *ans;
+	inFile.read((char*)&theType,sizeof(tw::tool_type));
+	inFile >> name;
+	inFile.ignore();
+	ans = CreateObjectFromType(name,theType,ms,tsk);
+	ans->ReadData(inFile);
+	return ans;
 }

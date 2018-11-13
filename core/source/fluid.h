@@ -39,7 +39,7 @@ struct Fluid:Module
 	virtual void MoveWindow();
 	virtual void AddDensity(tw::Float densityToAdd,tw::Int i,tw::Int j,tw::Int k);
 
-	virtual void ReadInputFileTerm(std::stringstream& inputString,std::string& command);
+	virtual void ReadInputFileDirective(std::stringstream& inputString,const std::string& command);
 	virtual void ReadData(std::ifstream& inFile);
 	virtual void WriteData(std::ofstream& outFile);
 
@@ -54,7 +54,7 @@ struct Chemistry;
 
 struct SubReaction
 {
-	std::vector<tw::Int> reactant,product;
+	std::vector<sparc::hydro_set> reactants,products;
 	tw::Float heat,vheat;
 
 	virtual void ReadData(std::ifstream& inFile);
@@ -75,7 +75,7 @@ struct Reaction
 
 struct Excitation
 {
-	tw::Int exciter,excitee;
+	sparc::hydro_set exciter,excitee;
 	tw::Float T0,T1; // temperature range (not used)
 	tw::Float c1,c2,c3; // arrhenius form
 	tw::Float b[9]; // janev coefficients
@@ -87,8 +87,8 @@ struct Excitation
 
 struct Collision
 {
+	sparc::hydro_set body1,body2;
 	sparc::collisionType type;
-	tw::Int chem1,chem2;
 	tw::Float crossSection;
 	tw::Float ks,T_ref,n_ref;
 
@@ -98,28 +98,20 @@ struct Collision
 
 struct EquilibriumGroup:Module
 {
-	Chemistry *chemBoss;
-	std::vector<Chemical*> chemical;
+	std::vector<Chemical*> chemical; // explicitly typed submodule list
 
 	// Following contains indices in state array corresponding to density of each chemical in the group
 	Element e;
-	// Following are indices in the state array corresponding to other state quantities
-	// npx,npy,npz = momentum density in x,y,z directions
-	// U = total energy density , Xi = vibrational energy density
-	tw::Int npx,npy,npz,U,Xi;
-	// Following are indices in the eos array corresponding to quantities derived from state vector
-	// T = temperature , Tv = excitation temperature, P = pressure
-	// K = thermal conductivity, visc = dynamic viscosity
-	tw::Int T,Tv,P,K,visc;
+	// The hydro set contains indices into the state vector for this group.
+	// The mass density index corresponds to the first chemical in the group.
+	sparc::hydro_set hidx;
+	// The eos set contains indices into the eos vector for this group.
+	sparc::eos_set eidx;
 	// Following is used to limit motion by zeroing forces on this group
-	tw::Int Cv; // ASHER_MOD -- in order to implement Caloric EOSs we need to allow Cv[T] to be a function of T
-				// this means that it will now be treated as an EOS quantity
 	tw::Float forceFilter;
 
-	// ASHER_MOD
-	// EOSDataTool *eosMixData;
 	EOSMixture *eosMixData;
-
+	// duplicate data from chemical list for efficiency
 	std::valarray<tw::Float> mass,charge,cvm,excitationEnergy,thermo_cond_cvm,k_visc_m;
 
 	tw::Float DensitySum(const Field& f,const CellIterator& cell)
@@ -173,32 +165,19 @@ struct EquilibriumGroup:Module
 	virtual ~EquilibriumGroup(); // ASHER_MOD
 	virtual void Initialize();
 
-	void ReadOneChemical(std::stringstream& inputString,const std::string& chem_name);
-	virtual void ReadInputFileBlock(std::stringstream& inputString);
+	virtual void ReadInputFileDirective(std::stringstream& inputString,const std::string& command);
 	virtual void ReadData(std::ifstream& inFile);
 	virtual void WriteData(std::ofstream& outFile);
-
-	virtual void BoxDiagnosticHeader(GridDataDescriptor*);
-	virtual void BoxDiagnose(GridDataDescriptor*);
-	virtual void PointDiagnosticHeader(std::ofstream& outFile);
-	virtual void PointDiagnose(std::ofstream& outFile,const weights_3D& w);
 };
 
 struct Chemical:Module
 {
-	Chemistry *chemBoss;
-	EquilibriumGroup *group;
+	EquilibriumGroup *group; // explictly typed super
 	tw::Int indexInGroup,indexInState;
 	tw::Float mass,charge,cvm; // cvm = cv*mass/kB = 3/2 for point particles
 	IonizationData ionization;
 	tw::Float excitationEnergy,thermometricConductivity,kinematicViscosity;
 
-  	// ASHER_MOD
-  // 	std::string eosName; // name of EOS model to be used (specified in input)
-  // 	tw::Float GRUN;    // Reference Gruneisen parameter (pecified in input)
-	// tw::Float n0;   // Reference density
-	// tw::Float c0;   // y - intercept of Hugoniot fit (usually appriximately speed of sound)
-	// tw::Float S1;   // coefficient of linear fit of Hugoniot data
 	EOSDataTool *eosData;
 
 	// electron motion in lattice
@@ -212,20 +191,14 @@ struct Chemical:Module
 	bool GenerateFluid(Field& f,bool init);
 	void DefaultEOS();
 
-	virtual void ReadInputFileTerm(std::stringstream& inputString,std::string& command);
+	virtual void ReadInputFileDirective(std::stringstream& inputString,const std::string& command);
 	virtual void ReadData(std::ifstream& inFile);
 	virtual void WriteData(std::ofstream& outFile);
-
-	virtual void BoxDiagnosticHeader(GridDataDescriptor*);
-	virtual void BoxDiagnose(GridDataDescriptor*);
-	virtual void PointDiagnosticHeader(std::ofstream& outFile);
-	virtual void PointDiagnose(std::ofstream& outFile,const weights_3D& w);
 };
 
 struct Chemistry:Module
 {
-	std::vector<EquilibriumGroup*> group;
-	std::vector<Chemical*> chemical;
+	std::vector<EquilibriumGroup*> group; // explicitly type submodule list
 	std::vector<Reaction*> reaction;
 	std::vector<Excitation*> excitation;
 	std::vector<Collision*> collision;
@@ -300,7 +273,7 @@ struct Chemistry:Module
 	void FirstOrderAdvance(tw::Float dt,bool computeSources);
 	virtual void Update();
 
-	virtual void ReadInputFileTerm(std::stringstream& inputString,std::string& command);
+	virtual void ReadInputFileDirective(std::stringstream& inputString,const std::string& command);
 	virtual void ReadData(std::ifstream& inFile);
 	virtual void WriteData(std::ofstream& outFile);
 	void ParseReaction(std::stringstream& inputString);

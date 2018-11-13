@@ -35,17 +35,27 @@ Running
 	run-hpc
 	run-input-files
 
-Reference
----------
+User Reference
+--------------
 
 .. toctree::
-	:maxdepth: 2
+	:maxdepth: 1
 
 	ref-input
 	ref-geometry
 	ref-PIC
 	ref-fluid
 	ref-QO
+
+Developer Reference
+-------------------
+
+.. toctree::
+	:maxdepth: 1
+
+	dev-base
+	dev-module
+	dev-tool
 
 Background
 ----------

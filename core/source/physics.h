@@ -1,5 +1,3 @@
-enum tw_ionization_model {noIonization,ADKTunneling,pptIonization,mpiSimple};
-
 enum tw_dimensions
 {
 	time_dim,
@@ -32,6 +30,38 @@ enum tw_dimensions
 	susceptibility_2_dim,
 	susceptibility_3_dim
 };
+
+enum tw_ionization_model {noIonization,ADKTunneling,pptIonization,mpiSimple};
+
+namespace sparc
+{
+	struct hydro_set
+	{
+		// num = number of constituent chemicals
+		// n = index of first chemical density (assume they are in contiguous sequence)
+		// npx,npy,npz = index to momentum density
+		// u = index to energy density
+		// x = index to vibrational density
+		tw::Int num,n,npx,npy,npz,u,x;
+	};
+
+	struct eos_set
+	{
+		// T = index to translational and rotational temperature
+		// Tv = vibrational temperature (if used)
+		// P = pressure
+		// K = heat conductivity (check)
+		// visc = dynamic viscosity (check)
+		// Cv = heat capacity at constant volume
+		tw::Int T,Tv,P,K,visc,Cv;
+	};
+
+	struct material
+	{
+		// Characteristics of a chemical
+		tw::Float mass,charge,cvm,excitationEnergy,thermo_cond_cvm,k_visc_m;
+	};
+}
 
 struct UnitConverter
 {
@@ -87,113 +117,54 @@ struct IonizationData
 	void Initialize(tw::Float unitDensity,tw::Float* carrierFrequency);
 	tw::Float wfunc(tw::Float x);
 	tw::Float Rate(tw::Float instant,tw::Float peak);
-	void ReadInputFileTerm(std::stringstream& inputString,std::string& command);
+	void ReadInputFileDirective(std::stringstream& inputString,const std::string& command);
 };
 
-// current eos variables (for reference)
-// -------------------------------------
-// t    : temperature
-// tv   : vibrational temperature
-// p    : pressure
-// k    : thermometricConductivity * nmcv
-// visc : kinematicViscosity * nm
-
-// ASHER_MOD
-// This is the master class of all EOS computation related objects
+// This is the master class of all EOS computation related objects.
+// This now retains its own indexing and material information in 3 lightweight structs:
+// sparc::hydro_set and sparc::eos_set contain indices into a Field object
+// sparc::material contains floats characterizing a chemical
 struct EOSDataTool:ComputeTool
 {
-	EOSDataTool(MetricSpace *m,Task *tsk,bool shared);
+	sparc::hydro_set hidx;
+	sparc::eos_set eidx;
+	sparc::material mat;
 
-	// The following are modifications of functions copied over from the EquilibriumGroup class
-	// definition in 'fluid.h'. They seem to be an integral part of the calculation of
-	// various EOS-related quantities, and so may be advantageous to have them included inside
-	// the EOSDataTool object. Some arguments were added because EOSDataTool cannot directly
-	// access the EquilibriumGroup's internal variables.
+	EOSDataTool(const std::string& name,MetricSpace *m,Task *tsk);
+	virtual void Initialize(const sparc::hydro_set&,const sparc::eos_set&,const sparc::material&);
 
-	// std::valarray<tw::Float> mass,charge,cvm,excitationEnergy,thermo_cond_cvm,k_visc_m;
-
-	tw::Float DensitySum(Element e,const Field& f,const CellIterator& cell)
+	// The velocity was only used to get the internal energy, so make a function to do that instead
+	// Move summation functions to the mixture class
+	tw::Float InternalEnergy(const tw::Float& nm,const Field& f,const CellIterator& cell)
 	{
-		tw::Float ans = 0.0;
-		for (tw::Int s=e.low;s<=e.high;s++)
-			ans += f(cell,s);
-		return ans;
-	}
-	tw::Float DensityWeightedSum(Element e,const Field& f,std::valarray<tw::Float>& qty,const CellIterator& cell)
-	{
-		tw::Float ans = 0.0;
-		for (tw::Int s=e.low;s<=e.high;s++)
-			ans += f(cell,s)*qty[s-e.low];
-		return ans;
-	}
-	tw::Float ConditionalDensitySum(Element e,const Field& f,std::valarray<tw::Float>& qty,const CellIterator& cell)
-	{
-		tw::Float ans = 0.0;
-		for (tw::Int s=e.low;s<=e.high;s++)
-			ans += qty[s-e.low] > 0.0 ? f(cell,s) : 0.0;
-		return ans;
+		const tw::vec3 np = tw::vec3(f(cell,hidx.npx),f(cell,hidx.npy),f(cell,hidx.npz));
+		const tw::vec3 vel = np/(tw::small_pos + nm);
+		const tw::Float KE = 0.5*nm*Norm(vel);
+		const tw::Float primitive = f(cell,hidx.u) - KE;
+		const tw::Float failsafe = 1e-6*KE + tw::small_pos;
+		const tw::Float sel = tw::Float(primitive>0.0);
+		return sel*primitive + (1.0-sel)*failsafe;
 	}
 
-	tw::vec3 Velocity(Element e,tw::Int npx,tw::Int npy,tw::Int npz, const Field& f,std::valarray<tw::Float> mass, const CellIterator& cell)
-	{
-		tw::Float nm = DensityWeightedSum(e,f,mass,cell);
-		tw::vec3 chemVelocity = tw::vec3(f(cell,npx),f(cell,npy),f(cell,npz));
-		return tw::vec3(f(cell,npx),f(cell,npy),f(cell,npz))/(tw::small_pos + nm);
-	}
-
-	// The following functions have many arguments because EOSDataTool cannot directly access
-	// the many EOS related internal variables of EquilibriumGroup, and therefore must be
-	// passed on as function arguments. In the long term we hope to migrate these terms into
-	// the EOSDataTool object, and if they need to referenced in the EquilibriumGroup level,
-	// it may be done so with polymorphism
-	// (for example 'group->eosData->T' instead of 'group->T' for the temperature index)
-	// The result of which would be that the following functions will be vastly simplified.
-	virtual void ApplyEOS(
-								std::valarray<tw::Float> mass,std::valarray<tw::Float> charge, std::valarray<tw::Float> cvm,
-								std::valarray<tw::Float> excitationEnergy, std::valarray<tw::Float> thermo_cond_cvm,
-								std::valarray<tw::Float> k_visc_m, Element& e,
-								tw::Int T,tw::Int Tv,tw::Int P,tw::Int K,tw::Int visc,
-								tw::Int Cv,
-								tw::Int npx,tw::Int npy,tw::Int npz,tw::Int U,tw::Int Xi,
-								tw::Int ie, ScalarField& nu_e,
-								Field& hydro, Field& eos) {;}
-
-	// mass, charge, and cvm are simply float values for a single Chemical object (including electrons)
-    // notice two new arguments, 'ie' and 'nu_e', which are actually elements of Chemistry
-	virtual void ApplyEOS(
-								tw::Float mass,tw::Float charge,tw::Float cvm,
-								tw::Float excitationEnergy,tw::Float thermometricConductivity,
-								tw::Float kinematicViscosity, Element& e,
-								tw::Int T,tw::Int Tv,tw::Int P,tw::Int K,tw::Int visc,
-								tw::Int Cv,
-								tw::Int npx,tw::Int npy,tw::Int npz,tw::Int U,tw::Int Xi,
-								tw::Int ie, ScalarField& nu_e,
-								Field& hydro, Field& eos) {;}
-
-	static tw_tool ReadInputFileTerm_GetToolType(std::stringstream& inputString,std::string& command);
-	virtual void ReadInputFileBlock(std::stringstream& inputString) {;}
+	// Used to have two versions of ApplyEOS for vector and scalar materials parameters.
+	// Here there is a different function for component contributions (see other comments below)
+	virtual void ComponentContribution(Field& hydro,Field& eos) {;}
+	// Note ie is not used anywhere, but leave it for the present.
+	// Conceptulaly, nu_e is something that should be computed by EOS tools rather than provided externally, but how?
+	virtual void ApplyEOS(tw::Int ie, ScalarField& nu_e,Field& hydro, Field& eos) {;}
 };
 
 // EOS Calculation for a single Chemical object with ideal gas properties,
-//   embedded in an EqiulibriumGroup object that uses EOSMixture
-//
-// The following is different from the EOSIdealGasMixture in that the calculations are
-// made at the eosData (or Chemical) level.
+//   embedded in an EquilibriumGroup object that uses EOSMixture
+// The distinction between mixture and non-mixture classes is maybe not needed anymore?
+// Instead we are distinguishing two functions: ComponentContribution puts in something additive from each chemical (e.g., pressure)
+// The ApplyEOS figures out the whole EOS Field for whatever is in the group.
+// Now the information about the group is in the 3 lightweight classes sparc::hydro_set, sparc::eos_set, sparc::material
 struct EOSIdealGas:EOSDataTool
 {
-	EOSIdealGas(MetricSpace *m,Task *tsk,bool shared);
-
-	// mass, charge, and cvm are simply float values for electrons
-    // notice two new arguments, 'ie' and 'nu_e', which are actually elements of Chemistry
-	virtual void ApplyEOS(
-								tw::Float mass,tw::Float charge,tw::Float cvm,
-								tw::Float excitationEnergy,tw::Float thermometricConductivity,
-								tw::Float kinematicViscosity, Element& e,
-								tw::Int T,tw::Int Tv,tw::Int P,tw::Int K,tw::Int visc,
-								tw::Int Cv,
-								tw::Int npx,tw::Int npy,tw::Int npz,tw::Int U,tw::Int Xi,
-								tw::Int ie, ScalarField& nu_e,
-								Field& hydro, Field& eos);
+	EOSIdealGas(const std::string& name,MetricSpace *m,Task *tsk);
+	virtual void ComponentContribution(Field& hydro,Field& eos);
+	virtual void ApplyEOS(tw::Int ie, ScalarField& nu_e,Field& hydro, Field& eos);
 };
 
 // EOS calculations for the electrons, treating them like a type of ideal gas
@@ -205,17 +176,10 @@ struct EOSIdealGas:EOSDataTool
 // (like Thomas-Fermi, etc.)
 struct EOSHotElectrons:EOSDataTool
 {
-	EOSHotElectrons(MetricSpace *m,Task *tsk,bool shared);
-
-	virtual void ApplyEOS(
-								tw::Float mass,tw::Float charge,tw::Float cvm,
-								tw::Float excitationEnergy,tw::Float thermometricConductivity,
-								tw::Float kinematicViscosity, Element& e,
-								tw::Int T,tw::Int Tv,tw::Int P,tw::Int K,tw::Int visc,
-								tw::Int Cv,
-								tw::Int npx,tw::Int npy,tw::Int npz,tw::Int U,tw::Int Xi,
-								tw::Int ie, ScalarField& nu_e,
-								Field& hydro, Field& eos);
+	EOSHotElectrons(const std::string& name,MetricSpace *m,Task *tsk);
+	// Missing component function implies we expect hot electrons will always be the lone member in a group.
+	// Perhaps this is why we need special single-component versions of ApplyEOS?
+	virtual void ApplyEOS(tw::Int ie, ScalarField& nu_e,Field& hydro, Field& eos);
 };
 
 // EOS calculations for a EquilibriumGroup object, which may contain one or multiple Chemical objects
@@ -228,42 +192,53 @@ struct EOSHotElectrons:EOSDataTool
 struct EOSMixture:EOSDataTool
 {
 	std::vector<EOSDataTool*> eosComponents;
-	Field eos_tmp, eos_tmp2;
+	tw::Float DensitySum(const Field& f,const CellIterator& cell)
+	{
+		tw::Float ans = 0.0;
+		for (tw::Int s=0;s<hidx.num;s++)
+			ans += f(cell,s+hidx.n);
+		return ans;
+	}
+	tw::Float MassDensity(const Field& f,const CellIterator& cell)
+	{
+		tw::Float ans = 0.0;
+		for (tw::Int s=0;s<hidx.num;s++)
+			ans += f(cell,s+hidx.n)*eosComponents[s]->mat.mass;
+		return ans;
+	}
+	tw::Float MixHeatCapacities(const Field& f,const CellIterator& cell)
+	{
+		tw::Float ans = 0.0;
+		for (tw::Int s=0;s<hidx.num;s++)
+			ans += f(cell,s+hidx.n)*eosComponents[s]->mat.cvm;
+		return ans;
+	}
+	tw::Float MixVibrationalEnergy(const Field& f,const CellIterator& cell)
+	{
+		tw::Float ans = 0.0;
+		for (tw::Int s=0;s<hidx.num;s++)
+			ans += f(cell,s+hidx.n)*eosComponents[s]->mat.excitationEnergy;
+		return ans;
+	}
+	tw::Float MixVibrationalStates(const Field& f,const CellIterator& cell)
+	{
+		tw::Float ans = 0.0;
+		for (tw::Int s=0;s<hidx.num;s++)
+			ans += eosComponents[s]->mat.excitationEnergy > 0.0 ? f(cell,s+hidx.n) : 0.0;
+		return ans;
+	}
 
-	EOSMixture(MetricSpace *m,Task *tsk,bool shared);
-
-	virtual void ApplyEOS(
-								std::valarray<tw::Float> mass,std::valarray<tw::Float> charge, std::valarray<tw::Float> cvm,
-								std::valarray<tw::Float> excitationEnergy, std::valarray<tw::Float> thermo_cond_cvm,
-								std::valarray<tw::Float> k_visc_m, Element& e,
-								tw::Int T,tw::Int Tv,tw::Int P,tw::Int K,tw::Int visc,
-								tw::Int Cv,
-								tw::Int npx,tw::Int npy,tw::Int npz,tw::Int U,tw::Int Xi,
-								tw::Int ie, ScalarField& nu_e,
-								Field& hydro, Field& eos);
+	EOSMixture(const std::string& name,MetricSpace *m,Task *tsk);
+	virtual void ApplyEOS(tw::Int ie, ScalarField& nu_e,Field& hydro, Field& eos);
 };
 
-// EOS for a mix of gases, assuming all components are ideal gases
-//
-// this is the code that is identical to the original EOS calculation in turbowave
-// you can use this to compare with results that would be produced with the original calculations
-// you would merely have to initialize this datatool instead of eosMixture in EquilibriumGroup
-// all component chemicals are treated as ideal gases, regardless of the eosDataTool they contain
+// DFG - refined input file control eliminates need for special ideal gas mix class
+// So now we keep it here but just as a copy of the base mix class.
+
 struct EOSIdealGasMix:EOSMixture
 {
-	std::vector<EOSDataTool*> eosComponents;
-
-	EOSIdealGasMix(MetricSpace *m,Task *tsk,bool shared);
-
-	virtual void ApplyEOS(
-								std::valarray<tw::Float> mass,std::valarray<tw::Float> charge, std::valarray<tw::Float> cvm,
-								std::valarray<tw::Float> excitationEnergy, std::valarray<tw::Float> thermo_cond_cvm,
-								std::valarray<tw::Float> k_visc_m, Element& e,
-								tw::Int T,tw::Int Tv,tw::Int P,tw::Int K,tw::Int visc,
-								tw::Int Cv,
-								tw::Int npx,tw::Int npy,tw::Int npz,tw::Int U,tw::Int Xi,
-								tw::Int ie, ScalarField& nu_e,
-								Field& hydro, Field& eos);
+	// it seems nothing is different, unless we really want to override the constituents.
+	EOSIdealGasMix(const std::string& name,MetricSpace *m,Task *tsk);
 };
 
 // This is the most basic implementation of the MieGruneisen EOS
@@ -277,19 +252,13 @@ struct EOSMieGruneisen:EOSDataTool
 {
 	tw::Float GRUN; // Gruneisen coefficient
 
-	EOSMieGruneisen(MetricSpace *m,Task *tsk,bool shared);
+	EOSMieGruneisen(const std::string& name,MetricSpace *m,Task *tsk);
 
-	virtual void ApplyEOS(
-								tw::Float mass,tw::Float charge,tw::Float cvm,
-								tw::Float excitationEnergy,tw::Float thermometricConductivity,
-								tw::Float kinematicViscosity, Element& e,
-								tw::Int T,tw::Int Tv,tw::Int P,tw::Int K,tw::Int visc,
-								tw::Int Cv,
-								tw::Int npx,tw::Int npy,tw::Int npz,tw::Int U,tw::Int Xi,
-								tw::Int ie, ScalarField& nu_e,
-								Field& hydro, Field& eos);
+	virtual void ComponentContribution(Field& hydro, Field& eos);
 
-	virtual void ReadInputFileBlock(std::stringstream& inputString);
+	virtual void ReadInputFileDirective(std::stringstream& inputString,const std::string& command);
+	virtual void ReadData(std::ifstream& inFile);
+	virtual void WriteData(std::ofstream& outFile);
 };
 
 // This is a MieGruneisen EOS that assumes \rho * GRUN = const., and a linear Hugoniot fit
@@ -304,17 +273,11 @@ struct EOSMieGruneisen2:EOSDataTool
 	tw::Float c0;   // y - intercept of Hugoniot fit (usually appriximately speed of sound)
 	tw::Float S1;   // coefficient of linear fit of Hugoniot data
 
-	EOSMieGruneisen2(MetricSpace *m,Task *tsk,bool shared);
+	EOSMieGruneisen2(const std::string& name,MetricSpace *m,Task *tsk);
 
-	virtual void ApplyEOS(
-								tw::Float mass,tw::Float charge,tw::Float cvm,
-								tw::Float excitationEnergy,tw::Float thermometricConductivity,
-								tw::Float kinematicViscosity, Element& e,
-								tw::Int T,tw::Int Tv,tw::Int P,tw::Int K,tw::Int visc,
-								tw::Int Cv,
-								tw::Int npx,tw::Int npy,tw::Int npz,tw::Int U,tw::Int Xi,
-								tw::Int ie, ScalarField& nu_e,
-								Field& hydro, Field& eos);
+	virtual void ComponentContribution(Field& hydro, Field& eos);
 
-	virtual void ReadInputFileBlock(std::stringstream& inputString);
+	virtual void ReadInputFileDirective(std::stringstream& inputString,const std::string& command);
+	virtual void ReadData(std::ifstream& inFile);
+	virtual void WriteData(std::ofstream& outFile);
 };

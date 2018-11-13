@@ -133,10 +133,11 @@ SPARC Hydro Modules
 		 	:param float epsi: imaginary part of permittivity relative to free space permittivity
 
 
-.. py:function:: new group { directives }
+.. py:function:: new group name { directives }
 
 	Create an equilibrium group module.  This is a container for chemical species that are assumed to be in equilibrium with one another, and therefore have a common temperature and velocity.  All chemicals are part of a group.  If a chemical is declared outside any group, one is automatically created.
 
+	:param str name: name given to the group
 	:param block directives: The following directives are supported:
 
 		.. py:function:: new chemical name { directives }

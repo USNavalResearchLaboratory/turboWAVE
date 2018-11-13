@@ -92,7 +92,7 @@ struct AtomicPhysics:Module
 	{
 		return tw::Complex(psi_r(v,i,c),psi_i(v,i,c));
 	}
-	virtual void ReadInputFileTerm(std::stringstream& inputString,std::string& command);
+	virtual void ReadInputFileDirective(std::stringstream& inputString,const std::string& command);
 	virtual void ReadData(std::ifstream& inFile);
 	virtual void WriteData(std::ofstream& outFile);
 };

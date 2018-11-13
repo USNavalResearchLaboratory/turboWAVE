@@ -12,7 +12,7 @@
 
 LaserSolver::LaserSolver(Grid* theGrid):Module(theGrid)
 {
-	updateOrderingIndex = 3;
+	updateSequencePriority = 3;
 	laserFreq = 10.0;
 	polarizationType = linearPolarization;
 	propagator = (LaserPropagator*)owner->AddPrivateTool(adiPropagator);
@@ -78,10 +78,10 @@ void LaserSolver::Reset()
 	chi = tw::Complex(0,0);
 }
 
-void LaserSolver::ReadInputFileTerm(std::stringstream& inputString,std::string& command)
+void LaserSolver::ReadInputFileDirective(std::stringstream& inputString,const std::string& command)
 {
 	std::string word;
-	Module::ReadInputFileTerm(inputString,command);
+	Module::ReadInputFileDirective(inputString,command);
 	if (command=="propagator") // eg, propagator = eigenmode
 	{
 		inputString >> word >> word;

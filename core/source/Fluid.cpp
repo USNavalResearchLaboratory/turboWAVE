@@ -488,13 +488,13 @@ void Fluid::Update()
 	}
 }
 
-void Fluid::ReadInputFileTerm(std::stringstream& inputString,std::string& command)
+void Fluid::ReadInputFileDirective(std::stringstream& inputString,const std::string& command)
 {
 	std::string word;
 	UnitConverter uc(owner->unitDensityCGS);
 
-	Module::ReadInputFileTerm(inputString,command);
-	ionization.ReadInputFileTerm(inputString,command);
+	Module::ReadInputFileDirective(inputString,command);
+	ionization.ReadInputFileDirective(inputString,command);
 	if (command=="charge") // eg, charge = 1.0
 	{
 		inputString >> word;
@@ -595,20 +595,23 @@ void Fluid::PointDiagnose(std::ofstream& outFile,const weights_3D& w)
 
 void SubReaction::ReadData(std::ifstream& inFile)
 {
-	tw::Int i,num,data;
+	tw::Int num;
+	sparc::hydro_set temp;
 
+	reactants.clear();
 	inFile.read((char *)&num,sizeof(tw::Int));
-	for (i=0;i<num;i++)
+	for (int i=0;i<num;i++)
 	{
-		inFile.read((char *)&data,sizeof(tw::Int));
-		reactant.push_back(data);
+		inFile.read((char *)&temp,sizeof(sparc::hydro_set));
+		reactants.push_back(temp);
 	}
 
+	products.clear();
 	inFile.read((char *)&num,sizeof(tw::Int));
-	for (i=0;i<num;i++)
+	for (int i=0;i<num;i++)
 	{
-		inFile.read((char *)&data,sizeof(tw::Int));
-		product.push_back(data);
+		inFile.read((char *)&temp,sizeof(sparc::hydro_set));
+		products.push_back(temp);
 	}
 
 	inFile.read((char *)&heat,sizeof(tw::Float));
@@ -617,23 +620,17 @@ void SubReaction::ReadData(std::ifstream& inFile)
 
 void SubReaction::WriteData(std::ofstream& outFile)
 {
-	tw::Int i,num,data;
+	tw::Int num;
 
-	num = reactant.size();
+	num = reactants.size();
 	outFile.write((char *)&num,sizeof(tw::Int));
 	for (i=0;i<num;i++)
-	{
-		data = reactant[i];
-		outFile.write((char *)&data,sizeof(tw::Int));
-	}
+		outFile.write((char*)&reactants[i],sizeof(sparc::hydro_set));
 
-	num = product.size();
+	num = products.size();
 	outFile.write((char *)&num,sizeof(tw::Int));
 	for (i=0;i<num;i++)
-	{
-		data = product[i];
-		outFile.write((char *)&data,sizeof(tw::Int));
-	}
+		outFile.write((char*)&products[i],sizeof(sparc::hydro_set));
 
 	outFile.write((char *)&heat,sizeof(tw::Float));
 	outFile.write((char *)&vheat,sizeof(tw::Float));
@@ -681,8 +678,8 @@ void Reaction::WriteData(std::ofstream& outFile)
 
 void Excitation::ReadData(std::ifstream& inFile)
 {
-	inFile.read((char *)&exciter,sizeof(tw::Int));
-	inFile.read((char *)&excitee,sizeof(tw::Int));
+	inFile.read((char *)&exciter,sizeof(sparc::hydro_set));
+	inFile.read((char *)&excitee,sizeof(sparc::hydro_set));
 	inFile.read((char *)&c1,sizeof(tw::Float));
 	inFile.read((char *)&c2,sizeof(tw::Float));
 	inFile.read((char *)&c3,sizeof(tw::Float));
@@ -694,8 +691,8 @@ void Excitation::ReadData(std::ifstream& inFile)
 
 void Excitation::WriteData(std::ofstream& outFile)
 {
-	outFile.write((char *)&exciter,sizeof(tw::Int));
-	outFile.write((char *)&excitee,sizeof(tw::Int));
+	outFile.write((char *)&exciter,sizeof(sparc::hydro_set));
+	outFile.write((char *)&excitee,sizeof(sparc::hydro_set));
 	outFile.write((char *)&c1,sizeof(tw::Float));
 	outFile.write((char *)&c2,sizeof(tw::Float));
 	outFile.write((char *)&c3,sizeof(tw::Float));
@@ -708,8 +705,8 @@ void Excitation::WriteData(std::ofstream& outFile)
 void Collision::ReadData(std::ifstream& inFile)
 {
 	inFile.read((char *)&type,sizeof(sparc::collisionType));
-	inFile.read((char *)&chem1,sizeof(tw::Int));
-	inFile.read((char *)&chem2,sizeof(tw::Int));
+	inFile.read((char *)&body1,sizeof(sparc::hydro_set));
+	inFile.read((char *)&body2,sizeof(sparc::hydro_set));
 	inFile.read((char *)&crossSection,sizeof(tw::Float));
 	inFile.read((char *)&ks,sizeof(tw::Float));
 	inFile.read((char *)&T_ref,sizeof(tw::Float));
@@ -719,8 +716,8 @@ void Collision::ReadData(std::ifstream& inFile)
 void Collision::WriteData(std::ofstream& outFile)
 {
 	outFile.write((char *)&type,sizeof(sparc::collisionType));
-	outFile.write((char *)&chem1,sizeof(tw::Int));
-	outFile.write((char *)&chem2,sizeof(tw::Int));
+	outFile.write((char *)&body1,sizeof(sparc::hydro_set));
+	outFile.write((char *)&body2,sizeof(sparc::hydro_set));
 	outFile.write((char *)&crossSection,sizeof(tw::Float));
 	outFile.write((char *)&ks,sizeof(tw::Float));
 	outFile.write((char *)&T_ref,sizeof(tw::Float));
@@ -741,53 +738,43 @@ EquilibriumGroup::EquilibriumGroup(Grid* theGrid):Module(theGrid)
 	typeCode = equilibriumGroup;
 	forceFilter = 1.0;
 
-	// ASHER_MOD
-	//eosMixData = (EOSMixture *)owner->AddPrivateTool(eosIdealGasMix); // For bug testing with original EOS calc
-	eosMixData = (EOSMixture *)owner->AddPrivateTool(eosMixture);
+	// DFG - Start with NULL tool.
+	// User can select one by name, or let it be created automatically in Initialize()
+	eosMixData = NULL;
 }
 
 // ASHER_MOD -- EquilibriumGroup now needs a destructor because of eosMixData
 EquilibriumGroup::~EquilibriumGroup()
 {
-	owner->RemoveTool(eosMixData);
+	if (eosMixData!=NULL)
+		owner->RemoveTool(eosMixData);
 }
 
-void EquilibriumGroup::ReadOneChemical(std::stringstream& inputString,const std::string& chem_name)
-{
-	Chemical *new_chem = new Chemical(owner);
-	new_chem->name = chem_name;
-	if (chem_name=="")
-	{
-		// this group was created automatically for one chemical
-		new_chem->name = name;
-		name += "(group)";
-	}
-	new_chem->chemBoss = chemBoss;
-	new_chem->group = this;
-	chemical.push_back(new_chem);
-	chemBoss->chemical.push_back(new_chem);
-	owner->module.push_back(new_chem);
-	new_chem->ReadInputFileBlock(inputString);
-	new_chem->DefaultEOS();
-	eosMixData->eosComponents.push_back(new_chem->eosData);
-}
-
-void EquilibriumGroup::ReadInputFileBlock(std::stringstream& inputString)
+void EquilibriumGroup::ReadInputFileDirective(std::stringstream& inputString,const std::string& command)
 {
 	std::string word;
-	do {
-		inputString >> word;
-		if (word=="new")
-		{
-			inputString >> word >> word;
-			ReadOneChemical(inputString,word);
-		}
-		if (word=="mobile")
-		{
-			inputString >> word >> word;
-			forceFilter = (word=="yes" || word=="on" || word=="true") ? 1.0 : 0.0;
-		}
-	} while (word!="}");
+
+	// If an eos tool exists, it can respond to directives
+	if (eosMixData!=NULL)
+		eosMixData->ReadInputFileDirective(inputString,command);
+
+	// DFG - Install a named eos, or create a new one from a type
+	// Named tools are selected using the universal directive : get tool with name = [name]
+	// Typed tools are created using key/value assignments such as : eos = ideal-gas
+	// In the latter case automatic name mangling guarantees uniqueness
+	// If no tool is created here, one will be automatically created during Initialize()
+	eosMixData = (EOSMixture*)owner->ToolFromDirective(inputString,command);
+
+	if (word=="new")
+	{
+		// DFG - part of improved containment model, add chemicals to the group
+		owner->ReadSubmoduleBlock(inputString,this);
+	}
+	if (word=="mobile")
+	{
+		inputString >> word >> word;
+		forceFilter = (word=="yes" || word=="on" || word=="true") ? 1.0 : 0.0;
+	}
 }
 
 void EquilibriumGroup::Initialize()
@@ -795,6 +782,15 @@ void EquilibriumGroup::Initialize()
 	tw::Int c;
 
 	Module::Initialize();
+
+	// Containment is automatic, but explicit typing is not.
+	for (c=0;c<submodule.size();c++)
+		chemical.push_back((Chemical*)submodule[c]);
+
+	// DFG - auto-create tool if necessary, name will be automatically mangled for uniqueness.
+	if (eosMixData==NULL)
+		eosMixData = (EOSMixture *)owner->CreateTool("eos_mix",eosMixture);
+
 	mass.resize(chemical.size());
 	charge.resize(chemical.size());
 	cvm.resize(chemical.size());
@@ -813,141 +809,30 @@ void EquilibriumGroup::Initialize()
 	}
 }
 
+// DFG - below are the restart file interactions including EOS data
+
 void EquilibriumGroup::ReadData(std::ifstream& inFile)
 {
-	tw::Int num;
 	Module::ReadData(inFile);
-	inFile.read((char *)&num,sizeof(tw::Int));
-	mass.resize(num);
-	charge.resize(num);
-	cvm.resize(num);
-	excitationEnergy.resize(num);
-	thermo_cond_cvm.resize(num);
-	k_visc_m.resize(num);
+	eosMixData = (EOSMixture*)owner->LoadRestartedTool(inFile);
 
-	inFile.read((char *)&mass[0],sizeof(tw::Float)*num);
-	inFile.read((char *)&charge[0],sizeof(tw::Float)*num);
-	inFile.read((char *)&cvm[0],sizeof(tw::Float)*num);
-	inFile.read((char *)&excitationEnergy[0],sizeof(tw::Float)*num);
-	inFile.read((char *)&thermo_cond_cvm[0],sizeof(tw::Float)*num);
-	inFile.read((char *)&k_visc_m[0],sizeof(tw::Float)*num);
 	inFile.read((char *)&forceFilter,sizeof(tw::Float));
 
+	inFile.read((char *)&hidx,sizeof(hidx));
+	inFile.read((char *)&eidx,sizeof(eidx));
 	inFile.read((char *)&e,sizeof(Element));
-	inFile.read((char *)&npx,sizeof(tw::Int));
-	inFile.read((char *)&npy,sizeof(tw::Int));
-	inFile.read((char *)&npz,sizeof(tw::Int));
-	inFile.read((char *)&U,sizeof(tw::Int));
-	inFile.read((char *)&Xi,sizeof(tw::Int));
-
-	inFile.read((char *)&T,sizeof(tw::Int));
-	inFile.read((char *)&Tv,sizeof(tw::Int));
-	inFile.read((char *)&P,sizeof(tw::Int));
-	inFile.read((char *)&K,sizeof(tw::Int));
-	inFile.read((char *)&visc,sizeof(tw::Int));
 }
 
 void EquilibriumGroup::WriteData(std::ofstream& outFile)
 {
-	tw::Int num = chemical.size();
 	Module::WriteData(outFile);
-	outFile.write((char *)&num,sizeof(tw::Int));
+	eosMixData->SaveToolReference(outFile);
 
-	outFile.write((char *)&mass[0],sizeof(tw::Float)*num);
-	outFile.write((char *)&charge[0],sizeof(tw::Float)*num);
-	outFile.write((char *)&cvm[0],sizeof(tw::Float)*num);
-	outFile.write((char *)&excitationEnergy[0],sizeof(tw::Float)*num);
-	outFile.write((char *)&thermo_cond_cvm[0],sizeof(tw::Float)*num);
-	outFile.write((char *)&k_visc_m[0],sizeof(tw::Float)*num);
 	outFile.write((char *)&forceFilter,sizeof(tw::Float));
 
+	outFile.write((char *)&hidx,sizeof(hidx));
+	outFile.write((char *)&eidx,sizeof(eidx));
 	outFile.write((char *)&e,sizeof(Element));
-	outFile.write((char *)&npx,sizeof(tw::Int));
-	outFile.write((char *)&npy,sizeof(tw::Int));
-	outFile.write((char *)&npz,sizeof(tw::Int));
-	outFile.write((char *)&U,sizeof(tw::Int));
-	outFile.write((char *)&Xi,sizeof(tw::Int));
-
-	outFile.write((char *)&T,sizeof(tw::Int));
-	outFile.write((char *)&Tv,sizeof(tw::Int));
-	outFile.write((char *)&P,sizeof(tw::Int));
-	outFile.write((char *)&K,sizeof(tw::Int));
-	outFile.write((char *)&visc,sizeof(tw::Int));
-}
-
-void EquilibriumGroup::BoxDiagnosticHeader(GridDataDescriptor* box)
-{
-	std::string filename;
-	filename = "T_" + name;
-	owner->WriteBoxDataHeader(filename,box);
-	filename = "P_" + name;                  // ASHER_MOD -- add pressure to diagnostic
-	owner->WriteBoxDataHeader(filename,box);
-	filename = "Cv_" + name;                 // ASHER_MOD -- add heat capacitance to the diagnostic
-	owner->WriteBoxDataHeader(filename,box);
-	filename = "K_" + name;
-	owner->WriteBoxDataHeader(filename,box);
-	filename = "X_" + name;
-	owner->WriteBoxDataHeader(filename,box);
-	filename = "vx_" + name;
-	owner->WriteBoxDataHeader(filename,box);
-	filename = "vy_" + name;
-	owner->WriteBoxDataHeader(filename,box);
-	filename = "vz_" + name;
-	owner->WriteBoxDataHeader(filename,box);
-}
-
-void EquilibriumGroup::BoxDiagnose(GridDataDescriptor* box)
-{
-	tw::Int ax;
-	std::string filename;
-	char ax_lab[3] = { 'x' , 'y' , 'z' };
-
-	filename = "T_" + name;
-	CopyFieldData(chemBoss->scratch,Element(0),chemBoss->eos1,Element(T));
-	chemBoss->scratch *= chemBoss->fluxMask;
-	owner->WriteBoxData(filename,box,&chemBoss->scratch(0,0,0),chemBoss->scratch.Stride());
-
-	filename = "P_" + name;
-	CopyFieldData(chemBoss->scratch,Element(0),chemBoss->eos1,Element(P));
-	chemBoss->scratch *= chemBoss->fluxMask;
-	owner->WriteBoxData(filename,box,&chemBoss->scratch(0,0,0),chemBoss->scratch.Stride());
-
-	filename = "Cv_" + name;
-	CopyFieldData(chemBoss->scratch,Element(0),chemBoss->eos1,Element(Cv));
-	chemBoss->scratch *= chemBoss->fluxMask;
-	owner->WriteBoxData(filename,box,&chemBoss->scratch(0,0,0),chemBoss->scratch.Stride());
-
-	filename = "K_" + name;
-	CopyFieldData(chemBoss->scratch,Element(0),chemBoss->eos1,Element(K));
-	chemBoss->scratch *= chemBoss->fluxMask;
-	owner->WriteBoxData(filename,box,&chemBoss->scratch(0,0,0),chemBoss->scratch.Stride());
-
-	filename = "X_" + name;
-	CopyFieldData(chemBoss->scratch,Element(0),chemBoss->eos1,Element(Tv));
-	chemBoss->scratch *= chemBoss->fluxMask;
-	owner->WriteBoxData(filename,box,&chemBoss->scratch(0,0,0),chemBoss->scratch.Stride());
-
-	for (ax=1;ax<=3;ax++)
-	{
-		filename = ax_lab[ax-1];
-		filename = "v" + filename + "_" + name;
-		LoadVelocity(chemBoss->scratch,chemBoss->state1,ax);
-		chemBoss->scratch *= chemBoss->fluxMask;
-		owner->WriteBoxData(filename,box,&chemBoss->scratch(0,0,0),chemBoss->scratch.Stride());
-		//owner->WriteBoxData(filename,box,&chemBoss->state1(0,0,0,npx+ax-1),chemBoss->state1.Stride());
-	}
-}
-
-void EquilibriumGroup::PointDiagnosticHeader(std::ofstream& outFile)
-{
-	outFile << ("T_"+name) << " " << ("X_"+name) << " ";
-}
-
-void EquilibriumGroup::PointDiagnose(std::ofstream& outFile,const weights_3D& w)
-{
-	std::valarray<tw::Float> data(chemBoss->state1.Components());
-	chemBoss->state1.Interpolate(data,Element(U,Xi),w);
-	outFile << data[U] << " " << data[Xi] << " ";
 }
 
 
@@ -983,11 +868,14 @@ Chemical::~Chemical()
 
 void Chemical::Initialize()
 {
+	Chemistry *master = (Chemistry*)(super->super);
 	Module::Initialize();
 	if (ionization.ionizationModel!=noIonization)
-		ionization.Initialize(owner->unitDensityCGS,&chemBoss->laserFrequency);
-	GenerateFluid(chemBoss->state1,true);
+		ionization.Initialize(owner->unitDensityCGS,&master->laserFrequency);
 	// can't generate in Chemistry::Initialize since profiles would not be initialized
+	GenerateFluid(master->state1,true);
+	// chooses an appropriate EOS if none already defined
+	DefaultEOS();
 }
 
 bool Chemical::GenerateFluid(Field& f,bool init)
@@ -1076,40 +964,39 @@ void Chemical::DefaultEOS()
 	if (eosData==NULL)
 	{
 		if (mass==1.0)
-			eosData = (EOSDataTool*)owner->AddPrivateTool(eosHotElectrons);
+			eosData = (EOSDataTool*)owner->CreateTool("hot_electrons",eosHotElectrons);
 		else
-			eosData = (EOSDataTool*)owner->AddPrivateTool(eosIdealGas);
+			eosData = (EOSDataTool*)owner->CreateTool("ideal_gas",eosIdealGas);
 	}
 }
 
-void Chemical::ReadInputFileTerm(std::stringstream& inputString,std::string& command)
+void Chemical::ReadInputFileDirective(std::stringstream& inputString,const std::string& command)
 {
-	tw::Int i;
 	std::string word;
-	tw_tool requestedTool;
 	UnitConverter uc(owner->unitDensityCGS);
-	Module::ReadInputFileTerm(inputString,command);
-	ionization.ReadInputFileTerm(inputString,command);
-	requestedTool = EOSDataTool::ReadInputFileTerm_GetToolType(inputString,command);
-	if (requestedTool!=nullTool)
-	{
-			eosData = (EOSDataTool*)owner->AddPrivateTool(requestedTool);
-			eosData->ReadInputFileBlock(inputString);
-	}
+	Module::ReadInputFileDirective(inputString,command);
+	ionization.ReadInputFileDirective(inputString,command);
+
+	// If an eos tool exists, it can respond to directives
+	if (eosData!=NULL)
+		eosData->ReadInputFileDirective(inputString,command);
+
+	// DFG - Install a named eos, or create a new one from a type
+	// Named tools are selected using the universal directive : get tool with name = [name]
+	// Typed tools are created using key/value assignments such as : eos = ideal-gas
+	// In the latter case automatic name mangling guarantees uniqueness
+	// If no tool is created here, one will be automatically created during Initialize()
+	eosData = (EOSDataTool*)owner->ToolFromDirective(inputString,command);
 
 	if (command=="ion") // eg, ion species = N3
 	{
 		inputString >> word >> word >> word;
-		for (i=0;i<chemBoss->chemical.size();i++)
-			if (chemBoss->chemical[i]->name==word)
-				ionization.ionSpecies = i;
+		ionization.ionSpecies = owner->FindModule(word);
 	}
 	if (command=="electron") // eg, electron species = electrons
 	{
 		inputString >> word >> word >> word;
-		for (i=0;i<chemBoss->chemical.size();i++)
-			if (chemBoss->chemical[i]->name==word)
-				ionization.electronSpecies = i;
+		ionization.electronSpecies = owner->FindModule(word);
 	}
 	if (command=="charge") // eg, charge = 1.0
 	{
@@ -1161,6 +1048,7 @@ void Chemical::ReadInputFileTerm(std::stringstream& inputString,std::string& com
 void Chemical::ReadData(std::ifstream& inFile)
 {
 	Module::ReadData(inFile);
+	eosData = (EOSDataTool*)owner->LoadRestartedTool(inFile);
 	inFile.read((char *)&charge,sizeof(tw::Float));
 	inFile.read((char *)&mass,sizeof(tw::Float));
 	inFile.read((char *)&permittivity,sizeof(tw::Complex));
@@ -1176,6 +1064,7 @@ void Chemical::ReadData(std::ifstream& inFile)
 void Chemical::WriteData(std::ofstream& outFile)
 {
 	Module::WriteData(outFile);
+	eosData->SaveToolReference(outFile);
 	outFile.write((char *)&charge,sizeof(tw::Float));
 	outFile.write((char *)&mass,sizeof(tw::Float));
 	outFile.write((char *)&permittivity,sizeof(tw::Complex));
@@ -1188,29 +1077,6 @@ void Chemical::WriteData(std::ofstream& outFile)
 	outFile.write((char *)&ionization,sizeof(IonizationData));
 }
 
-void Chemical::BoxDiagnosticHeader(GridDataDescriptor* box)
-{
-	owner->WriteBoxDataHeader(name,box);
-}
-
-void Chemical::BoxDiagnose(GridDataDescriptor* box)
-{
-	CopyFieldData(chemBoss->scratch,Element(0),chemBoss->state1,Element(indexInState));
-	chemBoss->scratch *= chemBoss->fluxMask;
-	owner->WriteBoxData(name,box,&chemBoss->scratch(0,0,0),chemBoss->scratch.Stride());
-}
-
-void Chemical::PointDiagnosticHeader(std::ofstream& outFile)
-{
-	outFile << name << " ";
-}
-
-void Chemical::PointDiagnose(std::ofstream& outFile,const weights_3D& w)
-{
-	std::valarray<tw::Float> densNow(chemBoss->state1.Components());
-	chemBoss->state1.Interpolate(densNow,Element(indexInState),w);
-	outFile << densNow[indexInState] << " ";
-}
 
 ///////////////////
 //               //
@@ -1417,13 +1283,14 @@ void Chemistry::Initialize()
 	}
 
 	// find electrons
-	for (i=0;i<chemical.size();i++)
-		if (chemical[i]->mass==1.0)
-		{
-			electrons = chemical[i];
-			ie = chemical[i]->indexInState;
-			electrons->group->forceFilter = 0.0;
-		}
+	for (i=0;i<group.size();i++)
+		for (s=0;s<group[i]->chemical.size();s++)
+			if (group[i]->chemical[s]->mass==1.0)
+			{
+				electrons = group[i]->chemical[s];
+				ie = group[i]->chemical[s]->indexInState;
+				electrons->group->forceFilter = 0.0;
+			}
 	me_eff = 1.0;
 	nu_e = 1.0;
 }
@@ -1487,21 +1354,22 @@ void Chemistry::ComputeElectronCollisionFrequency()
 			// Compute effective mass in this cell
 			me_eff(cell) = 0.0;
 			weightSum = 0.0;
-			for (tw::Int s=0;s<chemical.size();s++)
-			{
-				nlattice = state1(cell,chemical[s]->indexInState);
-				nratio = nlattice / chemical[s]->transitionDensity;
-				weight = chemical[s]->mass*nlattice;
-				weightSum += weight;
-				me_eff(cell) += weight*(1.0 + nratio*chemical[s]->effectiveMass)/(1.0 + nratio);
-			}
+			for (tw::Int g=0;g<group.size();g++)
+				for (tw::Int s=0;s<group[g]->chemical.size();s++)
+				{
+					nlattice = state1(cell,group[g]->chemical[s]->indexInState);
+					nratio = nlattice / group[g]->chemical[s]->transitionDensity;
+					weight = group[g]->chemical[s]->mass*nlattice;
+					weightSum += weight;
+					me_eff(cell) += weight*(1.0 + nratio*group[g]->chemical[s]->effectiveMass)/(1.0 + nratio);
+				}
 			me_eff(cell) /= weightSum;
 
 			// Compute collision frequency
 			for (tw::Int s=0;s<collision.size();s++)
 			{
-				chem1 = chemical[collision[s]->chem1];
-				chem2 = chemical[collision[s]->chem2];
+				chem1 = (Chemical*)owner->module[collision[s]->chem1];
+				chem2 = (Chemical*)owner->module[collision[s]->chem2];
 				if (chem1==electrons || chem2==electrons)
 				{
 					N1 = state1(cell,chem1->indexInState);
@@ -1566,7 +1434,7 @@ void Chemistry::ComputeCollisionalSources()
 			for (CellIterator cell(*this,false);cell<cell.end();++cell)
 			{
 				// Work out the primitive reaction rate (number density per unit time)
-				Te = eos1(cell,chemical[reaction[r]->catalyst]->group->T);
+				Te = eos1(cell,reaction[r]->catalyst);
 				if (Te<reaction[r]->T0 || Te>reaction[r]->T1)
 					rateNow = 0.0;
 				else
@@ -1752,8 +1620,8 @@ void Chemistry::ComputeRadiativeSources()
 					if (ionization.ionizationModel!=noIonization)
 					{
 						Emag = sqrt(norm(laserAmplitude(cell)));
-						s1 = chemical[ionization.ionSpecies];
-						s2 = chemical[ionization.electronSpecies];
+						s1 = (Chemical*)owner->module[ionization.ionSpecies];
+						s2 = (Chemical*)owner->module[ionization.electronSpecies];
 						photoRate = state1(cell,chemical[s]->indexInState)*ionization.Rate(0.0,Emag);
 						CreateMass(cell,s1->indexInGroup,photoRate,s1->group);
 						CreateMass(cell,s2->indexInGroup,photoRate,s2->group);
@@ -2290,12 +2158,11 @@ void Chemistry::ApplyEOS(Field& hydro,Field& eos)
 	{
 		if (group[c]->chemical[0]!=electrons)
 		{
-//			((EOSIdealGasMix *)(group[c]->eosMixData))->ApplyEOS( *group[c],group[c]->mass,group[c]->charge,group[c]->cvm,
 			group[c]->eosMixData->ApplyEOS( group[c]->mass,group[c]->charge,group[c]->cvm,
-											group[c]->excitationEnergy,group[c]->thermo_cond_cvm,group[c]->k_visc_m,
-											group[c]->e,group[c]->T,group[c]->Tv,group[c]->P,group[c]->K,
-											group[c]->visc,group[c]->Cv,group[c]->npx,group[c]->npy,group[c]->npz,
-											group[c]->U,group[c]->Xi,ie,nu_e,hydro,eos);
+				group[c]->excitationEnergy,group[c]->thermo_cond_cvm,group[c]->k_visc_m,
+				group[c]->e,group[c]->T,group[c]->Tv,group[c]->P,group[c]->K,
+				group[c]->visc,group[c]->Cv,group[c]->npx,group[c]->npy,group[c]->npz,
+				group[c]->U,group[c]->Xi,ie,nu_e,hydro,eos);
 		}
 	}
 
@@ -2359,21 +2226,16 @@ void Chemistry::ApplyEOS(Field& hydro,Field& eos)
 		}
 	}
 
-
 	// ASHER_MOD -- electron EOSs have the be calculated after the quasineutrality-ensuring hydro advance
-	for (tw::Int c=0;c<group.size();c++)
+	if (electrons)
 	{
-		if (group[c]->chemical[0]==electrons)
-		{
-			// so far only does an ideal gas case
-			electrons->eosData->ApplyEOS(   electrons->mass,electrons->charge,electrons->cvm,
-											electrons->excitationEnergy,electrons->thermometricConductivity,electrons->kinematicViscosity,
-											electrons->group->e,electrons->group->T,electrons->group->Tv,electrons->group->P,electrons->group->K,
-											electrons->group->visc,group[c]->Cv,electrons->group->npx,electrons->group->npy,electrons->group->npz,
-											electrons->group->U,electrons->group->Xi,ie,nu_e,hydro,eos);
-		}
+		// so far only does an ideal gas case
+		electrons->eosData->ApplyEOS( electrons->mass,electrons->charge,electrons->cvm,
+			electrons->excitationEnergy,electrons->thermometricConductivity,electrons->kinematicViscosity,
+			electrons->group->e,electrons->group->T,electrons->group->Tv,electrons->group->P,electrons->group->K,
+			electrons->group->visc,group[c]->Cv,electrons->group->npx,electrons->group->npy,electrons->group->npz,
+			electrons->group->U,electrons->group->Xi,ie,nu_e,hydro,eos);
 	}
-
 
 	// Check for numerical failure, defined by NaN in the hydro state vector
 	tw::Int badCells = 0;
@@ -2436,9 +2298,8 @@ void Chemistry::ParseReaction(std::stringstream& inputString)
 	tw::Int i,j;
 	std::string word;
 	tw::Float sign,energy;
-	tw::Int lastChem = -1;
+	Chemical *chem;
 	bool rhs = false;
-	bool foundSpecies = false;
 
 	reaction.push_back(new Reaction);
 	reaction.back()->numBodies = 0;
@@ -2489,28 +2350,19 @@ void Chemistry::ParseReaction(std::stringstream& inputString)
 			}
 			else
 			{
-				foundSpecies = false;
-				for (i=0;i<chemical.size();i++)
+				chem = (Chemical*)owner->GetModule(name);
+				if (rhs)
 				{
-					if (chemical[i]->name==word)
-					{
-						foundSpecies = true;
-						lastChem = i;
-						if (rhs)
-						{
-							reaction.back()->sub.back()->product.push_back(lastChem);
-						}
-						else
-						{
-							reaction.back()->sub.back()->reactant.push_back(lastChem);
-							reaction.back()->numBodies++;
-						}
-					}
+					reaction.back()->sub.back()->mf.push_back(chem->indexInState);
+					reaction.back()->sub.back()->pf.push_back(chem->group->npx);
+					reaction.back()->sub.back()->uf.push_back(chem->group->U);
 				}
-				if (!foundSpecies)
+				else
 				{
-					(*owner->tw_out) << "ERROR: couldn't find chemical " << word << std::endl;
-					abort();
+					reaction.back()->sub.back()->mi.push_back(chem->indexInState);
+					reaction.back()->sub.back()->pi.push_back(chem->group->npx);
+					reaction.back()->sub.back()->ui.push_back(chem->group->U);
+					reaction.back()->numBodies++;
 				}
 			}
 			inputString >> word;
@@ -2537,54 +2389,28 @@ void Chemistry::ParseReaction(std::stringstream& inputString)
 
 	// Get temperature range and catalyst
 	inputString >> word;
-	foundSpecies = false;
-	for (i=0;i<chemical.size();i++)
-	{
-		if (chemical[i]->name==word)
-		{
-			foundSpecies = true;
-			reaction.back()->catalyst = i;
-		}
-	}
-	if (!foundSpecies)
-	{
-		(*owner->tw_out) << "ERROR: couldn't find chemical " << word << std::endl;
-		abort();
-	}
+	reaction.back()->catalyst = ((Chemical*)owner->GetModule(word))->group->T;
 	inputString >> word;
 	tw::input::PythonRange(word,&reaction.back()->T0,&reaction.back()->T1);
 	reaction.back()->T0 = uc.eV_to_sim(reaction.back()->T0);
 	reaction.back()->T1 = uc.eV_to_sim(reaction.back()->T1);
 
-	// Print message
-	(*owner->tw_out) << "Reaction: ";
-	for (i=0;i<reaction.back()->sub.size();i++)
-		for (j=0;j<reaction.back()->sub[i]->reactant.size();j++)
-			(*owner->tw_out) << chemical[reaction.back()->sub[i]->reactant[j]]->name << " ";
-	(*owner->tw_out) << "-> ";
-	for (i=0;i<reaction.back()->sub.size();i++)
-		for (j=0;j<reaction.back()->sub[i]->product.size();j++)
-			(*owner->tw_out) << chemical[reaction.back()->sub[i]->product[j]]->name << " ";
-	(*owner->tw_out) << "   Rate = " << reaction.back()->c1;
-	if (reaction.back()->c2!=0.0)
-		(*owner->tw_out) << " * T(" << chemical[reaction.back()->catalyst]->name << ")^" << reaction.back()->c2;
-	if (reaction.back()->c3!=0.0)
-		(*owner->tw_out) << " * exp[-" << reaction.back()->c3 << "/T(" << chemical[reaction.back()->catalyst]->name << ")]";
-	for (i=0;i<reaction.back()->sub.size();i++)
-		(*owner->tw_out) << " : " << reaction.back()->sub[i]->heat << " " << reaction.back()->sub[i]->vheat << "v";
-	(*owner->tw_out) << " : " << reaction.back()->T0 << " " << reaction.back()->T1;
-	(*owner->tw_out) << std::endl;
+	(*owner->tw_out) << "Reaction: " << reaction.back()->mi.size() << " reactants / " << reaction.back()->mf.size() << "products" << std::endl;
 }
 
 void Chemistry::ParseExcitation(std::stringstream& inputString)
 {
 	tw::Int i;
 	std::string word,species;
+	Chemical *exciter,*excitee;
 	UnitConverter uc(owner->unitDensityCGS);
 
 	excitation.push_back(new Excitation);
 
 	inputString >> word >> word; // take off "="
+	exciter = (Chemical*)owner->GetModule(word);
+	excitation.back()->mi = exciter->indexInState;
+	excitation.back()->pi = exciter->group->npx;
 	for (i=0;i<chemical.size();i++)
 		if (chemical[i]->name==word)
 			excitation.back()->exciter = i;
@@ -2671,11 +2497,11 @@ void Chemistry::ParseCollision(std::stringstream& inputString)
 }
 
 
-void Chemistry::ReadInputFileTerm(std::stringstream& inputString,std::string& command)
+void Chemistry::ReadInputFileDirective(std::stringstream& inputString,const std::string& command)
 {
 	std::string word;
 
-	Module::ReadInputFileTerm(inputString,command);
+	Module::ReadInputFileDirective(inputString,command);
 	if (command=="epsilon") // eg epsilon factor = 0.1
 		inputString >> word >> word >> epsilonFactor;
 	if (command=="radiation") // eg radiation model = thin
@@ -2887,18 +2713,32 @@ void Chemistry::BoxDiagnosticHeader(GridDataDescriptor* box)
 	owner->WriteBoxDataHeader("me_eff",box);
 	if (electrons)
 	{
-		/*owner->WriteBoxDataHeader("chem-Ex",box);
-		owner->WriteBoxDataHeader("chem-Ey",box);
-		owner->WriteBoxDataHeader("chem-Ez",box);*/
 		owner->WriteBoxDataHeader("chem-phi",box);
 		owner->WriteBoxDataHeader("chem-rho",box);
-		owner->WriteBoxDataHeader("chem-jz",box);
+	}
+	for (tw::Int i=0;i<chemical.size();i++)
+		owner->WriteBoxDataHeader(chemical[i]->name,box);
+	for (tw::Int i=0;i<group.size();i++)
+	{
+		owner->WriteBoxDataHeader("T_" + group[i]->name,box);
+		owner->WriteBoxDataHeader("P_" + group[i]->name,box);
+		owner->WriteBoxDataHeader("Cv_" + group[i]->name,box);
+		owner->WriteBoxDataHeader("K_" + group[i]->name,box);
+		owner->WriteBoxDataHeader("X_" + group[i]->name,box);
+		owner->WriteBoxDataHeader("vx_" + group[i]->name,box);
+		owner->WriteBoxDataHeader("vy_" + group[i]->name,box);
+		owner->WriteBoxDataHeader("vz_" + group[i]->name,box);
 	}
 }
 
 void Chemistry::BoxDiagnose(GridDataDescriptor* box)
 {
-	tw::Int i,j,k,s;
+	void WriteSubmoduleData = [&] (Field& theData,tw::Int comp,const std::string& filename)
+	{
+		CopyFieldData(scratch,Element(0),theData,Element(comp));
+		scratch *= fluxMask;
+		owner->WriteBoxData(filename,box,&scratch(0,0,0),scratch.Stride());
+	};
 
 	// If first step we need to apply EOS so that EquilibriumGroups can write out T
 
@@ -2919,9 +2759,9 @@ void Chemistry::BoxDiagnose(GridDataDescriptor* box)
 	// Mass Density Diagnostic
 
 	scratch = 0.0;
-	for (s=0;s<group.size();s++)
+	for (tw::Int i=0;i<group.size();i++)
 	{
-		group[s]->LoadMassDensity(scratch2,state1);
+		group[i]->LoadMassDensity(scratch2,state1);
 		scratch2 *= fluxMask;
 		scratch += scratch2;
 	}
@@ -2943,19 +2783,30 @@ void Chemistry::BoxDiagnose(GridDataDescriptor* box)
 	{
 		owner->WriteBoxData("chem-phi",box,&phi(0,0,0),phi.Stride());
 		owner->WriteBoxData("chem-rho",box,&rho(0,0,0),rho.Stride());
+	}
 
-		tw::Float q0 = electrons->charge;
-		tw::Float m0 = electrons->mass;
-		tw::Int Pe = electrons->group->P;
-		for (k=1;k<=dim[3];k++)
-			for (j=1;j<=dim[2];j++)
-				for (i=1;i<=dim[1];i++)
-				{
-					scratch(i,j,k) = q0*q0*state1(i,j,k,ie)*(phi(i,j,k-1)-phi(i,j,k+1))/owner->dL(i,j,k,3);
-					scratch(i,j,k) += q0*(eos1(i,j,k-1,Pe)-eos1(i,j,k+1,Pe))/owner->dL(i,j,k,3);
-					scratch(i,j,k) /= m0*nu_e(i,j,k);
-				}
-		owner->WriteBoxData("chem-jz",box,&scratch(0,0,0),scratch.Stride());
+	// Constituents and groups
+
+	for (tw::Int i=0;i<group.size();i++)
+	{
+		char ax_lab[3] = { 'x' , 'y' , 'z' };
+
+		for (tw::Int c=0;c<group[i]->chemical.size();c++)
+			WriteSubmoduleData(state1,group[i]->chemical[c]->indexInState,group[i]->chemical[c]->name);
+
+		WriteSubmoduleData(eos1,group[i]->T,"T_" + group[i]->name);
+		WriteSubmoduleData(eos1,group[i]->P,"P_" + group[i]->name);
+		WriteSubmoduleData(eos1,group[i]->Cv,"Cv_" + group[i]->name);
+		WriteSubmoduleData(eos1,group[i]->K,"K_" + group[i]->name);
+		WriteSubmoduleData(eos1,group[i]->Tv,"X_" + group[i]->name);
+
+		for (tw::Int ax=1;ax<=3;ax++)
+		{
+			filename = "v" + std::string(ax_lab[ax-1]) + "_" + group[i]->name;
+			group[i]->LoadVelocity(scratch,state1,ax);
+			scratch *= fluxMask;
+			owner->WriteBoxData(filename,box,&scratch(0,0,0),scratch.Stride());
+		}
 	}
 }
 

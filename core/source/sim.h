@@ -25,8 +25,6 @@ void ReduceInputFile(std::ifstream& inputFile,std::stringstream& out);
 
 void PreprocessInputFile(std::ifstream& inputFile,std::stringstream& out);
 
-void ExitInputFileBlock(std::stringstream& inputString);
-
 struct NonUniformRegion
 {
 	tw::Int i1,i2,ih,N;
@@ -57,13 +55,14 @@ struct Grid:Task,MetricSpace
 	tw::Int stepsToTake,stepNow;
 	tw::Int lastTime;
 
-	tw::Int dumpPeriod,sortPeriod,sortX,sortY,sortZ;
+	tw::Int dumpPeriod;
 	tw::Int binaryFormat;
 
 	tw_boundary_spec bc0[4],bc1[4];
 
 	std::vector<ComputeTool*> computeTool;
 	std::vector<Module*> module;
+	std::vector<tw::module_type> createdModuleTypes;
 
 	std::vector<Region*> clippingRegion;
 	std::vector<Wave*> wave;
@@ -100,9 +99,15 @@ struct Grid:Task,MetricSpace
 	void WriteCellDataHeader(GridDataDescriptor* theBox);
 	void WriteCellData(GridDataDescriptor* theBox);
 
-	ComputeTool* AddPrivateTool(tw_tool whichTool);
-	ComputeTool* AddSharedTool(tw_tool whichTool);
-	bool RemoveTool(ComputeTool *theTool);
+	void MangleModuleName(std::string& name);
+	Module* GetModule(const std::string& name);
+
+	void MangleToolName(std::string& name);
+	ComputeTool* CreateTool(const std::string& basename,tw::tool_type theType);
+	ComputeTool* GetTool(const std::string& name);
+	ComputeTool* LoadRestartedTool(std::ifstream& inFile);
+	ComputeTool* ToolFromDirective(std::stringstream& inputString,const std::string& command);
+	bool Grid::RemoveTool(ComputeTool *theTool);
 
 	void SetCellWidthsAndLocalSize();
 	void SetGlobalSizeAndLocalCorner();
@@ -117,6 +122,7 @@ struct Grid:Task,MetricSpace
 	void OpenInputFile(std::ifstream& inFile);
 	std::string InputFileFirstPass();
 	void GridFromInputFile();
+	void ReadSubmoduleBlock(std::stringstream& inputString,Module *sup);
 	void ReadInputFile();
 	void ReadData(std::ifstream& inFile);
 	void WriteData(std::ofstream& outFile);

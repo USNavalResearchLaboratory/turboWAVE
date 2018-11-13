@@ -18,7 +18,7 @@
 /////////////////////////////
 
 
-LaserPropagator::LaserPropagator(MetricSpace *m,Task *tsk,bool shared) : ComputeTool(m,tsk,shared)
+LaserPropagator::LaserPropagator(const std::string& name,MetricSpace *m,Task *tsk) : ComputeTool(name,m,tsk)
 {
 	w0 = 10.0;
 	polarization = linearPolarization;
@@ -66,7 +66,7 @@ void LaserPropagator::SetBoundaryConditions(ComplexField& a0,ComplexField& a1,Co
 /////////////////////////////
 
 
-EigenmodePropagator::EigenmodePropagator(MetricSpace *m,Task *tsk,bool shared) : LaserPropagator(m,tsk,shared)
+EigenmodePropagator::EigenmodePropagator(const std::string& name,MetricSpace *m,Task *tsk) : LaserPropagator(name,m,tsk)
 {
 	typeCode = eigenmodePropagator;
 	name = "eigenmode_propagator";
@@ -218,7 +218,7 @@ void EigenmodePropagator::Advance(ComplexField& a0,ComplexField& a1,ComplexField
 ////////////////////////
 
 
-ADIPropagator::ADIPropagator(MetricSpace *m,Task *tsk,bool shared) : LaserPropagator(m,tsk,shared)
+ADIPropagator::ADIPropagator(const std::string& name,MetricSpace *m,Task *tsk) : LaserPropagator(name,m,tsk)
 {
 	typeCode = adiPropagator;
 	name = "adi_propagator";
@@ -418,7 +418,7 @@ void ADIPropagator::Advance(ComplexField& a0,ComplexField& a1,ComplexField& chi)
 //////////////////////////////////////////
 
 
-SchroedingerPropagator::SchroedingerPropagator(MetricSpace *m,Task *tsk,bool shared) : ComputeTool(m,tsk,shared)
+SchroedingerPropagator::SchroedingerPropagator(const std::string& name,MetricSpace *m,Task *tsk) : ComputeTool(name,m,tsk)
 {
 	name = "schroedinger_propagator";
 	typeCode = schroedingerPropagator;
@@ -634,7 +634,7 @@ void SchroedingerPropagator::UpdateSpin(ComplexField& psi,ComplexField& chi,Fiel
 //////////////////////////////////////////
 
 
-ParabolicSolver::ParabolicSolver(MetricSpace *m,Task *tsk,bool shared) : ComputeTool(m,tsk,shared)
+ParabolicSolver::ParabolicSolver(const std::string& name,MetricSpace *m,Task *tsk) : ComputeTool(name,m,tsk)
 {
 	name = "parabolic_propagator";
 	typeCode = generalParabolicPropagator;
@@ -833,7 +833,7 @@ void ParabolicSolver::Advance(	Field& psi,
 ////////////////////////////////////////////
 
 
-IsotropicPropagator::IsotropicPropagator(MetricSpace *m,Task *tsk,bool shared) : ComputeTool(m,tsk,shared)
+IsotropicPropagator::IsotropicPropagator(const std::string& name,MetricSpace *m,Task *tsk) : ComputeTool(name,m,tsk)
 {
 	name = "isotropic_propagator_tool";
 	typeCode = isotropicPropagator;

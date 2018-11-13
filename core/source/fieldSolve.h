@@ -1,13 +1,11 @@
 struct FieldSolver:Module
 {
 	EllipticSolver *ellipticSolver;
-	boundarySpec x0,x1,y0,y1,z0,z1; // poisson bc
-	tw::Float tolerance,overrelaxation;
 
 	FieldSolver(Grid* theGrid);
 	~FieldSolver();
 	virtual void Initialize();
-	virtual void ReadInputFileTerm(std::stringstream& inputString,std::string& command);
+	virtual void ReadInputFileDirective(std::stringstream& inputString,const std::string& command);
 	virtual void ReadData(std::ifstream& inFile);
 	virtual void WriteData(std::ofstream& outFile);
 };
@@ -27,7 +25,7 @@ struct Electromagnetic:FieldSolver
 	virtual void Reset();
 	virtual void Update();
 	virtual void MoveWindow();
-	virtual void ReadInputFileTerm(std::stringstream& inputString,std::string& command);
+	virtual void ReadInputFileDirective(std::stringstream& inputString,const std::string& command);
 	virtual void ReadData(std::ifstream& inFile);
 	virtual void WriteData(std::ofstream& outFile);
 
@@ -86,7 +84,7 @@ struct DirectSolver:Electromagnetic
 	virtual void Initialize();
 	virtual void Update();
 	virtual void MoveWindow();
-	virtual void ReadInputFileTerm(std::stringstream& inputString,std::string& command);
+	virtual void ReadInputFileDirective(std::stringstream& inputString,const std::string& command);
 	virtual void ReadData(std::ifstream& inFile);
 	virtual void WriteData(std::ofstream& outFile);
 
