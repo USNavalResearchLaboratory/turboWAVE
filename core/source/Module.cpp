@@ -15,9 +15,9 @@
 ////////////////////////
 
 
-Module::Module(Grid* theGrid)
+Module::Module(const std::string& name,Grid* theGrid)
 {
-	name = "Generic";
+	this->name = name;
 	owner = theGrid;
 	super = NULL;
 	programFilename = "";
@@ -41,9 +41,21 @@ Module::~Module()
 	#endif
 }
 
-bool Module::AddSubmodule(Module* sub)
+bool Module::ValidSubmodule(Module* sub)
 {
 	return false;
+}
+
+bool Module::AddSubmodule(Module* sub)
+{
+	if (ValidSubmodule(sub))
+	{
+		submodule.push_back(sub);
+		sub->super = this;
+		return true;
+	}
+	else
+		return false;
 }
 
 void Module::InitializeCLProgram(const std::string& filename)
@@ -85,11 +97,17 @@ void Module::ReadData(std::ifstream& inFile)
 	inFile.read((char *)&num,sizeof(tw::Int));
 	for (i=0;i<num;i++)
 		profile.push_back(Profile::CreateObjectFromFile(owner->clippingRegion,inFile));
+
+	// Find supermodule and setup containment
+	std::string super_name;
+	inFile >> super_name;
+	inFile.ignore();
+	owner->GetModule(super_name)->AddSubmodule(this);
 }
 
 void Module::WriteData(std::ofstream& outFile)
 {
-	outFile.write((char *)&typeCode,sizeof(tw_module));
+	outFile.write((char *)&typeCode,sizeof(typeCode));
 	outFile << name << " ";
 	DiscreteSpace::WriteData(outFile);
 	outFile.write((char *)&dt,sizeof(tw::Float));
@@ -99,6 +117,10 @@ void Module::WriteData(std::ofstream& outFile)
 	outFile.write((char *)&i,sizeof(tw::Int));
 	for (i=0;i<profile.size();i++)
 		profile[i]->WriteData(outFile);
+
+	// Write the name of the supermodule
+	// This can be used to reconstruct the whole hierarchy, assuming modules are sorted correctly
+	outFile << super->name << " ";
 }
 
 void Module::ReadInputFileBlock(std::stringstream& inputString)

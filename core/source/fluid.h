@@ -1,6 +1,5 @@
 namespace sparc
 {
-	enum collisionType { hard_sphere, coulomb, metallic };
 	enum laserModel { vacuum, isotropic };
 	enum radiationModel { noRadiation, thin, thick };
 	enum plasmaModel { neutral, quasineutral };
@@ -32,7 +31,7 @@ struct Fluid:Module
 	ComplexField *chi;
 	tw::Float *carrierFrequency;
 
-	Fluid(Grid* theGrid);
+	Fluid(const std::string& name,Grid* theGrid);
 	virtual bool InspectResource(void* resource,const std::string& description);
 	virtual void Initialize();
 	virtual void Update();
@@ -49,49 +48,24 @@ struct Fluid:Module
 	virtual void PointDiagnose(std::ofstream& outFile,const weights_3D& w);
 };
 
-struct Chemical;
-struct Chemistry;
+struct EquilibriumGroup;
 
-struct SubReaction
+struct Chemical:Module
 {
-	std::vector<sparc::hydro_set> reactants,products;
-	tw::Float heat,vheat;
+	EquilibriumGroup *group; // explictly typed super
+	EOSDataTool *eosData;
+	IonizationData ionization;
+	sparc::material mat;
+	tw::Int indexInGroup,indexInState;
 
-	virtual void ReadData(std::ifstream& inFile);
-	virtual void WriteData(std::ofstream& outFile);
-};
+	Chemical(const std::string& name,Grid* theGrid);
+	virtual ~Chemical();
+	virtual void Initialize();
 
-struct Reaction
-{
-	std::vector<SubReaction*> sub;
-	tw::Int catalyst,numBodies;
-	tw::Float T0,T1; // temperature range
-	tw::Float c1,c2,c3; // arrhenius form
-	tw::Float b[9]; // janev coefficients
+	bool GenerateFluid(Field& f,bool init);
+	void DefaultEOS();
 
-	virtual void ReadData(std::ifstream& inFile);
-	virtual void WriteData(std::ofstream& outFile);
-};
-
-struct Excitation
-{
-	sparc::hydro_set exciter,excitee;
-	tw::Float T0,T1; // temperature range (not used)
-	tw::Float c1,c2,c3; // arrhenius form
-	tw::Float b[9]; // janev coefficients
-	tw::Float level;
-
-	virtual void ReadData(std::ifstream& inFile);
-	virtual void WriteData(std::ofstream& outFile);
-};
-
-struct Collision
-{
-	sparc::hydro_set body1,body2;
-	sparc::collisionType type;
-	tw::Float crossSection;
-	tw::Float ks,T_ref,n_ref;
-
+	virtual void ReadInputFileDirective(std::stringstream& inputString,const std::string& command);
 	virtual void ReadData(std::ifstream& inFile);
 	virtual void WriteData(std::ofstream& outFile);
 };
@@ -99,56 +73,57 @@ struct Collision
 struct EquilibriumGroup:Module
 {
 	std::vector<Chemical*> chemical; // explicitly typed submodule list
+	EOSMixture *eosMixData;
 
-	// Following contains indices in state array corresponding to density of each chemical in the group
-	Element e;
 	// The hydro set contains indices into the state vector for this group.
 	// The mass density index corresponds to the first chemical in the group.
 	sparc::hydro_set hidx;
 	// The eos set contains indices into the eos vector for this group.
 	sparc::eos_set eidx;
+	// The material data is packed and processed for optimization
+	sparc::material_set matset;
 	// Following is used to limit motion by zeroing forces on this group
 	tw::Float forceFilter;
 
-	EOSMixture *eosMixData;
-	// duplicate data from chemical list for efficiency
-	std::valarray<tw::Float> mass,charge,cvm,excitationEnergy,thermo_cond_cvm,k_visc_m;
-
+	virtual bool ValidSubmodule(Module* sub)
+	{
+		return sub->typeCode==tw::module_type::chemical;
+	}
 	tw::Float DensitySum(const Field& f,const CellIterator& cell)
 	{
 		tw::Float ans = 0.0;
-		for (tw::Int s=e.low;s<=e.high;s++)
+		for (tw::Int s=hidx.n;s<hidx.n+hidx.num;s++)
 			ans += f(cell,s);
 		return ans;
 	}
 	tw::Float DensityWeightedSum(const Field& f,std::valarray<tw::Float>& qty,const CellIterator& cell)
 	{
 		tw::Float ans = 0.0;
-		for (tw::Int s=e.low;s<=e.high;s++)
-			ans += f(cell,s)*qty[s-e.low];
+		for (tw::Int s=hidx.n;s<hidx.n+hidx.num;s++)
+			ans += f(cell,s)*qty[s-hidx.n];
 		return ans;
 	}
 	tw::Float ConditionalDensitySum(const Field& f,std::valarray<tw::Float>& qty,const CellIterator& cell)
 	{
 		tw::Float ans = 0.0;
-		for (tw::Int s=e.low;s<=e.high;s++)
-			ans += qty[s-e.low] > 0.0 ? f(cell,s) : 0.0;
+		for (tw::Int s=hidx.n;s<hidx.n+hidx.num;s++)
+			ans += qty[s-hidx.n] > 0.0 ? f(cell,s) : 0.0;
 		return ans;
 	}
 	void LoadMassDensity(ScalarField& nm,const Field& f)
 	{
 		for (CellIterator cell(*this,true);cell<cell.end();++cell)
-			nm(cell) = DensityWeightedSum(f,mass,cell);
+			nm(cell) = DensityWeightedSum(f,matset.mass,cell);
 	}
 	void LoadMassDensityCv(ScalarField& nmcv,const Field& f)
 	{
 		for (CellIterator cell(*this,true);cell<cell.end();++cell)
-			nmcv(cell) = DensityWeightedSum(f,cvm,cell);
+			nmcv(cell) = DensityWeightedSum(f,matset.cvm,cell);
 	}
 	tw::vec3 Velocity(const Field& f,const CellIterator& cell)
 	{
-		tw::Float nm = DensityWeightedSum(f,mass,cell);
-		return tw::vec3(f(cell,npx),f(cell,npy),f(cell,npz))/(tw::small_pos + nm);
+		tw::Float nm = DensityWeightedSum(f,matset.mass,cell);
+		return tw::vec3(f(cell,hidx.npx),f(cell,hidx.npy),f(cell,hidx.npz))/(tw::small_pos + nm);
 	}
 	void LoadVelocity(ScalarField& vel,const Field& f,tw::Int ax)
 	{
@@ -156,40 +131,14 @@ struct EquilibriumGroup:Module
 		tw::Float nm;
 		for (CellIterator cell(*this,true);cell<cell.end();++cell)
 		{
-			nm = DensityWeightedSum(f,mass,cell);
-			vel(cell) = f(cell,npx+ax-1)/(tw::small_pos + nm);
+			nm = DensityWeightedSum(f,matset.mass,cell);
+			vel(cell) = f(cell,hidx.npx+ax-1)/(tw::small_pos + nm);
 		}
 	}
 
-	EquilibriumGroup(Grid* theGrid);
+	EquilibriumGroup(const std::string& name,Grid* theGrid);
 	virtual ~EquilibriumGroup(); // ASHER_MOD
 	virtual void Initialize();
-
-	virtual void ReadInputFileDirective(std::stringstream& inputString,const std::string& command);
-	virtual void ReadData(std::ifstream& inFile);
-	virtual void WriteData(std::ofstream& outFile);
-};
-
-struct Chemical:Module
-{
-	EquilibriumGroup *group; // explictly typed super
-	tw::Int indexInGroup,indexInState;
-	tw::Float mass,charge,cvm; // cvm = cv*mass/kB = 3/2 for point particles
-	IonizationData ionization;
-	tw::Float excitationEnergy,thermometricConductivity,kinematicViscosity;
-
-	EOSDataTool *eosData;
-
-	// electron motion in lattice
-	tw::Float effectiveMass,transitionDensity;
-	tw::Complex permittivity;
-
-	Chemical(Grid* theGrid);
-	virtual ~Chemical();
-	virtual void Initialize();
-
-	bool GenerateFluid(Field& f,bool init);
-	void DefaultEOS();
 
 	virtual void ReadInputFileDirective(std::stringstream& inputString,const std::string& command);
 	virtual void ReadData(std::ifstream& inFile);
@@ -217,45 +166,52 @@ struct Chemistry:Module
 	tw::Int ie; // index to electron density in state vector
 	ScalarField scratch,scratch2,fluxMask;
 	ScalarField rho0,rho,phi,nu_e,me_eff,radiativeLosses,radiationIntensity;
-	tw::Float phi_lbc,phi_rbc;
 	ComplexField laserAmplitude,refractiveIndex;
-	std::valarray<tw::Float> gres;
 
-	// items needed for step size control and relaxation
+	// items needed for step size control and user feedback
 	tw::Float epsilonFactor;
-	tw::Float tolerance,overrelaxation;
-	tw::Int maxIterations;
 	std::stringstream statusMessage;
 
 	// The distinction between creation and destruction is used for adaptive timestep adjustment.
 	// In the case of constant time step, there is no difference between create(x) and destroy(-x).
 	// For signed quantities like momentum, the distinction is never used at all.
-	void CreateMass(const CellIterator& cell,const tw::Int& c,const tw::Float& val,EquilibriumGroup *g) { creationRate(cell,g->e.low+c) += val; }
-	void DestroyMass(const CellIterator& cell,const tw::Int& c,const tw::Float& val,EquilibriumGroup *g) { destructionRate(cell,g->e.low+c) += val; }
-	void CreateMomentum(const CellIterator& cell,const tw::Int& ax,const tw::Float& val,EquilibriumGroup *g) { creationRate(cell,g->npx+ax-1) += val * g->forceFilter; }
-	void DestroyMomentum(const CellIterator& cell,const tw::Int& ax,const tw::Float& val,EquilibriumGroup *g) { destructionRate(cell,g->npx+ax-1) += val * g->forceFilter; }
-	void CreateTotalEnergy(const CellIterator& cell,const tw::Float& val,EquilibriumGroup *g) { creationRate(cell,g->U) += val; }
-	void DestroyTotalEnergy(const CellIterator& cell,const tw::Float& val,EquilibriumGroup *g) { destructionRate(cell,g->U) += val; }
-	void CreateVibrations(const CellIterator& cell,const tw::Float& val,EquilibriumGroup *g) { creationRate(cell,g->Xi) += val; }
-	void DestroyVibrations(const CellIterator& cell,const tw::Float& val,EquilibriumGroup *g) { destructionRate(cell,g->Xi) += val; }
-	void CreateTotalAndVibrational(const CellIterator& cell,const tw::Float& val,EquilibriumGroup *g)
+	void CreateMass(const CellIterator& cell,const tw::Float& val,const sparc::hydro_set& h)
+		{ creationRate(cell,h.ni) += val; }
+	void DestroyMass(const CellIterator& cell,const tw::Float& val,const sparc::hydro_set& h)
+		{ destructionRate(cell,h.ni) += val; }
+	void CreateMomentum(const CellIterator& cell,const tw::Int& ax,const tw::Float& val,const sparc::hydro_set& h)
+		{ creationRate(cell,h.npx+ax-1) += val; }
+	void DestroyMomentum(const CellIterator& cell,const tw::Int& ax,const tw::Float& val,const sparc::hydro_set& h)
+		{ destructionRate(cell,h.npx+ax-1) += val; }
+	void CreateTotalEnergy(const CellIterator& cell,const tw::Float& val,const sparc::hydro_set& h)
+		{ creationRate(cell,h.u) += val; }
+	void DestroyTotalEnergy(const CellIterator& cell,const tw::Float& val,const sparc::hydro_set& h)
+		{ destructionRate(cell,h.u) += val; }
+	void CreateVibrations(const CellIterator& cell,const tw::Float& val,const sparc::hydro_set& h)
+		{ creationRate(cell,h.x) += val; }
+	void DestroyVibrations(const CellIterator& cell,const tw::Float& val,const sparc::hydro_set& h)
+		{ destructionRate(cell,h.x) += val; }
+	void CreateTotalAndVibrational(const CellIterator& cell,const tw::Float& val,const sparc::hydro_set& h)
 	{
-		creationRate(cell,g->U) += val;
-		creationRate(cell,g->Xi) += val;
+		creationRate(cell,h.u) += val;
+		creationRate(cell,h.x) += val;
 	}
-	void DestroyTotalAndVibrational(const CellIterator& cell,const tw::Float& val,EquilibriumGroup *g)
+	void DestroyTotalAndVibrational(const CellIterator& cell,const tw::Float& val,const sparc::hydro_set& h)
 	{
-		destructionRate(cell,g->U) += val;
-		destructionRate(cell,g->Xi) += val;
+		destructionRate(cell,h.u) += val;
+		destructionRate(cell,h.x) += val;
 	}
 
-	Chemistry(Grid* theGrid);
+	Chemistry(const std::string& name,Grid* theGrid);
 	virtual ~Chemistry();
+	void SetupIndexing();
 	virtual void Initialize();
 	virtual void Reset();
-
-	tw::Float CoulombCrossSection(tw::Float q1,tw::Float q2,tw::Float m12,tw::Float v12,tw::Float N1,tw::Float N2,tw::Float T1,tw::Float T2) const;
-	tw::Float ElectronPhononRateCoeff(tw::Float Ti,tw::Float EFermi,tw::Float ks,tw::Float nref) const;
+	virtual bool ValidSubmodule(Module* sub)
+	{
+		return sub->typeCode==tw::module_type::equilibriumGroup;
+	}
+	tw::Float CollisionCoefficient(sparc::collision *coll);
 	void ComputeElectronCollisionFrequency();
 	void ComputeCollisionalSources();
 	void ComputeRadiativeSources();
@@ -273,6 +229,7 @@ struct Chemistry:Module
 	void FirstOrderAdvance(tw::Float dt,bool computeSources);
 	virtual void Update();
 
+	virtual bool ReadQuasitoolBlock(const std::vector<std::string>& preamble,std::stringstream& inputString);
 	virtual void ReadInputFileDirective(std::stringstream& inputString,const std::string& command);
 	virtual void ReadData(std::ifstream& inFile);
 	virtual void WriteData(std::ofstream& outFile);

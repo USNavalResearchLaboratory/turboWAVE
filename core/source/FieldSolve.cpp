@@ -5,8 +5,10 @@
 // FIELD SOLVER BASE CLASS //
 /////////////////////////////
 
+// The base class is essentially for managing the ellipticSolver tool.
+// This serves as a basic template for how to manage a ComputeTool.
 
-FieldSolver::FieldSolver(Grid* theGrid):Module(theGrid)
+FieldSolver::FieldSolver(const std::string& name,Grid* theGrid):Module(name,theGrid)
 {
 	updateSequencePriority = 3;
 	ellipticSolver = NULL;
@@ -21,8 +23,9 @@ FieldSolver::~FieldSolver()
 void FieldSolver::Initialize()
 {
 	Module::Initialize();
+	// If the tool does not exist, create one automatically
 	if (ellipticSolver==NULL)
-		ellipticSolver = (EllipticSolver*)owner->CreateTool("facr_poisson_solver",facrPoissonSolver);
+		ellipticSolver = (EllipticSolver*)owner->CreateTool("facr_poisson_solver",tw::tool_type::facrPoissonSolver);
 }
 
 void FieldSolver::ReadInputFileDirective(std::stringstream& inputString,const std::string& command)
@@ -31,8 +34,13 @@ void FieldSolver::ReadInputFileDirective(std::stringstream& inputString,const st
 
 	Module::ReadInputFileDirective(inputString,command);
 
+	// The following can perform either of two functions:
+	// 1. Get an existing tool by searching for a name -- ``get tool with name = [name]``
+	// 2. Create a tool on the fly based on a type -- ``[key] = [type]``
+	// In the second case a name will be assigned internally.
 	ellipticSolver = (EllipticSolver*)owner->ToolFromDirective(inputString,command);
 
+	// If a tool already exists, it can read directives on the fly
 	if (ellipticSolver!=NULL)
 		ellipticSolver->ReadInputFileDirective(inputString,command);
 }
@@ -40,12 +48,15 @@ void FieldSolver::ReadInputFileDirective(std::stringstream& inputString,const st
 void FieldSolver::ReadData(std::ifstream& inFile)
 {
 	Module::ReadData(inFile);
-	ellipticSolver = (EllipticSolver*)owner->LoadRestartedTool(inFile);
+	// The following grabs an existing pointer to a tool by reading its name and searching.
+	// By this time the Grid class already created and loaded the tool.
+	ellipticSolver = (EllipticSolver*)owner->GetRestartedTool(inFile);
 }
 
 void FieldSolver::WriteData(std::ofstream& outFile)
 {
 	Module::WriteData(outFile);
+	// Saves the name of the tool in the restart file.
 	ellipticSolver->SaveToolReference(outFile);
 }
 
@@ -55,7 +66,7 @@ void FieldSolver::WriteData(std::ofstream& outFile)
 ////////////////////////////////
 
 
-Electromagnetic::Electromagnetic(Grid* theGrid):FieldSolver(theGrid)
+Electromagnetic::Electromagnetic(const std::string& name,Grid* theGrid):FieldSolver(name,theGrid)
 {
 	if (1.0/theGrid->dt <= sqrt(
 		(theGrid->globalCells[1]==1 ? 0.0 : 1.0)/sqr(dx(*theGrid)) +
@@ -561,9 +572,8 @@ void Electromagnetic::CustomDiagnose()
 ////////////////////////////////////////////////
 
 
-CoulombSolver::CoulombSolver(Grid* theGrid):Electromagnetic(theGrid)
+CoulombSolver::CoulombSolver(const std::string& name,Grid* theGrid):Electromagnetic(name,theGrid)
 {
-	name = "Coulomb-EM";
 	typeCode = tw::module_type::coulombSolver;
 	A4.Initialize(8,*this,owner);
 
@@ -571,9 +581,6 @@ CoulombSolver::CoulombSolver(Grid* theGrid):Electromagnetic(theGrid)
 	L2.Initialize(theGrid,theGrid,&theGrid->wave,zAxis,lowSide,2,6);
 	R1.Initialize(theGrid,theGrid,&theGrid->wave,zAxis,highSide,1,5);
 	R2.Initialize(theGrid,theGrid,&theGrid->wave,zAxis,highSide,2,6);
-
-	z0 = natural;
-	z1 = natural;
 }
 
 void CoulombSolver::ExchangeResources()
@@ -586,7 +593,7 @@ void CoulombSolver::Initialize()
 	Electromagnetic::Initialize();
 
 	// Overrides the boundary conditions set by the tool
-	ellipticSolver->SetBoundaryConditions(periodic,periodic,periodic,periodic,z0,z1);
+	ellipticSolver->SetBoundaryConditions(periodic,periodic,periodic,periodic,natural,natural);
 	ellipticSolver->SetBoundaryConditions(scratch2);
 
 	SetExteriorBoundaryConditionsE(A4,Element(1),Element(2),Element(3));
@@ -825,11 +832,10 @@ void CoulombSolver::PointDiagnose(std::ofstream& outFile,const weights_3D& w)
 ///////////////////////
 
 
-DirectSolver::DirectSolver(Grid* theGrid):Electromagnetic(theGrid)
+DirectSolver::DirectSolver(const std::string& name,Grid* theGrid):Electromagnetic(name,theGrid)
 {
-	name = "Direct-EM";
 	typeCode = tw::module_type::directSolver;
-	yeeTool = (YeePropagatorPML*)owner->AddPrivateTool(yeePropagatorPML);
+	yeeTool = (YeePropagatorPML*)owner->CreateTool("yee",tw::tool_type::yeePropagatorPML);
 	enforceChargeConservation = true;
 	layerThicknessX0 = 0;
 	layerThicknessX1 = 0;
@@ -1178,9 +1184,8 @@ void DirectSolver::Update()
 ///////////////////////////////////
 
 
-CurvilinearDirectSolver::CurvilinearDirectSolver(Grid* theGrid):DirectSolver(theGrid)
+CurvilinearDirectSolver::CurvilinearDirectSolver(const std::string& name,Grid* theGrid):DirectSolver(name,theGrid)
 {
-	name = "Curvilinear-EM";
 	typeCode = tw::module_type::curvilinearDirectSolver;
 	A.Initialize(6,*this,owner);
 }

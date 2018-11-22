@@ -11,9 +11,8 @@
 ///////////////////////////////
 
 
-Electrostatic::Electrostatic(Grid* theGrid):FieldSolver(theGrid)
+Electrostatic::Electrostatic(const std::string& name,Grid* theGrid):FieldSolver(name,theGrid)
 {
-	name = "Electrostatic";
 	typeCode = tw::module_type::electrostatic;
 	phi.Initialize(*this,owner);
 	source.Initialize(*this,owner);

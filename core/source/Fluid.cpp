@@ -2,17 +2,16 @@
 #include "fieldSolve.h"
 #include "fluid.h"
 
-///////////////////////
-//                   //
-//   FLUID MODULE    //
-//                   //
-///////////////////////
+/////////////////////////////
+//                         //
+// RELATIVISTIC COLD FLUID //
+//                         //
+/////////////////////////////
 
 
-Fluid::Fluid(Grid* theGrid):Module(theGrid)
+Fluid::Fluid(const std::string& name,Grid* theGrid):Module(name,theGrid)
 {
-	name = "Fluid";
-	typeCode = fluidFields;
+	typeCode = tw::module_type::fluidFields;
 	charge = -1.0;
 	mass = 1.0;
 	thermalMomentum = 0.0;
@@ -588,273 +587,22 @@ void Fluid::PointDiagnose(std::ofstream& outFile,const weights_3D& w)
 
 /////////////////////
 //                 //
-//  INTERACTIONS   //
-//                 //
-/////////////////////
-
-
-void SubReaction::ReadData(std::ifstream& inFile)
-{
-	tw::Int num;
-	sparc::hydro_set temp;
-
-	reactants.clear();
-	inFile.read((char *)&num,sizeof(tw::Int));
-	for (int i=0;i<num;i++)
-	{
-		inFile.read((char *)&temp,sizeof(sparc::hydro_set));
-		reactants.push_back(temp);
-	}
-
-	products.clear();
-	inFile.read((char *)&num,sizeof(tw::Int));
-	for (int i=0;i<num;i++)
-	{
-		inFile.read((char *)&temp,sizeof(sparc::hydro_set));
-		products.push_back(temp);
-	}
-
-	inFile.read((char *)&heat,sizeof(tw::Float));
-	inFile.read((char *)&vheat,sizeof(tw::Float));
-}
-
-void SubReaction::WriteData(std::ofstream& outFile)
-{
-	tw::Int num;
-
-	num = reactants.size();
-	outFile.write((char *)&num,sizeof(tw::Int));
-	for (i=0;i<num;i++)
-		outFile.write((char*)&reactants[i],sizeof(sparc::hydro_set));
-
-	num = products.size();
-	outFile.write((char *)&num,sizeof(tw::Int));
-	for (i=0;i<num;i++)
-		outFile.write((char*)&products[i],sizeof(sparc::hydro_set));
-
-	outFile.write((char *)&heat,sizeof(tw::Float));
-	outFile.write((char *)&vheat,sizeof(tw::Float));
-}
-
-void Reaction::ReadData(std::ifstream& inFile)
-{
-	tw::Int i,num;
-
-	inFile.read((char *)&catalyst,sizeof(tw::Int));
-	inFile.read((char *)&numBodies,sizeof(tw::Int));
-	inFile.read((char *)&c1,sizeof(tw::Float));
-	inFile.read((char *)&c2,sizeof(tw::Float));
-	inFile.read((char *)&c3,sizeof(tw::Float));
-	inFile.read((char *)&T0,sizeof(tw::Float));
-	inFile.read((char *)&T1,sizeof(tw::Float));
-	inFile.read((char *)b,sizeof(tw::Float)*9);
-
-	inFile.read((char *)&num,sizeof(tw::Int));
-	for (i=0;i<num;i++)
-	{
-		sub.push_back(new SubReaction);
-		sub.back()->ReadData(inFile);
-	}
-}
-
-void Reaction::WriteData(std::ofstream& outFile)
-{
-	tw::Int i,num;
-
-	outFile.write((char *)&catalyst,sizeof(tw::Int));
-	outFile.write((char *)&numBodies,sizeof(tw::Int));
-	outFile.write((char *)&c1,sizeof(tw::Float));
-	outFile.write((char *)&c2,sizeof(tw::Float));
-	outFile.write((char *)&c3,sizeof(tw::Float));
-	outFile.write((char *)&T0,sizeof(tw::Float));
-	outFile.write((char *)&T1,sizeof(tw::Float));
-	outFile.write((char *)b,sizeof(tw::Float)*9);
-
-	num = sub.size();
-	outFile.write((char *)&num,sizeof(tw::Int));
-	for (i=0;i<num;i++)
-		sub[i]->WriteData(outFile);
-}
-
-void Excitation::ReadData(std::ifstream& inFile)
-{
-	inFile.read((char *)&exciter,sizeof(sparc::hydro_set));
-	inFile.read((char *)&excitee,sizeof(sparc::hydro_set));
-	inFile.read((char *)&c1,sizeof(tw::Float));
-	inFile.read((char *)&c2,sizeof(tw::Float));
-	inFile.read((char *)&c3,sizeof(tw::Float));
-	inFile.read((char *)&T0,sizeof(tw::Float));
-	inFile.read((char *)&T1,sizeof(tw::Float));
-	inFile.read((char *)b,sizeof(tw::Float)*9);
-	inFile.read((char *)&level,sizeof(tw::Float));
-}
-
-void Excitation::WriteData(std::ofstream& outFile)
-{
-	outFile.write((char *)&exciter,sizeof(sparc::hydro_set));
-	outFile.write((char *)&excitee,sizeof(sparc::hydro_set));
-	outFile.write((char *)&c1,sizeof(tw::Float));
-	outFile.write((char *)&c2,sizeof(tw::Float));
-	outFile.write((char *)&c3,sizeof(tw::Float));
-	outFile.write((char *)&T0,sizeof(tw::Float));
-	outFile.write((char *)&T1,sizeof(tw::Float));
-	outFile.write((char *)b,sizeof(tw::Float)*9);
-	outFile.write((char *)&level,sizeof(tw::Float));
-}
-
-void Collision::ReadData(std::ifstream& inFile)
-{
-	inFile.read((char *)&type,sizeof(sparc::collisionType));
-	inFile.read((char *)&body1,sizeof(sparc::hydro_set));
-	inFile.read((char *)&body2,sizeof(sparc::hydro_set));
-	inFile.read((char *)&crossSection,sizeof(tw::Float));
-	inFile.read((char *)&ks,sizeof(tw::Float));
-	inFile.read((char *)&T_ref,sizeof(tw::Float));
-	inFile.read((char *)&n_ref,sizeof(tw::Float));
-}
-
-void Collision::WriteData(std::ofstream& outFile)
-{
-	outFile.write((char *)&type,sizeof(sparc::collisionType));
-	outFile.write((char *)&body1,sizeof(sparc::hydro_set));
-	outFile.write((char *)&body2,sizeof(sparc::hydro_set));
-	outFile.write((char *)&crossSection,sizeof(tw::Float));
-	outFile.write((char *)&ks,sizeof(tw::Float));
-	outFile.write((char *)&T_ref,sizeof(tw::Float));
-	outFile.write((char *)&n_ref,sizeof(tw::Float));
-}
-
-
-/////////////////////
-//                 //
-//   GROUP MODULE  //
-//                 //
-/////////////////////
-
-
-EquilibriumGroup::EquilibriumGroup(Grid* theGrid):Module(theGrid)
-{
-	name = "Group";
-	typeCode = equilibriumGroup;
-	forceFilter = 1.0;
-
-	// DFG - Start with NULL tool.
-	// User can select one by name, or let it be created automatically in Initialize()
-	eosMixData = NULL;
-}
-
-// ASHER_MOD -- EquilibriumGroup now needs a destructor because of eosMixData
-EquilibriumGroup::~EquilibriumGroup()
-{
-	if (eosMixData!=NULL)
-		owner->RemoveTool(eosMixData);
-}
-
-void EquilibriumGroup::ReadInputFileDirective(std::stringstream& inputString,const std::string& command)
-{
-	std::string word;
-
-	// If an eos tool exists, it can respond to directives
-	if (eosMixData!=NULL)
-		eosMixData->ReadInputFileDirective(inputString,command);
-
-	// DFG - Install a named eos, or create a new one from a type
-	// Named tools are selected using the universal directive : get tool with name = [name]
-	// Typed tools are created using key/value assignments such as : eos = ideal-gas
-	// In the latter case automatic name mangling guarantees uniqueness
-	// If no tool is created here, one will be automatically created during Initialize()
-	eosMixData = (EOSMixture*)owner->ToolFromDirective(inputString,command);
-
-	if (word=="new")
-	{
-		// DFG - part of improved containment model, add chemicals to the group
-		owner->ReadSubmoduleBlock(inputString,this);
-	}
-	if (word=="mobile")
-	{
-		inputString >> word >> word;
-		forceFilter = (word=="yes" || word=="on" || word=="true") ? 1.0 : 0.0;
-	}
-}
-
-void EquilibriumGroup::Initialize()
-{
-	tw::Int c;
-
-	Module::Initialize();
-
-	// Containment is automatic, but explicit typing is not.
-	for (c=0;c<submodule.size();c++)
-		chemical.push_back((Chemical*)submodule[c]);
-
-	// DFG - auto-create tool if necessary, name will be automatically mangled for uniqueness.
-	if (eosMixData==NULL)
-		eosMixData = (EOSMixture *)owner->CreateTool("eos_mix",eosMixture);
-
-	mass.resize(chemical.size());
-	charge.resize(chemical.size());
-	cvm.resize(chemical.size());
-	excitationEnergy.resize(chemical.size());
-	thermo_cond_cvm.resize(chemical.size());
-	k_visc_m.resize(chemical.size());
-
-	for (c=0;c<chemical.size();c++)
-	{
-		mass[c] = chemical[c]->mass;
-		charge[c] = chemical[c]->charge;
-		cvm[c] = chemical[c]->cvm;
-		excitationEnergy[c] = chemical[c]->excitationEnergy;
-		thermo_cond_cvm[c] = chemical[c]->thermometricConductivity * cvm[c];
-		k_visc_m[c] = chemical[c]->kinematicViscosity * mass[c];
-	}
-}
-
-// DFG - below are the restart file interactions including EOS data
-
-void EquilibriumGroup::ReadData(std::ifstream& inFile)
-{
-	Module::ReadData(inFile);
-	eosMixData = (EOSMixture*)owner->LoadRestartedTool(inFile);
-
-	inFile.read((char *)&forceFilter,sizeof(tw::Float));
-
-	inFile.read((char *)&hidx,sizeof(hidx));
-	inFile.read((char *)&eidx,sizeof(eidx));
-	inFile.read((char *)&e,sizeof(Element));
-}
-
-void EquilibriumGroup::WriteData(std::ofstream& outFile)
-{
-	Module::WriteData(outFile);
-	eosMixData->SaveToolReference(outFile);
-
-	outFile.write((char *)&forceFilter,sizeof(tw::Float));
-
-	outFile.write((char *)&hidx,sizeof(hidx));
-	outFile.write((char *)&eidx,sizeof(eidx));
-	outFile.write((char *)&e,sizeof(Element));
-}
-
-
-/////////////////////
-//                 //
 // CHEMICAL MODULE //
 //                 //
 /////////////////////
 
 
-Chemical::Chemical(Grid* theGrid):Module(theGrid)
+Chemical::Chemical(const std::string& name,Grid* theGrid):Module(name,theGrid)
 {
-	name = "Chemical";
-	typeCode = chemical;
-	charge = -1.0;
-	mass = 1.0;
-	cvm = 1.5;
-	excitationEnergy = 0.0;
-	thermometricConductivity = kinematicViscosity = 0.0;
-	effectiveMass = 1.0; // for electrons moving though this chemical
-	transitionDensity = 1.0; // effective mass comes in for density >> transitionDensity
-	permittivity = tw::Complex(1.0,0.0);
+	typeCode = tw::module_type::chemical;
+	mat.charge = -1.0;
+	mat.mass = 1.0;
+	mat.cvm = 1.5;
+	mat.excitationEnergy = 0.0;
+	mat.thermo_cond_cvm = 0.0;
+	mat.k_visc_m = 0.0;
+	mat.eps_r = 1.0;
+	mat.eps_i = 0.0;
 	indexInGroup = 0;
 	eosData = NULL;
 }
@@ -868,14 +616,28 @@ Chemical::~Chemical()
 
 void Chemical::Initialize()
 {
-	Chemistry *master = (Chemistry*)(super->super);
+	// DFG - use containment tree to find EquilibriumGroup and Chemistry objects.
+	group = (EquilibriumGroup*)super; // used a lot, so we define a member
+	Chemistry *master = (Chemistry*)(super->super); // only used here, local variable
 	Module::Initialize();
+	// DFG - the ionization object is what I now call a quasi-tool
+	// This concept may be retired at some point, we will see.
 	if (ionization.ionizationModel!=noIonization)
 		ionization.Initialize(owner->unitDensityCGS,&master->laserFrequency);
 	// can't generate in Chemistry::Initialize since profiles would not be initialized
 	GenerateFluid(master->state1,true);
 	// chooses an appropriate EOS if none already defined
 	DefaultEOS();
+	// DFG - check to see if this Chemical is electrons.
+	// If it is, notify Chemistry and EquilibriumGroup.
+	// This is again an example of using the containment tree.
+	if (mat.mass==1.0)
+	{
+		// Might be more neatly done with formal Notify functions
+		master->electrons = this;
+		master->ie = indexInState;
+		group->forceFilter = 0.0;
+	}
 }
 
 bool Chemical::GenerateFluid(Field& f,bool init)
@@ -886,12 +648,15 @@ bool Chemical::GenerateFluid(Field& f,bool init)
 
 	bool timeGate,didGenerate=false;
 
+	// DFG - indices into the state vector are encapsulated in hidx
+	// the type of hidx is sparc::hydro_set defined in physics.h
+	// (similarly, EOS state indices are in eidx)
 	const tw::Int ns = indexInState;
-	const tw::Int npx = group->npx;
-	const tw::Int npy = group->npy;
-	const tw::Int npz = group->npz;
-	const tw::Int U = group->U;
-	const tw::Int Xi = group->Xi;
+	const tw::Int npx = group->hidx.npx;
+	const tw::Int npy = group->hidx.npy;
+	const tw::Int npz = group->hidx.npz;
+	const tw::Int U = group->hidx.u;
+	const tw::Int Xi = group->hidx.x;
 
 	for (s=0;s<profile.size();s++)
 	{
@@ -920,13 +685,13 @@ bool Chemical::GenerateFluid(Field& f,bool init)
 						dens = profile[s]->GetValue(pos,*owner);
 						if (profile[s]->whichQuantity==densityProfile && dens>0.0)
 						{
-							kT = sqr(profile[s]->thermalMomentum.x)/mass; // appropriate for exp(-v^2/(2*vth^2)) convention
+							kT = sqr(profile[s]->thermalMomentum.x)/mat.mass; // appropriate for exp(-v^2/(2*vth^2)) convention
 							if (profile[s]->temperature!=0.0)
 								kT = profile[s]->temperature;
 							np.x = dens*profile[s]->driftMomentum.x;
 							np.y = dens*profile[s]->driftMomentum.y;
 							np.z = dens*profile[s]->driftMomentum.z;
-							kinetic = 0.5*Norm(np)/(tw::small_pos + mass*dens);
+							kinetic = 0.5*Norm(np)/(tw::small_pos + mat.mass*dens);
 							vibrational = dens*excitationEnergy/(fabs(exp(excitationEnergy/kT) - 1.0) + tw::small_pos);
 
 							f(i,j,k,ns) = add*f(i,j,k,ns) + dens;
@@ -963,10 +728,10 @@ void Chemical::DefaultEOS()
 {
 	if (eosData==NULL)
 	{
-		if (mass==1.0)
-			eosData = (EOSDataTool*)owner->CreateTool("hot_electrons",eosHotElectrons);
+		if (mat.mass==1.0)
+			eosData = (EOSDataTool*)owner->CreateTool("hot_electrons",tw::tool_type::eosHotElectrons);
 		else
-			eosData = (EOSDataTool*)owner->CreateTool("ideal_gas",eosIdealGas);
+			eosData = (EOSDataTool*)owner->CreateTool("ideal_gas",tw::tool_type::eosIdealGas);
 	}
 }
 
@@ -976,6 +741,7 @@ void Chemical::ReadInputFileDirective(std::stringstream& inputString,const std::
 	UnitConverter uc(owner->unitDensityCGS);
 	Module::ReadInputFileDirective(inputString,command);
 	ionization.ReadInputFileDirective(inputString,command);
+	mat.ReadInputFileDirective(inputString,command,uc);
 
 	// If an eos tool exists, it can respond to directives
 	if (eosData!=NULL)
@@ -991,90 +757,127 @@ void Chemical::ReadInputFileDirective(std::stringstream& inputString,const std::
 	if (command=="ion") // eg, ion species = N3
 	{
 		inputString >> word >> word >> word;
-		ionization.ionSpecies = owner->FindModule(word);
+		ionization.ionSpecies = owner->GetModule(word);
 	}
 	if (command=="electron") // eg, electron species = electrons
 	{
 		inputString >> word >> word >> word;
-		ionization.electronSpecies = owner->FindModule(word);
-	}
-	if (command=="charge") // eg, charge = 1.0
-	{
-		inputString >> word;
-		inputString >> charge;
-	}
-	if (command=="mass") // eg, mass = 1800.0
-	{
-		inputString >> word;
-		inputString >> mass;
-	}
-	if (command=="effective") // eg, effective mass = 1.8 for density >> 1.0
-	{
-		inputString >> word >> word >> effectiveMass >> word >> word >> word >> transitionDensity;
-	}
-	if (command=="permittivity") // eg, permittivity = 5.0 , 0.0
-	{
-		tw::Float tempr,tempi;
-		inputString >> word;
-		inputString >> tempr >> tempi;
-		permittivity = tw::Complex(tempr,tempi);
-	}
-	if (command=="thermometric") // eg, thermometric conductivity = 1.0 // cm^2/s
-	{
-		inputString >> word >> word >> thermometricConductivity;
-		thermometricConductivity *= uc.CGSValue(time_dim)/sqr(uc.CGSValue(length_dim));
-	}
-	if (command=="kinematic") // eg, kinematic viscosity = 1.0 // cm^2/s
-	{
-		inputString >> word >> word >> kinematicViscosity;
-		kinematicViscosity *= uc.CGSValue(time_dim)/sqr(uc.CGSValue(length_dim));
-	}
-	if (command=="vibrational" || command=="vibration" || command=="excitation") // eg, vibrational energy = 0.3
-	{
-		inputString >> word >> word >> excitationEnergy;
-		excitationEnergy = uc.eV_to_sim(excitationEnergy);
-	}
-	if (command=="rotational") // eg, rotational degrees of freedom = 2
-	{
-		inputString >> word >> word >> word >> word >> cvm;
-		cvm = 0.5*(3.0 + cvm);
-	}
-	if (command=="cv") // eg, cv = 2.5 (this is really m*cv, or m*cv/kB)
-	{
-		inputString >> word >> cvm;
+		ionization.electronSpecies = owner->GetModule(word);
 	}
 }
 
 void Chemical::ReadData(std::ifstream& inFile)
 {
 	Module::ReadData(inFile);
-	eosData = (EOSDataTool*)owner->LoadRestartedTool(inFile);
-	inFile.read((char *)&charge,sizeof(tw::Float));
-	inFile.read((char *)&mass,sizeof(tw::Float));
-	inFile.read((char *)&permittivity,sizeof(tw::Complex));
-	inFile.read((char *)&effectiveMass,sizeof(tw::Float));
-	inFile.read((char *)&transitionDensity,sizeof(tw::Float));
-	inFile.read((char *)&excitationEnergy,sizeof(tw::Float));
-	inFile.read((char *)&cvm,sizeof(tw::Float));
-	inFile.read((char *)&thermometricConductivity,sizeof(tw::Float));
-	inFile.read((char *)&kinematicViscosity,sizeof(tw::Float));
+	eosData = (EOSDataTool*)owner->GetRestartedTool(inFile);
+	inFile.read((char *)&mat,sizeof(mat));
 	inFile.read((char *)&ionization,sizeof(IonizationData));
+	inFile.read((char *)&indexInState,sizeof(indexInState));
+	inFile.read((char *)&indexInGroup,sizeof(indexInGroup));
 }
 
 void Chemical::WriteData(std::ofstream& outFile)
 {
 	Module::WriteData(outFile);
 	eosData->SaveToolReference(outFile);
-	outFile.write((char *)&charge,sizeof(tw::Float));
-	outFile.write((char *)&mass,sizeof(tw::Float));
-	outFile.write((char *)&permittivity,sizeof(tw::Complex));
-	outFile.write((char *)&effectiveMass,sizeof(tw::Float));
-	outFile.write((char *)&transitionDensity,sizeof(tw::Float));
-	outFile.write((char *)&excitationEnergy,sizeof(tw::Float));
-	outFile.write((char *)&cvm,sizeof(tw::Float));
-	outFile.write((char *)&thermometricConductivity,sizeof(tw::Float));
-	outFile.write((char *)&kinematicViscosity,sizeof(tw::Float));
+	outFile.write((char *)&mat,sizeof(mat));
 	outFile.write((char *)&ionization,sizeof(IonizationData));
+	outFile.write((char *)&indexInState,sizeof(indexInState));
+	outFile.write((char *)&indexInGroup,sizeof(indexInGroup));
+}
+
+
+/////////////////////
+//                 //
+//   GROUP MODULE  //
+//                 //
+/////////////////////
+
+
+EquilibriumGroup::EquilibriumGroup(const std::string& name,Grid* theGrid):Module(name,theGrid)
+{
+	typeCode = tw::module_type::equilibriumGroup;
+	forceFilter = 1.0;
+
+	// DFG - Start with NULL tool.
+	// User can select one by name, or let it be created automatically in Initialize()
+	eosMixData = NULL;
+}
+
+// ASHER_MOD -- EquilibriumGroup now needs a destructor because of eosMixData
+EquilibriumGroup::~EquilibriumGroup()
+{
+	if (eosMixData!=NULL)
+		owner->RemoveTool(eosMixData);
+}
+
+void EquilibriumGroup::ReadInputFileDirective(std::stringstream& inputString,const std::string& command)
+{
+	std::string word;
+
+	// If an eos tool exists, it can respond to directives
+	if (eosMixData!=NULL)
+		eosMixData->ReadInputFileDirective(inputString,command);
+
+	// DFG - Install a named eos, or create a new one from a type
+	// Named tools are selected using the universal directive : get tool with name = [name]
+	// Typed tools are created using key/value assignments such as : eos = ideal-gas
+	// In the latter case automatic name mangling guarantees uniqueness
+	// If no tool is created here, one will be automatically created during Initialize()
+	eosMixData = (EOSMixture*)owner->ToolFromDirective(inputString,command);
+
+	if (word=="new")
+	{
+		// DFG - part of improved containment model, add chemicals to the group
+		// possibly move this to the Module base class shortly
+		owner->ReadSubmoduleBlock(inputString,this);
+	}
+	if (word=="mobile")
+	{
+		inputString >> word >> word;
+		forceFilter = (word=="yes" || word=="on" || word=="true") ? 1.0 : 0.0;
+	}
+}
+
+void EquilibriumGroup::Initialize()
+{
+	Module::Initialize();
+
+	// DFG - Containment is automatic, but explicit typing is not.
+	// So we simply copy the submodule list and typecast it.
+	for (auto sub : submodule)
+		chemical.push_back((Chemical*)sub);
+
+	// DFG - auto-create tool if necessary, name will be automatically mangled for uniqueness.
+	if (eosMixData==NULL)
+		eosMixData = (EOSMixture *)owner->CreateTool("eos_mix",tw::tool_type::eosMixture);
+
+	// DFG - take advantage of sparc::material and sparc::material_set
+	matset.Allocate(chemical.size());
+	for (tw::Int i=0;i<chemical.size();i++)
+		matset.AddMaterial(chemical[c].mat,i);
+}
+
+// DFG - below are the restart file interactions including EOS data
+
+void EquilibriumGroup::ReadData(std::ifstream& inFile)
+{
+	Module::ReadData(inFile);
+	eosMixData = (EOSMixture*)owner->GetRestartedTool(inFile);
+	inFile.read((char *)&forceFilter,sizeof(tw::Float));
+	inFile.read((char *)&hidx,sizeof(hidx));
+	inFile.read((char *)&eidx,sizeof(eidx));
+	// material set will be created in Initialize
+}
+
+void EquilibriumGroup::WriteData(std::ofstream& outFile)
+{
+	Module::WriteData(outFile);
+	eosMixData->SaveToolReference(outFile);
+	outFile.write((char *)&forceFilter,sizeof(tw::Float));
+	outFile.write((char *)&hidx,sizeof(hidx));
+	outFile.write((char *)&eidx,sizeof(eidx));
+	// material set will be created in Initialize
 }
 
 
@@ -1085,16 +888,11 @@ void Chemical::WriteData(std::ofstream& outFile)
 ///////////////////
 
 
-Chemistry::Chemistry(Grid* theGrid):Module(theGrid)
+Chemistry::Chemistry(const std::string& name,Grid* theGrid):Module(name,theGrid)
 {
-	name = "Chemistry";
-	typeCode = chemistry;
+	typeCode = tw::module_type::chemistry;
 	epsilonFactor = 1e-4;
-	tolerance = 1e-6;
-	overrelaxation = 1.9;
-	maxIterations = 10000;
 	laserFrequency = 1.0;
-	phi_lbc = phi_rbc = 0.0;
 
 	// some arrays must be initialized later since we don't know how many elements they have yet
 	scratch.Initialize(*this,owner);
@@ -1109,14 +907,12 @@ Chemistry::Chemistry(Grid* theGrid):Module(theGrid)
 	radiativeLosses.Initialize(*this,owner);
 	radiationIntensity.Initialize(*this,owner);
 	refractiveIndex.Initialize(*this,owner);
-	gres.resize(owner->globalCells[3]+2);
 
-	parabolicSolver = (ParabolicSolver*)owner->AddPrivateTool(generalParabolicPropagator);
-	if (owner->Dimensionality()==1)
-		ellipticSolver = (EllipticSolver*)owner->AddPrivateTool(ellipticSolver1D);
-	else
-		ellipticSolver = (EllipticSolver*)owner->AddPrivateTool(iterativePoissonSolver);
-	laserPropagator = (IsotropicPropagator*)owner->AddPrivateTool(isotropicPropagator);
+	// DFG - start all tools with null pointers
+	parabolicSolver = NULL;
+	ellipticSolver = NULL;
+	laserPropagator = NULL;
+
 	radModel = sparc::noRadiation;
 	lasModel = sparc::vacuum;
 	plasModel = sparc::neutral;
@@ -1125,44 +921,150 @@ Chemistry::Chemistry(Grid* theGrid):Module(theGrid)
 
 Chemistry::~Chemistry()
 {
-	tw::Int i;
-	owner->RemoveTool(parabolicSolver);
-	owner->RemoveTool(ellipticSolver);
-	owner->RemoveTool(laserPropagator);
-	for (i=0;i<reaction.size();i++)
-		delete reaction[i];
-	for (i=0;i<excitation.size();i++)
-		delete excitation[i];
-	for (i=0;i<collision.size();i++)
-		delete collision[i];
+	if (parabolicSolver!=NULL)
+		owner->RemoveTool(parabolicSolver);
+	if (ellipticSolver!=NULL)
+		owner->RemoveTool(ellipticSolver);
+	if (laserPropagator!=NULL)
+		owner->RemoveTool(laserPropagator);
+	for (auto tool : reaction)
+		delete tool;
+	for (auto tool : excitation)
+		delete tool;
+	for (auto tool : collision)
+		delete tool;
+}
+
+void Chemistry::SetupIndexing()
+{
+	tw::Int r;
+
+	// EOS indexing
+	// DFG - note how setting up the indexing has simplified.
+	r = 0; // running index
+	for (auto grp : group)
+		r = grp->eidx.Load(r);
+
+	// Hydro indexing
+	r = 0; // running index
+	for (auto grp : group)
+		r = grp->hidx.Load(r,grp->submodule.size());
+
+	// Setup index variables in Chemical - maybe these can be retired.
+	for (auto grp : group)
+	{
+		for (tw::Int c=0;c<grp->submodule.size();c++)
+		{
+			Chemical *chem = (Chemical*)grp->submodule[c];
+			chem->indexInState = grp->hidx.first + c;
+			chem->indexInGroup = c;
+		}
+	}
+
+	// Under new system, collisions and reactions also have to be indexed.
+	// First define some lambdas to help, then index.
+
+	auto GetHydroSet = [&] (const std::string& module_name)
+	{
+		sparc::hydro_set ans;
+		Chemical *chem = (Chemical*)owner->GetModule(module_name);
+		EquilibriumGroup *grp = (EquilibriumGroup*)group[chem->indexInGroup];
+		ans = grp->hidx;
+		ans.ni = chem->indexInState;
+		return ans;
+	}
+
+	auto GetEOSSet = [&] (const std::string& module_name)
+	{
+		Chemical *chem = (Chemical*)owner->GetModule(module_name);
+		EquilibriumGroup *grp = (EquilibriumGroup*)group[chem->indexInGroup];
+		return grp->eidx;
+	}
+
+	auto GetMaterial = [&] (const std::string& module_name)
+	{
+		Chemical *chem = (Chemical*)owner->GetModule(module_name);
+		return chem.mat;
+	}
+
+	for (auto rxn : reaction)
+	{
+		rxn->catalyst = GetEOSSet(rxn->catalyst_name);
+		for (auto sub : rxn->sub)
+		{
+			for (auto str : sub->reactant_names)
+			{
+				sub->reactants.push_back(GetHydroSet(str));
+				sub->mat_r.push_back(GetMaterial(str));
+			}
+			for (auto str : sub->product_names)
+			{
+				sub->products.push_back(GetHydroSet(str));
+				sub->mat_p.push_back(GetMaterial(str));
+			}
+		}
+	}
+
+	for (auto coll : collision)
+	{
+		coll->h1 = GetHydroSet(coll->name1);
+		coll->e1 = GetEOSSet(coll->name1);
+		coll->h2 = GetHydroSet(coll->name2);
+		coll->e2 = GetEOSSet(coll->name2);
+		coll->m1 = GetMaterial(coll->name1);
+		coll->m2 = GetMaterial(coll->name2);
+	}
+
+	for (auto x : excitation)
+	{
+		x->h1 = GetHydroSet(x->name1);
+		x->e1 = GetEOSSet(x->name1);
+		x->h2 = GetHydroSet(x->name2);
+		x->e2 = GetEOSSet(x->name2);
+		x->m1 = GetMaterial(x->name1);
+		x->m2 = GetMaterial(x->name2);
+	}
 }
 
 void Chemistry::Initialize()
 {
-	tw::Int i,j,k,s,totalElements;
-
 	Module::Initialize();
 
-	ellipticSolver->tolerance = tolerance;
-	ellipticSolver->overrelaxation = overrelaxation;
-	ellipticSolver->maxIterations = maxIterations;
-	ellipticSolver->lbc = phi_lbc;
-	ellipticSolver->rbc = phi_rbc;
-	for (i=0;i<owner->conductor.size();i++)
-		ellipticSolver->FixPotential(phi,owner->conductor[i]->theRgn,0.0);
+	// DFG - Containment is automatic, but explicit typing is not.
+	// So we simply copy the submodule list and typecast it.
+	for (auto sub : submodule)
+		group.push_back((EquilibriumGroup*)sub);
+
+	if (parabolicSolver==NULL)
+		parabolicSolver = (ParabolicSolver*)owner->CreateTool("parabolic_solver",tw::tool_type::generalParabolicPropagator);
+
+	if (ellipticSolver==NULL)
+	{
+		if (owner->Dimensionality()==1)
+			ellipticSolver = (EllipticSolver*)owner->CreateTool("elliptic_solver",tw::tool_type::ellipticSolver1D);
+		else
+			ellipticSolver = (EllipticSolver*)owner->CreateTool("elliptic_solver",tw::tool_type::iterativePoissonSolver);
+	}
+
+	if (laserPropagator==NULL)
+		laserPropagator = (IsotropicPropagator*)owner->CreateTool("laser_propagator",tw::tool_type::isotropicPropagator);
+
+	for (auto c : owner->conductor)
+		ellipticSolver->FixPotential(phi,c->theRgn,0.0);
 
 	// Initialize laser frequency and refractive index
 	if (owner->pulse.size())
 	{
 		laserFrequency = 0.0;
-		for (s=0;s<owner->pulse.size();s++)
-			laserFrequency += owner->pulse[s]->w;
+		for (auto pulse : owner->pulse)
+			laserFrequency += pulse->w;
 		laserFrequency /= tw::Float(owner->pulse.size());
 	}
 	refractiveIndex = tw::Complex(1.0,0.0);
 
-	// Electrostatic boundary conditions
-	ellipticSolver->SetBoundaryConditions(phi,owner->bc0[1]==axisymmetric ? neumannWall : dirichletCell,dirichletCell,dirichletCell,dirichletCell,dirichletCell,neumannWall);
+	// Electrostatic boundary conditions - override the tool (should we still?)
+	ellipticSolver->SetBoundaryConditions(owner->bc0[1]==axisymmetric ? neumannWall : dirichletCell,dirichletCell,dirichletCell,dirichletCell,dirichletCell,neumannWall);
+	ellipticSolver->SetBoundaryConditions(phi);
 	rho.SetBoundaryConditions(xAxis,neumannWall,neumannWall);
 	rho.SetBoundaryConditions(yAxis,neumannWall,neumannWall);
 	rho.SetBoundaryConditions(zAxis,neumannWall,neumannWall);
@@ -1171,22 +1073,20 @@ void Chemistry::Initialize()
 	scratch.SetBoundaryConditions(zAxis,neumannWall,neumannWall);
 
 	// Find number of state variables characterizing the whole system
-	// For each group we have:
-	// density1,density2,...,npx,npy,npz,U,Xi
-	// The 6 components per group of the EOS array (T,Tv,P,K,visc,Cv) are not counted
-	totalElements = 0;
-	for (i=0;i<group.size();i++)
-		totalElements += group[i]->chemical.size() + 5; // ASHER_MOD -- now that I'm including Cv in the EOS
-		// DFG -- should still be 5, refers to hydro array only; changed back also in HydroAdvance()
-		// DFG -- perhaps should introduce some helper object in EOS tools to avoid hard coding these
+	// DFG - now we have a static variable to help keep count of these more reliably
+	// For more see sparc::hydro_set and sparc::eos_set in physics.h
 	if (!owner->restarted)
 	{
-		state0.Initialize(totalElements,*this,owner);
-		state1.Initialize(totalElements,*this,owner);
-		creationRate.Initialize(totalElements,*this,owner);
-		destructionRate.Initialize(totalElements,*this,owner);
-		eos0.Initialize(group.size()*6,*this,owner); // ASHER_MOD -- now that I'm including Cv in the EOS
-		eos1.Initialize(group.size()*6,*this,owner); // there are 6 elements inside these (5->6)
+		tw::Int hydroElements = 0;
+		for (auto grp : group)
+			hydroElements += grp->chemical.size() + sparc::hydro_set::count;
+		tw::Int eosElements = group.size()*sparc::eos_set::count;
+		state0.Initialize(hydroElements,*this,owner);
+		state1.Initialize(hydroElements,*this,owner);
+		creationRate.Initialize(hydroElements,*this,owner);
+		destructionRate.Initialize(hydroElements,*this,owner);
+		eos0.Initialize(eosElements,*this,owner);
+		eos1.Initialize(eosElements,*this,owner);
 	}
 
 	// variables defining normal component boundary conditions
@@ -1201,8 +1101,8 @@ void Chemistry::Initialize()
 	// also used for reflecting boundary conditions at simulation walls
 	fluxMask = 1.0;
 	for (CellIterator cell(*this,true);cell<cell.end();++cell)
-		for (s=0;s<owner->conductor.size();s++)
-			if (owner->conductor[s]->theRgn->Inside(owner->Pos(cell),*owner))
+		for (auto c : owner->conductor)
+			if (c->theRgn->Inside(owner->Pos(cell),*owner))
 				fluxMask(cell) = 0.0;
 	for (tw::Int ax=1;ax<=3;ax++)
 		for (StripIterator strip(*this,ax,strongbool::yes);strip<strip.end();++strip)
@@ -1213,7 +1113,7 @@ void Chemistry::Initialize()
 				fluxMask(strip,ub[ax]) = fluxMask(strip,dim[ax]+1) = 0.0;
 		}
 
-	// vector elements of state are modified further in species loop below
+	// Non-vector boundary conditions; vector elements are modified after setting up indexing.
 	state0.SetBoundaryConditions(xAxis,neumannWall,neumannWall);
 	state0.SetBoundaryConditions(yAxis,neumannWall,neumannWall);
 	state0.SetBoundaryConditions(zAxis,neumannWall,neumannWall);
@@ -1236,72 +1136,45 @@ void Chemistry::Initialize()
 	nu_e.SetBoundaryConditions(yAxis,neumannWall,neumannWall);
 	nu_e.SetBoundaryConditions(zAxis,neumannWall,neumannWall);
 
-	// Set up the indices that point to the conglomerate field elements
-	// Also fix the normal component boundary conditions
-	j = 0; // running index within EOS array
-	k = 0; // running index within state array
-	for (i=0;i<group.size();i++)
+	if (!owner->restarted)
+		SetupIndexing();
+
+	// Take care of vector boundary conditions
+	for (auto grp : group)
 	{
-		group[i]->T = j++;
-		group[i]->Tv = j++;
-		group[i]->P = j++;
-		group[i]->K = j++;
-		group[i]->visc = j++;
-
-		group[i]->Cv  = j++; // ASHER_MOD -- let Cv have its own index
-
-		group[i]->e.low = k;
-		group[i]->e.high = k + group[i]->chemical.size() - 1;
-		k += group[i]->chemical.size();
-		for (s=0;s<group[i]->chemical.size();s++)
-		{
-			group[i]->chemical[s]->indexInGroup = s;
-			group[i]->chemical[s]->indexInState = group[i]->e.low + s;
-		}
-
+		Element np;
 		// X-Component
-		state0.SetBoundaryConditions(Element(k),xAxis,bc0[1],bc1[1]);
-		state1.SetBoundaryConditions(Element(k),xAxis,bc0[1],bc1[1]);
-		creationRate.SetBoundaryConditions(Element(k),xAxis,bc0[1],bc1[1]);
-		destructionRate.SetBoundaryConditions(Element(k),xAxis,bc0[1],bc1[1]);
-		group[i]->npx = k++;
+		np = Element(grp->hidx.npx);
+		state0.SetBoundaryConditions(np,xAxis,bc0[1],bc1[1]);
+		state1.SetBoundaryConditions(np,xAxis,bc0[1],bc1[1]);
+		creationRate.SetBoundaryConditions(np,xAxis,bc0[1],bc1[1]);
+		destructionRate.SetBoundaryConditions(np,xAxis,bc0[1],bc1[1]);
 		// Y-Component
-		state0.SetBoundaryConditions(Element(k),yAxis,bc0[2],bc1[2]);
-		state1.SetBoundaryConditions(Element(k),yAxis,bc0[2],bc1[2]);
-		creationRate.SetBoundaryConditions(Element(k),yAxis,bc0[2],bc1[2]);
-		destructionRate.SetBoundaryConditions(Element(k),yAxis,bc0[2],bc1[2]);
-		group[i]->npy = k++;
+		np = Element(grp->hidx.npy);
+		state0.SetBoundaryConditions(np,yAxis,bc0[2],bc1[2]);
+		state1.SetBoundaryConditions(np,yAxis,bc0[2],bc1[2]);
+		creationRate.SetBoundaryConditions(np,yAxis,bc0[2],bc1[2]);
+		destructionRate.SetBoundaryConditions(np,yAxis,bc0[2],bc1[2]);
 		// Z-Component
-		state0.SetBoundaryConditions(Element(k),zAxis,bc0[3],bc1[3]);
-		state1.SetBoundaryConditions(Element(k),zAxis,bc0[3],bc1[3]);
-		creationRate.SetBoundaryConditions(Element(k),zAxis,bc0[3],bc1[3]);
-		destructionRate.SetBoundaryConditions(Element(k),zAxis,bc0[3],bc1[3]);
-		group[i]->npz = k++;
-
-		group[i]->U = k++;
-		group[i]->Xi = k++;
+		np = Element(grp->hidx.npz);
+		state0.SetBoundaryConditions(np,zAxis,bc0[3],bc1[3]);
+		state1.SetBoundaryConditions(np,zAxis,bc0[3],bc1[3]);
+		creationRate.SetBoundaryConditions(np,zAxis,bc0[3],bc1[3]);
+		destructionRate.SetBoundaryConditions(np,zAxis,bc0[3],bc1[3]);
 	}
 
-	// find electrons
-	for (i=0;i<group.size();i++)
-		for (s=0;s<group[i]->chemical.size();s++)
-			if (group[i]->chemical[s]->mass==1.0)
-			{
-				electrons = group[i]->chemical[s];
-				ie = group[i]->chemical[s]->indexInState;
-				electrons->group->forceFilter = 0.0;
-			}
+	// DFG - no longer find electrons here.
+	// Instead, electrons notify supermodules of their presence.
 	me_eff = 1.0;
 	nu_e = 1.0;
 }
 
 void Chemistry::Reset()
 {
-	tw::Int i,c;
 	bool didGenerate = false;
-	for (i=0;i<group.size();i++)
-		for (c=0;c<group[i]->chemical.size();c++)
-			didGenerate += group[i]->chemical[c]->GenerateFluid(state1,false);
+	for (auto grp : group)
+		for (auto chem : grp->chemical)
+			didGenerate += chem->GenerateFluid(state1,false);
 	if (didGenerate || owner->IsFirstStep())
 		ApplyEOS(state1,eos1);
 	state0 = state1;
@@ -1309,101 +1182,55 @@ void Chemistry::Reset()
 	rho0 = rho;
 }
 
-tw::Float Chemistry::CoulombCrossSection(tw::Float q1,tw::Float q2,tw::Float m12,tw::Float v12,tw::Float N1,tw::Float N2,tw::Float T1,tw::Float T2) const
+tw::Float Chemistry::CollisionCoefficient(sparc::collision *coll)
 {
-	UnitConverter uc(owner->unitDensityCGS);
-	tw::Float rmin,rmax,rmin_alt,coulombLog,hbar;
-	hbar = uc.hbar / (uc.MKSValue(time_dim) * uc.MKSValue(energy_dim));
-	rmin = fabs(q1*q2)/(tw::small_pos + 4.0*pi*m12*v12*v12*uc.MKSValue(number_dim));
-	rmin_alt = hbar/(tw::small_pos + 2.0*m12*v12);
-	if (rmin_alt<rmin) rmin = rmin_alt;
-	rmax = 1.0/sqrt(tw::small_pos + N1*q1*q1/T1 + N2*q2*q2/T2);
-	coulombLog = log(rmax/rmin);
-	if (coulombLog<1.0) coulombLog = 1.0;
-	return (32.0/pi)*pow(v12,tw::Float(-4.0))*sqr(q1*q2/(4*pi*m12))*coulombLog/uc.MKSValue(number_dim);
-}
+	// DFG - this used to appear in multiple places, now modularized.
+	// Deriving a particular frequency depends on the process.
+	// Energy and momentum transfer have a factor of 3 difference, and different mass dependence.
+	// If this coefficient is multiplied by the field density, we get what is typically called "collision frequency".
+	const tw::Float N1 = state1(cell,coll->h1.ni);
+	const tw::Float N2 = state1(cell,coll->h2.ni);
+	const tw::Float T1 = eos1(cell,coll->e1.T);
+	const tw::Float T2 = eos1(cell,coll->e2.T);
+	const tw::Float m1 = coll->m1.mass;
+	const tw::Float m2 = coll->m2.mass;
+	const tw::Float q1 = coll->m1.charge;
+	const tw::Float q2 = coll->m2.charge;
+	const tw::Float v12 = sqrt(8.0*(T1/m1 + T2/m2)/pi);
+	const tw::Float m12 = m1*m2/(m1+m2);
+	const tw::Float Ti = T1*T2/(T1+T2);
 
-tw::Float Chemistry::ElectronPhononRateCoeff(tw::Float Ti,tw::Float EFermi,tw::Float ks,tw::Float nref) const
-{
-	// here, the rate coefficient is collision frequency divided by a reference density
-	// this allows us to multiply away the collisions in regions where the metallic density is at "background level"
-	UnitConverter uc(owner->unitDensityCGS);
-	// get quantities into cgs
-	tw::Float vF = uc.c*100.0*sqrt(2.0*EFermi);
-	tw::Float qe = uc.SimToCGS(charge_dim,1.0);
-	tw::Float kB_Ti = uc.SimToCGS(energy_dim,Ti);
-	tw::Float hbar = 1e7 * uc.hbar;
-	// collision frequency in real units
-	tw::Float nu = 2.0*ks*qe*qe*kB_Ti/(sqr(hbar)*vF);
-	// return normalized rate coefficient
-	return (uc.CGSValue(time_dim)/nref) * nu;
+	if (coll->type==sparc::hard_sphere)
+		return (4.0/3.0) * coll->crossSection * v12;
+
+	if (coll->type==sparc::coulomb)
+	{
+		const tw::Float sigma = sparc::CoulombCrossSection(q1,q2,m12,v12,N1,N2,T1,T2);
+		return (4.0/3.0) * sigma * v12;
+	}
+
+	if (coll->type==sparc::metallic)
+	{
+		// Is the electron-phonon rate for momentum or energy?
+		const tw::Float phonon = sparc::ElectronPhononRateCoeff(Ti,coll->T_ref,coll->ks,coll->n_ref);
+		const tw::Float coulomb = (4.0/3.0) * sparc::CoulombCrossSection(q1,q2,m12,v12,N1,N2,T1,T2) * v12;
+		return coulomb*phonon / (coulomb + phonon);
+	}
 }
 
 void Chemistry::ComputeElectronCollisionFrequency()
 {
 	#pragma omp parallel
 	{
-		tw::Float T1,T2,m1,m2,m12,v12,q1,q2,N1,N2,Ni,Ti,sigma;
-		tw::Float aggregateCollFreq,nlattice,nratio,weight,weightSum;
-		tw::Float coulombCollFreq,phononCollFreq;
-		Chemical *chem1,*chem2;
 		for (CellIterator cell(*this,false);cell<cell.end();++cell)
 		{
-			aggregateCollFreq = 0.0;
-
-			// Compute effective mass in this cell
-			me_eff(cell) = 0.0;
-			weightSum = 0.0;
-			for (tw::Int g=0;g<group.size();g++)
-				for (tw::Int s=0;s<group[g]->chemical.size();s++)
-				{
-					nlattice = state1(cell,group[g]->chemical[s]->indexInState);
-					nratio = nlattice / group[g]->chemical[s]->transitionDensity;
-					weight = group[g]->chemical[s]->mass*nlattice;
-					weightSum += weight;
-					me_eff(cell) += weight*(1.0 + nratio*group[g]->chemical[s]->effectiveMass)/(1.0 + nratio);
-				}
-			me_eff(cell) /= weightSum;
-
-			// Compute collision frequency
-			for (tw::Int s=0;s<collision.size();s++)
+			tw::Float aggregateCollFreq = 0.0;
+			for (auto coll : collision)
 			{
-				chem1 = (Chemical*)owner->module[collision[s]->chem1];
-				chem2 = (Chemical*)owner->module[collision[s]->chem2];
-				if (chem1==electrons || chem2==electrons)
-				{
-					N1 = state1(cell,chem1->indexInState);
-					N2 = state1(cell,chem2->indexInState);
-					T1 = eos1(cell,chem1->group->T);
-					T2 = eos1(cell,chem2->group->T);
-					m1 = chem1->mass;
-					m2 = chem2->mass;
-					q1 = chem1->charge;
-					q2 = chem2->charge;
-					m12 = m1*m2/(m1+m2);
-					v12 = sqrt(8.0*(T1/m1 + T2/m2)/pi);
-					Ni = (chem1==electrons ? N2 : N1);
-					Ti = (chem1==electrons ? T2 : T1);
-
-					if (collision[s]->type==sparc::hard_sphere)
-					{
-						sigma = collision[s]->crossSection;
-						aggregateCollFreq += (4.0/3.0) * sigma * Ni * v12;
-					}
-
-					if (collision[s]->type==sparc::coulomb)
-					{
-						sigma = CoulombCrossSection(q1,q2,m12,v12,N1,N2,T1,T2);
-						aggregateCollFreq += (4.0/3.0) * sigma * Ni * v12;
-					}
-
-					if (collision[s]->type==sparc::metallic)
-					{
-						phononCollFreq = Ni * ElectronPhononRateCoeff(Ti,collision[s]->T_ref,collision[s]->ks,collision[s]->n_ref);
-						coulombCollFreq = (4.0/3.0) * CoulombCrossSection(q1,q2,m12,v12,N1,N2,T1,T2) * Ni * v12;
-						aggregateCollFreq += coulombCollFreq*phononCollFreq / (coulombCollFreq + phononCollFreq);
-					}
-				}
+				if (coll->h1.ni==ie)
+					aggregateCollFreq += state1(cell,coll->h2.ni) * CollisionCoefficient(coll);
+				if (coll->h2.ni==ie)
+					aggregateCollFreq += state1(cell,coll->h1.ni) * CollisionCoefficient(coll);
 			}
 			nu_e(cell) = aggregateCollFreq;
 		}
@@ -1414,85 +1241,58 @@ void Chemistry::ComputeCollisionalSources()
 {
 	#pragma omp parallel
 	{
-		tw::Int r,s,c,i1,i2;
-		tw::vec3 forceDensity,forceNow;
-		tw::Float powerDensity,powerNow,vibrationalDensity,vibrationsNow;
-
-		tw::Float logT,T1,T2,m1,m2,m12,v12,q1,q2,N1,N2,sigma;
-		tw::Float rate1,rate2,rateNow,weight;
-		tw::vec3 v1_v2;
-		Chemical *chem,*chem1,*chem2;
-
-		tw::Float Te,Tv,Ti,energy,level,n0;
-		tw::Float Xv;
-
-		UnitConverter uc(owner->unitDensityCGS);
+		tw::Float rateNow;
 
 		// REACTIONS
 
-		for (r=0;r<reaction.size();r++)
+		for (auto rx : reaction)
 			for (CellIterator cell(*this,false);cell<cell.end();++cell)
 			{
-				// Work out the primitive reaction rate (number density per unit time)
-				Te = eos1(cell,reaction[r]->catalyst);
-				if (Te<reaction[r]->T0 || Te>reaction[r]->T1)
-					rateNow = 0.0;
-				else
-				{
-					if (reaction[r]->c1==0.0)
-					{
-						logT = log(tw::small_pos + uc.sim_to_eV(fabs(Te)));
-						rateNow = 0.0;
-						for (s=0;s<9;s++)
-							rateNow += reaction[r]->b[s]*pow(logT,tw::Float(s));
-						rateNow = exp(rateNow) * uc.CGSValue(time_dim) * std::pow(uc.CGSValue(density_dim),tw::Float(reaction[r]->numBodies));
-					}
-					else
-						rateNow = reaction[r]->c1 * pow(Te,reaction[r]->c2) * exp(-reaction[r]->c3/Te);
-				}
-				for (s=0;s<reaction[r]->sub.size();s++)
-					for (c=0;c<reaction[r]->sub[s]->reactant.size();c++)
-						rateNow *= state1(cell,chemical[reaction[r]->sub[s]->reactant[c]]->indexInState);
+				rateNow = rx->PrimitiveRate(eos1(cell,rx->catalyst.T));
+				for (auto s : rx->sub)
+					for (auto r : s->reactants)
+						rateNow *= state1(cell,r.ni);
 
 				// Update creation and destruction arrays
 				if (rateNow>0.0)
 				{
-					for (s=0;s<reaction[r]->sub.size();s++)
+					for (auto s : rx->sub)
 					{
-						powerDensity = rateNow*(reaction[r]->sub[s]->heat + reaction[r]->sub[s]->vheat);
-						vibrationalDensity = rateNow*(reaction[r]->sub[s]->vheat);
-						forceDensity = 0.0;
-						for (c=0;c<reaction[r]->sub[s]->reactant.size();c++)
-						{
-							chem = chemical[reaction[r]->sub[s]->reactant[c]];
-							powerNow = rateNow*state1(cell,chem->group->U)/(tw::small_pos + chem->group->DensitySum(state1,cell));
-							forceNow = rateNow*chem->mass*chem->group->Velocity(state1,cell);
-							vibrationsNow = rateNow*state1(cell,chem->group->Xi)/(tw::small_pos + chem->group->ConditionalDensitySum(state1,chem->group->excitationEnergy,cell));
+						tw::Float powerDensity = rateNow*(s->heat + s->vheat);
+						tw::Float vibrationalDensity = rateNow*(s->vheat);
+						tw::Float forceDensity = 0.0;
+						const tw::Float reactantDensitySum = s->ReactantDensitySum(state1,cell);
+						const tw::Float vibrationalDensitySum = s->ReactantVibrationalSum(state1,cell);
+						const tw::Float weight = 1.0/tw::Float(s->products.size());
 
-							DestroyMass(cell,chem->indexInGroup,rateNow,chem->group);
-							DestroyTotalEnergy(cell,powerNow,chem->group);
-							DestroyMomentum(cell,1,forceNow.x,chem->group);
-							DestroyMomentum(cell,2,forceNow.y,chem->group);
-							DestroyMomentum(cell,3,forceNow.z,chem->group);
-							DestroyVibrations(cell,vibrationsNow,chem->group);
+						for (auto r : s->reactants)
+						{
+							const tw::Float powerNow = rateNow*state1(cell,r.u)/(tw::small_pos + reactantDensitySum);
+							const tw::Float forceNow.x = rateNow*state1(cell,r.npx)/(tw::small_pos + reactantDensitySum);
+							const tw::Float forceNow.y = rateNow*state1(cell,r.npy)/(tw::small_pos + reactantDensitySum);
+							const tw::Float forceNow.z = rateNow*state1(cell,r.npz)/(tw::small_pos + reactantDensitySum);
+							const tw::Float vibrationsNow = rateNow*state1(cell,r.x)/(tw::small_pos + vibrationalDensitySum);
+
+							DestroyMass(cell,rateNow,r);
+							DestroyTotalEnergy(cell,powerNow,r);
+							DestroyMomentum(cell,1,forceNow.x,r);
+							DestroyMomentum(cell,2,forceNow.y,r);
+							DestroyMomentum(cell,3,forceNow.z,r);
+							DestroyVibrations(cell,vibrationsNow,r);
 
 							powerDensity += powerNow;
 							forceDensity += forceNow;
 							vibrationalDensity += vibrationsNow;
 						}
 						// parcel out conserved quantities weighted by particle number
-						// loses vibrational energy if any products atomic (total is still conserved)
-						weight = 1.0/tw::Float(reaction[r]->sub[s]->product.size());
-						for (c=0;c<reaction[r]->sub[s]->product.size();c++)
+						// ALL VIBRATIONAL ENERGY IS LOST TO TRANSLATIONAL
+						for (auto p : s->products)
 						{
-							chem = chemical[reaction[r]->sub[s]->product[c]];
-							CreateMass(cell,chem->indexInGroup,rateNow,chem->group);
-							CreateTotalEnergy(cell,weight*powerDensity,chem->group);
-							CreateMomentum(cell,1,weight*forceDensity.x,chem->group);
-							CreateMomentum(cell,2,weight*forceDensity.y,chem->group);
-							CreateMomentum(cell,3,weight*forceDensity.z,chem->group);
-							if (chem->excitationEnergy>0.0)
-								CreateVibrations(cell,weight*vibrationalDensity,chem->group);
+							CreateMass(cell,rateNow,p);
+							CreateTotalEnergy(cell,weight*powerDensity,p);
+							CreateMomentum(cell,1,weight*forceDensity.x,p);
+							CreateMomentum(cell,2,weight*forceDensity.y,p);
+							CreateMomentum(cell,3,weight*forceDensity.z,p);
 						}
 					}
 				}
@@ -1500,87 +1300,50 @@ void Chemistry::ComputeCollisionalSources()
 
 		// COLLISIONS (MOMENTUM TRANSFER, THERMAL ENERGY TRANSFER)
 
-		for (s=0;s<collision.size();s++)
+		for (auto coll : collision)
 			for (CellIterator cell(*this,false);cell<cell.end();++cell)
 			{
-				chem1 = chemical[collision[s]->chem1];
-				chem2 = chemical[collision[s]->chem2];
-				N1 = state1(cell,chem1->indexInState);
-				N2 = state1(cell,chem2->indexInState);
-				T1 = eos1(cell,chem1->group->T);
-				T2 = eos1(cell,chem2->group->T);
-				m1 = chem1->mass;
-				m2 = chem2->mass;
-				v1_v2 = chem1->group->Velocity(state1,cell) - chem2->group->Velocity(state1,cell);
-				q1 = chem1->charge;
-				q2 = chem2->charge;
-				m12 = m1*m2/(m1+m2);
-				v12 = sqrt(8*(T1/m1 + T2/m2)/pi);
-				Ti = chem1==electrons ? T2 : T1;
-
-				if (collision[s]->type==sparc::hard_sphere)
-				{
-					sigma = collision[s]->crossSection;
-					rateNow = 4.0 * sigma * N1 * N2 * v12 * m12;
-				}
-
-				if (collision[s]->type==sparc::coulomb)
-				{
-					sigma = CoulombCrossSection(q1,q2,m12,v12,N1,N2,T1,T2);
-					rateNow = 4.0 * sigma * N1 * N2 * v12 * m12;
-				}
-
-				if (collision[s]->type==sparc::metallic)
-				{
-					rate1 = 4.0*CoulombCrossSection(q1,q2,m12,v12,N1,N2,T1,T2)*v12;
-					rate2 = ElectronPhononRateCoeff(Ti,collision[s]->T_ref,collision[s]->ks,collision[s]->n_ref);
-					rateNow = N1*N2*m12/(1.0/rate1 + 1.0/rate2);
-		 		}
+				const tw::Float R = CollisionCoefficient(coll);
+				const tw::Float N1 = state1(cell,coll->h1.ni);
+				const tw::Float N2 = state1(cell,coll->h2.ni);
+				const tw::Float T1 = eos1(cell,coll->e1.T);
+				const tw::Float T2 = eos1(cell,coll->e2.T);
+				const tw::Float m1 = coll->m1.mass;
+				const tw::Float m2 = coll->m2.mass;
+				const tw::Float m12 = m1*m2/(m1+m2);
 
 				for (tw::Int ax=1;ax<=3;ax++)
 				{
-					CreateMomentum( cell , ax , rateNow * v1_v2[ax] / 3.0 , chem2->group);
-					DestroyMomentum( cell , ax , rateNow * v1_v2[ax] / 3.0 , chem1->group);
+					const tw::Float n1v1 = state1(cell,coll->h1.npx+ax-1)/m1;
+					const tw::Float n2v2 = state1(cell,coll->h2.npx+ax-1)/m2;
+					CreateMomentum( cell , ax , m12*R*(N2*n1v1-N1*n2v2) , coll->h2);
+					DestroyMomentum( cell , ax , m12*R*(N2*n1v1-N1*n2v2) , coll->h1);
 				}
 				if (T1>T2)
 				{
-					DestroyTotalEnergy( cell , rateNow * (T1 - T2) / (m1 + m2) , chem1->group);
-					CreateTotalEnergy( cell ,rateNow * (T1 - T2) / (m1 + m2) , chem2->group);
+					DestroyTotalEnergy( cell , 3.0*m12*R*N1*N2 * (T1 - T2) / (m1 + m2) , coll->h1);
+					CreateTotalEnergy( cell ,  3.0*m12*R*N1*N2 * (T1 - T2) / (m1 + m2) , coll->h2);
 				}
 				else
 				{
-					CreateTotalEnergy( cell , rateNow * (T2 - T1) / (m1 + m2) , chem1->group);
-					DestroyTotalEnergy( cell ,rateNow * (T2 - T1) / (m1 + m2) , chem2->group);
+					CreateTotalEnergy( cell ,  3.0*m12*R*N1*N2 * (T2 - T1) / (m1 + m2) , coll->h1);
+					DestroyTotalEnergy( cell , 3.0*m12*R*N1*N2 * (T2 - T1) / (m1 + m2) , coll->h2);
 				}
 			}
 
 		// VIBRATIONS
 
-		for (s=0;s<excitation.size();s++)
+		for (auto vib : excitation)
 			for (CellIterator cell(*this,false);cell<cell.end();++cell)
 			{
-				chem1 = chemical[excitation[s]->exciter];
-				chem2 = chemical[excitation[s]->excitee];
-				i1 = chem1->indexInState;
-				i2 = chem2->indexInState;
-				Te = eos1(cell,chem1->group->T);
-				Tv = eos1(cell,chem2->group->Tv);
-				energy = chem2->excitationEnergy;
-				level = excitation[s]->level;
+				const tw::Float Te = eos1(cell,vib->e1.T);
+				const tw::Float Tv = eos1(cell,vib->e2.Tv);
+				const tw::Float energy = vib->m2.excitationEnergy;
+				const tw::Float level = vib->level;
+				const tw::Float Xv = vib->PrimitiveRate(fabs(Te));
+				const tw::Int i1 = vib->h1.ni;
+				const tw::Int i2 = vib->h2.ni;
 
-				// compute reaction rate for this excitation
-				if (excitation[s]->c1==0.0)
-				{
-					logT = log(tw::small_pos + uc.sim_to_eV(fabs(Te)));
-					Xv = 0.0;
-					for (c=0;c<9;c++)
-						Xv += excitation[s]->b[c]*pow(logT,tw::Float(c));
-					Xv = uc.CGSToSim(rate_coefficient_2_dim,exp(Xv));
-				}
-				else
-					Xv = excitation[s]->c1 * pow(Te,excitation[s]->c2) * exp(-excitation[s]->c3/Te);
-
-				// compute rate of change of vibrational energy
 				if (level>0)
 				{
 					n0 = state1(cell,i2) * (1.0 - exp(-energy/Tv));
@@ -1591,10 +1354,10 @@ void Chemistry::ComputeCollisionalSources()
 					rateNow = energy * Xv * state1(cell,i1) * state1(cell,i2) * (1.0 - exp(energy/Te - energy/Tv));
 				}
 
-				CreateTotalAndVibrational(cell,rateNow,chem2->group);
-				DestroyTotalEnergy(cell,rateNow,chem1->group);
+				CreateTotalAndVibrational(cell,rateNow,vib->h2);
+				DestroyTotalEnergy(cell,rateNow,vib->h1);
 			}
-		}
+	}
 }
 
 void Chemistry::ComputeRadiativeSources()
@@ -1641,7 +1404,7 @@ void Chemistry::ComputeRadiativeSources()
 				tw::Float Ptot=0.0,ntot=0.0,TK,lossNow,meanFreePath;
 				for (s=0;s<group.size();s++)
 				{
-					Ptot += eos1(cell,group[s]->P);
+					Ptot += eos1(cell,group[s]->eidx.P);
 					ntot += group[s]->DensitySum(state1,cell);
 				}
 				TK = uc.SimToMKS(temperature_dim,Ptot/(tw::small_pos + ntot));
@@ -1649,7 +1412,7 @@ void Chemistry::ComputeRadiativeSources()
 				radiativeLosses(cell) = uc.MKSToSim(power_density_dim,4.0*stef_boltz*pow(TK,tw::Float(4.0))/(tw::small_pos + meanFreePath));
 				for (s=0;s<group.size();s++)
 				{
-					lossNow = eos1(cell,group[s]->P)*radiativeLosses(cell)/(tw::small_pos + Ptot);
+					lossNow = eos1(cell,group[s]->eidx.P)*radiativeLosses(cell)/(tw::small_pos + Ptot);
 					DestroyTotalEnergy(cell,lossNow,group[s]);
 				}
 			}
@@ -1673,7 +1436,7 @@ tw::vec3 Chemistry::ComputeForceOnBody(tw::Int i,tw::Int j,tw::Int k)
 		const tw::Float Az0 = owner->dS(i,j,k,3);
 		const tw::Float Az1 = owner->dS(i,j,k+1,3);
 
-		const tw::Float Pc = eos1(i,j,k,g->P);
+		const tw::Float Pc = eos1(i,j,k,g->eidx.P);
 
 		if (fluxMask(i-1,j,k)==0.0 && fluxMask(i,j,k)==1.0)
 			ans.x -= Pc*Ax0;
@@ -1716,12 +1479,12 @@ void Chemistry::ComputeHydroSources()
 				// take away any collisional sources of momentum
 				for (CellIterator cell(*this,false);cell<cell.end();++cell)
 				{
-					creationRate(cell,g->npx) = 0.0;
-					creationRate(cell,g->npy) = 0.0;
-					creationRate(cell,g->npz) = 0.0;
-					destructionRate(cell,g->npx) = 0.0;
-					destructionRate(cell,g->npy) = 0.0;
-					destructionRate(cell,g->npz) = 0.0;
+					creationRate(cell,g->hidx.npx) = 0.0;
+					creationRate(cell,g->hidx.npy) = 0.0;
+					creationRate(cell,g->hidx.npz) = 0.0;
+					destructionRate(cell,g->hidx.npx) = 0.0;
+					destructionRate(cell,g->hidx.npy) = 0.0;
+					destructionRate(cell,g->hidx.npz) = 0.0;
 				}
 			}
 			else
@@ -1741,14 +1504,14 @@ void Chemistry::ComputeHydroSources()
 						const tw::Float E1 = (phi.bak(cell,0,ax) - phi.fwd(cell,0,ax)) / (dl0 + dl1);
 						const tw::Float nm = g->DensityWeightedSum(state1,g->mass,cell);
 						const tw::Float nq = g->DensityWeightedSum(state1,g->charge,cell);
-						const tw::Float Pc = eos1(cell,g->P);
+						const tw::Float Pc = eos1(cell,g->eidx.P);
 						const tw::Float vc = scratch(cell);
 						const tw::Float f0 = fluxMask.bak(cell,0,ax);
 						const tw::Float fc = fluxMask(cell);
 						const tw::Float f1 = fluxMask.fwd(cell,0,ax);
 
-						P0 = eos1.bak(cell,g->P,ax);
-						P1 = eos1.fwd(cell,g->P,ax);
+						P0 = eos1.bak(cell,g->eidx.P,ax);
+						P1 = eos1.fwd(cell,g->eidx.P,ax);
 						v0 = scratch.bak(cell,0,ax);
 						v1 = scratch.fwd(cell,0,ax);
 
@@ -1794,7 +1557,7 @@ void Chemistry::ComputeHydroSources()
 					for (CellIterator cell(*this,false);cell<cell.end();++cell)
 					{
 						const tw::Float nm = g->DensityWeightedSum(state1,g->mass,cell);
-						const tw::Float Pc = eos1(cell,g->P);
+						const tw::Float Pc = eos1(cell,g->eidx.P);
 						const tw::vec3 vc = g->Velocity(state1,cell);
 						const tw::vec3 pos = owner->Pos(cell);
 						CreateMomentum(cell,1,fluxMask(cell)*(nm*sqr(vc.y) + Pc)/pos.x,g);
@@ -1804,7 +1567,7 @@ void Chemistry::ComputeHydroSources()
 					for (CellIterator cell(*this,false);cell<cell.end();++cell)
 					{
 						const tw::Float nm = g->DensityWeightedSum(state1,g->mass,cell);
-						const tw::Float Pc = eos1(cell,g->P);
+						const tw::Float Pc = eos1(cell,g->eidx.P);
 						const tw::vec3 vc = g->Velocity(state1,cell);
 						const tw::vec3 pos = owner->Pos(cell);
 						const tw::Float tanz = tan(pos.z);
@@ -1964,7 +1727,7 @@ tw::Float Chemistry::EstimateTimeStep()
 		for (CellIterator cell(*this,false);cell<cell.end();++cell)
 			for (tw::Int s=0;s<group.size();s++)
 			{
-				const tw::Int c = group[s]->U;
+				const tw::Int c = group[s]->hidx.u;
 				if (creationRate(cell,c) > creationDominance*destructionRate(cell,c))
 					dts = sqrt_eps*fabs( (tw::small_pos+state1(cell,c)) / destructionRate(cell,c) );
 				else
@@ -1980,7 +1743,7 @@ tw::Float Chemistry::EstimateTimeStep()
 		for (CellIterator cell(*this,false);cell<cell.end();++cell)
 			for (tw::Int s=0;s<group.size();s++)
 			{
-				const tw::Int c = group[s]->Xi;
+				const tw::Int c = group[s]->hidx.x;
 				if (creationRate(cell,c) > creationDominance*destructionRate(cell,c))
 					dts = sqrt_eps*fabs( (tw::small_pos+state1(cell,c)) / destructionRate(cell,c) );
 				else
@@ -2015,14 +1778,14 @@ void Chemistry::DiffusionAdvance(tw::Float dt)
 
 		g->LoadMassDensityCv(scratch,state1);
 		g->LoadMassDensity(scratch2,state1);
-		parabolicSolver->Advance(eos1,g->T,fluxMask,&scratch,0,&eos1,g->K,dt);
+		parabolicSolver->Advance(eos1,g->eidx.T,fluxMask,&scratch,0,&eos1,g->eidx.K,dt);
 
 		#pragma omp parallel
 		{
 			for (CellIterator cell(*this,false);cell<cell.end();++cell)
 			{
-				state1(cell,g->U) = 0.5*scratch2(cell)*Norm(g->Velocity(state1,cell));
-				state1(cell,g->U) += scratch(cell)*eos1(cell,g->T);
+				state1(cell,g->hidx.u) = 0.5*scratch2(cell)*Norm(g->Velocity(state1,cell));
+				state1(cell,g->hidx.u) += scratch(cell)*eos1(cell,g->eidx.T);
 			}
 		}
 
@@ -2031,12 +1794,12 @@ void Chemistry::DiffusionAdvance(tw::Float dt)
 		for (ax=1;ax<=3;ax++)
 		{
 			g->LoadVelocity(scratch,state1,ax);
-			CopyBoundaryConditions(scratch,0,state1,g->npx+ax-1);
-			parabolicSolver->Advance(scratch,0,fluxMask,&scratch2,0,&eos1,g->visc,dt);
+			CopyBoundaryConditions(scratch,0,state1,g->hidx.npx+ax-1);
+			parabolicSolver->Advance(scratch,0,fluxMask,&scratch2,0,&eos1,g->eidx.visc,dt);
 			#pragma omp parallel
 			{
 				for (CellIterator cell(*this,false);cell<cell.end();++cell)
-					state1(cell,g->npx+ax-1) = scratch2(cell)*scratch(cell);
+					state1(cell,g->hidx.npx+ax-1) = scratch2(cell)*scratch(cell);
 			}
 		}
 	}
@@ -2052,9 +1815,9 @@ void Chemistry::FieldAdvance(tw::Float dt)
 	if (!electrons || plasModel==sparc::neutral)
 		return;
 
-	const tw::Float q0 = electrons->charge;
-	const tw::Float m0 = electrons->mass;
-	const tw::Int Pe = electrons->group->P;
+	const tw::Float q0 = electrons->mat.charge;
+	const tw::Float m0 = electrons->mat.mass;
+	const tw::Int Pe = electrons->group->eidx.P;
 
 	// set up source and coefficient
 	#pragma omp parallel
@@ -2153,20 +1916,12 @@ void Chemistry::ApplyEOS(Field& hydro,Field& eos)
 	// Here we also compute transport coefficients and impose assumed conditions such as quasineutrality
 	// Finally, we throw an error if numerical failure is detected
 
-	// ASHER_MOD -- loop over groups and use eos object functions
+	// EOS calculation for heavy particles
 	for (tw::Int c=0;c<group.size();c++)
-	{
 		if (group[c]->chemical[0]!=electrons)
-		{
-			group[c]->eosMixData->ApplyEOS( group[c]->mass,group[c]->charge,group[c]->cvm,
-				group[c]->excitationEnergy,group[c]->thermo_cond_cvm,group[c]->k_visc_m,
-				group[c]->e,group[c]->T,group[c]->Tv,group[c]->P,group[c]->K,
-				group[c]->visc,group[c]->Cv,group[c]->npx,group[c]->npy,group[c]->npz,
-				group[c]->U,group[c]->Xi,ie,nu_e,hydro,eos);
-		}
-	}
+			group[c]->eosMixData->ApplyEOS(ie,nu_e,hydro,eos);
 
-
+	// Quasineutrality and velocity forcing and old reference code commented out
 	#pragma omp parallel
 	{
 		tw::Float ntot,ne,ionChargeDensity,nm,nmcv,epsvn,nv,KE,IE;
@@ -2209,18 +1964,18 @@ void Chemistry::ApplyEOS(Field& hydro,Field& eos)
 				// Impose quasineutrality and assume electron velocity = average heavy particle velocity
 				ne = -ionChargeDensity/electrons->charge;
 				hydro(cell,ie) = ne;
-				hydro(cell,electrons->group->npx) = ne*electrons->mass*ionVelocity.x/tw::Float(group.size()-1);
-				hydro(cell,electrons->group->npy) = ne*electrons->mass*ionVelocity.y/tw::Float(group.size()-1);
-				hydro(cell,electrons->group->npz) = ne*electrons->mass*ionVelocity.z/tw::Float(group.size()-1);
+				hydro(cell,electrons->group->hidx.npx) = ne*electrons->mat.mass*ionVelocity.x/tw::Float(group.size()-1);
+				hydro(cell,electrons->group->hidx.npy) = ne*electrons->mat.mass*ionVelocity.y/tw::Float(group.size()-1);
+				hydro(cell,electrons->group->hidx.npz) = ne*electrons->mat.mass*ionVelocity.z/tw::Float(group.size()-1);
 
 				// // EOS for electrons
 				// nmcv = 1.5*ne;
-				// eos(cell,electrons->group->T) = hydro(cell,electrons->group->U)/(tw::small_pos + nmcv);
-				// eos(cell,electrons->group->Tv) = 0.0;
-				// eos(cell,electrons->group->P) = ne*eos(cell,electrons->group->T);
-				// eos(cell,electrons->group->K) = 3.2*ne*eos(cell,electrons->group->T)/(electrons->mass*nu_e(cell));
-				// eos(cell,electrons->group->visc) = 0.0;
-				// // Braginskii has for e-viscosity 0.73*ne*eos(cell,electrons->group->T)/nu_e(cell)
+				// eos(cell,electrons->group->eidx.T) = hydro(cell,electrons->group->hidx.u)/(tw::small_pos + nmcv);
+				// eos(cell,electrons->group->eidx.Tv) = 0.0;
+				// eos(cell,electrons->group->eidx.P) = ne*eos(cell,electrons->group->eidx.T);
+				// eos(cell,electrons->group->eidx.K) = 3.2*ne*eos(cell,electrons->group->eidx.T)/(electrons->mass*nu_e(cell));
+				// eos(cell,electrons->group->eidx.visc) = 0.0;
+				// // Braginskii has for e-viscosity 0.73*ne*eos(cell,electrons->group->eidx.T)/nu_e(cell)
 				// // However, we are forcing electrons to move with ions and so should not diffuse velocity field
 			}
 		}
@@ -2228,14 +1983,7 @@ void Chemistry::ApplyEOS(Field& hydro,Field& eos)
 
 	// ASHER_MOD -- electron EOSs have the be calculated after the quasineutrality-ensuring hydro advance
 	if (electrons)
-	{
-		// so far only does an ideal gas case
-		electrons->eosData->ApplyEOS( electrons->mass,electrons->charge,electrons->cvm,
-			electrons->excitationEnergy,electrons->thermometricConductivity,electrons->kinematicViscosity,
-			electrons->group->e,electrons->group->T,electrons->group->Tv,electrons->group->P,electrons->group->K,
-			electrons->group->visc,group[c]->Cv,electrons->group->npx,electrons->group->npy,electrons->group->npz,
-			electrons->group->U,electrons->group->Xi,ie,nu_e,hydro,eos);
-	}
+		electrons->eosData->ApplyEOS(ie,nu_e,hydro,eos);
 
 	// Check for numerical failure, defined by NaN in the hydro state vector
 	tw::Int badCells = 0;
@@ -2293,215 +2041,49 @@ void Chemistry::Update()
 	LaserAdvance(dt);
 }
 
-void Chemistry::ParseReaction(std::stringstream& inputString)
+bool Chemistry::ReadQuasitoolBlock(const std::vector<std::string>& preamble,std::stringstream& inputString)
 {
-	tw::Int i,j;
-	std::string word;
-	tw::Float sign,energy;
-	Chemical *chem;
-	bool rhs = false;
-
-	reaction.push_back(new Reaction);
-	reaction.back()->numBodies = 0;
-	inputString >> word >> word >> word; // take off "=" and "{"
-
-	UnitConverter uc(owner->unitDensityCGS);
-
-	// Read in reactants and products
-	do
+	std::string key(preamble[0]);
+	if (key=="reaction")
 	{
-		reaction.back()->sub.push_back(new SubReaction);
-		reaction.back()->sub.back()->heat = 0.0;
-		reaction.back()->sub.back()->vheat = 0.0;
-		rhs = false;
-		do
-		{
-			if (word=="->")
-			{
-				rhs = true;
-				inputString >> word;
-			}
-			if (word=="+")
-			{
-				sign = 1.0;
-				inputString >> word;
-			}
-			if (word=="-")
-			{
-				sign = -1.0;
-				inputString >> word;
-			}
-			if (word==":")
-				inputString >> word;
-
-			// see if this is a heat of reaction
-			// if no number is found, encode this result by setting energy=0
-			// WARNING: this fails if a species name begins with inf or nan
-			try { energy = uc.eV_to_sim(std::stod(word,NULL)); }
-			catch (std::invalid_argument) { energy = 0.0; }
-			if (energy!=0.0) // it is
-			{
-				if (lastChem==-1)
-					throw tw::FatalError("heat of reaction read before chemical name");
-				if (word.back()=='v')
-					reaction.back()->sub.back()->vheat = energy*sign;
-				else
-					reaction.back()->sub.back()->heat = energy*sign;
-			}
-			else
-			{
-				chem = (Chemical*)owner->GetModule(name);
-				if (rhs)
-				{
-					reaction.back()->sub.back()->mf.push_back(chem->indexInState);
-					reaction.back()->sub.back()->pf.push_back(chem->group->npx);
-					reaction.back()->sub.back()->uf.push_back(chem->group->U);
-				}
-				else
-				{
-					reaction.back()->sub.back()->mi.push_back(chem->indexInState);
-					reaction.back()->sub.back()->pi.push_back(chem->group->npx);
-					reaction.back()->sub.back()->ui.push_back(chem->group->U);
-					reaction.back()->numBodies++;
-				}
-			}
-			inputString >> word;
-		} while (word!=":" && word!="}");
-	} while (word!="}");
-
-	// Get reaction rate data and normalize
-	inputString >> word;
-	if (word=="rate")
-	{
-		inputString >> word >> reaction.back()->c1 >> reaction.back()->c2 >> reaction.back()->c3;
-		reaction.back()->c1 *= pow(uc.eV_to_sim(1.0),-reaction.back()->c2);
-		reaction.back()->c1 *= uc.CGSValue(time_dim) * pow(uc.CGSValue(density_dim),tw::Float(reaction.back()->numBodies-1));
-		reaction.back()->c3 = uc.eV_to_sim(reaction.back()->c3);
+		reaction.push_back(new Reaction);
+		reaction.back()->ReadInputFile(inputString);
 	}
-	if (word=="janev_rate")
+	if (key=="excitation")
 	{
-		reaction.back()->c1 = 0.0;
-		inputString >> word;
-		for (i=0;i<9;i++)
-			inputString >> reaction.back()->b[i];
-		// leave janev rates in cm^3/s and eV
+		excitation.push_back(new Excitation);
+		excitation.back()->ReadInputFile(inputString);
 	}
-
-	// Get temperature range and catalyst
-	inputString >> word;
-	reaction.back()->catalyst = ((Chemical*)owner->GetModule(word))->group->T;
-	inputString >> word;
-	tw::input::PythonRange(word,&reaction.back()->T0,&reaction.back()->T1);
-	reaction.back()->T0 = uc.eV_to_sim(reaction.back()->T0);
-	reaction.back()->T1 = uc.eV_to_sim(reaction.back()->T1);
-
-	(*owner->tw_out) << "Reaction: " << reaction.back()->mi.size() << " reactants / " << reaction.back()->mf.size() << "products" << std::endl;
+	if (key=="collision")
+	{
+		collision.push_back(new Collision);
+		collision.back()->ReadInputFile(inputString);
+	}
 }
-
-void Chemistry::ParseExcitation(std::stringstream& inputString)
-{
-	tw::Int i;
-	std::string word,species;
-	Chemical *exciter,*excitee;
-	UnitConverter uc(owner->unitDensityCGS);
-
-	excitation.push_back(new Excitation);
-
-	inputString >> word >> word; // take off "="
-	exciter = (Chemical*)owner->GetModule(word);
-	excitation.back()->mi = exciter->indexInState;
-	excitation.back()->pi = exciter->group->npx;
-	for (i=0;i<chemical.size();i++)
-		if (chemical[i]->name==word)
-			excitation.back()->exciter = i;
-
-	inputString >> word >> word;
-	for (i=0;i<chemical.size();i++)
-		if (chemical[i]->name==word)
-			excitation.back()->excitee = i;
-
-	inputString >> word >> word >> excitation.back()->level;
-
-	inputString >> word;
-	if (word=="rate")
-	{
-		inputString >> word >> excitation.back()->c1 >> excitation.back()->c2 >> excitation.back()->c3;
-		excitation.back()->c1 = pow(uc.eV_to_sim(1.0),-excitation.back()->c2) * uc.CGSToSim(rate_coefficient_2_dim,excitation.back()->c1);
-		excitation.back()->c3 = uc.eV_to_sim(excitation.back()->c3);
-	}
-	if (word=="janev_rate")
-	{
-		excitation.back()->c1 = 0.0;
-		inputString >> word;
-		for (i=0;i<9;i++)
-			inputString >> excitation.back()->b[i];
-		// leave janev rates in cm^3/s and eV
-	}
-
-	(*owner->tw_out) << "Excitation: " << chemical[excitation.back()->exciter]->name << " " << chemical[excitation.back()->excitee]->name << std::endl;
-}
-
-void Chemistry::ParseCollision(std::stringstream& inputString)
-{
-	// hard sphere example
-	// new collision = e <-> N , cross section = 5.0
-
-	// coulomb collision example
-	// new collision = e <-> N[+] , coulomb
-
-	// metallic collision example
-	// new collision = e <-> Cu[+] , metallic , ks = 2.4 , fermi_energy_ev = 7.0 , ref_density = 3000
-
-	tw::Int i;
-	std::string word,species;
-	UnitConverter uc(owner->unitDensityCGS);
-
-	collision.push_back(new Collision);
-
-	inputString >> word >> word; // take off "="
-	for (i=0;i<chemical.size();i++)
-		if (chemical[i]->name==word)
-			collision.back()->chem1 = i;
-
-	inputString >> word >> word;
-	for (i=0;i<chemical.size();i++)
-		if (chemical[i]->name==word)
-			collision.back()->chem2 = i;
-
-	inputString >> word;
-
-	if (word=="cross")
-	{
-		collision.back()->type = sparc::hard_sphere;
-		inputString >> word >> word >> collision.back()->crossSection;
-		(*owner->tw_out) << "Hard sphere ";
-	}
-
-	if (word=="coulomb")
-	{
-		collision.back()->type = sparc::coulomb;
-		(*owner->tw_out) << "Coulomb ";
-	}
-
-	if (word=="metallic")
-	{
-		collision.back()->type = sparc::metallic;
-		inputString >> word >> word >> collision.back()->ks;
-		inputString >> word >> word >> collision.back()->T_ref;
-		inputString >> word >> word >> collision.back()->n_ref;
-		collision.back()->T_ref *= uc.eV_to_sim(1.0);
-		(*owner->tw_out) << "Metallic ";
-	}
-
-	(*owner->tw_out) << "collision: " << chemical[collision.back()->chem1]->name << " " << chemical[collision.back()->chem2]->name << std::endl;
-}
-
 
 void Chemistry::ReadInputFileDirective(std::stringstream& inputString,const std::string& command)
 {
 	std::string word;
-
+	ComputeTool *newTool;
 	Module::ReadInputFileDirective(inputString,command);
+
+	// DFG - here is an example of where we have more than 1 kind of tool to consider.
+	// Have to resort to dynamic casting, perhaps not ideal.
+	newTool = owner->ToolFromDirective(inputString,command);
+	if (dynamic_cast<EllipticSolver*>(newTool))
+		ellipticSolver = (EllipticSolver*)newTool;
+	if (dynamic_cast<ParabolicSolver*>(newTool))
+		parabolicSolver = (ParabolicSolver*)newTool;
+	if (dynamic_cast<IsotropicPropagator*>(newTool))
+		laserPropagator = (IsotropicPropagator*)newTool;
+
+	if (ellipticSolver!=NULL)
+		ellipticSolver->ReadInputFileDirective(inputString,command);
+	if (parabolicSolver!=NULL)
+		parabolicSolver->ReadInputFileDirective(inputString,command);
+	if (laserPropagator!=NULL)
+		laserPropagator->ReadInputFileDirective(inputString,command);
+
 	if (command=="epsilon") // eg epsilon factor = 0.1
 		inputString >> word >> word >> epsilonFactor;
 	if (command=="radiation") // eg radiation model = thin
@@ -2528,48 +2110,32 @@ void Chemistry::ReadInputFileDirective(std::stringstream& inputString,const std:
 		if (word=="quasineutral")
 			plasModel = sparc::quasineutral;
 	}
-	if (command=="tolerance") // eg tolerance = 1e-6
-		inputString >> word >> tolerance;
-	if (command=="overrelaxation") // eg overrelaxation = 1.9
-		inputString >> word >> overrelaxation;
-	if (command=="iterations") // eg iterations = 1000
-		inputString >> word >> maxIterations;
-	if (command=="reaction")
-		ParseReaction(inputString);
-	if (command=="excitation")
-		ParseExcitation(inputString);
-	if (command=="collision")
-		ParseCollision(inputString);
 	if (command=="dipole") // eg, dipole center = 0 0 0
 		inputString >> word >> word >> dipoleCenter.x >> dipoleCenter.y >> dipoleCenter.z;
-	if (command=="external") // eg, external potential = ( 0.0 , 1.0 )
-	{
-		inputString >> word >> word >> phi_lbc >> phi_rbc;
-	}
 }
 
 void Chemistry::ReadData(std::ifstream& inFile)
 {
-	tw::Int i,num,eos_size;
+	tw::Int i,num,hydro_size,eos_size;
 	Module::ReadData(inFile);
+
+	ellipticSolver = (EllipticSolver*)owner->GetRestartedTool(inFile);
+	parabolicSolver = (ParabolicSolver*)owner->GetRestartedTool(inFile);
+	laserPropagator = (IsotropicPropagator*)owner->GetRestartedTool(inFile);
+
 	inFile.read((char *)&radModel,sizeof(sparc::radiationModel));
 	inFile.read((char *)&lasModel,sizeof(sparc::laserModel));
 	inFile.read((char *)&plasModel,sizeof(sparc::plasmaModel));
 	inFile.read((char *)&epsilonFactor,sizeof(tw::Float));
-	inFile.read((char *)&tolerance,sizeof(tw::Float));
-	inFile.read((char *)&overrelaxation,sizeof(tw::Float));
-	inFile.read((char *)&maxIterations,sizeof(tw::Int));
 	inFile.read((char *)&dipoleCenter,sizeof(tw::vec3));
-	inFile.read((char *)&phi_lbc,sizeof(tw::Float));
-	inFile.read((char *)&phi_rbc,sizeof(tw::Float));
 
-	inFile.read((char *)&num,sizeof(tw::Int));
+	// This block is needed to allocate space for variable size arrays
+	inFile.read((char *)&hydro_size,sizeof(tw::Int));
 	inFile.read((char *)&eos_size,sizeof(tw::Int));
-
-	state0.Initialize(num,*this,owner);
-	state1.Initialize(num,*this,owner);
-	creationRate.Initialize(num,*this,owner);
-	destructionRate.Initialize(num,*this,owner);
+	state0.Initialize(hydro_size,*this,owner);
+	state1.Initialize(hydro_size,*this,owner);
+	creationRate.Initialize(hydro_size,*this,owner);
+	destructionRate.Initialize(hydro_size,*this,owner);
 	eos0.Initialize(eos_size,*this,owner);
 	eos1.Initialize(eos_size,*this,owner);
 
@@ -2607,21 +2173,21 @@ void Chemistry::WriteData(std::ofstream& outFile)
 {
 	tw::Int i;
 	Module::WriteData(outFile);
+
+	ellipticSolver->SaveToolReference(outFile);
+	parabolicSolver->SaveToolReference(outFile);
+	laserPropagator->SaveToolReference(outFile);
+
 	outFile.write((char *)&radModel,sizeof(sparc::radiationModel));
 	outFile.write((char *)&lasModel,sizeof(sparc::laserModel));
 	outFile.write((char *)&plasModel,sizeof(sparc::plasmaModel));
 	outFile.write((char *)&epsilonFactor,sizeof(tw::Float));
-	outFile.write((char *)&tolerance,sizeof(tw::Float));
-	outFile.write((char *)&overrelaxation,sizeof(tw::Float));
-	outFile.write((char *)&maxIterations,sizeof(tw::Int));
 	outFile.write((char *)&dipoleCenter,sizeof(tw::vec3));
-	outFile.write((char *)&phi_lbc,sizeof(tw::Float));
-	outFile.write((char *)&phi_rbc,sizeof(tw::Float));
 
-
+	// Have to save number of components in variable sized arrays
 	i = state1.Components();
 	outFile.write((char *)&i,sizeof(tw::Int));
-	i = group.size()*6; // ASHER_MOD -- there are 6 EOSs now...
+	i = eos1.Components();
 	outFile.write((char *)&i,sizeof(tw::Int));
 
 	eos1.WriteData(outFile);
@@ -2675,11 +2241,11 @@ void Chemistry::EnergyColumns(std::vector<tw::Float>& cols,std::vector<bool>& av
 					for (s=0;s<group.size();s++)
 					{
 						totalMass += group[s]->DensityWeightedSum(state1,group[s]->mass,cell) * dV;
-						totalEnergy += state1(i,j,k,group[s]->U) * dV;
+						totalEnergy += state1(i,j,k,group[s]->hidx.u) * dV;
 						totalCharge += rho(i,j,k) * dV;
-						fluidMomentum.x += state1(i,j,k,group[s]->npx) * dV;
-						fluidMomentum.y += state1(i,j,k,group[s]->npy) * dV;
-						fluidMomentum.z += state1(i,j,k,group[s]->npz) * dV;
+						fluidMomentum.x += state1(i,j,k,group[s]->hidx.npx) * dV;
+						fluidMomentum.y += state1(i,j,k,group[s]->hidx.npy) * dV;
+						fluidMomentum.z += state1(i,j,k,group[s]->hidx.npz) * dV;
 						dipoleMoment += (r2 - r1) * rho(i,j,k) * dV;
 					}
 					bodyForce += ComputeForceOnBody(i,j,k);
@@ -2724,7 +2290,7 @@ void Chemistry::BoxDiagnosticHeader(GridDataDescriptor* box)
 		owner->WriteBoxDataHeader("P_" + group[i]->name,box);
 		owner->WriteBoxDataHeader("Cv_" + group[i]->name,box);
 		owner->WriteBoxDataHeader("K_" + group[i]->name,box);
-		owner->WriteBoxDataHeader("X_" + group[i]->name,box);
+		owner->WriteBoxDataHeader("Tv_" + group[i]->name,box);
 		owner->WriteBoxDataHeader("vx_" + group[i]->name,box);
 		owner->WriteBoxDataHeader("vy_" + group[i]->name,box);
 		owner->WriteBoxDataHeader("vz_" + group[i]->name,box);
@@ -2733,11 +2299,17 @@ void Chemistry::BoxDiagnosticHeader(GridDataDescriptor* box)
 
 void Chemistry::BoxDiagnose(GridDataDescriptor* box)
 {
-	void WriteSubmoduleData = [&] (Field& theData,tw::Int comp,const std::string& filename)
+	auto WriteSubmoduleData = [&] (Field& theData,tw::Int comp,const std::string& filename)
 	{
 		CopyFieldData(scratch,Element(0),theData,Element(comp));
 		scratch *= fluxMask;
 		owner->WriteBoxData(filename,box,&scratch(0,0,0),scratch.Stride());
+	};
+
+	auto VelName = [&] (tw::Int ax,const std::string& name)
+	{
+		std::string ax_lab = "txyz";
+		return "v" + ax_lab.substr(ax,1) + "_" + name;
 	};
 
 	// If first step we need to apply EOS so that EquilibriumGroups can write out T
@@ -2789,55 +2361,26 @@ void Chemistry::BoxDiagnose(GridDataDescriptor* box)
 
 	for (tw::Int i=0;i<group.size();i++)
 	{
-		char ax_lab[3] = { 'x' , 'y' , 'z' };
-
 		for (tw::Int c=0;c<group[i]->chemical.size();c++)
 			WriteSubmoduleData(state1,group[i]->chemical[c]->indexInState,group[i]->chemical[c]->name);
 
-		WriteSubmoduleData(eos1,group[i]->T,"T_" + group[i]->name);
-		WriteSubmoduleData(eos1,group[i]->P,"P_" + group[i]->name);
-		WriteSubmoduleData(eos1,group[i]->Cv,"Cv_" + group[i]->name);
-		WriteSubmoduleData(eos1,group[i]->K,"K_" + group[i]->name);
-		WriteSubmoduleData(eos1,group[i]->Tv,"X_" + group[i]->name);
+		WriteSubmoduleData(eos1,group[i]->eidx.T,"T_" + group[i]->name);
+		WriteSubmoduleData(eos1,group[i]->eidx.P,"P_" + group[i]->name);
+		WriteSubmoduleData(eos1,group[i]->eidx.Cv,"Cv_" + group[i]->name);
+		WriteSubmoduleData(eos1,group[i]->eidx.K,"K_" + group[i]->name);
+		WriteSubmoduleData(eos1,group[i]->eidx.Tv,"Tv_" + group[i]->name);
 
 		for (tw::Int ax=1;ax<=3;ax++)
 		{
-			filename = "v" + std::string(ax_lab[ax-1]) + "_" + group[i]->name;
 			group[i]->LoadVelocity(scratch,state1,ax);
 			scratch *= fluxMask;
-			owner->WriteBoxData(filename,box,&scratch(0,0,0),scratch.Stride());
+			owner->WriteBoxData(VelName(ax,group[i]->name),box,&scratch(0,0,0),scratch.Stride());
 		}
 	}
 }
 
 void Chemistry::CustomDiagnose()
 {
-	/*const tw::Int customPeriod = 10;
-
-	tw::Int i;
-	float data;
-	LocalDomain *master;
-	ofstream outFile;
-
-	master = (*owner->global)(0,0,0);
-
-	if (owner->IsFirstStep() && !(owner->appendMode&&owner->restarted) && owner->local==master)
-	{
-		outFile.open("resolution.dvdat",ios::binary);
-		WriteDVHeader(outFile,2,1,1,owner->global->dim[3],0.0,1.0,0.0,1.0,0.0,owner->global->dim[3]);
-		outFile.close();
-	}
-
-	if (owner->stepNow%customPeriod==0 && owner->local==master)
-	{
-		outFile.open("resolution.dvdat",ios::binary | ios::app);
-		for (i=1;i<=owner->global->dim[3];i++)
-		{
-			data = gres[i];
-			WriteBigEndian((char *)&data,sizeof(float),0,outFile);
-		}
-		outFile.close();
-	}*/
 }
 
 void Chemistry::StatusMessage(std::ostream *theStream)

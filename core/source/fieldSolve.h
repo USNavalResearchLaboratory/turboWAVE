@@ -2,7 +2,7 @@ struct FieldSolver:Module
 {
 	EllipticSolver *ellipticSolver;
 
-	FieldSolver(Grid* theGrid);
+	FieldSolver(const std::string& name,Grid* theGrid);
 	~FieldSolver();
 	virtual void Initialize();
 	virtual void ReadInputFileDirective(std::stringstream& inputString,const std::string& command);
@@ -19,7 +19,7 @@ struct Electromagnetic:FieldSolver
 	tw::Float gammaBeam;
 	std::vector<FarFieldDetectorDescriptor*> farFieldDetector;
 
-	Electromagnetic(Grid* theGrid);
+	Electromagnetic(const std::string& name,Grid* theGrid);
 	virtual void ExchangeResources();
 	virtual void Initialize();
 	virtual void Reset();
@@ -53,7 +53,7 @@ struct CoulombSolver:Electromagnetic
 	Field A4;
 	LindmanBoundary L1,L2,R1,R2;
 
-	CoulombSolver(Grid* theGrid);
+	CoulombSolver(const std::string& name,Grid* theGrid);
 	virtual void ExchangeResources();
 	virtual void Initialize();
 	virtual void ReadData(std::ifstream& inFile);
@@ -79,7 +79,7 @@ struct DirectSolver:Electromagnetic
 
 	YeePropagatorPML *yeeTool;
 
-	DirectSolver(Grid* theGrid);
+	DirectSolver(const std::string& name,Grid* theGrid);
 	~DirectSolver();
 	virtual void Initialize();
 	virtual void Update();
@@ -93,7 +93,7 @@ struct DirectSolver:Electromagnetic
 
 struct CurvilinearDirectSolver:DirectSolver
 {
-	CurvilinearDirectSolver(Grid* theGrid);
+	CurvilinearDirectSolver(const std::string& name,Grid* theGrid);
 	virtual void Initialize();
 	virtual void Update();
 	virtual void SetSingularPointsE();
@@ -151,7 +151,8 @@ void Electromagnetic::CleanDivergence(Field& A,tw::Float charge_multiplier)
 			}
 
 	ellipticSolver->SaveBoundaryConditions();
-	ellipticSolver->SetBoundaryConditions(scratch2,neumannWall,neumannWall,neumannWall,neumannWall,natural,natural);
+	ellipticSolver->SetBoundaryConditions(neumannWall,neumannWall,neumannWall,neumannWall,natural,natural);
+	ellipticSolver->SetBoundaryConditions(scratch2);
 	ellipticSolver->Solve(scratch2,scratch1,1.0);
 	scratch2.ApplyBoundaryCondition();
 	ellipticSolver->RestoreBoundaryConditions();

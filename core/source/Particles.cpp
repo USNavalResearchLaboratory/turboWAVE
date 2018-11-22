@@ -21,19 +21,13 @@ Kinetics::Kinetics(Grid* theGrid) : Module(theGrid)
 void Kinetics::Initialize()
 {
 	Module::Initialize();
+	for (tw::Int i=0;i<submodule.size();i++)
+		species.push_back((Species*)submodule[i]);
 }
 
-bool Kinetics::AddSubmodule(Module* sub)
+bool Kinetics::ValidSubmodule(Module* sub)
 {
-	if (sub->typeCode==tw::module_type::species)
-	{
-		species.push_back(sub);
-		submodule.push_back(sub);
-		sub->super = this;
-		return true;
-	}
-	else
-		return false;
+	return sub->typeCode==tw::module_type::species;
 }
 
 void Kinetics::ExchangeResources()
@@ -1157,17 +1151,17 @@ bool Species::ReadQuasitoolBlock(const std::vector<std::string>& preamble,std::s
 {
 	std::string key(preamble[0]);
 	std::string requested_name(preamble.back());
-	if (command=="phase" && requested_name==name) // eg, new phase space plot for electrons { ... }
+	if (key=="phase" && requested_name==name) // eg, new phase space plot for electrons { ... }
 	{
 		phaseSpacePlot.push_back(new PhaseSpaceDescriptor(owner->clippingRegion));
 		phaseSpacePlot.back()->ReadInputFile(inputString);
 	}
-	if (command=="orbit" && requested_name==name) // eg, new orbit diagnostic for electrons { ... }
+	if (key=="orbit" && requested_name==name) // eg, new orbit diagnostic for electrons { ... }
 	{
 		orbitDiagnostic.push_back(new ParticleOrbitDescriptor(owner->clippingRegion));
 		orbitDiagnostic.back()->ReadInputFile(inputString);
 	}
-	if (command=="detector" && requested_name==name) // eg, new detector diagnostic for electrons { ... }
+	if (key=="detector" && requested_name==name) // eg, new detector diagnostic for electrons { ... }
 	{
 		detector.push_back(new ParticleDetectorDescriptor(owner->clippingRegion));
 		detector.back()->ReadInputFile(inputString);

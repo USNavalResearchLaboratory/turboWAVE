@@ -146,6 +146,7 @@ void EllipticSolver::ZeroModeGhostCellValues(tw::Float *phi0,tw::Float *phiN1,Sc
 
 void EllipticSolver::ReadInputFileDirective(std::stringstream& inputString,const std::string& command)
 {
+	std::string word;
 	ComputeTool::ReadInputFileDirective(inputString,command);
 	if (command=="poisson") // eg, poisson boundary condition z = (open,open)
 	{
@@ -567,6 +568,7 @@ void IterativePoissonSolver::StatusMessage(std::ostream *theStream)
 
 void IterativePoissonSolver::ReadInputFileDirective(std::stringstream& inputString,const std::string& command)
 {
+	std::string word;
 	EllipticSolver::ReadInputFileDirective(inputString,command);
 	if (command=="tolerance")
 	{

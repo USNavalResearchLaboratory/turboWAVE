@@ -725,7 +725,7 @@ ComputeTool* Grid::GetTool(const std::string& name)
 	return NULL;
 }
 
-ComputeTool* Grid::LoadRestartedTool(std::ifstream& inFile)
+ComputeTool* Grid::GetRestartedTool(std::ifstream& inFile)
 {
 	// Read in the name and find the tool
 	// No need to read data, it has already happened.
@@ -1501,10 +1501,6 @@ void Grid::ReadInputFile()
 				if (!processed)
 					throw tw::FatalError("Unhandled " + preamble[0] + ". Check order of input file.");
 			}
-
-			// Need to add code to:
-			// check if laser solvers installed a propagator
-			// auto creation of groups (perhaps let chemistry object handle upon initialization)
 
 			// The remaining objects are explicitly managed by Grid
 			// Perhaps they should be repackaged as ComputeTool objects

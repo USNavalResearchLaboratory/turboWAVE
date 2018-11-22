@@ -6,7 +6,7 @@ struct Electrostatic:FieldSolver
 	std::valarray<tw::Float> lbc,rbc; // 2-ghost cell layers will break lbc and rbc access
 	tw::Float electrodeRadius,electrodePotential,slewRate;
 	
-	Electrostatic(Grid* theGrid);
+	Electrostatic(const std::string& name,Grid* theGrid);
 	virtual void Initialize();
 	virtual void ExchangeResources();
 	virtual void Reset();

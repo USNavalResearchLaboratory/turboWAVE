@@ -13,6 +13,219 @@
 
 #include "physics.h"
 
+// Normalization Functions
+
+UnitConverter::UnitConverter(tw::Float unitDensityCGS)
+{
+	n1 = unitDensityCGS*1e6;
+	wp = sqrt(n1*sqr(mks::qe)/(mks::eps0*mks::me));
+	c = mks::c;
+	qe = mks::qe;
+	me = mks::me;
+	eps0 = mks::eps0;
+	kB = mks::kB;
+	hbar = mks::hbar;
+}
+
+tw::Float UnitConverter::MKSValue(tw_dimensions dim) const
+{
+	switch (dim)
+	{
+		case time_dim:
+			return 1.0/wp;
+		case length_dim:
+			return c/wp;
+		case number_dim:
+			return n1*cub(c/wp);
+		case mass_dim:
+			return me;
+		case energy_dim:
+			return me*c*c;
+		case momentum_dim:
+			return me*c;
+		case angular_momentum_dim:
+			return me*c*c/wp;
+		case density_dim:
+			return n1;
+		case power_dim:
+			return me*c*c*wp;
+		case fluence_dim:
+			return sqr(me*c*wp/qe)*c*eps0/wp; // E^2/eta0/wp
+		case intensity_dim:
+			return sqr(me*c*wp/qe)*c*eps0; // E^2/eta0
+		case energy_density_dim:
+			return me*c*c*n1;
+		case power_density_dim:
+			return me*c*c*n1*wp;
+		case charge_dim:
+			return qe;
+		case current_dim:
+			return n1*qe*c*sqr(c/wp);
+		case current_density_dim:
+			return n1*qe*c;
+		case charge_density_dim:
+			return n1*qe;
+		case electric_field_dim:
+			return me*c*wp/qe;
+		case magnetic_field_dim:
+			return me*wp/qe;
+		case scalar_potential_dim:
+			return me*c*c/qe;
+		case conductivity_dim:
+			return (n1*qe*c)/(me*c*wp/qe); // j/E
+		case rate_coefficient_2_dim:
+			return wp/n1;
+		case rate_coefficient_3_dim:
+			return wp/(n1*n1);
+		case mobility_dim:
+			return c/(me*c*wp/qe); // c/E
+		case temperature_dim:
+			return me*c*c/kB;
+		case cross_section_dim:
+			return wp/(n1*c);
+		case susceptibility_dim:
+			return 1.0;
+		case susceptibility_2_dim:
+			return 1.0/(me*c*wp/qe); // 1/E
+		case susceptibility_3_dim:
+			return 1.0/sqr(me*c*wp/qe); // 1/E^2
+		default:
+			return 0.0;
+	}
+}
+
+tw::Float UnitConverter::CGSValue(tw_dimensions dim) const
+{
+	switch (dim)
+	{
+		case time_dim:
+			return 1.0/wp;
+		case length_dim:
+			return 1e2*c/wp;
+		case number_dim:
+			return n1*cub(c/wp);
+		case mass_dim:
+			return 1e3*me;
+		case energy_dim:
+			return 1e7*me*c*c;
+		case momentum_dim:
+			return 1e5*me*c;
+		case angular_momentum_dim:
+			return 1e7*me*c*c/wp;
+		case density_dim:
+			return 1e-6*n1;
+		case power_dim:
+			return 1e7*me*c*c*wp;
+		case fluence_dim:
+			return 1e3*sqr(me*c*wp/qe)*c*eps0/wp; // E^2/eta0/wp
+		case intensity_dim:
+			return 1e3*sqr(me*c*wp/qe)*c*eps0; // E^2/eta0
+		case energy_density_dim:
+			return 1e1*me*c*c*n1;
+		case power_density_dim:
+			return 1e1*me*c*c*n1*wp;
+		case charge_dim:
+			return 3e9*qe;
+		case current_dim:
+			return 3e9*n1*qe*c*sqr(c/wp);
+		case current_density_dim:
+			return 3e5*n1*qe*c;
+		case charge_density_dim:
+			return 3e3*n1*qe;
+		case electric_field_dim:
+			return 0.333333e-4*me*c*wp/qe;
+		case magnetic_field_dim:
+			return 1e4*me*wp/qe;
+		case scalar_potential_dim:
+			return 0.333333e-2*me*c*c/qe;
+		case conductivity_dim:
+			return 9e9*(n1*qe*c)/(me*c*wp/qe); // j/E
+		case rate_coefficient_2_dim:
+			return 1e6*wp/n1;
+		case rate_coefficient_3_dim:
+			return 1e12*wp/(n1*n1);
+		case mobility_dim:
+			return 1e2*c/(0.333333e-4*me*c*wp/qe); // c/E
+		case temperature_dim:
+			return me*c*c/kB;
+		case cross_section_dim:
+			return 1e4*wp/(n1*c);
+		case susceptibility_dim:
+			return 1.0/(4.0*pi);
+		case susceptibility_2_dim:
+			return 1.0/(4.0*pi*0.333333e-4*me*c*wp/qe); // 1/4*pi*E
+		case susceptibility_3_dim:
+			return 1.0/sqr(4.0*pi*0.333333e-4*me*c*wp/qe); // 1/4*pi*E^2
+		default:
+			return 0.0;
+	}
+}
+
+// DFG - encapsulated material parameters can now read their own input file directives
+// The CGS units in the input file should really be handled with conversion macros; that would break input files however.
+// To keep doing it the usual way we need the unit converter as an argument.
+void sparc::material::ReadInputFileDirective(std::stringstream& inputString,const std::string& command,const UnitConverter& uc)
+{
+	if (command=="mass") // eg, mass = 1800.0
+		inputString >> word >> mass;
+	if (command=="charge") // eg, charge = 1.0
+		inputString >> word >> charge;
+	if (command=="rotational") // eg, rotational degrees of freedom = 2
+	{
+		inputString >> word >> word >> word >> word >> cvm;
+		cvm = 0.5*(3.0 + cvm);
+	}
+	if (command=="cv") // eg, cv = 2.5 (this is really m*cv, or m*cv/kB)
+	{
+		inputString >> word >> cvm;
+	}
+	if (command=="vibrational" || command=="vibration" || command=="excitation") // eg, vibrational energy = 0.3
+	{
+		inputString >> word >> word >> excitationEnergy;
+		excitationEnergy = uc.eV_to_sim(excitationEnergy);
+	}
+	if (command=="thermometric") // eg, thermometric conductivity = 1.0 // cm^2/s
+	{
+		inputString >> word >> word >> thermometricConductivity;
+		thermometricConductivity *= uc.CGSValue(time_dim)/sqr(uc.CGSValue(length_dim));
+	}
+	if (command=="kinematic") // eg, kinematic viscosity = 1.0 // cm^2/s
+	{
+		inputString >> word >> word >> kinematicViscosity;
+		kinematicViscosity *= uc.CGSValue(time_dim)/sqr(uc.CGSValue(length_dim));
+	}
+	if (command=="permittivity") // eg, permittivity = 5.0 , 0.0
+		inputString >> word >> eps_r >> eps_i;
+}
+
+tw::Float sparc::CoulombCrossSection(const UnitConverter& uc,tw::Float q1,tw::Float q2,tw::Float m12,tw::Float v12,tw::Float N1,tw::Float N2,tw::Float T1,tw::Float T2)
+{
+	tw::Float rmin,rmax,rmin_alt,coulombLog,hbar;
+	hbar = uc.hbar / (uc.MKSValue(time_dim) * uc.MKSValue(energy_dim));
+	rmin = fabs(q1*q2)/(tw::small_pos + 4.0*pi*m12*v12*v12*uc.MKSValue(number_dim));
+	rmin_alt = hbar/(tw::small_pos + 2.0*m12*v12);
+	if (rmin_alt<rmin) rmin = rmin_alt;
+	rmax = 1.0/sqrt(tw::small_pos + N1*q1*q1/T1 + N2*q2*q2/T2);
+	coulombLog = log(rmax/rmin);
+	if (coulombLog<1.0) coulombLog = 1.0;
+	return (32.0/pi)*pow(v12,tw::Float(-4.0))*sqr(q1*q2/(4*pi*m12))*coulombLog/uc.MKSValue(number_dim);
+}
+
+tw::Float sparc::ElectronPhononRateCoeff(const UnitConverter& uc,tw::Float Ti,tw::Float EFermi,tw::Float ks,tw::Float nref)
+{
+	// here, the rate coefficient is collision frequency divided by a reference density
+	// this allows us to multiply away the collisions in regions where the metallic density is at "background level"
+	// get quantities into cgs
+	tw::Float vF = uc.c*100.0*sqrt(2.0*EFermi);
+	tw::Float qe = uc.SimToCGS(charge_dim,1.0);
+	tw::Float kB_Ti = uc.SimToCGS(energy_dim,Ti);
+	tw::Float hbar = 1e7 * uc.hbar;
+	// collision frequency in real units
+	tw::Float nu = 2.0*ks*qe*qe*kB_Ti/(sqr(hbar)*vF);
+	// return normalized rate coefficient
+	return (uc.CGSValue(time_dim)/nref) * nu;
+}
+
 //////////////////////////
 //                      //
 // Ionization Quasitool //
@@ -179,153 +392,6 @@ void IonizationData::ReadInputFileDirective(std::stringstream& inputString,const
 		inputString >> word >> word >> max_rate;
 }
 
-// Normalization Functions
-
-UnitConverter::UnitConverter(tw::Float unitDensityCGS)
-{
-	n1 = unitDensityCGS*1e6;
-	wp = sqrt(n1*sqr(mks::qe)/(mks::eps0*mks::me));
-	c = mks::c;
-	qe = mks::qe;
-	me = mks::me;
-	eps0 = mks::eps0;
-	kB = mks::kB;
-	hbar = mks::hbar;
-}
-
-tw::Float UnitConverter::MKSValue(tw_dimensions dim) const
-{
-	switch (dim)
-	{
-		case time_dim:
-			return 1.0/wp;
-		case length_dim:
-			return c/wp;
-		case number_dim:
-			return n1*cub(c/wp);
-		case mass_dim:
-			return me;
-		case energy_dim:
-			return me*c*c;
-		case momentum_dim:
-			return me*c;
-		case angular_momentum_dim:
-			return me*c*c/wp;
-		case density_dim:
-			return n1;
-		case power_dim:
-			return me*c*c*wp;
-		case fluence_dim:
-			return sqr(me*c*wp/qe)*c*eps0/wp; // E^2/eta0/wp
-		case intensity_dim:
-			return sqr(me*c*wp/qe)*c*eps0; // E^2/eta0
-		case energy_density_dim:
-			return me*c*c*n1;
-		case power_density_dim:
-			return me*c*c*n1*wp;
-		case charge_dim:
-			return qe;
-		case current_dim:
-			return n1*qe*c*sqr(c/wp);
-		case current_density_dim:
-			return n1*qe*c;
-		case charge_density_dim:
-			return n1*qe;
-		case electric_field_dim:
-			return me*c*wp/qe;
-		case magnetic_field_dim:
-			return me*wp/qe;
-		case scalar_potential_dim:
-			return me*c*c/qe;
-		case conductivity_dim:
-			return (n1*qe*c)/(me*c*wp/qe); // j/E
-		case rate_coefficient_2_dim:
-			return wp/n1;
-		case rate_coefficient_3_dim:
-			return wp/(n1*n1);
-		case mobility_dim:
-			return c/(me*c*wp/qe); // c/E
-		case temperature_dim:
-			return me*c*c/kB;
-		case cross_section_dim:
-			return wp/(n1*c);
-		case susceptibility_dim:
-			return 1.0;
-		case susceptibility_2_dim:
-			return 1.0/(me*c*wp/qe); // 1/E
-		case susceptibility_3_dim:
-			return 1.0/sqr(me*c*wp/qe); // 1/E^2
-		default:
-			return 0.0;
-	}
-}
-
-tw::Float UnitConverter::CGSValue(tw_dimensions dim) const
-{
-	switch (dim)
-	{
-		case time_dim:
-			return 1.0/wp;
-		case length_dim:
-			return 1e2*c/wp;
-		case number_dim:
-			return n1*cub(c/wp);
-		case mass_dim:
-			return 1e3*me;
-		case energy_dim:
-			return 1e7*me*c*c;
-		case momentum_dim:
-			return 1e5*me*c;
-		case angular_momentum_dim:
-			return 1e7*me*c*c/wp;
-		case density_dim:
-			return 1e-6*n1;
-		case power_dim:
-			return 1e7*me*c*c*wp;
-		case fluence_dim:
-			return 1e3*sqr(me*c*wp/qe)*c*eps0/wp; // E^2/eta0/wp
-		case intensity_dim:
-			return 1e3*sqr(me*c*wp/qe)*c*eps0; // E^2/eta0
-		case energy_density_dim:
-			return 1e1*me*c*c*n1;
-		case power_density_dim:
-			return 1e1*me*c*c*n1*wp;
-		case charge_dim:
-			return 3e9*qe;
-		case current_dim:
-			return 3e9*n1*qe*c*sqr(c/wp);
-		case current_density_dim:
-			return 3e5*n1*qe*c;
-		case charge_density_dim:
-			return 3e3*n1*qe;
-		case electric_field_dim:
-			return 0.333333e-4*me*c*wp/qe;
-		case magnetic_field_dim:
-			return 1e4*me*wp/qe;
-		case scalar_potential_dim:
-			return 0.333333e-2*me*c*c/qe;
-		case conductivity_dim:
-			return 9e9*(n1*qe*c)/(me*c*wp/qe); // j/E
-		case rate_coefficient_2_dim:
-			return 1e6*wp/n1;
-		case rate_coefficient_3_dim:
-			return 1e12*wp/(n1*n1);
-		case mobility_dim:
-			return 1e2*c/(0.333333e-4*me*c*wp/qe); // c/E
-		case temperature_dim:
-			return me*c*c/kB;
-		case cross_section_dim:
-			return 1e4*wp/(n1*c);
-		case susceptibility_dim:
-			return 1.0/(4.0*pi);
-		case susceptibility_2_dim:
-			return 1.0/(4.0*pi*0.333333e-4*me*c*wp/qe); // 1/4*pi*E
-		case susceptibility_3_dim:
-			return 1.0/sqr(4.0*pi*0.333333e-4*me*c*wp/qe); // 1/4*pi*E^2
-		default:
-			return 0.0;
-	}
-}
 
 // ASHER_MOD
 
@@ -358,11 +424,11 @@ void EOSIdealGas::ComponentContribution(Field& hydro, Field& eos)
 	{
 		for (CellIterator cell(*space,false);cell<cell.end();++cell)
 		{
-			const tw::Float ngas = hydro(cell,hidx.n);
+			const tw::Float ngas = hydro(cell,hidx.first);
 			// Temperature is not treated as additive, worked out by parent object (same as previous approach)
 			eos(cell,eidx.P) += ngas*eos(cell,eidx.T);
-			eos(cell,eidx.K) += mat.thermo_cond_cvm*ngas;//thermometricConductivity*nmcv;
-			eos(cell,eidx.visc) += mat.k_visc_m*ngas;//kinematicViscosity*nm;
+			eos(cell,eidx.K) += mat.thermometricConductivity * mat.cvm * ngas;
+			eos(cell,eidx.visc) += mat.kinematicViscosity * mat.mass * ngas;
 		}
 	}
 }
@@ -373,13 +439,13 @@ void EOSIdealGas::ApplyEOS(tw::Int ie, ScalarField& nu_e,Field& hydro, Field& eo
 	{
 		for (CellIterator cell(*space,false);cell<cell.end();++cell)
 		{
-			const tw::Float ngas = hydro(cell,hidx.n);
+			const tw::Float ngas = hydro(cell,hidx.first);
 			const tw::Float nmcv = ngas*mat.cvm;
 			eos(cell,eidx.T) = hydro(cell,hidx.u)/(tw::small_pos + nmcv);
 			eos(cell,eidx.Tv) = 0.0;
 			eos(cell,eidx.P) += ngas*eos(cell,eidx.T);
-			eos(cell,eidx.K) += mat.thermo_cond_cvm*ngas;//thermometricConductivity*nmcv;
-			eos(cell,eidx.visc) += mat.k_visc_m*ngas;//kinematicViscosity*nm;
+			eos(cell,eidx.K) += mat.thermometricConductivity * mat.cvm * ngas;
+			eos(cell,eidx.visc) += mat.kinematicViscosity * mat.mass * ngas;
 		}
 	}
 }
@@ -488,12 +554,12 @@ void EOSMieGruneisen::ComponentContribution(Field& hydro, Field& eos)
 	{
 		for (CellIterator cell(*space,false);cell<cell.end();++cell)
 		{
-			const tw::Float n = hydro(cell,hidx.n);
+			const tw::Float n = hydro(cell,hidx.first);
 			const tw::Float IE = InternalEnergy(n*mat.mass,hydro,cell);
 			// Temperature is not treated as additive, worked out by parent object
 			eos(cell,eidx.P) += GRUN*IE;
-			eos(cell,eidx.K) += mat.thermo_cond_cvm*n;//thermometricConductivity*nmcv;
-			eos(cell,eidx.visc) += mat.k_visc_m*n;//kinematicViscosity*nm;
+			eos(cell,eidx.K) += mat.thermometricConductivity * mat.cvm * ngas;
+			eos(cell,eidx.visc) += mat.kinematicViscosity * mat.mass * ngas;
 		}
 	}
 }
@@ -549,7 +615,7 @@ void EOSMieGruneisen2::ComponentContribution(Field& hydro, Field& eos)
 	{
 		for (CellIterator cell(*space,false);cell<cell.end();++cell)
 		{
-			const tw::Float n = hydro(cell,hidx.n);
+			const tw::Float n = hydro(cell,hidx.first);
 			const tw::Float IE = InternalEnergy(n*mat.mass,hydro,cell);
 			const tw::Float mu = n/n0 - 1.0;
 			const tw::Float sel = tw::Float(mu>=0.0);
@@ -557,8 +623,8 @@ void EOSMieGruneisen2::ComponentContribution(Field& hydro, Field& eos)
 			// Pressure from <http://bluevistasw.com/2016/02/16/mie-gruneisen-eos-implementation/>
 			eos(cell,eidx.P) += (1.0-sel)*(mat.mass*n0*c0*c0*mu + GRUN*(mu+1.0)*IE);
 			eos(cell,eidx.P) += sel*(mat.mass*n0*c0*c0*mu*(1.0 + (1.0 - GRUN*(mu+1.0)/2.0)*mu)/(1.0 - (S1-1.0)*mu) + GRUN*(mu+1.0)*IE);
-			eos(cell,eidx.K) += mat.thermo_cond_cvm*n;//thermometricConductivity*nmcv;
-			eos(cell,eidx.visc) += mat.k_visc_m*n;//kinematicViscosity*nm;
+			eos(cell,eidx.K) += mat.thermometricConductivity * mat.cvm * ngas;
+			eos(cell,eidx.visc) += mat.kinematicViscosity * mat.mass * ngas;
 		}
 	}
 }

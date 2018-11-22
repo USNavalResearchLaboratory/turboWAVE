@@ -30,9 +30,10 @@ struct Module:DiscreteSpace
 	cl_program program;
 	#endif
 
-	Module(Grid* theGrid);
+	Module(const std::string& name,Grid* theGrid);
 	~Module();
-	virtual bool AddSubmodule(Module* sub);
+	bool AddSubmodule(Module* sub);
+	virtual bool ValidSubmodule(Module* sub);
 	virtual void PublishResource(void* resource,const std::string& description);
 	virtual bool InspectResource(void* resource,const std::string& description);
 	virtual void ExchangeResources() {;}
@@ -63,9 +64,9 @@ struct Module:DiscreteSpace
 	virtual void WarningMessage(std::ostream *theStream);
 	virtual void StatusMessage(std::ostream *theStream) {;}
 
-	static bool Module::SingularType(tw::module_type theType);
-	static tw::module_type Module::CreateSupermoduleTypeFromSubmoduleKey(const std::string& key);
-	static bool Module::QuasitoolNeedsModule(const std::vector<std::string>& preamble);
+	static bool SingularType(tw::module_type theType);
+	static tw::module_type CreateSupermoduleTypeFromSubmoduleKey(const std::string& key);
+	static bool QuasitoolNeedsModule(const std::vector<std::string>& preamble);
 	static tw::module_type CreateTypeFromInput(const std::vector<std::string>& preamble);
 	static Module* CreateObjectFromType(const std::string& name,tw::module_type theType,Grid* theGrid);
 	static Module* CreateObjectFromFile(std::ifstream& inFile,Grid* thGrid);

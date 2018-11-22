@@ -14,6 +14,7 @@
 #include "functions.h"
 #include "injection.h"
 #include "physics.h"
+#include "chemistry.h"
 
 struct Grid;
 
@@ -105,9 +106,9 @@ struct Grid:Task,MetricSpace
 	void MangleToolName(std::string& name);
 	ComputeTool* CreateTool(const std::string& basename,tw::tool_type theType);
 	ComputeTool* GetTool(const std::string& name);
-	ComputeTool* LoadRestartedTool(std::ifstream& inFile);
+	ComputeTool* GetRestartedTool(std::ifstream& inFile);
 	ComputeTool* ToolFromDirective(std::stringstream& inputString,const std::string& command);
-	bool Grid::RemoveTool(ComputeTool *theTool);
+	bool RemoveTool(ComputeTool *theTool);
 
 	void SetCellWidthsAndLocalSize();
 	void SetGlobalSizeAndLocalCorner();

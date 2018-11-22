@@ -45,6 +45,7 @@ void LaserSolver::Initialize()
 	tw::Float polarizationFactor;
 
 	Module::Initialize();
+	// Install a propagator by default if necessary here
 	propagator->SetData(laserFreq,dt,polarizationType,owner->movingWindow);
 	propagator->SetBoundaryConditions(a0,a1,chi);
 

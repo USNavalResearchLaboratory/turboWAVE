@@ -31,38 +31,6 @@ enum tw_dimensions
 	susceptibility_3_dim
 };
 
-enum tw_ionization_model {noIonization,ADKTunneling,pptIonization,mpiSimple};
-
-namespace sparc
-{
-	struct hydro_set
-	{
-		// num = number of constituent chemicals
-		// n = index of first chemical density (assume they are in contiguous sequence)
-		// npx,npy,npz = index to momentum density
-		// u = index to energy density
-		// x = index to vibrational density
-		tw::Int num,n,npx,npy,npz,u,x;
-	};
-
-	struct eos_set
-	{
-		// T = index to translational and rotational temperature
-		// Tv = vibrational temperature (if used)
-		// P = pressure
-		// K = heat conductivity (check)
-		// visc = dynamic viscosity (check)
-		// Cv = heat capacity at constant volume
-		tw::Int T,Tv,P,K,visc,Cv;
-	};
-
-	struct material
-	{
-		// Characteristics of a chemical
-		tw::Float mass,charge,cvm,excitationEnergy,thermo_cond_cvm,k_visc_m;
-	};
-}
-
 struct UnitConverter
 {
 	tw::Float n1,wp;
@@ -98,6 +66,74 @@ struct UnitConverter
 	}
 };
 
+namespace sparc
+{
+	struct hydro_set
+	{
+		// num = number of constituent chemicals
+		// first = index of first chemical density (assume they are in contiguous sequence)
+		// ni = index to a particular chemical density (optionally used)
+		// npx,npy,npz = index to momentum density
+		// u = index to energy density
+		// x = index to vibrational density
+		tw::Int num,first,ni,npx,npy,npz,u,x;
+		tw::Int Load(tw::Int i,tw::Int N) { num=N;first=i;npx=i+N;npy=i+N+1;npz=i+N+2;u=i+N+3;x=i+N+4;return i+N+5; }
+		static const tw::Int count = 5; // gives count of state components not counting densities
+	};
+
+	struct eos_set
+	{
+		// T = index to translational and rotational temperature
+		// Tv = vibrational temperature (if used)
+		// P = pressure
+		// K = heat conductivity (check)
+		// visc = dynamic viscosity (check)
+		// Cv = heat capacity at constant volume
+		tw::Int T,Tv,P,K,visc,Cv;
+		tw::Int Load(tw::Int i) { T=i;Tv=i+1;P=i+2;K=i+3;visc=i+4;Cv=i+5;return i+6; }
+		static const tw::Int count = 6;
+	};
+
+	struct material
+	{
+		// Characteristics of a chemical
+		tw::Float mass,charge,cvm,excitationEnergy,thermometricConductivity,kinematicViscosity,eps_r,eps_i;
+		void ReadInputFileDirective(std::stringstream& inputString,const std::string& command,const UnitConverter& uc);
+	};
+
+	struct material_set
+	{
+		// package multiple materials in a way that could promote optimization
+		std::valarray<tw::Float> mass,charge,cvm,excitationEnergy,thermo_cond_cvm,k_visc_m,eps_r,eps_i;
+		void Allocate(tw::Int num)
+		{
+			mass.resize(num);
+			charge.resize(num);
+			cvm.resize(num);
+			excitationEnergy.resize(num);
+			thermo_cond_cvm.resize(num);
+			k_visc_m.resize(num);
+			eps_r.resize(num);
+			eps_i.resize(num);
+		}
+		void AddMaterial(const material& mat,const tw::Int& i)
+		{
+			mass[i] = mat.mass;
+			charge[i] = mat.charge;
+			cvm[i] = mat.cvm;
+			excitationEnergy[i] = mat.excitationEnergy;
+			thermo_cond_cvm[i] = mat.thermometricConductivity * mat.cvm;
+			k_visc_m[i] = mat.kinematicViscosity * mat.mass;
+			eps_r[i] = mat.eps_r;
+			eps_i[i] = mat.eps_i;
+		}
+	};
+
+	tw::Float CoulombCrossSection(const UnitConverter& uc,tw::Float q1,tw::Float q2,tw::Float m12,tw::Float v12,tw::Float N1,tw::Float N2,tw::Float T1,tw::Float T2);
+	tw::Float ElectronPhononRateCoeff(const UnitConverter& uc,tw::Float Ti,tw::Float EFermi,tw::Float ks,tw::Float nref);
+}
+
+enum tw_ionization_model {noIonization,ADKTunneling,pptIonization,mpiSimple};
 struct IonizationData
 {
 	tw::Float ionizationPotential;
