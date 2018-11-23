@@ -681,6 +681,15 @@ Module* Grid::GetModule(const std::string& name)
 	return NULL;
 }
 
+tw::Int Grid::FindModule(const std::string& name)
+{
+	for (tw::Int i=0;i<module.size();i++)
+		if (module[i]->name==name)
+			return i;
+	throw tw::FatalError("Could not find module: " + name);
+	return 0;
+}
+
 void Grid::MangleToolName(std::string& name)
 {
 	bool trouble,did_mangle;

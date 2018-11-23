@@ -92,22 +92,15 @@ struct EquilibriumGroup:Module
 	tw::Float DensitySum(const Field& f,const CellIterator& cell)
 	{
 		tw::Float ans = 0.0;
-		for (tw::Int s=hidx.n;s<hidx.n+hidx.num;s++)
+		for (tw::Int s=hidx.first;s<hidx.first+hidx.num;s++)
 			ans += f(cell,s);
 		return ans;
 	}
 	tw::Float DensityWeightedSum(const Field& f,std::valarray<tw::Float>& qty,const CellIterator& cell)
 	{
 		tw::Float ans = 0.0;
-		for (tw::Int s=hidx.n;s<hidx.n+hidx.num;s++)
-			ans += f(cell,s)*qty[s-hidx.n];
-		return ans;
-	}
-	tw::Float ConditionalDensitySum(const Field& f,std::valarray<tw::Float>& qty,const CellIterator& cell)
-	{
-		tw::Float ans = 0.0;
-		for (tw::Int s=hidx.n;s<hidx.n+hidx.num;s++)
-			ans += qty[s-hidx.n] > 0.0 ? f(cell,s) : 0.0;
+		for (tw::Int s=hidx.first;s<hidx.first+hidx.num;s++)
+			ans += f(cell,s)*qty[s-hidx.first];
 		return ans;
 	}
 	void LoadMassDensity(ScalarField& nm,const Field& f)
@@ -211,7 +204,7 @@ struct Chemistry:Module
 	{
 		return sub->typeCode==tw::module_type::equilibriumGroup;
 	}
-	tw::Float CollisionCoefficient(sparc::collision *coll);
+	tw::Float CollisionCoefficient(Collision *coll,const CellIterator& cell,const UnitConverter& uc);
 	void ComputeElectronCollisionFrequency();
 	void ComputeCollisionalSources();
 	void ComputeRadiativeSources();

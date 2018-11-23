@@ -70,7 +70,7 @@ tw::Float PrimitiveReaction::PrimitiveRate(tw::Float T)
 	{
 		const tw::Float logT_eV = log(tw::small_pos + fabs(T)*unit_T_eV);
 		rate = 0.0;
-		for (s=0;s<9;s++)
+		for (tw::Int s=0;s<9;s++)
 			rate += b[s]*pow(logT_eV,tw::Float(s));
 		rate = exp(rate) / unit_rate_cgs;
 	}

@@ -238,7 +238,7 @@ IonizationData::IonizationData()
 	ionizationPotential = 1.0; // normalized to hydrogen
 	electrons = 0;
 	protons = 0;
-	ionizationModel = noIonization;
+	ionizationModel = tw::ionization_model::none;
 	adkMultiplier = 1.0;
 	pptMultiplier = 1.0;
 	C_ADK = C_ADK_AVG = C_PPT = nstar = 0.0;
@@ -302,13 +302,13 @@ tw::Float IonizationData::Rate(tw::Float instant,tw::Float peak)
 	instant = fabs(instant)*E_sim_to_atomic;
 	peak = fabs(peak)*E_sim_to_atomic;
 
-	if (ionizationModel==mpiSimple)
+	if (ionizationModel==tw::ionization_model::MPI)
 	{
 		ans = two*pi*w0*pow(peak/E_MPI,two*photons) / Factorial(photons-1);
 		if (ans > max_rate) ans = max_rate;
 		return ans*f_atomic_to_sim;
 	}
-	if (ionizationModel==ADKTunneling)
+	if (ionizationModel==tw::ionization_model::ADK)
 	{
 		ans = 0.0;
 		C_EXP = two*pow(two*Uion,one+half)/tw::Float(3.0);
@@ -319,7 +319,7 @@ tw::Float IonizationData::Rate(tw::Float instant,tw::Float peak)
 		if (ans > max_rate) ans = max_rate;
 		return ans*f_atomic_to_sim;
 	}
-	if (ionizationModel==pptIonization)
+	if (ionizationModel==tw::ionization_model::PPT)
 	{
 		ans = 0.0;
 		if (peak>tw::small_pos)
@@ -349,7 +349,8 @@ tw::Float IonizationData::Rate(tw::Float instant,tw::Float peak)
 
 void IonizationData::ReadInputFileDirective(std::stringstream& inputString,const std::string& command)
 {
-	// read ionspecies and electronspecies indices in Species method
+	// read ionspecies and electronspecies indices in Species::ReadInputFileDirective
+	// setup hydro indexing during Chemical::Initialize
 
 	std::string word;
 
@@ -362,13 +363,13 @@ void IonizationData::ReadInputFileDirective(std::stringstream& inputString,const
 		{
 			inputString >> word >> word;
 			if (word=="none")
-				ionizationModel = noIonization;
+				ionizationModel = tw::ionization_model::none;
 			if (word=="adk")
-				ionizationModel = ADKTunneling;
+				ionizationModel = tw::ionization_model::ADK;
 			if (word=="ppt")
-				ionizationModel = pptIonization;
+				ionizationModel = tw::ionization_model::PPT;
 			if (word=="mpi")
-				ionizationModel = mpiSimple;
+				ionizationModel = tw::ionization_model::MPI;
 		}
 	}
 	if (command=="mpi") // eg, mpi reference field = 1.0
@@ -390,6 +391,10 @@ void IonizationData::ReadInputFileDirective(std::stringstream& inputString,const
 		inputString >> word >> word >> pptMultiplier;
 	if (command=="saturated") // eg, saturated rate = 0.01
 		inputString >> word >> word >> max_rate;
+	if (command=="ion") // eg, ion species = N3
+		inputString >> word >> word >> ion_name;
+	if (command=="electron") // eg, electron species = electrons
+		inputString >> word >> word >> electron_name;
 }
 
 

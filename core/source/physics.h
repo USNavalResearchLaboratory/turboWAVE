@@ -71,13 +71,25 @@ namespace sparc
 	struct hydro_set
 	{
 		// num = number of constituent chemicals
-		// first = index of first chemical density (assume they are in contiguous sequence)
+		// first = index of first chemical density (assuming contiguous sequence)
+		// last = index of last hydro quantity in the set (assuming contiguous sequence)
 		// ni = index to a particular chemical density (optionally used)
 		// npx,npy,npz = index to momentum density
 		// u = index to energy density
 		// x = index to vibrational density
-		tw::Int num,first,ni,npx,npy,npz,u,x;
-		tw::Int Load(tw::Int i,tw::Int N) { num=N;first=i;npx=i+N;npy=i+N+1;npz=i+N+2;u=i+N+3;x=i+N+4;return i+N+5; }
+		tw::Int num,first,last,ni,npx,npy,npz,u,x;
+		tw::Int Load(tw::Int i,tw::Int N)
+		{
+			num=N;
+			first=i;
+			npx=i+N;
+			npy=i+N+1;
+			npz=i+N+2;
+			u=i+N+3;
+			x=i+N+4;
+			last=x;
+			return last+1;
+		}
 		static const tw::Int count = 5; // gives count of state components not counting densities
 	};
 
@@ -133,27 +145,37 @@ namespace sparc
 	tw::Float ElectronPhononRateCoeff(const UnitConverter& uc,tw::Float Ti,tw::Float EFermi,tw::Float ks,tw::Float nref);
 }
 
-enum tw_ionization_model {noIonization,ADKTunneling,pptIonization,mpiSimple};
+namespace tw
+{
+	enum class ionization_model {none,ADK,PPT,MPI};
+}
+
 struct IonizationData
 {
+	// this quasitool requires the owner to manage indexing of ionized species
 	tw::Float ionizationPotential;
 	tw::Float electrons,protons;
 
-	tw_ionization_model ionizationModel;
+	tw::ionization_model ionizationModel;
 	tw::Float adkMultiplier,pptMultiplier;
 	tw::Float C_PPT,C_ADK,C_ADK_AVG,nstar,lstar;
 	tw::Float t_atomic,E_atomic,f_atomic_to_sim,E_sim_to_atomic;
 	tw::Float photons,w0,E_MPI,max_rate;
 	tw::Int terms;
 
+	// members determining species involved
 	bool ionizeFromGas;
-	tw::Int ionSpecies,electronSpecies;
+	std::string ion_name,electron_name;
+	tw::Int ionSpecies,electronSpecies; // for PIC use the module index
+	sparc::hydro_set hi,he,hgas; // for hydro use the field indexing
 
 	IonizationData();
 	void Initialize(tw::Float unitDensity,tw::Float* carrierFrequency);
 	tw::Float wfunc(tw::Float x);
 	tw::Float Rate(tw::Float instant,tw::Float peak);
 	void ReadInputFileDirective(std::stringstream& inputString,const std::string& command);
+	void ReadData(std::ifstream& inFile);
+	void WriteData(std::ofstream& outFile);
 };
 
 // This is the master class of all EOS computation related objects.
@@ -232,35 +254,35 @@ struct EOSMixture:EOSDataTool
 	{
 		tw::Float ans = 0.0;
 		for (tw::Int s=0;s<hidx.num;s++)
-			ans += f(cell,s+hidx.n);
+			ans += f(cell,s+hidx.first);
 		return ans;
 	}
 	tw::Float MassDensity(const Field& f,const CellIterator& cell)
 	{
 		tw::Float ans = 0.0;
 		for (tw::Int s=0;s<hidx.num;s++)
-			ans += f(cell,s+hidx.n)*eosComponents[s]->mat.mass;
+			ans += f(cell,s+hidx.first)*eosComponents[s]->mat.mass;
 		return ans;
 	}
 	tw::Float MixHeatCapacities(const Field& f,const CellIterator& cell)
 	{
 		tw::Float ans = 0.0;
 		for (tw::Int s=0;s<hidx.num;s++)
-			ans += f(cell,s+hidx.n)*eosComponents[s]->mat.cvm;
+			ans += f(cell,s+hidx.first)*eosComponents[s]->mat.cvm;
 		return ans;
 	}
 	tw::Float MixVibrationalEnergy(const Field& f,const CellIterator& cell)
 	{
 		tw::Float ans = 0.0;
 		for (tw::Int s=0;s<hidx.num;s++)
-			ans += f(cell,s+hidx.n)*eosComponents[s]->mat.excitationEnergy;
+			ans += f(cell,s+hidx.first)*eosComponents[s]->mat.excitationEnergy;
 		return ans;
 	}
 	tw::Float MixVibrationalStates(const Field& f,const CellIterator& cell)
 	{
 		tw::Float ans = 0.0;
 		for (tw::Int s=0;s<hidx.num;s++)
-			ans += eosComponents[s]->mat.excitationEnergy > 0.0 ? f(cell,s+hidx.n) : 0.0;
+			ans += eosComponents[s]->mat.excitationEnergy > 0.0 ? f(cell,s+hidx.first) : 0.0;
 		return ans;
 	}
 

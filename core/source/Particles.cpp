@@ -452,6 +452,8 @@ void Species::Initialize()
 	for (i=0;i<phaseSpacePlot.size();i++)
 		phaseSpacePlot[i]->SetupGeometry(owner->gridGeometry);
 	ionization.Initialize(owner->unitDensityCGS,carrierFrequency);
+	ionization.electronSpecies = owner->FindModule(ionization.electron_name);
+	ionization.ionSpecies = owner->FindModule(ionization.ion_name);
 	if (!owner->restarted)
 	{
 		GenerateParticles(true);
@@ -1133,16 +1135,6 @@ void Species::ReadInputFileDirective(std::stringstream& inputString,const std::s
 		inputString >> word >> word >> emissionTemp.x >> emissionTemp.y >> emissionTemp.z;
 	if (command=="accelerate") // eg, accelerate to 100.0 in 10.0
 		inputString >> word >> accelerationImpulse >> word >> accelerationTime;
-	if (command=="ion") // eg, ion species = N3
-	{
-		inputString >> word >> word >> word;
-		ionization.ionSpecies = owner->FindModule(word);
-	}
-	if (command=="electron") // eg, electron species = electrons
-	{
-		inputString >> word >> word >> word;
-		ionization.electronSpecies = owner->FindModule(word);
-	}
 	if (command=="xboundary" || command=="yboundary" || command=="zboundary" ) // eg, xboundary = emitting emitting
 		tw::input::ReadBoundaryTerm(bc0,bc1,inputString,command);
 }
@@ -1173,6 +1165,7 @@ void Species::ReadData(std::ifstream& inFile)
 	tw::Int i,num;
 
 	Module::ReadData(inFile);
+	ionization.ReadData(inFile);
 	inFile.read((char *)&restMass,sizeof(tw::Float));
 	inFile.read((char *)&charge,sizeof(tw::Float));
 	inFile.read((char *)&emissionTemp,sizeof(tw::vec3));
@@ -1184,7 +1177,6 @@ void Species::ReadData(std::ifstream& inFile)
 	inFile.read((char *)&count,sizeof(tw::Int));
 	inFile.read((char *)&sortPeriod,sizeof(tw::Int));
 	inFile.read((char *)&distributionInCell,sizeof(tw::vec3));
-	inFile.read((char *)&ionization,sizeof(IonizationData));
 	inFile.read((char *)bc0,sizeof(tw_boundary_spec)*4);
 	inFile.read((char *)bc1,sizeof(tw_boundary_spec)*4);
 	inFile.read((char *)&mobile,sizeof(bool));
@@ -1230,6 +1222,7 @@ void Species::WriteData(std::ofstream& outFile)
 	tw::Int i;
 
 	Module::WriteData(outFile);
+	ionization.WriteData(outFile);
 	outFile.write((char *)&restMass,sizeof(tw::Float));
 	outFile.write((char *)&charge,sizeof(tw::Float));
 	outFile.write((char *)&emissionTemp,sizeof(tw::vec3));
@@ -1241,7 +1234,6 @@ void Species::WriteData(std::ofstream& outFile)
 	outFile.write((char *)&count,sizeof(tw::Int));
 	outFile.write((char *)&sortPeriod,sizeof(tw::Int));
 	outFile.write((char *)&distributionInCell,sizeof(tw::vec3));
-	outFile.write((char *)&ionization,sizeof(IonizationData));
 	outFile.write((char *)bc0,sizeof(tw_boundary_spec)*4);
 	outFile.write((char *)bc1,sizeof(tw_boundary_spec)*4);
 	outFile.write((char *)&mobile,sizeof(bool));
