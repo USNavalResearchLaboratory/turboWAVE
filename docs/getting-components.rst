@@ -10,7 +10,7 @@ General Information
 
 The `Git <https://git-scm.com/>`_ version control system is fundamental to the evolution, storage, and retrieval of turboWAVE components.
 
-TurboWAVE components are maintained in a single repository.  Unless you are doing development yourself, you will typically interact only with the `master branch <https://git-scm.com/docs/git-branch/>`_. The `commits <https://git-scm.com/docs/git-commit/>`_ that make up the master branch have varying degrees of stability.  Stable releases are identified by a `tag <https://git-scm.com/docs/git-tag/>`_.
+TurboWAVE components are maintained in a single repository.  Unless you are doing development yourself, you will typically interact only with the `master branch <https://git-scm.com/docs/git-branch/>`_. The `commits <https://git-scm.com/docs/git-commit/>`_ that make up the master branch have varying degrees of stability.  Stable releases are identified by a `tag <https://git-scm.com/docs/git-tag/>`_.  The tag may have letter suffixes ``a``, ``b``, or ``rc``, indicating alpha, beta, or release candidate.  A numerical tag with no letter suffix is the most stable.
 
 The turboWAVE repository is at `<https://github.com/USNavalResearchLaboratory/turboWAVE>`_.
 
@@ -40,5 +40,5 @@ When you clone the repository the active files (the version you have checked out
 
 	#. Open a terminal and navigate to :samp:`{twroot}`.
 	#. :samp:`git tag --list`
-	#. Choose the latest tag, :samp:`{latest_tag}`.
+	#. Choose the latest tag without a letter suffix, :samp:`{latest_tag}`.
 	#. :samp:`git checkout {latest_tag}`.

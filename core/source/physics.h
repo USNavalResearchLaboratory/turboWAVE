@@ -71,8 +71,8 @@ namespace sparc
 	struct hydro_set
 	{
 		// num = number of constituent chemicals
-		// first = index of first chemical density (assuming contiguous sequence)
-		// last = index of last hydro quantity in the set (assuming contiguous sequence)
+		// first = index of first hydro quantity in the set, must be the first chemical density
+		// last = index of last hydro quantity in the set
 		// ni = index to a particular chemical density (optionally used)
 		// npx,npy,npz = index to momentum density
 		// u = index to energy density
@@ -153,21 +153,21 @@ namespace tw
 struct IonizationData
 {
 	// this quasitool requires the owner to manage indexing of ionized species
+	tw::ionization_model ionizationModel;
 	tw::Float ionizationPotential;
 	tw::Float electrons,protons;
-
-	tw::ionization_model ionizationModel;
 	tw::Float adkMultiplier,pptMultiplier;
-	tw::Float C_PPT,C_ADK,C_ADK_AVG,nstar,lstar;
-	tw::Float t_atomic,E_atomic,f_atomic_to_sim,E_sim_to_atomic;
 	tw::Float photons,w0,E_MPI,max_rate;
 	tw::Int terms;
 
 	// members determining species involved
-	bool ionizeFromGas;
 	std::string ion_name,electron_name;
 	tw::Int ionSpecies,electronSpecies; // for PIC use the module index
 	sparc::hydro_set hi,he,hgas; // for hydro use the field indexing
+
+	// members that are assigned in Initialize or in constructor
+	tw::Float C_PPT,C_ADK,C_ADK_AVG,nstar,lstar;
+	tw::Float t_atomic,E_atomic,f_atomic_to_sim,E_sim_to_atomic;
 
 	IonizationData();
 	void Initialize(tw::Float unitDensity,tw::Float* carrierFrequency);
@@ -189,7 +189,21 @@ struct EOSDataTool:ComputeTool
 	sparc::material mat;
 
 	EOSDataTool(const std::string& name,MetricSpace *m,Task *tsk);
-	virtual void Initialize(const sparc::hydro_set&,const sparc::eos_set&,const sparc::material&);
+	// DFG - two versions of initialize, a result of using the same base class for components and mixtures.
+	virtual void InitializeComponent(tw::Int component_index,const sparc::hydro_set& h,const sparc::eos_set& e,const sparc::material& m)
+	{
+		ComputeTool::Initialize();
+		hidx = h;
+		hidx.ni = component_index;
+		eidx = e;
+		mat = m;
+	}
+	virtual void InitializeMixture(const sparc::hydro_set& h,const sparc::eos_set& e)
+	{
+		ComputeTool::Initialize();
+		hidx = h;
+		eidx = e;
+	}
 
 	// The velocity was only used to get the internal energy, so make a function to do that instead
 	// Move summation functions to the mixture class

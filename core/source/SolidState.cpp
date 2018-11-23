@@ -9,10 +9,9 @@
 ////////////////////////////
 
 
-BoundElectrons::BoundElectrons(Grid* theGrid) : Module(theGrid)
+BoundElectrons::BoundElectrons(const std::string& name,Grid* theGrid) : Module(name,theGrid)
 {
-	name = "bound";
-	typeCode = boundElectrons;
+	typeCode = tw::module_type::boundElectrons;
 	updateSequencePriority = 2;
 	q0 = -1.0;
 	m0 = 1.0;

@@ -26,7 +26,7 @@ struct BoundElectrons:Module
 	ScalarField* fixed;
 	Vec3Field* ESField;
 
-	BoundElectrons(Grid* theGrid);
+	BoundElectrons(const std::string& name,Grid* theGrid);
 	~BoundElectrons();
 	virtual void Initialize();
 	virtual bool InspectResource(void* resource,const std::string& description);

@@ -74,7 +74,7 @@ tw_boundary_spec tw::input::ConvertBoundaryString(std::string& theString)
 	return cyclic;
 }
 
-void tw::input::ReadBoundaryTerm(tw_boundary_spec *low,tw_boundary_spec *high,std::stringstream& theString,std::string& command)
+void tw::input::ReadBoundaryTerm(tw_boundary_spec *low,tw_boundary_spec *high,std::stringstream& theString,const std::string& command)
 {
 	std::string word;
 	tw::Int axis = 0;
@@ -162,7 +162,7 @@ bool tw::input::GetQuotedString(std::string& str)
 	if (isLeftQuote && isRightQuote)
 	{
 		str.pop_back();
-		str = str.substr(1)
+		str = str.substr(1);
 		return true;
 	}
 	return false;
@@ -177,7 +177,7 @@ std::vector<std::string> tw::input::EnterInputFileBlock(std::stringstream& input
 		inputString >> word;
 		if (word!=end_key)
 			preamble.push_back(std::string(word));
-	} while (word!=end_key)
+	} while (word!=end_key);
 	return preamble;
 }
 

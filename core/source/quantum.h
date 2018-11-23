@@ -71,7 +71,7 @@ struct AtomicPhysics:Module
 	Field A4,Ao4; // EM 4-potential and old 4-potential
 	Field J4; // EM 4-current
 
-	AtomicPhysics(Grid *theGrid);
+	AtomicPhysics(const std::string& name,Grid *theGrid);
 	~AtomicPhysics();
 	void ExchangeResources();
 	tw::Float GetSphericalPotential(tw::Float r) const;
@@ -106,7 +106,7 @@ struct Schroedinger:AtomicPhysics
 	#endif
 	SchroedingerPropagator *propagator;
 
-	Schroedinger(Grid *theGrid);
+	Schroedinger(const std::string& name,Grid *theGrid);
 	~Schroedinger();
 	virtual void Initialize();
 	virtual void Update();
@@ -129,7 +129,7 @@ struct Pauli:AtomicPhysics
 	ComplexField scratch,v,w; // for distributed parallelism
 	SchroedingerPropagator *propagator;
 
-	Pauli(Grid *theGrid);
+	Pauli(const std::string& name,Grid *theGrid);
 	~Pauli();
 	virtual void Initialize();
 	virtual void Update();
@@ -151,7 +151,7 @@ struct KleinGordon:AtomicPhysics
 	cl_kernel updateChi;
 	#endif
 
-	KleinGordon(Grid *theGrid);
+	KleinGordon(const std::string& name,Grid *theGrid);
 	~KleinGordon();
 	virtual void Initialize();
 	virtual void Update();
@@ -187,7 +187,7 @@ struct Dirac:AtomicPhysics
 	cl_kernel leapFrog;
 	#endif
 
-	Dirac(Grid *theGrid);
+	Dirac(const std::string& name,Grid *theGrid);
 	~Dirac();
 	virtual void Initialize();
 	template <tw::Int OUT1,tw::Int OUT2,tw::Int IN1,tw::Int IN2>

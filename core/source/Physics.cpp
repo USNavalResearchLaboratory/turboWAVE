@@ -166,6 +166,7 @@ tw::Float UnitConverter::CGSValue(tw_dimensions dim) const
 // To keep doing it the usual way we need the unit converter as an argument.
 void sparc::material::ReadInputFileDirective(std::stringstream& inputString,const std::string& command,const UnitConverter& uc)
 {
+	std::string word;
 	if (command=="mass") // eg, mass = 1800.0
 		inputString >> word >> mass;
 	if (command=="charge") // eg, charge = 1.0
@@ -249,7 +250,6 @@ IonizationData::IonizationData()
 	w0 = 1.0;
 	E_MPI = 1.0;
 	max_rate = tw::big_pos;
-	ionizeFromGas = false;
 	ionSpecies = 0;
 	electronSpecies = 0;
 }
@@ -380,11 +380,6 @@ void IonizationData::ReadInputFileDirective(std::stringstream& inputString,const
 		inputString >> word >> protons;
 	if (command=="electrons")
 		inputString >> word >> electrons;
-	if (command=="ionize") // eg, ionize from gas = yes
-	{
-		inputString >> word >> word >> word >> word;
-		ionizeFromGas = (word=="yes" || word=="true" || word=="on");
-	}
 	if (command=="adk")
 		inputString >> word >> word >> adkMultiplier;
 	if (command=="ppt")
@@ -397,6 +392,45 @@ void IonizationData::ReadInputFileDirective(std::stringstream& inputString,const
 		inputString >> word >> word >> electron_name;
 }
 
+void IonizationData::ReadData(std::ifstream& inFile)
+{
+	inFile.read((char *)&ionizationModel,sizeof(ionizationModel));
+	inFile.read((char *)&ionizationPotential,sizeof(ionizationPotential));
+	inFile.read((char *)&electrons,sizeof(electrons));
+	inFile.read((char *)&protons,sizeof(protons));
+	inFile.read((char *)&adkMultiplier,sizeof(adkMultiplier));
+	inFile.read((char *)&pptMultiplier,sizeof(pptMultiplier));
+	inFile.read((char *)&photons,sizeof(photons));
+	inFile.read((char *)&w0,sizeof(w0));
+	inFile.read((char *)&E_MPI,sizeof(E_MPI));
+	inFile.read((char *)&max_rate,sizeof(max_rate));
+	inFile.read((char *)&terms,sizeof(terms));
+	inFile.read((char *)&ionSpecies,sizeof(ionSpecies));
+	inFile.read((char *)&electronSpecies,sizeof(electronSpecies));
+	inFile.read((char *)&hi,sizeof(hi));
+	inFile.read((char *)&he,sizeof(he));
+	inFile.read((char *)&hgas,sizeof(hgas));
+}
+
+void IonizationData::WriteData(std::ofstream& outFile)
+{
+	outFile.write((char *)&ionizationModel,sizeof(ionizationModel));
+	outFile.write((char *)&ionizationPotential,sizeof(ionizationPotential));
+	outFile.write((char *)&electrons,sizeof(electrons));
+	outFile.write((char *)&protons,sizeof(protons));
+	outFile.write((char *)&adkMultiplier,sizeof(adkMultiplier));
+	outFile.write((char *)&pptMultiplier,sizeof(pptMultiplier));
+	outFile.write((char *)&photons,sizeof(photons));
+	outFile.write((char *)&w0,sizeof(w0));
+	outFile.write((char *)&E_MPI,sizeof(E_MPI));
+	outFile.write((char *)&max_rate,sizeof(max_rate));
+	outFile.write((char *)&terms,sizeof(terms));
+	outFile.write((char *)&ionSpecies,sizeof(ionSpecies));
+	outFile.write((char *)&electronSpecies,sizeof(electronSpecies));
+	outFile.write((char *)&hi,sizeof(hi));
+	outFile.write((char *)&he,sizeof(he));
+	outFile.write((char *)&hgas,sizeof(hgas));
+}
 
 // ASHER_MOD
 
@@ -409,6 +443,8 @@ void IonizationData::ReadInputFileDirective(std::stringstream& inputString,const
 
 EOSDataTool::EOSDataTool(const std::string& name,MetricSpace *m,Task *tsk) : ComputeTool(name,m,tsk)
 {
+	// DFG - must not set names anymore here, let the base class constructor handle it
+	// Note enumerated types are now strongly typed and namespaced.
 	typeCode = tw::tool_type::eosData;
 }
 
@@ -429,8 +465,8 @@ void EOSIdealGas::ComponentContribution(Field& hydro, Field& eos)
 	{
 		for (CellIterator cell(*space,false);cell<cell.end();++cell)
 		{
-			const tw::Float ngas = hydro(cell,hidx.first);
-			// Temperature is not treated as additive, worked out by parent object (same as previous approach)
+			const tw::Float ngas = hydro(cell,hidx.ni);
+			// DFG - temperature is not treated as additive, worked out by parent object (same as previous approach)
 			eos(cell,eidx.P) += ngas*eos(cell,eidx.T);
 			eos(cell,eidx.K) += mat.thermometricConductivity * mat.cvm * ngas;
 			eos(cell,eidx.visc) += mat.kinematicViscosity * mat.mass * ngas;
@@ -444,7 +480,7 @@ void EOSIdealGas::ApplyEOS(tw::Int ie, ScalarField& nu_e,Field& hydro, Field& eo
 	{
 		for (CellIterator cell(*space,false);cell<cell.end();++cell)
 		{
-			const tw::Float ngas = hydro(cell,hidx.first);
+			const tw::Float ngas = hydro(cell,hidx.ni);
 			const tw::Float nmcv = ngas*mat.cvm;
 			eos(cell,eidx.T) = hydro(cell,hidx.u)/(tw::small_pos + nmcv);
 			eos(cell,eidx.Tv) = 0.0;
@@ -497,14 +533,14 @@ void EOSHotElectrons::ApplyEOS(tw::Int ie, ScalarField& nu_e,Field& hydro, Field
 EOSMixture::EOSMixture(const std::string& name,MetricSpace *m, Task *tsk) : EOSDataTool(name,m,tsk)
 {
 	typeCode = tw::tool_type::eosMixture;
-	// it seems we don't need these anymore...
+	// DFG - it seems we don't need these anymore...
 	// eos_tmp.Initialize(5,*space,task);
 	// eos_tmp2.Initialize(5,*space,task);
 }
 
 void EOSMixture::ApplyEOS(tw::Int ie, ScalarField& nu_e,Field& hydro, Field& eos)
 {
-	// Modification from previous version:
+	// DFG - Modification from previous version:
 	// First set temperature and reset other EOS quantities.  IE is encapsulated as an inline function.
 	// Next loop over components and call a distinct component function to add in P,K,visc.
 
@@ -559,18 +595,20 @@ void EOSMieGruneisen::ComponentContribution(Field& hydro, Field& eos)
 	{
 		for (CellIterator cell(*space,false);cell<cell.end();++cell)
 		{
-			const tw::Float n = hydro(cell,hidx.first);
-			const tw::Float IE = InternalEnergy(n*mat.mass,hydro,cell);
+			const tw::Float nion = hydro(cell,hidx.ni);
+			const tw::Float IE = InternalEnergy(nion*mat.mass,hydro,cell);
 			// Temperature is not treated as additive, worked out by parent object
 			eos(cell,eidx.P) += GRUN*IE;
-			eos(cell,eidx.K) += mat.thermometricConductivity * mat.cvm * ngas;
-			eos(cell,eidx.visc) += mat.kinematicViscosity * mat.mass * ngas;
+			eos(cell,eidx.K) += mat.thermometricConductivity * mat.cvm * nion;
+			eos(cell,eidx.visc) += mat.kinematicViscosity * mat.mass * nion;
 		}
 	}
 }
 
 void EOSMieGruneisen::ReadInputFileDirective(std::stringstream& inputString,const std::string& command)
 {
+	// DFG - this is how the tool gets data from the input file.
+	// This supports both named tools and creating on the fly as before.
 	std::string word;
 	ComputeTool::ReadInputFileDirective(inputString,command);
 	// expected form is : gruneisen parameter = 2.0
@@ -580,6 +618,7 @@ void EOSMieGruneisen::ReadInputFileDirective(std::stringstream& inputString,cons
 
 void EOSMieGruneisen::ReadData(std::ifstream& inFile)
 {
+	// DFG - now tools can have ReadData/WriteData to support their own restarts
 	EOSDataTool::ReadData(inFile);
 	inFile.read((char*)&GRUN,sizeof(GRUN));
 }
@@ -620,16 +659,16 @@ void EOSMieGruneisen2::ComponentContribution(Field& hydro, Field& eos)
 	{
 		for (CellIterator cell(*space,false);cell<cell.end();++cell)
 		{
-			const tw::Float n = hydro(cell,hidx.first);
-			const tw::Float IE = InternalEnergy(n*mat.mass,hydro,cell);
-			const tw::Float mu = n/n0 - 1.0;
+			const tw::Float nion = hydro(cell,hidx.ni);
+			const tw::Float IE = InternalEnergy(nion*mat.mass,hydro,cell);
+			const tw::Float mu = nion/n0 - 1.0;
 			const tw::Float sel = tw::Float(mu>=0.0);
 			// Temperature is not treated as additive, worked out by parent object
 			// Pressure from <http://bluevistasw.com/2016/02/16/mie-gruneisen-eos-implementation/>
 			eos(cell,eidx.P) += (1.0-sel)*(mat.mass*n0*c0*c0*mu + GRUN*(mu+1.0)*IE);
 			eos(cell,eidx.P) += sel*(mat.mass*n0*c0*c0*mu*(1.0 + (1.0 - GRUN*(mu+1.0)/2.0)*mu)/(1.0 - (S1-1.0)*mu) + GRUN*(mu+1.0)*IE);
-			eos(cell,eidx.K) += mat.thermometricConductivity * mat.cvm * ngas;
-			eos(cell,eidx.visc) += mat.kinematicViscosity * mat.mass * ngas;
+			eos(cell,eidx.K) += mat.thermometricConductivity * mat.cvm * nion;
+			eos(cell,eidx.visc) += mat.kinematicViscosity * mat.mass * nion;
 		}
 	}
 }

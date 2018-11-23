@@ -515,10 +515,9 @@ void qo::State::WriteData(std::ofstream& outFile)
 ////////////////////////////////
 
 
-AtomicPhysics::AtomicPhysics(Grid* theGrid):Module(theGrid)
+AtomicPhysics::AtomicPhysics(const std::string& name,Grid* theGrid):Module(name,theGrid)
 {
-	name = "Atomic-Physics";
-	typeCode = atomicPhysics;
+	typeCode = tw::module_type::nullModule;
 	keepA2Term = true;
 	dipoleApproximation = true;
 	alpha = 0.0072973525664;
@@ -535,7 +534,7 @@ AtomicPhysics::AtomicPhysics(Grid* theGrid):Module(theGrid)
 	Ao4.Initialize(4,*this,owner,xAxis);
 	J4.Initialize(4,*this,owner,xAxis);
 
-	photonPropagator = (LorentzPropagator*)owner->AddPrivateTool(lorentzPropagator);
+	photonPropagator = NULL;
 
 	#ifdef USE_OPENCL
 	InitializeCLProgram("quantum.cl");
@@ -548,6 +547,8 @@ AtomicPhysics::AtomicPhysics(Grid* theGrid):Module(theGrid)
 
 AtomicPhysics::~AtomicPhysics()
 {
+	if (photonPropagator!=NULL)
+		owner->RemoveTool(photonPropagator);
 	// release any base class OpenCL kernels here
 }
 
@@ -569,6 +570,8 @@ tw::Float AtomicPhysics::GetSphericalPotential(tw::Float r) const
 void AtomicPhysics::Initialize()
 {
 	Module::Initialize();
+	if (photonPropagator==NULL)
+		photonPropagator = (LorentzPropagator*)owner->CreateTool("photons",tw::tool_type::lorentzPropagator);
 
 	// Boundary conditions should preserve hermiticity
 	// One way is to have A = 0 and grad(psi)=0 for components normal to boundary
@@ -861,12 +864,12 @@ void AtomicPhysics::WriteData(std::ofstream& outFile)
 ///////////////////////////////////////
 
 
-Schroedinger::Schroedinger(Grid* theGrid):AtomicPhysics(theGrid)
+Schroedinger::Schroedinger(const std::string& name,Grid* theGrid):AtomicPhysics(name,theGrid)
 {
-	name = "TDSE";
-	typeCode = schroedingerModule;
+	// Should move OpenCL stuff into the propagator tool
+	typeCode = tw::module_type::schroedinger;
 	#ifndef USE_OPENCL
-	propagator = (SchroedingerPropagator*)owner->AddPrivateTool(schroedingerPropagator);
+	propagator = NULL;
 	#endif
 	psi0.Initialize(*this,owner);
 	psi1.Initialize(*this,owner);
@@ -920,7 +923,8 @@ Schroedinger::Schroedinger(Grid* theGrid):AtomicPhysics(theGrid)
 Schroedinger::~Schroedinger()
 {
 	#ifndef USE_OPENCL
-	owner->RemoveTool(propagator);
+	if (propagator!=NULL)
+		owner->RemoveTool(propagator);
 	#endif
 	#ifdef USE_OPENCL
 	clReleaseKernel(applyNumerator);
@@ -934,6 +938,10 @@ Schroedinger::~Schroedinger()
 void Schroedinger::Initialize()
 {
 	AtomicPhysics::Initialize();
+	#ifndef USE_OPENCL
+	if (propagator==NULL)
+		propagator = (SchroedingerPropagator*)owner->CreateTool("TDSE",tw::tool_type::schroedingerPropagator);
+	#endif
 
 	const boundarySpec psiDefaultBC = neumannWall;
 	psi0.SetBoundaryConditions(xAxis,psiDefaultBC,psiDefaultBC);
@@ -1294,13 +1302,12 @@ void Schroedinger::StartDiagnostics()
 //                                     //
 /////////////////////////////////////////
 
-Pauli::Pauli(Grid* theGrid):AtomicPhysics(theGrid)
+Pauli::Pauli(const std::string& name,Grid* theGrid):AtomicPhysics(name,theGrid)
 {
 	throw tw::FatalError("Pauli module is not supported in this version of TW.");
-	name = "Pauli";
-	typeCode = pauliModule;
+	typeCode = tw::module_type::pauli;
 	#ifndef USE_OPENCL
-	propagator = (SchroedingerPropagator*)owner->AddPrivateTool(schroedingerPropagator);
+	propagator = NULL;
 	#endif
 	psi0.Initialize(*this,owner);
 	psi1.Initialize(*this,owner);
@@ -1324,13 +1331,18 @@ Pauli::Pauli(Grid* theGrid):AtomicPhysics(theGrid)
 Pauli::~Pauli()
 {
 	#ifndef USE_OPENCL
-	owner->RemoveTool(propagator);
+	if (propagator!=NULL)
+		owner->RemoveTool(propagator);
 	#endif
 }
 
 void Pauli::Initialize()
 {
 	AtomicPhysics::Initialize();
+	#ifndef USE_OPENCL
+	if (propagator==NULL)
+		propagator = (SchroedingerPropagator*)owner->CreateTool("TDSE",tw::tool_type::schroedingerPropagator);
+	#endif
 }
 
 #ifdef USE_OPENCL
@@ -1539,7 +1551,7 @@ void Pauli::StartDiagnostics()
 ///////////////////////////////////////
 
 
-KleinGordon::KleinGordon(Grid *theGrid) : AtomicPhysics(theGrid)
+KleinGordon::KleinGordon(const std::string& name,Grid *theGrid) : AtomicPhysics(name,theGrid)
 {
 	// Wavefunction is in Hamiltonian 2-component representation.
 	// This is the preliminary Hamiltonian form from Feshbach-Villars, Eq. 2.12.
@@ -1547,8 +1559,7 @@ KleinGordon::KleinGordon(Grid *theGrid) : AtomicPhysics(theGrid)
 	// In this representation, component 0 is the usual scalar wavefunction.
 	// Component 1 is psi1 = (id/dt - q*phi)*psi0/m
 	// The symmetric form is obtained from (psi0+psi1)/sqrt(2) , (psi0-psi1)/sqrt(2)
-	name = "Klein-Gordon";
-	typeCode = kleinGordon;
+	typeCode = tw::module_type::kleinGordon;
 	m0 = 1.0;
 	q0 = -sqrt(alpha);
 	residualCharge = sqrt(alpha);
@@ -1928,12 +1939,11 @@ void KleinGordon::StartDiagnostics()
 ///////////////////////////////////////
 
 
-Dirac::Dirac(Grid *theGrid) : AtomicPhysics(theGrid)
+Dirac::Dirac(const std::string& name,Grid *theGrid) : AtomicPhysics(name,theGrid)
 {
 	// Wavefunction is in standard representation
 	// i.e., gamma^0 = diag(1,1,-1,-1)
-	name = "Dirac";
-	typeCode = dirac;
+	typeCode = tw::module_type::dirac;
 	m0 = 1.0;
 	q0 = -sqrt(alpha);
 	residualCharge = sqrt(alpha);

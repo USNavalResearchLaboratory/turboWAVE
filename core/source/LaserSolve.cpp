@@ -10,12 +10,12 @@
 //////////////////////////////
 
 
-LaserSolver::LaserSolver(Grid* theGrid):Module(theGrid)
+LaserSolver::LaserSolver(const std::string& name,Grid* theGrid):Module(name,theGrid)
 {
 	updateSequencePriority = 3;
 	laserFreq = 10.0;
 	polarizationType = linearPolarization;
-	propagator = (LaserPropagator*)owner->AddPrivateTool(adiPropagator);
+	propagator = NULL;
 
 	a0.Initialize(*this,owner);
 	a1.Initialize(*this,owner);
@@ -26,7 +26,8 @@ LaserSolver::LaserSolver(Grid* theGrid):Module(theGrid)
 
 LaserSolver::~LaserSolver()
 {
-	owner->RemoveTool(propagator);
+	if (propagator!=NULL)
+		owner->RemoveTool(propagator);
 }
 
 void LaserSolver::ExchangeResources()
@@ -40,12 +41,13 @@ void LaserSolver::ExchangeResources()
 
 void LaserSolver::Initialize()
 {
-	tw::Int i,j,k,s;
 	tw::vec3 pos;
 	tw::Float polarizationFactor;
 
 	Module::Initialize();
 	// Install a propagator by default if necessary here
+	if (propagator==NULL)
+		propagator = (LaserPropagator*)owner->CreateTool("adi",tw::tool_type::adiPropagator);
 	propagator->SetData(laserFreq,dt,polarizationType,owner->movingWindow);
 	propagator->SetBoundaryConditions(a0,a1,chi);
 
@@ -58,14 +60,14 @@ void LaserSolver::Initialize()
 		polarizationFactor = 1.0;
 
 	for (CellIterator cell(*this,true);cell<cell.end();++cell)
-		for (s=0;s<owner->pulse.size();s++)
+		for (auto pulse : owner->pulse)
 		{
 			pos = owner->Pos(cell);
 			pos.z = owner->ToLab(pos.z,-dth);
-			a0(cell) += polarizationFactor*owner->pulse[s]->VectorPotentialEnvelope(-dth,pos);
+			a0(cell) += polarizationFactor*pulse->VectorPotentialEnvelope(-dth,pos);
 			pos = owner->Pos(cell);
 			pos.z = owner->ToLab(pos.z,dth);
-			a1(cell) += polarizationFactor*owner->pulse[s]->VectorPotentialEnvelope(dth,pos);
+			a1(cell) += polarizationFactor*pulse->VectorPotentialEnvelope(dth,pos);
 		}
 }
 
@@ -83,22 +85,9 @@ void LaserSolver::ReadInputFileDirective(std::stringstream& inputString,const st
 {
 	std::string word;
 	Module::ReadInputFileDirective(inputString,command);
-	if (command=="propagator") // eg, propagator = eigenmode
-	{
-		inputString >> word >> word;
-		if (word=="spectral" || word=="FFT" || word=="eigenmode")
-		{
-			*owner->tw_out << "Use eigenmode propagator" << std::endl;
-			owner->RemoveTool(propagator);
-			propagator = (LaserPropagator*)owner->AddPrivateTool(eigenmodePropagator);
-		}
-		if (word=="ADI" || word=="adi")
-		{
-			*owner->tw_out << "Use ADI propagator" << std::endl;
-			owner->RemoveTool(propagator);
-			propagator = (LaserPropagator*)owner->AddPrivateTool(adiPropagator);
-		}
-	}
+	propagator = (LaserPropagator*)owner->ToolFromDirective(inputString,command);
+	if (propagator!=NULL)
+		propagator->ReadInputFileDirective(inputString,command);
 	if (command=="carrier") // eg, carrier frequency = 30.0
 	{
 		inputString >> word >> word;
@@ -126,25 +115,21 @@ void LaserSolver::ReadInputFileDirective(std::stringstream& inputString,const st
 void LaserSolver::ReadData(std::ifstream& inFile)
 {
 	Module::ReadData(inFile);
+	propagator = (LaserPropagator*)owner->GetRestartedTool(inFile);
 	inFile.read((char *)&laserFreq,sizeof(tw::Float));
 	inFile.read((char *)&polarizationType,sizeof(tw_polarization_type));
 	a0.ReadData(inFile);
 	a1.ReadData(inFile);
-
- 	tw_tool propagatorType;
- 	inFile.read((char*)&propagatorType,sizeof(tw_tool));
-	owner->RemoveTool(propagator);
- 	propagator = (LaserPropagator*)owner->AddPrivateTool(propagatorType);
 }
 
 void LaserSolver::WriteData(std::ofstream& outFile)
 {
 	Module::WriteData(outFile);
+	propagator->SaveToolReference(outFile);
 	outFile.write((char *)&laserFreq,sizeof(tw::Float));
 	outFile.write((char *)&polarizationType,sizeof(tw_polarization_type));
 	a0.WriteData(outFile);
 	a1.WriteData(outFile);
-	outFile.write((char*)&propagator->typeCode,sizeof(tw_tool));
 }
 
 void LaserSolver::BoxDiagnosticHeader(GridDataDescriptor* box)
@@ -169,51 +154,16 @@ void LaserSolver::PointDiagnose(std::ofstream& outFile,const weights_3D& w)
 }
 
 
+//////////////////////////////
+//                          //
+// Quasistatic Laser Solver //
+//                          //
+//////////////////////////////
 
 
-
-////////////////////////
-//                    //
-//  QS Laser Solver  //
-//                    //
-////////////////////////
-
-
-QSSolver::QSSolver(Grid* theGrid) : LaserSolver(theGrid)
+QSSolver::QSSolver(const std::string& name,Grid* theGrid):LaserSolver(name,theGrid)
 {
-	name = "Quasistatic-Laser";
-	typeCode = qsLaser;
-}
-
-void QSSolver::EnergyHeadings(std::ofstream& outFile)
-{
-}
-
-void QSSolver::EnergyColumns(std::vector<tw::Float>& cols,std::vector<bool>& avg,const Region& theRgn)
-{
-}
-
-void QSSolver::BoxDiagnose(GridDataDescriptor* box)
-{
-	ScalarField er,ei;
-	er.Initialize(*this,owner);
-	ei.Initialize(*this,owner);
-	tw::Complex dadt,anow;
-	for (CellIterator cell(*this,false);cell<cell.end();++cell)
-	{
-		dadt = -tw::Complex(a1(cell,0,3),a1(cell,1,3));
-		anow = a1(cell);
-		er(cell) = -real(dadt - ii*laserFreq*anow);
-		ei(cell) = -imag(dadt - ii*laserFreq*anow);
-	}
-
-	owner->WriteBoxData("e_real",box,&er(0,0,0),er.Stride());
-	owner->WriteBoxData("e_imag",box,&ei(0,0,0),ei.Stride());
-
-	for (CellIterator cell(*this,false);cell<cell.end();++cell)
-		er(cell) = norm(a1(cell));
-
-	owner->WriteBoxData("a2",box,&er(0,0,0),er.Stride());
+	typeCode = tw::module_type::qsLaser;
 }
 
 
@@ -224,10 +174,9 @@ void QSSolver::BoxDiagnose(GridDataDescriptor* box)
 //////////////////////////////
 
 
-PGCSolver::PGCSolver(Grid* theGrid):LaserSolver(theGrid)
+PGCSolver::PGCSolver(const std::string& name,Grid* theGrid):LaserSolver(name,theGrid)
 {
-	name = "PGC-Laser";
-	typeCode = pgcLaser;
+	typeCode = tw::module_type::pgcLaser;
 
 	F.Initialize(8,*this,owner);
 }

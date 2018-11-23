@@ -690,7 +690,7 @@ tw::Int Grid::FindModule(const std::string& name)
 	return 0;
 }
 
-void Grid::MangleToolName(std::string& name)
+bool Grid::MangleToolName(std::string& name)
 {
 	bool trouble,did_mangle;
 	tw::Int id = 2;
@@ -1301,7 +1301,7 @@ void Grid::GridFromInputFile()
 			if (preamble[0]=="grid")
 			{
 				if (preamble.size()!=1)
-					throw tw::FatalError("Ill-formed grid block.")
+					throw tw::FatalError("Ill-formed grid block.");
 				do
 				{
 					inputString >> com2;
@@ -1392,6 +1392,11 @@ void Grid::ReadSubmoduleBlock(std::stringstream& inputString,Module *sup)
 	// if an object has a name, it is expected to be the last string in the preamble
 	std::string object_name(preamble.back());
 
+	auto module_type_exists = [&] (tw::module_type whichType)
+	{
+		return std::find(createdModuleTypes.begin(),createdModuleTypes.end(),whichType) != createdModuleTypes.end();
+	};
+
 	tw::module_type whichModule = Module::CreateTypeFromInput(preamble);
 	if (whichModule!=tw::module_type::nullModule)
 	{
@@ -1429,7 +1434,7 @@ void Grid::ReadInputFile()
 
 	inputString.seekg(0);
 
-	bool module_type_exists = [&] (tw::module_type whichType)
+	auto module_type_exists = [&] (tw::module_type whichType)
 	{
 		return std::find(createdModuleTypes.begin(),createdModuleTypes.end(),whichType) != createdModuleTypes.end();
 	};
@@ -1506,7 +1511,7 @@ void Grid::ReadInputFile()
 			{
 				bool processed = false;
 				for (tw::Int i=0;i<module.size();i++)
-					processed = processed || module[i]->ReadQuasitoolBlock(preamble,inputString)
+					processed = processed || module[i]->ReadQuasitoolBlock(preamble,inputString);
 				if (!processed)
 					throw tw::FatalError("Unhandled " + preamble[0] + ". Check order of input file.");
 			}

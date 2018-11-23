@@ -13,7 +13,7 @@ namespace tw
 
 		tw_boundary_spec ConvertBoundaryString(std::string& theString);
 
-		void ReadBoundaryTerm(tw_boundary_spec *low,tw_boundary_spec *high,std::stringstream& theString,std::string& command);
+		void ReadBoundaryTerm(tw_boundary_spec *low,tw_boundary_spec *high,std::stringstream& theString,const std::string& command);
 
 		void NormalizeInput(const UnitConverter& uc,std::string& in_out);
 

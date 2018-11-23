@@ -7,7 +7,7 @@ struct LaserSolver:Module
 
 	LaserPropagator *propagator;
 
-	LaserSolver(Grid* theGrid);
+	LaserSolver(const std::string& name,Grid* theGrid);
 	virtual ~LaserSolver();
 	virtual void ExchangeResources();
 	virtual void Initialize();
@@ -28,18 +28,14 @@ struct LaserSolver:Module
 
 struct QSSolver:LaserSolver
 {
-	QSSolver(Grid* theGrid);
-
-	virtual void EnergyHeadings(std::ofstream& outFile);
-	virtual void EnergyColumns(std::vector<tw::Float>& cols,std::vector<bool>& avg,const Region& theRgn);
-	virtual void BoxDiagnose(GridDataDescriptor*);
+	QSSolver(const std::string& name,Grid* theGrid);
 };
 
 struct PGCSolver:LaserSolver
 {
 	Field F;
 
-	PGCSolver(Grid* theGrid);
+	PGCSolver(const std::string& name,Grid* theGrid);
 	virtual void ExchangeResources();
 	virtual void Initialize();
 

@@ -23,7 +23,6 @@ LaserPropagator::LaserPropagator(const std::string& name,MetricSpace *m,Task *ts
 	w0 = 10.0;
 	polarization = linearPolarization;
 	movingWindow = true;
-	name = "laser_propagator";
 }
 
 LaserPropagator::~LaserPropagator()
@@ -68,8 +67,7 @@ void LaserPropagator::SetBoundaryConditions(ComplexField& a0,ComplexField& a1,Co
 
 EigenmodePropagator::EigenmodePropagator(const std::string& name,MetricSpace *m,Task *tsk) : LaserPropagator(name,m,tsk)
 {
-	typeCode = eigenmodePropagator;
-	name = "eigenmode_propagator";
+	typeCode = tw::tool_type::eigenmodePropagator;
 	globalIntegrator = NULL;
 }
 
@@ -220,8 +218,7 @@ void EigenmodePropagator::Advance(ComplexField& a0,ComplexField& a1,ComplexField
 
 ADIPropagator::ADIPropagator(const std::string& name,MetricSpace *m,Task *tsk) : LaserPropagator(name,m,tsk)
 {
-	typeCode = adiPropagator;
-	name = "adi_propagator";
+	typeCode = tw::tool_type::adiPropagator;
 	xGlobalIntegrator = NULL;
 	yGlobalIntegrator = NULL;
 	evenTime = true;
@@ -420,8 +417,7 @@ void ADIPropagator::Advance(ComplexField& a0,ComplexField& a1,ComplexField& chi)
 
 SchroedingerPropagator::SchroedingerPropagator(const std::string& name,MetricSpace *m,Task *tsk) : ComputeTool(name,m,tsk)
 {
-	name = "schroedinger_propagator";
-	typeCode = schroedingerPropagator;
+	typeCode = tw::tool_type::schroedingerPropagator;
 	globalIntegrator.resize(4);
 	globalIntegrator[1] = NULL;
 	globalIntegrator[2] = NULL;
@@ -636,8 +632,7 @@ void SchroedingerPropagator::UpdateSpin(ComplexField& psi,ComplexField& chi,Fiel
 
 ParabolicSolver::ParabolicSolver(const std::string& name,MetricSpace *m,Task *tsk) : ComputeTool(name,m,tsk)
 {
-	name = "parabolic_propagator";
-	typeCode = generalParabolicPropagator;
+	typeCode = tw::tool_type::generalParabolicPropagator;
 	globalIntegrator.resize(4);
 	globalIntegrator[1] = NULL;
 	globalIntegrator[2] = NULL;
@@ -835,8 +830,7 @@ void ParabolicSolver::Advance(	Field& psi,
 
 IsotropicPropagator::IsotropicPropagator(const std::string& name,MetricSpace *m,Task *tsk) : ComputeTool(name,m,tsk)
 {
-	name = "isotropic_propagator_tool";
-	typeCode = isotropicPropagator;
+	typeCode = tw::tool_type::isotropicPropagator;
 	zGlobalIntegrator = NULL;
 }
 

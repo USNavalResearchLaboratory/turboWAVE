@@ -9,10 +9,9 @@
 // This is the top of the particle containment heierarchy
 // Kinetics <- Species <- Particle
 
-Kinetics::Kinetics(Grid* theGrid) : Module(theGrid)
+Kinetics::Kinetics(const std::string& name,Grid* theGrid) : Module(name,theGrid)
 {
-	name = "kinetics";
-	typeCode = kinetics;
+	typeCode = tw::module_type::kinetics;
 	rho00.Initialize(*this,owner);
 	sources = NULL;
 	chi = NULL;
@@ -410,10 +409,9 @@ void Particle::WriteData(std::ofstream& outFile)
 ///////////////////
 
 
-Species::Species(Grid* theGrid) : Module(theGrid)
+Species::Species(const std::string& name,Grid* theGrid) : Module(name,theGrid)
 {
-	name = "electrons";
-	typeCode = species;
+	typeCode = tw::module_type::species;
 	restMass = 1.0;
 	charge = -1.0;
 	distributionInCell = tw::vec3(2.0,2.0,2.0);
@@ -1147,17 +1145,21 @@ bool Species::ReadQuasitoolBlock(const std::vector<std::string>& preamble,std::s
 	{
 		phaseSpacePlot.push_back(new PhaseSpaceDescriptor(owner->clippingRegion));
 		phaseSpacePlot.back()->ReadInputFile(inputString);
+		return true;
 	}
 	if (key=="orbit" && requested_name==name) // eg, new orbit diagnostic for electrons { ... }
 	{
 		orbitDiagnostic.push_back(new ParticleOrbitDescriptor(owner->clippingRegion));
 		orbitDiagnostic.back()->ReadInputFile(inputString);
+		return true;
 	}
 	if (key=="detector" && requested_name==name) // eg, new detector diagnostic for electrons { ... }
 	{
 		detector.push_back(new ParticleDetectorDescriptor(owner->clippingRegion));
 		detector.back()->ReadInputFile(inputString);
+		return true;
 	}
+	return false;
 }
 
 void Species::ReadData(std::ifstream& inFile)

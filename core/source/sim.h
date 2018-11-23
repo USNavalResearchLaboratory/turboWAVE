@@ -100,11 +100,11 @@ struct Grid:Task,MetricSpace
 	void WriteCellDataHeader(GridDataDescriptor* theBox);
 	void WriteCellData(GridDataDescriptor* theBox);
 
-	void MangleModuleName(std::string& name);
+	bool MangleModuleName(std::string& name);
 	Module* GetModule(const std::string& name);
 	tw::Int FindModule(const std::string& name);
 
-	void MangleToolName(std::string& name);
+	bool MangleToolName(std::string& name);
 	ComputeTool* CreateTool(const std::string& basename,tw::tool_type theType);
 	ComputeTool* GetTool(const std::string& name);
 	ComputeTool* GetRestartedTool(std::ifstream& inFile);

@@ -19,8 +19,7 @@
 
 YeePropagatorPML::YeePropagatorPML(const std::string& name,MetricSpace *m,Task *tsk) : ComputeTool(name,m,tsk)
 {
-	name = "yee_update_tool";
-	typeCode = yeePropagatorPML;
+	typeCode = tw::tool_type::yeePropagatorPML;
 	InitializeCLProgram("hyperbolic.cl");
 }
 
@@ -360,8 +359,7 @@ void YeePropagatorPML::UpdateInteriorBoundaryB(Field& A,const ScalarField& condu
 
 LorentzPropagator::LorentzPropagator(const std::string& name,MetricSpace *m,Task *tsk) : ComputeTool(name,m,tsk)
 {
-	name = "lorentz_propagator_tool";
-	typeCode = lorentzPropagator;
+	typeCode = tw::tool_type::lorentzPropagator;
 	InitializeCLProgram("hyperbolic.cl");
 }
 

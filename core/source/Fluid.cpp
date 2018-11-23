@@ -636,8 +636,9 @@ void Chemical::Initialize()
 	ionization.hi.ni = ichem->indexInState;
 	// can't generate in Chemistry::Initialize since profiles would not be initialized
 	GenerateFluid(master->state1,true);
-	// chooses an appropriate EOS if none already defined
+	// chooses and creates an appropriate EOS if none already defined
 	DefaultEOS();
+	eosData->InitializeComponent(indexInState,group->hidx,group->eidx,mat);
 	// DFG - check to see if this Chemical is electrons.
 	// If it is, notify Chemistry and EquilibriumGroup.
 	// This is again an example of using the containment tree.
@@ -850,6 +851,7 @@ void EquilibriumGroup::Initialize()
 	// DFG - auto-create tool if necessary, name will be automatically mangled for uniqueness.
 	if (eosMixData==NULL)
 		eosMixData = (EOSMixture *)owner->CreateTool("eos_mix",tw::tool_type::eosMixture);
+	eosMixData->InitializeMixture(hidx,eidx);
 
 	// DFG - take advantage of sparc::material and sparc::material_set
 	matset.Allocate(chemical.size());
@@ -1215,6 +1217,8 @@ tw::Float Chemistry::CollisionCoefficient(Collision *coll,const CellIterator& ce
 		const tw::Float coulomb = (4.0/3.0) * sparc::CoulombCrossSection(uc,q1,q2,m12,v12,N1,N2,T1,T2) * v12;
 		return coulomb*phonon / (coulomb + phonon);
 	}
+
+	return 0.0;
 }
 
 void Chemistry::ComputeElectronCollisionFrequency()
@@ -1991,17 +1995,21 @@ bool Chemistry::ReadQuasitoolBlock(const std::vector<std::string>& preamble,std:
 	{
 		reaction.push_back(new Reaction);
 		reaction.back()->ReadInputFile(inputString,owner->unitDensityCGS);
+		return true;
 	}
 	if (key=="excitation")
 	{
 		excitation.push_back(new Excitation);
 		excitation.back()->ReadInputFile(inputString,owner->unitDensityCGS);
+		return true;
 	}
 	if (key=="collision")
 	{
 		collision.push_back(new Collision);
 		collision.back()->ReadInputFile(inputString,owner->unitDensityCGS);
+		return true;
 	}
+	return false;
 }
 
 void Chemistry::ReadInputFileDirective(std::stringstream& inputString,const std::string& command)

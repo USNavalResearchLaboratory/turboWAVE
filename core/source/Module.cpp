@@ -171,7 +171,7 @@ tw::module_type Module::CreateSupermoduleTypeFromSubmoduleKey(const std::string&
 	if (key=="species")
 		return tw::module_type::kinetics;
 	if (key=="chemical")
-		return tw::module_type::group;
+		return tw::module_type::equilibriumGroup;
 	if (key=="group")
 		return tw::module_type::chemistry;
 	return tw::module_type::nullModule;
