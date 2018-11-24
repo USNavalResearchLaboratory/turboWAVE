@@ -6,7 +6,7 @@ General Rules
 
 1.	Comments may be in C or C++ style
 2.	Case matters
-3.	Names assigned to objects must not contain spaces (or any white space)
+3.	Names assigned to objects must not contain white space, or any of the characters :samp:`={}(),%`
 4.	Any uninterrupted sequence of white space is equivalent to any other (same as in C)
 5.	Parenthesis or commas may be freely exchanged with any white space character
 
@@ -335,7 +335,7 @@ Equation of State Shared Directives
 .. py:function:: eos = mie-gruneisen , gruneisen parameter = grun
 
 	Directs a module to use the simplified mie-gruneisen equation of state
-	
+
 	:param float grun: the gruneisen parameter relating density, temperature, and pressure
 
 .. py:function:: eos = mie-gruneisen2 { directives }

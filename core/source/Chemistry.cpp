@@ -112,7 +112,7 @@ void Reaction::ReadInputFile(std::stringstream& inputString,tw::Float unitDensit
 
 	numBodies = 0;
 
-	inputString >> word >> word >> word; // take off "=" and "{" and read next word
+	inputString >> word >> word; // take off "{" and read next word
 
 	UnitConverter uc(unitDensityCGS);
 
@@ -229,7 +229,7 @@ void Excitation::ReadInputFile(std::stringstream& inputString,tw::Float unitDens
 	std::string word;
 	UnitConverter uc(unitDensityCGS);
 
-	inputString >> word >> name1; // take off "=" and get name1
+	inputString >> name1;
 	inputString >> word >> name2; // take off "->" and get name2
 	inputString >> word >> word >> level;
 
@@ -294,7 +294,7 @@ void Collision::ReadInputFile(std::stringstream& inputString,tw::Float unitDensi
 	std::string word,species;
 	UnitConverter uc(unitDensityCGS);
 
-	inputString >> word >> name1; // take off "=" and get name1
+	inputString >> name1;
 	inputString >> word >> name2; // take off "->" and get name2
 
 	inputString >> word;

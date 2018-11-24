@@ -441,11 +441,34 @@ void IonizationData::WriteData(std::ofstream& outFile)
 //////////////////////////////////
 
 
-EOSDataTool::EOSDataTool(const std::string& name,MetricSpace *m,Task *tsk) : ComputeTool(name,m,tsk)
+EOSComponent::EOSComponent(const std::string& name,MetricSpace *m,Task *tsk) : ComputeTool(name,m,tsk)
 {
 	// DFG - must not set names anymore here, let the base class constructor handle it
 	// Note enumerated types are now strongly typed and namespaced.
 	typeCode = tw::tool_type::eosData;
+}
+
+void EOSComponent::AddHeatCapacity(Field& hydro,Field& eos)
+{
+	#pragma omp parallel firstprivate(hidx,eidx,mat)
+	{
+		for (CellIterator cell(*space,false);cell<cell.end();++cell)
+			eos(cell,eidx.Cv) = hydro(cell,hidx.ni) * mat.cvm;
+	}
+}
+
+void EOSComponent::AddPKV(ScalarField& IE, ScalarField& nm, ScalarField& nu_e, Field& hydro, Field& eos)
+{
+	#pragma omp parallel firstprivate(hidx,eidx,mat)
+	{
+		for (CellIterator cell(*space,false);cell<cell.end();++cell)
+		{
+			const tw::Float ngas = hydro(cell,hidx.ni);
+			eos(cell,eidx.P) += ngas*eos(cell,eidx.T);
+			eos(cell,eidx.K) += mat.thermometricConductivity * mat.cvm * ngas;
+			eos(cell,eidx.visc) += mat.kinematicViscosity * mat.mass * ngas;
+		}
+	}
 }
 
 ////////////////////////////////
@@ -454,43 +477,12 @@ EOSDataTool::EOSDataTool(const std::string& name,MetricSpace *m,Task *tsk) : Com
 //                            //
 ////////////////////////////////
 
-EOSIdealGas::EOSIdealGas(const std::string& name,MetricSpace *m, Task *tsk) : EOSDataTool(name,m,tsk)
+// nothing to do, ideal gas is default
+
+EOSIdealGas::EOSIdealGas(const std::string& name,MetricSpace *m, Task *tsk) : EOSComponent(name,m,tsk)
 {
 	typeCode = tw::tool_type::eosIdealGas;
 }
-
-void EOSIdealGas::ComponentContribution(Field& hydro, Field& eos)
-{
-	#pragma omp parallel firstprivate(hidx,eidx,mat)
-	{
-		for (CellIterator cell(*space,false);cell<cell.end();++cell)
-		{
-			const tw::Float ngas = hydro(cell,hidx.ni);
-			// DFG - temperature is not treated as additive, worked out by parent object (same as previous approach)
-			eos(cell,eidx.P) += ngas*eos(cell,eidx.T);
-			eos(cell,eidx.K) += mat.thermometricConductivity * mat.cvm * ngas;
-			eos(cell,eidx.visc) += mat.kinematicViscosity * mat.mass * ngas;
-		}
-	}
-}
-
-void EOSIdealGas::ApplyEOS(tw::Int ie, ScalarField& nu_e,Field& hydro, Field& eos)
-{
-	#pragma omp parallel firstprivate(ie,hidx,eidx,mat)
-	{
-		for (CellIterator cell(*space,false);cell<cell.end();++cell)
-		{
-			const tw::Float ngas = hydro(cell,hidx.ni);
-			const tw::Float nmcv = ngas*mat.cvm;
-			eos(cell,eidx.T) = hydro(cell,hidx.u)/(tw::small_pos + nmcv);
-			eos(cell,eidx.Tv) = 0.0;
-			eos(cell,eidx.P) += ngas*eos(cell,eidx.T);
-			eos(cell,eidx.K) += mat.thermometricConductivity * mat.cvm * ngas;
-			eos(cell,eidx.visc) += mat.kinematicViscosity * mat.mass * ngas;
-		}
-	}
-}
-
 
 /////////////////////////////////
 //                             //
@@ -498,82 +490,25 @@ void EOSIdealGas::ApplyEOS(tw::Int ie, ScalarField& nu_e,Field& hydro, Field& eo
 //                             //
 /////////////////////////////////
 
-EOSHotElectrons::EOSHotElectrons(const std::string& name,MetricSpace *m, Task *tsk) : EOSDataTool(name,m,tsk)
+EOSHotElectrons::EOSHotElectrons(const std::string& name,MetricSpace *m, Task *tsk) : EOSComponent(name,m,tsk)
 {
 	typeCode = tw::tool_type::eosHotElectrons;
 }
 
-void EOSHotElectrons::ApplyEOS(tw::Int ie, ScalarField& nu_e,Field& hydro, Field& eos)
+void EOSHotElectrons::AddPKV(ScalarField& IE, ScalarField& nm, ScalarField& nu_e, Field& hydro, Field& eos)
 {
-	#pragma omp parallel firstprivate(ie,hidx,eidx,mat)
+	#pragma omp parallel firstprivate(hidx,eidx,mat)
 	{
 		for (CellIterator cell(*space,false);cell<cell.end();++cell)
 		{
-			const tw::Float ne = hydro(cell,ie);
-			// EOS for classical electrons
-			const tw::Float nmcv = 1.5*ne;
-			eos(cell,eidx.T) = hydro(cell,hidx.u)/(tw::small_pos + nmcv);
-			eos(cell,eidx.Tv) = 0.0;
-			eos(cell,eidx.P) = ne*eos(cell,eidx.T);
-			eos(cell,eidx.K) = 3.2*ne*eos(cell,eidx.T)/(mat.mass*nu_e(cell));
-			eos(cell,eidx.visc) = 0.0;
+			const tw::Float ne = hydro(cell,hidx.ni);
+			eos(cell,eidx.P) += ne*eos(cell,eidx.T);
+			eos(cell,eidx.K) += 3.2*ne*eos(cell,eidx.T)/(mat.mass*nu_e(cell));
+			//eos(cell,eidx.visc) += 0.0; // don't touch, may help caching.
 			// Braginskii has for e-viscosity 0.73*ne*eos(cell,eidx.T)/nu_e(cell)
 			// However, we are forcing electrons to move with ions and so should not diffuse velocity field
 		}
 	}
-}
-
-
-///////////////////////////////////////
-//                                   //
-// EOS Mixture for EquilibriumGroup  //
-//                                   //
-///////////////////////////////////////
-
-EOSMixture::EOSMixture(const std::string& name,MetricSpace *m, Task *tsk) : EOSDataTool(name,m,tsk)
-{
-	typeCode = tw::tool_type::eosMixture;
-	// DFG - it seems we don't need these anymore...
-	// eos_tmp.Initialize(5,*space,task);
-	// eos_tmp2.Initialize(5,*space,task);
-}
-
-void EOSMixture::ApplyEOS(tw::Int ie, ScalarField& nu_e,Field& hydro, Field& eos)
-{
-	// DFG - Modification from previous version:
-	// First set temperature and reset other EOS quantities.  IE is encapsulated as an inline function.
-	// Next loop over components and call a distinct component function to add in P,K,visc.
-
-	for (CellIterator cell(*space,false);cell<cell.end();++cell)
-	{
-		const tw::Float nm = MassDensity(hydro,cell);
-		const tw::Float nmcv = MixHeatCapacities(hydro,cell);
-		const tw::Float epsvn = MixVibrationalEnergy(hydro,cell);
-		const tw::Float nv = MixVibrationalStates(hydro,cell);
-		const tw::Float IE = InternalEnergy(nm,hydro,cell);
-
-		eos(cell,eidx.T) = IE/(tw::small_pos + nmcv);
-		eos(cell,eidx.Tv) = (epsvn/(nv+tw::small_pos))/log(1.0001 + epsvn/(hydro(cell,hidx.x)+tw::small_pos));
-		eos(cell,eidx.P) = 0.0;
-		eos(cell,eidx.K) = 0.0;
-		eos(cell,eidx.visc) = 0.0;
-		eos(cell,eidx.Cv) = 0.0; // How to handle this...
-	}
-
-	// component contribution Loop - load P,K,visc additively
-	for (tw::Int s=0;s<eosComponents.size();s++)
-			eosComponents[s]->ComponentContribution(hydro,eos);
-}
-
-///////////////////////////////////////
-//                                   //
-//    Ideal Gas Mix - Eliminate?     //
-//                                   //
-///////////////////////////////////////
-
-EOSIdealGasMix::EOSIdealGasMix(const std::string& name,MetricSpace *m, Task *tsk) : EOSMixture(name,m,tsk)
-{
-	typeCode = tw::tool_type::eosIdealGasMix;
 }
 
 ///////////////////////
@@ -582,23 +517,22 @@ EOSIdealGasMix::EOSIdealGasMix(const std::string& name,MetricSpace *m, Task *tsk
 //                   //
 ///////////////////////
 
-EOSMieGruneisen::EOSMieGruneisen(const std::string& name,MetricSpace *m, Task *tsk) : EOSDataTool(name,m,tsk)
+EOSMieGruneisen::EOSMieGruneisen(const std::string& name,MetricSpace *m, Task *tsk) : EOSComponent(name,m,tsk)
 {
 	typeCode = tw::tool_type::eosMieGruneisen;
 	GRUN = 2.0; // value for Cu on p. 257 of "Shock Wave Physics and Equation of State Modeling"
 	// GRUN = 0.1; // value for water in the above book.
 }
 
-void EOSMieGruneisen::ComponentContribution(Field& hydro, Field& eos)
+void EOSMieGruneisen::AddPKV(ScalarField& IE, ScalarField& nm, ScalarField& nu_e, Field& hydro, Field& eos)
 {
 	#pragma omp parallel firstprivate(hidx,eidx,mat)
 	{
 		for (CellIterator cell(*space,false);cell<cell.end();++cell)
 		{
 			const tw::Float nion = hydro(cell,hidx.ni);
-			const tw::Float IE = InternalEnergy(nion*mat.mass,hydro,cell);
-			// Temperature is not treated as additive, worked out by parent object
-			eos(cell,eidx.P) += GRUN*IE;
+			const tw::Float partial_IE = IE(cell) * nion * mat.mass / nm(cell);
+			eos(cell,eidx.P) += GRUN*partial_IE;
 			eos(cell,eidx.K) += mat.thermometricConductivity * mat.cvm * nion;
 			eos(cell,eidx.visc) += mat.kinematicViscosity * mat.mass * nion;
 		}
@@ -610,7 +544,7 @@ void EOSMieGruneisen::ReadInputFileDirective(std::stringstream& inputString,cons
 	// DFG - this is how the tool gets data from the input file.
 	// This supports both named tools and creating on the fly as before.
 	std::string word;
-	ComputeTool::ReadInputFileDirective(inputString,command);
+	EOSComponent::ReadInputFileDirective(inputString,command);
 	// expected form is : gruneisen parameter = 2.0
 	if (command=="gruneisen")
 		inputString >> word >> word >> GRUN;
@@ -619,13 +553,13 @@ void EOSMieGruneisen::ReadInputFileDirective(std::stringstream& inputString,cons
 void EOSMieGruneisen::ReadData(std::ifstream& inFile)
 {
 	// DFG - now tools can have ReadData/WriteData to support their own restarts
-	EOSDataTool::ReadData(inFile);
+	EOSComponent::ReadData(inFile);
 	inFile.read((char*)&GRUN,sizeof(GRUN));
 }
 
 void EOSMieGruneisen::WriteData(std::ofstream& outFile)
 {
-	EOSDataTool::WriteData(outFile);
+	EOSComponent::WriteData(outFile);
 	outFile.write((char*)&GRUN,sizeof(GRUN));
 }
 
@@ -636,7 +570,7 @@ void EOSMieGruneisen::WriteData(std::ofstream& outFile)
 /////////////////////////
 // better MieGruneisen EOS model that uses a linear Hugoniot fit
 
-EOSMieGruneisen2::EOSMieGruneisen2(const std::string& name,MetricSpace *m, Task *tsk) : EOSDataTool(name,m,tsk)
+EOSMieGruneisen2::EOSMieGruneisen2(const std::string& name,MetricSpace *m, Task *tsk) : EOSComponent(name,m,tsk)
 {
 	typeCode = tw::tool_type::eosMieGruneisen2;
 	// Hugoniot data fit for Cu
@@ -653,20 +587,20 @@ EOSMieGruneisen2::EOSMieGruneisen2(const std::string& name,MetricSpace *m, Task 
 	// GRUN = 0.1; // value for water in the above book.
 }
 
-void EOSMieGruneisen2::ComponentContribution(Field& hydro, Field& eos)
+void EOSMieGruneisen2::AddPKV(ScalarField& IE, ScalarField& nm, ScalarField& nu_e, Field& hydro, Field& eos)
 {
 	#pragma omp parallel firstprivate(GRUN,n0,c0,S1,hidx,eidx,mat)
 	{
 		for (CellIterator cell(*space,false);cell<cell.end();++cell)
 		{
 			const tw::Float nion = hydro(cell,hidx.ni);
-			const tw::Float IE = InternalEnergy(nion*mat.mass,hydro,cell);
+			const tw::Float partial_IE = IE(cell) * nion * mat.mass / nm(cell);
 			const tw::Float mu = nion/n0 - 1.0;
 			const tw::Float sel = tw::Float(mu>=0.0);
 			// Temperature is not treated as additive, worked out by parent object
 			// Pressure from <http://bluevistasw.com/2016/02/16/mie-gruneisen-eos-implementation/>
-			eos(cell,eidx.P) += (1.0-sel)*(mat.mass*n0*c0*c0*mu + GRUN*(mu+1.0)*IE);
-			eos(cell,eidx.P) += sel*(mat.mass*n0*c0*c0*mu*(1.0 + (1.0 - GRUN*(mu+1.0)/2.0)*mu)/(1.0 - (S1-1.0)*mu) + GRUN*(mu+1.0)*IE);
+			eos(cell,eidx.P) += (1.0-sel)*(mat.mass*n0*c0*c0*mu + GRUN*(mu+1.0)*partial_IE);
+			eos(cell,eidx.P) += sel*(mat.mass*n0*c0*c0*mu*(1.0 + (1.0 - GRUN*(mu+1.0)/2.0)*mu)/(1.0 - (S1-1.0)*mu) + GRUN*(mu+1.0)*partial_IE);
 			eos(cell,eidx.K) += mat.thermometricConductivity * mat.cvm * nion;
 			eos(cell,eidx.visc) += mat.kinematicViscosity * mat.mass * nion;
 		}
@@ -676,7 +610,7 @@ void EOSMieGruneisen2::ComponentContribution(Field& hydro, Field& eos)
 void EOSMieGruneisen2::ReadInputFileDirective(std::stringstream& inputString,const std::string& command)
 {
 	std::string word;
-	ComputeTool::ReadInputFileDirective(inputString,command);
+	EOSComponent::ReadInputFileDirective(inputString,command);
 	if (command=="gruneisen") // eg, gruneisen parameter = 2.0
 		inputString >> word >> word >> GRUN;
 	if (command=="reference") // eg, reference density = 1.0
@@ -693,7 +627,7 @@ void EOSMieGruneisen2::ReadInputFileDirective(std::stringstream& inputString,con
 
 void EOSMieGruneisen2::ReadData(std::ifstream& inFile)
 {
-	EOSDataTool::ReadData(inFile);
+	EOSComponent::ReadData(inFile);
 	inFile.read((char*)&GRUN,sizeof(GRUN));
 	inFile.read((char*)&n0,sizeof(n0));
 	inFile.read((char*)&c0,sizeof(c0));
@@ -702,9 +636,52 @@ void EOSMieGruneisen2::ReadData(std::ifstream& inFile)
 
 void EOSMieGruneisen2::WriteData(std::ofstream& outFile)
 {
-	EOSDataTool::WriteData(outFile);
+	EOSComponent::WriteData(outFile);
 	outFile.write((char*)&GRUN,sizeof(GRUN));
 	outFile.write((char*)&n0,sizeof(n0));
 	outFile.write((char*)&c0,sizeof(c0));
 	outFile.write((char*)&S1,sizeof(S1));
+}
+
+///////////////////////////////////////
+//                                   //
+// EOS Mixture for EquilibriumGroup  //
+//                                   //
+///////////////////////////////////////
+
+EOSMixture::EOSMixture(const std::string& name,MetricSpace *m, Task *tsk) : ComputeTool(name,m,tsk)
+{
+	typeCode = tw::tool_type::eosMixture;
+}
+
+void EOSMixture::ApplyCaloricEOS(ScalarField& IE, ScalarField& nm, Field& hydro, Field& eos)
+{
+	// DFG - premise of this:
+	// Compute the temperature assuming Cv has been loaded.
+	// Pass IE and nm back out for use by component EOS classes
+
+	for (CellIterator cell(*space,false);cell<cell.end();++cell)
+	{
+		nm(cell) = MassDensity(hydro,cell);
+		IE(cell) = InternalEnergy(nm(cell),hydro,cell);
+		const tw::Float epsvn = MixVibrationalEnergy(hydro,cell);
+		const tw::Float nv = MixVibrationalStates(hydro,cell);
+
+		eos(cell,eidx.T) = IE(cell)/(tw::small_pos + eos(cell,eidx.Cv));
+		eos(cell,eidx.Tv) = (epsvn/(nv+tw::small_pos))/log(1.0001 + epsvn/(hydro(cell,hidx.x)+tw::small_pos));
+		eos(cell,eidx.P) = 0.0;
+		eos(cell,eidx.K) = 0.0;
+		eos(cell,eidx.visc) = 0.0;
+	}
+}
+
+///////////////////////////////////////
+//                                   //
+//     Ideal Gas Mix - Purpose ?     //
+//                                   //
+///////////////////////////////////////
+
+EOSIdealGasMix::EOSIdealGasMix(const std::string& name,MetricSpace *m, Task *tsk) : EOSMixture(name,m,tsk)
+{
+	typeCode = tw::tool_type::eosIdealGasMix;
 }

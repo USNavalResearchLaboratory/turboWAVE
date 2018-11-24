@@ -655,7 +655,7 @@ void Grid::FundamentalCycle()
 bool Grid::MangleModuleName(std::string& name)
 {
 	bool trouble,did_mangle;
-	tw::Int id = 2;
+	tw::Int id = 1;
 	std::string mangled(name);
 	do
 	{
@@ -693,7 +693,7 @@ tw::Int Grid::FindModule(const std::string& name)
 bool Grid::MangleToolName(std::string& name)
 {
 	bool trouble,did_mangle;
-	tw::Int id = 2;
+	tw::Int id = 1;
 	std::string mangled(name);
 	do
 	{
@@ -1405,7 +1405,7 @@ void Grid::ReadSubmoduleBlock(std::stringstream& inputString,Module *sup)
 				throw tw::FatalError("Singular module type was created twice.  Check order of input file.");
 		createdModuleTypes.push_back(whichModule);
 		MangleModuleName(object_name);
-		(*tw_out) << "Installing Module " << object_name << "..." << std::endl;
+		(*tw_out) << "   Installing Submodule " << object_name << "..." << std::endl;
 		module.push_back(Module::CreateObjectFromType(object_name,whichModule,this));
 		module.back()->ReadInputFileBlock(inputString);
 	}
@@ -1439,6 +1439,22 @@ void Grid::ReadInputFile()
 		return std::find(createdModuleTypes.begin(),createdModuleTypes.end(),whichType) != createdModuleTypes.end();
 	};
 
+	auto find_super = [&] (Module *sub)
+	{
+		// used for submodules defined outside the supermodule's block
+		bool added = false;
+		for (auto it=module.end()-1;it>=module.begin();--it)
+		{
+			added = (*it)->AddSubmodule(sub);
+			if (added)
+				break;
+		}
+		if (added)
+			(*tw_out) << "(super=" << sub->super->name << ")" << std::endl;
+		else
+			(*tw_out) << "(super=none)" << std::endl;
+	};
+
 	do
 	{
 		inputString >> com1;
@@ -1446,7 +1462,7 @@ void Grid::ReadInputFile()
 		if (com1=="new")
 		{
 			// Get the preamble = words that come between "new" and the opening brace
-			std::vector<std::string> preamble = tw::input::EnterInputFileBlock(inputString,"{");
+			std::vector<std::string> preamble = tw::input::EnterInputFileBlock(inputString,"{=");
 			// if an object has a name, it is expected to be the last string in the preamble
 			std::string object_name(preamble.back());
 
@@ -1467,11 +1483,12 @@ void Grid::ReadInputFile()
 			if (super_type!=tw::module_type::nullModule)
 				if (!module_type_exists(super_type) || !Module::SingularType(super_type))
 				{
-					(*tw_out) << "Installing super-Module automatically..." << std::endl;
 					createdModuleTypes.push_back(super_type);
-					object_name = "super";
-					MangleModuleName(object_name);
-					module.push_back(Module::CreateObjectFromType(object_name,super_type,this));
+					std::string super_module_name = object_name + "_sup";
+					MangleModuleName(super_module_name);
+					(*tw_out) << "Installing module " << super_module_name << " automatically..." << std::endl;
+					module.push_back(Module::CreateObjectFromType(super_module_name,super_type,this));
+					find_super(module.back());
 				}
 
 			// Straight module installation
@@ -1485,30 +1502,15 @@ void Grid::ReadInputFile()
 				MangleModuleName(object_name);
 				(*tw_out) << "Installing Module " << object_name << "..." << std::endl;
 				module.push_back(Module::CreateObjectFromType(object_name,whichModule,this));
+				find_super(module.back()); // note next line might change module.back()
 				module.back()->ReadInputFileBlock(inputString);
-			}
-
-			// Handle containment of submodules
-			// This is used for supermodules that were automatically created.
-			// Submodules that are defined inside a supermodule block should never see this code.
-			// The most recently created valid supermodule is selected.
-			if (super_type!=tw::module_type::nullModule)
-			{
-				bool added = false;
-				for (auto it=module.end();it>=module.begin();--it)
-				{
-					added = (*it)->AddSubmodule(module.back());
-					if (added)
-						break;
-				}
-				if (!added)
-					throw tw::FatalError("Unhandled " + preamble[0] + ". Check order of input file.");
 			}
 
 			// Handle low level objects (not modules or tools) that should be owned by a module
 			// The module must know how to read the block, or delegate it to the quasitool
 			if (Module::QuasitoolNeedsModule(preamble))
 			{
+				(*tw_out) << "Processing quasitool " << preamble[0] << std::endl;
 				bool processed = false;
 				for (tw::Int i=0;i<module.size();i++)
 					processed = processed || module[i]->ReadQuasitoolBlock(preamble,inputString);

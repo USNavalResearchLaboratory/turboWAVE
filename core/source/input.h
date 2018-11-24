@@ -19,7 +19,7 @@ namespace tw
 
 		bool GetQuotedString(std::string& str);
 
-		std::vector<std::string> EnterInputFileBlock(std::stringstream& inputString,const std::string& end_key);
+		std::vector<std::string> EnterInputFileBlock(std::stringstream& inputString,const std::string& end_tokens);
 
 		void ExitInputFileBlock(std::stringstream& inputString);
 	}

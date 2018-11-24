@@ -239,7 +239,7 @@ ComputeTool* ComputeTool::CreateObjectFromType(const std::string& name,tw::tool_
 			ans = new LorentzPropagator(name,ms,tsk);
 			break;
 		case tw::tool_type::eosData:
-			ans = new EOSDataTool(name,ms,tsk);
+			ans = new EOSComponent(name,ms,tsk);
 			break;
 		case tw::tool_type::eosIdealGas:
 			ans = new EOSIdealGas(name,ms,tsk);

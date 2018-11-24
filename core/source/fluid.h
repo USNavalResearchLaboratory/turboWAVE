@@ -53,7 +53,7 @@ struct EquilibriumGroup;
 struct Chemical:Module
 {
 	EquilibriumGroup *group; // explictly typed super
-	EOSDataTool *eosData;
+	EOSComponent *eosData;
 	IonizationData ionization;
 	sparc::material mat;
 	tw::Int indexInGroup,indexInState;

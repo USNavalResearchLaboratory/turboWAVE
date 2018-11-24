@@ -240,7 +240,7 @@ void Kinetics::Ionize()
 		m0 = species[s]->restMass;
 		q0 = species[s]->charge;
 
-		if (ionization.electrons>0)
+		if (ionization.ionizationModel!=tw::ionization_model::none)
 		{
 			for (i=0;i<particle.size();i++)
 			{
@@ -449,9 +449,12 @@ void Species::Initialize()
 	Module::Initialize();
 	for (i=0;i<phaseSpacePlot.size();i++)
 		phaseSpacePlot[i]->SetupGeometry(owner->gridGeometry);
-	ionization.Initialize(owner->unitDensityCGS,carrierFrequency);
-	ionization.electronSpecies = owner->FindModule(ionization.electron_name);
-	ionization.ionSpecies = owner->FindModule(ionization.ion_name);
+	if (ionization.ionizationModel!=tw::ionization_model::none)
+	{
+		ionization.Initialize(owner->unitDensityCGS,carrierFrequency);
+		ionization.electronSpecies = owner->FindModule(ionization.electron_name);
+		ionization.ionSpecies = owner->FindModule(ionization.ion_name);
+	}
 	if (!owner->restarted)
 	{
 		GenerateParticles(true);

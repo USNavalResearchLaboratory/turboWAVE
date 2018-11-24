@@ -168,16 +168,16 @@ bool tw::input::GetQuotedString(std::string& str)
 	return false;
 }
 
-std::vector<std::string> tw::input::EnterInputFileBlock(std::stringstream& inputString,const std::string& end_key)
+std::vector<std::string> tw::input::EnterInputFileBlock(std::stringstream& inputString,const std::string& end_tokens)
 {
 	std::string word;
 	std::vector<std::string> preamble;
 	do
 	{
 		inputString >> word;
-		if (word!=end_key)
+		if (end_tokens.find(word)==std::string::npos)
 			preamble.push_back(std::string(word));
-	} while (word!=end_key);
+	} while (end_tokens.find(word)==std::string::npos);
 	return preamble;
 }
 

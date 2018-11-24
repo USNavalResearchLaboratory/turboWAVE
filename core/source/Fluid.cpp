@@ -622,23 +622,25 @@ void Chemical::Initialize()
 	// DFG - the ionization object is what I now call a quasi-tool
 	// This concept may be retired at some point, we will see.
 	if (ionization.ionizationModel!=tw::ionization_model::none)
+	{
 		ionization.Initialize(owner->unitDensityCGS,&master->laserFrequency);
-	// Setup the indexing for photoionization here (ionization tool cannot do it)
-	// By this point Chemistry has set up indexing for all its submodules, so we can use that data.
-	// N.b. that the the group pointer for other Chemical objects may not be setup yet.
-	Chemical *echem = (Chemical*)owner->GetModule(ionization.electron_name);
-	Chemical *ichem = (Chemical*)owner->GetModule(ionization.ion_name);
-	ionization.hgas = group->hidx;
-	ionization.hgas.ni = indexInState;
-	ionization.he = ((EquilibriumGroup*)echem->super)->hidx;
-	ionization.he.ni = echem->indexInState;
-	ionization.hi = ((EquilibriumGroup*)ichem->super)->hidx;
-	ionization.hi.ni = ichem->indexInState;
+		// Setup the indexing for photoionization here (ionization tool cannot do it)
+		// By this point Chemistry has set up indexing for all its submodules, so we can use that data.
+		// N.b. that the the group pointer for other Chemical objects may not be setup yet.
+		Chemical *echem = (Chemical*)owner->GetModule(ionization.electron_name);
+		Chemical *ichem = (Chemical*)owner->GetModule(ionization.ion_name);
+		ionization.hgas = group->hidx;
+		ionization.hgas.ni = indexInState;
+		ionization.he = ((EquilibriumGroup*)echem->super)->hidx;
+		ionization.he.ni = echem->indexInState;
+		ionization.hi = ((EquilibriumGroup*)ichem->super)->hidx;
+		ionization.hi.ni = ichem->indexInState;
+	}
 	// can't generate in Chemistry::Initialize since profiles would not be initialized
 	GenerateFluid(master->state1,true);
 	// chooses and creates an appropriate EOS if none already defined
 	DefaultEOS();
-	eosData->InitializeComponent(indexInState,group->hidx,group->eidx,mat);
+	eosData->Initialize(indexInState,group->hidx,group->eidx,mat);
 	// DFG - check to see if this Chemical is electrons.
 	// If it is, notify Chemistry and EquilibriumGroup.
 	// This is again an example of using the containment tree.
@@ -740,9 +742,9 @@ void Chemical::DefaultEOS()
 	if (eosData==NULL)
 	{
 		if (mat.mass==1.0)
-			eosData = (EOSDataTool*)owner->CreateTool("hot_electrons",tw::tool_type::eosHotElectrons);
+			eosData = (EOSComponent*)owner->CreateTool("hot_electrons",tw::tool_type::eosHotElectrons);
 		else
-			eosData = (EOSDataTool*)owner->CreateTool("ideal_gas",tw::tool_type::eosIdealGas);
+			eosData = (EOSComponent*)owner->CreateTool("ideal_gas",tw::tool_type::eosIdealGas);
 	}
 }
 
@@ -763,13 +765,13 @@ void Chemical::ReadInputFileDirective(std::stringstream& inputString,const std::
 	// Typed tools are created using key/value assignments such as : eos = ideal-gas
 	// In the latter case automatic name mangling guarantees uniqueness
 	// If no tool is created here, one will be automatically created during Initialize()
-	eosData = (EOSDataTool*)owner->ToolFromDirective(inputString,command);
+	eosData = (EOSComponent*)owner->ToolFromDirective(inputString,command);
 }
 
 void Chemical::ReadData(std::ifstream& inFile)
 {
 	Module::ReadData(inFile);
-	eosData = (EOSDataTool*)owner->GetRestartedTool(inFile);
+	eosData = (EOSComponent*)owner->GetRestartedTool(inFile);
 	ionization.ReadData(inFile);
 	inFile.read((char *)&mat,sizeof(mat));
 	inFile.read((char *)&indexInState,sizeof(indexInState));
@@ -826,13 +828,13 @@ void EquilibriumGroup::ReadInputFileDirective(std::stringstream& inputString,con
 	// If no tool is created here, one will be automatically created during Initialize()
 	eosMixData = (EOSMixture*)owner->ToolFromDirective(inputString,command);
 
-	if (word=="new")
+	if (command=="new")
 	{
 		// DFG - part of improved containment model, add chemicals to the group
 		// possibly move this to the Module base class shortly
 		owner->ReadSubmoduleBlock(inputString,this);
 	}
-	if (word=="mobile")
+	if (command=="mobile")
 	{
 		inputString >> word >> word;
 		forceFilter = (word=="yes" || word=="on" || word=="true") ? 1.0 : 0.0;
@@ -851,12 +853,13 @@ void EquilibriumGroup::Initialize()
 	// DFG - auto-create tool if necessary, name will be automatically mangled for uniqueness.
 	if (eosMixData==NULL)
 		eosMixData = (EOSMixture *)owner->CreateTool("eos_mix",tw::tool_type::eosMixture);
-	eosMixData->InitializeMixture(hidx,eidx);
 
 	// DFG - take advantage of sparc::material and sparc::material_set
 	matset.Allocate(chemical.size());
 	for (tw::Int i=0;i<chemical.size();i++)
 		matset.AddMaterial(chemical[i]->mat,i);
+
+	eosMixData->Initialize(hidx,eidx,matset);
 }
 
 // DFG - below are the restart file interactions including EOS data
@@ -1888,20 +1891,15 @@ void Chemistry::ChemAdvance(tw::Float dt)
 
 void Chemistry::ApplyEOS(Field& hydro,Field& eos)
 {
-	// Load (P,T) into eos using (n,np,u) from hydro
+	// Load (P,T,Tv,K,visc) into eos using (n,np,u,x) from hydro
 	// Reverse calculation is applied following diffusion steps
-	// Here we also compute transport coefficients and impose assumed conditions such as quasineutrality
+	// Here we also impose quasineutrality and fix electron velocity
 	// Finally, we throw an error if numerical failure is detected
-
-	// EOS calculation for heavy particles
-	for (auto g : group)
-		if (g->chemical[0]!=electrons)
-			g->eosMixData->ApplyEOS(ie,nu_e,hydro,eos);
 
 	// Quasineutrality and velocity forcing
 	#pragma omp parallel
 	{
-		tw::Float ntot,ne,ionChargeDensity,nm,nmcv,epsvn,nv,KE,IE;
+		tw::Float ionChargeDensity;
 		tw::vec3 ionVelocity;
 
 		for (CellIterator cell(*this,false);cell<cell.end();++cell)
@@ -1919,7 +1917,7 @@ void Chemistry::ApplyEOS(Field& hydro,Field& eos)
 			if (electrons)
 			{
 				// Impose quasineutrality and assume electron velocity = average heavy particle velocity
-				ne = -ionChargeDensity/electrons->mat.charge;
+				const tw::Float ne = -ionChargeDensity/electrons->mat.charge;
 				hydro(cell,ie) = ne;
 				hydro(cell,electrons->group->hidx.npx) = ne*electrons->mat.mass*ionVelocity.x/tw::Float(group.size()-1);
 				hydro(cell,electrons->group->hidx.npy) = ne*electrons->mat.mass*ionVelocity.y/tw::Float(group.size()-1);
@@ -1928,9 +1926,16 @@ void Chemistry::ApplyEOS(Field& hydro,Field& eos)
 		}
 	}
 
-	// ASHER_MOD -- electron EOSs have the be calculated after the quasineutrality-ensuring hydro advance
-	if (electrons)
-		electrons->eosData->ApplyEOS(ie,nu_e,hydro,eos);
+	// DFG - factorized EOS loop, avoids nested tools.
+	for (auto g : group)
+	{
+		for (auto chem : g->chemical)
+			chem->eosData->AddHeatCapacity(hydro,eos);
+		// The following loads T into eos, IE into scratch, and nm into scratch2
+		g->eosMixData->ApplyCaloricEOS(scratch,scratch2,hydro,eos);
+		for (auto chem : g->chemical)
+			chem->eosData->AddPKV(scratch,scratch2,nu_e,hydro,eos);
+		}
 
 	// Check for numerical failure, defined by NaN in the hydro state vector
 	tw::Int badCells = 0;

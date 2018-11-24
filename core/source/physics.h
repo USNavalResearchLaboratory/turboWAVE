@@ -178,19 +178,26 @@ struct IonizationData
 	void WriteData(std::ofstream& outFile);
 };
 
-// This is the master class of all EOS computation related objects.
-// This now retains its own indexing and material information in 3 lightweight structs:
+// DFG - redesigned to:
+// (i) take advantage of encapsulated data structures
+// (ii) conform to new ComputeTool spec (strong preference that containment tree be reserved for modules)
+// In this process I split components and mixtures more strongly.
+// Higher levels must orchestrate the following sequence (see Chemistry::ApplyEOS):
+// 1. Components load the Cv array
+// 2. Mixture computes T, and returns IE and nm for components to use
+// 3. Components load the P, K, and visc arrays
+
+// EOS classes now retain their own indexing and material information in 3 lightweight structs:
 // sparc::hydro_set and sparc::eos_set contain indices into a Field object
 // sparc::material contains floats characterizing a chemical
-struct EOSDataTool:ComputeTool
+struct EOSComponent:ComputeTool
 {
 	sparc::hydro_set hidx;
 	sparc::eos_set eidx;
 	sparc::material mat;
 
-	EOSDataTool(const std::string& name,MetricSpace *m,Task *tsk);
-	// DFG - two versions of initialize, a result of using the same base class for components and mixtures.
-	virtual void InitializeComponent(tw::Int component_index,const sparc::hydro_set& h,const sparc::eos_set& e,const sparc::material& m)
+	EOSComponent(const std::string& name,MetricSpace *m,Task *tsk);
+	virtual void Initialize(tw::Int component_index,const sparc::hydro_set& h,const sparc::eos_set& e,const sparc::material& m)
 	{
 		ComputeTool::Initialize();
 		hidx = h;
@@ -198,72 +205,74 @@ struct EOSDataTool:ComputeTool
 		eidx = e;
 		mat = m;
 	}
-	virtual void InitializeMixture(const sparc::hydro_set& h,const sparc::eos_set& e)
+
+	virtual void AddHeatCapacity(Field& hydro,Field& eos);
+	virtual void AddPKV(ScalarField& IE,ScalarField& nm,ScalarField& nu_e,Field& hydro,Field& eos);
+};
+
+struct EOSIdealGas:EOSComponent
+{
+	EOSIdealGas(const std::string& name,MetricSpace *m,Task *tsk);
+};
+
+// Braginskii model for plasma electrons, hot enough to ignore quantum effects
+struct EOSHotElectrons:EOSComponent
+{
+	EOSHotElectrons(const std::string& name,MetricSpace *m,Task *tsk);
+	virtual void AddPKV(ScalarField& IE,ScalarField& nm,ScalarField& nu_e,Field& hydro,Field& eos);
+};
+
+// This is the most basic implementation of the MieGruneisen EOS
+//
+// It assumes that GRUN = GRUN0 = const. at all times
+// This is typically not used in literature concerning MieGruneisen EOSs,
+// as the results are rarely physicaly accurate
+// If you produce sound waves with this model (for example with Cu),
+// you'll notice the sound speed is off. Qualitatively, it gives a broad picture.
+struct EOSMieGruneisen:EOSComponent
+{
+	tw::Float GRUN; // Gruneisen coefficient
+
+	EOSMieGruneisen(const std::string& name,MetricSpace *m,Task *tsk);
+	virtual void AddPKV(ScalarField& IE,ScalarField& nm,ScalarField& nu_e,Field& hydro,Field& eos);
+	virtual void ReadInputFileDirective(std::stringstream& inputString,const std::string& command);
+	virtual void ReadData(std::ifstream& inFile);
+	virtual void WriteData(std::ofstream& outFile);
+};
+
+// This is a MieGruneisen EOS that assumes \rho * GRUN = const., and a linear Hugoniot fit
+//
+// This is what is more typically what is found in literature regarding MieGruneisen models
+// You'll get a more accurate sound speed and shock speeds, assuming that the simulation is
+// within the range of relevant Hugoniot data and model assumptions are properly met
+struct EOSMieGruneisen2:EOSComponent
+{
+	tw::Float GRUN; // Gruneisen coefficient
+	tw::Float n0;   // Reference density
+	tw::Float c0;   // y - intercept of Hugoniot fit (usually appriximately speed of sound)
+	tw::Float S1;   // coefficient of linear fit of Hugoniot data
+
+	EOSMieGruneisen2(const std::string& name,MetricSpace *m,Task *tsk);
+	virtual void AddPKV(ScalarField& IE,ScalarField& nm,ScalarField& nu_e,Field& hydro,Field& eos);
+	virtual void ReadInputFileDirective(std::stringstream& inputString,const std::string& command);
+	virtual void ReadData(std::ifstream& inFile);
+	virtual void WriteData(std::ofstream& outFile);
+};
+
+// DFG - the role of the mixture is still the same, it computes non-additive things like temperature.
+// The components are then called at higher levels to add in additive things like pressure.
+struct EOSMixture:ComputeTool
+{
+	sparc::hydro_set hidx;
+	sparc::eos_set eidx;
+	sparc::material_set matset;
+	virtual void Initialize(const sparc::hydro_set& h,const sparc::eos_set& e,const sparc::material_set m)
 	{
 		ComputeTool::Initialize();
 		hidx = h;
 		eidx = e;
+		matset = m;
 	}
-
-	// The velocity was only used to get the internal energy, so make a function to do that instead
-	// Move summation functions to the mixture class
-	tw::Float InternalEnergy(const tw::Float& nm,const Field& f,const CellIterator& cell)
-	{
-		const tw::vec3 np = tw::vec3(f(cell,hidx.npx),f(cell,hidx.npy),f(cell,hidx.npz));
-		const tw::vec3 vel = np/(tw::small_pos + nm);
-		const tw::Float KE = 0.5*nm*Norm(vel);
-		const tw::Float primitive = f(cell,hidx.u) - KE;
-		const tw::Float failsafe = 1e-6*KE + tw::small_pos;
-		const tw::Float sel = tw::Float(primitive>0.0);
-		return sel*primitive + (1.0-sel)*failsafe;
-	}
-
-	// Used to have two versions of ApplyEOS for vector and scalar materials parameters.
-	// Here there is a different function for component contributions (see other comments below)
-	virtual void ComponentContribution(Field& hydro,Field& eos) {;}
-	// Note ie is not used anywhere, but leave it for the present.
-	// Conceptulaly, nu_e is something that should be computed by EOS tools rather than provided externally, but how?
-	virtual void ApplyEOS(tw::Int ie, ScalarField& nu_e,Field& hydro, Field& eos) {;}
-};
-
-// EOS Calculation for a single Chemical object with ideal gas properties,
-//   embedded in an EquilibriumGroup object that uses EOSMixture
-// The distinction between mixture and non-mixture classes is maybe not needed anymore?
-// Instead we are distinguishing two functions: ComponentContribution puts in something additive from each chemical (e.g., pressure)
-// The ApplyEOS figures out the whole EOS Field for whatever is in the group.
-// Now the information about the group is in the 3 lightweight classes sparc::hydro_set, sparc::eos_set, sparc::material
-struct EOSIdealGas:EOSDataTool
-{
-	EOSIdealGas(const std::string& name,MetricSpace *m,Task *tsk);
-	virtual void ComponentContribution(Field& hydro,Field& eos);
-	virtual void ApplyEOS(tw::Int ie, ScalarField& nu_e,Field& hydro, Field& eos);
-};
-
-// EOS calculations for the electrons, treating them like a type of ideal gas
-//
-// This contains the same calculations that were originally embedded in Turbowave
-// Since they are EOS calculations of a particular Chemical type, I place it here
-// as its own EOSDataTool object. Currently this is the only electron EOS model
-// there is, but in the future we may include other electron models
-// (like Thomas-Fermi, etc.)
-struct EOSHotElectrons:EOSDataTool
-{
-	EOSHotElectrons(const std::string& name,MetricSpace *m,Task *tsk);
-	// Missing component function implies we expect hot electrons will always be the lone member in a group.
-	// Perhaps this is why we need special single-component versions of ApplyEOS?
-	virtual void ApplyEOS(tw::Int ie, ScalarField& nu_e,Field& hydro, Field& eos);
-};
-
-// EOS calculations for a EquilibriumGroup object, which may contain one or multiple Chemical objects
-//
-// This contains a vector of EOSDataTools, each EOSData corresponding to the EOS of an EqiulibriumGroup
-// component chemical. The EOS quantities that are singular to the group (like T, Tv) are calculated
-// at the EOSMixture level, and the EOS quantities that have different model contributions for each
-// Chemical (like P, visc), are calculated at the eosData level and added/weighted at the
-// EOSMixture level accordingly.
-struct EOSMixture:EOSDataTool
-{
-	std::vector<EOSDataTool*> eosComponents;
 	tw::Float DensitySum(const Field& f,const CellIterator& cell)
 	{
 		tw::Float ans = 0.0;
@@ -275,81 +284,42 @@ struct EOSMixture:EOSDataTool
 	{
 		tw::Float ans = 0.0;
 		for (tw::Int s=0;s<hidx.num;s++)
-			ans += f(cell,s+hidx.first)*eosComponents[s]->mat.mass;
-		return ans;
-	}
-	tw::Float MixHeatCapacities(const Field& f,const CellIterator& cell)
-	{
-		tw::Float ans = 0.0;
-		for (tw::Int s=0;s<hidx.num;s++)
-			ans += f(cell,s+hidx.first)*eosComponents[s]->mat.cvm;
+			ans += f(cell,s+hidx.first)*matset.mass[s];
 		return ans;
 	}
 	tw::Float MixVibrationalEnergy(const Field& f,const CellIterator& cell)
 	{
 		tw::Float ans = 0.0;
 		for (tw::Int s=0;s<hidx.num;s++)
-			ans += f(cell,s+hidx.first)*eosComponents[s]->mat.excitationEnergy;
+			ans += f(cell,s+hidx.first)*matset.excitationEnergy[s];
 		return ans;
 	}
 	tw::Float MixVibrationalStates(const Field& f,const CellIterator& cell)
 	{
 		tw::Float ans = 0.0;
 		for (tw::Int s=0;s<hidx.num;s++)
-			ans += eosComponents[s]->mat.excitationEnergy > 0.0 ? f(cell,s+hidx.first) : 0.0;
+			ans += matset.excitationEnergy[s] > 0.0 ? f(cell,s+hidx.first) : 0.0;
 		return ans;
+	}
+	tw::Float InternalEnergy(const tw::Float& nm,const Field& f,const CellIterator& cell)
+	{
+		const tw::vec3 np = tw::vec3(f(cell,hidx.npx),f(cell,hidx.npy),f(cell,hidx.npz));
+		const tw::vec3 vel = np/(tw::small_pos + nm);
+		const tw::Float KE = 0.5*nm*Norm(vel);
+		const tw::Float primitive = f(cell,hidx.u) - KE;
+		const tw::Float failsafe = 1e-6*KE + tw::small_pos;
+		const tw::Float sel = tw::Float(primitive>0.0);
+		return sel*primitive + (1.0-sel)*failsafe;
 	}
 
 	EOSMixture(const std::string& name,MetricSpace *m,Task *tsk);
-	virtual void ApplyEOS(tw::Int ie, ScalarField& nu_e,Field& hydro, Field& eos);
+	virtual void ApplyCaloricEOS(ScalarField& IE,ScalarField& nm,Field& hydro, Field& eos);
 };
 
-// DFG - refined input file control eliminates need for special ideal gas mix class
-// So now we keep it here but just as a copy of the base mix class.
+// DFG - ideal gas mix is just a copy of the base mixture for now, restore later if needed.
 
 struct EOSIdealGasMix:EOSMixture
 {
 	// it seems nothing is different, unless we really want to override the constituents.
 	EOSIdealGasMix(const std::string& name,MetricSpace *m,Task *tsk);
-};
-
-// This is the most basic implementation of the MieGruneisen EOS
-//
-// It assumes that GRUN = GRUN0 = const. at all times
-// This is typically not used in literature concerning MieGruneisen EOSs,
-// as the results are rarely physicaly accurate
-// If you produce sound waves with this model (for example with Cu),
-// you'll notice the sound speed is off. Qualitatively, it gives a broad picture.
-struct EOSMieGruneisen:EOSDataTool
-{
-	tw::Float GRUN; // Gruneisen coefficient
-
-	EOSMieGruneisen(const std::string& name,MetricSpace *m,Task *tsk);
-
-	virtual void ComponentContribution(Field& hydro, Field& eos);
-
-	virtual void ReadInputFileDirective(std::stringstream& inputString,const std::string& command);
-	virtual void ReadData(std::ifstream& inFile);
-	virtual void WriteData(std::ofstream& outFile);
-};
-
-// This is a MieGruneisen EOS that assumes \rho * GRUN = const., and a linear Hugoniot fit
-//
-// This is what is more typically what is found in literature regarding MieGruneisen models
-// You'll get a more accurate sound speed and shock speeds, assuming that the simulation is
-// within the range of relevant Hugoniot data and model assumptions are properly met
-struct EOSMieGruneisen2:EOSDataTool
-{
-	tw::Float GRUN; // Gruneisen coefficient
-	tw::Float n0;   // Reference density
-	tw::Float c0;   // y - intercept of Hugoniot fit (usually appriximately speed of sound)
-	tw::Float S1;   // coefficient of linear fit of Hugoniot data
-
-	EOSMieGruneisen2(const std::string& name,MetricSpace *m,Task *tsk);
-
-	virtual void ComponentContribution(Field& hydro, Field& eos);
-
-	virtual void ReadInputFileDirective(std::stringstream& inputString,const std::string& command);
-	virtual void ReadData(std::ifstream& inFile);
-	virtual void WriteData(std::ofstream& outFile);
 };
