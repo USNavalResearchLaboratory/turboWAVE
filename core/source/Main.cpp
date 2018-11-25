@@ -144,7 +144,7 @@ int main(int argc,char *argv[])
 
 			if (arg=="--version")
 			{
-				std::cout << "turboWAVE version 3.1b" << std::endl;
+				std::cout << "turboWAVE version 3.2b" << std::endl;
 				if (argc==2)
 					exit(0);
 			}
@@ -214,11 +214,12 @@ int main(int argc,char *argv[])
 
 	std::cout << "Internal MPI Startup Complete" << std::endl;
 
-	std::cout << "Launch Interactive Thread..." << std::endl;
-
 	TW_Interactive interactiveThread(((Launcher*)(launcher[0]))->tw);
 	if (interactive)
+	{
+		std::cout << "Launch Interactive Thread..." << std::endl;
 		interactiveThread.Start();
+	}
 
 	TW_MPI_Unlock();
 

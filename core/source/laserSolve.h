@@ -13,6 +13,7 @@ struct LaserSolver:Module
 	virtual void Initialize();
 	virtual void Reset();
 
+	virtual void VerifyInput();
 	virtual void ReadInputFileDirective(std::stringstream& inputString,const std::string& command);
 	virtual void ReadData(std::ifstream& inFile);
 	virtual void WriteData(std::ofstream& outFile);

@@ -12,11 +12,16 @@ When to use a ``ComputeTool``
 
 The ``ComputeTool`` provides services for free that a simple function or user defined object does not.  There are also services that are not provided, being reserved for ``Module`` objects.  The basic characteristics are:
 
-	#. Standard structure for managing input file and restart file interactions
+	#. Easy management of input file and restart file interactions
 	#. Easy access to OpenCL kernel functions.
 	#. Management of allocation and de-allocation of resources, accounting for the possibility of multiple references to the tool.
 	#. No data sharing.  A ``ComputeTool`` does not participate in publisher-consumer data movement, and one ``ComputeTool`` cannot contain another.
 	#. No direct invocation within the main simulation loop.  All data processing has to be initiated by a ``Module`` which has a pointer to the ``ComputeTool``.
+
+Example
+-------
+
+A straightforward example is the ``FieldSolver`` class in ``fieldSolver.h`` and ``FieldSolver.cpp``.  This base class exists largely to manage various types of elliptical solvers, which are implemented as a ``ComputeTool`` inheritance tree.
 
 Declaration
 -----------
@@ -31,15 +36,14 @@ When implementing a new ``ComputeTool``, first carry out the following.
 		* The tool can implement whatever methods are desired. A function that moves data forward by one time level is conventionally called ``Advance``.
 		* Further implementation details follow.
 
-Allocation
-----------
+Association
+-----------
 
 Carry out the following for any ``Module`` that wants to use the tool.
 
-	#. In the ``Module`` declaration, declare a pointer to the tool.  Use polymorphism in whatever degree is preferable.
+	#. In the ``Module`` declaration, declare a pointer to the tool.  Polymorphism may be used to whatever extent is desired.
 	#. In the constructor, set the pointer to ``NULL``.
 	#. In the destructor, if the pointer is not ``NULL``, call ``owner->RemoveTool`` with the pointer as the argument.
-	#. In the ``Initialize`` function, you can test to see if the pointer is ``NULL``, and create a default tool, if desired.  To create the tool, use ``owner->CreateTool``.
 
 Input File Support
 ------------------
@@ -54,10 +58,18 @@ If you want the tool to be accessible from the input file, carry out the followi
 	#. Implement the ``ReadInputFileDirective`` method for the tool.
 	#. If you want to create named tools, add a case to ``CreateTypeFromInput`` in ``ComputeTool.cpp``.
 	#. If you want to create tools on the fly, add a case to ``CreateTypeFromDirective`` in ``ComputeTool.cpp``.
-	#. In the ``ReadInputFileDirective`` method of each ``Module`` that wants to use the tool:
+	#. In the ``VerifyInput`` method of each ``Module`` that wants to use the tool:
 
-		* call ``owner->ToolFromDirective`` and assign the resulting pointer to the module's pointer to the tool.
-		* Test the pointer, and if valid call the ``ReadInputFileDirective`` of the tool.
+		* Search the ``moduleTool`` vector for a compatible tool, and copy the dynamically typecast compatible pointer to your pointer.
+		* If no compatible tool is found, either throw an error, or create a default tool using ``owner->CreateTool``.
+
+.. tip::
+
+	If you want to create a tool exclusively for the use of a particular module, *and* there is no need for input file or restart file interaction, you can simply create it in the module constructor, and remove it in the module destructor.
+
+.. tip::
+
+	If implemented correctly, tools are ready to be used by the time ``Module::Initialize`` is called.
 
 Restart File Support
 --------------------
@@ -72,3 +84,9 @@ To support restarting a tool, carry out the following steps.
 		* In the module's ``ReadData`` function, call ``owner->GetRestartedTool`` and save the returned pointer to a member of the module.
 		* In the module's ``WriteData`` function, call ``SaveToolReference``, accessing through the pointer to the tool.
 		* The two above calls must occur at the same point in the restart file.
+
+Best Practices
+--------------
+
+#. Avoid making the tool the owner of heavyweight data.  Instead pass such data to member functions by reference.
+#. Keep self-contained, i.e., avoid using references to modules or other objects in the containment hierarchy.  If this seems unavoidable consider using a ``Module``.

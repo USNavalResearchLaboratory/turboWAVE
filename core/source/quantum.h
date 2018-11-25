@@ -92,6 +92,7 @@ struct AtomicPhysics:Module
 	{
 		return tw::Complex(psi_r(v,i,c),psi_i(v,i,c));
 	}
+	virtual void VerifyInput();
 	virtual void ReadInputFileDirective(std::stringstream& inputString,const std::string& command);
 	virtual void ReadData(std::ifstream& inFile);
 	virtual void WriteData(std::ofstream& outFile);
@@ -110,6 +111,7 @@ struct Schroedinger:AtomicPhysics
 	~Schroedinger();
 	virtual void Initialize();
 	virtual void Update();
+	virtual void VerifyInput();
 
 	virtual void UpdateJ4();
 	virtual void Normalize();
@@ -133,6 +135,7 @@ struct Pauli:AtomicPhysics
 	~Pauli();
 	virtual void Initialize();
 	virtual void Update();
+	virtual void VerifyInput();
 
 	//virtual void UpdateJ4();
 	virtual void Normalize();

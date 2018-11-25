@@ -21,12 +21,6 @@ EllipticSolver::EllipticSolver(const std::string& name,MetricSpace *m,Task *tsk)
 	coeff = NULL;
 	x0 = x1 = y0 = y1 = z0 = z1 = none;
 	gammaBeam = 1.0;
-}
-
-void EllipticSolver::Initialize()
-{
-	ComputeTool::Initialize();
-
 	lbc.resize(space->Num(1));
 	rbc.resize(space->Num(1));
 	lbc_t.resize(space->Num(1));
@@ -220,29 +214,22 @@ void EllipticSolver::WriteData(std::ofstream& outFile)
 EllipticSolver1D::EllipticSolver1D(const std::string& name,MetricSpace *m,Task *tsk) : EllipticSolver(name,m,tsk)
 {
 	typeCode = tw::tool_type::ellipticSolver1D;
+	if (space->Dimensionality()!=1)
+		throw tw::FatalError("EllipticSolver1D cannot be used in multi-dimensions.");
 	globalIntegrator = NULL;
-}
-
-EllipticSolver1D::~EllipticSolver1D()
-{
-	if (globalIntegrator!=NULL)
-		delete globalIntegrator;
-}
-
-void EllipticSolver1D::Initialize()
-{
-	EllipticSolver::Initialize();
-
-	// SET UP GLOBAL INTEGRATOR
-
-	if (globalIntegrator!=NULL)
-		delete globalIntegrator;
 	if (task->globalCells[1]>1)
 		globalIntegrator = new GlobalIntegrator<tw::Float>(&task->strip[1],space->Dim(3)*space->Dim(2),space->Dim(1));
 	if (task->globalCells[2]>1)
 		globalIntegrator = new GlobalIntegrator<tw::Float>(&task->strip[2],space->Dim(1)*space->Dim(3),space->Dim(2));
 	if (task->globalCells[3]>1)
 		globalIntegrator = new GlobalIntegrator<tw::Float>(&task->strip[3],space->Dim(1)*space->Dim(2),space->Dim(3));
+	if (globalIntegrator==NULL)
+		throw tw::FatalError("EllipticSolver1D could not create global integrator.");
+}
+
+EllipticSolver1D::~EllipticSolver1D()
+{
+	delete globalIntegrator;
 }
 
 void EllipticSolver1D::Solve(ScalarField& phi,ScalarField& source,tw::Float mul)
@@ -335,32 +322,15 @@ IterativePoissonSolver::IterativePoissonSolver(const std::string& name,MetricSpa
 	normResidualAchieved = 0.0;
 	overrelaxationChange = 0.001;
 	InitializeCLProgram("elliptic.cl");
-}
 
-IterativePoissonSolver::~IterativePoissonSolver()
-{
-	delete mask1;
-	delete mask2;
-}
-
-void IterativePoissonSolver::Initialize()
-{
-	EllipticSolver::Initialize();
-
-	const tw::Int xDim = space->Dim(1);
-	const tw::Int yDim = space->Dim(2);
-	const tw::Int zDim = space->Dim(3);
-
-	tw::Int i,j,k,n;
 	bool redSquare = true;
-
-	for (k=1;k<=zDim;k++)
+	for (tw::Int k=1;k<=zDim;k++)
 	{
-		for (j=1;j<=yDim;j++)
+		for (tw::Int j=1;j<=yDim;j++)
 		{
-			for (i=1;i<=xDim;i++)
+			for (tw::Int i=1;i<=xDim;i++)
 			{
-				n = (i-1) + (j-1)*xDim + (k-1)*xDim*yDim;
+				const tw::Int n = (i-1) + (j-1)*xDim + (k-1)*xDim*yDim;
 				mask1[n] = redSquare ? 1 : 0;
 				mask2[n] = redSquare ? 0 : 1;
 				if (xDim>1)
@@ -372,6 +342,12 @@ void IterativePoissonSolver::Initialize()
 		if (zDim>1)
 			redSquare = !redSquare;
 	}
+}
+
+IterativePoissonSolver::~IterativePoissonSolver()
+{
+	delete mask1;
+	delete mask2;
 }
 
 void IterativePoissonSolver::FixPotential(ScalarField& phi,Region* theRegion,const tw::Float& thePotential)
@@ -604,31 +580,19 @@ void IterativePoissonSolver::WriteData(std::ofstream& outFile)
 
 PoissonSolver::PoissonSolver(const std::string& name,MetricSpace *m,Task *tsk) : EllipticSolver(name,m,tsk)
 {
+	typeCode = tw::tool_type::facrPoissonSolver;
 	globalIntegrator = NULL;
 	z0 = dirichletWall;
 	z1 = neumannWall;
 	x0 = x1 = y0 = y1 = periodic;
-	typeCode = tw::tool_type::facrPoissonSolver;
+	if (!space->TransversePowersOfTwo())
+		throw tw::FatalError("FACR elliptical solver requires all transverse dimensions be powers of two.");
+	globalIntegrator = new GlobalIntegrator<tw::Float>(&task->strip[3],space->Dim(1)*space->Dim(2),space->Dim(3));
 }
 
 PoissonSolver::~PoissonSolver()
 {
-	if (globalIntegrator!=NULL)
-		delete globalIntegrator;
-}
-
-void PoissonSolver::Initialize()
-{
-	if (!space->TransversePowersOfTwo())
-		throw tw::FatalError("FACR elliptical solver requires all transverse dimensions be powers of two.");
-
-	EllipticSolver::Initialize();
-
-	// SET UP GLOBAL INTEGRATOR
-
-	if (globalIntegrator!=NULL)
-		delete globalIntegrator;
-	globalIntegrator = new GlobalIntegrator<tw::Float>(&task->strip[3],space->Dim(1)*space->Dim(2),space->Dim(3));
+	delete globalIntegrator;
 }
 
 void PoissonSolver::Solve(ScalarField& phi,ScalarField& source,tw::Float mul)
@@ -819,32 +783,20 @@ void PoissonSolver::Solve(ScalarField& phi,ScalarField& source,tw::Float mul)
 
 EigenmodePoissonSolver::EigenmodePoissonSolver(const std::string& name,MetricSpace *m,Task *tsk) : EllipticSolver(name,m,tsk)
 {
-	globalIntegrator = NULL;
+	typeCode = tw::tool_type::eigenmodePoissonSolver;
 	z0 = dirichletWall;
 	z1 = dirichletWall;
-	typeCode = tw::tool_type::eigenmodePoissonSolver;
-}
-
-EigenmodePoissonSolver::~EigenmodePoissonSolver()
-{
-	if (globalIntegrator!=NULL)
-		delete globalIntegrator;
-}
-
-void EigenmodePoissonSolver::Initialize()
-{
-	EllipticSolver::Initialize();
 
 	const tw::Int rDim = space->Dim(1);
 	const tw::Int zDim = space->Dim(3);
 
 	ComputeTransformMatrices(eigenvalue,hankel,inverseHankel,space,task);
-
-	// SET UP GLOBAL INTEGRATOR
-
-	if (globalIntegrator!=NULL)
-		delete globalIntegrator;
 	globalIntegrator = new GlobalIntegrator<tw::Float>(&task->strip[3],rDim,zDim);
+}
+
+EigenmodePoissonSolver::~EigenmodePoissonSolver()
+{
+	delete globalIntegrator;
 }
 
 void EigenmodePoissonSolver::TransformBoundaryValues()

@@ -123,6 +123,11 @@ void Module::WriteData(std::ofstream& outFile)
 	outFile << super->name << " ";
 }
 
+void Module::VerifyInput()
+{
+	// carry out checks that are appropriate after the whole input file block has been read in
+}
+
 void Module::ReadInputFileBlock(std::stringstream& inputString)
 {
 	std::string com;
@@ -131,6 +136,7 @@ void Module::ReadInputFileBlock(std::stringstream& inputString)
 		inputString >> com;
 		ReadInputFileDirective(inputString,com);
 	} while (com!="}");
+	VerifyInput();
 }
 
 bool Module::ReadQuasitoolBlock(const std::vector<std::string>& preamble,std::stringstream& inputString)
@@ -140,6 +146,13 @@ bool Module::ReadQuasitoolBlock(const std::vector<std::string>& preamble,std::st
 
 void Module::ReadInputFileDirective(std::stringstream& inputString,const std::string& command)
 {
+	// Deal with ComputeTool list.
+	// Grid::ToolFromDirective takes care of 3 things:
+	// 1. Get an existing tool by searching for a name -- ``get tool with name = [name]``
+	// 2. Create a tool on the fly based on a type -- ``[key] = [type]``
+	// 3. Process directives associated with the last tool from (1) or (2)
+	// In the second case a unique name is assigned to the tool internally.
+	owner->ToolFromDirective(moduleTool,inputString,command);
 }
 
 void Module::StartDiagnostics()

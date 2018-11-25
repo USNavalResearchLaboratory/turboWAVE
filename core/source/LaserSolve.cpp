@@ -45,9 +45,6 @@ void LaserSolver::Initialize()
 	tw::Float polarizationFactor;
 
 	Module::Initialize();
-	// Install a propagator by default if necessary here
-	if (propagator==NULL)
-		propagator = (LaserPropagator*)owner->CreateTool("adi",tw::tool_type::adiPropagator);
 	propagator->SetData(laserFreq,dt,polarizationType,owner->movingWindow);
 	propagator->SetBoundaryConditions(a0,a1,chi);
 
@@ -81,13 +78,23 @@ void LaserSolver::Reset()
 	chi = tw::Complex(0,0);
 }
 
+void LaserSolver::VerifyInput()
+{
+	Module::VerifyInput();
+	for (auto tool : moduleTool)
+	{
+		propagator = dynamic_cast<LaserPropagator*>(tool);
+		if (propagator!=NULL)
+			break;
+	}
+	if (propagator==NULL)
+		propagator = (LaserPropagator*)owner->CreateTool("default_adi",tw::tool_type::adiPropagator);
+}
+
 void LaserSolver::ReadInputFileDirective(std::stringstream& inputString,const std::string& command)
 {
 	std::string word;
 	Module::ReadInputFileDirective(inputString,command);
-	propagator = (LaserPropagator*)owner->ToolFromDirective(inputString,command);
-	if (propagator!=NULL)
-		propagator->ReadInputFileDirective(inputString,command);
 	if (command=="carrier") // eg, carrier frequency = 30.0
 	{
 		inputString >> word >> word;
@@ -105,10 +112,7 @@ void LaserSolver::ReadInputFileDirective(std::stringstream& inputString,const st
 		if (word=="radial")
 			polarizationType = radialPolarization;
 		if (word!="linear" && word!="circular" && word!="radial")
-		{
-			*owner->tw_out << "abort: invalid polarization" << std::endl;
-			abort();
-		}
+			throw tw::FatalError("Invalid polarization.");
 	}
 }
 

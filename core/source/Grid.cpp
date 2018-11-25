@@ -744,22 +744,38 @@ ComputeTool* Grid::GetRestartedTool(std::ifstream& inFile)
 	return GetTool(tmp);
 }
 
-ComputeTool* Grid::ToolFromDirective(std::stringstream& inputString,const std::string& command)
+void Grid::ToolFromDirective(std::vector<ComputeTool*>& tool,std::stringstream& inputString,const std::string& command)
 {
+	// The first argument to this function is typically NOT the tool list owned by Grid.
+	// Instead it is the list owned by a module.
+
 	std::string word;
 	tw::tool_type type;
+
 	// Handle retrieval of named tools
 	if (command=="get")
 	{
-		inputString >> word >> word >> word >> word >> word; // tool with name = [name]
-		return GetTool(word);
+		inputString >> word;
+		if (word=="tool")
+		{
+		 	inputString >> word >> word >> word >> word; // with name = [name]
+			tool.push_back(GetTool(word));
+			return;
+		}
+		// if we ever have other types of get directives, need something here to restore inputString.
 	}
+
 	// Handle creation of new tools on the fly
 	type = ComputeTool::CreateTypeFromDirective(inputString,command);
 	if (type!=tw::tool_type::nullTool)
-		return CreateTool("tool",type);
-	// If no tool return null pointer.  Modules have to be written to handle this.
-	return NULL;
+	{
+		tool.push_back(CreateTool(command,type)); // use command as the name
+		return;
+	}
+
+	// Allow the most recent tool associated with the caller to process directives
+	if (tool.size()>0)
+		tool.back()->ReadInputFileDirective(inputString,command);
 }
 
 bool Grid::RemoveTool(ComputeTool *theTool)
@@ -899,7 +915,7 @@ void Grid::ReadData(std::ifstream& inFile)
 	for (i=0;i<num;i++)
 	{
 		module.push_back(Module::CreateObjectFromFile(inFile,this));
-		// try to have Module::ReadData figure out to populate containment structures for both modules and tools.
+		// above calls Module::ReadData, the base takes care of module containment, derived methods must restore tool pointers.
 		(*tw_out) << "Installed Module " << module.back()->name << std::endl;
 	}
 
@@ -1004,6 +1020,11 @@ void Grid::WriteData(std::ofstream& outFile)
 
 	uniformDeviate->WriteData(outFile);
 	gaussianDeviate->WriteData(outFile);
+
+	i = computeTool.size();
+	outFile.write((char *)&i,sizeof(tw::Int));
+	for (i=0;i<computeTool.size();i++)
+		computeTool[i]->WriteData(outFile);
 
 	i = module.size();
 	outFile.write((char *)&i,sizeof(tw::Int));
@@ -1461,7 +1482,7 @@ void Grid::ReadInputFile()
 
 		if (com1=="new")
 		{
-			// Get the preamble = words that come between "new" and the opening brace
+			// Get the preamble = words that come between "new" and the opening token
 			std::vector<std::string> preamble = tw::input::EnterInputFileBlock(inputString,"{=");
 			// if an object has a name, it is expected to be the last string in the preamble
 			std::string object_name(preamble.back());
@@ -1488,6 +1509,7 @@ void Grid::ReadInputFile()
 					MangleModuleName(super_module_name);
 					(*tw_out) << "Installing module " << super_module_name << " automatically..." << std::endl;
 					module.push_back(Module::CreateObjectFromType(super_module_name,super_type,this));
+					module.back()->VerifyInput();
 					find_super(module.back());
 				}
 
@@ -1549,21 +1571,18 @@ void Grid::ReadInputFile()
 
 			if (preamble[0]=="energy") // eg, new energy series { ... }
 			{
-				inputString >> word >> word;
 				energyDiagnostic.push_back(new EnergySeriesDescriptor(clippingRegion));
 				energyDiagnostic.back()->ReadInputFile(inputString);
 			}
 
 			if (preamble[0]=="point") // eg, new point series { ... }
 			{
-				inputString >> word	>> word;
 				pointDiagnostic.push_back(new PointSeriesDescriptor(clippingRegion));
 				pointDiagnostic.back()->ReadInputFile(inputString);
 			}
 
 			if (preamble[0]=="box") // eg, new box series { ... }
 			{
-				inputString >> word >> word;
 				boxDiagnostic.push_back(new GridDataDescriptor(clippingRegion));
 				boxDiagnostic.back()->ReadInputFile(inputString);
 			}

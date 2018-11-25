@@ -541,7 +541,6 @@ AtomicPhysics::AtomicPhysics(const std::string& name,Grid* theGrid):Module(name,
 	A4.InitializeComputeBuffer();
 	Ao4.InitializeComputeBuffer();
 	J4.InitializeComputeBuffer();
-	photonPropagator->SetupComputeKernels(A4,Ao4,J4);
 	#endif
 }
 
@@ -570,8 +569,9 @@ tw::Float AtomicPhysics::GetSphericalPotential(tw::Float r) const
 void AtomicPhysics::Initialize()
 {
 	Module::Initialize();
-	if (photonPropagator==NULL)
-		photonPropagator = (LorentzPropagator*)owner->CreateTool("photons",tw::tool_type::lorentzPropagator);
+	#ifdef USE_OPENCL
+	photonPropagator->SetupComputeKernels(A4,Ao4,J4);
+	#endif
 
 	// Boundary conditions should preserve hermiticity
 	// One way is to have A = 0 and grad(psi)=0 for components normal to boundary
@@ -701,6 +701,19 @@ tw::vec4 AtomicPhysics::GetA4AtOrigin()
 	return A;
 }
 
+void AtomicPhysics::VerifyInput()
+{
+	Module::VerifyInput();
+	for (auto tool : moduleTool)
+	{
+		photonPropagator = dynamic_cast<LorentzPropagator*>(tool);
+		if (photonPropagator!=NULL)
+			break;
+	}
+	if (photonPropagator==NULL)
+		photonPropagator = (LorentzPropagator*)owner->CreateTool("default_photons",tw::tool_type::lorentzPropagator);
+}
+
 void AtomicPhysics::ReadInputFileDirective(std::stringstream& inputString,const std::string& command)
 {
 	std::string word;
@@ -775,6 +788,7 @@ void AtomicPhysics::ReadData(std::ifstream& inFile)
 	tw::Int num;
 
 	Module::ReadData(inFile);
+	photonPropagator = (LorentzPropagator*)owner->GetRestartedTool(inFile);
 	inFile.read((char *)&potentialTypeSpec,sizeof(qo::potentialType));
 	inFile.read((char *)&residualCharge,sizeof(tw::Float));
 	inFile.read((char *)&nuclearRadius,sizeof(tw::Float));
@@ -822,6 +836,7 @@ void AtomicPhysics::WriteData(std::ofstream& outFile)
 	tw::Int num;
 
 	Module::WriteData(outFile);
+	photonPropagator->SaveToolReference(outFile);
 	outFile.write((char *)&potentialTypeSpec,sizeof(qo::potentialType));
 	outFile.write((char *)&residualCharge,sizeof(tw::Float));
 	outFile.write((char *)&nuclearRadius,sizeof(tw::Float));
@@ -935,13 +950,18 @@ Schroedinger::~Schroedinger()
 	#endif
 }
 
-void Schroedinger::Initialize()
+void Schroedinger::VerifyInput()
 {
-	AtomicPhysics::Initialize();
+	AtomicPhysics::VerifyInput();
 	#ifndef USE_OPENCL
 	if (propagator==NULL)
 		propagator = (SchroedingerPropagator*)owner->CreateTool("TDSE",tw::tool_type::schroedingerPropagator);
 	#endif
+}
+
+void Schroedinger::Initialize()
+{
+	AtomicPhysics::Initialize();
 
 	const boundarySpec psiDefaultBC = neumannWall;
 	psi0.SetBoundaryConditions(xAxis,psiDefaultBC,psiDefaultBC);
@@ -1336,13 +1356,18 @@ Pauli::~Pauli()
 	#endif
 }
 
-void Pauli::Initialize()
+void Pauli::VerifyInput()
 {
-	AtomicPhysics::Initialize();
+	AtomicPhysics::VerifyInput();
 	#ifndef USE_OPENCL
 	if (propagator==NULL)
 		propagator = (SchroedingerPropagator*)owner->CreateTool("TDSE",tw::tool_type::schroedingerPropagator);
 	#endif
+}
+
+void Pauli::Initialize()
+{
+	AtomicPhysics::Initialize();
 }
 
 #ifdef USE_OPENCL

@@ -68,21 +68,6 @@ void LaserPropagator::SetBoundaryConditions(ComplexField& a0,ComplexField& a1,Co
 EigenmodePropagator::EigenmodePropagator(const std::string& name,MetricSpace *m,Task *tsk) : LaserPropagator(name,m,tsk)
 {
 	typeCode = tw::tool_type::eigenmodePropagator;
-	globalIntegrator = NULL;
-}
-
-EigenmodePropagator::~EigenmodePropagator()
-{
-	if (globalIntegrator)
-		delete globalIntegrator;
-}
-
-void EigenmodePropagator::Initialize()
-{
-	LaserPropagator::Initialize();
-
-	if (space->cyl==1.0 && polarization==radialPolarization)
-		throw tw::FatalError("eigenmode propagator incompatible with radial polarization.");
 
 	if (space->car==1.0 && !space->TransversePowersOfTwo())
 		throw tw::FatalError("eigenmode propagator in Cartesian coordinates requires transverse dimensions be powers of two.");
@@ -91,12 +76,26 @@ void EigenmodePropagator::Initialize()
 	const tw::Int yDim = space->Dim(2);
 	const tw::Int zDim = space->Dim(3);
 
-	if (globalIntegrator!=NULL)
-		delete globalIntegrator;
 	globalIntegrator = new GlobalIntegrator<tw::Complex>(&task->strip[3],xDim*yDim,zDim);
 
 	if (space->car!=1.0)
 		ComputeTransformMatrices(eigenvalue,hankel,inverseHankel,space,task);
+}
+
+EigenmodePropagator::~EigenmodePropagator()
+{
+	delete globalIntegrator;
+}
+
+void EigenmodePropagator::SetData(tw::Float w0,tw::Float dt,tw_polarization_type pol,bool mov)
+{
+	if (space->cyl==1.0 && pol==radialPolarization)
+		throw tw::FatalError("eigenmode propagator incompatible with radial polarization.");
+
+	this->w0 = w0;
+	this->dt = dt;
+	polarization = pol;
+	movingWindow = mov;
 }
 
 void EigenmodePropagator::Advance(ComplexField& a0,ComplexField& a1,ComplexField& chi)
@@ -219,22 +218,9 @@ void EigenmodePropagator::Advance(ComplexField& a0,ComplexField& a1,ComplexField
 ADIPropagator::ADIPropagator(const std::string& name,MetricSpace *m,Task *tsk) : LaserPropagator(name,m,tsk)
 {
 	typeCode = tw::tool_type::adiPropagator;
+	evenTime = true;
 	xGlobalIntegrator = NULL;
 	yGlobalIntegrator = NULL;
-	evenTime = true;
-}
-
-ADIPropagator::~ADIPropagator()
-{
-	if (xGlobalIntegrator!=NULL)
-		delete xGlobalIntegrator;
-	if (yGlobalIntegrator!=NULL)
-		delete yGlobalIntegrator;
-}
-
-void ADIPropagator::Initialize()
-{
-	LaserPropagator::Initialize();
 
 	const tw::Int xDim = space->Dim(1);
 	const tw::Int yDim = space->Dim(2);
@@ -252,6 +238,14 @@ void ADIPropagator::Initialize()
 
 	if (yDim>1)
 		yGlobalIntegrator = new GlobalIntegrator<tw::Complex>(&task->strip[2],xDim*zDim,yDim);
+}
+
+ADIPropagator::~ADIPropagator()
+{
+	if (xGlobalIntegrator!=NULL)
+		delete xGlobalIntegrator;
+	if (yGlobalIntegrator!=NULL)
+		delete yGlobalIntegrator;
 }
 
 void ADIPropagator::Advance(ComplexField& a0,ComplexField& a1,ComplexField& chi)
@@ -418,25 +412,7 @@ void ADIPropagator::Advance(ComplexField& a0,ComplexField& a1,ComplexField& chi)
 SchroedingerPropagator::SchroedingerPropagator(const std::string& name,MetricSpace *m,Task *tsk) : ComputeTool(name,m,tsk)
 {
 	typeCode = tw::tool_type::schroedingerPropagator;
-	globalIntegrator.resize(4);
-	globalIntegrator[1] = NULL;
-	globalIntegrator[2] = NULL;
-	globalIntegrator[3] = NULL;
-}
-
-SchroedingerPropagator::~SchroedingerPropagator()
-{
-	if (globalIntegrator[1]!=NULL)
-		delete globalIntegrator[1];
-	if (globalIntegrator[2]!=NULL)
-		delete globalIntegrator[2];
-	if (globalIntegrator[3]!=NULL)
-		delete globalIntegrator[3];
-}
-
-void SchroedingerPropagator::Initialize()
-{
-	ComputeTool::Initialize();
+	globalIntegrator.assign(4,NULL);
 
 	const tw::Int xDim = space->Dim(1);
 	const tw::Int yDim = space->Dim(2);
@@ -450,6 +426,13 @@ void SchroedingerPropagator::Initialize()
 
 	if (zDim>1)
 		globalIntegrator[3] = new GlobalIntegrator<tw::Complex>(&task->strip[3],xDim*yDim,zDim);
+}
+
+SchroedingerPropagator::~SchroedingerPropagator()
+{
+	for (auto g : globalIntegrator)
+		if (g!=NULL)
+			delete g;
 }
 
 void SchroedingerPropagator::DepositCurrent(const axisSpec& axis,ComplexField& psi0,ComplexField& psi1,Field& A4,Field& J4,tw::Complex dt)
@@ -633,25 +616,7 @@ void SchroedingerPropagator::UpdateSpin(ComplexField& psi,ComplexField& chi,Fiel
 ParabolicSolver::ParabolicSolver(const std::string& name,MetricSpace *m,Task *tsk) : ComputeTool(name,m,tsk)
 {
 	typeCode = tw::tool_type::generalParabolicPropagator;
-	globalIntegrator.resize(4);
-	globalIntegrator[1] = NULL;
-	globalIntegrator[2] = NULL;
-	globalIntegrator[3] = NULL;
-}
-
-ParabolicSolver::~ParabolicSolver()
-{
-	if (globalIntegrator[1]!=NULL)
-		delete globalIntegrator[1];
-	if (globalIntegrator[2]!=NULL)
-		delete globalIntegrator[2];
-	if (globalIntegrator[3]!=NULL)
-		delete globalIntegrator[3];
-}
-
-void ParabolicSolver::Initialize()
-{
-	ComputeTool::Initialize();
+	globalIntegrator.assign(4,NULL);
 
 	if (space->Dim(1)>1)
 		globalIntegrator[1] = new GlobalIntegrator<tw::Float>(&task->strip[1],space->Dim(2)*space->Dim(3),space->Dim(1));
@@ -661,6 +626,13 @@ void ParabolicSolver::Initialize()
 
 	if (space->Dim(3)>1)
 		globalIntegrator[3] = new GlobalIntegrator<tw::Float>(&task->strip[3],space->Dim(1)*space->Dim(2),space->Dim(3));
+}
+
+ParabolicSolver::~ParabolicSolver()
+{
+	for (auto g : globalIntegrator)
+		if (g!=NULL)
+			delete g;
 }
 
 inline void ParabolicSolver::FormOperatorStencil(tw::Float *D1,tw::Float *D2,const ScalarField& fluxMask,Field *coeff,tw::Int c,const StripIterator& s,tw::Int i)
@@ -832,17 +804,6 @@ IsotropicPropagator::IsotropicPropagator(const std::string& name,MetricSpace *m,
 {
 	typeCode = tw::tool_type::isotropicPropagator;
 	zGlobalIntegrator = NULL;
-}
-
-IsotropicPropagator::~IsotropicPropagator()
-{
-	if (zGlobalIntegrator!=NULL)
-		delete zGlobalIntegrator;
-}
-
-void IsotropicPropagator::Initialize()
-{
-	ComputeTool::Initialize();
 
 	const tw::Int xDim = space->Dim(1);
 	const tw::Int yDim = space->Dim(2);
@@ -854,6 +815,12 @@ void IsotropicPropagator::Initialize()
 
 	if (zDim>1)
 		zGlobalIntegrator = new GlobalIntegrator<tw::Complex>(&task->strip[3],xDim*yDim,zDim);
+}
+
+IsotropicPropagator::~IsotropicPropagator()
+{
+	if (zGlobalIntegrator!=NULL)
+		delete zGlobalIntegrator;
 }
 
 void IsotropicPropagator::Advance(

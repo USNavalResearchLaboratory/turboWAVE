@@ -4,8 +4,7 @@ struct FieldSolver:Module
 
 	FieldSolver(const std::string& name,Grid* theGrid);
 	~FieldSolver();
-	virtual void Initialize();
-	virtual void ReadInputFileDirective(std::stringstream& inputString,const std::string& command);
+	virtual void VerifyInput();
 	virtual void ReadData(std::ifstream& inFile);
 	virtual void WriteData(std::ofstream& outFile);
 };

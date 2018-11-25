@@ -602,7 +602,6 @@ Chemical::Chemical(const std::string& name,Grid* theGrid):Module(name,theGrid)
 	mat.kinematicViscosity = 0.0;
 	mat.eps_r = 1.0;
 	mat.eps_i = 0.0;
-	indexInGroup = 0;
 	eosData = NULL;
 }
 
@@ -638,9 +637,8 @@ void Chemical::Initialize()
 	}
 	// can't generate in Chemistry::Initialize since profiles would not be initialized
 	GenerateFluid(master->state1,true);
-	// chooses and creates an appropriate EOS if none already defined
-	DefaultEOS();
-	eosData->Initialize(indexInState,group->hidx,group->eidx,mat);
+	// Have to send indexing data to EOS
+	eosData->SetupIndexing(indexInState,group->hidx,group->eidx,mat);
 	// DFG - check to see if this Chemical is electrons.
 	// If it is, notify Chemistry and EquilibriumGroup.
 	// This is again an example of using the containment tree.
@@ -737,35 +735,34 @@ bool Chemical::GenerateFluid(Field& f,bool init)
 	return didGenerate;
 }
 
-void Chemical::DefaultEOS()
+void Chemical::VerifyInput()
 {
+	Module::VerifyInput();
+	// DFG - Find an EOS on the list of tools associated with this module.
+	// This list is populated automatically by the base Module class.
+	for (auto tool : moduleTool)
+	{
+		eosData = dynamic_cast<EOSComponent*>(tool);
+		if (eosData!=NULL)
+			break;
+	}
+	// If the tool could not be found, create one automatically.
+	// Another approach would be to throw an error, if we want to force the user to be explicit (this would break old input files).
 	if (eosData==NULL)
 	{
 		if (mat.mass==1.0)
-			eosData = (EOSComponent*)owner->CreateTool("hot_electrons",tw::tool_type::eosHotElectrons);
+			eosData = (EOSComponent*)owner->CreateTool("default_hot_electrons",tw::tool_type::eosHotElectrons);
 		else
-			eosData = (EOSComponent*)owner->CreateTool("ideal_gas",tw::tool_type::eosIdealGas);
+			eosData = (EOSComponent*)owner->CreateTool("default_ideal_gas",tw::tool_type::eosIdealGas);
 	}
 }
 
 void Chemical::ReadInputFileDirective(std::stringstream& inputString,const std::string& command)
 {
-	std::string word;
 	UnitConverter uc(owner->unitDensityCGS);
 	Module::ReadInputFileDirective(inputString,command);
 	ionization.ReadInputFileDirective(inputString,command);
 	mat.ReadInputFileDirective(inputString,command,uc);
-
-	// If an eos tool exists, it can respond to directives
-	if (eosData!=NULL)
-		eosData->ReadInputFileDirective(inputString,command);
-
-	// DFG - Install a named eos, or create a new one from a type
-	// Named tools are selected using the universal directive : get tool with name = [name]
-	// Typed tools are created using key/value assignments such as : eos = ideal-gas
-	// In the latter case automatic name mangling guarantees uniqueness
-	// If no tool is created here, one will be automatically created during Initialize()
-	eosData = (EOSComponent*)owner->ToolFromDirective(inputString,command);
 }
 
 void Chemical::ReadData(std::ifstream& inFile)
@@ -775,7 +772,6 @@ void Chemical::ReadData(std::ifstream& inFile)
 	ionization.ReadData(inFile);
 	inFile.read((char *)&mat,sizeof(mat));
 	inFile.read((char *)&indexInState,sizeof(indexInState));
-	inFile.read((char *)&indexInGroup,sizeof(indexInGroup));
 }
 
 void Chemical::WriteData(std::ofstream& outFile)
@@ -785,7 +781,6 @@ void Chemical::WriteData(std::ofstream& outFile)
 	ionization.WriteData(outFile);
 	outFile.write((char *)&mat,sizeof(mat));
 	outFile.write((char *)&indexInState,sizeof(indexInState));
-	outFile.write((char *)&indexInGroup,sizeof(indexInGroup));
 }
 
 
@@ -813,21 +808,27 @@ EquilibriumGroup::~EquilibriumGroup()
 		owner->RemoveTool(eosMixData);
 }
 
+void EquilibriumGroup::VerifyInput()
+{
+	Module::VerifyInput();
+	// DFG - Find an EOS mixture on the list of tools associated with this module.
+	// This list is populated automatically by the base Module class.
+	for (auto tool : moduleTool)
+	{
+		eosMixData = dynamic_cast<EOSMixture*>(tool);
+		if (eosMixData!=NULL)
+			break;
+	}
+	// If the tool could not be found, create one automatically.
+	// Another approach would be to throw an error, if we want to force the user to be explicit (this would break old input files).
+	if (eosMixData==NULL)
+		eosMixData = (EOSMixture *)owner->CreateTool("default_eos_mix",tw::tool_type::eosMixture);
+}
+
 void EquilibriumGroup::ReadInputFileDirective(std::stringstream& inputString,const std::string& command)
 {
 	std::string word;
-
-	// If an eos tool exists, it can respond to directives
-	if (eosMixData!=NULL)
-		eosMixData->ReadInputFileDirective(inputString,command);
-
-	// DFG - Install a named eos, or create a new one from a type
-	// Named tools are selected using the universal directive : get tool with name = [name]
-	// Typed tools are created using key/value assignments such as : eos = ideal-gas
-	// In the latter case automatic name mangling guarantees uniqueness
-	// If no tool is created here, one will be automatically created during Initialize()
-	eosMixData = (EOSMixture*)owner->ToolFromDirective(inputString,command);
-
+	Module::ReadInputFileDirective(inputString,command);
 	if (command=="new")
 	{
 		// DFG - part of improved containment model, add chemicals to the group
@@ -850,16 +851,12 @@ void EquilibriumGroup::Initialize()
 	for (auto sub : submodule)
 		chemical.push_back((Chemical*)sub);
 
-	// DFG - auto-create tool if necessary, name will be automatically mangled for uniqueness.
-	if (eosMixData==NULL)
-		eosMixData = (EOSMixture *)owner->CreateTool("eos_mix",tw::tool_type::eosMixture);
-
 	// DFG - take advantage of sparc::material and sparc::material_set
 	matset.Allocate(chemical.size());
 	for (tw::Int i=0;i<chemical.size();i++)
 		matset.AddMaterial(chemical[i]->mat,i);
 
-	eosMixData->Initialize(hidx,eidx,matset);
+	eosMixData->SetupIndexing(hidx,eidx,matset);
 }
 
 // DFG - below are the restart file interactions including EOS data
@@ -931,12 +928,12 @@ Chemistry::~Chemistry()
 		owner->RemoveTool(ellipticSolver);
 	if (laserPropagator!=NULL)
 		owner->RemoveTool(laserPropagator);
-	for (auto tool : reaction)
-		delete tool;
-	for (auto tool : excitation)
-		delete tool;
-	for (auto tool : collision)
-		delete tool;
+	for (auto quasitool : reaction)
+		delete quasitool;
+	for (auto quasitool : excitation)
+		delete quasitool;
+	for (auto quasitool : collision)
+		delete quasitool;
 }
 
 void Chemistry::SetupIndexing()
@@ -954,14 +951,14 @@ void Chemistry::SetupIndexing()
 	for (auto grp : group)
 		r = grp->hidx.Load(r,grp->submodule.size());
 
-	// Setup index variables in Chemical - maybe these can be retired.
+	// Setup indexInState for each chemical, also redundantly set typecast super here.
 	for (auto grp : group)
 	{
 		for (tw::Int c=0;c<grp->submodule.size();c++)
 		{
 			Chemical *chem = (Chemical*)grp->submodule[c];
 			chem->indexInState = grp->hidx.first + c;
-			chem->indexInGroup = c;
+			chem->group = (EquilibriumGroup*)chem->super;
 		}
 	}
 
@@ -972,8 +969,7 @@ void Chemistry::SetupIndexing()
 	{
 		sparc::hydro_set ans;
 		Chemical *chem = (Chemical*)owner->GetModule(module_name);
-		EquilibriumGroup *grp = (EquilibriumGroup*)group[chem->indexInGroup];
-		ans = grp->hidx;
+		ans = chem->group->hidx;
 		ans.ni = chem->indexInState;
 		return ans;
 	};
@@ -981,8 +977,7 @@ void Chemistry::SetupIndexing()
 	auto GetEOSSet = [&] (const std::string& module_name)
 	{
 		Chemical *chem = (Chemical*)owner->GetModule(module_name);
-		EquilibriumGroup *grp = (EquilibriumGroup*)group[chem->indexInGroup];
-		return grp->eidx;
+		return chem->group->eidx;
 	};
 
 	auto GetMaterial = [&] (const std::string& module_name)
@@ -1030,6 +1025,47 @@ void Chemistry::SetupIndexing()
 	}
 }
 
+void Chemistry::VerifyInput()
+{
+	Module::VerifyInput();
+
+	// DFG - here is an example of where we have more than 1 kind of tool to consider.
+	// Simple appoach is just repeat the structure for each one.
+
+	for (auto tool : moduleTool)
+	{
+		ellipticSolver = dynamic_cast<EllipticSolver*>(tool);
+		if (ellipticSolver!=NULL)
+			break;
+	}
+	for (auto tool : moduleTool)
+	{
+		parabolicSolver = dynamic_cast<ParabolicSolver*>(tool);
+		if (parabolicSolver!=NULL)
+			break;
+	}
+	for (auto tool : moduleTool)
+	{
+		laserPropagator = dynamic_cast<IsotropicPropagator*>(tool);
+		if (laserPropagator!=NULL)
+			break;
+	}
+
+	if (parabolicSolver==NULL)
+		parabolicSolver = (ParabolicSolver*)owner->CreateTool("default_parabolic_solver",tw::tool_type::generalParabolicPropagator);
+
+	if (ellipticSolver==NULL)
+	{
+		if (owner->Dimensionality()==1)
+			ellipticSolver = (EllipticSolver*)owner->CreateTool("default_elliptic_solver",tw::tool_type::ellipticSolver1D);
+		else
+			ellipticSolver = (EllipticSolver*)owner->CreateTool("default_elliptic_solver",tw::tool_type::iterativePoissonSolver);
+	}
+
+	if (laserPropagator==NULL)
+		laserPropagator = (IsotropicPropagator*)owner->CreateTool("default_laser_propagator",tw::tool_type::isotropicPropagator);
+}
+
 void Chemistry::Initialize()
 {
 	Module::Initialize();
@@ -1038,20 +1074,6 @@ void Chemistry::Initialize()
 	// So we simply copy the submodule list and typecast it.
 	for (auto sub : submodule)
 		group.push_back((EquilibriumGroup*)sub);
-
-	if (parabolicSolver==NULL)
-		parabolicSolver = (ParabolicSolver*)owner->CreateTool("parabolic_solver",tw::tool_type::generalParabolicPropagator);
-
-	if (ellipticSolver==NULL)
-	{
-		if (owner->Dimensionality()==1)
-			ellipticSolver = (EllipticSolver*)owner->CreateTool("elliptic_solver",tw::tool_type::ellipticSolver1D);
-		else
-			ellipticSolver = (EllipticSolver*)owner->CreateTool("elliptic_solver",tw::tool_type::iterativePoissonSolver);
-	}
-
-	if (laserPropagator==NULL)
-		laserPropagator = (IsotropicPropagator*)owner->CreateTool("laser_propagator",tw::tool_type::isotropicPropagator);
 
 	for (auto c : owner->conductor)
 		ellipticSolver->FixPotential(phi,c->theRgn,0.0);
@@ -1083,8 +1105,8 @@ void Chemistry::Initialize()
 	{
 		tw::Int hydroElements = 0;
 		for (auto grp : group)
-			hydroElements += grp->chemical.size() + sparc::hydro_set::count;
-		tw::Int eosElements = group.size()*sparc::eos_set::count;
+			hydroElements += grp->submodule.size() + sparc::hydro_set::count;
+		tw::Int eosElements = submodule.size()*sparc::eos_set::count;
 		state0.Initialize(hydroElements,*this,owner);
 		state1.Initialize(hydroElements,*this,owner);
 		creationRate.Initialize(hydroElements,*this,owner);
@@ -2020,25 +2042,7 @@ bool Chemistry::ReadQuasitoolBlock(const std::vector<std::string>& preamble,std:
 void Chemistry::ReadInputFileDirective(std::stringstream& inputString,const std::string& command)
 {
 	std::string word;
-	ComputeTool *newTool;
 	Module::ReadInputFileDirective(inputString,command);
-
-	// DFG - here is an example of where we have more than 1 kind of tool to consider.
-	// Have to resort to dynamic casting, perhaps not ideal.
-	newTool = owner->ToolFromDirective(inputString,command);
-	if (dynamic_cast<EllipticSolver*>(newTool))
-		ellipticSolver = (EllipticSolver*)newTool;
-	if (dynamic_cast<ParabolicSolver*>(newTool))
-		parabolicSolver = (ParabolicSolver*)newTool;
-	if (dynamic_cast<IsotropicPropagator*>(newTool))
-		laserPropagator = (IsotropicPropagator*)newTool;
-
-	if (ellipticSolver!=NULL)
-		ellipticSolver->ReadInputFileDirective(inputString,command);
-	if (parabolicSolver!=NULL)
-		parabolicSolver->ReadInputFileDirective(inputString,command);
-	if (laserPropagator!=NULL)
-		laserPropagator->ReadInputFileDirective(inputString,command);
 
 	if (command=="epsilon") // eg epsilon factor = 0.1
 		inputString >> word >> word >> epsilonFactor;

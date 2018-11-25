@@ -56,15 +56,15 @@ struct Chemical:Module
 	EOSComponent *eosData;
 	IonizationData ionization;
 	sparc::material mat;
-	tw::Int indexInGroup,indexInState;
+	tw::Int indexInState;
 
 	Chemical(const std::string& name,Grid* theGrid);
 	virtual ~Chemical();
 	virtual void Initialize();
 
 	bool GenerateFluid(Field& f,bool init);
-	void DefaultEOS();
 
+	virtual void VerifyInput();
 	virtual void ReadInputFileDirective(std::stringstream& inputString,const std::string& command);
 	virtual void ReadData(std::ifstream& inFile);
 	virtual void WriteData(std::ofstream& outFile);
@@ -133,6 +133,7 @@ struct EquilibriumGroup:Module
 	virtual ~EquilibriumGroup(); // ASHER_MOD
 	virtual void Initialize();
 
+	virtual void VerifyInput();
 	virtual void ReadInputFileDirective(std::stringstream& inputString,const std::string& command);
 	virtual void ReadData(std::ifstream& inFile);
 	virtual void WriteData(std::ofstream& outFile);
@@ -222,6 +223,7 @@ struct Chemistry:Module
 	void FirstOrderAdvance(tw::Float dt,bool computeSources);
 	virtual void Update();
 
+	virtual void VerifyInput();
 	virtual bool ReadQuasitoolBlock(const std::vector<std::string>& preamble,std::stringstream& inputString);
 	virtual void ReadInputFileDirective(std::stringstream& inputString,const std::string& command);
 	virtual void ReadData(std::ifstream& inFile);

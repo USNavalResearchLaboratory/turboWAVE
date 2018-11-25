@@ -1,12 +1,12 @@
 Module
 ======
 
-The ``Module`` class is the highest level object for managing simulations.
+The ``Module`` class is the highest level object for managing simulations.  Its principle method is the virtual function ``Update``.  The simulation cycle invokes ``Update`` for each module.  The order of ``Update`` calls is determined by a sorting index stored with each ``Module`` instance, called ``updateSequencePriority``.
 
 Communication between modules can be accomplished in two ways.
 
 	1. Publisher-consumer mechanism
-	2. Quasi-flat containment hierarchy
+	2. Containment hierarchy
 
 The preferred turboWAVE style is to use the horizontal publisher-consumer model, with modules containing only lower level constructs.  Ideally these lower level constructs are formal ``ComputeTool`` objects, but there are still elements (as of this writing) that fall outside this convention.  In order to handle these there is also a quasi-tool protocol.
 
@@ -45,7 +45,16 @@ The ``ExchangeResources`` method calls the ``PublishResource`` method for each p
 Containment Model
 -----------------
 
-The turboWAVE containment hierarchy is quasi-flat, because the ``Grid`` object owns every module and stores references to them on a flat list. It is useful to define terms as follows.
+The turboWAVE containment hierarchy uses both a flat list and a tree structure.  The ``Grid`` object is the root. ``Grid`` owns every ``Module`` and stores references to them on a flat list.  The flat list is sorted to reflect the structure, with objects nearer the root listed first.
+
+The ``Module`` objects use a simple tree structure.  Each ``Module`` has references to other containment hierarchy elements as follows.
+
+	#. ``super`` - a single pointer to a supermodule, which is ``NULL`` if the module is directly below ``Grid``.
+	#. ``owner`` - a single pointer to ``Grid``.
+	#. ``submodule`` - a ``std::vector`` of pointers to submodules.
+
+Glossary of Terms
+-----------------
 
 .. glossary::
 

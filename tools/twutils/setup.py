@@ -5,7 +5,7 @@ def readme():
 		return f.read()
 
 setup(name='twutils',
-	version='3.1b',
+	version='3.2b',
 	description='TurboWAVE utilities',
 	long_description=readme(),
 	classifiers=[

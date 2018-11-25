@@ -16,6 +16,7 @@ struct Module:DiscreteSpace
 	Grid* owner;
 	Module* super;
 	std::vector<Module*> submodule;
+	std::vector<ComputeTool*> moduleTool;
 
 	tw::Int updateSequencePriority;
 	tw::module_type typeCode;
@@ -47,6 +48,7 @@ struct Module:DiscreteSpace
 
 	void InitializeCLProgram(const std::string& filename);
 
+	virtual void VerifyInput();
 	virtual void ReadInputFileBlock(std::stringstream& inputString);
 	virtual bool ReadQuasitoolBlock(const std::vector<std::string>& preamble,std::stringstream& inputString);
 	virtual void ReadInputFileDirective(std::stringstream& inputString,const std::string& command);

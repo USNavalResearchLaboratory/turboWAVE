@@ -183,7 +183,7 @@ struct IonizationData
 // (ii) conform to new ComputeTool spec (strong preference that containment tree be reserved for modules)
 // In this process I split components and mixtures more strongly.
 // Higher levels must orchestrate the following sequence (see Chemistry::ApplyEOS):
-// 1. Components load the Cv array
+// 1. Components load the Cv array (really n*m*Cv)
 // 2. Mixture computes T, and returns IE and nm for components to use
 // 3. Components load the P, K, and visc arrays
 
@@ -197,9 +197,8 @@ struct EOSComponent:ComputeTool
 	sparc::material mat;
 
 	EOSComponent(const std::string& name,MetricSpace *m,Task *tsk);
-	virtual void Initialize(tw::Int component_index,const sparc::hydro_set& h,const sparc::eos_set& e,const sparc::material& m)
+	void SetupIndexing(tw::Int component_index,const sparc::hydro_set& h,const sparc::eos_set& e,const sparc::material& m)
 	{
-		ComputeTool::Initialize();
 		hidx = h;
 		hidx.ni = component_index;
 		eidx = e;
@@ -266,9 +265,8 @@ struct EOSMixture:ComputeTool
 	sparc::hydro_set hidx;
 	sparc::eos_set eidx;
 	sparc::material_set matset;
-	virtual void Initialize(const sparc::hydro_set& h,const sparc::eos_set& e,const sparc::material_set m)
+	void SetupIndexing(const sparc::hydro_set& h,const sparc::eos_set& e,const sparc::material_set m)
 	{
-		ComputeTool::Initialize();
 		hidx = h;
 		eidx = e;
 		matset = m;

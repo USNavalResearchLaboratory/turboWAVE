@@ -7,7 +7,6 @@ struct EllipticSolver:ComputeTool
 	tw::Float gammaBeam;
 
 	EllipticSolver(const std::string& name,MetricSpace *m,Task *tsk);
-	virtual void Initialize();
 	virtual void SetCoefficients(ScalarField *coefficients);
 	virtual void SetBoundaryConditions(ScalarField& phi);
 	virtual void SetBoundaryConditions(boundarySpec x0,boundarySpec x1,boundarySpec y0,boundarySpec y1,boundarySpec z0,boundarySpec z1);
@@ -34,7 +33,6 @@ struct IterativePoissonSolver:EllipticSolver
 
 	IterativePoissonSolver(const std::string& name,MetricSpace *m,Task *tsk);
 	~IterativePoissonSolver();
-	virtual void Initialize();
 	virtual void FixPotential(ScalarField& phi,Region* theRegion,const tw::Float& thePotential);
 	virtual void Solve(ScalarField& phi,ScalarField& source,tw::Float mul);
 	virtual void StatusMessage(std::ostream *theStream);
@@ -49,7 +47,6 @@ struct EllipticSolver1D:EllipticSolver
 
 	EllipticSolver1D(const std::string& name,MetricSpace *m,Task *tsk);
 	~EllipticSolver1D();
-	virtual void Initialize();
 	virtual void Solve(ScalarField& phi,ScalarField& source,tw::Float mul);
 };
 
@@ -59,7 +56,6 @@ struct PoissonSolver:EllipticSolver
 
 	PoissonSolver(const std::string& name,MetricSpace *m,Task *tsk);
 	~PoissonSolver();
-	virtual void Initialize();
 	virtual void Solve(ScalarField& phi,ScalarField& source,tw::Float mul);
 };
 
@@ -70,7 +66,6 @@ struct EigenmodePoissonSolver:EllipticSolver
 
 	EigenmodePoissonSolver(const std::string& name,MetricSpace *m,Task *tsk);
 	~EigenmodePoissonSolver();
-	virtual void Initialize();
 	virtual void TransformBoundaryValues();
 	virtual void Solve(ScalarField& phi,ScalarField& source,tw::Float mul);
 };

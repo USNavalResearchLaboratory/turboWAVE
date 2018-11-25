@@ -45,8 +45,7 @@ ComputeTool::~ComputeTool()
 
 void ComputeTool::Initialize()
 {
-	// Nothing to do.  Override if there is some initialization that depends
-	// on the creation of all modules.
+		// typically constructor should be complete, nothing to do here.
 }
 
 void ComputeTool::InitializeCLProgram(const std::string& filename)
@@ -101,8 +100,8 @@ tw::tool_type ComputeTool::CreateTypeFromInput(const std::vector<std::string>& p
 {
 	// For creating a named tool at the root level
 	std::string type("");
-	for (int i=1;i<preamble.size();i++)
-		type = type + preamble[i-1] + " ";
+	for (auto word : preamble)
+		type = type + word + " ";
 	type.pop_back();
 
 	if (type=="eigenmode propagator tool")

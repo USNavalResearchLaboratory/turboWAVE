@@ -20,29 +20,19 @@ FieldSolver::~FieldSolver()
 		owner->RemoveTool(ellipticSolver);
 }
 
-void FieldSolver::Initialize()
+void FieldSolver::VerifyInput()
 {
-	Module::Initialize();
-	// If the tool does not exist, create one automatically
+	Module::VerifyInput();
+	// Find an elliptic solver on the list of tools associated with this module
+	for (auto tool : moduleTool)
+	{
+		ellipticSolver = dynamic_cast<EllipticSolver*>(tool);
+		if (ellipticSolver!=NULL)
+			break;
+	}
+	// If the tool could not be found, create one automatically
 	if (ellipticSolver==NULL)
-		ellipticSolver = (EllipticSolver*)owner->CreateTool("facr_poisson_solver",tw::tool_type::facrPoissonSolver);
-}
-
-void FieldSolver::ReadInputFileDirective(std::stringstream& inputString,const std::string& command)
-{
-	std::string word;
-
-	Module::ReadInputFileDirective(inputString,command);
-
-	// The following can perform either of two functions:
-	// 1. Get an existing tool by searching for a name -- ``get tool with name = [name]``
-	// 2. Create a tool on the fly based on a type -- ``[key] = [type]``
-	// In the second case a name will be assigned internally.
-	ellipticSolver = (EllipticSolver*)owner->ToolFromDirective(inputString,command);
-
-	// If a tool already exists, it can read directives on the fly
-	if (ellipticSolver!=NULL)
-		ellipticSolver->ReadInputFileDirective(inputString,command);
+		ellipticSolver = (EllipticSolver*)owner->CreateTool("default_facr_poisson_solver",tw::tool_type::facrPoissonSolver);
 }
 
 void FieldSolver::ReadData(std::ifstream& inFile)

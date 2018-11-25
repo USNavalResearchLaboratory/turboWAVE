@@ -9,7 +9,7 @@ struct LaserPropagator:ComputeTool
 
 	LaserPropagator(const std::string& name,MetricSpace *m,Task *tsk);
 	virtual ~LaserPropagator();
-	void SetData(tw::Float w0,tw::Float dt,tw_polarization_type pol,bool mov);
+	virtual void SetData(tw::Float w0,tw::Float dt,tw_polarization_type pol,bool mov);
 	void SetBoundaryConditions(ComplexField& a0,ComplexField& a1,ComplexField& chi);
 	virtual void Advance(ComplexField& a0,ComplexField& a1,ComplexField& chi) = 0;
 };
@@ -21,7 +21,7 @@ struct EigenmodePropagator:LaserPropagator
 
 	EigenmodePropagator(const std::string& name,MetricSpace *m,Task *tsk);
 	virtual ~EigenmodePropagator();
-	virtual void Initialize();
+	virtual void SetData(tw::Float w0,tw::Float dt,tw_polarization_type pol,bool mov);
 	virtual void Advance(ComplexField& a0,ComplexField& a1,ComplexField& chi);
 };
 
@@ -35,7 +35,6 @@ struct ADIPropagator:LaserPropagator
 
 	ADIPropagator(const std::string& name,MetricSpace *m,Task *tsk);
 	virtual ~ADIPropagator();
-	virtual void Initialize();
 	virtual void Advance(ComplexField& a0,ComplexField& a1,ComplexField& chi);
 };
 
@@ -49,7 +48,6 @@ struct SchroedingerPropagator:ComputeTool
 
 	SchroedingerPropagator(const std::string& name,MetricSpace *m,Task *tsk);
 	virtual ~SchroedingerPropagator();
-	virtual void Initialize();
 	virtual void DepositCurrent(const axisSpec& axis,ComplexField& psi0,ComplexField& psi1,Field& A4,Field& J4,tw::Complex dt);
 	virtual void ApplyNumerator(const axisSpec& axis,ComplexField& psi,Field& A4,bool keepA2Term,tw::Complex dt);
 	virtual void ApplyDenominator(const axisSpec& axis,ComplexField& psi,Field& A4,bool keepA2Term,tw::Complex dt);
@@ -62,7 +60,6 @@ struct ParabolicSolver:ComputeTool
 
 	ParabolicSolver(const std::string& name,MetricSpace *m,Task *tsk);
 	virtual ~ParabolicSolver();
-	virtual void Initialize();
 
 	void FormOperatorStencil(tw::Float *D1,tw::Float *D2,const ScalarField& fluxMask,Field *coeff,tw::Int c,const StripIterator& s,tw::Int i);
 	virtual void Advance(const axisSpec& axis,ScalarField& psi,ScalarField& fluxMask,tw::Float coeff,tw::Float dt);
@@ -93,7 +90,6 @@ struct IsotropicPropagator:ComputeTool
 
 	IsotropicPropagator(const std::string& name,MetricSpace *m,Task *tsk);
 	virtual ~IsotropicPropagator();
-	virtual void Initialize();
 
 	void SetupIncomingWaveLeft(const StripIterator& s,ComplexField& amplitude,tw::Complex a0,tw::Complex a1,tw::Complex w0) const
 	{
