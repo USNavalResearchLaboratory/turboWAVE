@@ -1,4 +1,4 @@
-#include "sim.h"
+#include "simulation.h"
 #include "fieldSolve.h"
 
 /////////////////////////////
@@ -8,7 +8,7 @@
 // The base class is essentially for managing the ellipticSolver tool.
 // This serves as a basic template for how to manage a ComputeTool.
 
-FieldSolver::FieldSolver(const std::string& name,Grid* theGrid):Module(name,theGrid)
+FieldSolver::FieldSolver(const std::string& name,Simulation* sim):Module(name,sim)
 {
 	updateSequencePriority = 3;
 	ellipticSolver = NULL;
@@ -39,7 +39,7 @@ void FieldSolver::ReadData(std::ifstream& inFile)
 {
 	Module::ReadData(inFile);
 	// The following grabs an existing pointer to a tool by reading its name and searching.
-	// By this time the Grid class already created and loaded the tool.
+	// By this time the Simulation class already created and loaded the tool.
 	ellipticSolver = (EllipticSolver*)owner->GetRestartedTool(inFile);
 }
 
@@ -56,12 +56,12 @@ void FieldSolver::WriteData(std::ofstream& outFile)
 ////////////////////////////////
 
 
-Electromagnetic::Electromagnetic(const std::string& name,Grid* theGrid):FieldSolver(name,theGrid)
+Electromagnetic::Electromagnetic(const std::string& name,Simulation* sim):FieldSolver(name,sim)
 {
-	if (1.0/theGrid->dt <= sqrt(
-		(theGrid->globalCells[1]==1 ? 0.0 : 1.0)/sqr(dx(*theGrid)) +
-		(theGrid->globalCells[2]==1 ? 0.0 : 1.0)/sqr(dy(*theGrid)) +
-		(theGrid->globalCells[3]==1 ? 0.0 : 1.0)/sqr(dz(*theGrid))))
+	if (1.0/sim->dt <= sqrt(
+		(sim->globalCells[1]==1 ? 0.0 : 1.0)/sqr(dx(*sim)) +
+		(sim->globalCells[2]==1 ? 0.0 : 1.0)/sqr(dy(*sim)) +
+		(sim->globalCells[3]==1 ? 0.0 : 1.0)/sqr(dz(*sim))))
 		throw tw::FatalError("Courant condition is violated.");
 
 	F.Initialize(6,*this,owner);
@@ -136,7 +136,7 @@ void Electromagnetic::Update()
 
 void Electromagnetic::MoveWindow()
 {
-	for (StripIterator s(*this,3,strongbool::yes);s<s.end();++s)
+	for (auto s : StripRange(*this,3,strongbool::yes))
 		F.Shift(s,-1,0.0);
 	F.DownwardCopy(zAxis,1);
 }
@@ -148,7 +148,7 @@ void Electromagnetic::InitializeConductors()
 	// The conductor fills the whole cell or none of the cell
 	tw::vec3 shiftedCenter;
 	//#pragma omp parallel for private(i,j,k,s,shiftedCenter) collapse(3) schedule(static)
-	for (CellIterator cell(*this,true);cell<cell.end();++cell)
+	for (auto cell : CellRange(*this,true))
 	{
 		conductorMask(cell) = 1.0;
 		shiftedCenter = owner->Pos(cell) - 0.5*owner->dPos(cell);
@@ -196,7 +196,6 @@ void Electromagnetic::ForceQuasistaticVectorPotential(Field& A4,ScalarField& DtP
 	tw::Int i,j,k,ax;
 	tw::Float beta = sqrt(1.0 - 1.0/sqr(gammaBeam));
 	tw::Float w = beta*dt*freq.z;
-	VectorizingIterator<3> v(*this,true);
 	ScalarField ans,rhs;
 	ans.Initialize(*this,owner);
 	rhs.Initialize(*this,owner);
@@ -210,14 +209,14 @@ void Electromagnetic::ForceQuasistaticVectorPotential(Field& A4,ScalarField& DtP
 		for (i=1;i<=dim[1];i++)
 			for (j=1;j<=dim[2];j++)
 			{
-				v.SetStrip(i,j,0);
+				tw::vectorizer<3> v(*this,i,j,0);
 				for (k=1;k<=dim[3];k++)
 					rhs(v,k,0) = DtPhi(v,k,0,ax) - sources(v,k,ax);
 			}
 		rhs.CopyFromNeighbors();
 
 		ellipticSolver->Solve(ans,rhs,1.0);
-		for (CellIterator cell(*this,true);cell<cell.end();++cell)
+		for (auto cell : CellRange(*this,true))
 			A4(cell,ax+4) = ans(cell);
 
 		// Find Solution at last time
@@ -225,7 +224,7 @@ void Electromagnetic::ForceQuasistaticVectorPotential(Field& A4,ScalarField& DtP
 		for (i=1;i<=dim[1];i++)
 			for (j=1;j<=dim[2];j++)
 			{
-				v.SetStrip(i,j,0);
+				tw::vectorizer<3> v(*this,i,j,0);
 				for (k=1;k<=dim[3];k++)
 					rhs(v,k,0) = DtPhi(v,k,0,ax) - sources(v,k,ax);
 			}
@@ -238,7 +237,7 @@ void Electromagnetic::ForceQuasistaticVectorPotential(Field& A4,ScalarField& DtP
 		rhs.DownwardCopy(zAxis,1);
 
 		ellipticSolver->Solve(ans,rhs,1.0);
-		for (CellIterator cell(*this,true);cell<cell.end();++cell)
+		for (auto cell : CellRange(*this,true))
 			A4(cell,ax) = ans(cell);
 	}
 
@@ -262,7 +261,7 @@ void Electromagnetic::ReadInputFileDirective(std::stringstream& inputString,cons
 	if (command=="far-field") // eg, new far-field diagnostic { ... }
 	{
 		inputString >> word	>> word;
-		farFieldDetector.push_back(new FarFieldDetectorDescriptor(owner));
+		farFieldDetector.push_back(new FarFieldDetectorDescriptor(owner,owner,owner->clippingRegion));
 		farFieldDetector.back()->ReadInputFile(inputString);
 	}
 }
@@ -280,7 +279,7 @@ void Electromagnetic::ReadData(std::ifstream& inFile)
 	(*owner->tw_out) << "Read " << num << " far-field diagnostics" << std::endl;
 	for (i=0;i<num;i++)
 	{
-		farFieldDetector.push_back(new FarFieldDetectorDescriptor(owner));
+		farFieldDetector.push_back(new FarFieldDetectorDescriptor(owner,owner,owner->clippingRegion));
 		farFieldDetector.back()->ReadData(inFile);
 	}
 }
@@ -491,7 +490,7 @@ void Electromagnetic::CustomDiagnose()
 	for (s=0;s<farFieldDetector.size();s++)
 	{
 		if (farFieldDetector[s]->WriteThisStep(owner->elapsedTime,owner->dt,owner->stepNow))
-			farFieldDetector[s]->AccumulateField(sources);
+			farFieldDetector[s]->AccumulateField(owner->elapsedTime,sources);
 	}
 
 	if (owner->IsLastStep())
@@ -507,7 +506,7 @@ void Electromagnetic::CustomDiagnose()
 			det = farFieldDetector[s];
 			dtheta = (det->theta1-det->theta0)/tw::Float(det->thetaPts);
 			dphi = (det->phi1-det->phi0)/tw::Float(det->phiPts);
-			DiscreteSpace ff_layout(det->timePts,det->thetaPts,det->phiPts,tw::vec3(0.0,0.0,0.0),tw::vec3(det->t1-det->t0,det->theta1-det->theta0,det->phi1-det->phi0),1);
+			DiscreteSpace ff_layout(owner->dt,det->timePts,det->thetaPts,det->phiPts,tw::vec3(0.0,0.0,0.0),tw::vec3(det->t1-det->t0,det->theta1-det->theta0,det->phi1-det->phi0),1);
 			accum.Initialize(ff_layout,owner);
 			owner->strip[0].Sum(&det->A(0,0,0),&accum(0,0,0),sizeof(tw::vec3)*accum.TotalCells(),master);
 
@@ -562,15 +561,15 @@ void Electromagnetic::CustomDiagnose()
 ////////////////////////////////////////////////
 
 
-CoulombSolver::CoulombSolver(const std::string& name,Grid* theGrid):Electromagnetic(name,theGrid)
+CoulombSolver::CoulombSolver(const std::string& name,Simulation* sim):Electromagnetic(name,sim)
 {
 	typeCode = tw::module_type::coulombSolver;
 	A4.Initialize(8,*this,owner);
 
-	L1.Initialize(theGrid,theGrid,&theGrid->wave,zAxis,lowSide,1,5);
-	L2.Initialize(theGrid,theGrid,&theGrid->wave,zAxis,lowSide,2,6);
-	R1.Initialize(theGrid,theGrid,&theGrid->wave,zAxis,highSide,1,5);
-	R2.Initialize(theGrid,theGrid,&theGrid->wave,zAxis,highSide,2,6);
+	L1.Initialize(sim,sim,&sim->wave,zAxis,lowSide,1,5);
+	L2.Initialize(sim,sim,&sim->wave,zAxis,lowSide,2,6);
+	R1.Initialize(sim,sim,&sim->wave,zAxis,highSide,1,5);
+	R2.Initialize(sim,sim,&sim->wave,zAxis,highSide,2,6);
 }
 
 void CoulombSolver::ExchangeResources()
@@ -663,7 +662,7 @@ void CoulombSolver::Update()
 
 	#pragma omp parallel
 	{
-		for (VectorizingIterator<3> v(*this,false);v<v.end();++v)
+		for (auto v : VectorizingRange<3>(*this,false))
 		{
 			#pragma omp simd
 			for (tw::Int k=1;k<=dim[3];k++)
@@ -688,7 +687,7 @@ void CoulombSolver::Update()
 	{
 		L1.Set(A4,owner->elapsedTime+dth,dt);
 		L2.Set(A4,owner->elapsedTime+dth,dt);
-		for (StripIterator strip(A4,3,strongbool::no);strip<strip.end();++strip)
+		for (auto strip : StripRange(A4,3,strongbool::no))
 			A4(strip,0,3) = A4(strip,1,3) + spacing.z*(A4.dfwd(strip,0,1,1) + A4.dfwd(strip,0,2,2));
 	}
 
@@ -696,7 +695,7 @@ void CoulombSolver::Update()
 	{
 		R1.Set(A4,owner->elapsedTime+dth,dt);
 		R2.Set(A4,owner->elapsedTime+dth,dt);
-		for (StripIterator strip(A4,3,strongbool::no);strip<strip.end();++strip)
+		for (auto strip : StripRange(A4,3,strongbool::no))
 			A4(strip,dim[3]+1,3) = A4(strip,dim[3],3) - spacing.z*(A4.dfwd(strip,dim[3],1,1) + A4.dfwd(strip,dim[3],2,2));
 	}
 
@@ -718,7 +717,7 @@ void CoulombSolver::ComputeFinalFields()
 {
 	#pragma omp parallel
 	{
-		for (VectorizingIterator<3> v(*this,false);v<v.end();++v)
+		for (auto v : VectorizingRange<3>(*this,false))
 		{
 			#pragma omp simd
 			for (tw::Int k=1;k<=dim[3];k++)
@@ -822,7 +821,7 @@ void CoulombSolver::PointDiagnose(std::ofstream& outFile,const weights_3D& w)
 ///////////////////////
 
 
-DirectSolver::DirectSolver(const std::string& name,Grid* theGrid):Electromagnetic(name,theGrid)
+DirectSolver::DirectSolver(const std::string& name,Simulation* sim):Electromagnetic(name,sim)
 {
 	typeCode = tw::module_type::directSolver;
 	yeeTool = (YeePropagatorPML*)owner->CreateTool("yee",tw::tool_type::yeePropagatorPML);
@@ -987,7 +986,7 @@ void DirectSolver::Initialize()
 	LoadVectorPotential<0,1,2>(A0,-dth);
 	#pragma omp parallel
 	{
-		for (VectorizingIterator<3> v(*this,true);v<v.end();++v)
+		for (auto v : VectorizingRange<3>(*this,true))
 		{
 			#pragma omp simd
 			for (tw::Int k=lb[3];k<=ub[3];k++)
@@ -1017,7 +1016,7 @@ void DirectSolver::Initialize()
 	LoadVectorPotential<0,1,2>(A0,dth);
 	#pragma omp parallel
 	{
-		for (VectorizingIterator<3> v(*this,true);v<v.end();++v)
+		for (auto v : VectorizingRange<3>(*this,true))
 		{
 			#pragma omp simd
 			for (tw::Int k=lb[3];k<=ub[3];k++)
@@ -1057,7 +1056,7 @@ void DirectSolver::Initialize()
 void DirectSolver::MoveWindow()
 {
 	Electromagnetic::MoveWindow();
-	for (StripIterator s(*this,3,strongbool::yes);s<s.end();++s)
+	for (auto s : StripRange(*this,3,strongbool::yes))
 		A.Shift(s,-1,0.0);
 	A.DownwardCopy(zAxis,1);
 }
@@ -1174,7 +1173,7 @@ void DirectSolver::Update()
 ///////////////////////////////////
 
 
-CurvilinearDirectSolver::CurvilinearDirectSolver(const std::string& name,Grid* theGrid):DirectSolver(name,theGrid)
+CurvilinearDirectSolver::CurvilinearDirectSolver(const std::string& name,Simulation* sim):DirectSolver(name,sim)
 {
 	typeCode = tw::module_type::curvilinearDirectSolver;
 	A.Initialize(6,*this,owner);
@@ -1207,7 +1206,7 @@ void CurvilinearDirectSolver::Initialize()
 	LoadVectorPotential<0,1,2>(A0,-dth);
 	#pragma omp parallel
 	{
-		for (VectorizingIterator<3> v(*this,true);v<v.end();++v)
+		for (auto v : VectorizingRange<3>(*this,true))
 		{
 			#pragma omp simd
 			for (tw::Int k=lb[3];k<=ub[3];k++)
@@ -1226,7 +1225,7 @@ void CurvilinearDirectSolver::Initialize()
 	LoadVectorPotential<0,1,2>(A0,dth);
 	#pragma omp parallel
 	{
-		for (VectorizingIterator<3> v(*this,true);v<v.end();++v)
+		for (auto v : VectorizingRange<3>(*this,true))
 		{
 			#pragma omp simd
 			for (tw::Int k=lb[3];k<=ub[3];k++)
@@ -1256,7 +1255,7 @@ void CurvilinearDirectSolver::Initialize()
 
 	#pragma omp parallel
 	{
-		for (VectorizingIterator<3> v(*this,true);v<v.end();++v)
+		for (auto v : VectorizingRange<3>(*this,true))
 		{
 			#pragma omp simd
 			for (tw::Int k=lb[3];k<=ub[3];k++)
@@ -1380,7 +1379,7 @@ void CurvilinearDirectSolver::Update()
 
 	#pragma omp parallel
 	{
-		for (VectorizingIterator<3> v(*this,true);v<v.end();++v)
+		for (auto v : VectorizingRange<3>(*this,true))
 		{
 			#pragma omp simd
 			for (tw::Int k=lb[3];k<=ub[3];k++)

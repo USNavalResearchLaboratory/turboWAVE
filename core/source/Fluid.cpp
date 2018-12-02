@@ -1,4 +1,4 @@
-#include "sim.h"
+#include "simulation.h"
 #include "fieldSolve.h"
 #include "fluid.h"
 
@@ -8,7 +8,7 @@
 //                         //
 /////////////////////////////
 
-Fluid::Fluid(const std::string& name,Grid* theGrid):Module(name,theGrid)
+Fluid::Fluid(const std::string& name,Simulation* sim):Module(name,sim)
 {
 	typeCode = tw::module_type::fluidFields;
 	charge = -1.0;
@@ -128,7 +128,7 @@ void Fluid::Initialize()
 		tw::Float density;
 		UnitConverter uc(owner->unitDensityCGS);
 
-		for (CellIterator cell(*this,true);cell<cell.end();++cell)
+		for (auto cell : CellRange(*this,true))
 		{
 			pos = owner->Pos(cell);
 
@@ -188,9 +188,9 @@ void Fluid::MoveWindow()
 {
 	#pragma omp parallel
 	{
-		for (StripIterator s(*this,3,strongbool::yes);s<s.end();++s)
+		for (auto s : StripRange(*this,3,strongbool::yes))
 		{
-			tw::Int k = s.Dim()+1;
+			tw::Int k = Dim(s.Axis())+1;
 			tw::vec3 pos,A0,A1;
 			tw::Float incomingGas,incomingPlasma[4];
 			pos = owner->Pos(s,k);
@@ -279,7 +279,7 @@ void Fluid::Update()
 	#pragma omp parallel
 	{
 		// Apply half of E-field impulse and put relativistic mass into vel(cell,0)
-		for (VectorizingIterator<3> v(*this,false);v<v.end();++v)
+		for (auto v : VectorizingRange<3>(*this,false))
 		{
 			#pragma omp simd
 			for (tw::Int k=1;k<=dim[3];k++)
@@ -307,7 +307,7 @@ void Fluid::Update()
 	{
 		tw::Float kT_eff,temp;
 		std::valarray<tw::Float> nuColl(dim[3]+1);
-		for (VectorizingIterator<3> v(*this,false);v<v.end();++v)
+		for (auto v : VectorizingRange<3>(*this,false))
 		{
 			#pragma omp simd
 			for (tw::Int k=1;k<=dim[3];k++)
@@ -341,7 +341,7 @@ void Fluid::Update()
 
 	#pragma omp parallel
 	{
-		for (VectorizingIterator<3> v(*this,true);v<v.end();++v)
+		for (auto v : VectorizingRange<3>(*this,true))
 		{
 			#pragma omp simd
 			for (tw::Int k=lb[3];k<=ub[3];k++)
@@ -440,21 +440,21 @@ void Fluid::Update()
 			// Here cell walls and centers need not be distinguished (dim=1).
 			if (dim[1]==1)
 			{
-				for (VectorizingIterator<3> v(*this,false);v<v.end();++v)
+				for (auto v : VectorizingRange<3>(*this,false))
 					#pragma omp simd
 					for (tw::Int k=1;k<=dim[3];k++)
 						vel(v,k,1) *= owner->dS(v,k,1) * dt * state0(v,k,0);
 			}
 			if (dim[2]==1)
 			{
-				for (VectorizingIterator<3> v(*this,false);v<v.end();++v)
+				for (auto v : VectorizingRange<3>(*this,false))
 					#pragma omp simd
 					for (tw::Int k=1;k<=dim[3];k++)
 						vel(v,k,2) *= owner->dS(v,k,2) * dt * state0(v,k,0);
 			}
 			if (dim[3]==1)
 			{
-				for (VectorizingIterator<3> v(*this,false);v<v.end();++v)
+				for (auto v : VectorizingRange<3>(*this,false))
 					#pragma omp simd
 					for (tw::Int k=1;k<=dim[3];k++)
 						vel(v,k,3) *= owner->dS(v,k,3) * dt * state0(v,k,0);
@@ -462,7 +462,7 @@ void Fluid::Update()
 		}
 		#pragma omp parallel
 		{
-			for (VectorizingIterator<3> v(*this,false);v<v.end();++v)
+			for (auto v : VectorizingRange<3>(*this,false))
 			{
 				#pragma omp simd
 				for (tw::Int k=1;k<=dim[3];k++)
@@ -480,7 +480,7 @@ void Fluid::Update()
 	{
 		#pragma omp parallel
 		{
-			for (CellIterator cell(*this,false);cell<cell.end();++cell)
+			for (auto cell : CellRange(*this,false))
 				(*chi)(cell) -= owner->dS(cell,0)*q0*q0*state0(cell,0)/(m0*vel(cell,0));
 		}
 	}
@@ -591,7 +591,7 @@ void Fluid::PointDiagnose(std::ofstream& outFile,const weights_3D& w)
 /////////////////////
 
 
-Chemical::Chemical(const std::string& name,Grid* theGrid):Module(name,theGrid)
+Chemical::Chemical(const std::string& name,Simulation* sim):Module(name,sim)
 {
 	typeCode = tw::module_type::chemical;
 	mat.charge = -1.0;
@@ -614,9 +614,9 @@ Chemical::~Chemical()
 
 void Chemical::Initialize()
 {
-	// DFG - use containment tree to find EquilibriumGroup and Chemistry objects.
+	// DFG - use containment tree to find EquilibriumGroup and HydroManager objects.
 	group = (EquilibriumGroup*)super; // used a lot, so we define a member
-	Chemistry *master = (Chemistry*)(super->super); // only used here, local variable
+	sparc::HydroManager *master = (sparc::HydroManager*)(super->super); // only used here, local variable
 	Module::Initialize();
 	// DFG - the ionization object is what I now call a quasi-tool
 	// This concept may be retired at some point, we will see.
@@ -624,7 +624,7 @@ void Chemical::Initialize()
 	{
 		ionization.Initialize(owner->unitDensityCGS,&master->laserFrequency);
 		// Setup the indexing for photoionization here (ionization tool cannot do it)
-		// By this point Chemistry has set up indexing for all its submodules, so we can use that data.
+		// By this point HydroManager has set up indexing for all its submodules, so we can use that data.
 		// N.b. that the the group pointer for other Chemical objects may not be setup yet.
 		Chemical *echem = (Chemical*)owner->GetModule(ionization.electron_name);
 		Chemical *ichem = (Chemical*)owner->GetModule(ionization.ion_name);
@@ -635,12 +635,12 @@ void Chemical::Initialize()
 		ionization.hi = ((EquilibriumGroup*)ichem->super)->hidx;
 		ionization.hi.ni = ichem->indexInState;
 	}
-	// can't generate in Chemistry::Initialize since profiles would not be initialized
+	// can't generate in HydroManager::Initialize since profiles would not be initialized
 	GenerateFluid(master->state1,true);
 	// Have to send indexing data to EOS
 	eosData->SetupIndexing(indexInState,group->hidx,group->eidx,mat);
 	// DFG - check to see if this Chemical is electrons.
-	// If it is, notify Chemistry and EquilibriumGroup.
+	// If it is, notify HydroManager and EquilibriumGroup.
 	// This is again an example of using the containment tree.
 	if (mat.mass==1.0)
 	{
@@ -791,7 +791,7 @@ void Chemical::WriteData(std::ofstream& outFile)
 /////////////////////
 
 
-EquilibriumGroup::EquilibriumGroup(const std::string& name,Grid* theGrid):Module(name,theGrid)
+EquilibriumGroup::EquilibriumGroup(const std::string& name,Simulation* sim):Module(name,sim)
 {
 	typeCode = tw::module_type::equilibriumGroup;
 	forceFilter = 1.0;
@@ -882,16 +882,16 @@ void EquilibriumGroup::WriteData(std::ofstream& outFile)
 }
 
 
-///////////////////
-//               //
-//   CHEMISTRY   //
-//               //
-///////////////////
+///////////////////////////////////////
+//                                   //
+// SPARC Hydrodynamics Master Module //
+//                                   //
+///////////////////////////////////////
 
 
-Chemistry::Chemistry(const std::string& name,Grid* theGrid):Module(name,theGrid)
+sparc::HydroManager::HydroManager(const std::string& name,Simulation* sim):Module(name,sim)
 {
-	typeCode = tw::module_type::chemistry;
+	typeCode = tw::module_type::sparcHydroManager;
 	epsilonFactor = 1e-4;
 	laserFrequency = 1.0;
 
@@ -920,7 +920,7 @@ Chemistry::Chemistry(const std::string& name,Grid* theGrid):Module(name,theGrid)
 	electrons = NULL;
 }
 
-Chemistry::~Chemistry()
+sparc::HydroManager::~HydroManager()
 {
 	if (parabolicSolver!=NULL)
 		owner->RemoveTool(parabolicSolver);
@@ -936,7 +936,7 @@ Chemistry::~Chemistry()
 		delete quasitool;
 }
 
-void Chemistry::SetupIndexing()
+void sparc::HydroManager::SetupIndexing()
 {
 	tw::Int r;
 
@@ -1025,7 +1025,7 @@ void Chemistry::SetupIndexing()
 	}
 }
 
-void Chemistry::VerifyInput()
+void sparc::HydroManager::VerifyInput()
 {
 	Module::VerifyInput();
 
@@ -1066,7 +1066,7 @@ void Chemistry::VerifyInput()
 		laserPropagator = (IsotropicPropagator*)owner->CreateTool("default_laser_propagator",tw::tool_type::isotropicPropagator);
 }
 
-void Chemistry::Initialize()
+void sparc::HydroManager::Initialize()
 {
 	Module::Initialize();
 
@@ -1126,12 +1126,12 @@ void Chemistry::Initialize()
 	// setup the flux mask used to make conductors impermeable
 	// also used for reflecting boundary conditions at simulation walls
 	fluxMask = 1.0;
-	for (CellIterator cell(*this,true);cell<cell.end();++cell)
+	for (auto cell : CellRange(*this,true))
 		for (auto c : owner->conductor)
 			if (c->theRgn->Inside(owner->Pos(cell),*owner))
 				fluxMask(cell) = 0.0;
 	for (tw::Int ax=1;ax<=3;ax++)
-		for (StripIterator strip(*this,ax,strongbool::yes);strip<strip.end();++strip)
+		for (auto strip : StripRange(*this,ax,strongbool::yes))
 		{
 			if (bc0[ax]==dirichletWall && owner->n0[ax]==MPI_PROC_NULL && dim[ax]>1)
 				fluxMask(strip,lb[ax]) = fluxMask(strip,0) = 0.0;
@@ -1195,7 +1195,7 @@ void Chemistry::Initialize()
 	nu_e = 1.0;
 }
 
-void Chemistry::Reset()
+void sparc::HydroManager::Reset()
 {
 	bool didGenerate = false;
 	for (auto grp : group)
@@ -1208,7 +1208,7 @@ void Chemistry::Reset()
 	rho0 = rho;
 }
 
-tw::Float Chemistry::CollisionCoefficient(Collision *coll,const CellIterator& cell,const UnitConverter& uc)
+tw::Float sparc::HydroManager::CollisionCoefficient(Collision *coll,const tw::cell& cell,const UnitConverter& uc)
 {
 	// DFG - this used to appear in multiple places, now modularized.
 	// Deriving a particular frequency depends on the process.
@@ -1246,12 +1246,12 @@ tw::Float Chemistry::CollisionCoefficient(Collision *coll,const CellIterator& ce
 	return 0.0;
 }
 
-void Chemistry::ComputeElectronCollisionFrequency()
+void sparc::HydroManager::ComputeElectronCollisionFrequency()
 {
 	#pragma omp parallel
 	{
 		UnitConverter uc(owner->unitDensityCGS);
-		for (CellIterator cell(*this,false);cell<cell.end();++cell)
+		for (auto cell : CellRange(*this,false))
 		{
 			tw::Float aggregateCollFreq = 0.0;
 			for (auto coll : collision)
@@ -1266,7 +1266,7 @@ void Chemistry::ComputeElectronCollisionFrequency()
 	}
 }
 
-void Chemistry::ComputeCollisionalSources()
+void sparc::HydroManager::ComputeCollisionalSources()
 {
 	#pragma omp parallel
 	{
@@ -1276,7 +1276,7 @@ void Chemistry::ComputeCollisionalSources()
 		// REACTIONS
 
 		for (auto rx : reaction)
-			for (CellIterator cell(*this,false);cell<cell.end();++cell)
+			for (auto cell : CellRange(*this,false))
 			{
 				rateNow = rx->PrimitiveRate(eos1(cell,rx->catalyst.T));
 				for (auto s : rx->sub)
@@ -1331,7 +1331,7 @@ void Chemistry::ComputeCollisionalSources()
 		// COLLISIONS (MOMENTUM TRANSFER, THERMAL ENERGY TRANSFER)
 
 		for (auto coll : collision)
-			for (CellIterator cell(*this,false);cell<cell.end();++cell)
+			for (auto cell : CellRange(*this,false))
 			{
 				const tw::Float R = CollisionCoefficient(coll,cell,uc);
 				const tw::Float N1 = state1(cell,coll->h1.ni);
@@ -1364,7 +1364,7 @@ void Chemistry::ComputeCollisionalSources()
 		// VIBRATIONS
 
 		for (auto x : excitation)
-			for (CellIterator cell(*this,false);cell<cell.end();++cell)
+			for (auto cell : CellRange(*this,false))
 			{
 				const tw::Float Te = eos1(cell,x->e1.T);
 				const tw::Float Tv = eos1(cell,x->e2.Tv);
@@ -1390,7 +1390,7 @@ void Chemistry::ComputeCollisionalSources()
 	}
 }
 
-void Chemistry::ComputeRadiativeSources()
+void sparc::HydroManager::ComputeRadiativeSources()
 {
 	#pragma omp parallel
 	{
@@ -1398,11 +1398,11 @@ void Chemistry::ComputeRadiativeSources()
 
 		// Ohmic heating due to laser fields
 		if (electrons)
-			for (CellIterator cell(*this,false);cell<cell.end();++cell)
+			for (auto cell : CellRange(*this,false))
 				CreateTotalEnergy(cell,0.5*nu_e(cell)*state1(cell,ie)*norm(laserAmplitude(cell))/(sqr(laserFrequency) + sqr(nu_e(cell))),electrons->group->hidx);
 
 		// Photoionization
-		for (CellIterator cell(*this,false);cell<cell.end();++cell)
+		for (auto cell : CellRange(*this,false))
 			if (radiationIntensity(cell)>0.0)
 				for (auto grp : group)
 					for (auto chem : grp->chemical)
@@ -1424,7 +1424,7 @@ void Chemistry::ComputeRadiativeSources()
 		// Hence we form equilibrium temperature from (total pressure / total density)
 		if (radModel==sparc::thin)
 		{
-			for (CellIterator cell(*this,false);cell<cell.end();++cell)
+			for (auto cell : CellRange(*this,false))
 			{
 				tw::Float stef_boltz = 5.67e-8; // W/m^2/K^4
 				tw::Float Ptot=0.0,ntot=0.0,TK,lossNow,meanFreePath;
@@ -1446,7 +1446,7 @@ void Chemistry::ComputeRadiativeSources()
 	}
 }
 
-tw::vec3 Chemistry::ComputeForceOnBody(tw::Int i,tw::Int j,tw::Int k)
+tw::vec3 sparc::HydroManager::ComputeForceOnBody(tw::Int i,tw::Int j,tw::Int k)
 {
 	tw::vec3 ans;
 	tw::Int s;
@@ -1485,7 +1485,7 @@ tw::vec3 Chemistry::ComputeForceOnBody(tw::Int i,tw::Int j,tw::Int k)
 	return ans;
 }
 
-void Chemistry::ComputeHydroSources()
+void sparc::HydroManager::ComputeHydroSources()
 {
 	#pragma omp parallel
 	{
@@ -1500,7 +1500,7 @@ void Chemistry::ComputeHydroSources()
 				// mass and momentum density are convected, but then reset to restore quasineutrality and heavy particle velocity
 
 				// take away any collisional sources of momentum
-				for (CellIterator cell(*this,false);cell<cell.end();++cell)
+				for (auto cell : CellRange(*this,false))
 				{
 					creationRate(cell,g->hidx.npx) = 0.0;
 					creationRate(cell,g->hidx.npy) = 0.0;
@@ -1517,7 +1517,7 @@ void Chemistry::ComputeHydroSources()
 					#pragma omp barrier
 					g->LoadVelocity(scratch,state1,ax);
 					#pragma omp barrier
-					for (CellIterator cell(*this,false);cell<cell.end();++cell)
+					for (auto cell : CellRange(*this,false))
 					{
 						tw::Float dV,dS0,dS1,dl0,dl1,P0,P1,v0,v1;
 						tw::Float forceDensity = 0.0;
@@ -1577,7 +1577,7 @@ void Chemistry::ComputeHydroSources()
 				// Undifferentiated tensor divergence terms
 				//#pragma omp barrier
 				if (owner->gridGeometry==cylindrical)
-					for (CellIterator cell(*this,false);cell<cell.end();++cell)
+					for (auto cell : CellRange(*this,false))
 					{
 						const tw::Float nm = g->DensityWeightedSum(state1,g->matset.mass,cell);
 						const tw::Float Pc = eos1(cell,g->eidx.P);
@@ -1587,7 +1587,7 @@ void Chemistry::ComputeHydroSources()
 						DestroyMomentum(cell,2,fluxMask(cell)*nm*vc.x*vc.y/pos.x,g->hidx);
 					}
 				if (owner->gridGeometry==spherical)
-					for (CellIterator cell(*this,false);cell<cell.end();++cell)
+					for (auto cell : CellRange(*this,false))
 					{
 						const tw::Float nm = g->DensityWeightedSum(state1,g->matset.mass,cell);
 						const tw::Float Pc = eos1(cell,g->eidx.P);
@@ -1604,7 +1604,7 @@ void Chemistry::ComputeHydroSources()
 	} // end parallel region
 }
 
-void Chemistry::ComputeSources()
+void sparc::HydroManager::ComputeSources()
 {
 	creationRate = 0.0;
 	destructionRate = 0.0;
@@ -1620,16 +1620,16 @@ void Chemistry::ComputeSources()
 	destructionRate.ApplyBoundaryCondition();
 }
 
-void Chemistry::LaserAdvance(tw::Float dt)
+void sparc::HydroManager::LaserAdvance(tw::Float dt)
 {
 	// Currently SPARC ignores differences in frequency between injected pulses.
-	// The average frequency of all the pulses is used throughout (see also Chemistry::Initialize).
+	// The average frequency of all the pulses is used throughout (see also HydroManager::Initialize).
 
 	if (owner->pulse.size() && lasModel==sparc::vacuum) // use a prescribed field
 	{
 		#pragma omp parallel
 		{
-			for (CellIterator cell(*this,false);cell<cell.end();++cell)
+			for (auto cell : CellRange(*this,false))
 			{
 				laserAmplitude(cell) = 0.0;
 				for (tw::Int s=0;s<owner->pulse.size();s++)
@@ -1644,7 +1644,7 @@ void Chemistry::LaserAdvance(tw::Float dt)
 		{
 			tw::Complex a0,a1; // amplitudes of incoming waves on left
 			tw::Complex aN,aN1; // amplitudes of incoming waves on right
-			for (StripIterator strip(*this,3,strongbool::no);strip<strip.end();++strip)
+			for (auto strip : StripRange(*this,3,strongbool::no))
 			{
 				a0 = a1 = aN = aN1 = 0.0;
 				for (tw::Int s=0;s<owner->pulse.size();s++)
@@ -1688,13 +1688,13 @@ void Chemistry::LaserAdvance(tw::Float dt)
 
 		#pragma omp parallel
 		{
-			for (CellIterator cell(*this,false);cell<cell.end();++cell)
+			for (auto cell : CellRange(*this,false))
 				radiationIntensity(cell) = real(refractiveIndex(cell))*0.5*norm(laserAmplitude(cell));
 		}
 	}
 }
 
-tw::Float Chemistry::EstimateTimeStep()
+tw::Float sparc::HydroManager::EstimateTimeStep()
 {
 	std::vector<tw::Float> dtMax(tw::GetOMPMaxThreads());
 	tw::Float dtMaxAllThreads,dtMaxAllNodes;
@@ -1713,7 +1713,7 @@ tw::Float Chemistry::EstimateTimeStep()
 
 		// Courant condition
 
-		for (CellIterator cell(*this,false);cell<cell.end();++cell)
+		for (auto cell : CellRange(*this,false))
 			for (tw::Int s=0;s<group.size();s++)
 			{
 				const tw::vec3 vel = group[s]->Velocity(state1,cell);
@@ -1735,7 +1735,7 @@ tw::Float Chemistry::EstimateTimeStep()
 
 		// Reaction rates, collision rates, other source terms
 
-		auto AsymptoticStep = [&] (const CellIterator& cell,tw::Int c)
+		auto AsymptoticStep = [&] (const tw::cell& cell,tw::Int c)
 		{
 			tw::Float dt_temp;
 			if (creationRate(cell,c) > creationDominance*destructionRate(cell,c))
@@ -1751,13 +1751,13 @@ tw::Float Chemistry::EstimateTimeStep()
 		for (auto g : group)
 		{
 			for (auto chem : g->chemical)
-				for (CellIterator cell(*this,false);cell<cell.end();++cell)
+				for (auto cell : CellRange(*this,false))
 					dtMax[tid] = AsymptoticStep(cell,chem->indexInState);
 
-			for (CellIterator cell(*this,false);cell<cell.end();++cell)
+			for (auto cell : CellRange(*this,false))
 				dtMax[tid] = AsymptoticStep(cell,g->hidx.u);
 
-			for (CellIterator cell(*this,false);cell<cell.end();++cell)
+			for (auto cell : CellRange(*this,false))
 				dtMax[tid] = AsymptoticStep(cell,g->hidx.x);
 		}
 	} // end parallel region
@@ -1770,7 +1770,7 @@ tw::Float Chemistry::EstimateTimeStep()
 	return dtMaxAllNodes < owner->dtMin ? owner->dtMin : dtMaxAllNodes;
 }
 
-void Chemistry::DiffusionAdvance(tw::Float dt)
+void sparc::HydroManager::DiffusionAdvance(tw::Float dt)
 {
 	tw::Int s,ax;
 
@@ -1784,7 +1784,7 @@ void Chemistry::DiffusionAdvance(tw::Float dt)
 
 		#pragma omp parallel
 		{
-			for (CellIterator cell(*this,false);cell<cell.end();++cell)
+			for (auto cell : CellRange(*this,false))
 			{
 				state1(cell,g->hidx.u) = 0.5*scratch2(cell)*Norm(g->Velocity(state1,cell));
 				state1(cell,g->hidx.u) += scratch(cell)*eos1(cell,g->eidx.T);
@@ -1800,7 +1800,7 @@ void Chemistry::DiffusionAdvance(tw::Float dt)
 			parabolicSolver->Advance(scratch,0,fluxMask,&scratch2,0,&eos1,g->eidx.visc,dt);
 			#pragma omp parallel
 			{
-				for (CellIterator cell(*this,false);cell<cell.end();++cell)
+				for (auto cell : CellRange(*this,false))
 					state1(cell,g->hidx.npx+ax-1) = scratch2(cell)*scratch(cell);
 			}
 		}
@@ -1812,7 +1812,7 @@ void Chemistry::DiffusionAdvance(tw::Float dt)
 	eos1.ApplyBoundaryCondition();
 }
 
-void Chemistry::FieldAdvance(tw::Float dt)
+void sparc::HydroManager::FieldAdvance(tw::Float dt)
 {
 	if (!electrons || plasModel==sparc::neutral)
 		return;
@@ -1825,7 +1825,7 @@ void Chemistry::FieldAdvance(tw::Float dt)
 	#pragma omp parallel
 	{
 		tw::Float D1,D2,P0,P1,mu0,mu1,dV,dS0,dS1,dl0,dl1;
-		for (CellIterator cell(*this,false);cell<cell.end();++cell)
+		for (auto cell : CellRange(*this,false))
 		{
 			rho(cell) = rho0(cell);
 			for (tw::Int ax=1;ax<=3;ax++)
@@ -1871,7 +1871,7 @@ void Chemistry::FieldAdvance(tw::Float dt)
 	rho.ApplyBoundaryCondition();
 }
 
-void Chemistry::HydroAdvance(const axisSpec& axis,tw::Float dt)
+void sparc::HydroManager::HydroAdvance(const axisSpec& axis,tw::Float dt)
 {
 	// Convect the fluid
 
@@ -1890,7 +1890,7 @@ void Chemistry::HydroAdvance(const axisSpec& axis,tw::Float dt)
 			#pragma omp parallel
 			{
 				g->LoadVelocity(scratch,state1,ax);
-				for (CellIterator cell(*this,true);cell<cell.end();++cell)
+				for (auto cell : CellRange(*this,true))
 					scratch(cell) *= fluxMask(cell);
 			}
 			convector.Convect(axis,bc0,bc1,dt);
@@ -1899,7 +1899,7 @@ void Chemistry::HydroAdvance(const axisSpec& axis,tw::Float dt)
 	}
 }
 
-void Chemistry::ChemAdvance(tw::Float dt)
+void sparc::HydroManager::ChemAdvance(tw::Float dt)
 {
 	creationRate *= dt;
 	state0 += creationRate;
@@ -1911,7 +1911,7 @@ void Chemistry::ChemAdvance(tw::Float dt)
 	state0.ApplyBoundaryCondition();
 }
 
-void Chemistry::ApplyEOS(Field& hydro,Field& eos)
+void sparc::HydroManager::ApplyEOS(Field& hydro,Field& eos)
 {
 	// Load (P,T,Tv,K,visc) into eos using (n,np,u,x) from hydro
 	// Reverse calculation is applied following diffusion steps
@@ -1924,7 +1924,7 @@ void Chemistry::ApplyEOS(Field& hydro,Field& eos)
 		tw::Float ionChargeDensity;
 		tw::vec3 ionVelocity;
 
-		for (CellIterator cell(*this,false);cell<cell.end();++cell)
+		for (auto cell : CellRange(*this,false))
 		{
 			ionChargeDensity = 0.0;
 			ionVelocity = 0.0;
@@ -1957,11 +1957,11 @@ void Chemistry::ApplyEOS(Field& hydro,Field& eos)
 		g->eosMixData->ApplyCaloricEOS(scratch,scratch2,hydro,eos);
 		for (auto chem : g->chemical)
 			chem->eosData->AddPKV(scratch,scratch2,nu_e,hydro,eos);
-		}
+	}
 
 	// Check for numerical failure, defined by NaN in the hydro state vector
 	tw::Int badCells = 0;
-	for (CellIterator cell(*this,true);cell<cell.end();++cell)
+	for (auto cell : CellRange(*this,true))
 		for (tw::Int c=0;c<hydro.Components();c++)
 			badCells += std::isnan(hydro(cell,c));
 	if (badCells)
@@ -1973,7 +1973,7 @@ void Chemistry::ApplyEOS(Field& hydro,Field& eos)
 	eos.ApplyBoundaryCondition();
 }
 
-void Chemistry::FirstOrderAdvance(tw::Float dt,bool computeSources)
+void sparc::HydroManager::FirstOrderAdvance(tw::Float dt,bool computeSources)
 {
 	if (computeSources)
 	{
@@ -1993,7 +1993,7 @@ void Chemistry::FirstOrderAdvance(tw::Float dt,bool computeSources)
 	FieldAdvance(dt);
 }
 
-void Chemistry::Update()
+void sparc::HydroManager::Update()
 {
 	tw::Float dts;
 
@@ -2015,7 +2015,7 @@ void Chemistry::Update()
 	LaserAdvance(dt);
 }
 
-bool Chemistry::ReadQuasitoolBlock(const std::vector<std::string>& preamble,std::stringstream& inputString)
+bool sparc::HydroManager::ReadQuasitoolBlock(const std::vector<std::string>& preamble,std::stringstream& inputString)
 {
 	std::string key(preamble[0]);
 	if (key=="reaction")
@@ -2039,7 +2039,7 @@ bool Chemistry::ReadQuasitoolBlock(const std::vector<std::string>& preamble,std:
 	return false;
 }
 
-void Chemistry::ReadInputFileDirective(std::stringstream& inputString,const std::string& command)
+void sparc::HydroManager::ReadInputFileDirective(std::stringstream& inputString,const std::string& command)
 {
 	std::string word;
 	Module::ReadInputFileDirective(inputString,command);
@@ -2074,7 +2074,7 @@ void Chemistry::ReadInputFileDirective(std::stringstream& inputString,const std:
 		inputString >> word >> word >> dipoleCenter.x >> dipoleCenter.y >> dipoleCenter.z;
 }
 
-void Chemistry::ReadData(std::ifstream& inFile)
+void sparc::HydroManager::ReadData(std::ifstream& inFile)
 {
 	tw::Int i,num,hydro_size,eos_size;
 	Module::ReadData(inFile);
@@ -2129,7 +2129,7 @@ void Chemistry::ReadData(std::ifstream& inFile)
 	}
 }
 
-void Chemistry::WriteData(std::ofstream& outFile)
+void sparc::HydroManager::WriteData(std::ofstream& outFile)
 {
 	tw::Int i;
 	Module::WriteData(outFile);
@@ -2171,14 +2171,13 @@ void Chemistry::WriteData(std::ofstream& outFile)
 		collision[i]->WriteData(outFile);
 }
 
-void Chemistry::EnergyHeadings(std::ofstream& outFile)
+void sparc::HydroManager::EnergyHeadings(std::ofstream& outFile)
 {
 	outFile << "Mass Charge Energy Px Py Pz Fx Fy Fz Dx Dy Dz ";
 }
 
-void Chemistry::EnergyColumns(std::vector<tw::Float>& cols,std::vector<bool>& avg,const Region& theRgn)
+void sparc::HydroManager::EnergyColumns(std::vector<tw::Float>& cols,std::vector<bool>& avg,const Region& theRgn)
 {
-	CellIterator cell(*this,false);
 	tw::Int x0,x1,y0,y1,z0,z1;
 	tw::Float dV;
 	tw::vec3 r1,r2,pos,bodyForce,fluidMomentum,dipoleMoment;
@@ -2190,7 +2189,7 @@ void Chemistry::EnergyColumns(std::vector<tw::Float>& cols,std::vector<bool>& av
 		for (tw::Int j=y0;j<=y1;j++)
 			for (tw::Int i=x0;i<=x1;i++)
 			{
-				cell.SetCell(i,j,k);
+				tw::cell cell(*this,i,j,k);
 				pos = owner->Pos(cell);
 				if (theRgn.Inside(pos,*owner))
 				{
@@ -2224,7 +2223,7 @@ void Chemistry::EnergyColumns(std::vector<tw::Float>& cols,std::vector<bool>& av
 	cols.push_back(dipoleMoment.z); avg.push_back(false);
 }
 
-void Chemistry::BoxDiagnosticHeader(GridDataDescriptor* box)
+void sparc::HydroManager::BoxDiagnosticHeader(GridDataDescriptor* box)
 {
 	owner->WriteBoxDataHeader("impermeable",box);
 	owner->WriteBoxDataHeader("collisionFreq",box);
@@ -2247,7 +2246,7 @@ void Chemistry::BoxDiagnosticHeader(GridDataDescriptor* box)
 			owner->WriteBoxDataHeader(chem->name,box);
 		owner->WriteBoxDataHeader("T_" + g->name,box);
 		owner->WriteBoxDataHeader("P_" + g->name,box);
-		owner->WriteBoxDataHeader("Cv_" + g->name,box);
+		owner->WriteBoxDataHeader("nmcv_" + g->name,box);
 		owner->WriteBoxDataHeader("K_" + g->name,box);
 		owner->WriteBoxDataHeader("Tv_" + g->name,box);
 		owner->WriteBoxDataHeader("vx_" + g->name,box);
@@ -2256,7 +2255,7 @@ void Chemistry::BoxDiagnosticHeader(GridDataDescriptor* box)
 	}
 }
 
-void Chemistry::BoxDiagnose(GridDataDescriptor* box)
+void sparc::HydroManager::BoxDiagnose(GridDataDescriptor* box)
 {
 	auto WriteSubmoduleData = [&] (Field& theData,tw::Int comp,const std::string& filename)
 	{
@@ -2325,7 +2324,7 @@ void Chemistry::BoxDiagnose(GridDataDescriptor* box)
 
 		WriteSubmoduleData(eos1,g->eidx.T,"T_" + g->name);
 		WriteSubmoduleData(eos1,g->eidx.P,"P_" + g->name);
-		WriteSubmoduleData(eos1,g->eidx.Cv,"Cv_" + g->name);
+		WriteSubmoduleData(eos1,g->eidx.nmcv,"nmcv_" + g->name);
 		WriteSubmoduleData(eos1,g->eidx.K,"K_" + g->name);
 		WriteSubmoduleData(eos1,g->eidx.Tv,"Tv_" + g->name);
 
@@ -2338,11 +2337,11 @@ void Chemistry::BoxDiagnose(GridDataDescriptor* box)
 	}
 }
 
-void Chemistry::CustomDiagnose()
+void sparc::HydroManager::CustomDiagnose()
 {
 }
 
-void Chemistry::StatusMessage(std::ostream *theStream)
+void sparc::HydroManager::StatusMessage(std::ostream *theStream)
 {
 	*theStream << statusMessage.str();
 }

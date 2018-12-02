@@ -23,7 +23,7 @@
 ComputeTool::ComputeTool(const std::string& name,MetricSpace *ms,Task *tsk)
 {
 	// Do not create ComputeTools directly.
-	// Instances are created through Grid::CreateTool
+	// Instances are created through Simulation::CreateTool
 	this->name = name;
 	space = ms;
 	task = tsk;

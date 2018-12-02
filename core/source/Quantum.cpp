@@ -1,4 +1,4 @@
-#include "sim.h"
+#include "simulation.h"
 #include "fieldSolve.h"
 #include "quantum.h"
 
@@ -515,7 +515,7 @@ void qo::State::WriteData(std::ofstream& outFile)
 ////////////////////////////////
 
 
-AtomicPhysics::AtomicPhysics(const std::string& name,Grid* theGrid):Module(name,theGrid)
+AtomicPhysics::AtomicPhysics(const std::string& name,Simulation* sim):Module(name,sim)
 {
 	typeCode = tw::module_type::nullModule;
 	keepA2Term = true;
@@ -627,7 +627,7 @@ void AtomicPhysics::FormPotentials(tw::Float t)
 	{
 		tw::Float phiNow,r;
 		tw::vec3 A0,A1,r_curv,r_cart;
-		for (CellIterator cell(*this,true);cell<cell.end();++cell)
+		for (auto cell : CellRange(*this,true))
 		{
 			r = owner->SphericalRadius(owner->Pos(cell));
 			phiNow = GetSphericalPotential(r);
@@ -667,13 +667,13 @@ void AtomicPhysics::FormGhostCellPotentials(tw::Float t)
 		if (A4.Dim(ax)>1)
 			#pragma omp parallel firstprivate(t,ax)
 			{
-				for (StripIterator s(*this,ax,strongbool::no);s<s.end();++s)
-					for (tw::Int ghostCell=0;ghostCell<=s.Dim()+1;ghostCell+=s.Dim()+1)
+				for (auto s : StripRange(*this,ax,strongbool::no))
+					for (tw::Int ghostCell=0;ghostCell<=Dim(s.Axis())+1;ghostCell+=Dim(s.Axis())+1)
 					{
 						tw::vec3 pos(owner->Pos(s,ghostCell));
 						tw::vec3 A3(-0.5*pos.y*B0.z,0.5*pos.x*B0.z,0.0);
-							for (tw::Int wv=0;wv<owner->wave.size();wv++)
-								A3 += owner->wave[wv]->VectorPotential(t,pos);
+						for (tw::Int wv=0;wv<owner->wave.size();wv++)
+							A3 += owner->wave[wv]->VectorPotential(t,pos);
 						if ((ghostCell==0 && owner->n0[ax]==MPI_PROC_NULL) || (ghostCell!=0 && owner->n1[ax]==MPI_PROC_NULL))
 						{
 							A4(s,ghostCell,1) = A3.x;
@@ -879,7 +879,7 @@ void AtomicPhysics::WriteData(std::ofstream& outFile)
 ///////////////////////////////////////
 
 
-Schroedinger::Schroedinger(const std::string& name,Grid* theGrid):AtomicPhysics(name,theGrid)
+Schroedinger::Schroedinger(const std::string& name,Simulation* sim):AtomicPhysics(name,sim)
 {
 	// Should move OpenCL stuff into the propagator tool
 	typeCode = tw::module_type::schroedinger;
@@ -998,7 +998,7 @@ void Schroedinger::Initialize()
 
 		#pragma omp parallel
 		{
-			for (CellIterator cell(*this,true);cell<cell.end();++cell)
+			for (auto cell : CellRange(*this,true))
 				for (tw::Int s=0;s<waveFunction.size();s++)
 					psi1(cell) += waveFunction[s].Amplitude(owner->Pos(cell),0.0,0);
 		}
@@ -1006,7 +1006,7 @@ void Schroedinger::Initialize()
 		psi0 = psi1;
 		#pragma omp parallel
 		{
-			for (CellIterator cell(*this,true);cell<cell.end();++cell)
+			for (auto cell : CellRange(*this,true))
 				J4(cell,0) = norm(psi1(cell));
 		}
 	}
@@ -1176,7 +1176,7 @@ void Schroedinger::UpdateJ4()
 void Schroedinger::Normalize()
 {
 	tw::Float totalProbability = 0.0;
-	for (CellIterator cell(*this,false);cell<cell.end();++cell)
+	for (auto cell : CellRange(*this,false))
 		totalProbability += norm(psi1(cell)) * owner->dS(cell,0);
 	owner->strip[0].AllSum(&totalProbability,&totalProbability,sizeof(tw::Float),0);
 	psi1 *= 1.0/sqrt(totalProbability);
@@ -1322,7 +1322,7 @@ void Schroedinger::StartDiagnostics()
 //                                     //
 /////////////////////////////////////////
 
-Pauli::Pauli(const std::string& name,Grid* theGrid):AtomicPhysics(name,theGrid)
+Pauli::Pauli(const std::string& name,Simulation* sim):AtomicPhysics(name,sim)
 {
 	throw tw::FatalError("Pauli module is not supported in this version of TW.");
 	typeCode = tw::module_type::pauli;
@@ -1439,7 +1439,7 @@ void Pauli::Update()
 void Pauli::Normalize()
 {
 	tw::Float totalProbability = 0.0;
-	for (CellIterator cell(*this,false);cell<cell.end();++cell)
+	for (auto cell : CellRange(*this,false))
 		totalProbability += (norm(psi1(cell))+norm(chi1(cell))) * owner->dS(cell,0);
 	owner->strip[0].AllSum(&totalProbability,&totalProbability,sizeof(tw::Float),0);
 	psi1 *= 1.0/sqrt(totalProbability);
@@ -1551,7 +1551,7 @@ void Pauli::BoxDiagnose(GridDataDescriptor* box)
 
 	ScalarField Sz;
 	Sz.Initialize(*this,owner);
-	for (CellIterator cell(*this,false);cell<cell.end();++cell)
+	for (auto cell : CellRange(*this,false))
 		Sz(cell) = norm(psi1(cell))-norm(chi1(cell));
 	owner->WriteBoxData("Sz",box,&Sz(0,0,0),Sz.Stride());
 }
@@ -1576,7 +1576,7 @@ void Pauli::StartDiagnostics()
 ///////////////////////////////////////
 
 
-KleinGordon::KleinGordon(const std::string& name,Grid *theGrid) : AtomicPhysics(name,theGrid)
+KleinGordon::KleinGordon(const std::string& name,Simulation* sim) : AtomicPhysics(name,sim)
 {
 	// Wavefunction is in Hamiltonian 2-component representation.
 	// This is the preliminary Hamiltonian form from Feshbach-Villars, Eq. 2.12.
@@ -1637,7 +1637,7 @@ void KleinGordon::Initialize()
 			(*owner->tw_out) << "Reference " << s << " : energy = " << refState[s].energy << std::endl;
 		}
 
-		for (CellIterator cell(*this,false);cell<cell.end();++cell)
+		for (auto cell : CellRange(*this,false))
 		{
 			const tw::vec3 pos = owner->Pos(cell);
 			for (tw::Int s=0;s<waveFunction.size();s++)
@@ -1670,7 +1670,7 @@ void KleinGordon::Initialize()
 	#endif
 }
 
-tw::Float KleinGordon::ComputeRho(const CellIterator& cell)
+tw::Float KleinGordon::ComputeRho(const tw::cell& cell)
 {
 	return q0*(norm(FV(cell,1.0)) - norm(FV(cell,-1.0)));
 }
@@ -1679,7 +1679,7 @@ void KleinGordon::UpdateJ4()
 {
 	#pragma omp parallel
 	{
-		for (VectorizingIterator<1> v(*this,false);v<v.end();++v)
+		for (auto v : VectorizingRange<1>(*this,false))
 		{
 			for (tw::Int i=1;i<=dim[1];i++)
 			{
@@ -1697,7 +1697,7 @@ void KleinGordon::UpdateJ4()
 void KleinGordon::Normalize()
 {
 	tw::Float totalCharge = 0.0;
-	for (CellIterator cell(*this,false);cell<cell.end();++cell)
+	for (auto cell : CellRange(*this,false))
 		totalCharge += ComputeRho(cell) * owner->dS(cell,0);
 	owner->strip[0].AllSum(&totalCharge,&totalCharge,sizeof(tw::Float),0);
 	psi_r *= sqrt(fabs(q0/totalCharge));
@@ -1746,7 +1746,7 @@ void KleinGordon::Update()
 	{
 		alignas(AB) tw::Float Ur[dim[1]],Ui[dim[1]],Dr[dim[1]],Di[dim[1]];
 		// Update psi
-		for (VectorizingIterator<1> v(*this,false);v<v.end();++v)
+		for (auto v : VectorizingRange<1>(*this,false))
 		{
 			#pragma omp simd aligned(Ur,Ui:AB)
 			for (tw::Int i=1;i<=dim[1];i++)
@@ -1787,7 +1787,7 @@ void KleinGordon::Update()
 	{
 		alignas(AB) tw::Float Ur[dim[1]],Ui[dim[1]],Dr[dim[1]],Di[dim[1]];
 		// Update chi
-		for (VectorizingIterator<1> v(*this,false);v<v.end();++v)
+		for (auto v : VectorizingRange<1>(*this,false))
 		{
 			#pragma omp simd aligned(Ur,Ui:AB)
 			for (tw::Int i=1;i<=dim[1];i++)
@@ -1964,7 +1964,7 @@ void KleinGordon::StartDiagnostics()
 ///////////////////////////////////////
 
 
-Dirac::Dirac(const std::string& name,Grid *theGrid) : AtomicPhysics(name,theGrid)
+Dirac::Dirac(const std::string& name,Simulation* sim) : AtomicPhysics(name,sim)
 {
 	// Wavefunction is in standard representation
 	// i.e., gamma^0 = diag(1,1,-1,-1)
@@ -2014,7 +2014,7 @@ void Dirac::Initialize()
 
 		#pragma omp parallel
 		{
-			for (CellIterator cell(*this,false);cell<cell.end();++cell)
+			for (auto cell : CellRange(*this,false))
 			{
 				tw::vec3 pos = owner->Pos(cell);
 				for (tw::Int s=0;s<waveFunction.size();s++)
@@ -2054,7 +2054,7 @@ void Dirac::Initialize()
 	#endif
 }
 
-tw::Float Dirac::ComputeRho(const CellIterator& cell)
+tw::Float Dirac::ComputeRho(const tw::cell& cell)
 {
 	tw::Float ans = 0.0;
 	for (tw::Int c=0;c<4;c++)
@@ -2067,7 +2067,7 @@ void Dirac::UpdateJ4()
 	#pragma omp parallel
 	{
 		tw::Complex z0,z1,z2,z3;
-		for (CellIterator cell(*this,false);cell<cell.end();++cell)
+		for (auto cell : CellRange(*this,false))
 		{
 			z0 = tw::Complex(psi_r(cell,0),psi_i(cell,0));
 			z1 = tw::Complex(psi_r(cell,1),psi_i(cell,1));
@@ -2086,7 +2086,7 @@ void Dirac::UpdateJ4()
 void Dirac::Normalize()
 {
 	tw::Float totalCharge = 0.0;
-	for (CellIterator cell(*this,false);cell<cell.end();++cell)
+	for (auto cell : CellRange(*this,false))
 		totalCharge += ComputeRho(cell) * owner->dS(cell,0);
 	owner->strip[0].AllSum(&totalCharge,&totalCharge,sizeof(tw::Float),0);
 	psi_r *= sqrt(fabs(q0/totalCharge));

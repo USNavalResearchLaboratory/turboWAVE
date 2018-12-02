@@ -7,7 +7,7 @@ struct LaserSolver:Module
 
 	LaserPropagator *propagator;
 
-	LaserSolver(const std::string& name,Grid* theGrid);
+	LaserSolver(const std::string& name,Simulation* sim);
 	virtual ~LaserSolver();
 	virtual void ExchangeResources();
 	virtual void Initialize();
@@ -29,14 +29,14 @@ struct LaserSolver:Module
 
 struct QSSolver:LaserSolver
 {
-	QSSolver(const std::string& name,Grid* theGrid);
+	QSSolver(const std::string& name,Simulation* sim);
 };
 
 struct PGCSolver:LaserSolver
 {
 	Field F;
 
-	PGCSolver(const std::string& name,Grid* theGrid);
+	PGCSolver(const std::string& name,Simulation* sim);
 	virtual void ExchangeResources();
 	virtual void Initialize();
 

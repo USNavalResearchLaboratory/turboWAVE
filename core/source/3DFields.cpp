@@ -260,7 +260,7 @@ void Field::Initialize(tw::Int components,const DiscreteSpace& ds,Task *task,con
 		for (tw::Int ax=1;ax<=3;ax++)
 		{
 			if (dim[ax]>1)
-				for (StripIterator s(*this,ax,strongbool::yes);s<s.end();++s)
+				for (auto s : StripRange(*this,ax,strongbool::yes))
 				{
 					for (tw::Int i=0;i<2*layers[ax];i++)
 					{
@@ -280,67 +280,67 @@ void Field::Initialize(tw::Int components,const DiscreteSpace& ds,Task *task,con
 
 void Field::MultiplyCellVolume(const MetricSpace& m)
 {
-	for (CellIterator cell(*this,true);cell<cell.end();++cell)
+	for (auto cell : CellRange(*this,true))
 		for (tw::Int c=0;c<num[0];c++)
 			(*this)(cell,c) *= m.dS(cell,0);
 }
 
 void Field::DivideCellVolume(const MetricSpace& m)
 {
-	for (CellIterator cell(*this,true);cell<cell.end();++cell)
+	for (auto cell : CellRange(*this,true))
 		for (tw::Int c=0;c<num[0];c++)
 			(*this)(cell,c) /= m.dS(cell,0);
 }
 
-void Field::Shift(const Element& e,const StripIterator& s,tw::Int cells,const tw::Float* incoming)
+void Field::Shift(const Element& e,const tw::strip& s,tw::Int cells,const tw::Float* incoming)
 {
 	// Propagate field pattern to the right if <cells> positive, to the left if negative
 	// argument <incoming> is value to inject into left or right ghost cell
 
-	tw::Int i,c;
+	tw::Int i,c,ax=s.Axis();
 
 	if (cells>0)
 	{
-		for (i=s.N1();i>=s.N0()+cells;i--)
+		for (i=N1(ax);i>=N0(ax)+cells;i--)
 			for (c=e.low;c<=e.high;c++)
 				(*this)(s,i,c) = (*this)(s,i-cells,c);
-		for (i=s.N0();i<s.N0()+cells;i++)
+		for (i=N0(ax);i<N0(ax)+cells;i++)
 			for (c=e.low;c<=e.high;c++)
 				(*this)(s,i,c) = incoming[c-e.low];
 	}
 	if (cells<0)
 	{
-		for (i=s.N0();i<=s.N1()+cells;i++)
+		for (i=N0(ax);i<=N1(ax)+cells;i++)
 			for (c=e.low;c<=e.high;c++)
 				(*this)(s,i,c) = (*this)(s,i-cells,c);
-		for (i=s.N1()+1+cells;i<=s.N1();i++)
+		for (i=N1(ax)+1+cells;i<=N1(ax);i++)
 			for (c=e.low;c<=e.high;c++)
 				(*this)(s,i,c) = incoming[c-e.low];
 	}
 }
 
-void Field::Shift(const Element& e,const StripIterator& s,tw::Int cells,const tw::Float& incoming)
+void Field::Shift(const Element& e,const tw::strip& s,tw::Int cells,const tw::Float& incoming)
 {
 	// Propagate field pattern to the right if <cells> positive, to the left if negative
 	// argument <incoming> is value to inject into left or right ghost cell
 
-	tw::Int i,c;
+	tw::Int i,c,ax=s.Axis();
 
 	if (cells>0)
 	{
-		for (i=s.N1();i>=s.N0()+cells;i--)
+		for (i=N1(ax);i>=N0(ax)+cells;i--)
 			for (c=e.low;c<=e.high;c++)
 				(*this)(s,i,c) = (*this)(s,i-cells,c);
-		for (i=s.N0();i<s.N0()+cells;i++)
+		for (i=N0(ax);i<N0(ax)+cells;i++)
 			for (c=e.low;c<=e.high;c++)
 				(*this)(s,i,c) = incoming;
 	}
 	if (cells<0)
 	{
-		for (i=s.N0();i<=s.N1()+cells;i++)
+		for (i=N0(ax);i<=N1(ax)+cells;i++)
 			for (c=e.low;c<=e.high;c++)
 				(*this)(s,i,c) = (*this)(s,i-cells,c);
-		for (i=s.N1()+1+cells;i<=s.N1();i++)
+		for (i=N1(ax)+1+cells;i<=N1(ax);i++)
 			for (c=e.low;c<=e.high;c++)
 				(*this)(s,i,c) = incoming;
 	}
@@ -372,7 +372,7 @@ void Field::ZeroGhostCells(const Element& e)
 	tw::Int ax,c,s;
 	for (c=e.low;c<=e.high;c++)
 		for (ax=1;ax<=3;ax++)
-			for (StripIterator strip(*this,ax,strongbool::yes);strip<strip.end();++strip)
+			for (auto strip : StripRange(*this,ax,strongbool::yes))
 				for (s=0;s<layers[ax];s++)
 				{
 					(*this)(strip,lb[ax]+s,c) = 0.0;
@@ -386,7 +386,7 @@ void Field::ApplyFoldingCondition(const Element& e)
 	for (c=e.low;c<=e.high;c++)
 		for (ax=1;ax<=3;ax++)
 			if (num[ax]>1)
-				for (StripIterator strip(*this,ax,strongbool::yes);strip<strip.end();++strip)
+				for (auto strip : StripRange(*this,ax,strongbool::yes))
 				{
 					bc0(ax,c).FoldingOperation(&(*this)(strip,lb[ax],c),stride[ax]);
 					bc1(ax,c).FoldingOperation(&(*this)(strip,ub[ax],c),stride[ax]);
@@ -399,7 +399,7 @@ void Field::ApplyBoundaryCondition(const Element& e)
 	for (c=e.low;c<=e.high;c++)
 		for (ax=1;ax<=3;ax++)
 			if (num[ax]>1)
-				for (StripIterator strip(*this,ax,strongbool::yes);strip<strip.end();++strip)
+				for (auto strip : StripRange(*this,ax,strongbool::yes))
 				{
 					bc0(ax,c).ForcingOperation(&(*this)(strip,lb[ax],c),stride[ax],0.0);
 					bc1(ax,c).ForcingOperation(&(*this)(strip,ub[ax],c),stride[ax],0.0);
@@ -1122,7 +1122,7 @@ void Field::SmoothingPass(const Element& e,const MetricSpace& ds,const tw::Float
 	for (c=e.low;c<=e.high;c++)
 		for (ax=1;ax<=3;ax++)
 			if (dim[ax]>1)
-				for (StripIterator s(*this,ax,strongbool::yes);s<s.end();++s)
+				for (auto s : StripRange(*this,ax,strongbool::yes))
 				{
 					temp = (*this)(s,0,c);
 					for (i=1;i<=dim[ax];i++)
@@ -1200,7 +1200,7 @@ void Field::Swap(const Element& e1,const Element& e2)
 	for (c=0;c<e1.Components();c++)
 	{
 
-		for(CellIterator cell(*this,true);cell<cell.end();++cell)
+		for(auto cell : CellRange(*this,true))
 		{
 			temp = (*this)(cell,e1.low+c);
 			(*this)(cell,e1.low+c) = (*this)(cell,e2.low+c);
@@ -1213,7 +1213,7 @@ void CopyFieldData(Field& dst,const Element& e_dst,Field& src,const Element& e_s
 {
 	tw::Int c;
 	for (c=0;c<e_dst.Components();c++)
-		for (CellIterator cell(dst,true);cell<cell.end();++cell)
+		for (auto cell : CellRange(dst,true))
 			dst(cell,e_dst.low+c) = src(cell,e_src.low+c);
 }
 
@@ -1221,7 +1221,7 @@ void AddFieldData(Field& dst,const Element& e_dst,Field& src,const Element& e_sr
 {
 	tw::Int c;
 	for (c=0;c<e_dst.Components();c++)
-		for (CellIterator cell(dst,true);cell<cell.end();++cell)
+		for (auto cell : CellRange(dst,true))
 			dst(cell,e_dst.low+c) += src(cell,e_src.low+c);
 }
 
@@ -1229,7 +1229,7 @@ void AddMulFieldData(Field& dst,const Element& e_dst,Field& src,const Element& e
 {
 	tw::Int c;
 	for (c=0;c<e_dst.Components();c++)
-		for (CellIterator cell(dst,true);cell<cell.end();++cell)
+		for (auto cell : CellRange(dst,true))
 			dst(cell,e_dst.low+c) += mul*src(cell,e_src.low+c);
 }
 

@@ -196,7 +196,7 @@ struct Slice
 	{
 		return data[(c-e.low) + (x-lb[1])*encodingStride[1] + (y-lb[2])*encodingStride[2] + (z-lb[3])*encodingStride[3]];
 	}
-	T operator () (const StripIterator& strip,const tw::Int& i,const tw::Int& c) const
+	T operator () (const tw::strip& strip,const tw::Int& i,const tw::Int& c) const
 	{
 		tw::Int x,y,z;
 		strip.Decode(i,&x,&y,&z);
@@ -263,113 +263,113 @@ struct Field:DiscreteSpace
 		return array[c*stride[0] + (x-lb[1])*stride[1] + (y-lb[2])*stride[2] + (z-lb[3])*stride[3]];
 	}
 	// Accessors for stepping through cells without concern for direction
-	tw::Float& operator () (const CellIterator& cell,const tw::Int& c)
+	tw::Float& operator () (const tw::cell& cell,const tw::Int& c)
 	{
 		return array[cell.Index(c,stride)];
 	}
-	tw::Float operator () (const CellIterator& cell,const tw::Int& c) const
+	tw::Float operator () (const tw::cell& cell,const tw::Int& c) const
 	{
 		return array[cell.Index(c,stride)];
 	}
 	// Accessors for iterating across strips
 	// Given a strip, returns component c in cell s as measured along the strip
-	tw::Float& operator () (const StripIterator& strip,const tw::Int& s,const tw::Int& c)
+	tw::Float& operator () (const tw::strip& strip,const tw::Int& s,const tw::Int& c)
 	{
 		return array[strip.Index(s,c,stride)];
 	}
-	tw::Float operator () (const StripIterator& strip,const tw::Int& s,const tw::Int& c) const
+	tw::Float operator () (const tw::strip& strip,const tw::Int& s,const tw::Int& c) const
 	{
 		return array[strip.Index(s,c,stride)];
 	}
 	// Accessors for promoting compiler vectorization
-	tw::Float& operator () (const VectorizingIterator<1>& v,const tw::Int& s,const tw::Int& c)
+	tw::Float& operator () (const tw::vectorizer<1>& v,const tw::Int& s,const tw::Int& c)
 	{
 		return array[v.Index1(s,c,stride)];
 	}
-	tw::Float operator () (const VectorizingIterator<1>& v,const tw::Int& s,const tw::Int& c) const
+	tw::Float operator () (const tw::vectorizer<1>& v,const tw::Int& s,const tw::Int& c) const
 	{
 		return array[v.Index1(s,c,stride)];
 	}
-	tw::Float& operator () (const VectorizingIterator<3>& v,const tw::Int& s,const tw::Int& c)
+	tw::Float& operator () (const tw::vectorizer<3>& v,const tw::Int& s,const tw::Int& c)
 	{
 		return array[v.Index3(s,c,stride)];
 	}
-	tw::Float operator () (const VectorizingIterator<3>& v,const tw::Int& s,const tw::Int& c) const
+	tw::Float operator () (const tw::vectorizer<3>& v,const tw::Int& s,const tw::Int& c) const
 	{
 		return array[v.Index3(s,c,stride)];
 	}
 	// Centered Differencing
-	tw::Float operator () (const CellIterator& cell,const tw::Int& c,const tw::Int& ax) const
+	tw::Float operator () (const tw::cell& cell,const tw::Int& c,const tw::Int& ax) const
 	{
 		const tw::Int idx = cell.Index(c,stride);
 		return 0.5*freq[ax-1]*( array[idx + stride[ax]] - array[idx - stride[ax]] );
 	}
-	tw::Float operator () (const VectorizingIterator<1>& v,const tw::Int& s,const tw::Int& c,const tw::Int& ax) const
+	tw::Float operator () (const tw::vectorizer<1>& v,const tw::Int& s,const tw::Int& c,const tw::Int& ax) const
 	{
 		const tw::Int idx = v.Index1(s,c,stride);
 		return 0.5*freq[ax-1]*( array[idx + stride[ax]] - array[idx - stride[ax]] );
 	}
-	tw::Float operator () (const VectorizingIterator<3>& v,const tw::Int& s,const tw::Int& c,const tw::Int& ax) const
+	tw::Float operator () (const tw::vectorizer<3>& v,const tw::Int& s,const tw::Int& c,const tw::Int& ax) const
 	{
 		const tw::Int idx = v.Index3(s,c,stride);
 		return 0.5*freq[ax-1]*( array[idx + stride[ax]] - array[idx - stride[ax]] );
 	}
-	tw::Float d2(const StripIterator& strip,const tw::Int& s,const tw::Int& c,const tw::Int& ax) const
+	tw::Float d2(const tw::strip& strip,const tw::Int& s,const tw::Int& c,const tw::Int& ax) const
 	{
 		const tw::Int idx = strip.Index(s,c,stride);
 		return freq[ax-1]*freq[ax-1]*( array[idx - stride[ax]] - 2.0*array[idx] + array[idx + stride[ax]] );
 	}
-	tw::Float d2(const VectorizingIterator<1>& v,const tw::Int& s,const tw::Int& c,const tw::Int& ax) const
+	tw::Float d2(const tw::vectorizer<1>& v,const tw::Int& s,const tw::Int& c,const tw::Int& ax) const
 	{
 		const tw::Int idx = v.Index1(s,c,stride);
 		return freq[ax-1]*freq[ax-1]*( array[idx - stride[ax]] - 2.0*array[idx] + array[idx + stride[ax]] );
 	}
-	tw::Float d2(const VectorizingIterator<3>& v,const tw::Int& s,const tw::Int& c,const tw::Int& ax) const
+	tw::Float d2(const tw::vectorizer<3>& v,const tw::Int& s,const tw::Int& c,const tw::Int& ax) const
 	{
 		const tw::Int idx = v.Index3(s,c,stride);
 		return freq[ax-1]*freq[ax-1]*( array[idx - stride[ax]] - 2.0*array[idx] + array[idx + stride[ax]] );
 	}
 	// Unit directional offset
-	tw::Float fwd(const CellIterator& cell,const tw::Int& c,const tw::Int& ax) const
+	tw::Float fwd(const tw::cell& cell,const tw::Int& c,const tw::Int& ax) const
 	{
 		return array[cell.Index(c,stride) + stride[ax]];
 	}
-	tw::Float bak(const CellIterator& cell,const tw::Int& c,const tw::Int& ax) const
+	tw::Float bak(const tw::cell& cell,const tw::Int& c,const tw::Int& ax) const
 	{
 		return array[cell.Index(c,stride) - stride[ax]];
 	}
 	// Forward and Backward Differences and Sums
-	tw::Float dfwd(const StripIterator& strip,const tw::Int& s,const tw::Int& c,const tw::Int& ax) const
+	tw::Float dfwd(const tw::strip& strip,const tw::Int& s,const tw::Int& c,const tw::Int& ax) const
 	{
 		tw::Int idx = strip.Index(s,c,stride);
 		return freq[ax-1]*( array[idx + stride[ax]] - array[idx] );
 	}
-	tw::Float dfwd(const VectorizingIterator<3>& v,const tw::Int& s,const tw::Int& c,const tw::Int& ax) const
+	tw::Float dfwd(const tw::vectorizer<3>& v,const tw::Int& s,const tw::Int& c,const tw::Int& ax) const
 	{
 		tw::Int idx = v.Index3(s,c,stride);
 		return freq[ax-1]*( array[idx + stride[ax]] - array[idx] );
 	}
-	tw::Float dbak(const VectorizingIterator<3>& v,const tw::Int& s,const tw::Int& c,const tw::Int& ax) const
+	tw::Float dbak(const tw::vectorizer<3>& v,const tw::Int& s,const tw::Int& c,const tw::Int& ax) const
 	{
 		tw::Int idx = v.Index3(s,c,stride);
 		return freq[ax-1]*( array[idx] - array[idx - stride[ax]] );
 	}
-	tw::Float sfwd(const VectorizingIterator<1>& v,const tw::Int& s,const tw::Int& c,const tw::Int& ax) const
+	tw::Float sfwd(const tw::vectorizer<1>& v,const tw::Int& s,const tw::Int& c,const tw::Int& ax) const
 	{
 		tw::Int idx = v.Index1(s,c,stride);
 		return 0.5*( array[idx + stride[ax]] + array[idx] );
 	}
-	tw::Float sbak(const VectorizingIterator<1>& v,const tw::Int& s,const tw::Int& c,const tw::Int& ax) const
+	tw::Float sbak(const tw::vectorizer<1>& v,const tw::Int& s,const tw::Int& c,const tw::Int& ax) const
 	{
 		tw::Int idx = v.Index1(s,c,stride);
 		return 0.5*( array[idx] + array[idx - stride[ax]] );
 	}
-	tw::Float sfwd(const VectorizingIterator<3>& v,const tw::Int& s,const tw::Int& c,const tw::Int& ax) const
+	tw::Float sfwd(const tw::vectorizer<3>& v,const tw::Int& s,const tw::Int& c,const tw::Int& ax) const
 	{
 		tw::Int idx = v.Index3(s,c,stride);
 		return 0.5*( array[idx + stride[ax]] + array[idx] );
 	}
-	tw::Float sbak(const VectorizingIterator<3>& v,const tw::Int& s,const tw::Int& c,const tw::Int& ax) const
+	tw::Float sbak(const tw::vectorizer<3>& v,const tw::Int& s,const tw::Int& c,const tw::Int& ax) const
 	{
 		tw::Int idx = v.Index3(s,c,stride);
 		return 0.5*( array[idx] + array[idx - stride[ax]] );
@@ -419,30 +419,30 @@ struct Field:DiscreteSpace
 	friend void AddMulFieldData(Field& dst,const Element& e_dst,Field& src,const Element& e_src,tw::Float mul);
 	void SmoothingPass(const Element& e,const MetricSpace& ds,const tw::Float& X0,const tw::Float& X1,const tw::Float& X2);
 	void Smooth(const Element& e,const MetricSpace& ds,tw::Int smoothPasses,tw::Int compPasses);
-	void Shift(const Element& e,const StripIterator& s,tw::Int cells,const tw::Float* incoming);
-	void Shift(const Element& e,const StripIterator& s,tw::Int cells,const tw::Float& incoming);
+	void Shift(const Element& e,const tw::strip& s,tw::Int cells,const tw::Float* incoming);
+	void Shift(const Element& e,const tw::strip& s,tw::Int cells,const tw::Float& incoming);
 
 	// Subsets and Slices
 
-	void GetStrip(std::valarray<tw::Float>& cpy,const StripIterator& s,const tw::Int& c)
+	void GetStrip(std::valarray<tw::Float>& cpy,const tw::strip& s,const tw::Int& c)
 	{
-		for (tw::Int i=0;i<s.N1();i++) // beware assumption of 2 layers
+		for (tw::Int i=0;i<N1(s.Axis());i++) // beware assumption of 2 layers
 			cpy[i] = (*this)(s,i,c);
 	}
-	void SetStrip(std::valarray<tw::Float>& cpy,const StripIterator& s,const tw::Int& c)
+	void SetStrip(std::valarray<tw::Float>& cpy,const tw::strip& s,const tw::Int& c)
 	{
-		for (tw::Int i=0;i<s.N1();i++) // beware assumption of 2 layers
+		for (tw::Int i=0;i<N1(s.Axis());i++) // beware assumption of 2 layers
 			(*this)(s,i,c) = cpy[i];
 	}
 	tw::vec3 Vec3(const tw::Int& i,const tw::Int& j,const tw::Int& k,const tw::Int& c) const
 	{
 		return tw::vec3((*this)(i,j,k,c),(*this)(i,j,k,c+1),(*this)(i,j,k,c+2));
 	}
-	tw::vec3 Vec3(const CellIterator& cell,const tw::Int& c) const
+	tw::vec3 Vec3(const tw::cell& cell,const tw::Int& c) const
 	{
 		return tw::vec3((*this)(cell,c),(*this)(cell,c+1),(*this)(cell,c+2));
 	}
-	tw::vec3 Vec3(const StripIterator& strip,const tw::Int& s,const tw::Int& c) const
+	tw::vec3 Vec3(const tw::strip& strip,const tw::Int& s,const tw::Int& c) const
 	{
 		return tw::vec3((*this)(strip,s,c),(*this)(strip,s,c+1),(*this)(strip,s,c+2));
 	}
@@ -537,11 +537,11 @@ struct Field:DiscreteSpace
 	{
 		Smooth(All(*this),ds,smoothPasses,compPasses);
 	}
-	void Shift(const StripIterator& s,tw::Int cells,const tw::Float* incoming)
+	void Shift(const tw::strip& s,tw::Int cells,const tw::Float* incoming)
 	{
 		Shift(All(*this),s,cells,incoming);
 	}
-	void Shift(const StripIterator& s,tw::Int cells,const tw::Float& incoming)
+	void Shift(const tw::strip& s,tw::Int cells,const tw::Float& incoming)
 	{
 		Shift(All(*this),s,cells,incoming);
 	}
@@ -642,7 +642,7 @@ inline void conserved_current_to_dens(Field& current,const MetricSpace& m)
 {
 	#pragma omp parallel
 	{
-		for (CellIterator cell(m,true);cell<cell.end();++cell)
+		for (auto cell : CellRange(m,true))
 		{
 			current(cell,T) /= m.dS(cell,0);
 			current(cell,X) /= m.dS(cell,1) + tw::small_pos;
@@ -688,14 +688,14 @@ template <tw::Int U,tw::Int V,tw::Int W,tw::Int X,tw::Int Y,tw::Int Z>
 inline void add_curlB(const Field& src,Field& dst,const MetricSpace& m,const tw::Float& scaleFactor)
 {
 	// curl of B-field on generalized Yee mesh
-	VectorizingIterator<3> v(src,true),vi(src,true),vj(src,true);
-	const tw::Int xDim=m.Dim(1),yDim=m.Dim(2),zDim=m.Dim(3),xN1=m.N1(1),yN1=m.N1(2),zN1=m.N1(3);
-	#pragma omp parallel for firstprivate(v,vi,vj) collapse(2) schedule(static)
+	const tw::Int xDim=m.Dim(1),yDim=m.Dim(2),zDim=m.Dim(3);
+	const tw::Int xN1=m.N1(1),yN1=m.N1(2),zN1=m.N1(3);
+	#pragma omp parallel for collapse(2) schedule(static)
 	for (tw::Int i=1;i<=xN1;i++)
 		for (tw::Int j=1;j<=yDim;j++)
 		{
-			v.SetStrip(i,j,0);
-			vj.SetStrip(i,j+1,0);
+			tw::vectorizer<3> v(m,i,j,0);
+			tw::vectorizer<3> vj(m,i,j+1,0);
 			#pragma omp simd
 			for (tw::Int k=1;k<=zDim;k++)
 			{
@@ -703,12 +703,12 @@ inline void add_curlB(const Field& src,Field& dst,const MetricSpace& m,const tw:
 				dst(v,k,X) += scaleFactor * (src(vj,k,W)*m.dlh(vj,k,3) - src(v,k,W)*m.dlh(v,k,3)) / m.dS(v,k,1);
 			}
 		}
-	#pragma omp parallel for firstprivate(v,vi,vj) collapse(2) schedule(static)
+	#pragma omp parallel for collapse(2) schedule(static)
 	for (tw::Int i=1;i<=xDim;i++)
 		for (tw::Int j=1;j<=yN1;j++)
 		{
-			v.SetStrip(i,j,0);
-			vi.SetStrip(i+1,j,0);
+			tw::vectorizer<3> v(m,i,j,0);
+			tw::vectorizer<3> vi(m,i+1,j,0);
 			#pragma omp simd
 			for (tw::Int k=1;k<=zDim;k++)
 			{
@@ -716,13 +716,13 @@ inline void add_curlB(const Field& src,Field& dst,const MetricSpace& m,const tw:
 				dst(v,k,Y) -= scaleFactor * (src(vi,k,W)*m.dlh(vi,k,3) - src(v,k,W)*m.dlh(v,k,3)) / m.dS(v,k,2);
 			}
 		}
-	#pragma omp parallel for firstprivate(v,vi,vj) collapse(2) schedule(static)
+	#pragma omp parallel for collapse(2) schedule(static)
 	for (tw::Int i=1;i<=xDim;i++)
 		for (tw::Int j=1;j<=yDim;j++)
 		{
-			v.SetStrip(i,j,0);
-			vi.SetStrip(i+1,j,0);
-			vj.SetStrip(i,j+1,0);
+			tw::vectorizer<3> v(m,i,j,0);
+			tw::vectorizer<3> vi(m,i+1,j,0);
+			tw::vectorizer<3> vj(m,i,j+1,0);
 			#pragma omp simd
 			for (tw::Int k=1;k<=zN1;k++)
 			{
@@ -736,15 +736,14 @@ template <tw::Int U,tw::Int V,tw::Int W,tw::Int X,tw::Int Y,tw::Int Z>
 inline void add_curlE(const Field& src,Field& dst,const MetricSpace& m,const tw::Float& scaleFactor)
 {
 	// curl of E-field on generalized Yee mesh
-	VectorizingIterator<3> v(src,true),vi(src,true),vj(src,true);
 	const tw::Int xN1=m.N1(1),yN1=m.N1(2),zN1=m.N1(3);
-	#pragma omp parallel for firstprivate(v,vi,vj) collapse(2) schedule(static)
+	#pragma omp parallel for collapse(2) schedule(static)
 	for (tw::Int i=1;i<=xN1;i++)
 		for (tw::Int j=1;j<=yN1;j++)
 		{
-			v.SetStrip(i,j,0);
-			vi.SetStrip(i-1,j,0);
-			vj.SetStrip(i,j-1,0);
+			tw::vectorizer<3> v(m,i,j,0);
+			tw::vectorizer<3> vi(m,i-1,j,0);
+			tw::vectorizer<3> vj(m,i,j-1,0);
 			#pragma omp simd
 			for (tw::Int k=1;k<=zN1;k++)
 			{
@@ -893,29 +892,29 @@ struct AutoField : Field
 
 	tw::Float& operator () (const tw::Int& x,const tw::Int& y,const tw::Int& z,const tw::Int& c)
 		{ return Field::operator () (x,y,z,c); }
-	tw::Float& operator () (const CellIterator& cell,const tw::Int& c)
+	tw::Float& operator () (const tw::cell& cell,const tw::Int& c)
 		{ return Field::operator () (cell,c); }
-	tw::Float& operator () (const StripIterator& strip,const tw::Int& x,const tw::Int& c)
+	tw::Float& operator () (const tw::strip& strip,const tw::Int& x,const tw::Int& c)
 		{ return Field::operator () (strip,x,c); }
-	tw::Float& operator () (const VectorizingIterator<1>& v,const tw::Int& i,const tw::Int& c)
+	tw::Float& operator () (const tw::vectorizer<1>& v,const tw::Int& i,const tw::Int& c)
 		{ return Field::operator () (v,i,c); }
-	tw::Float& operator () (const VectorizingIterator<3>& v,const tw::Int& k,const tw::Int& c)
+	tw::Float& operator () (const tw::vectorizer<3>& v,const tw::Int& k,const tw::Int& c)
 		{ return Field::operator () (v,k,c); }
 	tw::Float operator () (const tw::Int& x,const tw::Int& y,const tw::Int& z,const tw::Int& c) const
 		{ return Field::operator () (x,y,z,c); }
-	tw::Float operator () (const CellIterator& cell,const tw::Int& c) const
+	tw::Float operator () (const tw::cell& cell,const tw::Int& c) const
 		{ return Field::operator () (cell,c); }
-	tw::Float operator () (const StripIterator& strip,const tw::Int& x,const tw::Int& c) const
+	tw::Float operator () (const tw::strip& strip,const tw::Int& x,const tw::Int& c) const
 		{ return Field::operator () (strip,x,c); }
-	tw::Float operator () (const VectorizingIterator<1>& v,const tw::Int& i,const tw::Int& c) const
+	tw::Float operator () (const tw::vectorizer<1>& v,const tw::Int& i,const tw::Int& c) const
 		{ return Field::operator () (v,i,c); }
-	tw::Float operator () (const VectorizingIterator<3>& v,const tw::Int& k,const tw::Int& c) const
+	tw::Float operator () (const tw::vectorizer<3>& v,const tw::Int& k,const tw::Int& c) const
 		{ return Field::operator () (v,k,c); }
-	tw::Float operator () (const CellIterator& cell,const tw::Int& c,const tw::Int& ax) const
+	tw::Float operator () (const tw::cell& cell,const tw::Int& c,const tw::Int& ax) const
 		{ return Field::operator () (cell,c,ax); }
-	tw::Float operator () (const VectorizingIterator<1>& v,const tw::Int& i,const tw::Int& c,const tw::Int& ax) const
+	tw::Float operator () (const tw::vectorizer<1>& v,const tw::Int& i,const tw::Int& c,const tw::Int& ax) const
 		{ return Field::operator () (v,i,c,ax); }
-	tw::Float operator () (const VectorizingIterator<3>& v,const tw::Int& k,const tw::Int& c,const tw::Int& ax) const
+	tw::Float operator () (const tw::vectorizer<3>& v,const tw::Int& k,const tw::Int& c,const tw::Int& ax) const
 		{ return Field::operator () (v,k,c,ax); }
 
 	// Auto versions are distinguished by number of arguments.
@@ -923,13 +922,13 @@ struct AutoField : Field
 
 	T& operator () (const tw::Int& x,const tw::Int& y,const tw::Int& z)
 		{ return (T&)Field::operator () (x,y,z,0); }
-	T& operator () (const CellIterator& cell)
+	T& operator () (const tw::cell& cell)
 		{ return (T&)Field::operator () (cell,0); }
-	T& operator () (const StripIterator& strip,const tw::Int& x)
+	T& operator () (const tw::strip& strip,const tw::Int& x)
 		{ return (T&)Field::operator () (strip,x,0); }
-	T& operator () (const VectorizingIterator<1>& v,const tw::Int& i)
+	T& operator () (const tw::vectorizer<1>& v,const tw::Int& i)
 		{ return (T&)Field::operator () (v,i,0); }
-	T& operator () (const VectorizingIterator<3>& v,const tw::Int& k)
+	T& operator () (const tw::vectorizer<3>& v,const tw::Int& k)
 		{ return (T&)Field::operator () (v,k,0); }
 
 	void Interpolate(T* val,const weights_3D& weights)
@@ -950,7 +949,7 @@ struct AutoField : Field
 	{
 		Field::AdjustTridiagonalForBoundaries(axis,side,(tw::Float*)T1,(tw::Float*)T2,(tw::Float*)T3,(tw::Float*)source,(tw::Float*)&val);
 	}
-	void Shift(const StripIterator& s,tw::Int cells,const T& incoming)
+	void Shift(const tw::strip& s,tw::Int cells,const T& incoming)
 	{
 		Field::Shift(s,cells,(tw::Float*)&incoming);
 	}
@@ -959,25 +958,25 @@ struct AutoField : Field
 
 	AutoField<T>& operator = (T a)
 	{
-		for (CellIterator cell(*this,true);cell<cell.end();++cell)
+		for (auto cell : CellRange(*this,true))
 			(*this)(cell) = a;
 		return *this;
 	}
 	AutoField<T>& operator += (T a)
 	{
-		for (CellIterator cell(*this,true);cell<cell.end();++cell)
+		for (auto cell : CellRange(*this,true))
 			(*this)(cell) += a;
 		return *this;
 	}
 	AutoField<T>& operator -= (T a)
 	{
-		for (CellIterator cell(*this,true);cell<cell.end();++cell)
+		for (auto cell : CellRange(*this,true))
 			(*this)(cell) -= a;
 		return *this;
 	}
 	AutoField<T>& operator *= (T a)
 	{
-		for (CellIterator cell(*this,true);cell<cell.end();++cell)
+		for (auto cell : CellRange(*this,true))
 			(*this)(cell) *= a;
 		return *this;
 	}

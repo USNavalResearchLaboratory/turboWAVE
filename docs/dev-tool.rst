@@ -1,7 +1,7 @@
 ComputeTool
 ===========
 
-The ``ComputeTool`` object is used to perform calculations that may be re-used by various modules.  Unlike a ``Module``, a ``ComputeTool`` is assumed to perform its functions independently, and so does not require any data sharing paradigm beyond passing arguments into its methods.  All ``ComputeTool`` objects are owned by ``Grid``.  When a ``Module`` wants to create or release a ``ComputeTool`` it calls a method of ``Grid`` to do so.
+The ``ComputeTool`` object is used to perform calculations that may be re-used by various modules.  Unlike a ``Module``, a ``ComputeTool`` is assumed to perform its functions independently, and so does not require any data sharing paradigm beyond passing arguments into its methods.  All ``ComputeTool`` objects are owned by ``Simulation``.  When a ``Module`` wants to create or release a ``ComputeTool`` it calls a method of ``Simulation`` to do so.
 
 .. note::
 

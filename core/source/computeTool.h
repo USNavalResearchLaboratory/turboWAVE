@@ -5,7 +5,7 @@
 // Each class of tool has a unique identifier of type tw::tool_type.
 // Each instance of a tool has a unique name encoded as a string.
 // To avoid duplicate names, there is an automatic name mangling mechanism.
-// Automatic mangling relies on always creating a tool via Grid::CreateTool
+// Automatic mangling relies on always creating a tool via Simulation::CreateTool
 
 // Module and ComputeTool are somewhat similar.
 // ComputeTool is intended to be heavy on computations, light on data ownership.

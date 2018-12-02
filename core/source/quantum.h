@@ -71,7 +71,7 @@ struct AtomicPhysics:Module
 	Field A4,Ao4; // EM 4-potential and old 4-potential
 	Field J4; // EM 4-current
 
-	AtomicPhysics(const std::string& name,Grid *theGrid);
+	AtomicPhysics(const std::string& name,Simulation* sim);
 	~AtomicPhysics();
 	void ExchangeResources();
 	tw::Float GetSphericalPotential(tw::Float r) const;
@@ -84,11 +84,11 @@ struct AtomicPhysics:Module
 	{
 		return tw::Complex(psi_r(i,j,k,c),psi_i(i,j,k,c));
 	}
-	tw::Complex Psi(const CellIterator& cell,const tw::Int& c) const
+	tw::Complex Psi(const tw::cell& cell,const tw::Int& c) const
 	{
 		return tw::Complex(psi_r(cell,c),psi_i(cell,c));
 	}
-	tw::Complex Psi(const VectorizingIterator<1>& v,const tw::Int& i,const tw::Int& c) const
+	tw::Complex Psi(const tw::vectorizer<1>& v,const tw::Int& i,const tw::Int& c) const
 	{
 		return tw::Complex(psi_r(v,i,c),psi_i(v,i,c));
 	}
@@ -107,7 +107,7 @@ struct Schroedinger:AtomicPhysics
 	#endif
 	SchroedingerPropagator *propagator;
 
-	Schroedinger(const std::string& name,Grid *theGrid);
+	Schroedinger(const std::string& name,Simulation* sim);
 	~Schroedinger();
 	virtual void Initialize();
 	virtual void Update();
@@ -131,7 +131,7 @@ struct Pauli:AtomicPhysics
 	ComplexField scratch,v,w; // for distributed parallelism
 	SchroedingerPropagator *propagator;
 
-	Pauli(const std::string& name,Grid *theGrid);
+	Pauli(const std::string& name,Simulation* sim);
 	~Pauli();
 	virtual void Initialize();
 	virtual void Update();
@@ -154,23 +154,23 @@ struct KleinGordon:AtomicPhysics
 	cl_kernel updateChi;
 	#endif
 
-	KleinGordon(const std::string& name,Grid *theGrid);
+	KleinGordon(const std::string& name,Simulation* sim);
 	~KleinGordon();
 	virtual void Initialize();
 	virtual void Update();
 
-	tw::Float ComputeRho(const CellIterator& cell);
+	tw::Float ComputeRho(const tw::cell& cell);
 	// The following give the Feshbach-Villars decomposition
 	// If sgn = 1.0, returns electron part, if sgn=-1.0 returns positron part
 	tw::Complex FV(const tw::Int& i,const tw::Int& j,const tw::Int& k,const tw::Float& sgn)
 	{
 		return (Psi(i,j,k,0) + sgn*Psi(i,j,k,1))/root2;
 	}
-	tw::Complex FV(const CellIterator& cell,const tw::Float sgn)
+	tw::Complex FV(const tw::cell& cell,const tw::Float sgn)
 	{
 		return (Psi(cell,0) + sgn*Psi(cell,1))/root2;
 	}
-	tw::Complex FV(const VectorizingIterator<1>& v,const tw::Int i,const tw::Float& sgn)
+	tw::Complex FV(const tw::vectorizer<1>& v,const tw::Int i,const tw::Float& sgn)
 	{
 		return (Psi(v,i,0) + sgn*Psi(v,i,1))/root2;
 	}
@@ -190,14 +190,14 @@ struct Dirac:AtomicPhysics
 	cl_kernel leapFrog;
 	#endif
 
-	Dirac(const std::string& name,Grid *theGrid);
+	Dirac(const std::string& name,Simulation* sim);
 	~Dirac();
 	virtual void Initialize();
 	template <tw::Int OUT1,tw::Int OUT2,tw::Int IN1,tw::Int IN2>
 	void LeapFrog(tw::Float sgn);
 	virtual void Update();
 
-	tw::Float ComputeRho(const CellIterator& cell);
+	tw::Float ComputeRho(const tw::cell& cell);
 	virtual void UpdateJ4();
 	virtual void Normalize();
 
@@ -225,7 +225,7 @@ void Dirac::LeapFrog(tw::Float sgn)
 		alignas(AB) tw::Float D1r[dim[1]],D1i[dim[1]];
 		alignas(AB) tw::Float D2r[dim[1]],D2i[dim[1]];
 
-		for (VectorizingIterator<1> v(*this,false);v<v.end();++v)
+		for (auto v : VectorizingRange<1>(*this,false))
 		{
 			// unitary operator of time translation for diagonal part of Hamiltonian
 			#pragma omp simd aligned(Ur,Ui:AB)

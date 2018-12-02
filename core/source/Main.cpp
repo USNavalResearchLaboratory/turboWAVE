@@ -1,4 +1,4 @@
-#include "sim.h"
+#include "simulation.h"
 
 ////////////////////
 // ERROR HANDLING //
@@ -22,12 +22,12 @@ void out_of_store()
 
 struct Launcher : tw::Thread
 {
-	Grid *tw;
+	Simulation *tw;
 	tw::Int numOMPThreads;
 	Launcher(tw::Int rank,tw::Int c) : tw::Thread(rank)
 	{
 		numOMPThreads=c;
-		tw = new Grid;
+		tw = new Simulation;
 	}
 	~Launcher()
 	{
@@ -39,8 +39,8 @@ struct Launcher : tw::Thread
 
 struct TW_Interactive : tw::Thread
 {
-	Grid *oneGrid;
-	TW_Interactive(Grid *theGrid) : tw::Thread(0) { oneGrid = theGrid; }
+	Simulation *oneSim;
+	TW_Interactive(Simulation *sim) : tw::Thread(0) { oneSim = sim; }
 	virtual void Run();
 };
 
@@ -62,9 +62,9 @@ void TW_Interactive::Run()
 	do
 	{
 		std::getline(std::cin,cmd);
-		if (!oneGrid->Completed())
-			oneGrid->InteractiveCommand(cmd,&std::cout);
-	} while (!oneGrid->Completed());
+		if (!oneSim->Completed())
+			oneSim->InteractiveCommand(cmd,&std::cout);
+	} while (!oneSim->Completed());
 }
 
 #endif
@@ -83,7 +83,7 @@ int main(int argc,char *argv[])
 
 	MPI_Init(&argc,&argv);
 
-	Grid *tw = new Grid;
+	Simulation *tw = new Simulation;
 	initMessage = tw->InputFileFirstPass();
 	*tw->tw_out << std::endl << "*** Starting turboWAVE Session ***" << std::endl;
 	*tw->tw_out << "Floating point precision = " << bitsPerFloat << " bits" << std::endl;

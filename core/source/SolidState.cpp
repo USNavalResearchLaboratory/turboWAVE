@@ -1,4 +1,4 @@
-#include "sim.h"
+#include "simulation.h"
 #include "solidState.h"
 
 
@@ -9,7 +9,7 @@
 ////////////////////////////
 
 
-BoundElectrons::BoundElectrons(const std::string& name,Grid* theGrid) : Module(name,theGrid)
+BoundElectrons::BoundElectrons(const std::string& name,Simulation* sim) : Module(name,sim)
 {
 	typeCode = tw::module_type::boundElectrons;
 	updateSequencePriority = 2;
@@ -71,7 +71,7 @@ void BoundElectrons::Initialize()
 	if (owner->restarted)
 		return;
 
-	for (CellIterator cell(*this,false);cell<cell.end();++cell)
+	for (auto cell : CellRange(*this,false))
 	{
 		for (s=0;s<3;s++)
 		{
@@ -186,9 +186,9 @@ void BoundElectrons::MoveWindow()
 	R1.DownwardCopy(zAxis,1);
 
 	// carry out shift
-	for (StripIterator s(*this,3,strongbool::yes);s<s.end();++s)
+	for (auto s : StripRange(*this,3,strongbool::yes))
 	{
-		tw::vec3 pos = owner->Pos(s,s.Dim()+1);
+		tw::vec3 pos = owner->Pos(s,Dim(s.Axis())+1);
 		tw::Float incomingMaterial = 0.0;
 		for (tw::Int p=0;p<profile.size();p++)
 			incomingMaterial += profile[p]->GetValue(pos,*owner);
@@ -219,7 +219,7 @@ void BoundElectrons::Update()
 		tw::vec4 j4;
 		tw::Float RR[7];
 
-		for (VectorizingIterator<3> v(*this,false);v<v.end();++v)
+		for (auto v : VectorizingRange<3>(*this,false))
 			for (tw::Int k=1;k<=zLast;k++)
 				if (dens(v,k)!=0.0)
 				{

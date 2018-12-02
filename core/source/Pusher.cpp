@@ -1,4 +1,4 @@
-#include "sim.h"
+#include "simulation.h"
 #include "particles.h"
 #include "fieldSolve.h"
 #include "laserSolve.h"
@@ -121,19 +121,19 @@ void ParticleBundleBohmian::Push(Species *owner)
 	// except in gather scatter.
 	// N = particles in a full bundle
 	// num = particles in this bundle
-	Grid *theGrid = owner->owner;
+	Simulation *sim = owner->owner;
 	const tw::Float q0 = owner->charge;
 	const tw::Float m0 = owner->restMass;
-	const tw::Float dth = theGrid->dth;
-	const tw::Float dt = theGrid->dt;
-	const tw::Float k[3] = { dxi(*theGrid) , dyi(*theGrid) , dzi(*theGrid) };
+	const tw::Float dth = sim->dth;
+	const tw::Float dt = sim->dt;
+	const tw::Float k[3] = { dxi(*sim) , dyi(*sim) , dzi(*sim) };
 	const float dti = 1.0/dt;
 
 	PadBundle();
 
 	cell0 = cell[0];
-	theGrid->DecodeCell(cell0,&ijk0[0],&ijk0[1],&ijk0[2]);
-	theGrid->GetWeights(w0,x);
+	sim->DecodeCell(cell0,&ijk0[0],&ijk0[1],&ijk0[2]);
+	sim->GetWeights(w0,x);
 	LoadTile();
 	GatherJ4(J,w0);
 
@@ -141,7 +141,7 @@ void ParticleBundleBohmian::Push(Species *owner)
 	bohm_velocity(vel,p,J);
 	// update x(n) to x(n+1) using vel(n+1/2)
 	translate(x,vel,k,dt);
-	theGrid->MinimizePrimitive(cell,ijk,x,domainMask);
+	sim->MinimizePrimitive(cell,ijk,x,domainMask);
 }
 
 void ParticleBundleBohmian::GatherJ4(float J[4][N],const float w[3][3][N])
@@ -168,20 +168,20 @@ void ParticleBundle2D::Push(Species *owner)
 	// except in gather scatter.
 	// N = particles in a full bundle
 	// num = particles in this bundle
-	Grid *theGrid = owner->owner;
+	Simulation *sim = owner->owner;
 	const tw::Float q0 = owner->charge;
 	const tw::Float m0 = owner->restMass;
-	const tw::Float dth = theGrid->dth;
-	const tw::Float dt = theGrid->dt;
-	const tw::Float k[3] = { dxi(*theGrid) , dyi(*theGrid) , dzi(*theGrid) };
+	const tw::Float dth = sim->dth;
+	const tw::Float dt = sim->dt;
+	const tw::Float k[3] = { dxi(*sim) , dyi(*sim) , dzi(*sim) };
 	const float dti = 1.0/dt;
 
 	PadBundle();
 
 	cell0 = cell[0];
-	theGrid->DecodeCell(cell0,&ijk0[0],&ijk0[1],&ijk0[2]);
-	theGrid->GetWeights(w0,x);
-	theGrid->GetWallWeights(l0,x);
+	sim->DecodeCell(cell0,&ijk0[0],&ijk0[1],&ijk0[2]);
+	sim->GetWeights(w0,x);
+	sim->GetWallWeights(l0,x);
 	LoadTile();
 	GatherF(F,w0,l0);
 
@@ -194,8 +194,8 @@ void ParticleBundle2D::Push(Species *owner)
 	translate(x,vel,k,dt);
 	load_j4(J,number,vel,k,q0);
 
-	theGrid->MinimizePrimitive(cell,ijk,x,domainMask);
-	theGrid->GetWeights(w1,x);
+	sim->MinimizePrimitive(cell,ijk,x,domainMask);
+	sim->GetWeights(w1,x);
 	set_cell_mask(cellMask,cell0,cell);
 	ResetXTile();
 	ScatterJ4(J,w0,w1,cellMask,dti);
@@ -340,20 +340,20 @@ void ParticleBundle3D::Push(Species *owner)
 	// except in gather scatter.
 	// N = particles in a full bundle
 	// num = particles in this bundle
-	Grid *theGrid = owner->owner;
+	Simulation *sim = owner->owner;
 	const tw::Float q0 = owner->charge;
 	const tw::Float m0 = owner->restMass;
-	const tw::Float dth = theGrid->dth;
-	const tw::Float dt = theGrid->dt;
-	const tw::Float k[3] = { dxi(*theGrid) , dyi(*theGrid) , dzi(*theGrid) };
+	const tw::Float dth = sim->dth;
+	const tw::Float dt = sim->dt;
+	const tw::Float k[3] = { dxi(*sim) , dyi(*sim) , dzi(*sim) };
 	const float dti = 1.0/dt;
 
 	PadBundle();
 
 	cell0 = cell[0];
-	theGrid->DecodeCell(cell0,&ijk0[0],&ijk0[1],&ijk0[2]);
-	theGrid->GetWeights(w0,x);
-	theGrid->GetWallWeights(l0,x);
+	sim->DecodeCell(cell0,&ijk0[0],&ijk0[1],&ijk0[2]);
+	sim->GetWeights(w0,x);
+	sim->GetWallWeights(l0,x);
 	LoadTile();
 	GatherF(F,w0,l0);
 
@@ -366,8 +366,8 @@ void ParticleBundle3D::Push(Species *owner)
 	translate(x,vel,k,dt);
 	load_j4(J,number,vel,k,q0);
 
-	theGrid->MinimizePrimitive(cell,ijk,x,domainMask);
-	theGrid->GetWeights(w1,x);
+	sim->MinimizePrimitive(cell,ijk,x,domainMask);
+	sim->GetWeights(w1,x);
 	set_cell_mask(cellMask,cell0,cell);
 	ResetXTile();
 	ScatterJ4(J,w0,w1,cellMask,dti);
@@ -534,20 +534,20 @@ void ParticleBundlePGC::Push(Species *owner)
 	// except in gather scatter.
 	// N = particles in a full bundle
 	// num = particles in this bundle
-	Grid *theGrid = owner->owner;
+	Simulation *sim = owner->owner;
 	const tw::Float q0 = owner->charge;
 	const tw::Float m0 = owner->restMass;
-	const tw::Float dth = theGrid->dth;
-	const tw::Float dt = theGrid->dt;
-	const tw::Float k[3] = { dxi(*theGrid) , dyi(*theGrid) , dzi(*theGrid) };
+	const tw::Float dth = sim->dth;
+	const tw::Float dt = sim->dt;
+	const tw::Float k[3] = { dxi(*sim) , dyi(*sim) , dzi(*sim) };
 	const float dti = 1.0/dt;
 
 	PadBundle();
 
 	cell0 = cell[0];
-	theGrid->DecodeCell(cell0,&ijk0[0],&ijk0[1],&ijk0[2]);
-	theGrid->GetWeights(w0,x);
-	theGrid->GetWallWeights(l0,x);
+	sim->DecodeCell(cell0,&ijk0[0],&ijk0[1],&ijk0[2]);
+	sim->GetWeights(w0,x);
+	sim->GetWallWeights(l0,x);
 	LoadTile();
 	GatherF(F,w0,l0);
 	GatherLaser(las,w0);
@@ -564,8 +564,8 @@ void ParticleBundlePGC::Push(Species *owner)
 	load_j4(J,number,vel,k,q0);
 	load_chi(chi,number,avgMass,q0);
 
-	theGrid->MinimizePrimitive(cell,ijk,x,domainMask);
-	theGrid->GetWeights(w1,x);
+	sim->MinimizePrimitive(cell,ijk,x,domainMask);
+	sim->GetWeights(w1,x);
 	set_cell_mask(cellMask,cell0,cell);
 	ResetXTile();
 	ScatterJ4(J,w0,w1,cellMask,dti);

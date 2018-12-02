@@ -1,4 +1,4 @@
-#include "sim.h"
+#include "simulation.h"
 #include "fieldSolve.h"
 #include "electrostatic.h"
 
@@ -11,7 +11,7 @@
 ///////////////////////////////
 
 
-Electrostatic::Electrostatic(const std::string& name,Grid* theGrid):FieldSolver(name,theGrid)
+Electrostatic::Electrostatic(const std::string& name,Simulation* sim):FieldSolver(name,sim)
 {
 	typeCode = tw::module_type::electrostatic;
 	phi.Initialize(*this,owner);
@@ -250,7 +250,7 @@ void Electrostatic::SetupInitialPotential()
 {
 	tw::Int i,j,k;
 
-	for (CellIterator cell(*this,true);cell<cell.end();++cell)
+	for (auto cell : CellRange(*this,true))
 	{
 		cell.Decode(&i,&j,&k);
 		phi(i,j,k) = lbc[i] + (rbc[i]-lbc[i])*(owner->X(k,3)-GlobalCorner(*owner).z)/GlobalPhysicalSize(*owner).z;

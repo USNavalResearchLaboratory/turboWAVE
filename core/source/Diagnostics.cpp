@@ -1,4 +1,4 @@
-#include "sim.h"
+#include "simulation.h"
 //#define ALT_BOX_DIAG
 
 void WriteDVHeader(std::ofstream& outFile,tw::Int version,tw::Int xDim,tw::Int yDim,tw::Int zDim,float x0,float x1,float y0,float y1,float z0,float z1)
@@ -413,7 +413,7 @@ void PhaseSpaceDescriptor::WriteData(std::ofstream& outFile)
 }
 
 
-FarFieldDetectorDescriptor::FarFieldDetectorDescriptor(Grid *theGrid) : DiagnosticDescriptor(theGrid->clippingRegion)
+FarFieldDetectorDescriptor::FarFieldDetectorDescriptor(MetricSpace *space,Task *task,std::vector<Region*>& rgnList) : DiagnosticDescriptor(rgnList)
 {
 	filename = "far-field";
 	radius = 100;
@@ -426,7 +426,8 @@ FarFieldDetectorDescriptor::FarFieldDetectorDescriptor(Grid *theGrid) : Diagnost
 	t0 = 0;
 	t1 = 100;
 	timePts = 100;
-	this->theGrid = theGrid;
+	this->space = space;
+	this->task = task;
 }
 
 void FarFieldDetectorDescriptor::ReadInputFile(std::stringstream& inputString)
@@ -470,7 +471,7 @@ void FarFieldDetectorDescriptor::ReadInputFile(std::stringstream& inputString)
 
 	DiscreteSpace farFieldLayout;
 	farFieldLayout.Resize(timePts,thetaPts,phiPts,tw::vec3(0.0,0.0,0.0),tw::vec3(t1-t0,theta1-theta0,phi1-phi0));
-	A.Initialize(farFieldLayout,theGrid);
+	A.Initialize(farFieldLayout,task);
 }
 
 void FarFieldDetectorDescriptor::ReadData(std::ifstream& inFile)
@@ -501,7 +502,7 @@ void FarFieldDetectorDescriptor::WriteData(std::ofstream& outFile)
 	A.WriteData(outFile);
 }
 
-void FarFieldDetectorDescriptor::AccumulateField(Field& J4)
+void FarFieldDetectorDescriptor::AccumulateField(const tw::Float& elapsedTime,Field& J4)
 {
 	tw::Int i,j,k,ip,jp;
 	tw::vec3 rVec,rp;
@@ -509,14 +510,14 @@ void FarFieldDetectorDescriptor::AccumulateField(Field& J4)
 	tw::Float dS;
 	weights_3D w;
 	tw::Float thetaNow,phiNow,tNow;
-	tw::Float dt = (t1 - t0)/tw::Float(timePts);
+	tw::Float dtff = (t1 - t0)/tw::Float(timePts);
 	tw::Float dtheta = (theta1 - theta0)/tw::Float(thetaPts);
 	tw::Float dphi = (phi1 - phi0)/tw::Float(phiPts);
 
-	tw::Float zmin = theGrid->X(1,3) - 0.5*theGrid->dX(1,3);
-	tw::Float zmax = theGrid->X(theGrid->Dim(3),3) + 0.5*theGrid->dX(theGrid->Dim(3),3);
-	tw::Float tp = theGrid->elapsedTime;
-	tw::Float dtau = timePeriod==0.0 ? theGrid->dt * tw::Float(period) : timePeriod;
+	tw::Float zmin = space->X(1,3) - 0.5*space->dX(1,3);
+	tw::Float zmax = space->X(space->Dim(3),3) + 0.5*space->dX(space->Dim(3),3);
+	tw::Float tp = elapsedTime;
+	tw::Float dtau = timePeriod==0.0 ? dt(*space) * tw::Float(period) : timePeriod;
 
 	phiNow = phi0 + 0.5*dphi;
 	for (k=1;k<=phiPts;k++)
@@ -527,24 +528,24 @@ void FarFieldDetectorDescriptor::AccumulateField(Field& J4)
 			rVec.x = sin(thetaNow)*cos(phiNow);
 			rVec.y = sin(thetaNow)*sin(phiNow);
 			rVec.z = cos(thetaNow);
-			tNow = t0 + 0.5*dt;
+			tNow = t0 + 0.5*dtff;
 			for (i=1;i<=timePts;i++)
 			{
-				for (jp=1;jp<=theGrid->Dim(2);jp++)
-					for (ip=1;ip<=theGrid->Dim(1);ip++)
+				for (jp=1;jp<=space->Dim(2);jp++)
+					for (ip=1;ip<=space->Dim(1);ip++)
 					{
-						rp.x = theGrid->X(ip,1);
-						rp.y = theGrid->X(jp,2);;
-						dS = theGrid->dX(ip,1)*theGrid->dX(jp,2)/rVec.z;
+						rp.x = space->X(ip,1);
+						rp.y = space->X(jp,2);;
+						dS = space->dX(ip,1)*space->dX(jp,2)/rVec.z;
 						rp.z = ((tp - tNow) - rp.x*rVec.x - rp.y*rVec.y)/rVec.z;
 						if (rp.z > zmin && rp.z < zmax)
 						{
-							theGrid->GetWeights(&w,rp);
+							space->GetWeights(&w,rp);
 							J4.Interpolate(j4,w);
 							A(i,j,k) += tw::vec3(j4[1],j4[2],j4[3]) * dS * dtau / radius;
 						}
 					}
-				tNow += dt;
+				tNow += dtff;
 			}
 			thetaNow += dtheta;
 		}
@@ -560,7 +561,7 @@ void FarFieldDetectorDescriptor::AccumulateField(Field& J4)
 
 #ifndef ALT_BOX_DIAG
 
-void Grid::GetGlobalBoxDataIndexing(GridDataDescriptor* theBox,tw::Int pts[4],tw::Int glb[6],tw::Int skip[4])
+void Simulation::GetGlobalBoxDataIndexing(GridDataDescriptor* theBox,tw::Int pts[4],tw::Int glb[6],tw::Int skip[4])
 {
 	// On output, pts has the number of cells, glb has the global index bounds, skip has the skip corrected for ignorable dimensions
 	tw::Int s[4] = { 0 , theBox->xSkip , theBox->ySkip , theBox->zSkip };
@@ -579,7 +580,7 @@ void Grid::GetGlobalBoxDataIndexing(GridDataDescriptor* theBox,tw::Int pts[4],tw
 	}
 }
 
-void Grid::GetLocalBoxDataIndexing(GridDataDescriptor* theBox,const tw::Int pts[4],const tw::Int glb[6],const tw::Int skip[4],tw::Int loc[6],const tw::Int coords[4])
+void Simulation::GetLocalBoxDataIndexing(GridDataDescriptor* theBox,const tw::Int pts[4],const tw::Int glb[6],const tw::Int skip[4],tw::Int loc[6],const tw::Int coords[4])
 {
 	// On output, pts has the number of cells, glb has the global index bounds, loc has the local index bounds
 	// coords is an input with the cartesian MPI domain indices (not necessarily the domain of execution)
@@ -603,7 +604,7 @@ void Grid::GetLocalBoxDataIndexing(GridDataDescriptor* theBox,const tw::Int pts[
 	}
 }
 
-void Grid::WriteBoxDataHeader(const std::string& quantity,GridDataDescriptor* theBox)
+void Simulation::WriteBoxDataHeader(const std::string& quantity,GridDataDescriptor* theBox)
 {
 	if (appendMode && restarted)
 		return;
@@ -637,7 +638,7 @@ void Grid::WriteBoxDataHeader(const std::string& quantity,GridDataDescriptor* th
 	outFile.close();
 }
 
-void Grid::WriteBoxData(const std::string& quantity,GridDataDescriptor* theBox,tw::Float* theData,const tw::Int *stride)
+void Simulation::WriteBoxData(const std::string& quantity,GridDataDescriptor* theBox,tw::Float* theData,const tw::Int *stride)
 {
 	tw::Int i,j,k,ax,idom,jdom,kdom,buffSize,ready,cell0,i0,i1;
 	std::valarray<float> buffer,gData;
@@ -734,7 +735,7 @@ void Grid::WriteBoxData(const std::string& quantity,GridDataDescriptor* theBox,t
 
 #endif
 
-void Grid::WriteMomentumDataHeader(const std::string& quantity,GridDataDescriptor* theBox)
+void Simulation::WriteMomentumDataHeader(const std::string& quantity,GridDataDescriptor* theBox)
 {
 	if (appendMode && restarted)
 		return;
@@ -777,13 +778,13 @@ void Grid::WriteMomentumDataHeader(const std::string& quantity,GridDataDescripto
 	outFile.close();
 }
 
-void Grid::WriteMomentumData(const std::string& quantity,GridDataDescriptor* theBox,tw::Float* theData,const tw::Int *stride)
+void Simulation::WriteMomentumData(const std::string& quantity,GridDataDescriptor* theBox,tw::Float* theData,const tw::Int *stride)
 {
 	WriteBoxData(quantity,theBox,theData,stride);
 }
 
 
-void Grid::WriteCellDataHeader(GridDataDescriptor* theBox)
+void Simulation::WriteCellDataHeader(GridDataDescriptor* theBox)
 {
 /*	if (appendMode && restarted)
 		return;
@@ -828,7 +829,7 @@ void Grid::WriteCellDataHeader(GridDataDescriptor* theBox)
 	gridStream.close();*/
 }
 
-void Grid::WriteCellData(GridDataDescriptor* theBox)
+void Simulation::WriteCellData(GridDataDescriptor* theBox)
 {
 /*	LocalDomain *master;
 	master = (*global)(0,0,0);
@@ -932,7 +933,7 @@ void Grid::WriteCellData(GridDataDescriptor* theBox)
 	}*/
 }
 
-void Grid::Diagnose()
+void Simulation::Diagnose()
 {
 	tw::Int i,s;
 	std::stringstream fileName;
@@ -1084,7 +1085,7 @@ void Grid::Diagnose()
 
 #ifdef ALT_BOX_DIAG
 
-void Grid::WriteBoxDataHeader(const std::string& quantity,GridDataDescriptor* theBox)
+void Simulation::WriteBoxDataHeader(const std::string& quantity,GridDataDescriptor* theBox)
 {
 	if (appendMode && restarted)
 		return;
@@ -1117,7 +1118,7 @@ void Grid::WriteBoxDataHeader(const std::string& quantity,GridDataDescriptor* th
 	Unlock();
 }
 
-void Grid::WriteBoxData(const std::string& quantity,GridDataDescriptor* theBox,tw::Float* theData,const tw::Int *stride)
+void Simulation::WriteBoxData(const std::string& quantity,GridDataDescriptor* theBox,tw::Float* theData,const tw::Int *stride)
 {
 	Lock();
 
@@ -1148,7 +1149,7 @@ void Grid::WriteBoxData(const std::string& quantity,GridDataDescriptor* theBox,t
 
 #endif
 
-void Grid::EmergencyDump()
+void Simulation::EmergencyDump()
 {
 	tw::Int i,s;
 

@@ -80,14 +80,15 @@ namespace sparc
 		tw::Int num,first,last,ni,npx,npy,npz,u,x;
 		tw::Int Load(tw::Int i,tw::Int N)
 		{
-			num=N;
-			first=i;
-			npx=i+N;
-			npy=i+N+1;
-			npz=i+N+2;
-			u=i+N+3;
-			x=i+N+4;
-			last=x;
+			num = N;
+			ni = i;
+			first = i;
+			npx = i+N;
+			npy = i+N+1;
+			npz = i+N+2;
+			u = i+N+3;
+			x = i+N+4;
+			last = x;
 			return last+1;
 		}
 		static const tw::Int count = 5; // gives count of state components not counting densities
@@ -98,11 +99,11 @@ namespace sparc
 		// T = index to translational and rotational temperature
 		// Tv = vibrational temperature (if used)
 		// P = pressure
-		// K = heat conductivity (check)
-		// visc = dynamic viscosity (check)
-		// Cv = heat capacity at constant volume
-		tw::Int T,Tv,P,K,visc,Cv;
-		tw::Int Load(tw::Int i) { T=i;Tv=i+1;P=i+2;K=i+3;visc=i+4;Cv=i+5;return i+6; }
+		// K = heat conductivity
+		// visc = dynamic viscosity
+		// nmcv = mass density weighted heat capacity at constant volume
+		tw::Int T,Tv,P,K,visc,nmcv;
+		tw::Int Load(tw::Int i) { T=i;Tv=i+1;P=i+2;K=i+3;visc=i+4;nmcv=i+5;return i+6; }
 		static const tw::Int count = 6;
 	};
 
@@ -183,7 +184,7 @@ struct IonizationData
 // (ii) conform to new ComputeTool spec (strong preference that containment tree be reserved for modules)
 // In this process I split components and mixtures more strongly.
 // Higher levels must orchestrate the following sequence (see Chemistry::ApplyEOS):
-// 1. Components load the Cv array (really n*m*Cv)
+// 1. Components load the nmcv array
 // 2. Mixture computes T, and returns IE and nm for components to use
 // 3. Components load the P, K, and visc arrays
 
@@ -271,35 +272,35 @@ struct EOSMixture:ComputeTool
 		eidx = e;
 		matset = m;
 	}
-	tw::Float DensitySum(const Field& f,const CellIterator& cell)
+	tw::Float DensitySum(const Field& f,const tw::cell& cell)
 	{
 		tw::Float ans = 0.0;
 		for (tw::Int s=0;s<hidx.num;s++)
 			ans += f(cell,s+hidx.first);
 		return ans;
 	}
-	tw::Float MassDensity(const Field& f,const CellIterator& cell)
+	tw::Float MassDensity(const Field& f,const tw::cell& cell)
 	{
 		tw::Float ans = 0.0;
 		for (tw::Int s=0;s<hidx.num;s++)
 			ans += f(cell,s+hidx.first)*matset.mass[s];
 		return ans;
 	}
-	tw::Float MixVibrationalEnergy(const Field& f,const CellIterator& cell)
+	tw::Float MixVibrationalEnergy(const Field& f,const tw::cell& cell)
 	{
 		tw::Float ans = 0.0;
 		for (tw::Int s=0;s<hidx.num;s++)
 			ans += f(cell,s+hidx.first)*matset.excitationEnergy[s];
 		return ans;
 	}
-	tw::Float MixVibrationalStates(const Field& f,const CellIterator& cell)
+	tw::Float MixVibrationalStates(const Field& f,const tw::cell& cell)
 	{
 		tw::Float ans = 0.0;
 		for (tw::Int s=0;s<hidx.num;s++)
 			ans += matset.excitationEnergy[s] > 0.0 ? f(cell,s+hidx.first) : 0.0;
 		return ans;
 	}
-	tw::Float InternalEnergy(const tw::Float& nm,const Field& f,const CellIterator& cell)
+	tw::Float InternalEnergy(const tw::Float& nm,const Field& f,const tw::cell& cell)
 	{
 		const tw::vec3 np = tw::vec3(f(cell,hidx.npx),f(cell,hidx.npy),f(cell,hidx.npz));
 		const tw::vec3 vel = np/(tw::small_pos + nm);
@@ -315,6 +316,7 @@ struct EOSMixture:ComputeTool
 };
 
 // DFG - ideal gas mix is just a copy of the base mixture for now, restore later if needed.
+// supposed to resolve to original algorithm.
 
 struct EOSIdealGasMix:EOSMixture
 {

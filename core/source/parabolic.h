@@ -61,7 +61,7 @@ struct ParabolicSolver:ComputeTool
 	ParabolicSolver(const std::string& name,MetricSpace *m,Task *tsk);
 	virtual ~ParabolicSolver();
 
-	void FormOperatorStencil(tw::Float *D1,tw::Float *D2,const ScalarField& fluxMask,Field *coeff,tw::Int c,const StripIterator& s,tw::Int i);
+	void FormOperatorStencil(tw::Float *D1,tw::Float *D2,const ScalarField& fluxMask,Field *coeff,tw::Int c,const tw::strip& s,tw::Int i);
 	virtual void Advance(const axisSpec& axis,ScalarField& psi,ScalarField& fluxMask,tw::Float coeff,tw::Float dt);
 	virtual void Advance(ScalarField& psi,ScalarField& fluxMask,tw::Float coeff,tw::Float dt);
 	virtual void Advance(	const axisSpec& axis,
@@ -91,14 +91,14 @@ struct IsotropicPropagator:ComputeTool
 	IsotropicPropagator(const std::string& name,MetricSpace *m,Task *tsk);
 	virtual ~IsotropicPropagator();
 
-	void SetupIncomingWaveLeft(const StripIterator& s,ComplexField& amplitude,tw::Complex a0,tw::Complex a1,tw::Complex w0) const
+	void SetupIncomingWaveLeft(const tw::strip& s,ComplexField& amplitude,tw::Complex a0,tw::Complex a1,tw::Complex w0) const
 	{
 		amplitude(s,0) = a1 - a0 + ii*w0*space->dl(s,1,3)*half*(a0+a1);
 	}
 
-	void SetupIncomingWaveRight(const StripIterator& s,ComplexField& amplitude,tw::Complex aN,tw::Complex aN1,tw::Complex w0) const
+	void SetupIncomingWaveRight(const tw::strip& s,ComplexField& amplitude,tw::Complex aN,tw::Complex aN1,tw::Complex w0) const
 	{
-		amplitude(s,s.Dim()+1) = aN1 - aN - ii*w0*space->dl(s,s.Dim()+1,3)*half*(aN+aN1);
+		amplitude(s,space->Dim(s.Axis())+1) = aN1 - aN - ii*w0*space->dl(s,space->Dim(s.Axis())+1,3)*half*(aN+aN1);
 	}
 
 	virtual void Advance(ComplexField& amplitude, // this is the array to update

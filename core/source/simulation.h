@@ -16,7 +16,7 @@
 #include "physics.h"
 #include "chemistry.h"
 
-struct Grid;
+struct Simulation;
 
 #include "input.h"
 #include "diagnostics.h"
@@ -36,7 +36,7 @@ struct NonUniformRegion
 	tw::Float ACoefficient(tw::Float length);
 };
 
-struct Grid:Task,MetricSpace
+struct Simulation:Task,MetricSpace
 {
 	std::ostream *tw_out;
 
@@ -81,8 +81,8 @@ struct Grid:Task,MetricSpace
 	cl_mem waveBuffer;
 	#endif
 
-	Grid();
-	virtual ~Grid();
+	Simulation();
+	virtual ~Simulation();
 	virtual void Run();
 	void SetupGeometry();
 	void PrepareSimulation();
@@ -173,18 +173,18 @@ struct Grid:Task,MetricSpace
 	}
 };
 
-inline tw::Float Grid::ToLab(tw::Float zeta,tw::Float relativeTime)
+inline tw::Float Simulation::ToLab(tw::Float zeta,tw::Float relativeTime)
 {
 	return zeta + antiWindowPosition - windowPosition + signalSpeed*(elapsedTime + relativeTime - dth);
 }
 
-inline tw::Float Grid::ToLight(tw::Float z,tw::Float relativeTime)
+inline tw::Float Simulation::ToLight(tw::Float z,tw::Float relativeTime)
 {
 	return z + windowPosition - antiWindowPosition - signalSpeed*(elapsedTime + relativeTime - dth);
 }
 
 template <class T,class U>
-U Grid::ValueOnLabGrid(T& A,tw::Int i,tw::Int j,tw::Int k,tw::Float relativeTime)
+U Simulation::ValueOnLabGrid(T& A,tw::Int i,tw::Int j,tw::Int k,tw::Float relativeTime)
 {
 	// Take a quantity known on the light grid and get its value in a cell of the lab grid
 	tw::Int cell;
@@ -197,7 +197,7 @@ U Grid::ValueOnLabGrid(T& A,tw::Int i,tw::Int j,tw::Int k,tw::Float relativeTime
 }
 
 template <class T,class U>
-U Grid::ValueOnLightGrid(T& A,tw::Int i,tw::Int j,tw::Int k,tw::Float relativeTime)
+U Simulation::ValueOnLightGrid(T& A,tw::Int i,tw::Int j,tw::Int k,tw::Float relativeTime)
 {
 	// Take a quantity known on the lab grid and get its value in a cell of the light grid
 	tw::Int cell;

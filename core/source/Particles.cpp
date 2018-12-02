@@ -1,4 +1,4 @@
-#include "sim.h"
+#include "simulation.h"
 #include "particles.h"
 #include "fieldSolve.h"
 #include "laserSolve.h"
@@ -9,7 +9,7 @@
 // This is the top of the particle containment heierarchy
 // Kinetics <- Species <- Particle
 
-Kinetics::Kinetics(const std::string& name,Grid* theGrid) : Module(name,theGrid)
+Kinetics::Kinetics(const std::string& name,Simulation* sim) : Module(name,sim)
 {
 	typeCode = tw::module_type::kinetics;
 	rho00.Initialize(*this,owner);
@@ -60,7 +60,7 @@ void Kinetics::MoveWindow()
 	// i.e., charge from a given particle should be on only one node
 	// therefore charge has to be zeroed on one node after being sent to another
 	rho00.DownwardDeposit(zAxis,1);
-	for (StripIterator s(*this,3,strongbool::yes);s<s.end();++s)
+	for (auto s : StripRange(*this,3,strongbool::yes))
 	{
 		rho00(s,0) = 0.0;
 		rho00(s,1) = 0.0;
@@ -99,7 +99,7 @@ void Kinetics::Update()
 	}
 
 	if (sources && owner->neutralize)
-		for (CellIterator cell(*this,true);cell<cell.end();++cell)
+		for (auto cell : CellRange(*this,true))
 			(*sources)(cell,0) -= rho00(cell);
 
 	// Take care of boundaries in source arrays within field solvers
@@ -409,7 +409,7 @@ void Particle::WriteData(std::ofstream& outFile)
 ///////////////////
 
 
-Species::Species(const std::string& name,Grid* theGrid) : Module(name,theGrid)
+Species::Species(const std::string& name,Simulation* sim) : Module(name,sim)
 {
 	typeCode = tw::module_type::species;
 	restMass = 1.0;
@@ -425,8 +425,8 @@ Species::Species(const std::string& name,Grid* theGrid) : Module(name,theGrid)
 
 	for (tw::Int i=1;i<=3;i++)
 	{
-		bc0[i] = theGrid->bc0[i];
-		bc1[i] = theGrid->bc1[i];
+		bc0[i] = sim->bc0[i];
+		bc1[i] = sim->bc1[i];
 	}
 
 	mobile = true;
@@ -1427,7 +1427,7 @@ void Species::CustomDiagnose()
 		if (phaseSpacePlot[s]->WriteThisStep(owner->elapsedTime,owner->dt,owner->stepNow))
 		{
 			phaseSpaceSize = phaseSpacePlot[s]->max - phaseSpacePlot[s]->min;
-			DiscreteSpace plot_layout(phaseSpacePlot[s]->hDim,phaseSpacePlot[s]->vDim,1,phaseSpacePlot[s]->min,phaseSpaceSize,1);
+			DiscreteSpace plot_layout(owner->dt,phaseSpacePlot[s]->hDim,phaseSpacePlot[s]->vDim,1,phaseSpacePlot[s]->min,phaseSpaceSize,1);
 			field.Initialize(plot_layout,owner);
 			field.SetBoundaryConditions(xAxis,dirichletCell,dirichletCell);
 			field.SetBoundaryConditions(yAxis,dirichletCell,dirichletCell);

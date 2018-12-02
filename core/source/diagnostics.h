@@ -91,12 +91,13 @@ struct FarFieldDetectorDescriptor : DiagnosticDescriptor
 	tw::Float radius,theta0,theta1,phi0,phi1;
 	tw::Int thetaPts,phiPts,timePts;
 	std::ofstream AthetaFile,AphiFile;
-	Grid *theGrid;
+	MetricSpace *space;
+	Task *task;
 	Vec3Field A; // index as (t,theta,phi)
 
-	FarFieldDetectorDescriptor(Grid *theGrid);
+	FarFieldDetectorDescriptor(MetricSpace *space,Task *task,std::vector<Region*>& rgnList);
 	void ReadInputFile(std::stringstream& inputString);
 	void ReadData(std::ifstream& inFile);
 	void WriteData(std::ofstream& outFile);
-	void AccumulateField(Field& J4);
+	void AccumulateField(const tw::Float& elapsedTime,Field& J4);
 };

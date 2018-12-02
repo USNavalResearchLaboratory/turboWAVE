@@ -20,12 +20,12 @@ LIBS =
 # Also Microsoft uses .obj extension, and /Fe instead of -o for named executable.
 
 BASE_HEADERS = definitions.h tw_mpi.h tasks.h ctools.h 3dmath.h metricSpace.h 3dfields.h region.h tw_iterator.h
-SIM_HEADERS = $(BASE_HEADERS) functions.h physics.h numerics.h computeTool.h elliptic.h parabolic.h hyperbolic.h fft.h injection.h input.h diagnostics.h module.h sim.h
+SIM_HEADERS = $(BASE_HEADERS) functions.h physics.h numerics.h computeTool.h elliptic.h parabolic.h hyperbolic.h fft.h injection.h input.h diagnostics.h module.h simulation.h
 MODULE_HEADERS = fieldSolve.h electrostatic.h laserSolve.h fluid.h quantum.h particles.h solidState.h
-tw3d: 3dfields.cl particles.cl elliptic.cl hyperbolic.cl quantum.cl Main.obj TW_MPI.obj Tasks.obj MetricSpace.obj 3DFields.obj Region.obj FFT.obj Physics.obj Numerics.obj ComputeTool.obj Parabolic.obj Elliptic.obj Hyperbolic.obj Functions.obj Grid.obj Module.obj FieldSolve.obj Electrostatic.obj LaserSolve.obj Fluid.obj Quantum.obj SolidState.obj Particles.obj Pusher.obj Diagnostics.obj Injection.obj Input.obj
-	$(TW_Linker) /Fetw3d Main.obj TW_MPI.obj Tasks.obj MetricSpace.obj 3DFields.obj Region.obj FFT.obj Physics.obj Numerics.obj ComputeTool.obj Parabolic.obj Elliptic.obj Hyperbolic.obj Functions.obj Grid.obj Module.obj FieldSolve.obj Electrostatic.obj LaserSolve.obj Fluid.obj Quantum.obj SolidState.obj Particles.obj Pusher.obj Diagnostics.obj Injection.obj Input.obj $(LIB_PATH) $(LIBS)
-tw3d_debug: 3dfields.cl particles.cl elliptic.cl hyperbolic.cl quantum.cl Main.d TW_MPI.d Tasks.d MetricSpace.d 3DFields.d Region.d FFT.d Physics.d Numerics.d ComputeTool.d Parabolic.d Elliptic.d Hyperbolic.d Functions.d Grid.d Module.d FieldSolve.d Electrostatic.d LaserSolve.d Fluid.d Quantum.d SolidState.d Particles.d Pusher.d Diagnostics.d Injection.d Input.d
-	$(TW_Linker) /Fetw3d Main.obj TW_MPI.obj Tasks.obj MetricSpace.obj 3DFields.obj Region.obj FFT.obj Physics.obj Numerics.obj ComputeTool.obj Parabolic.obj Elliptic.obj Hyperbolic.obj Functions.obj Grid.obj Module.obj FieldSolve.obj Electrostatic.obj LaserSolve.obj Fluid.obj Quantum.obj SolidState.obj Particles.obj Pusher.obj Diagnostics.obj Injection.obj Input.obj $(LIB_PATH) $(LIBS)
+tw3d: 3dfields.cl particles.cl elliptic.cl hyperbolic.cl quantum.cl Main.obj TW_MPI.obj Tasks.obj MetricSpace.obj 3DFields.obj Region.obj FFT.obj Physics.obj Numerics.obj ComputeTool.obj Parabolic.obj Elliptic.obj Hyperbolic.obj Functions.obj Simulation.obj Module.obj FieldSolve.obj Electrostatic.obj LaserSolve.obj Fluid.obj Quantum.obj SolidState.obj Particles.obj Pusher.obj Diagnostics.obj Injection.obj Input.obj
+	$(TW_Linker) /Fetw3d Main.obj TW_MPI.obj Tasks.obj MetricSpace.obj 3DFields.obj Region.obj FFT.obj Physics.obj Numerics.obj ComputeTool.obj Parabolic.obj Elliptic.obj Hyperbolic.obj Functions.obj Simulation.obj Module.obj FieldSolve.obj Electrostatic.obj LaserSolve.obj Fluid.obj Quantum.obj SolidState.obj Particles.obj Pusher.obj Diagnostics.obj Injection.obj Input.obj $(LIB_PATH) $(LIBS)
+tw3d_debug: 3dfields.cl particles.cl elliptic.cl hyperbolic.cl quantum.cl Main.d TW_MPI.d Tasks.d MetricSpace.d 3DFields.d Region.d FFT.d Physics.d Numerics.d ComputeTool.d Parabolic.d Elliptic.d Hyperbolic.d Functions.d Simulation.d Module.d FieldSolve.d Electrostatic.d LaserSolve.d Fluid.d Quantum.d SolidState.d Particles.d Pusher.d Diagnostics.d Injection.d Input.d
+	$(TW_Linker) /Fetw3d Main.obj TW_MPI.obj Tasks.obj MetricSpace.obj 3DFields.obj Region.obj FFT.obj Physics.obj Numerics.obj ComputeTool.obj Parabolic.obj Elliptic.obj Hyperbolic.obj Functions.obj Simulation.obj Module.obj FieldSolve.obj Electrostatic.obj LaserSolve.obj Fluid.obj Quantum.obj SolidState.obj Particles.obj Pusher.obj Diagnostics.obj Injection.obj Input.obj $(LIB_PATH) $(LIBS)
 
 Main.obj: Main.cpp $(SIM_HEADERS)
 	$(TW_Compiler) $(CCFLAGS) Main.cpp
@@ -69,8 +69,8 @@ Hyperbolic.obj: Hyperbolic.cpp $(BASE_HEADERS) numerics.h computeTool.h hyperbol
 Functions.obj: Functions.cpp definitions.h ctools.h functions.h
 	$(TW_Compiler) $(CCFLAGS) Functions.cpp
 
-Grid.obj: Grid.cpp $(SIM_HEADERS) $(MODULE_HEADERS)
-	$(TW_Compiler) $(CCFLAGS) Grid.cpp
+Simulation.obj: Simulation.cpp $(SIM_HEADERS) $(MODULE_HEADERS)
+	$(TW_Compiler) $(CCFLAGS) Simulation.cpp
 
 Module.obj: Module.cpp $(SIM_HEADERS) $(MODULE_HEADERS)
 	$(TW_Compiler) $(CCFLAGS) Module.cpp
@@ -154,8 +154,8 @@ Hyperbolic.d: Hyperbolic.cpp $(BASE_HEADERS) numerics.h computeTool.h hyperbolic
 Functions.d: Functions.cpp definitions.h ctools.h functions.h
 	$(TW_Compiler) $(DBFLAGS) Functions.cpp
 
-Grid.d: Grid.cpp $(SIM_HEADERS) $(MODULE_HEADERS)
-	$(TW_Compiler) $(DBFLAGS) Grid.cpp
+Simulation.d: Simulation.cpp $(SIM_HEADERS) $(MODULE_HEADERS)
+	$(TW_Compiler) $(DBFLAGS) Simulation.cpp
 
 Module.d: Module.cpp $(SIM_HEADERS) $(MODULE_HEADERS)
 	$(TW_Compiler) $(DBFLAGS) Module.cpp

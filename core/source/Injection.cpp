@@ -1,4 +1,4 @@
-#include "sim.h"
+#include "simulation.h"
 
 ///////////////////
 //               //
@@ -1434,11 +1434,10 @@ void LindmanBoundary::UpdateBoundaryMemory(Field& A,tw::Float dt)
 	tw::Float source,dtt;
 	tw::Int i,j,k,s,s0,s1;
 
-	StripIterator strip(A,ax,strongbool::no);
-	s0 = side==lowSide ? 0 : strip.Dim();
-	s1 = side==lowSide ? 1 : strip.Dim()+1;
+	s0 = side==lowSide ? 0 : A.Dim(ax);
+	s1 = side==lowSide ? 1 : A.Dim(ax)+1;
 
-	for (strip=0;strip<strip.end();++strip)
+	for (auto strip : StripRange(A,ax,strongbool::no))
 	{
 		source = A.d2(strip,s1,c0,1) + A.d2(strip,s1,c0,2) + A.d2(strip,s1,c0,3) - A.d2(strip,s1,c0,ax);
 		source -= A.d2(strip,s0,c0,1) + A.d2(strip,s0,c0,2) + A.d2(strip,s0,c0,3) - A.d2(strip,s0,c0,ax);
@@ -1476,10 +1475,9 @@ void LindmanBoundary::Set(Field& A,tw::Float t0,tw::Float dt)
 	tw::vec3 offset = 0.5 * direction * ds[ax];
 	sgn = side==highSide ? -1.0 : 1.0;
 
-	StripIterator strip(A,ax,strongbool::no);
-	s0 = side==lowSide ? 0 : strip.Dim()+1;
-	s1 = side==lowSide ? 1 : strip.Dim();
-	for (strip=0;strip<strip.end();++strip)
+	s0 = side==lowSide ? 0 : A.Dim(ax)+1;
+	s1 = side==lowSide ? 1 : A.Dim(ax);
+	for (auto strip : StripRange(A,ax,strongbool::no))
 	{
 		strip.Decode(s0,&i,&j,&k);
 		correction = boundaryMemory(i,j,k,3) + boundaryMemory(i,j,k,4) + boundaryMemory(i,j,k,5);

@@ -37,6 +37,7 @@ struct DiscreteSpace
 
 	protected:
 
+	tw::Float dt; // timestep, only for constant timestep
 	tw::vec3 corner,size,globalCorner,globalSize,spacing,freq; // spacing and freq are only for uniform grids
 	// Indexing in the following has 0=components, (1,2,3)=spatial axes
 	// num includes ghost cells, dim does not
@@ -57,7 +58,7 @@ struct DiscreteSpace
 	public:
 
 	DiscreteSpace();
-	DiscreteSpace(tw::Int x,tw::Int y,tw::Int z,const tw::vec3& corner,const tw::vec3& size,tw::Int ghostCellLayers);
+	DiscreteSpace(tw::Float dt,tw::Int x,tw::Int y,tw::Int z,const tw::vec3& corner,const tw::vec3& size,tw::Int ghostCellLayers);
 	void Resize(tw::Int x,tw::Int y,tw::Int z,const tw::vec3& corner,const tw::vec3& size,tw::Int ghostCellLayers);
 	void Resize(tw::Int x,tw::Int y,tw::Int z,const tw::vec3& corner,const tw::vec3& size);
 	tw::Int EncodeCell(tw::Int i,tw::Int j,tw::Int k) const { return (i-lb[1])*encodingStride[1] + (j-lb[2])*encodingStride[2] + (k-lb[3])*encodingStride[3]; }
@@ -89,6 +90,7 @@ struct DiscreteSpace
 	tw::Int Layers(const tw::Int& ax) const { return layers[ax]; }
 	tw::Int N0(const tw::Int& ax) const { return lb[ax]; }
 	tw::Int N1(const tw::Int& ax) const { return ub[ax]; }
+	friend tw::Float dt(const DiscreteSpace& A) { return A.dt; }
 	friend tw::Float dx(const DiscreteSpace& A)  { return A.spacing.x; }
 	friend tw::Float dy(const DiscreteSpace& A)  { return A.spacing.y; }
 	friend tw::Float dz(const DiscreteSpace& A)  { return A.spacing.z; }
@@ -403,15 +405,15 @@ struct MetricSpace:DiscreteSpace
 	{
 		return tw::vec3(gpos[mnum[0]*1-mlb[1]+x],gpos[mnum[0]*2-mlb[2]+y],gpos[mnum[0]*3-mlb[3]+z]);
 	}
-	tw::vec3 Pos(const CellIterator& cell) const
+	tw::vec3 Pos(const tw::cell& cell) const
 	{
 		return Pos(cell.dcd1(),cell.dcd2(),cell.dcd3());
 	}
-	tw::vec3 Pos(const StripIterator& s,const tw::Int& i) const
+	tw::vec3 Pos(const tw::strip& s,const tw::Int& i) const
 	{
 		return Pos(s.dcd1(i),s.dcd2(i),s.dcd3(i));
 	}
-	tw::vec3 Pos(const VectorizingIterator<3>& v,const tw::Int& k) const
+	tw::vec3 Pos(const tw::vectorizer<3>& v,const tw::Int& k) const
 	{
 		return Pos(v.dcd1(k),v.dcd2(k),k);
 	}
@@ -419,15 +421,15 @@ struct MetricSpace:DiscreteSpace
 	{
 		return tw::vec3(width[mnum[0]*1-mlb[1]+x],width[mnum[0]*2-mlb[2]+y],width[mnum[0]*3-mlb[3]+z]);
 	}
-	tw::vec3 dPos(const CellIterator& cell) const
+	tw::vec3 dPos(const tw::cell& cell) const
 	{
 		return dPos(cell.dcd1(),cell.dcd2(),cell.dcd3());
 	}
-	tw::vec3 dPos(const StripIterator& s,const tw::Int& i) const
+	tw::vec3 dPos(const tw::strip& s,const tw::Int& i) const
 	{
 		return dPos(s.dcd1(i),s.dcd2(i),s.dcd3(i));
 	}
-	tw::vec3 dPos(const VectorizingIterator<3>& v,const tw::Int& k) const
+	tw::vec3 dPos(const tw::vectorizer<3>& v,const tw::Int& k) const
 	{
 		return dPos(v.dcd1(k),v.dcd2(k),k);
 	}
@@ -436,19 +438,19 @@ struct MetricSpace:DiscreteSpace
 		// returns wall area for ax = axis normal to wall.  ax = 0 returns cell volume.
 		return cell_area_x[ax*mnum[1] - mlb[1] + x] * cell_area_z[ax*mnum[3] - mlb[3] + z];
 	}
-	tw::Float dS(const CellIterator& cell,const tw::Int& ax) const
+	tw::Float dS(const tw::cell& cell,const tw::Int& ax) const
 	{
 		return dS(cell.dcd1(),cell.dcd2(),cell.dcd3(),ax);
 	}
-	tw::Float dS(const StripIterator& s,const tw::Int& i,const tw::Int& ax) const
+	tw::Float dS(const tw::strip& s,const tw::Int& i,const tw::Int& ax) const
 	{
 		return dS(s.dcd1(i),s.dcd2(i),s.dcd3(i),ax);
 	}
-	tw::Float dS(const VectorizingIterator<1>& v,const tw::Int& i,const tw::Int& ax) const
+	tw::Float dS(const tw::vectorizer<1>& v,const tw::Int& i,const tw::Int& ax) const
 	{
 		return dS(i,v.dcd2(i),v.dcd3(i),ax);
 	}
-	tw::Float dS(const VectorizingIterator<3>& v,const tw::Int& k,const tw::Int& ax) const
+	tw::Float dS(const tw::vectorizer<3>& v,const tw::Int& k,const tw::Int& ax) const
 	{
 		return dS(v.dcd1(k),v.dcd2(k),k,ax);
 	}
@@ -457,15 +459,15 @@ struct MetricSpace:DiscreteSpace
 		// returns arc length from cell center to cell center, along axis=ax, from low side
 		return cell_arc_x[(ax-1)*mnum[1] - mlb[1] + x] * cell_arc_z[(ax-1)*mnum[3] - mlb[3] + z];
 	}
-	tw::Float dl(const CellIterator& cell,const tw::Int& ax) const
+	tw::Float dl(const tw::cell& cell,const tw::Int& ax) const
 	{
 		return dl(cell.dcd1(),cell.dcd2(),cell.dcd3(),ax);
 	}
-	tw::Float dl(const StripIterator& s,const tw::Int& i,const tw::Int& ax) const
+	tw::Float dl(const tw::strip& s,const tw::Int& i,const tw::Int& ax) const
 	{
 		return dl(s.dcd1(i),s.dcd2(i),s.dcd3(i),ax);
 	}
-	tw::Float dl(const VectorizingIterator<3>& v,const tw::Int& k,const tw::Int& ax) const
+	tw::Float dl(const tw::vectorizer<3>& v,const tw::Int& k,const tw::Int& ax) const
 	{
 		return dl(v.dcd1(k),v.dcd2(k),k,ax);
 	}
@@ -474,11 +476,11 @@ struct MetricSpace:DiscreteSpace
 		// returns wall area for ax = axis normal to wall.  ax = 0 returns cell volume.
 		return dS(x,y,z,ax+4);
 	}
-	tw::Float dSh(const CellIterator& cell,const tw::Int& ax) const
+	tw::Float dSh(const tw::cell& cell,const tw::Int& ax) const
 	{
 		return dS(cell,ax+4);
 	}
-	tw::Float dSh(const VectorizingIterator<3>& v,const tw::Int& k,const tw::Int& ax) const
+	tw::Float dSh(const tw::vectorizer<3>& v,const tw::Int& k,const tw::Int& ax) const
 	{
 		return dS(v,k,ax+4);
 	}
@@ -487,11 +489,11 @@ struct MetricSpace:DiscreteSpace
 		// returns arc length from cell wall to cell wall, along axis=ax, along low side edge
 		return dl(x,y,z,ax+3);
 	}
-	tw::Float dlh(const CellIterator& cell,const tw::Int& ax) const
+	tw::Float dlh(const tw::cell& cell,const tw::Int& ax) const
 	{
 		return dl(cell,ax+3);
 	}
-	tw::Float dlh(const VectorizingIterator<3>& v,const tw::Int& k,const tw::Int& ax) const
+	tw::Float dlh(const tw::vectorizer<3>& v,const tw::Int& k,const tw::Int& ax) const
 	{
 		return dl(v,k,ax+3);
 	}
@@ -500,15 +502,15 @@ struct MetricSpace:DiscreteSpace
 		// returns arc length between 2 cell centers adjacent to this cell center, along axis=ax
 		return dl(x,y,z,ax) + dl(x+kdelta(1,ax),y,z+kdelta(3,ax),ax);
 	}
-	tw::Float dL(const CellIterator& cell,const tw::Int& ax) const
+	tw::Float dL(const tw::cell& cell,const tw::Int& ax) const
 	{
 		return dL(cell.dcd1(),cell.dcd2(),cell.dcd3(),ax);
 	}
-	tw::Float dL(const VectorizingIterator<3>& v,const tw::Int& k,const tw::Int& ax) const
+	tw::Float dL(const tw::vectorizer<3>& v,const tw::Int& k,const tw::Int& ax) const
 	{
 		return dL(v.dcd1(k),v.dcd2(k),k,ax);
 	}
-	void GetCellMetrics(const CellIterator& cell,const tw::Int& ax,tw::Float *dV,tw::Float *dS0,tw::Float *dS1,tw::Float *dl0,tw::Float *dl1) const
+	void GetCellMetrics(const tw::cell& cell,const tw::Int& ax,tw::Float *dV,tw::Float *dS0,tw::Float *dS1,tw::Float *dl0,tw::Float *dl1) const
 	{
 		const tw::Int i1 = cell.dcd1() - mlb[1];
 		const tw::Int i3 = cell.dcd3() - mlb[3];

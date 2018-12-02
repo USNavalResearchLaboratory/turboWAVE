@@ -4,7 +4,7 @@ namespace tw
 					electrostatic,
 					coulombSolver,directSolver,curvilinearDirectSolver,
 					qsLaser,pgcLaser,
-					kinetics,species,fluidFields,equilibriumGroup,chemical,chemistry,
+					kinetics,species,fluidFields,equilibriumGroup,chemical,sparcHydroManager,
 					boundElectrons,schroedinger,pauli,kleinGordon,dirac};
 }
 
@@ -13,7 +13,7 @@ struct Module:DiscreteSpace
 	tw::Float dt,dth,dti;
 	std::string name;
 	std::vector<Profile*> profile;
-	Grid* owner;
+	Simulation* owner;
 	Module* super;
 	std::vector<Module*> submodule;
 	std::vector<ComputeTool*> moduleTool;
@@ -31,7 +31,7 @@ struct Module:DiscreteSpace
 	cl_program program;
 	#endif
 
-	Module(const std::string& name,Grid* theGrid);
+	Module(const std::string& name,Simulation* sim);
 	~Module();
 	bool AddSubmodule(Module* sub);
 	virtual bool ValidSubmodule(Module* sub);
@@ -70,8 +70,8 @@ struct Module:DiscreteSpace
 	static tw::module_type CreateSupermoduleTypeFromSubmoduleKey(const std::string& key);
 	static bool QuasitoolNeedsModule(const std::vector<std::string>& preamble);
 	static tw::module_type CreateTypeFromInput(const std::vector<std::string>& preamble);
-	static Module* CreateObjectFromType(const std::string& name,tw::module_type theType,Grid* theGrid);
-	static Module* CreateObjectFromFile(std::ifstream& inFile,Grid* thGrid);
+	static Module* CreateObjectFromType(const std::string& name,tw::module_type theType,Simulation* sim);
+	static Module* CreateObjectFromFile(std::ifstream& inFile,Simulation* sim);
 };
 
 struct ModuleComparator

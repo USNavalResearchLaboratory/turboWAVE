@@ -2,7 +2,7 @@ struct FieldSolver:Module
 {
 	EllipticSolver *ellipticSolver;
 
-	FieldSolver(const std::string& name,Grid* theGrid);
+	FieldSolver(const std::string& name,Simulation* sim);
 	~FieldSolver();
 	virtual void VerifyInput();
 	virtual void ReadData(std::ifstream& inFile);
@@ -18,7 +18,7 @@ struct Electromagnetic:FieldSolver
 	tw::Float gammaBeam;
 	std::vector<FarFieldDetectorDescriptor*> farFieldDetector;
 
-	Electromagnetic(const std::string& name,Grid* theGrid);
+	Electromagnetic(const std::string& name,Simulation* sim);
 	virtual void ExchangeResources();
 	virtual void Initialize();
 	virtual void Reset();
@@ -52,7 +52,7 @@ struct CoulombSolver:Electromagnetic
 	Field A4;
 	LindmanBoundary L1,L2,R1,R2;
 
-	CoulombSolver(const std::string& name,Grid* theGrid);
+	CoulombSolver(const std::string& name,Simulation* sim);
 	virtual void ExchangeResources();
 	virtual void Initialize();
 	virtual void ReadData(std::ifstream& inFile);
@@ -78,7 +78,7 @@ struct DirectSolver:Electromagnetic
 
 	YeePropagatorPML *yeeTool;
 
-	DirectSolver(const std::string& name,Grid* theGrid);
+	DirectSolver(const std::string& name,Simulation* sim);
 	~DirectSolver();
 	virtual void Initialize();
 	virtual void Update();
@@ -92,7 +92,7 @@ struct DirectSolver:Electromagnetic
 
 struct CurvilinearDirectSolver:DirectSolver
 {
-	CurvilinearDirectSolver(const std::string& name,Grid* theGrid);
+	CurvilinearDirectSolver(const std::string& name,Simulation* sim);
 	virtual void Initialize();
 	virtual void Update();
 	virtual void SetSingularPointsE();
@@ -106,7 +106,7 @@ void Electromagnetic::LoadVectorPotential(Field& A,tw::Float t)
 	{
 		tw::Int i,j,k,s;
 		tw::vec3 r1,r2,r3;
-		for (CellIterator cell(A,true);cell<cell.end();++cell)
+		for (auto cell : CellRange(A,true))
 		{
 			cell.Decode(&i,&j,&k);
 			r1.x = owner->X(i,1) - 0.5*owner->dX(i,1);

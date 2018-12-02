@@ -1,4 +1,4 @@
-#include "sim.h"
+#include "simulation.h"
 #include "fieldSolve.h"
 #include "electrostatic.h"
 #include "laserSolve.h"
@@ -15,20 +15,20 @@
 ////////////////////////
 
 
-Module::Module(const std::string& name,Grid* theGrid)
+Module::Module(const std::string& name,Simulation* sim)
 {
 	this->name = name;
-	owner = theGrid;
+	owner = sim;
 	super = NULL;
 	programFilename = "";
 	buildLog = "";
-	dt = theGrid->dt;
-	dth = theGrid->dth;
+	dt = sim->dt;
+	dth = sim->dth;
 	dti = 1.0/dt;
 	updateSequencePriority = 1;
 	typeCode = tw::module_type::nullModule;
 	suppressNextUpdate = false;
-	DiscreteSpace::operator=(*theGrid);
+	DiscreteSpace::operator=(*sim);
 }
 
 Module::~Module()
@@ -102,7 +102,8 @@ void Module::ReadData(std::ifstream& inFile)
 	std::string super_name;
 	inFile >> super_name;
 	inFile.ignore();
-	owner->GetModule(super_name)->AddSubmodule(this);
+	if (super_name!="NULL")
+		owner->GetModule(super_name)->AddSubmodule(this);
 }
 
 void Module::WriteData(std::ofstream& outFile)
@@ -120,7 +121,11 @@ void Module::WriteData(std::ofstream& outFile)
 
 	// Write the name of the supermodule
 	// This can be used to reconstruct the whole hierarchy, assuming modules are sorted correctly
-	outFile << super->name << " ";
+	if (super==NULL)
+		outFile << "NULL";
+	else
+		outFile << super->name;
+	outFile << " ";
 }
 
 void Module::VerifyInput()
@@ -147,7 +152,7 @@ bool Module::ReadQuasitoolBlock(const std::vector<std::string>& preamble,std::st
 void Module::ReadInputFileDirective(std::stringstream& inputString,const std::string& command)
 {
 	// Deal with ComputeTool list.
-	// Grid::ToolFromDirective takes care of 3 things:
+	// Simulation::ToolFromDirective takes care of 3 things:
 	// 1. Get an existing tool by searching for a name -- ``get tool with name = [name]``
 	// 2. Create a tool on the fly based on a type -- ``[key] = [type]``
 	// 3. Process directives associated with the last tool from (1) or (2)
@@ -176,7 +181,7 @@ void Module::WarningMessage(std::ostream *theStream)
 
 bool Module::SingularType(tw::module_type theType)
 {
-	return theType==tw::module_type::kinetics || theType==tw::module_type::chemistry;
+	return theType==tw::module_type::kinetics || theType==tw::module_type::sparcHydroManager;
 }
 
 tw::module_type Module::CreateSupermoduleTypeFromSubmoduleKey(const std::string& key)
@@ -186,7 +191,7 @@ tw::module_type Module::CreateSupermoduleTypeFromSubmoduleKey(const std::string&
 	if (key=="chemical")
 		return tw::module_type::equilibriumGroup;
 	if (key=="group")
-		return tw::module_type::chemistry;
+		return tw::module_type::sparcHydroManager;
 	return tw::module_type::nullModule;
 }
 
@@ -228,8 +233,8 @@ tw::module_type Module::CreateTypeFromInput(const std::vector<std::string>& prea
 		return tw::module_type::dirac;
 	if (preamble[0]=="fluid")
 		return tw::module_type::fluidFields;
-	if (preamble[0]=="chemistry")
-		return tw::module_type::chemistry;
+	if (preamble[0]=="chemistry" || preamble[0]=="hydro" || preamble[0]=="hydrodynamics")
+		return tw::module_type::sparcHydroManager;
 	if (preamble[0]=="group")
 		return tw::module_type::equilibriumGroup;
 	if (preamble[0]=="chemical")
@@ -241,7 +246,7 @@ tw::module_type Module::CreateTypeFromInput(const std::vector<std::string>& prea
 	return tw::module_type::nullModule;
 }
 
-Module* Module::CreateObjectFromType(const std::string& name,tw::module_type theType,Grid* theGrid)
+Module* Module::CreateObjectFromType(const std::string& name,tw::module_type theType,Simulation* sim)
 {
 	Module *ans;
 	switch (theType)
@@ -250,61 +255,61 @@ Module* Module::CreateObjectFromType(const std::string& name,tw::module_type the
 			ans = NULL;
 			break;
 		case tw::module_type::curvilinearDirectSolver:
-			ans = new CurvilinearDirectSolver(name,theGrid);
+			ans = new CurvilinearDirectSolver(name,sim);
 			break;
 		case tw::module_type::electrostatic:
-			ans = new Electrostatic(name,theGrid);
+			ans = new Electrostatic(name,sim);
 			break;
 		case tw::module_type::coulombSolver:
-			ans = new CoulombSolver(name,theGrid);
+			ans = new CoulombSolver(name,sim);
 			break;
 		case tw::module_type::directSolver:
-			ans = new DirectSolver(name,theGrid);
+			ans = new DirectSolver(name,sim);
 			break;
 		case tw::module_type::qsLaser:
-			ans = new QSSolver(name,theGrid);
+			ans = new QSSolver(name,sim);
 			break;
 		case tw::module_type::pgcLaser:
-			ans = new PGCSolver(name,theGrid);
+			ans = new PGCSolver(name,sim);
 			break;
 		case tw::module_type::boundElectrons:
-			ans = new BoundElectrons(name,theGrid);
+			ans = new BoundElectrons(name,sim);
 			break;
 		case tw::module_type::fluidFields:
-			ans = new Fluid(name,theGrid);
+			ans = new Fluid(name,sim);
 			break;
 		case tw::module_type::equilibriumGroup:
-			ans = new EquilibriumGroup(name,theGrid);
+			ans = new EquilibriumGroup(name,sim);
 			break;
 		case tw::module_type::chemical:
-			ans = new Chemical(name,theGrid);
+			ans = new Chemical(name,sim);
 			break;
-		case tw::module_type::chemistry:
-			ans = new Chemistry(name,theGrid);
+		case tw::module_type::sparcHydroManager:
+			ans = new sparc::HydroManager(name,sim);
 			break;
 		case tw::module_type::species:
-			ans = new Species(name,theGrid);
+			ans = new Species(name,sim);
 			break;
 		case tw::module_type::kinetics:
-			ans = new Kinetics(name,theGrid);
+			ans = new Kinetics(name,sim);
 			break;
 		case tw::module_type::schroedinger:
-			ans = new Schroedinger(name,theGrid);
+			ans = new Schroedinger(name,sim);
 			break;
 		case tw::module_type::pauli:
-			ans = new Pauli(name,theGrid);
+			ans = new Pauli(name,sim);
 			break;
 		case tw::module_type::kleinGordon:
-			ans = new KleinGordon(name,theGrid);
+			ans = new KleinGordon(name,sim);
 			break;
 		case tw::module_type::dirac:
-			ans = new Dirac(name,theGrid);
+			ans = new Dirac(name,sim);
 			break;
 	}
 	return ans;
 }
 
-Module* Module::CreateObjectFromFile(std::ifstream& inFile,Grid *theGrid)
+Module* Module::CreateObjectFromFile(std::ifstream& inFile,Simulation* sim)
 {
 	// This might work, but the containment heierarchy better be sorted.
 	tw::module_type theType;
@@ -313,7 +318,7 @@ Module* Module::CreateObjectFromFile(std::ifstream& inFile,Grid *theGrid)
 	inFile.read((char*)&theType,sizeof(tw::module_type));
 	inFile >> name;
 	inFile.ignore();
-	ans = CreateObjectFromType(name,theType,theGrid);
+	ans = CreateObjectFromType(name,theType,sim);
 	ans->ReadData(inFile);
 	return ans;
 }

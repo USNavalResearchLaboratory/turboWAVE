@@ -512,28 +512,18 @@ void ComputeTransformMatrices(std::valarray<tw::Float>& eigenvalue,std::valarray
 ////////////////////
 
 
-FCT_Engine::FCT_Engine(const StripIterator& s,const MetricSpace& m,ScalarField *fluxMask)
+FCT_Engine::FCT_Engine(tw::Int ax,const MetricSpace& m)
 {
-	tw::Int i,ax=s.Axis();
-	cells = s.Dim();
+	cells = m.Dim(ax);
 	V.resize(cells+2);
 	A.resize(cells+2);
 	scratch.resize(cells+2);
-	// The engine uses V[0] in the clipping stage
-	// The engine never uses A[0]
-	for (i=0;i<=cells+1;i++)
-		V[i] = m.dS(s,i,0);
-	for (i=1;i<=cells+1;i++)
-		A[i] = m.dS(s,i,ax);
-	if (fluxMask!=NULL)
-		for (i=1;i<=cells+1;i++)
-			A[i] *= 1.0 - tw::Float( (*fluxMask)(s,i-1) + (*fluxMask)(s,i) == 1.0 );
 }
 
-void FCT_Engine::Reset(const StripIterator& s,const MetricSpace& m,ScalarField *fluxMask)
+void FCT_Engine::Reset(const tw::strip& s,const MetricSpace& m,ScalarField *fluxMask)
 {
 	tw::Int i,ax=s.Axis();
-	cells = s.Dim();
+	cells = m.Dim(ax);
 	// The engine uses V[0] in the clipping stage
 	// The engine never uses A[0]
 	for (i=0;i<=cells+1;i++)
@@ -722,14 +712,13 @@ void FCT_Driver::Convect(const axisSpec& axis,boundarySpec low,boundarySpec high
 		tw::Int c;
 		std::valarray<tw::Float> va_rho(N+2),va_rho1(N+2),va_vel(N+2),va_diff(N+2),va_flux(N+2);
 		tw::Float va_rho00;
-		StripIterator s(*ms,ax,strongbool::yes);
-		FCT_Engine engine(s,*ms,fluxMask);
+		FCT_Engine engine(ax,*ms);
 
 		// TRANSPORT
 
 		for (c=en.low;c<=en.high;c++)
 		{
-			for (s=0;s<s.end();++s)
+			for (auto s : StripRange(*ms,ax,strongbool::yes))
 			{
 				engine.Reset(s,*ms,fluxMask);
 				rho->GetStrip(va_rho,s,c);
@@ -753,7 +742,7 @@ void FCT_Driver::Convect(const axisSpec& axis,boundarySpec low,boundarySpec high
 
 		for (c=en.low;c<=en.high;c++)
 		{
-			for (s=0;s<s.end();++s)
+			for (auto s : StripRange(*ms,ax,strongbool::yes))
 			{
 				engine.Reset(s,*ms,fluxMask);
 				rho->GetStrip(va_rho,s,c);
@@ -776,7 +765,7 @@ void FCT_Driver::Convect(const axisSpec& axis,boundarySpec low,boundarySpec high
 
 		for (c=en.low;c<=en.high;c++)
 		{
-			for (s=0;s<s.end();++s)
+			for (auto s : StripRange(*ms,ax,strongbool::yes))
 			{
 				engine.Reset(s,*ms,fluxMask);
 				rho->GetStrip(va_rho,s,c);
@@ -797,7 +786,7 @@ void FCT_Driver::Convect(const axisSpec& axis,boundarySpec low,boundarySpec high
 
 		for (c=en.low;c<=en.high;c++)
 		{
-			for (s=0;s<s.end();++s)
+			for (auto s : StripRange(*ms,ax,strongbool::yes))
 			{
 				engine.Reset(s,*ms,fluxMask);
 				rho->GetStrip(va_rho,s,c);

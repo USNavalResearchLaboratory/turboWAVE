@@ -119,12 +119,12 @@ void YeePropagatorPML::CenteredFields(Field& F,Field& A)
 	const tw::vec3 freq(dxi(*space),dyi(*space),dzi(*space));
 	tw::Float sx,tx,sy,ty;
 	std::valarray<tw::Float> sz(space->Num(3)),tz(space->Num(3));
-	PMLz.GetStrip(sz,StripIterator(PMLz,1,strongbool::no),0);
-	PMLz.GetStrip(tz,StripIterator(PMLz,1,strongbool::no),1);
+	PMLz.GetStrip(sz,tw::strip(1,PMLz,0,0,0),0);
+	PMLz.GetStrip(tz,tw::strip(1,PMLz,0,0,0),1);
 
 	#pragma omp parallel private(sx,sy,tx,ty)
 	{
-		for (VectorizingIterator<3> v(*space,false);v<v.end();++v)
+		for (auto v : VectorizingRange<3>(*space,false))
 		{
 			sx = PMLx(v.dcd1(0),0,0,0); tx = PMLx(v.dcd1(0),0,0,1);
 			sy = PMLy(v.dcd2(0),0,0,0); ty = PMLy(v.dcd2(0),0,0,1);
@@ -160,17 +160,16 @@ void YeePropagatorPML::AdvanceB(Field& A,Field& PMLx,Field& PMLy,Field& PMLz)
 
 	const tw::vec3 freq(dxi(*space),dyi(*space),dzi(*space));
 
-	VectorizingIterator<3> v(*space,true);
 	tw::Float sx,tx,sy,ty;
 	std::valarray<tw::Float> sz(space->Num(3)),tz(space->Num(3));
-	PMLz.GetStrip(sz,StripIterator(PMLz,1,strongbool::no),3);
-	PMLz.GetStrip(tz,StripIterator(PMLz,1,strongbool::no),4);
+	PMLz.GetStrip(sz,tw::strip(1,PMLz,0,0,0),3);
+	PMLz.GetStrip(tz,tw::strip(1,PMLz,0,0,0),4);
 
-	#pragma omp parallel for private(sx,sy,tx,ty) firstprivate(v) collapse(2) schedule(static)
+	#pragma omp parallel for private(sx,sy,tx,ty) collapse(2) schedule(static)
 	for (tw::Int i=1;i<=xN1;i++)
 		for (tw::Int j=1;j<=yN1;j++)
 		{
-			v.SetStrip(i,j,0);
+			tw::vectorizer<3> v(*space,i,j,0);
 			sx = PMLx(i,0,0,3); tx = PMLx(i,0,0,4);
 			sy = PMLy(j,0,0,3); ty = PMLy(j,0,0,4);
 			#pragma omp simd
@@ -271,15 +270,14 @@ void YeePropagatorPML::UpdateInteriorBoundaryE(Field& A,const ScalarField& condu
 	const tw::Int xN1 = A.N1(1);
 	const tw::Int yN1 = A.N1(2);
 	const tw::Int zN1 = A.N1(3);
-	VectorizingIterator<3> v(A,true),vi(A,true),vj(A,true),vij(A,true);
-	#pragma omp parallel for firstprivate(v,vi,vj,vij) collapse(2) schedule(static)
+	#pragma omp parallel for collapse(2) schedule(static)
 	for (tw::Int i=1;i<=xN1;i++)
 		for (tw::Int j=1;j<=yN1;j++)
 		{
-			v.SetStrip(i,j,0);
-			vi.SetStrip(i-1,j,0);
-			vj.SetStrip(i,j-1,0);
-			vij.SetStrip(i-1,j-1,0);
+			tw::vectorizer<3> v(*space,i,j,0);
+			tw::vectorizer<3> vi(*space,i-1,j,0);
+			tw::vectorizer<3> vj(*space,i,j-1,0);
+			tw::vectorizer<3> vij(*space,i-1,j-1,0);
 			#pragma omp simd
 			for (tw::Int k=1;k<=zN1;k++)
 			{
@@ -321,14 +319,13 @@ void YeePropagatorPML::UpdateInteriorBoundaryB(Field& A,const ScalarField& condu
 	const tw::Int xN1 = A.N1(1);
 	const tw::Int yN1 = A.N1(2);
 	const tw::Int zN1 = A.N1(3);
-	VectorizingIterator<3> v(A,true),vi(A,true),vj(A,true);
-	#pragma omp parallel for firstprivate(v,vi,vj) collapse(2) schedule(static)
+	#pragma omp parallel for collapse(2) schedule(static)
 	for (tw::Int i=1;i<=xN1;i++)
 		for (tw::Int j=1;j<=yN1;j++)
 		{
-			v.SetStrip(i,j,0);
-			vi.SetStrip(i-1,j,0);
-			vj.SetStrip(i,j-1,0);
+			tw::vectorizer<3> v(*space,i,j,0);
+			tw::vectorizer<3> vi(*space,i-1,j,0);
+			tw::vectorizer<3> vj(*space,i,j-1,0);
 			#pragma omp simd
 			for (tw::Int k=1;k<=zN1;k++)
 			{
@@ -430,14 +427,14 @@ void LorentzPropagator::Advance(Field& A4,Field& Ao4,Field& j4,const tw::Float m
 	{
 		#pragma omp parallel firstprivate(c,mult,dt)
 		{
-			for (VectorizingIterator<1> v(*space,false);v<v.end();++v)
-				for (tw::Int i=1;i<=v.Dim();i++)
+			for (auto v : VectorizingRange<1>(*space,false))
+				for (tw::Int i=1;i<=A4.Dim(1);i++)
 					Ao4(v,i,c) = 2*A4(v,i,c) - Ao4(v,i,c) + dt*dt*(mult*j4(v,i,c) + A4.d2(v,i,c,1) + A4.d2(v,i,c,2) + A4.d2(v,i,c,3));
 		}
 		#pragma omp parallel firstprivate(c)
 		{
-			for (VectorizingIterator<1> v(*space,true);v<v.end();++v)
-				for (tw::Int i=v.N0();i<=v.N1();i++)
+			for (auto v : VectorizingRange<1>(*space,true))
+				for (tw::Int i=A4.N0(1);i<=A4.N1(1);i++)
 					std::swap(A4(v,i,c),Ao4(v,i,c));
 		}
 	}
@@ -451,8 +448,8 @@ void LorentzPropagator::MidstepEstimate(Field& A4,Field& Ao4)
 	{
 		#pragma omp parallel firstprivate(c)
 		{
-			for (VectorizingIterator<1> v(*space,true);v<v.end();++v)
-				for (tw::Int i=v.N0();i<=v.N1();i++)
+			for (auto v : VectorizingRange<1>(*space,true))
+				for (tw::Int i=A4.N0(1);i<=A4.N1(1);i++)
 					A4(v,i,c) = 0.5*(Ao4(v,i,c) + A4(v,i,c));
 		}
 	}
@@ -465,8 +462,8 @@ void LorentzPropagator::UndoMidstepEstimate(Field& A4,Field& Ao4)
 	{
 		#pragma omp parallel firstprivate(c)
 		{
-			for (VectorizingIterator<1> v(*space,true);v<v.end();++v)
-				for (tw::Int i=v.N0();i<=v.N1();i++)
+			for (auto v : VectorizingRange<1>(*space,true))
+				for (tw::Int i=A4.N0(1);i<=A4.N1(1);i++)
 					A4(v,i,c) = 2.0*A4(v,i,c) - Ao4(v,i,c);
 		}
 	}

@@ -1,4 +1,4 @@
-#include "sim.h"
+#include "simulation.h"
 #include "fieldSolve.h"
 #include "laserSolve.h"
 
@@ -10,7 +10,7 @@
 //////////////////////////////
 
 
-LaserSolver::LaserSolver(const std::string& name,Grid* theGrid):Module(name,theGrid)
+LaserSolver::LaserSolver(const std::string& name,Simulation* sim):Module(name,sim)
 {
 	updateSequencePriority = 3;
 	laserFreq = 10.0;
@@ -56,7 +56,7 @@ void LaserSolver::Initialize()
 	else
 		polarizationFactor = 1.0;
 
-	for (CellIterator cell(*this,true);cell<cell.end();++cell)
+	for (auto cell : CellRange(*this,true))
 		for (auto pulse : owner->pulse)
 		{
 			pos = owner->Pos(cell);
@@ -165,7 +165,7 @@ void LaserSolver::PointDiagnose(std::ofstream& outFile,const weights_3D& w)
 //////////////////////////////
 
 
-QSSolver::QSSolver(const std::string& name,Grid* theGrid):LaserSolver(name,theGrid)
+QSSolver::QSSolver(const std::string& name,Simulation* sim):LaserSolver(name,sim)
 {
 	typeCode = tw::module_type::qsLaser;
 }
@@ -178,7 +178,7 @@ QSSolver::QSSolver(const std::string& name,Grid* theGrid):LaserSolver(name,theGr
 //////////////////////////////
 
 
-PGCSolver::PGCSolver(const std::string& name,Grid* theGrid):LaserSolver(name,theGrid)
+PGCSolver::PGCSolver(const std::string& name,Simulation* sim):LaserSolver(name,sim)
 {
 	typeCode = tw::module_type::pgcLaser;
 
@@ -240,14 +240,14 @@ void PGCSolver::Initialize()
 
 void PGCSolver::MoveWindow()
 {
-	for (StripIterator s(*this,3,strongbool::yes);s<s.end();++s)
+	for (auto s : StripRange(*this,3,strongbool::yes))
 		F.Shift(s,-1,0.0);
 	F.DownwardCopy(zAxis,1);
 }
 
 void PGCSolver::AntiMoveWindow()
 {
-	for (StripIterator s(*this,3,strongbool::yes);s<s.end();++s)
+	for (auto s : StripRange(*this,3,strongbool::yes))
 	{
 		tw::Float polarizationFactor = polarizationType==circularPolarization ? 1.414 : 1.0;
 		tw::Complex incoming0(0,0);

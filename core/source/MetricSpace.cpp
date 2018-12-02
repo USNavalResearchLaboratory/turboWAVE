@@ -20,8 +20,9 @@ DiscreteSpace::DiscreteSpace()
 	ignorable[3] = 0;
 }
 
-DiscreteSpace::DiscreteSpace(tw::Int x,tw::Int y,tw::Int z,const tw::vec3& corner,const tw::vec3& size,tw::Int ghostCellLayers)
+DiscreteSpace::DiscreteSpace(tw::Float dt,tw::Int x,tw::Int y,tw::Int z,const tw::vec3& corner,const tw::vec3& size,tw::Int ghostCellLayers)
 {
+	this->dt = dt;
 	ignorable[1] = 0;
 	ignorable[2] = 0;
 	ignorable[3] = 0;
@@ -82,6 +83,7 @@ void DiscreteSpace::Resize(tw::Int x,tw::Int y,tw::Int z,const tw::vec3& corner,
 
 void DiscreteSpace::ReadData(std::ifstream& inFile)
 {
+	inFile.read((char*)&dt,sizeof(dt));
 	inFile.read((char*)&corner,sizeof(tw::vec3));
 	inFile.read((char*)&size,sizeof(tw::vec3));
 	inFile.read((char*)&globalCorner,sizeof(tw::vec3));
@@ -100,6 +102,7 @@ void DiscreteSpace::ReadData(std::ifstream& inFile)
 
 void DiscreteSpace::WriteData(std::ofstream& outFile)
 {
+	outFile.write((char*)&dt,sizeof(dt));
 	outFile.write((char*)&corner,sizeof(tw::vec3));
 	outFile.write((char*)&size,sizeof(tw::vec3));
 	outFile.write((char*)&globalCorner,sizeof(tw::vec3));

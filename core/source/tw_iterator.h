@@ -1,16 +1,192 @@
-// TurboWAVE iterators work differently from standard library, i.e., are non-conforming.
-// Rather than dereferencing the iterator to get an object, the iterator is passed
-// as an argument to the Field class to get a floating point number.
-// This seems more suitable since we often want to access different Field instances
-// using the same iterator (i.e., grabbing a number from different fields at the same space-point).
-// This also allows us to create special iterators designed to encourage various optimizations.
+// TurboWAVE iterators serve the specific purpose of accessing the Field class.
+// They are not intended for generalized use.  They imitate the standard library, but there are differences.
+// They allow for range based loops, automatic parallelism, and compact strip processing.
 
-// Iterators are aware of OpenMP state and automatically split the work accross threads.
-// Iterators are compatible only with Fields derived from the same DiscreteSpace
+// There are 3 types of classes involved:
+// 1. Range classes : Representation of cells or strips to iterate over
+// 2. tw::iterator : used under the hood to move through the range, and support range based loops
+// 3. Reference classes : used as arguments in Field accessors, much like an array index
 
-class TWIterator
+// If you are used to standard containers, compare as follows:
+// 1. Range classes behave like a container class, e.g., have begin() and end() methods.  However,
+// they have no storage of their own, they are a proxy for Field instances.
+// 2. tw::iterator plays essentially the same role as std::iterator, except that dereferencing it
+// does not give an element of Field, but rather a reference that can be passed to any Field object.
+// 3. Reference classes essentially point to some part of the data represented by Field objects.  They are
+// what results from dereferencing tw::iterator.
+
+// Range classes are aware of OpenMP state and automatically split the work accross threads.
+// Range classes are created from a DiscreteSpace, and therefore may only be used in Field objects created from
+// the same DiscreteSpace.
+
+namespace tw
 {
-	// TWIterator is an abstract base class
+	template <class RNG,class REF>
+	class iterator
+	{
+		RNG *range;
+		tw::Int curr,first,last; // global indices
+
+	public:
+		iterator(RNG *r,tw::Int c,tw::Int f,tw::Int l)
+		{
+			range = r;
+			curr = c;
+			first = f;
+			last = l;
+		}
+		tw::Int global_count() const { return curr; }
+		tw::Int count() const { return curr-first; }
+		REF operator * ()
+		{
+			return range->GetReference(curr);
+		}
+		iterator& operator ++ ()
+		{
+			curr++;
+			return *this;
+		}
+		friend bool operator < (const iterator& i1,const iterator& i2)
+		{
+			return i1.curr < i2.curr;
+		}
+		friend bool operator != (const iterator& i1,const iterator& i2)
+		{
+			return i1.curr != i2.curr;
+		}
+	};
+
+	class cell
+	{
+		tw::Int i0,j0,k0; // zero offset indexing
+		tw::Int i,j,k; // standard indexing
+
+	public:
+		cell(const tw::Int& i0,const tw::Int& j0,const tw::Int& k0,const tw::Int& i,const tw::Int& j,const tw::Int& k)
+		{
+			this->i0 = i0;
+			this->j0 = j0;
+			this->k0 = k0;
+			this->i = i;
+			this->j = j;
+			this->k = k;
+		}
+		cell(const DiscreteSpace& ds,const tw::Int& i,const tw::Int& j,const tw::Int& k)
+		{
+			this->i = i;
+			this->j = j;
+			this->k = k;
+			i0 = i - ds.N0(1);
+			j0 = j - ds.N0(2);
+			k0 = k - ds.N0(3);
+		}
+		void Decode(tw::Int *x,tw::Int *y,tw::Int *z) const
+		{
+			*x = i;
+			*y = j;
+			*z = k;
+		}
+		tw::Int dcd1() const { return i; }
+		tw::Int dcd2() const { return j; }
+		tw::Int dcd3() const { return k; }
+		tw::Int Index(const tw::Int& c,const tw::Int stride[4]) const
+		{
+			return stride[0]*c + stride[1]*i0 + stride[2]*j0 + stride[3]*k0;
+		}
+	};
+
+	class strip
+	{
+		tw::Int ax;
+		tw::Int i0,j0,k0; // zero offset indexing
+		tw::Int i,j,k; // standard indexing
+		tw::Int di,dj,dk; // id the strip direction
+
+	public:
+		strip(const tw::Int& ax,const tw::Int& i0,const tw::Int& j0,const tw::Int& k0,const tw::Int& i,const tw::Int& j,const tw::Int& k)
+		{
+			this->ax = ax;
+			this->i0 = i0;
+			this->j0 = j0;
+			this->k0 = k0;
+			this->i = i;
+			this->j = j;
+			this->k = k;
+			di = tw::Int(ax==1);
+			dj = tw::Int(ax==2);
+			dk = tw::Int(ax==3);
+		}
+		strip(const tw::Int& ax,const DiscreteSpace& ds,const tw::Int& i,const tw::Int& j,const tw::Int& k)
+		{
+			this->ax = ax;
+			this->i = i;
+			this->j = j;
+			this->k = k;
+			di = tw::Int(ax==1);
+			dj = tw::Int(ax==2);
+			dk = tw::Int(ax==3);
+			i0 = i - ds.N0(1);
+			j0 = j - ds.N0(2);
+			k0 = k - ds.N0(3);
+		}
+		tw::Int Axis() const { return ax; } // axis parallel to the strip
+		void Decode(tw::Int s,tw::Int *x,tw::Int *y,tw::Int *z) const
+		{
+			// Get the standard cell indices
+			*x = (1-di)*i + di*s;
+			*y = (1-dj)*j + dj*s;
+			*z = (1-dk)*k + dk*s;
+		}
+		// The following decode the standard cell indices one at a time
+		tw::Int dcd1(tw::Int s) const { return (1-di)*i + di*s; }
+		tw::Int dcd2(tw::Int s) const { return (1-dj)*j + dj*s; }
+		tw::Int dcd3(tw::Int s) const { return (1-dk)*k + dk*s; }
+		tw::Int Index(const tw::Int& s,const tw::Int& c,const tw::Int stride[4]) const
+		{
+			return stride[0]*c + stride[1]*(s*di+i0) + stride[2]*(s*dj+j0) + stride[3]*(s*dk+k0);
+		}
+		// Following 3 functions assume packing along the axis indicated
+		// The compiler should be able to vectorize efficiently with respect to s
+		tw::Int Index1(const tw::Int& s,const tw::Int& c,const tw::Int stride[4]) const
+		{
+			return s + i0 + stride[0]*c + stride[2]*j0 + stride[3]*k0;
+		}
+		tw::Int Index2(const tw::Int& s,const tw::Int& c,const tw::Int stride[4]) const
+		{
+			return s + j0 + stride[0]*c + stride[1]*i0 + stride[3]*k0;
+		}
+		tw::Int Index3(const tw::Int& s,const tw::Int& c,const tw::Int stride[4]) const
+		{
+			return s + k0 + stride[0]*c + stride[1]*i0 + stride[2]*j0;
+		}
+	};
+
+	template <tw::Int AX>
+	class vectorizer : public strip
+	{
+		// Strip reference for promoting compiler vectorization.
+		// Performance assumption is that AX is the packed axis.
+		// This allows Field accessors to drop the stride multiplier so the compiler can figure
+		// out that the data is packed.
+		// This specialization happens in the Field class.
+		// That is, this class appearing as an argument triggers special treatment.
+
+	public:
+		vectorizer(const tw::Int& i0,const tw::Int& j0,const tw::Int& k0,const tw::Int& i,const tw::Int& j,const tw::Int& k) : strip(AX,i0,j0,k0,i,j,k)
+		{
+			// no need to do anything
+		}
+		vectorizer(const DiscreteSpace& ds,const tw::Int& i,const tw::Int& j,const tw::Int& k) : strip(AX,ds,i,j,k)
+		{
+			// no need to do anything
+		}
+	};
+}
+
+
+class TWRange
+{
+	// TWRange is an abstract base class
 
 	// curr is the encoded index of the current object, called the count.
 	// The global encoding is such that count ranges from (0...N-1), where N is the number of objects.
@@ -22,101 +198,57 @@ class TWIterator
 	// This leads to derived classes defining their own assignment and increment operators.
 	// One could use virtual functions to make this more elegant, but efficiency might suffer.
 
-	protected:
-	tw::Int curr;
+protected:
 	tw::Int first,last;
 
-	public:
+public:
 	void SetCountRange(tw::Int global_size)
 	{
 		// The whole interaction with OpenMP occurs here.
 		// We merely have to compute first and last for the current thread.
 		tw::GetOMPTaskLoopRange(tw::GetOMPThreadNum(),global_size,tw::GetOMPNumThreads(),&first,&last);
-		curr = first;
 	}
-	tw::Int global_count() const { return curr; }
-	tw::Int count() const { return curr-first; }
 	tw::Int size() const { return last-first+1; }
-	tw::Int begin() const { return 0; }
-	tw::Int end() const { return last-first+1; }
-	friend bool operator < (const TWIterator& cell,tw::Int n)
-	{
-		return cell.curr < cell.first + n;
-	}
 };
 
-class CellIterator:public TWIterator
+class CellRange:public TWRange
 {
 	// Step through cells without concern for geometry.
 	// Ghost cells are included if includeGhostCells=true in constructor.
 
 	// INTERNALS:
 
-	// i0,j0,k0 labels the current cell; io,jo,ko,is,js,ks are decoding offsets.
-	// i0,j0,k0 are indexed with zero-offset regardless of ghost cell layers (first cell of any kind is labelled 0)
-	// This should not confuse users since i0,j0,k0 are not visible to the caller
+	// io,jo,ko,is,js,ks are decoding offsets.
+	// iCells,jCells,kCells measure offsets in index space as the count increases.
 
-	tw::Int i0,j0,k0,io,jo,ko,is,js,ks,iCells,jCells,kCells;
+	tw::Int io,jo,ko,is,js,ks,iCells,jCells,kCells;
 
-	public:
-	CellIterator(const DiscreteSpace& space,bool includeGhostCells)
+public:
+	CellRange(const DiscreteSpace& space,bool includeGhostCells)
 	{
 		io = includeGhostCells ? 0 : space.Layers(1);
 		jo = includeGhostCells ? 0 : space.Layers(2);
 		ko = includeGhostCells ? 0 : space.Layers(3);
-		is = 1 - space.Layers(1);
-		js = 1 - space.Layers(2);
-		ks = 1 - space.Layers(3);
+		is = space.N0(1);
+		js = space.N0(2);
+		ks = space.N0(3);
 		iCells = includeGhostCells ? space.Num(1) : space.Dim(1);
 		jCells = includeGhostCells ? space.Num(2) : space.Dim(2);
 		kCells = includeGhostCells ? space.Num(3) : space.Dim(3);
 		SetCountRange(iCells*jCells*kCells);
-		SetDecodingRefs();
 	}
-	CellIterator& operator = (tw::Int local_count)
+	tw::iterator<CellRange,tw::cell> begin() { return tw::iterator<CellRange,tw::cell>(this,first,first,last); }
+	tw::iterator<CellRange,tw::cell> end() { return tw::iterator<CellRange,tw::cell>(this,last+1,first,last); }
+	tw::cell GetReference(tw::Int global_count)
 	{
-		curr = first + local_count;
-		SetDecodingRefs();
-		return *this;
-	}
-	CellIterator& operator ++ ()
-	{
-		curr++;
-		SetDecodingRefs();
-		return *this;
-	}
-	void SetDecodingRefs()
-	{
-		i0 = io + curr/(jCells*kCells);
-		j0 = jo + (curr%(jCells*kCells)) / kCells;
-		k0 = ko + (curr%(jCells*kCells)) % kCells;
-	}
-	void Decode(tw::Int *x,tw::Int *y,tw::Int *z) const
-	{
-		// Get the standard cell indices
-		*x = i0 + is;
-		*y = j0 + js;
-		*z = k0 + ks;
-	}
-	// The following decode the standard cell indices one at a time
-	tw::Int dcd1() const { return i0 + is; }
-	tw::Int dcd2() const { return j0 + js; }
-	tw::Int dcd3() const { return k0 + ks; }
-	void SetCell(tw::Int i,tw::Int j,tw::Int k)
-	{
-		// Avoid using.
-		// Iterating after an explicit SetCell is not supported.
-		i0 = i - is;
-		j0 = j - js;
-		k0 = k - ks;
-	}
-	tw::Int Index(const tw::Int& c,const tw::Int stride[4]) const
-	{
-		return stride[0]*c + stride[1]*i0 + stride[2]*j0 + stride[3]*k0;
+		const tw::Int i0 = io + global_count/(jCells*kCells);
+		const tw::Int j0 = jo + (global_count%(jCells*kCells)) / kCells;
+		const tw::Int k0 = ko + (global_count%(jCells*kCells)) % kCells;
+		return tw::cell(i0,j0,k0,i0+is,j0+js,k0+ks);
 	}
 };
 
-class StripIterator:public TWIterator
+class StripRange:public TWRange
 {
 	// Step across and along strips in a given direction.
 	// Strips of ghost cells are included if includeGhostCells=true in constructor.
@@ -125,134 +257,69 @@ class StripIterator:public TWIterator
 
 	// INTERNALS:
 
-	// i0,j0,k0 labels the current reference cell; io,jo,ko,is,js,ks are decoding offsets.
-	// i0,j0,k0 are indexed with zero-offset regardless of ghost cell layers (first cell of any kind is labelled 0)
-	// This should not confuse users since i0,j0,k0 are not visible to the caller
+	// io,jo,ko,is,js,ks are decoding offsets.
 	// di,dj,dk are 0 except for the element in the strip direction which is 1
 
-	// the reference cell index in the strip direction is indirectly visible to callers because it interacts with
-	// the caller's cell index in the strip direction.  The caller expects the cell index to be consistent
-	// with the DiscreteSpace standard indexing (i.e., 1...dim label the interior cells).
-	// Therefore the reference index in the strip direction has to be treated specially.
-
-	private:
+protected:
 	tw::Int ax,di,dj,dk,io,jo,ko,is,js,ks,iCells,jCells,kCells;
-	tw::Int dim,num,n0,n1;
-	protected:
-	tw::Int i0,j0,k0;
 
-	public:
-	StripIterator(const DiscreteSpace& space,tw::Int axis,strongbool includeGhostCells)
+public:
+	StripRange(const DiscreteSpace& space,tw::Int axis,strongbool includeGhostCells)
 	{
 		ax = axis;
 		di = tw::Int(ax==1);
 		dj = tw::Int(ax==2);
 		dk = tw::Int(ax==3);
-		is = 1 - space.Layers(1);
-		js = 1 - space.Layers(2);
-		ks = 1 - space.Layers(3);
+		is = space.N0(1);
+		js = space.N0(2);
+		ks = space.N0(3);
 		io = includeGhostCells==strongbool::yes ? 0 : space.Layers(1);
 		jo = includeGhostCells==strongbool::yes ? 0 : space.Layers(2);
 		ko = includeGhostCells==strongbool::yes ? 0 : space.Layers(3);
+		// the reference cell index in the strip direction is indirectly visible to caller because it interacts with
+		// the caller's cell index in the strip direction.  The caller expects the cell index to be consistent
+		// with the DiscreteSpace standard indexing (i.e., 1...dim label the interior cells).
+		// Therefore the reference index in the strip direction has to be treated specially.
 		io = (1-di)*io - di*is;
 		jo = (1-dj)*jo - dj*js;
 		ko = (1-dk)*ko - dk*ks;
 		iCells = includeGhostCells==strongbool::yes ? space.Num(1) : space.Dim(1);
 		jCells = includeGhostCells==strongbool::yes ? space.Num(2) : space.Dim(2);
 		kCells = includeGhostCells==strongbool::yes ? space.Num(3) : space.Dim(3);
-		dim = space.Dim(ax);
-		num = space.Num(ax);
-		n0 = space.N0(ax);
-		n1 = space.N1(ax);
 		SetCountRange(di*jCells*kCells + dj*iCells*kCells + dk*iCells*jCells);
-		SetDecodingRefs();
 	}
-	StripIterator& operator = (tw::Int local_count)
+	tw::iterator<StripRange,tw::strip> begin() { return tw::iterator<StripRange,tw::strip>(this,first,first,last); }
+	tw::iterator<StripRange,tw::strip> end() { return tw::iterator<StripRange,tw::strip>(this,last+1,first,last); }
+	tw::strip GetReference(tw::Int global_count)
 	{
-		curr = first + local_count;
-		SetDecodingRefs();
-		return *this;
-	}
-	StripIterator& operator ++ ()
-	{
-		curr++;
-		SetDecodingRefs();
-		return *this;
-	}
-	void SetDecodingRefs()
-	{
-		i0 = di*io;
-		//j0 = di*(jo + curr/kCells);
-		//k0 = di*(ko + curr%kCells);
-		// alternate encoding (choice may affect performance)
-		j0 = di*(jo + curr%jCells);
-		k0 = di*(ko + curr/jCells);
-
-		i0 += dj*(io + curr/kCells);
-		j0 += dj*jo;
-		k0 += dj*(ko + curr%kCells);
-
-		i0 += dk*(io + curr/jCells);
-		j0 += dk*(jo + curr%jCells);
-		k0 += dk*ko;
-	}
-	void Decode(tw::Int s,tw::Int *x,tw::Int *y,tw::Int *z) const
-	{
-		// Get the standard cell indices
-		*x = (1-di)*(i0 + is) + di*s;
-		*y = (1-dj)*(j0 + js) + dj*s;
-		*z = (1-dk)*(k0 + ks) + dk*s;
-	}
-	// The following decode the standard cell indices one at a time
-	tw::Int dcd1(tw::Int s) const { return (1-di)*(i0 + is) + di*s; }
-	tw::Int dcd2(tw::Int s) const { return (1-dj)*(j0 + js) + dj*s; }
-	tw::Int dcd3(tw::Int s) const { return (1-dk)*(k0 + ks) + dk*s; }
-	void SetStrip(tw::Int i,tw::Int j,tw::Int k)
-	{
-		// Avoid using.
-		// Iterating after an explicit SetStrip is not supported.
-		i0 = (1-di)*(i - is) + di*io;
-		j0 = (1-dj)*(j - js) + dj*jo;
-		k0 = (1-dk)*(k - ks) + dk*ko;
-	}
-	tw::Int Axis() const { return ax; } // axis parallel to the strip
-	tw::Int Dim() const { return dim; } // interior cells parallel to the strip
-	tw::Int Num() const { return num; } // total cells parallel to the strip
-	tw::Int N0() const { return n0; } // index of first cell along strip (may be ghost cell)
-	tw::Int N1() const { return n1; } // index of last cell along strip (may be ghost cell)
-	tw::Int Index(const tw::Int& s,const tw::Int& c,const tw::Int stride[4]) const
-	{
-		return stride[0]*c + stride[1]*(s*di+i0) + stride[2]*(s*dj+j0) + stride[3]*(s*dk+k0);
+		const tw::Int i0 = di*io + dj*(io + global_count/kCells) + dk*(io + global_count/jCells);
+		const tw::Int j0 = di*(jo + global_count%jCells) + dj*jo + dk*(jo + global_count%jCells);
+		const tw::Int k0 = di*(ko + global_count/jCells) + dj*(ko + global_count%kCells) + dk*ko;
+		return tw::strip(ax,i0,j0,k0,i0+is,j0+js,k0+ks);
 	}
 };
 
 template <tw::Int AX>
-class VectorizingIterator : public StripIterator
+class VectorizingRange:public StripRange
 {
-	// Strip iterator for promoting compiler vectorization.
-	// Performance assumption is that AX is the packed axis.
-	// This allows Field accessors to drop the stride multiplier so the compiler can figure
-	// out that the data is packed.
-	// This specialization happens in the Field class.
-	// That is, this class appearing as an argument triggers special treatment.
-
-	public:
-	VectorizingIterator(const DiscreteSpace& space,bool includeGhostCells) : StripIterator(space,AX,includeGhostCells?strongbool::yes:strongbool::no)
+public:
+	VectorizingRange(const DiscreteSpace& space,bool includeGhostCells) : StripRange(space,AX,includeGhostCells==true ? strongbool::yes : strongbool::no)
 	{
 		// no need to do anything
 	}
-	// Following 3 functions assume packing along the axis indicated
-	// The compiler should be able to vectorize efficiently with respect to s
-	tw::Int Index1(const tw::Int& s,const tw::Int& c,const tw::Int stride[4]) const
+	tw::iterator<VectorizingRange,tw::vectorizer<AX>> begin()
 	{
-		return s + i0 + stride[0]*c + stride[2]*j0 + stride[3]*k0;
+		return tw::iterator<VectorizingRange,tw::vectorizer<AX>>(this,first,first,last);
 	}
-	tw::Int Index2(const tw::Int& s,const tw::Int& c,const tw::Int stride[4]) const
+	tw::iterator<VectorizingRange,tw::vectorizer<AX>> end()
 	{
-		return s + j0 + stride[0]*c + stride[1]*i0 + stride[3]*k0;
+		return tw::iterator<VectorizingRange,tw::vectorizer<AX>>(this,last+1,first,last);
 	}
-	tw::Int Index3(const tw::Int& s,const tw::Int& c,const tw::Int stride[4]) const
+	tw::vectorizer<AX> GetReference(tw::Int global_count)
 	{
-		return s + k0 + stride[0]*c + stride[1]*i0 + stride[2]*j0;
+		const tw::Int i0 = di*io + dj*(io + global_count/kCells) + dk*(io + global_count/jCells);
+		const tw::Int j0 = di*(jo + global_count%jCells) + dj*jo + dk*(jo + global_count%jCells);
+		const tw::Int k0 = di*(ko + global_count/jCells) + dj*(ko + global_count%kCells) + dk*ko;
+		return tw::vectorizer<AX>(i0,j0,k0,i0+is,j0+js,k0+ks);
 	}
 };

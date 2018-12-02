@@ -10,7 +10,7 @@ Communication between modules can be accomplished in two ways.
 
 The preferred turboWAVE style is to use the horizontal publisher-consumer model, with modules containing only lower level constructs.  Ideally these lower level constructs are formal ``ComputeTool`` objects, but there are still elements (as of this writing) that fall outside this convention.  In order to handle these there is also a quasi-tool protocol.
 
-In principle the publisher-consumer model can handle most of the inter-module relationships one needs, but in some cases a containment structure is irresistible.  The longest-standing such relationship is the containment of ``Species`` modules within the ``Kinetics`` module.  The SPARC hydrodynamics modules actually have two levels of containment, the ``Chemistry`` module contains ``EquilibriumGroup`` modules, and the ``EquilibriumGroup`` modules contain ``Chemical`` modules.
+In principle the publisher-consumer model can handle most of the inter-module relationships one needs, but in some cases a containment structure is irresistible.  The longest-standing such relationship is the containment of ``Species`` modules within the ``Kinetics`` module.  The SPARC hydrodynamics modules actually have two levels of containment, the ``HydroManager`` module contains ``EquilibriumGroup`` modules, and the ``EquilibriumGroup`` modules contain ``Chemical`` modules.
 
 Publisher-Consumer Model
 ------------------------
@@ -45,16 +45,21 @@ The ``ExchangeResources`` method calls the ``PublishResource`` method for each p
 Containment Model
 -----------------
 
-The turboWAVE containment hierarchy uses both a flat list and a tree structure.  The ``Grid`` object is the root. ``Grid`` owns every ``Module`` and stores references to them on a flat list.  The flat list is sorted to reflect the structure, with objects nearer the root listed first.
+The turboWAVE containment hierarchy uses both a flat list and a tree structure.  The ``Simulation`` object is the root. ``Simulation`` owns every ``Module`` and stores references to them on a flat list.  The flat list is sorted to reflect the structure, with objects nearer the root listed first.
 
 The ``Module`` objects use a simple tree structure.  Each ``Module`` has references to other containment hierarchy elements as follows.
 
-	#. ``super`` - a single pointer to a supermodule, which is ``NULL`` if the module is directly below ``Grid``.
-	#. ``owner`` - a single pointer to ``Grid``.
+	#. ``super`` - a single pointer to a supermodule, which is ``NULL`` if the module is directly below ``Simulation``.
+	#. ``owner`` - a single pointer to ``Simulation``.
 	#. ``submodule`` - a ``std::vector`` of pointers to submodules.
+	#. ``moduleTool`` - a ``std::vector`` of pointers to ``ComputeTool`` objects the user associated with the module.
 
-Glossary of Terms
------------------
+The containment hierarchy is created either while reading the input file, or while reading a restart file.
+
+
+
+Glossary
+--------
 
 .. glossary::
 

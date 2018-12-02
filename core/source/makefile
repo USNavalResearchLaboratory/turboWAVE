@@ -17,8 +17,8 @@ debug: tw3d_debug copy_files
 
 # Uncomment exactly one platform
 
-#PLATFORM = OSX
-PLATFORM = LINUX
+PLATFORM = OSX
+#PLATFORM = LINUX
 #PLATFORM = CRAY
 #PLATFORM = SGI
 
@@ -32,8 +32,8 @@ HARDWARE_ACCEL = OMP
 
 # Specify a preference for compiler (ignored in some cases)
 
-COMPILER_PREF = GNU
-#COMPILER_PREF = LLVM_CLANG
+#COMPILER_PREF = GNU
+COMPILER_PREF = LLVM_CLANG
 #COMPILER_PREF = INTEL
 #COMPILER_PREF = CRAY
 
@@ -205,20 +205,20 @@ endif
 
 ifdef TW_MPI
 BASE_HEADERS = definitions.h tw_mpi.h tasks.h ctools.h 3dmath.h metricSpace.h 3dfields.h region.h tw_iterator.h
-SIM_HEADERS = $(BASE_HEADERS) functions.h physics.h chemistry.h numerics.h computeTool.h elliptic.h parabolic.h hyperbolic.h fft.h injection.h input.h diagnostics.h module.h sim.h
+SIM_HEADERS = $(BASE_HEADERS) functions.h physics.h chemistry.h numerics.h computeTool.h elliptic.h parabolic.h hyperbolic.h fft.h injection.h input.h diagnostics.h module.h simulation.h
 MODULE_HEADERS = fieldSolve.h electrostatic.h laserSolve.h fluid.h quantum.h particles.h solidState.h
-tw3d: 3dfields.cl particles.cl elliptic.cl hyperbolic.cl quantum.cl Main.o TW_MPI.o Tasks.o MetricSpace.o 3DFields.o Region.o FFT.o Physics.o Chemistry.o Numerics.o ComputeTool.o Parabolic.o Elliptic.o Hyperbolic.o Functions.o Grid.o Module.o FieldSolve.o Electrostatic.o LaserSolve.o Fluid.o Quantum.o SolidState.o Particles.o Pusher.o Diagnostics.o Injection.o Input.o
-	$(TW_Linker) -o tw3d Main.o TW_MPI.o Tasks.o MetricSpace.o 3DFields.o Region.o FFT.o Physics.o Chemistry.o Numerics.o ComputeTool.o Parabolic.o Elliptic.o Hyperbolic.o Functions.o Grid.o Module.o FieldSolve.o Electrostatic.o LaserSolve.o Fluid.o Quantum.o SolidState.o Particles.o Pusher.o Diagnostics.o Injection.o Input.o $(LIB_PATH) $(LIBS)
-tw3d_debug: 3dfields.cl particles.cl elliptic.cl hyperbolic.cl quantum.cl Main.d TW_MPI.d Tasks.d MetricSpace.d 3DFields.d Region.d FFT.d Physics.d Chemistry.d Numerics.d ComputeTool.d Parabolic.d Elliptic.d Hyperbolic.d Functions.d Grid.d Module.d FieldSolve.d Electrostatic.d LaserSolve.d Fluid.d Quantum.d SolidState.d Particles.d Pusher.d Diagnostics.d Injection.d Input.d
-	$(TW_Linker) -o tw3d Main.o TW_MPI.o Tasks.o MetricSpace.o 3DFields.o Region.o FFT.o Physics.o Chemistry.o Numerics.o ComputeTool.o Parabolic.o Elliptic.o Hyperbolic.o Functions.o Grid.o Module.o FieldSolve.o Electrostatic.o LaserSolve.o Fluid.o Quantum.o SolidState.o Particles.o Pusher.o Diagnostics.o Injection.o Input.o $(LIB_PATH) $(LIBS)
+tw3d: 3dfields.cl particles.cl elliptic.cl hyperbolic.cl quantum.cl Main.o TW_MPI.o Tasks.o MetricSpace.o 3DFields.o Region.o FFT.o Physics.o Chemistry.o Numerics.o ComputeTool.o Parabolic.o Elliptic.o Hyperbolic.o Functions.o Simulation.o Module.o FieldSolve.o Electrostatic.o LaserSolve.o Fluid.o Quantum.o SolidState.o Particles.o Pusher.o Diagnostics.o Injection.o Input.o
+	$(TW_Linker) -o tw3d Main.o TW_MPI.o Tasks.o MetricSpace.o 3DFields.o Region.o FFT.o Physics.o Chemistry.o Numerics.o ComputeTool.o Parabolic.o Elliptic.o Hyperbolic.o Functions.o Simulation.o Module.o FieldSolve.o Electrostatic.o LaserSolve.o Fluid.o Quantum.o SolidState.o Particles.o Pusher.o Diagnostics.o Injection.o Input.o $(LIB_PATH) $(LIBS)
+tw3d_debug: 3dfields.cl particles.cl elliptic.cl hyperbolic.cl quantum.cl Main.d TW_MPI.d Tasks.d MetricSpace.d 3DFields.d Region.d FFT.d Physics.d Chemistry.d Numerics.d ComputeTool.d Parabolic.d Elliptic.d Hyperbolic.d Functions.d Simulation.d Module.d FieldSolve.d Electrostatic.d LaserSolve.d Fluid.d Quantum.d SolidState.d Particles.d Pusher.d Diagnostics.d Injection.d Input.d
+	$(TW_Linker) -o tw3d Main.o TW_MPI.o Tasks.o MetricSpace.o 3DFields.o Region.o FFT.o Physics.o Chemistry.o Numerics.o ComputeTool.o Parabolic.o Elliptic.o Hyperbolic.o Functions.o Simulation.o Module.o FieldSolve.o Electrostatic.o LaserSolve.o Fluid.o Quantum.o SolidState.o Particles.o Pusher.o Diagnostics.o Injection.o Input.o $(LIB_PATH) $(LIBS)
 else
 BASE_HEADERS = definitions.h tasks.h ctools.h 3dmath.h metricSpace.h 3dfields.h region.h tw_iterator.h
-SIM_HEADERS = $(BASE_HEADERS) functions.h physics.h chemistry.h numerics.h computeTool.h elliptic.h parabolic.h hyperbolic.h fft.h injection.h input.h diagnostics.h module.h sim.h
+SIM_HEADERS = $(BASE_HEADERS) functions.h physics.h chemistry.h numerics.h computeTool.h elliptic.h parabolic.h hyperbolic.h fft.h injection.h input.h diagnostics.h module.h simulation.h
 MODULE_HEADERS = fieldSolve.h electrostatic.h laserSolve.h fluid.h quantum.h particles.h solidState.h
-tw3d: 3dfields.cl particles.cl elliptic.cl hyperbolic.cl quantum.cl Main.o Tasks.o MetricSpace.o 3DFields.o Region.o FFT.o Physics.o Chemistry.o Numerics.o ComputeTool.o Parabolic.o Elliptic.o Hyperbolic.o Functions.o Grid.o Module.o FieldSolve.o Electrostatic.o LaserSolve.o Fluid.o Quantum.o SolidState.o Particles.o Pusher.o Diagnostics.o Injection.o Input.o
-	$(TW_Linker) -o tw3d Main.o Tasks.o MetricSpace.o 3DFields.o Region.o FFT.o Physics.o Chemistry.o Numerics.o ComputeTool.o Parabolic.o Elliptic.o Hyperbolic.o Functions.o Grid.o Module.o FieldSolve.o Electrostatic.o LaserSolve.o Fluid.o Quantum.o SolidState.o Particles.o Pusher.o Diagnostics.o Injection.o Input.o $(LIB_PATH) $(LIBS)
-tw3d_debug: 3dfields.cl particles.cl elliptic.cl hyperbolic.cl quantum.cl Main.d Tasks.d MetricSpace.d 3DFields.d Region.d FFT.d Physics.d Chemistry.d Numerics.d ComputeTool.d Parabolic.d Elliptic.d Hyperbolic.d Functions.d Grid.d Module.d FieldSolve.d Electrostatic.d LaserSolve.d Fluid.d Quantum.d SolidState.d Particles.d Pusher.d Diagnostics.d Injection.d Input.d
-	$(TW_Linker) -o tw3d Main.o Tasks.o MetricSpace.o 3DFields.o Region.o FFT.o Physics.o Chemistry.o Numerics.o ComputeTool.o Parabolic.o Elliptic.o Hyperbolic.o Functions.o Grid.o Module.o FieldSolve.o Electrostatic.o LaserSolve.o Fluid.o Quantum.o SolidState.o Particles.o Pusher.o Diagnostics.o Injection.o Input.o $(LIB_PATH) $(LIBS)
+tw3d: 3dfields.cl particles.cl elliptic.cl hyperbolic.cl quantum.cl Main.o Tasks.o MetricSpace.o 3DFields.o Region.o FFT.o Physics.o Chemistry.o Numerics.o ComputeTool.o Parabolic.o Elliptic.o Hyperbolic.o Functions.o Simulation.o Module.o FieldSolve.o Electrostatic.o LaserSolve.o Fluid.o Quantum.o SolidState.o Particles.o Pusher.o Diagnostics.o Injection.o Input.o
+	$(TW_Linker) -o tw3d Main.o Tasks.o MetricSpace.o 3DFields.o Region.o FFT.o Physics.o Chemistry.o Numerics.o ComputeTool.o Parabolic.o Elliptic.o Hyperbolic.o Functions.o Simulation.o Module.o FieldSolve.o Electrostatic.o LaserSolve.o Fluid.o Quantum.o SolidState.o Particles.o Pusher.o Diagnostics.o Injection.o Input.o $(LIB_PATH) $(LIBS)
+tw3d_debug: 3dfields.cl particles.cl elliptic.cl hyperbolic.cl quantum.cl Main.d Tasks.d MetricSpace.d 3DFields.d Region.d FFT.d Physics.d Chemistry.d Numerics.d ComputeTool.d Parabolic.d Elliptic.d Hyperbolic.d Functions.d Simulation.d Module.d FieldSolve.d Electrostatic.d LaserSolve.d Fluid.d Quantum.d SolidState.d Particles.d Pusher.d Diagnostics.d Injection.d Input.d
+	$(TW_Linker) -o tw3d Main.o Tasks.o MetricSpace.o 3DFields.o Region.o FFT.o Physics.o Chemistry.o Numerics.o ComputeTool.o Parabolic.o Elliptic.o Hyperbolic.o Functions.o Simulation.o Module.o FieldSolve.o Electrostatic.o LaserSolve.o Fluid.o Quantum.o SolidState.o Particles.o Pusher.o Diagnostics.o Injection.o Input.o $(LIB_PATH) $(LIBS)
 endif
 
 copy_files:
@@ -280,8 +280,8 @@ Hyperbolic.o: Hyperbolic.cpp $(BASE_HEADERS) numerics.h computeTool.h hyperbolic
 Functions.o: Functions.cpp definitions.h ctools.h functions.h
 	$(TW_Compiler) $(CCFLAGS) Functions.cpp
 
-Grid.o: Grid.cpp $(SIM_HEADERS) $(MODULE_HEADERS)
-	$(TW_Compiler) $(CCFLAGS) Grid.cpp
+Simulation.o: Simulation.cpp $(SIM_HEADERS) $(MODULE_HEADERS)
+	$(TW_Compiler) $(CCFLAGS) Simulation.cpp
 
 Module.o: Module.cpp $(SIM_HEADERS) $(MODULE_HEADERS)
 	$(TW_Compiler) $(CCFLAGS) Module.cpp
@@ -370,8 +370,8 @@ Hyperbolic.d: Hyperbolic.cpp $(BASE_HEADERS) numerics.h computeTool.h hyperbolic
 Functions.d: Functions.cpp definitions.h ctools.h functions.h
 	$(TW_Compiler) $(DBFLAGS) Functions.cpp
 
-Grid.d: Grid.cpp $(SIM_HEADERS) $(MODULE_HEADERS)
-	$(TW_Compiler) $(DBFLAGS) Grid.cpp
+Simulation.d: Simulation.cpp $(SIM_HEADERS) $(MODULE_HEADERS)
+	$(TW_Compiler) $(DBFLAGS) Simulation.cpp
 
 Module.d: Module.cpp $(SIM_HEADERS) $(MODULE_HEADERS)
 	$(TW_Compiler) $(DBFLAGS) Module.cpp

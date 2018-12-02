@@ -6,7 +6,7 @@ namespace tw
 
 		void ReadRect(Region *ans,std::stringstream& source);
 
-		Profile* GetProfile(Grid* theGrid,const std::string& name,const std::string& profileType);
+		Profile* GetProfile(Simulation* sim,const std::string& name,const std::string& profileType);
 
 		template <class T>
 		void ReadArray(std::valarray<T>& data,std::stringstream& inputString);

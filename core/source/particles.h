@@ -224,7 +224,7 @@ struct Species:Module
 
 	Field *qo_j4; // 4-current from quantum optics modules
 
-	Species(const std::string& name,Grid* theGrid);
+	Species(const std::string& name,Simulation* sim);
 	virtual bool InspectResource(void* resource,const std::string& description);
 	virtual void Initialize();
 	void AddParticle(const tw::vec3& p,const Primitive& q,const float& number);
@@ -276,7 +276,7 @@ struct Kinetics:Module
 	ComplexField* chi;
 	ScalarField* ESRho;
 
-	Kinetics(const std::string& name,Grid* theGrid);
+	Kinetics(const std::string& name,Simulation* sim);
 	virtual void Initialize();
 	virtual bool ValidSubmodule(Module* sub);
 	virtual void ExchangeResources();

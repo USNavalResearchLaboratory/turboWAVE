@@ -450,7 +450,7 @@ void SchroedingerPropagator::DepositCurrent(const axisSpec& axis,ComplexField& p
 	{
 		#pragma omp parallel
 		{
-			for (CellIterator cell(*space,false);cell<cell.end();++cell)
+			for (auto cell : CellRange(*space,false))
 				J4(cell,0) += half*norm(psi1(cell));
 		}
 	}
@@ -461,9 +461,9 @@ void SchroedingerPropagator::DepositCurrent(const axisSpec& axis,ComplexField& p
 			#pragma omp parallel
 			{
 				tw::Complex f11,f12,f21,f22;
-				for (StripIterator s(*space,ax,strongbool::no);s<s.end();++s)
+				for (auto s : StripRange(*space,ax,strongbool::no))
 				{
-					for (tw::Int i=1;i<=s.Dim();i++)
+					for (tw::Int i=1;i<=space->Dim(ax);i++)
 					{
 						f11 = -half*ii*(psi0(s,i)-psi0(s,i-1))/space->dl(s,i,ax) + tw::Float(0.25)*(A4(s,i-1,ax)+A4(s,i,ax))*psi0(s,i-1);
 						f21 = -half*ii*(psi1(s,i)-psi1(s,i-1))/space->dl(s,i,ax) + tw::Float(0.25)*(A4(s,i-1,ax)+A4(s,i,ax))*psi1(s,i-1);
@@ -489,9 +489,9 @@ void SchroedingerPropagator::ApplyNumerator(const axisSpec& axis,ComplexField& p
 		#pragma omp parallel firstprivate(dt)
 		{
 			std::valarray<tw::Complex> src(space->Dim(ax));
-			for (StripIterator s(*space,ax,strongbool::no);s<s.end();++s)
+			for (auto s : StripRange(*space,ax,strongbool::no))
 			{
-				for (tw::Int i=1;i<=s.Dim();i++)
+				for (tw::Int i=1;i<=space->Dim(ax);i++)
 				{
 					const tw::Float Vol = space->dS(s,i,0);
 					const tw::Float S1 = space->dS(s,i,ax);
@@ -510,7 +510,7 @@ void SchroedingerPropagator::ApplyNumerator(const axisSpec& axis,ComplexField& p
 					src[i-1] += -half*ii*dt*H3*psi(s,i+1);
 				}
 
-				for (tw::Int i=1;i<=s.Dim();i++)
+				for (tw::Int i=1;i<=space->Dim(ax);i++)
 					psi(s,i) = src[i-1];
 			}
 		}
@@ -526,14 +526,16 @@ void SchroedingerPropagator::ApplyDenominator(const axisSpec& axis,ComplexField&
 	const tw::Float partitionFactor = 1.0 / ((space->Dim(1)>1 ? 1.0 : 0.0) + (space->Dim(2)>1 ? 1.0 : 0.0) + (space->Dim(3)>1 ? 1.0 : 0.0));
 	const tw::Float A2Factor = keepA2Term ? 0.5 : 0.0;
 
-	if (space->Dim(ax)>1)
+	if (sDim>1)
 	{
 		#pragma omp parallel firstprivate(dt)
 		{
+			StripRange range(*space,ax,strongbool::no);
 			std::valarray<tw::Complex> src(sDim),ans(sDim),T1(sDim),T2(sDim),T3(sDim);
-			for (StripIterator s(*space,ax,strongbool::no);s<s.end();++s)
+			for (auto it=range.begin();it!=range.end();++it)
 			{
-				for (tw::Int i=1;i<=s.Dim();i++)
+				tw::strip s = *it;
+				for (tw::Int i=1;i<=sDim;i++)
 				{
 					const tw::Float Vol = space->dS(s,i,0);
 					const tw::Float S1 = space->dS(s,i,ax);
@@ -556,14 +558,14 @@ void SchroedingerPropagator::ApplyDenominator(const axisSpec& axis,ComplexField&
 				if (task->n0[1]==MPI_PROC_NULL)
 					psi.AdjustTridiagonalForBoundaries(axis,lowSide,&T1[0],&T2[0],&T3[0],&src[0],0.0);
 				if (task->n1[1]==MPI_PROC_NULL)
-					psi.AdjustTridiagonalForBoundaries(axis,highSide,&T1[s.Dim()-1],&T2[s.Dim()-1],&T3[s.Dim()-1],&src[s.Dim()-1],0.0);
+					psi.AdjustTridiagonalForBoundaries(axis,highSide,&T1[sDim-1],&T2[sDim-1],&T3[sDim-1],&src[sDim-1],0.0);
 
 				TriDiagonal(ans,src,T1,T2,T3);
-				for (tw::Int i=1;i<=s.Dim();i++)
+				for (tw::Int i=1;i<=sDim;i++)
 					psi(s,i) = ans[i-1];
 
-				globalIntegrator[ax]->SetMatrix(s.global_count(),T1,T2,T3);
-				globalIntegrator[ax]->SetData(s.global_count(),&psi(s,0),psi.Stride(ax)/2); // need complex stride and stride[0]=1
+				globalIntegrator[ax]->SetMatrix(it.global_count(),T1,T2,T3);
+				globalIntegrator[ax]->SetData(it.global_count(),&psi(s,0),psi.Stride(ax)/2); // need complex stride and stride[0]=1
 			}
 		}
 
@@ -635,7 +637,7 @@ ParabolicSolver::~ParabolicSolver()
 			delete g;
 }
 
-inline void ParabolicSolver::FormOperatorStencil(tw::Float *D1,tw::Float *D2,const ScalarField& fluxMask,Field *coeff,tw::Int c,const StripIterator& s,tw::Int i)
+inline void ParabolicSolver::FormOperatorStencil(tw::Float *D1,tw::Float *D2,const ScalarField& fluxMask,Field *coeff,tw::Int c,const tw::strip& s,tw::Int i)
 {
 	tw::Float dV = space->dS(s,i,0);
 	tw::Int ax = s.Axis();
@@ -656,21 +658,23 @@ void ParabolicSolver::Advance(const axisSpec& axis,ScalarField& psi,ScalarField&
 	// solve on strips running parallel to axis
 
 	const tw::Int ax=naxis(axis);
+	const tw::Int sDim=space->Dim(ax);
 
 	#pragma omp parallel
 	{
-		StripIterator s(*space,ax,strongbool::no);
+		StripRange range(*space,ax,strongbool::no);
 		tw::Float D1,D2;
 		std::valarray<tw::Float> src,ans,T1,T2,T3;
 
-		ans.resize(s.Dim());
-		src.resize(s.Dim());
-		T1.resize(s.Dim());
-		T2.resize(s.Dim());
-		T3.resize(s.Dim());
-		for (s=s.begin();s<s.end();++s)
+		ans.resize(sDim);
+		src.resize(sDim);
+		T1.resize(sDim);
+		T2.resize(sDim);
+		T3.resize(sDim);
+		for (auto it=range.begin();it!=range.end();++it)
 		{
-			for (tw::Int i=1;i<=s.Dim();i++)
+			tw::strip s = *it;
+			for (tw::Int i=1;i<=sDim;i++)
 			{
 				FormOperatorStencil(&D1,&D2,fluxMask,NULL,0,s,i);
 				src[i-1] = psi(s,i);
@@ -682,14 +686,14 @@ void ParabolicSolver::Advance(const axisSpec& axis,ScalarField& psi,ScalarField&
 			if (task->n0[ax]==MPI_PROC_NULL)
 				psi.AdjustTridiagonalForBoundaries(axis,lowSide,&T1[0],&T2[0],&T3[0],&src[0],0.0);
 			if (task->n1[ax]==MPI_PROC_NULL)
-				psi.AdjustTridiagonalForBoundaries(axis,highSide,&T1[s.Dim()-1],&T2[s.Dim()-1],&T3[s.Dim()-1],&src[s.Dim()-1],0.0);
+				psi.AdjustTridiagonalForBoundaries(axis,highSide,&T1[sDim-1],&T2[sDim-1],&T3[sDim-1],&src[sDim-1],0.0);
 
 			TriDiagonal(ans,src,T1,T2,T3);
-			for (tw::Int i=1;i<=s.Dim();i++)
+			for (tw::Int i=1;i<=sDim;i++)
 				psi(s,i) = ans[i-1];
 
-			globalIntegrator[ax]->SetMatrix(s.global_count(),T1,T2,T3);
-			globalIntegrator[ax]->SetData(s.global_count(),&psi(s,0),psi.Stride(ax));
+			globalIntegrator[ax]->SetMatrix(it.global_count(),T1,T2,T3);
+			globalIntegrator[ax]->SetData(it.global_count(),&psi(s,0),psi.Stride(ax));
 		}
 	}
 
@@ -728,21 +732,23 @@ void ParabolicSolver::Advance(	const axisSpec& axis,
 	// in hydro operator splitting context, putting coeff1 inside time derivative would be incorrect
 
 	const tw::Int ax=naxis(axis);
+	const tw::Int sDim=space->Dim(ax);
 
 	#pragma omp parallel
 	{
-		StripIterator s(*space,ax,strongbool::no);
+		StripRange range(*space,ax,strongbool::no);
 		tw::Float D1,D2,temp=0.0;
 		std::valarray<tw::Float> src,ans,T1,T2,T3;
 
-		ans.resize(s.Dim());
-		src.resize(s.Dim());
-		T1.resize(s.Dim());
-		T2.resize(s.Dim());
-		T3.resize(s.Dim());
-		for (s=s.begin();s<s.end();++s)
+		ans.resize(sDim);
+		src.resize(sDim);
+		T1.resize(sDim);
+		T2.resize(sDim);
+		T3.resize(sDim);
+		for (auto it=range.begin();it!=range.end();++it)
 		{
-			for (tw::Int i=1;i<=s.Dim();i++)
+			tw::strip s = *it;
+			for (tw::Int i=1;i<=sDim;i++)
 			{
 				FormOperatorStencil(&D1,&D2,fluxMask,coeff2,c2_idx,s,i);
 				src[i-1] = (*coeff1)(s,i,c1_idx)*psi(s,i,psi_idx);
@@ -754,14 +760,14 @@ void ParabolicSolver::Advance(	const axisSpec& axis,
 			if (task->n0[ax]==MPI_PROC_NULL)
 				psi.AdjustTridiagonalForBoundaries(Element(psi_idx),axis,lowSide,&T1[0],&T2[0],&T3[0],&src[0],&temp);
 			if (task->n1[ax]==MPI_PROC_NULL)
-				psi.AdjustTridiagonalForBoundaries(Element(psi_idx),axis,highSide,&T1[s.Dim()-1],&T2[s.Dim()-1],&T3[s.Dim()-1],&src[s.Dim()-1],&temp);
+				psi.AdjustTridiagonalForBoundaries(Element(psi_idx),axis,highSide,&T1[sDim-1],&T2[sDim-1],&T3[sDim-1],&src[sDim-1],&temp);
 
 			TriDiagonal(ans,src,T1,T2,T3);
-			for (tw::Int i=1;i<=s.Dim();i++)
+			for (tw::Int i=1;i<=sDim;i++)
 				psi(s,i,psi_idx) = ans[i-1];
 
-			globalIntegrator[ax]->SetMatrix(s.global_count(),T1,T2,T3);
-			globalIntegrator[ax]->SetData(s.global_count(),&psi(s,0,psi_idx),psi.Stride(ax));
+			globalIntegrator[ax]->SetMatrix(it.global_count(),T1,T2,T3);
+			globalIntegrator[ax]->SetData(it.global_count(),&psi(s,0,psi_idx),psi.Stride(ax));
 		}
 	}
 

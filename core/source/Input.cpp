@@ -1,4 +1,4 @@
-#include "sim.h"
+#include "simulation.h"
 
 // Read a python.numpy style range, but it is a floating point range
 // thus, blank resolves to 0 or big_pos
@@ -28,29 +28,29 @@ void tw::input::PythonRange(std::string& source,tw::Float *v0,tw::Float *v1)
 
 // Find species or source with "name" and add a new profile to its list.  Return the profile.
 
-Profile* tw::input::GetProfile(Grid* theGrid,const std::string& name,const std::string& profileType)
+Profile* tw::input::GetProfile(Simulation* sim,const std::string& name,const std::string& profileType)
 {
 	tw::Int i;
 	Profile* theProfile;
 
 	theProfile = NULL;
 
-	for (i=0;i<theGrid->module.size();i++)
-		if (theGrid->module[i]->name==name)
+	for (i=0;i<sim->module.size();i++)
+		if (sim->module[i]->name==name)
 		{
 			if (profileType=="uniform")
-				theGrid->module[i]->profile.push_back(new UniformProfile(theGrid->clippingRegion));
+				sim->module[i]->profile.push_back(new UniformProfile(sim->clippingRegion));
 			if (profileType=="piecewise")
-				theGrid->module[i]->profile.push_back(new PiecewiseProfile(theGrid->clippingRegion));
+				sim->module[i]->profile.push_back(new PiecewiseProfile(sim->clippingRegion));
 			if (profileType=="channel")
-				theGrid->module[i]->profile.push_back(new ChannelProfile(theGrid->clippingRegion));
+				sim->module[i]->profile.push_back(new ChannelProfile(sim->clippingRegion));
 			if (profileType=="column")
-				theGrid->module[i]->profile.push_back(new ColumnProfile(theGrid->clippingRegion));
+				sim->module[i]->profile.push_back(new ColumnProfile(sim->clippingRegion));
 			if (profileType=="beam" || profileType=="gaussian")
-				theGrid->module[i]->profile.push_back(new GaussianProfile(theGrid->clippingRegion));
+				sim->module[i]->profile.push_back(new GaussianProfile(sim->clippingRegion));
 			if (profileType=="corrugated")
-				theGrid->module[i]->profile.push_back(new CorrugatedProfile(theGrid->clippingRegion));
-			theProfile = theGrid->module[i]->profile.back();
+				sim->module[i]->profile.push_back(new CorrugatedProfile(sim->clippingRegion));
+			theProfile = sim->module[i]->profile.back();
 		}
 
 	return theProfile;

@@ -1,4 +1,4 @@
-#include "sim.h"
+#include "simulation.h"
 #include "particles.h"
 #include "fieldSolve.h"
 #include "electrostatic.h"
@@ -173,7 +173,7 @@ tw::Float NonUniformRegion::ACoefficient(tw::Float length)
 	return (1.0/gridSum)*(length/dz - N);
 }
 
-void Grid::SetCellWidthsAndLocalSize()
+void Simulation::SetCellWidthsAndLocalSize()
 {
 	tw::Int i,j;
 
@@ -208,7 +208,7 @@ void Grid::SetCellWidthsAndLocalSize()
 		size.z += dX(i,3);
 }
 
-void Grid::SetGlobalSizeAndLocalCorner()
+void Simulation::SetGlobalSizeAndLocalCorner()
 {
 	// Perform message passing to determine the effect of non-uniform cell widths
 	// on the global domain size and the coordinates of the local domain corner.
@@ -263,7 +263,7 @@ void Grid::SetGlobalSizeAndLocalCorner()
 ////////////
 
 
-Grid::Grid()
+Simulation::Simulation()
 {
 	clippingRegion.push_back(new EntireRegion(clippingRegion));
 
@@ -314,7 +314,7 @@ Grid::Grid()
 	#endif
 }
 
-Grid::~Grid()
+Simulation::~Simulation()
 {
 	tw::Int i;
 
@@ -354,7 +354,7 @@ Grid::~Grid()
 	#endif
 }
 
-void Grid::Run()
+void Simulation::Run()
 {
 	std::ofstream twstat;
 	if (strip[0].Get_rank()==0)
@@ -429,7 +429,7 @@ void Grid::Run()
 	completed = true;
 }
 
-void Grid::SetupGeometry()
+void Simulation::SetupGeometry()
 {
 	// This routine assumes that MetricSpace::width, and MetricSpace::corner are valid
 	switch (gridGeometry)
@@ -452,7 +452,7 @@ void Grid::SetupGeometry()
 	}
 }
 
-void Grid::PrepareSimulation()
+void Simulation::PrepareSimulation()
 {
 	std::ofstream twstat;
 	tw::Int i;
@@ -466,8 +466,8 @@ void Grid::PrepareSimulation()
 
 	ReadInputFile();
 
-	// Grid initialization done during reading of input file
-	// because Module constructors are allowed to assume the Grid is fully specified
+	// The Task and MetricSpace inherited members are initialized during input file reading,
+	// because Module constructors are allowed to assume the grid is fully specified.
 
 	// Initialize Regions
 
@@ -545,7 +545,7 @@ void Grid::PrepareSimulation()
 
 #ifdef USE_OPENCL
 
-void Grid::PrintGPUInformation()
+void Simulation::PrintGPUInformation()
 {
 	cl_ulong ninfo;
 
@@ -575,7 +575,7 @@ void Grid::PrintGPUInformation()
 
 #endif
 
-void Grid::InteractiveCommand(const std::string& cmd,std::ostream *theStream)
+void Simulation::InteractiveCommand(const std::string& cmd,std::ostream *theStream)
 {
 	if (cmd=="help" || cmd=="?")
 	{
@@ -624,7 +624,7 @@ void Grid::InteractiveCommand(const std::string& cmd,std::ostream *theStream)
 	}
 }
 
-void Grid::FundamentalCycle()
+void Simulation::FundamentalCycle()
 {
 	tw::Int i;
 
@@ -652,7 +652,7 @@ void Grid::FundamentalCycle()
 		AntiMoveWindow();
 }
 
-bool Grid::MangleModuleName(std::string& name)
+bool Simulation::MangleModuleName(std::string& name)
 {
 	bool trouble,did_mangle;
 	tw::Int id = 1;
@@ -672,7 +672,7 @@ bool Grid::MangleModuleName(std::string& name)
 	return did_mangle;
 }
 
-Module* Grid::GetModule(const std::string& name)
+Module* Simulation::GetModule(const std::string& name)
 {
 	for (tw::Int i=0;i<module.size();i++)
 		if (module[i]->name==name)
@@ -681,7 +681,7 @@ Module* Grid::GetModule(const std::string& name)
 	return NULL;
 }
 
-tw::Int Grid::FindModule(const std::string& name)
+tw::Int Simulation::FindModule(const std::string& name)
 {
 	for (tw::Int i=0;i<module.size();i++)
 		if (module[i]->name==name)
@@ -690,7 +690,7 @@ tw::Int Grid::FindModule(const std::string& name)
 	return 0;
 }
 
-bool Grid::MangleToolName(std::string& name)
+bool Simulation::MangleToolName(std::string& name)
 {
 	bool trouble,did_mangle;
 	tw::Int id = 1;
@@ -710,7 +710,7 @@ bool Grid::MangleToolName(std::string& name)
 	return did_mangle;
 }
 
-ComputeTool* Grid::CreateTool(const std::string& basename,tw::tool_type theType)
+ComputeTool* Simulation::CreateTool(const std::string& basename,tw::tool_type theType)
 {
 	std::string name(basename);
 	MangleToolName(name);
@@ -720,7 +720,7 @@ ComputeTool* Grid::CreateTool(const std::string& basename,tw::tool_type theType)
 	return computeTool.back();
 }
 
-ComputeTool* Grid::GetTool(const std::string& name)
+ComputeTool* Simulation::GetTool(const std::string& name)
 {
 	for (tw::Int i=0;i<computeTool.size();i++)
 	{
@@ -734,7 +734,7 @@ ComputeTool* Grid::GetTool(const std::string& name)
 	return NULL;
 }
 
-ComputeTool* Grid::GetRestartedTool(std::ifstream& inFile)
+ComputeTool* Simulation::GetRestartedTool(std::ifstream& inFile)
 {
 	// Read in the name and find the tool
 	// No need to read data, it has already happened.
@@ -744,9 +744,9 @@ ComputeTool* Grid::GetRestartedTool(std::ifstream& inFile)
 	return GetTool(tmp);
 }
 
-void Grid::ToolFromDirective(std::vector<ComputeTool*>& tool,std::stringstream& inputString,const std::string& command)
+void Simulation::ToolFromDirective(std::vector<ComputeTool*>& tool,std::stringstream& inputString,const std::string& command)
 {
-	// The first argument to this function is typically NOT the tool list owned by Grid.
+	// The first argument to this function is typically NOT the tool list owned by Simulation.
 	// Instead it is the list owned by a module.
 
 	std::string word;
@@ -778,7 +778,7 @@ void Grid::ToolFromDirective(std::vector<ComputeTool*>& tool,std::stringstream& 
 		tool.back()->ReadInputFileDirective(inputString,command);
 }
 
-bool Grid::RemoveTool(ComputeTool *theTool)
+bool Simulation::RemoveTool(ComputeTool *theTool)
 {
 	auto iter = std::find(computeTool.begin(),computeTool.end(),theTool);
 	if (iter==computeTool.end())
@@ -793,7 +793,7 @@ bool Grid::RemoveTool(ComputeTool *theTool)
 	return false;
 }
 
-void Grid::SetupTimeInfo(tw::Float dt)
+void Simulation::SetupTimeInfo(tw::Float dt)
 {
 	this->dt = dt;
 	dth = 0.5*dt;
@@ -807,7 +807,7 @@ void Grid::SetupTimeInfo(tw::Float dt)
 	}
 }
 
-void Grid::MoveWindow()
+void Simulation::MoveWindow()
 {
 	tw::Int i;
 	windowPosition += spacing.z;
@@ -826,7 +826,7 @@ void Grid::MoveWindow()
 		module[i]->MoveWindow();
 }
 
-void Grid::AntiMoveWindow()
+void Simulation::AntiMoveWindow()
 {
 	tw::Int i;
 	antiWindowPosition -= spacing.z;
@@ -835,7 +835,7 @@ void Grid::AntiMoveWindow()
 		module[i]->AntiMoveWindow();
 }
 
-void Grid::ReadData(std::ifstream& inFile)
+void Simulation::ReadData(std::ifstream& inFile)
 {
 	tw::Int i;
 	tw::Int num;
@@ -919,7 +919,7 @@ void Grid::ReadData(std::ifstream& inFile)
 		(*tw_out) << "Installed Module " << module.back()->name << std::endl;
 	}
 
-	// Read Grid managed objects
+	// Read Simulation managed objects
 	// Probably most of them should be tools.
 
 	inFile.read((char *)&num,sizeof(tw::Int));
@@ -946,7 +946,7 @@ void Grid::ReadData(std::ifstream& inFile)
 		conductor.back()->ReadData(inFile);
 	}
 
-	// Read Grid managed diagnostics
+	// Read Simulation managed diagnostics
 
 	inFile.read((char *)&num,sizeof(tw::Int));
 	for (i=0;i<num;i++)
@@ -973,7 +973,7 @@ void Grid::ReadData(std::ifstream& inFile)
 	}
 }
 
-void Grid::WriteData(std::ofstream& outFile)
+void Simulation::WriteData(std::ofstream& outFile)
 {
 	tw::Int i;
 
@@ -1067,7 +1067,7 @@ void Grid::WriteData(std::ofstream& outFile)
 //  Read the Input File  //
 ///////////////////////////
 
-void Grid::OpenInputFile(std::ifstream& inFile)
+void Simulation::OpenInputFile(std::ifstream& inFile)
 {
 	std::string fileName;
 	fileName = InputPathName() + "stdin";
@@ -1081,7 +1081,7 @@ void Grid::OpenInputFile(std::ifstream& inFile)
 	throw tw::FatalError("couldn't open stdin");
 }
 
-std::string Grid::InputFileFirstPass()
+std::string Simulation::InputFileFirstPass()
 {
 	// The first pass is used to fully initialize the task
 
@@ -1243,7 +1243,7 @@ std::string Grid::InputFileFirstPass()
 		messageOut << NumTasks() << "-Way Decomposition" << std::endl;
 
 		// Set up the domain decomposition
-		// Grid/restart provide domains[] , globalCells[] , periodic[] as inputs
+		// Simulation/restart provide domains[] , globalCells[] , periodic[] as inputs
 		// communicators, cornerCell[], localCells[], domainIndex[], n0[] , n1[] are computed
 		for (tw::Int i=1;i<=3;i++)
 		{
@@ -1288,7 +1288,7 @@ std::string Grid::InputFileFirstPass()
 	}
 }
 
-void Grid::GridFromInputFile()
+void Simulation::GridFromInputFile()
 {
 	Lock();
 
@@ -1403,7 +1403,7 @@ void Grid::GridFromInputFile()
 	#endif
 }
 
-void Grid::ReadSubmoduleBlock(std::stringstream& inputString,Module *sup)
+void Simulation::ReadSubmoduleBlock(std::stringstream& inputString,Module *sup)
 {
 	// To be called by supermodules that want to add submodules while
 	// reading their own input file block.
@@ -1438,7 +1438,7 @@ void Grid::ReadSubmoduleBlock(std::stringstream& inputString,Module *sup)
 		throw tw::FatalError("Unhandled " + preamble[0] + ". Check order of input file.");
 }
 
-void Grid::ReadInputFile()
+void Simulation::ReadInputFile()
 {
 	Lock();
 
@@ -1540,7 +1540,7 @@ void Grid::ReadInputFile()
 					throw tw::FatalError("Unhandled " + preamble[0] + ". Check order of input file.");
 			}
 
-			// The remaining objects are explicitly managed by Grid
+			// The remaining objects are explicitly managed by Simulation
 			// Perhaps they should be repackaged as ComputeTool objects
 
 			if (preamble[0]=="wave")

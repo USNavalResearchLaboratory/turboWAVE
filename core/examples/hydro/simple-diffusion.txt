@@ -1,5 +1,5 @@
 // Keep the following line for generating twtest reports
-// TWTEST matplotlib xtyz=0,-1 T_M(group).dvdat 0.3
+// TWTEST matplotlib xtyz=0,-1 T_M_sup.dvdat 0.3
 
 // SPARC simulation illustrating heat diffusion
 // Approach is to create a density hole, but in pressure equilibrium

@@ -52,8 +52,8 @@ struct FCT_Engine
 	tw::Int cells;
 	std::valarray<tw::Float> V,A,scratch;
 
-	FCT_Engine(const StripIterator& s,const MetricSpace& m,ScalarField *fluxMask);
-	void Reset(const StripIterator& s,const MetricSpace& m,ScalarField *fluxMask);
+	FCT_Engine(tw::Int ax,const MetricSpace& m);
+	void Reset(const tw::strip& s,const MetricSpace& m,ScalarField *fluxMask);
 	void Transport(std::valarray<tw::Float>& vel,std::valarray<tw::Float>& rho,std::valarray<tw::Float>& rho1,std::valarray<tw::Float>& diff,std::valarray<tw::Float>& flux,tw::Float dt);
 	void Diffuse(std::valarray<tw::Float>& vel,std::valarray<tw::Float>& rho,std::valarray<tw::Float>& diff,tw::Float dt);
 	void Limiter(tw::Float& adiff,const tw::Float& maxLow,const tw::Float& maxHigh);
