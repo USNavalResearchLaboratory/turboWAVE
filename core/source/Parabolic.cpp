@@ -77,14 +77,18 @@ EigenmodePropagator::EigenmodePropagator(const std::string& name,MetricSpace *m,
 	const tw::Int zDim = space->Dim(3);
 
 	globalIntegrator = new GlobalIntegrator<tw::Complex>(&task->strip[3],xDim*yDim,zDim);
-
-	if (space->car!=1.0)
-		ComputeTransformMatrices(eigenvalue,hankel,inverseHankel,space,task);
 }
 
 EigenmodePropagator::~EigenmodePropagator()
 {
 	delete globalIntegrator;
+}
+
+void EigenmodePropagator::Initialize()
+{
+	// Computing the matrices requires message passing, cannot go in constructor.
+	if (space->car!=1.0)
+		ComputeTransformMatrices(eigenvalue,hankel,inverseHankel,space,task);
 }
 
 void EigenmodePropagator::SetData(tw::Float w0,tw::Float dt,tw_polarization_type pol,bool mov)
@@ -450,7 +454,7 @@ void SchroedingerPropagator::DepositCurrent(const axisSpec& axis,ComplexField& p
 	{
 		#pragma omp parallel
 		{
-			for (auto cell : CellRange(*space,false))
+			for (auto cell : InteriorCellRange(*space))
 				J4(cell,0) += half*norm(psi1(cell));
 		}
 	}

@@ -790,13 +790,18 @@ EigenmodePoissonSolver::EigenmodePoissonSolver(const std::string& name,MetricSpa
 	const tw::Int rDim = space->Dim(1);
 	const tw::Int zDim = space->Dim(3);
 
-	ComputeTransformMatrices(eigenvalue,hankel,inverseHankel,space,task);
 	globalIntegrator = new GlobalIntegrator<tw::Float>(&task->strip[3],rDim,zDim);
 }
 
 EigenmodePoissonSolver::~EigenmodePoissonSolver()
 {
 	delete globalIntegrator;
+}
+
+void EigenmodePoissonSolver::Initialize()
+{
+	// The following call involves message passing.
+	ComputeTransformMatrices(eigenvalue,hankel,inverseHankel,space,task);
 }
 
 void EigenmodePoissonSolver::TransformBoundaryValues()

@@ -958,25 +958,25 @@ struct AutoField : Field
 
 	AutoField<T>& operator = (T a)
 	{
-		for (auto cell : CellRange(*this,true))
+		for (auto cell : EntireCellRange(*this))
 			(*this)(cell) = a;
 		return *this;
 	}
 	AutoField<T>& operator += (T a)
 	{
-		for (auto cell : CellRange(*this,true))
+		for (auto cell : EntireCellRange(*this))
 			(*this)(cell) += a;
 		return *this;
 	}
 	AutoField<T>& operator -= (T a)
 	{
-		for (auto cell : CellRange(*this,true))
+		for (auto cell : EntireCellRange(*this))
 			(*this)(cell) -= a;
 		return *this;
 	}
 	AutoField<T>& operator *= (T a)
 	{
-		for (auto cell : CellRange(*this,true))
+		for (auto cell : EntireCellRange(*this))
 			(*this)(cell) *= a;
 		return *this;
 	}

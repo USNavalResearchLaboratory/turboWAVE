@@ -99,7 +99,7 @@ void Kinetics::Update()
 	}
 
 	if (sources && owner->neutralize)
-		for (auto cell : CellRange(*this,true))
+		for (auto cell : EntireCellRange(*this))
 			(*sources)(cell,0) -= rho00(cell);
 
 	// Take care of boundaries in source arrays within field solvers

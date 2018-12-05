@@ -96,12 +96,12 @@ struct EquilibriumGroup:Module
 	}
 	void LoadMassDensity(ScalarField& nm,const Field& f)
 	{
-		for (auto cell : CellRange(*this,true))
+		for (auto cell : EntireCellRange(*this))
 			nm(cell) = DensityWeightedSum(f,matset.mass,cell);
 	}
 	void LoadMassDensityCv(ScalarField& nmcv,const Field& f)
 	{
-		for (auto cell : CellRange(*this,true))
+		for (auto cell : EntireCellRange(*this))
 			nmcv(cell) = DensityWeightedSum(f,matset.cvm,cell);
 	}
 	tw::vec3 Velocity(const Field& f,const tw::cell& cell)
@@ -113,7 +113,7 @@ struct EquilibriumGroup:Module
 	{
 		// assumes velocity components appear in order in state vector
 		tw::Float nm;
-		for (auto cell : CellRange(*this,true))
+		for (auto cell : EntireCellRange(*this))
 		{
 			nm = DensityWeightedSum(f,matset.mass,cell);
 			vel(cell) = f(cell,hidx.npx+ax-1)/(tw::small_pos + nm);

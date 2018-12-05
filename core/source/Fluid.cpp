@@ -128,7 +128,7 @@ void Fluid::Initialize()
 		tw::Float density;
 		UnitConverter uc(owner->unitDensityCGS);
 
-		for (auto cell : CellRange(*this,true))
+		for (auto cell : EntireCellRange(*this))
 		{
 			pos = owner->Pos(cell);
 
@@ -480,7 +480,7 @@ void Fluid::Update()
 	{
 		#pragma omp parallel
 		{
-			for (auto cell : CellRange(*this,false))
+			for (auto cell : InteriorCellRange(*this))
 				(*chi)(cell) -= owner->dS(cell,0)*q0*q0*state0(cell,0)/(m0*vel(cell,0));
 		}
 	}
@@ -635,8 +635,6 @@ void Chemical::Initialize()
 		ionization.hi = ((EquilibriumGroup*)ichem->super)->hidx;
 		ionization.hi.ni = ichem->indexInState;
 	}
-	// can't generate in HydroManager::Initialize since profiles would not be initialized
-	GenerateFluid(master->state1,true);
 	// Have to send indexing data to EOS
 	eosData->SetupIndexing(indexInState,group->hidx,group->eidx,mat);
 	// DFG - check to see if this Chemical is electrons.
@@ -649,11 +647,12 @@ void Chemical::Initialize()
 		master->ie = indexInState;
 		group->forceFilter = 0.0;
 	}
+	// can't generate in HydroManager::Initialize since profiles would not be initialized
+	GenerateFluid(master->state1,true);
 }
 
 bool Chemical::GenerateFluid(Field& f,bool init)
 {
-	tw::Int i,j,k,s;
 	tw::vec3 pos,np;
 	tw::Float add,kT,dens,kinetic,vibrational;
 
@@ -669,7 +668,7 @@ bool Chemical::GenerateFluid(Field& f,bool init)
 	const tw::Int U = group->hidx.u;
 	const tw::Int Xi = group->hidx.x;
 
-	for (s=0;s<profile.size();s++)
+	for (tw::Int s=0;s<profile.size();s++)
 	{
 		switch (profile[s]->timingMethod)
 		{
@@ -688,47 +687,45 @@ bool Chemical::GenerateFluid(Field& f,bool init)
 		{
 			profile[s]->wasTriggered = true;
 			didGenerate = true;
-			for (k=lb[3];k<=ub[3];k++)
-				for (j=lb[2];j<=ub[2];j++)
-					for (i=lb[1];i<=ub[1];i++)
-					{
-						pos = owner->Pos(i,j,k);
-						dens = profile[s]->GetValue(pos,*owner);
-						if (profile[s]->whichQuantity==densityProfile && dens>0.0)
-						{
-							kT = sqr(profile[s]->thermalMomentum.x)/mat.mass; // appropriate for exp(-v^2/(2*vth^2)) convention
-							if (profile[s]->temperature!=0.0)
-								kT = profile[s]->temperature;
-							np.x = dens*profile[s]->driftMomentum.x;
-							np.y = dens*profile[s]->driftMomentum.y;
-							np.z = dens*profile[s]->driftMomentum.z;
-							kinetic = 0.5*Norm(np)/(tw::small_pos + mat.mass*dens);
-							vibrational = dens*mat.excitationEnergy/(fabs(exp(mat.excitationEnergy/kT) - 1.0) + tw::small_pos);
+			for (auto cell : EntireCellRange(*this))
+			{
+				pos = owner->Pos(cell);
+				dens = profile[s]->GetValue(pos,*owner);
+				if (profile[s]->whichQuantity==densityProfile && dens>0.0)
+				{
+					kT = sqr(profile[s]->thermalMomentum.x)/mat.mass; // appropriate for exp(-v^2/(2*vth^2)) convention
+					if (profile[s]->temperature!=0.0)
+						kT = profile[s]->temperature;
+					np.x = dens*profile[s]->driftMomentum.x;
+					np.y = dens*profile[s]->driftMomentum.y;
+					np.z = dens*profile[s]->driftMomentum.z;
+					kinetic = 0.5*Norm(np)/(tw::small_pos + mat.mass*dens);
+					vibrational = dens*mat.excitationEnergy/(fabs(exp(mat.excitationEnergy/kT) - 1.0) + tw::small_pos);
 
-							f(i,j,k,ns) = add*f(i,j,k,ns) + dens;
-							f(i,j,k,npx) = add*f(i,j,k,npx) + np.x;
-							f(i,j,k,npy) = add*f(i,j,k,npy) + np.y;
-							f(i,j,k,npz) = add*f(i,j,k,npz) + np.z;
-							f(i,j,k,U) = add*f(i,j,k,U) + mat.cvm*dens*kT + kinetic + vibrational;
-							f(i,j,k,Xi) = add*f(i,j,k,Xi) + vibrational;
-						}
-						if (profile[s]->whichQuantity==energyProfile)
-						{
-							f(i,j,k,U) = add*f(i,j,k,U) + dens;
-						}
-						if (profile[s]->whichQuantity==pxProfile)
-						{
-							f(i,j,k,npx) = add*f(i,j,k,npx) + dens;
-						}
-						if (profile[s]->whichQuantity==pyProfile)
-						{
-							f(i,j,k,npy) = add*f(i,j,k,npy) + dens;
-						}
-						if (profile[s]->whichQuantity==pzProfile)
-						{
-							f(i,j,k,npz) = add*f(i,j,k,npz) + dens;
-						}
-					}
+					f(cell,ns) = add*f(cell,ns) + dens;
+					f(cell,npx) = add*f(cell,npx) + np.x;
+					f(cell,npy) = add*f(cell,npy) + np.y;
+					f(cell,npz) = add*f(cell,npz) + np.z;
+					f(cell,U) = add*f(cell,U) + mat.cvm*dens*kT + kinetic + vibrational;
+					f(cell,Xi) = add*f(cell,Xi) + vibrational;
+				}
+				if (profile[s]->whichQuantity==energyProfile)
+				{
+					f(cell,U) = add*f(cell,U) + dens;
+				}
+				if (profile[s]->whichQuantity==pxProfile)
+				{
+					f(cell,npx) = add*f(cell,npx) + dens;
+				}
+				if (profile[s]->whichQuantity==pyProfile)
+				{
+					f(cell,npy) = add*f(cell,npy) + dens;
+				}
+				if (profile[s]->whichQuantity==pzProfile)
+				{
+					f(cell,npz) = add*f(cell,npz) + dens;
+				}
+			}
 		}
 	}
 	f.ApplyBoundaryCondition(Element(ns,Xi));
@@ -1126,7 +1123,7 @@ void sparc::HydroManager::Initialize()
 	// setup the flux mask used to make conductors impermeable
 	// also used for reflecting boundary conditions at simulation walls
 	fluxMask = 1.0;
-	for (auto cell : CellRange(*this,true))
+	for (auto cell : EntireCellRange(*this))
 		for (auto c : owner->conductor)
 			if (c->theRgn->Inside(owner->Pos(cell),*owner))
 				fluxMask(cell) = 0.0;
@@ -1251,7 +1248,7 @@ void sparc::HydroManager::ComputeElectronCollisionFrequency()
 	#pragma omp parallel
 	{
 		UnitConverter uc(owner->unitDensityCGS);
-		for (auto cell : CellRange(*this,false))
+		for (auto cell : InteriorCellRange(*this))
 		{
 			tw::Float aggregateCollFreq = 0.0;
 			for (auto coll : collision)
@@ -1276,7 +1273,7 @@ void sparc::HydroManager::ComputeCollisionalSources()
 		// REACTIONS
 
 		for (auto rx : reaction)
-			for (auto cell : CellRange(*this,false))
+			for (auto cell : InteriorCellRange(*this))
 			{
 				rateNow = rx->PrimitiveRate(eos1(cell,rx->catalyst.T));
 				for (auto s : rx->sub)
@@ -1331,7 +1328,7 @@ void sparc::HydroManager::ComputeCollisionalSources()
 		// COLLISIONS (MOMENTUM TRANSFER, THERMAL ENERGY TRANSFER)
 
 		for (auto coll : collision)
-			for (auto cell : CellRange(*this,false))
+			for (auto cell : InteriorCellRange(*this))
 			{
 				const tw::Float R = CollisionCoefficient(coll,cell,uc);
 				const tw::Float N1 = state1(cell,coll->h1.ni);
@@ -1364,7 +1361,7 @@ void sparc::HydroManager::ComputeCollisionalSources()
 		// VIBRATIONS
 
 		for (auto x : excitation)
-			for (auto cell : CellRange(*this,false))
+			for (auto cell : InteriorCellRange(*this))
 			{
 				const tw::Float Te = eos1(cell,x->e1.T);
 				const tw::Float Tv = eos1(cell,x->e2.Tv);
@@ -1398,11 +1395,11 @@ void sparc::HydroManager::ComputeRadiativeSources()
 
 		// Ohmic heating due to laser fields
 		if (electrons)
-			for (auto cell : CellRange(*this,false))
+			for (auto cell : InteriorCellRange(*this))
 				CreateTotalEnergy(cell,0.5*nu_e(cell)*state1(cell,ie)*norm(laserAmplitude(cell))/(sqr(laserFrequency) + sqr(nu_e(cell))),electrons->group->hidx);
 
 		// Photoionization
-		for (auto cell : CellRange(*this,false))
+		for (auto cell : InteriorCellRange(*this))
 			if (radiationIntensity(cell)>0.0)
 				for (auto grp : group)
 					for (auto chem : grp->chemical)
@@ -1424,7 +1421,7 @@ void sparc::HydroManager::ComputeRadiativeSources()
 		// Hence we form equilibrium temperature from (total pressure / total density)
 		if (radModel==sparc::thin)
 		{
-			for (auto cell : CellRange(*this,false))
+			for (auto cell : InteriorCellRange(*this))
 			{
 				tw::Float stef_boltz = 5.67e-8; // W/m^2/K^4
 				tw::Float Ptot=0.0,ntot=0.0,TK,lossNow,meanFreePath;
@@ -1500,7 +1497,7 @@ void sparc::HydroManager::ComputeHydroSources()
 				// mass and momentum density are convected, but then reset to restore quasineutrality and heavy particle velocity
 
 				// take away any collisional sources of momentum
-				for (auto cell : CellRange(*this,false))
+				for (auto cell : InteriorCellRange(*this))
 				{
 					creationRate(cell,g->hidx.npx) = 0.0;
 					creationRate(cell,g->hidx.npy) = 0.0;
@@ -1517,7 +1514,7 @@ void sparc::HydroManager::ComputeHydroSources()
 					#pragma omp barrier
 					g->LoadVelocity(scratch,state1,ax);
 					#pragma omp barrier
-					for (auto cell : CellRange(*this,false))
+					for (auto cell : InteriorCellRange(*this))
 					{
 						tw::Float dV,dS0,dS1,dl0,dl1,P0,P1,v0,v1;
 						tw::Float forceDensity = 0.0;
@@ -1577,7 +1574,7 @@ void sparc::HydroManager::ComputeHydroSources()
 				// Undifferentiated tensor divergence terms
 				//#pragma omp barrier
 				if (owner->gridGeometry==cylindrical)
-					for (auto cell : CellRange(*this,false))
+					for (auto cell : InteriorCellRange(*this))
 					{
 						const tw::Float nm = g->DensityWeightedSum(state1,g->matset.mass,cell);
 						const tw::Float Pc = eos1(cell,g->eidx.P);
@@ -1587,7 +1584,7 @@ void sparc::HydroManager::ComputeHydroSources()
 						DestroyMomentum(cell,2,fluxMask(cell)*nm*vc.x*vc.y/pos.x,g->hidx);
 					}
 				if (owner->gridGeometry==spherical)
-					for (auto cell : CellRange(*this,false))
+					for (auto cell : InteriorCellRange(*this))
 					{
 						const tw::Float nm = g->DensityWeightedSum(state1,g->matset.mass,cell);
 						const tw::Float Pc = eos1(cell,g->eidx.P);
@@ -1629,7 +1626,7 @@ void sparc::HydroManager::LaserAdvance(tw::Float dt)
 	{
 		#pragma omp parallel
 		{
-			for (auto cell : CellRange(*this,false))
+			for (auto cell : InteriorCellRange(*this))
 			{
 				laserAmplitude(cell) = 0.0;
 				for (tw::Int s=0;s<owner->pulse.size();s++)
@@ -1688,7 +1685,7 @@ void sparc::HydroManager::LaserAdvance(tw::Float dt)
 
 		#pragma omp parallel
 		{
-			for (auto cell : CellRange(*this,false))
+			for (auto cell : InteriorCellRange(*this))
 				radiationIntensity(cell) = real(refractiveIndex(cell))*0.5*norm(laserAmplitude(cell));
 		}
 	}
@@ -1713,7 +1710,7 @@ tw::Float sparc::HydroManager::EstimateTimeStep()
 
 		// Courant condition
 
-		for (auto cell : CellRange(*this,false))
+		for (auto cell : InteriorCellRange(*this))
 			for (tw::Int s=0;s<group.size();s++)
 			{
 				const tw::vec3 vel = group[s]->Velocity(state1,cell);
@@ -1751,13 +1748,13 @@ tw::Float sparc::HydroManager::EstimateTimeStep()
 		for (auto g : group)
 		{
 			for (auto chem : g->chemical)
-				for (auto cell : CellRange(*this,false))
+				for (auto cell : InteriorCellRange(*this))
 					dtMax[tid] = AsymptoticStep(cell,chem->indexInState);
 
-			for (auto cell : CellRange(*this,false))
+			for (auto cell : InteriorCellRange(*this))
 				dtMax[tid] = AsymptoticStep(cell,g->hidx.u);
 
-			for (auto cell : CellRange(*this,false))
+			for (auto cell : InteriorCellRange(*this))
 				dtMax[tid] = AsymptoticStep(cell,g->hidx.x);
 		}
 	} // end parallel region
@@ -1784,7 +1781,7 @@ void sparc::HydroManager::DiffusionAdvance(tw::Float dt)
 
 		#pragma omp parallel
 		{
-			for (auto cell : CellRange(*this,false))
+			for (auto cell : InteriorCellRange(*this))
 			{
 				state1(cell,g->hidx.u) = 0.5*scratch2(cell)*Norm(g->Velocity(state1,cell));
 				state1(cell,g->hidx.u) += scratch(cell)*eos1(cell,g->eidx.T);
@@ -1800,7 +1797,7 @@ void sparc::HydroManager::DiffusionAdvance(tw::Float dt)
 			parabolicSolver->Advance(scratch,0,fluxMask,&scratch2,0,&eos1,g->eidx.visc,dt);
 			#pragma omp parallel
 			{
-				for (auto cell : CellRange(*this,false))
+				for (auto cell : InteriorCellRange(*this))
 					state1(cell,g->hidx.npx+ax-1) = scratch2(cell)*scratch(cell);
 			}
 		}
@@ -1825,7 +1822,7 @@ void sparc::HydroManager::FieldAdvance(tw::Float dt)
 	#pragma omp parallel
 	{
 		tw::Float D1,D2,P0,P1,mu0,mu1,dV,dS0,dS1,dl0,dl1;
-		for (auto cell : CellRange(*this,false))
+		for (auto cell : InteriorCellRange(*this))
 		{
 			rho(cell) = rho0(cell);
 			for (tw::Int ax=1;ax<=3;ax++)
@@ -1890,7 +1887,7 @@ void sparc::HydroManager::HydroAdvance(const axisSpec& axis,tw::Float dt)
 			#pragma omp parallel
 			{
 				g->LoadVelocity(scratch,state1,ax);
-				for (auto cell : CellRange(*this,true))
+				for (auto cell : EntireCellRange(*this))
 					scratch(cell) *= fluxMask(cell);
 			}
 			convector.Convect(axis,bc0,bc1,dt);
@@ -1924,7 +1921,7 @@ void sparc::HydroManager::ApplyEOS(Field& hydro,Field& eos)
 		tw::Float ionChargeDensity;
 		tw::vec3 ionVelocity;
 
-		for (auto cell : CellRange(*this,false))
+		for (auto cell : InteriorCellRange(*this))
 		{
 			ionChargeDensity = 0.0;
 			ionVelocity = 0.0;
@@ -1949,6 +1946,7 @@ void sparc::HydroManager::ApplyEOS(Field& hydro,Field& eos)
 	}
 
 	// DFG - factorized EOS loop, avoids nested tools.
+	eos = 0.0; // safest to explicitly reset here
 	for (auto g : group)
 	{
 		for (auto chem : g->chemical)
@@ -1961,7 +1959,7 @@ void sparc::HydroManager::ApplyEOS(Field& hydro,Field& eos)
 
 	// Check for numerical failure, defined by NaN in the hydro state vector
 	tw::Int badCells = 0;
-	for (auto cell : CellRange(*this,true))
+	for (auto cell : EntireCellRange(*this))
 		for (tw::Int c=0;c<hydro.Components();c++)
 			badCells += std::isnan(hydro(cell,c));
 	if (badCells)

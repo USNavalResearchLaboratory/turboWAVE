@@ -17,8 +17,8 @@ debug: tw3d_debug copy_files
 
 # Uncomment exactly one platform
 
-PLATFORM = OSX
-#PLATFORM = LINUX
+#PLATFORM = OSX
+PLATFORM = LINUX
 #PLATFORM = CRAY
 #PLATFORM = SGI
 
@@ -32,8 +32,8 @@ HARDWARE_ACCEL = OMP
 
 # Specify a preference for compiler (ignored in some cases)
 
-#COMPILER_PREF = GNU
-COMPILER_PREF = LLVM_CLANG
+COMPILER_PREF = GNU
+#COMPILER_PREF = LLVM_CLANG
 #COMPILER_PREF = INTEL
 #COMPILER_PREF = CRAY
 

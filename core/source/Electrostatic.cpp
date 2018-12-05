@@ -250,7 +250,7 @@ void Electrostatic::SetupInitialPotential()
 {
 	tw::Int i,j,k;
 
-	for (auto cell : CellRange(*this,true))
+	for (auto cell : EntireCellRange(*this))
 	{
 		cell.Decode(&i,&j,&k);
 		phi(i,j,k) = lbc[i] + (rbc[i]-lbc[i])*(owner->X(k,3)-GlobalCorner(*owner).z)/GlobalPhysicalSize(*owner).z;

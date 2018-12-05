@@ -452,8 +452,8 @@ void EOSComponent::AddHeatCapacity(Field& hydro,Field& eos)
 {
 	#pragma omp parallel firstprivate(hidx,eidx,mat)
 	{
-		for (auto cell : CellRange(*space,false))
-			eos(cell,eidx.nmcv) = hydro(cell,hidx.ni) * mat.cvm;
+		for (auto cell : InteriorCellRange(*space))
+			eos(cell,eidx.nmcv) += hydro(cell,hidx.ni) * mat.cvm;
 	}
 }
 
@@ -461,7 +461,7 @@ void EOSComponent::AddPKV(ScalarField& IE, ScalarField& nm, ScalarField& nu_e, F
 {
 	#pragma omp parallel firstprivate(hidx,eidx,mat)
 	{
-		for (auto cell : CellRange(*space,false))
+		for (auto cell : InteriorCellRange(*space))
 		{
 			const tw::Float ngas = hydro(cell,hidx.ni);
 			eos(cell,eidx.P) += ngas*eos(cell,eidx.T);
@@ -499,7 +499,7 @@ void EOSHotElectrons::AddPKV(ScalarField& IE, ScalarField& nm, ScalarField& nu_e
 {
 	#pragma omp parallel firstprivate(hidx,eidx,mat)
 	{
-		for (auto cell : CellRange(*space,false))
+		for (auto cell : InteriorCellRange(*space))
 		{
 			const tw::Float ne = hydro(cell,hidx.ni);
 			eos(cell,eidx.P) += ne*eos(cell,eidx.T);
@@ -528,7 +528,7 @@ void EOSMieGruneisen::AddPKV(ScalarField& IE, ScalarField& nm, ScalarField& nu_e
 {
 	#pragma omp parallel firstprivate(hidx,eidx,mat)
 	{
-		for (auto cell : CellRange(*space,false))
+		for (auto cell : InteriorCellRange(*space))
 		{
 			const tw::Float nion = hydro(cell,hidx.ni);
 			const tw::Float partial_IE = IE(cell) * nion * mat.mass / nm(cell);
@@ -591,7 +591,7 @@ void EOSMieGruneisen2::AddPKV(ScalarField& IE, ScalarField& nm, ScalarField& nu_
 {
 	#pragma omp parallel firstprivate(GRUN,n0,c0,S1,hidx,eidx,mat)
 	{
-		for (auto cell : CellRange(*space,false))
+		for (auto cell : InteriorCellRange(*space))
 		{
 			const tw::Float nion = hydro(cell,hidx.ni);
 			const tw::Float partial_IE = IE(cell) * nion * mat.mass / nm(cell);
@@ -660,7 +660,7 @@ void EOSMixture::ApplyCaloricEOS(ScalarField& IE, ScalarField& nm, Field& hydro,
 	// Compute the temperature assuming nmcv has been loaded.
 	// Pass IE and nm back out for use by component EOS classes
 
-	for (auto cell : CellRange(*space,false))
+	for (auto cell : InteriorCellRange(*space))
 	{
 		nm(cell) = MassDensity(hydro,cell);
 		IE(cell) = InternalEnergy(nm(cell),hydro,cell);
@@ -669,9 +669,6 @@ void EOSMixture::ApplyCaloricEOS(ScalarField& IE, ScalarField& nm, Field& hydro,
 
 		eos(cell,eidx.T) = IE(cell)/(tw::small_pos + eos(cell,eidx.nmcv));
 		eos(cell,eidx.Tv) = (epsvn/(nv+tw::small_pos))/log(1.0001 + epsvn/(hydro(cell,hidx.x)+tw::small_pos));
-		eos(cell,eidx.P) = 0.0;
-		eos(cell,eidx.K) = 0.0;
-		eos(cell,eidx.visc) = 0.0;
 	}
 }
 

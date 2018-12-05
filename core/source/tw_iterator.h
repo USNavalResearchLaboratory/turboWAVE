@@ -248,6 +248,22 @@ public:
 	}
 };
 
+class EntireCellRange:public CellRange
+{
+public:
+	EntireCellRange(const DiscreteSpace& space) : CellRange(space,true)
+	{
+	}
+};
+
+class InteriorCellRange:public CellRange
+{
+public:
+	InteriorCellRange(const DiscreteSpace& space) : CellRange(space,false)
+	{
+	}
+};
+
 class StripRange:public TWRange
 {
 	// Step across and along strips in a given direction.

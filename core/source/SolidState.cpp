@@ -71,7 +71,7 @@ void BoundElectrons::Initialize()
 	if (owner->restarted)
 		return;
 
-	for (auto cell : CellRange(*this,false))
+	for (auto cell : InteriorCellRange(*this))
 	{
 		for (s=0;s<3;s++)
 		{

@@ -66,6 +66,7 @@ struct EigenmodePoissonSolver:EllipticSolver
 
 	EigenmodePoissonSolver(const std::string& name,MetricSpace *m,Task *tsk);
 	~EigenmodePoissonSolver();
+	virtual void Initialize();
 	virtual void TransformBoundaryValues();
 	virtual void Solve(ScalarField& phi,ScalarField& source,tw::Float mul);
 };

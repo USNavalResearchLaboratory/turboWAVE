@@ -148,7 +148,7 @@ void Electromagnetic::InitializeConductors()
 	// The conductor fills the whole cell or none of the cell
 	tw::vec3 shiftedCenter;
 	//#pragma omp parallel for private(i,j,k,s,shiftedCenter) collapse(3) schedule(static)
-	for (auto cell : CellRange(*this,true))
+	for (auto cell : EntireCellRange(*this))
 	{
 		conductorMask(cell) = 1.0;
 		shiftedCenter = owner->Pos(cell) - 0.5*owner->dPos(cell);
@@ -216,7 +216,7 @@ void Electromagnetic::ForceQuasistaticVectorPotential(Field& A4,ScalarField& DtP
 		rhs.CopyFromNeighbors();
 
 		ellipticSolver->Solve(ans,rhs,1.0);
-		for (auto cell : CellRange(*this,true))
+		for (auto cell : EntireCellRange(*this))
 			A4(cell,ax+4) = ans(cell);
 
 		// Find Solution at last time
@@ -237,7 +237,7 @@ void Electromagnetic::ForceQuasistaticVectorPotential(Field& A4,ScalarField& DtP
 		rhs.DownwardCopy(zAxis,1);
 
 		ellipticSolver->Solve(ans,rhs,1.0);
-		for (auto cell : CellRange(*this,true))
+		for (auto cell : EntireCellRange(*this))
 			A4(cell,ax) = ans(cell);
 	}
 

@@ -45,7 +45,7 @@ ComputeTool::~ComputeTool()
 
 void ComputeTool::Initialize()
 {
-		// typically constructor should be complete, nothing to do here.
+	// Typically constructor should be complete, nothing to do here, unless MPI needed.
 }
 
 void ComputeTool::InitializeCLProgram(const std::string& filename)

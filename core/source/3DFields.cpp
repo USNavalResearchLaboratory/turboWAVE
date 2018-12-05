@@ -280,14 +280,14 @@ void Field::Initialize(tw::Int components,const DiscreteSpace& ds,Task *task,con
 
 void Field::MultiplyCellVolume(const MetricSpace& m)
 {
-	for (auto cell : CellRange(*this,true))
+	for (auto cell : EntireCellRange(*this))
 		for (tw::Int c=0;c<num[0];c++)
 			(*this)(cell,c) *= m.dS(cell,0);
 }
 
 void Field::DivideCellVolume(const MetricSpace& m)
 {
-	for (auto cell : CellRange(*this,true))
+	for (auto cell : EntireCellRange(*this))
 		for (tw::Int c=0;c<num[0];c++)
 			(*this)(cell,c) /= m.dS(cell,0);
 }
@@ -1200,7 +1200,7 @@ void Field::Swap(const Element& e1,const Element& e2)
 	for (c=0;c<e1.Components();c++)
 	{
 
-		for(auto cell : CellRange(*this,true))
+		for(auto cell : EntireCellRange(*this))
 		{
 			temp = (*this)(cell,e1.low+c);
 			(*this)(cell,e1.low+c) = (*this)(cell,e2.low+c);

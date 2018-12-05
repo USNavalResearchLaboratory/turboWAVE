@@ -59,3 +59,7 @@ The ``Run`` method executes the following sequence:
 .. Tip::
 
 	In turboWAVE constructing and initializing objects are two different operations.  All objects are constructed while processing the input file.  Initialization of objects happens only after all objects are constructed.
+
+.. Warning::
+
+	TurboWAVE's internal MPI threads use serial I/O.  Therefore message passing is illegal in an object's constructor, because it may be executed during I/O operations.  You may safely use the object's ``Initialize`` method instead.

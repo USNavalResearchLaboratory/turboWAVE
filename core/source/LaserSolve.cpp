@@ -56,7 +56,7 @@ void LaserSolver::Initialize()
 	else
 		polarizationFactor = 1.0;
 
-	for (auto cell : CellRange(*this,true))
+	for (auto cell : EntireCellRange(*this))
 		for (auto pulse : owner->pulse)
 		{
 			pos = owner->Pos(cell);

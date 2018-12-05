@@ -627,7 +627,7 @@ void AtomicPhysics::FormPotentials(tw::Float t)
 	{
 		tw::Float phiNow,r;
 		tw::vec3 A0,A1,r_curv,r_cart;
-		for (auto cell : CellRange(*this,true))
+		for (auto cell : EntireCellRange(*this))
 		{
 			r = owner->SphericalRadius(owner->Pos(cell));
 			phiNow = GetSphericalPotential(r);
@@ -998,7 +998,7 @@ void Schroedinger::Initialize()
 
 		#pragma omp parallel
 		{
-			for (auto cell : CellRange(*this,true))
+			for (auto cell : EntireCellRange(*this))
 				for (tw::Int s=0;s<waveFunction.size();s++)
 					psi1(cell) += waveFunction[s].Amplitude(owner->Pos(cell),0.0,0);
 		}
@@ -1006,7 +1006,7 @@ void Schroedinger::Initialize()
 		psi0 = psi1;
 		#pragma omp parallel
 		{
-			for (auto cell : CellRange(*this,true))
+			for (auto cell : EntireCellRange(*this))
 				J4(cell,0) = norm(psi1(cell));
 		}
 	}
@@ -1176,7 +1176,7 @@ void Schroedinger::UpdateJ4()
 void Schroedinger::Normalize()
 {
 	tw::Float totalProbability = 0.0;
-	for (auto cell : CellRange(*this,false))
+	for (auto cell : InteriorCellRange(*this))
 		totalProbability += norm(psi1(cell)) * owner->dS(cell,0);
 	owner->strip[0].AllSum(&totalProbability,&totalProbability,sizeof(tw::Float),0);
 	psi1 *= 1.0/sqrt(totalProbability);
@@ -1439,7 +1439,7 @@ void Pauli::Update()
 void Pauli::Normalize()
 {
 	tw::Float totalProbability = 0.0;
-	for (auto cell : CellRange(*this,false))
+	for (auto cell : InteriorCellRange(*this))
 		totalProbability += (norm(psi1(cell))+norm(chi1(cell))) * owner->dS(cell,0);
 	owner->strip[0].AllSum(&totalProbability,&totalProbability,sizeof(tw::Float),0);
 	psi1 *= 1.0/sqrt(totalProbability);
@@ -1551,7 +1551,7 @@ void Pauli::BoxDiagnose(GridDataDescriptor* box)
 
 	ScalarField Sz;
 	Sz.Initialize(*this,owner);
-	for (auto cell : CellRange(*this,false))
+	for (auto cell : InteriorCellRange(*this))
 		Sz(cell) = norm(psi1(cell))-norm(chi1(cell));
 	owner->WriteBoxData("Sz",box,&Sz(0,0,0),Sz.Stride());
 }
@@ -1637,7 +1637,7 @@ void KleinGordon::Initialize()
 			(*owner->tw_out) << "Reference " << s << " : energy = " << refState[s].energy << std::endl;
 		}
 
-		for (auto cell : CellRange(*this,false))
+		for (auto cell : InteriorCellRange(*this))
 		{
 			const tw::vec3 pos = owner->Pos(cell);
 			for (tw::Int s=0;s<waveFunction.size();s++)
@@ -1697,7 +1697,7 @@ void KleinGordon::UpdateJ4()
 void KleinGordon::Normalize()
 {
 	tw::Float totalCharge = 0.0;
-	for (auto cell : CellRange(*this,false))
+	for (auto cell : InteriorCellRange(*this))
 		totalCharge += ComputeRho(cell) * owner->dS(cell,0);
 	owner->strip[0].AllSum(&totalCharge,&totalCharge,sizeof(tw::Float),0);
 	psi_r *= sqrt(fabs(q0/totalCharge));
@@ -2014,7 +2014,7 @@ void Dirac::Initialize()
 
 		#pragma omp parallel
 		{
-			for (auto cell : CellRange(*this,false))
+			for (auto cell : InteriorCellRange(*this))
 			{
 				tw::vec3 pos = owner->Pos(cell);
 				for (tw::Int s=0;s<waveFunction.size();s++)
@@ -2067,7 +2067,7 @@ void Dirac::UpdateJ4()
 	#pragma omp parallel
 	{
 		tw::Complex z0,z1,z2,z3;
-		for (auto cell : CellRange(*this,false))
+		for (auto cell : InteriorCellRange(*this))
 		{
 			z0 = tw::Complex(psi_r(cell,0),psi_i(cell,0));
 			z1 = tw::Complex(psi_r(cell,1),psi_i(cell,1));
@@ -2086,7 +2086,7 @@ void Dirac::UpdateJ4()
 void Dirac::Normalize()
 {
 	tw::Float totalCharge = 0.0;
-	for (auto cell : CellRange(*this,false))
+	for (auto cell : InteriorCellRange(*this))
 		totalCharge += ComputeRho(cell) * owner->dS(cell,0);
 	owner->strip[0].AllSum(&totalCharge,&totalCharge,sizeof(tw::Float),0);
 	psi_r *= sqrt(fabs(q0/totalCharge));
