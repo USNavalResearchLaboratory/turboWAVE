@@ -112,7 +112,7 @@ void Reaction::ReadInputFile(std::stringstream& inputString,tw::Float unitDensit
 
 	numBodies = 0;
 
-	inputString >> word >> word; // take off "{" and read next word
+	inputString >> word >> word; // take off "{" and read next word (n.b. "=" terminates the preamble)
 
 	UnitConverter uc(unitDensityCGS);
 

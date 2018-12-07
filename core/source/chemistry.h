@@ -12,20 +12,6 @@ struct SubReaction
 	std::vector<sparc::material> mat_r,mat_p;
 	tw::Float heat,vheat;
 
-	tw::Float ReactantDensitySum(const Field& f,const tw::cell& cell)
-	{
-		tw::Float ans = 0.0;
-		for (tw::Int i;i<reactants.size();i++)
-			ans += f(cell,reactants[i].ni);
-		return ans;
-	}
-	tw::Float ReactantVibrationalSum(const Field& f,const tw::cell& cell)
-	{
-		tw::Float ans = 0.0;
-		for (tw::Int i;i<reactants.size();i++)
-			ans += f(cell,reactants[i].ni) * (mat_r[i].excitationEnergy==0.0 ? 0.0 : 1.0);
-		return ans;
-	}
 	virtual void ReadData(std::ifstream& inFile);
 	virtual void WriteData(std::ofstream& outFile);
 };

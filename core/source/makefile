@@ -256,16 +256,16 @@ Region.o: Region.cpp $(BASE_HEADERS)
 FFT.o: FFT.cpp definitions.h fft.h
 	$(TW_Compiler) $(CCFLAGS) FFT.cpp
 
-Physics.o: Physics.cpp $(BASE_HEADERS) physics.h functions.h
+Physics.o: Physics.cpp $(SIM_HEADERS)
 	$(TW_Compiler) $(CCFLAGS) Physics.cpp
 
-Chemistry.o: Chemistry.cpp $(BASE_HEADERS) physics.h chemistry.h functions.h
+Chemistry.o: Chemistry.cpp $(SIM_HEADERS)
 	$(TW_Compiler) $(CCFLAGS) Chemistry.cpp
 
 Numerics.o: Numerics.cpp $(BASE_HEADERS) numerics.h
 	$(TW_Compiler) $(CCFLAGS) Numerics.cpp
 
-ComputeTool.o: ComputeTool.cpp $(BASE_HEADERS) numerics.h computeTool.h
+ComputeTool.o: ComputeTool.cpp $(SIM_HEADERS)
 	$(TW_Compiler) $(CCFLAGS) ComputeTool.cpp
 
 Elliptic.o: Elliptic.cpp $(BASE_HEADERS) numerics.h computeTool.h elliptic.h
@@ -346,16 +346,16 @@ Region.d: Region.cpp $(BASE_HEADERS)
 FFT.d: FFT.cpp definitions.h fft.h
 	$(TW_Compiler) $(DBFLAGS) FFT.cpp
 
-Physics.d: Physics.cpp $(BASE_HEADERS) physics.h functions.h
+Physics.d: Physics.cpp $(SIM_HEADERS)
 	$(TW_Compiler) $(DBFLAGS) Physics.cpp
 
-Chemistry.d: Chemistry.cpp $(BASE_HEADERS) physics.h chemistry.h functions.h
+Chemistry.d: Chemistry.cpp $(SIM_HEADERS)
 	$(TW_Compiler) $(DBFLAGS) Chemistry.cpp
 
 Numerics.d: Numerics.cpp $(BASE_HEADERS) numerics.h
 	$(TW_Compiler) $(DBFLAGS) Numerics.cpp
 
-ComputeTool.d: ComputeTool.cpp $(BASE_HEADERS) numerics.h computeTool.h
+ComputeTool.d: ComputeTool.cpp $(SIM_HEADERS)
 	$(TW_Compiler) $(DBFLAGS) ComputeTool.cpp
 
 Elliptic.d: Elliptic.cpp $(BASE_HEADERS) numerics.h computeTool.h elliptic.h

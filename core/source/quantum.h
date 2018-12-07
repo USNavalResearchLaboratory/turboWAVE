@@ -88,7 +88,7 @@ struct AtomicPhysics:Module
 	{
 		return tw::Complex(psi_r(cell,c),psi_i(cell,c));
 	}
-	tw::Complex Psi(const tw::vectorizer<1>& v,const tw::Int& i,const tw::Int& c) const
+	tw::Complex Psi(const tw::xstrip<1>& v,const tw::Int& i,const tw::Int& c) const
 	{
 		return tw::Complex(psi_r(v,i,c),psi_i(v,i,c));
 	}
@@ -170,7 +170,7 @@ struct KleinGordon:AtomicPhysics
 	{
 		return (Psi(cell,0) + sgn*Psi(cell,1))/root2;
 	}
-	tw::Complex FV(const tw::vectorizer<1>& v,const tw::Int i,const tw::Float& sgn)
+	tw::Complex FV(const tw::xstrip<1>& v,const tw::Int i,const tw::Float& sgn)
 	{
 		return (Psi(v,i,0) + sgn*Psi(v,i,1))/root2;
 	}
@@ -225,7 +225,7 @@ void Dirac::LeapFrog(tw::Float sgn)
 		alignas(AB) tw::Float D1r[dim[1]],D1i[dim[1]];
 		alignas(AB) tw::Float D2r[dim[1]],D2i[dim[1]];
 
-		for (auto v : VectorizingRange<1>(*this,false))
+		for (auto v : VectorStripRange<1>(*this,false))
 		{
 			// unitary operator of time translation for diagonal part of Hamiltonian
 			#pragma omp simd aligned(Ur,Ui:AB)

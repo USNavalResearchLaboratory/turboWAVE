@@ -94,7 +94,11 @@ In order to run the script navigate to :samp:`tools/twtest` and invoke
 
 :kbd:`python twtest.py` *twroot* *args*
 
-where *twroot* is the turboWAVE root directory path and *args* are the usual command line arguments used to specify parallelism options (you do not need to add :samp:`-nointeractive` as this is put in automatically).  Due to the large number of simulations to be run this may take several hours.
+where *twroot* is the turboWAVE root directory path and *args* are the usual command line arguments used to specify parallelism options (you do not need to add :samp:`-nointeractive` as this is put in automatically).  Due to the large number of simulations to be run this may take several hours.  You can limit the test to specific categories by appending them to *twroot* using double colon separators.  For example,
+
+:kbd:`python twtest.py ~/turboWAVE::hydro::pic -n 4`
+
+would test all the examples in the ``hydro`` and ``pic`` directories using a four-way domain decomposition.
 
 .. note::
 

@@ -25,7 +25,15 @@ namespace tw
 	class iterator
 	{
 		RNG *range;
-		tw::Int curr,first,last; // global indices
+		// The RNG class is responsible for decoding the count.
+		// The decoding produces a triple that Field can use to retrieve floating point data.
+		// The decoded indices are encapsulated in the REF class.
+		tw::Int curr,first,last;
+		// curr is the encoded index of the current object, called the count.
+		// The global encoding is such that count ranges from (0...N-1), where N is the number of objects.
+		// curr contains the GLOBAL count, which the user does not interact with.
+		// count() returns the LOCAL count, which ranges from (0...M-1), where M is the number of objects to be processed by the current thread.
+		// first and last are defined such that first <= curr <= last.
 
 	public:
 		iterator(RNG *r,tw::Int c,tw::Int f,tw::Int l)
@@ -162,9 +170,9 @@ namespace tw
 	};
 
 	template <tw::Int AX>
-	class vectorizer : public strip
+	class xstrip : public strip
 	{
-		// Strip reference for promoting compiler vectorization.
+		// Strip reference with explicit packed axis, for promoting compiler vectorization.
 		// Performance assumption is that AX is the packed axis.
 		// This allows Field accessors to drop the stride multiplier so the compiler can figure
 		// out that the data is packed.
@@ -172,11 +180,11 @@ namespace tw
 		// That is, this class appearing as an argument triggers special treatment.
 
 	public:
-		vectorizer(const tw::Int& i0,const tw::Int& j0,const tw::Int& k0,const tw::Int& i,const tw::Int& j,const tw::Int& k) : strip(AX,i0,j0,k0,i,j,k)
+		xstrip(const tw::Int& i0,const tw::Int& j0,const tw::Int& k0,const tw::Int& i,const tw::Int& j,const tw::Int& k) : strip(AX,i0,j0,k0,i,j,k)
 		{
 			// no need to do anything
 		}
-		vectorizer(const DiscreteSpace& ds,const tw::Int& i,const tw::Int& j,const tw::Int& k) : strip(AX,ds,i,j,k)
+		xstrip(const DiscreteSpace& ds,const tw::Int& i,const tw::Int& j,const tw::Int& k) : strip(AX,ds,i,j,k)
 		{
 			// no need to do anything
 		}
@@ -187,16 +195,7 @@ namespace tw
 class TWRange
 {
 	// TWRange is an abstract base class
-
-	// curr is the encoded index of the current object, called the count.
-	// The global encoding is such that count ranges from (0...N-1), where N is the number of objects.
-	// curr contains the GLOBAL count, which the user does not interact with.
-	// count() returns the LOCAL count, which ranges from (0...M-1), where M is the number of objects to be processed by the current thread.
-	// first and last bound the global count range for the thread (i.e., curr = first + local_count <= last)
-
 	// The abstact class defines no encoding; the encoding is particular to derived classes.
-	// This leads to derived classes defining their own assignment and increment operators.
-	// One could use virtual functions to make this more elegant, but efficiency might suffer.
 
 protected:
 	tw::Int first,last;
@@ -316,26 +315,26 @@ public:
 };
 
 template <tw::Int AX>
-class VectorizingRange:public StripRange
+class VectorStripRange:public StripRange
 {
 public:
-	VectorizingRange(const DiscreteSpace& space,bool includeGhostCells) : StripRange(space,AX,includeGhostCells==true ? strongbool::yes : strongbool::no)
+	VectorStripRange(const DiscreteSpace& space,bool includeGhostCells) : StripRange(space,AX,includeGhostCells==true ? strongbool::yes : strongbool::no)
 	{
 		// no need to do anything
 	}
-	tw::iterator<VectorizingRange,tw::vectorizer<AX>> begin()
+	tw::iterator<VectorStripRange,tw::xstrip<AX>> begin()
 	{
-		return tw::iterator<VectorizingRange,tw::vectorizer<AX>>(this,first,first,last);
+		return tw::iterator<VectorStripRange,tw::xstrip<AX>>(this,first,first,last);
 	}
-	tw::iterator<VectorizingRange,tw::vectorizer<AX>> end()
+	tw::iterator<VectorStripRange,tw::xstrip<AX>> end()
 	{
-		return tw::iterator<VectorizingRange,tw::vectorizer<AX>>(this,last+1,first,last);
+		return tw::iterator<VectorStripRange,tw::xstrip<AX>>(this,last+1,first,last);
 	}
-	tw::vectorizer<AX> GetReference(tw::Int global_count)
+	tw::xstrip<AX> GetReference(tw::Int global_count)
 	{
 		const tw::Int i0 = di*io + dj*(io + global_count/kCells) + dk*(io + global_count/jCells);
 		const tw::Int j0 = di*(jo + global_count%jCells) + dj*jo + dk*(jo + global_count%jCells);
 		const tw::Int k0 = di*(ko + global_count/jCells) + dj*(ko + global_count%kCells) + dk*ko;
-		return tw::vectorizer<AX>(i0,j0,k0,i0+is,j0+js,k0+ks);
+		return tw::xstrip<AX>(i0,j0,k0,i0+is,j0+js,k0+ks);
 	}
 };

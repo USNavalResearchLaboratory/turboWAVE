@@ -413,7 +413,7 @@ struct MetricSpace:DiscreteSpace
 	{
 		return Pos(s.dcd1(i),s.dcd2(i),s.dcd3(i));
 	}
-	tw::vec3 Pos(const tw::vectorizer<3>& v,const tw::Int& k) const
+	tw::vec3 Pos(const tw::xstrip<3>& v,const tw::Int& k) const
 	{
 		return Pos(v.dcd1(k),v.dcd2(k),k);
 	}
@@ -429,7 +429,7 @@ struct MetricSpace:DiscreteSpace
 	{
 		return dPos(s.dcd1(i),s.dcd2(i),s.dcd3(i));
 	}
-	tw::vec3 dPos(const tw::vectorizer<3>& v,const tw::Int& k) const
+	tw::vec3 dPos(const tw::xstrip<3>& v,const tw::Int& k) const
 	{
 		return dPos(v.dcd1(k),v.dcd2(k),k);
 	}
@@ -446,11 +446,11 @@ struct MetricSpace:DiscreteSpace
 	{
 		return dS(s.dcd1(i),s.dcd2(i),s.dcd3(i),ax);
 	}
-	tw::Float dS(const tw::vectorizer<1>& v,const tw::Int& i,const tw::Int& ax) const
+	tw::Float dS(const tw::xstrip<1>& v,const tw::Int& i,const tw::Int& ax) const
 	{
 		return dS(i,v.dcd2(i),v.dcd3(i),ax);
 	}
-	tw::Float dS(const tw::vectorizer<3>& v,const tw::Int& k,const tw::Int& ax) const
+	tw::Float dS(const tw::xstrip<3>& v,const tw::Int& k,const tw::Int& ax) const
 	{
 		return dS(v.dcd1(k),v.dcd2(k),k,ax);
 	}
@@ -467,7 +467,7 @@ struct MetricSpace:DiscreteSpace
 	{
 		return dl(s.dcd1(i),s.dcd2(i),s.dcd3(i),ax);
 	}
-	tw::Float dl(const tw::vectorizer<3>& v,const tw::Int& k,const tw::Int& ax) const
+	tw::Float dl(const tw::xstrip<3>& v,const tw::Int& k,const tw::Int& ax) const
 	{
 		return dl(v.dcd1(k),v.dcd2(k),k,ax);
 	}
@@ -480,7 +480,7 @@ struct MetricSpace:DiscreteSpace
 	{
 		return dS(cell,ax+4);
 	}
-	tw::Float dSh(const tw::vectorizer<3>& v,const tw::Int& k,const tw::Int& ax) const
+	tw::Float dSh(const tw::xstrip<3>& v,const tw::Int& k,const tw::Int& ax) const
 	{
 		return dS(v,k,ax+4);
 	}
@@ -493,7 +493,7 @@ struct MetricSpace:DiscreteSpace
 	{
 		return dl(cell,ax+3);
 	}
-	tw::Float dlh(const tw::vectorizer<3>& v,const tw::Int& k,const tw::Int& ax) const
+	tw::Float dlh(const tw::xstrip<3>& v,const tw::Int& k,const tw::Int& ax) const
 	{
 		return dl(v,k,ax+3);
 	}
@@ -506,7 +506,7 @@ struct MetricSpace:DiscreteSpace
 	{
 		return dL(cell.dcd1(),cell.dcd2(),cell.dcd3(),ax);
 	}
-	tw::Float dL(const tw::vectorizer<3>& v,const tw::Int& k,const tw::Int& ax) const
+	tw::Float dL(const tw::xstrip<3>& v,const tw::Int& k,const tw::Int& ax) const
 	{
 		return dL(v.dcd1(k),v.dcd2(k),k,ax);
 	}

@@ -219,7 +219,7 @@ void BoundElectrons::Update()
 		tw::vec4 j4;
 		tw::Float RR[7];
 
-		for (auto v : VectorizingRange<3>(*this,false))
+		for (auto v : VectorStripRange<3>(*this,false))
 			for (tw::Int k=1;k<=zLast;k++)
 				if (dens(v,k)!=0.0)
 				{

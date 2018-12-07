@@ -1,17 +1,4 @@
-#include "definitions.h"
-#include "ctools.h"
-#include "3dmath.h"
-#include "functions.h"
-
-// ASHER_MOD
-//#include "simulation.h"
-//#include "fluid.h"
-#include "tasks.h"
-#include "metricSpace.h"
-#include "computeTool.h"
-#include "3dfields.h"
-
-#include "physics.h"
+#include "simulation.h"
 
 // Normalization Functions
 

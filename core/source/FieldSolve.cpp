@@ -209,7 +209,7 @@ void Electromagnetic::ForceQuasistaticVectorPotential(Field& A4,ScalarField& DtP
 		for (i=1;i<=dim[1];i++)
 			for (j=1;j<=dim[2];j++)
 			{
-				tw::vectorizer<3> v(*this,i,j,0);
+				tw::xstrip<3> v(*this,i,j,0);
 				for (k=1;k<=dim[3];k++)
 					rhs(v,k,0) = DtPhi(v,k,0,ax) - sources(v,k,ax);
 			}
@@ -224,7 +224,7 @@ void Electromagnetic::ForceQuasistaticVectorPotential(Field& A4,ScalarField& DtP
 		for (i=1;i<=dim[1];i++)
 			for (j=1;j<=dim[2];j++)
 			{
-				tw::vectorizer<3> v(*this,i,j,0);
+				tw::xstrip<3> v(*this,i,j,0);
 				for (k=1;k<=dim[3];k++)
 					rhs(v,k,0) = DtPhi(v,k,0,ax) - sources(v,k,ax);
 			}
@@ -662,7 +662,7 @@ void CoulombSolver::Update()
 
 	#pragma omp parallel
 	{
-		for (auto v : VectorizingRange<3>(*this,false))
+		for (auto v : VectorStripRange<3>(*this,false))
 		{
 			#pragma omp simd
 			for (tw::Int k=1;k<=dim[3];k++)
@@ -717,7 +717,7 @@ void CoulombSolver::ComputeFinalFields()
 {
 	#pragma omp parallel
 	{
-		for (auto v : VectorizingRange<3>(*this,false))
+		for (auto v : VectorStripRange<3>(*this,false))
 		{
 			#pragma omp simd
 			for (tw::Int k=1;k<=dim[3];k++)
@@ -986,7 +986,7 @@ void DirectSolver::Initialize()
 	LoadVectorPotential<0,1,2>(A0,-dth);
 	#pragma omp parallel
 	{
-		for (auto v : VectorizingRange<3>(*this,true))
+		for (auto v : VectorStripRange<3>(*this,true))
 		{
 			#pragma omp simd
 			for (tw::Int k=lb[3];k<=ub[3];k++)
@@ -1016,7 +1016,7 @@ void DirectSolver::Initialize()
 	LoadVectorPotential<0,1,2>(A0,dth);
 	#pragma omp parallel
 	{
-		for (auto v : VectorizingRange<3>(*this,true))
+		for (auto v : VectorStripRange<3>(*this,true))
 		{
 			#pragma omp simd
 			for (tw::Int k=lb[3];k<=ub[3];k++)
@@ -1206,7 +1206,7 @@ void CurvilinearDirectSolver::Initialize()
 	LoadVectorPotential<0,1,2>(A0,-dth);
 	#pragma omp parallel
 	{
-		for (auto v : VectorizingRange<3>(*this,true))
+		for (auto v : VectorStripRange<3>(*this,true))
 		{
 			#pragma omp simd
 			for (tw::Int k=lb[3];k<=ub[3];k++)
@@ -1225,7 +1225,7 @@ void CurvilinearDirectSolver::Initialize()
 	LoadVectorPotential<0,1,2>(A0,dth);
 	#pragma omp parallel
 	{
-		for (auto v : VectorizingRange<3>(*this,true))
+		for (auto v : VectorStripRange<3>(*this,true))
 		{
 			#pragma omp simd
 			for (tw::Int k=lb[3];k<=ub[3];k++)
@@ -1255,7 +1255,7 @@ void CurvilinearDirectSolver::Initialize()
 
 	#pragma omp parallel
 	{
-		for (auto v : VectorizingRange<3>(*this,true))
+		for (auto v : VectorStripRange<3>(*this,true))
 		{
 			#pragma omp simd
 			for (tw::Int k=lb[3];k<=ub[3];k++)
@@ -1379,7 +1379,7 @@ void CurvilinearDirectSolver::Update()
 
 	#pragma omp parallel
 	{
-		for (auto v : VectorizingRange<3>(*this,true))
+		for (auto v : VectorStripRange<3>(*this,true))
 		{
 			#pragma omp simd
 			for (tw::Int k=lb[3];k<=ub[3];k++)

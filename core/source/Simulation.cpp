@@ -258,9 +258,9 @@ void Simulation::SetGlobalSizeAndLocalCorner()
 
 
 
-////////////
-//  GRID  //
-////////////
+////////////////////////
+//  SIMULATION CLASS  //
+////////////////////////
 
 
 Simulation::Simulation()
@@ -714,7 +714,7 @@ ComputeTool* Simulation::CreateTool(const std::string& basename,tw::tool_type th
 {
 	std::string name(basename);
 	MangleToolName(name);
-	(*tw_out) << "Creating Tool " << name << "..." << std::endl;
+	(*tw_out) << "   Creating Tool " << name << "..." << std::endl;
 	computeTool.push_back(ComputeTool::CreateObjectFromType(name,theType,this,this));
 	computeTool.back()->refCount++;
 	return computeTool.back();
@@ -1471,9 +1471,9 @@ void Simulation::ReadInputFile()
 				break;
 		}
 		if (added)
-			(*tw_out) << "(super=" << sub->super->name << ")" << std::endl;
+			(*tw_out) << "   (super=" << sub->super->name << ")" << std::endl;
 		else
-			(*tw_out) << "(super=none)" << std::endl;
+			(*tw_out) << "   (super=none)" << std::endl;
 	};
 
 	do
@@ -1482,18 +1482,21 @@ void Simulation::ReadInputFile()
 
 		if (com1=="new")
 		{
+			bool processed = false;
 			// Get the preamble = words that come between "new" and the opening token
 			std::vector<std::string> preamble = tw::input::EnterInputFileBlock(inputString,"{=");
 			// if an object has a name, it is expected to be the last string in the preamble
 			std::string object_name(preamble.back());
 
-			// Straight tool installation
+			// Straight installation of a named tool
 			tw::tool_type whichTool = ComputeTool::CreateTypeFromInput(preamble);
 			if (whichTool!=tw::tool_type::nullTool)
 			{
-				(*tw_out) << "Installing Tool " << object_name << "..." << std::endl;
+				processed = true;
+				(*tw_out) << "Installing Tool: key=" << preamble[0] << ", name=" << object_name << "..." << std::endl;
 				if (MangleToolName(object_name))
 					throw tw::FatalError("Encountered duplicate tool name.");
+				// Do not use CreateTool, do not want to increase refCount
 				computeTool.push_back(ComputeTool::CreateObjectFromType(object_name,whichTool,this,this));
 				computeTool.back()->ReadInputFileBlock(inputString);
 			}
@@ -1507,7 +1510,7 @@ void Simulation::ReadInputFile()
 					createdModuleTypes.push_back(super_type);
 					std::string super_module_name = object_name + "_sup";
 					MangleModuleName(super_module_name);
-					(*tw_out) << "Installing module " << super_module_name << " automatically..." << std::endl;
+					(*tw_out) << "Installing Automatic Supermodule: trigger=" << preamble[0] << ", name=" << super_module_name << "..." << std::endl;
 					module.push_back(Module::CreateObjectFromType(super_module_name,super_type,this));
 					module.back()->VerifyInput();
 					find_super(module.back());
@@ -1517,12 +1520,13 @@ void Simulation::ReadInputFile()
 			tw::module_type whichModule = Module::CreateTypeFromInput(preamble);
 			if (whichModule!=tw::module_type::nullModule)
 			{
+				processed = true;
 				if (Module::SingularType(whichModule))
 					if (module_type_exists(whichModule))
 						throw tw::FatalError("Singular module type was created twice.  Check order of input file.");
 				createdModuleTypes.push_back(whichModule);
 				MangleModuleName(object_name);
-				(*tw_out) << "Installing Module " << object_name << "..." << std::endl;
+				(*tw_out) << "Installing Module: key=" << preamble[0] << ", name=" << object_name << "..." << std::endl;
 				module.push_back(Module::CreateObjectFromType(object_name,whichModule,this));
 				find_super(module.back()); // note next line might change module.back()
 				module.back()->ReadInputFileBlock(inputString);
@@ -1533,7 +1537,6 @@ void Simulation::ReadInputFile()
 			if (Module::QuasitoolNeedsModule(preamble))
 			{
 				(*tw_out) << "Processing quasitool " << preamble[0] << std::endl;
-				bool processed = false;
 				for (tw::Int i=0;i<module.size();i++)
 					processed = processed || module[i]->ReadQuasitoolBlock(preamble,inputString);
 				if (!processed)
@@ -1545,6 +1548,7 @@ void Simulation::ReadInputFile()
 
 			if (preamble[0]=="wave")
 			{
+				processed = true;
 				wave.push_back(new Wave(gaussianDeviate));
 				wave.back()->ReadInputFile(inputString,preamble[0]);
 				wave.back()->pulseShape.delay += dth;
@@ -1552,12 +1556,14 @@ void Simulation::ReadInputFile()
 
 			if (preamble[0]=="pulse")
 			{
+				processed = true;
 				pulse.push_back(new Pulse(gaussianDeviate));
 				pulse.back()->ReadInputFile(inputString,preamble[0]);
 			}
 
 			if (preamble[0]=="region")
 			{
+				processed = true;
 				clippingRegion.push_back(Region::CreateObjectFromString(clippingRegion,preamble[1]));
 				clippingRegion.back()->name = preamble[2];
 				clippingRegion.back()->ReadInputFileBlock(inputString);
@@ -1565,27 +1571,34 @@ void Simulation::ReadInputFile()
 
 			if (preamble[0]=="conductor")
 			{
+				processed = true;
 				conductor.push_back(new Conductor(clippingRegion));
 				conductor.back()->ReadInputFile(inputString,preamble[0]);
 			}
 
 			if (preamble[0]=="energy") // eg, new energy series { ... }
 			{
+				processed = true;
 				energyDiagnostic.push_back(new EnergySeriesDescriptor(clippingRegion));
 				energyDiagnostic.back()->ReadInputFile(inputString);
 			}
 
 			if (preamble[0]=="point") // eg, new point series { ... }
 			{
+				processed = true;
 				pointDiagnostic.push_back(new PointSeriesDescriptor(clippingRegion));
 				pointDiagnostic.back()->ReadInputFile(inputString);
 			}
 
 			if (preamble[0]=="box") // eg, new box series { ... }
 			{
+				processed = true;
 				boxDiagnostic.push_back(new GridDataDescriptor(clippingRegion));
 				boxDiagnostic.back()->ReadInputFile(inputString);
 			}
+
+			if (!processed && preamble[0]!="grid")
+				throw tw::FatalError("'new' block with key '"+preamble[0]+"' was not understood.");
 		}
 
 		if (com1=="generate")

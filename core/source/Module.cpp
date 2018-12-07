@@ -158,6 +158,10 @@ void Module::ReadInputFileDirective(std::stringstream& inputString,const std::st
 	// 3. Process directives associated with the last tool from (1) or (2)
 	// In the second case a unique name is assigned to the tool internally.
 	owner->ToolFromDirective(moduleTool,inputString,command);
+
+	// Read in submodules that are explicitly enclosed in this module's block
+	if (command=="new")
+		owner->ReadSubmoduleBlock(inputString,this);
 }
 
 void Module::StartDiagnostics()

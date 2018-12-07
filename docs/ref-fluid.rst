@@ -183,7 +183,7 @@ SPARC collisions broadly include elastic and inelastic collisions, as well as ch
 
 	over a range of temperatures.  Piecewise rate constructions can be created by using multiple reactions which have the same equation but different rates and different temperature ranges.
 
-	:param str eq1: chemical equation, or subreaction, in the form ``r1 + r2 + ... -> p1 + p2 + ... + eps``, where ``r1`` etc. are replaced by names of reactants, ``p1`` etc. are replaced by names of products, and ``eps`` is a heat of reaction in eV.  Breaking the reaction into subreactions can be used to control the flow of energy from reactants to products.
+	:param str eq1: chemical equation, or subreaction, in the form ``r1 + r2 + ... -> p1 + p2 + ... + eps``, where ``r1`` etc. are replaced by names of reactants, ``p1`` etc. are replaced by names of products, and ``eps`` is a heat of reaction in eV.  Breaking the reaction into subreactions can be used to control the flow of energy from reactants to products.  The heat of reaction, if negative, is taken from the equilibrium group of the last reactant listed.  If positive, it is added to the equilibrium group of the last product listed.
 
 	:param float c0: rate coefficient in cm^(3(N-1))/s, where N is the number of reactants
 	:param float c1: dimensionless exponent in rate law

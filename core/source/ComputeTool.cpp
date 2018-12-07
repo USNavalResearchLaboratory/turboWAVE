@@ -1,17 +1,4 @@
-#include "definitions.h"
-#include "tasks.h"
-#include "ctools.h"
-#include "3dmath.h"
-#include "metricSpace.h"
-#include "3dfields.h"
-#include "region.h"
-#include "numerics.h"
-#include "computeTool.h"
-#include "parabolic.h"
-#include "elliptic.h"
-#include "hyperbolic.h"
-
-#include "physics.h" // ASHER_MOD
+#include "simulation.h"
 
 //////////////////////////
 //                      //
@@ -99,46 +86,42 @@ void ComputeTool::SaveToolReference(std::ofstream& outFile)
 tw::tool_type ComputeTool::CreateTypeFromInput(const std::vector<std::string>& preamble)
 {
 	// For creating a named tool at the root level
-	std::string type("");
-	for (auto word : preamble)
-		type = type + word + " ";
-	type.pop_back();
+	std::string key2(tw::input::GetPhrase(preamble,2));
+	std::string key4(tw::input::GetPhrase(preamble,4));
 
-	if (type=="eigenmode propagator tool")
+	if (key2=="eigenmode propagator")
 		return tw::tool_type::eigenmodePropagator;
-	if (type=="adi propagator tool")
+	if (key2=="adi propagator")
 		return tw::tool_type::adiPropagator;
-	if (type=="isotropic propagator tool")
+	if (key2=="isotropic propagator")
 		return tw::tool_type::isotropicPropagator;
-	if (type=="parabolic propagator tool")
+	if (key2=="parabolic propagator")
 		return tw::tool_type::generalParabolicPropagator;
-	if (type=="schroedinger propagator tool")
+	if (key2=="schroedinger propagator")
 		return tw::tool_type::schroedingerPropagator;
-	if (type=="iterative elliptic tool")
+	if (key2=="iterative elliptic")
 		return tw::tool_type::iterativePoissonSolver;
-	if (type=="1d elliptic tool")
+	if (key2=="1d elliptic")
 		return tw::tool_type::ellipticSolver1D;
-	if (type=="facr elliptic tool")
+	if (key2=="facr elliptic")
 		return tw::tool_type::facrPoissonSolver;
-	if (type=="eigenmode elliptic tool")
+	if (key2=="eigenmode elliptic")
 		return tw::tool_type::eigenmodePoissonSolver;
-	if (type=="yee propagator tool")
+	if (key2=="yee propagator")
 		return tw::tool_type::yeePropagatorPML;
-	if (type=="lorentz propagator tool")
+	if (key2=="lorentz propagator")
 		return tw::tool_type::lorentzPropagator;
-	if (type=="eos data tool")
-		return tw::tool_type::eosData;
-	if (type=="eos ideal gas tool")
+	if (key4=="eos ideal gas tool")
 		return tw::tool_type::eosIdealGas;
-	if (type=="eos hot electron tool")
+	if (key2=="eos hot")
 		return tw::tool_type::eosHotElectrons;
-	if (type=="eos mix tool")
+	if (key2=="eos mix")
 		return tw::tool_type::eosMixture;
-	if (type=="eos ideal gas mix tool")
+	if (key4=="eos ideal gas mix")
 		return tw::tool_type::eosIdealGasMix;
-	if (type=="eos mie gruneisen tool")
+	if (key2=="eos mie")
 		return tw::tool_type::eosMieGruneisen;
-	if (type=="eos mie gruneisen2 tool")
+	if (key4=="eos simple mie gruneisen")
 		return tw::tool_type::eosMieGruneisen2;
 	return tw::tool_type::nullTool;
 }
@@ -146,6 +129,7 @@ tw::tool_type ComputeTool::CreateTypeFromInput(const std::vector<std::string>& p
 tw::tool_type ComputeTool::CreateTypeFromDirective(std::stringstream& inputString,const std::string& command)
 {
 	// For creating tools on the fly inside a module block
+	// The call chain starts in Module::ReadInputFileDirective, goes to Simulation::ToolFromDirective, and may end up here.
 	std::string word;
 	if (command=="elliptic" || command=="elliptical")
 	{
@@ -188,9 +172,9 @@ tw::tool_type ComputeTool::CreateTypeFromDirective(std::stringstream& inputStrin
 			return tw::tool_type::eosMixture;
 		if (word=="ideal-gas-mix")
 			return tw::tool_type::eosIdealGasMix;
-		if (word=="mie-gruneisen")
+		if (word=="simple-mie-gruneisen")
 			return tw::tool_type::eosMieGruneisen;
-		if (word=="mie-gruneisen2")
+		if (word=="mie-gruneisen")
 			return tw::tool_type::eosMieGruneisen2;
 	}
 	return tw::tool_type::nullTool;

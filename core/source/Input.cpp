@@ -181,6 +181,16 @@ std::vector<std::string> tw::input::EnterInputFileBlock(std::stringstream& input
 	return preamble;
 }
 
+std::string tw::input::GetPhrase(const std::vector<std::string>& words,tw::Int num_words)
+{
+	std::string ans("");
+	tw::Int num = num_words<=words.size() ? num_words : words.size();
+	for (tw::Int i=0;i<num;i++)
+		ans += words[i] + " ";
+	ans.pop_back();
+	return ans;
+}
+
 void tw::input::ExitInputFileBlock(std::stringstream& inputString)
 {
 	std::string word;

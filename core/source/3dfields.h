@@ -282,19 +282,19 @@ struct Field:DiscreteSpace
 		return array[strip.Index(s,c,stride)];
 	}
 	// Accessors for promoting compiler vectorization
-	tw::Float& operator () (const tw::vectorizer<1>& v,const tw::Int& s,const tw::Int& c)
+	tw::Float& operator () (const tw::xstrip<1>& v,const tw::Int& s,const tw::Int& c)
 	{
 		return array[v.Index1(s,c,stride)];
 	}
-	tw::Float operator () (const tw::vectorizer<1>& v,const tw::Int& s,const tw::Int& c) const
+	tw::Float operator () (const tw::xstrip<1>& v,const tw::Int& s,const tw::Int& c) const
 	{
 		return array[v.Index1(s,c,stride)];
 	}
-	tw::Float& operator () (const tw::vectorizer<3>& v,const tw::Int& s,const tw::Int& c)
+	tw::Float& operator () (const tw::xstrip<3>& v,const tw::Int& s,const tw::Int& c)
 	{
 		return array[v.Index3(s,c,stride)];
 	}
-	tw::Float operator () (const tw::vectorizer<3>& v,const tw::Int& s,const tw::Int& c) const
+	tw::Float operator () (const tw::xstrip<3>& v,const tw::Int& s,const tw::Int& c) const
 	{
 		return array[v.Index3(s,c,stride)];
 	}
@@ -304,12 +304,12 @@ struct Field:DiscreteSpace
 		const tw::Int idx = cell.Index(c,stride);
 		return 0.5*freq[ax-1]*( array[idx + stride[ax]] - array[idx - stride[ax]] );
 	}
-	tw::Float operator () (const tw::vectorizer<1>& v,const tw::Int& s,const tw::Int& c,const tw::Int& ax) const
+	tw::Float operator () (const tw::xstrip<1>& v,const tw::Int& s,const tw::Int& c,const tw::Int& ax) const
 	{
 		const tw::Int idx = v.Index1(s,c,stride);
 		return 0.5*freq[ax-1]*( array[idx + stride[ax]] - array[idx - stride[ax]] );
 	}
-	tw::Float operator () (const tw::vectorizer<3>& v,const tw::Int& s,const tw::Int& c,const tw::Int& ax) const
+	tw::Float operator () (const tw::xstrip<3>& v,const tw::Int& s,const tw::Int& c,const tw::Int& ax) const
 	{
 		const tw::Int idx = v.Index3(s,c,stride);
 		return 0.5*freq[ax-1]*( array[idx + stride[ax]] - array[idx - stride[ax]] );
@@ -319,12 +319,12 @@ struct Field:DiscreteSpace
 		const tw::Int idx = strip.Index(s,c,stride);
 		return freq[ax-1]*freq[ax-1]*( array[idx - stride[ax]] - 2.0*array[idx] + array[idx + stride[ax]] );
 	}
-	tw::Float d2(const tw::vectorizer<1>& v,const tw::Int& s,const tw::Int& c,const tw::Int& ax) const
+	tw::Float d2(const tw::xstrip<1>& v,const tw::Int& s,const tw::Int& c,const tw::Int& ax) const
 	{
 		const tw::Int idx = v.Index1(s,c,stride);
 		return freq[ax-1]*freq[ax-1]*( array[idx - stride[ax]] - 2.0*array[idx] + array[idx + stride[ax]] );
 	}
-	tw::Float d2(const tw::vectorizer<3>& v,const tw::Int& s,const tw::Int& c,const tw::Int& ax) const
+	tw::Float d2(const tw::xstrip<3>& v,const tw::Int& s,const tw::Int& c,const tw::Int& ax) const
 	{
 		const tw::Int idx = v.Index3(s,c,stride);
 		return freq[ax-1]*freq[ax-1]*( array[idx - stride[ax]] - 2.0*array[idx] + array[idx + stride[ax]] );
@@ -344,32 +344,32 @@ struct Field:DiscreteSpace
 		tw::Int idx = strip.Index(s,c,stride);
 		return freq[ax-1]*( array[idx + stride[ax]] - array[idx] );
 	}
-	tw::Float dfwd(const tw::vectorizer<3>& v,const tw::Int& s,const tw::Int& c,const tw::Int& ax) const
+	tw::Float dfwd(const tw::xstrip<3>& v,const tw::Int& s,const tw::Int& c,const tw::Int& ax) const
 	{
 		tw::Int idx = v.Index3(s,c,stride);
 		return freq[ax-1]*( array[idx + stride[ax]] - array[idx] );
 	}
-	tw::Float dbak(const tw::vectorizer<3>& v,const tw::Int& s,const tw::Int& c,const tw::Int& ax) const
+	tw::Float dbak(const tw::xstrip<3>& v,const tw::Int& s,const tw::Int& c,const tw::Int& ax) const
 	{
 		tw::Int idx = v.Index3(s,c,stride);
 		return freq[ax-1]*( array[idx] - array[idx - stride[ax]] );
 	}
-	tw::Float sfwd(const tw::vectorizer<1>& v,const tw::Int& s,const tw::Int& c,const tw::Int& ax) const
+	tw::Float sfwd(const tw::xstrip<1>& v,const tw::Int& s,const tw::Int& c,const tw::Int& ax) const
 	{
 		tw::Int idx = v.Index1(s,c,stride);
 		return 0.5*( array[idx + stride[ax]] + array[idx] );
 	}
-	tw::Float sbak(const tw::vectorizer<1>& v,const tw::Int& s,const tw::Int& c,const tw::Int& ax) const
+	tw::Float sbak(const tw::xstrip<1>& v,const tw::Int& s,const tw::Int& c,const tw::Int& ax) const
 	{
 		tw::Int idx = v.Index1(s,c,stride);
 		return 0.5*( array[idx] + array[idx - stride[ax]] );
 	}
-	tw::Float sfwd(const tw::vectorizer<3>& v,const tw::Int& s,const tw::Int& c,const tw::Int& ax) const
+	tw::Float sfwd(const tw::xstrip<3>& v,const tw::Int& s,const tw::Int& c,const tw::Int& ax) const
 	{
 		tw::Int idx = v.Index3(s,c,stride);
 		return 0.5*( array[idx + stride[ax]] + array[idx] );
 	}
-	tw::Float sbak(const tw::vectorizer<3>& v,const tw::Int& s,const tw::Int& c,const tw::Int& ax) const
+	tw::Float sbak(const tw::xstrip<3>& v,const tw::Int& s,const tw::Int& c,const tw::Int& ax) const
 	{
 		tw::Int idx = v.Index3(s,c,stride);
 		return 0.5*( array[idx] + array[idx - stride[ax]] );
@@ -694,8 +694,8 @@ inline void add_curlB(const Field& src,Field& dst,const MetricSpace& m,const tw:
 	for (tw::Int i=1;i<=xN1;i++)
 		for (tw::Int j=1;j<=yDim;j++)
 		{
-			tw::vectorizer<3> v(m,i,j,0);
-			tw::vectorizer<3> vj(m,i,j+1,0);
+			tw::xstrip<3> v(m,i,j,0);
+			tw::xstrip<3> vj(m,i,j+1,0);
 			#pragma omp simd
 			for (tw::Int k=1;k<=zDim;k++)
 			{
@@ -707,8 +707,8 @@ inline void add_curlB(const Field& src,Field& dst,const MetricSpace& m,const tw:
 	for (tw::Int i=1;i<=xDim;i++)
 		for (tw::Int j=1;j<=yN1;j++)
 		{
-			tw::vectorizer<3> v(m,i,j,0);
-			tw::vectorizer<3> vi(m,i+1,j,0);
+			tw::xstrip<3> v(m,i,j,0);
+			tw::xstrip<3> vi(m,i+1,j,0);
 			#pragma omp simd
 			for (tw::Int k=1;k<=zDim;k++)
 			{
@@ -720,9 +720,9 @@ inline void add_curlB(const Field& src,Field& dst,const MetricSpace& m,const tw:
 	for (tw::Int i=1;i<=xDim;i++)
 		for (tw::Int j=1;j<=yDim;j++)
 		{
-			tw::vectorizer<3> v(m,i,j,0);
-			tw::vectorizer<3> vi(m,i+1,j,0);
-			tw::vectorizer<3> vj(m,i,j+1,0);
+			tw::xstrip<3> v(m,i,j,0);
+			tw::xstrip<3> vi(m,i+1,j,0);
+			tw::xstrip<3> vj(m,i,j+1,0);
 			#pragma omp simd
 			for (tw::Int k=1;k<=zN1;k++)
 			{
@@ -741,9 +741,9 @@ inline void add_curlE(const Field& src,Field& dst,const MetricSpace& m,const tw:
 	for (tw::Int i=1;i<=xN1;i++)
 		for (tw::Int j=1;j<=yN1;j++)
 		{
-			tw::vectorizer<3> v(m,i,j,0);
-			tw::vectorizer<3> vi(m,i-1,j,0);
-			tw::vectorizer<3> vj(m,i,j-1,0);
+			tw::xstrip<3> v(m,i,j,0);
+			tw::xstrip<3> vi(m,i-1,j,0);
+			tw::xstrip<3> vj(m,i,j-1,0);
 			#pragma omp simd
 			for (tw::Int k=1;k<=zN1;k++)
 			{
@@ -896,9 +896,9 @@ struct AutoField : Field
 		{ return Field::operator () (cell,c); }
 	tw::Float& operator () (const tw::strip& strip,const tw::Int& x,const tw::Int& c)
 		{ return Field::operator () (strip,x,c); }
-	tw::Float& operator () (const tw::vectorizer<1>& v,const tw::Int& i,const tw::Int& c)
+	tw::Float& operator () (const tw::xstrip<1>& v,const tw::Int& i,const tw::Int& c)
 		{ return Field::operator () (v,i,c); }
-	tw::Float& operator () (const tw::vectorizer<3>& v,const tw::Int& k,const tw::Int& c)
+	tw::Float& operator () (const tw::xstrip<3>& v,const tw::Int& k,const tw::Int& c)
 		{ return Field::operator () (v,k,c); }
 	tw::Float operator () (const tw::Int& x,const tw::Int& y,const tw::Int& z,const tw::Int& c) const
 		{ return Field::operator () (x,y,z,c); }
@@ -906,15 +906,15 @@ struct AutoField : Field
 		{ return Field::operator () (cell,c); }
 	tw::Float operator () (const tw::strip& strip,const tw::Int& x,const tw::Int& c) const
 		{ return Field::operator () (strip,x,c); }
-	tw::Float operator () (const tw::vectorizer<1>& v,const tw::Int& i,const tw::Int& c) const
+	tw::Float operator () (const tw::xstrip<1>& v,const tw::Int& i,const tw::Int& c) const
 		{ return Field::operator () (v,i,c); }
-	tw::Float operator () (const tw::vectorizer<3>& v,const tw::Int& k,const tw::Int& c) const
+	tw::Float operator () (const tw::xstrip<3>& v,const tw::Int& k,const tw::Int& c) const
 		{ return Field::operator () (v,k,c); }
 	tw::Float operator () (const tw::cell& cell,const tw::Int& c,const tw::Int& ax) const
 		{ return Field::operator () (cell,c,ax); }
-	tw::Float operator () (const tw::vectorizer<1>& v,const tw::Int& i,const tw::Int& c,const tw::Int& ax) const
+	tw::Float operator () (const tw::xstrip<1>& v,const tw::Int& i,const tw::Int& c,const tw::Int& ax) const
 		{ return Field::operator () (v,i,c,ax); }
-	tw::Float operator () (const tw::vectorizer<3>& v,const tw::Int& k,const tw::Int& c,const tw::Int& ax) const
+	tw::Float operator () (const tw::xstrip<3>& v,const tw::Int& k,const tw::Int& c,const tw::Int& ax) const
 		{ return Field::operator () (v,k,c,ax); }
 
 	// Auto versions are distinguished by number of arguments.
@@ -926,9 +926,9 @@ struct AutoField : Field
 		{ return (T&)Field::operator () (cell,0); }
 	T& operator () (const tw::strip& strip,const tw::Int& x)
 		{ return (T&)Field::operator () (strip,x,0); }
-	T& operator () (const tw::vectorizer<1>& v,const tw::Int& i)
+	T& operator () (const tw::xstrip<1>& v,const tw::Int& i)
 		{ return (T&)Field::operator () (v,i,0); }
-	T& operator () (const tw::vectorizer<3>& v,const tw::Int& k)
+	T& operator () (const tw::xstrip<3>& v,const tw::Int& k)
 		{ return (T&)Field::operator () (v,k,0); }
 
 	void Interpolate(T* val,const weights_3D& weights)

@@ -279,7 +279,7 @@ void Fluid::Update()
 	#pragma omp parallel
 	{
 		// Apply half of E-field impulse and put relativistic mass into vel(cell,0)
-		for (auto v : VectorizingRange<3>(*this,false))
+		for (auto v : VectorStripRange<3>(*this,false))
 		{
 			#pragma omp simd
 			for (tw::Int k=1;k<=dim[3];k++)
@@ -307,7 +307,7 @@ void Fluid::Update()
 	{
 		tw::Float kT_eff,temp;
 		std::valarray<tw::Float> nuColl(dim[3]+1);
-		for (auto v : VectorizingRange<3>(*this,false))
+		for (auto v : VectorStripRange<3>(*this,false))
 		{
 			#pragma omp simd
 			for (tw::Int k=1;k<=dim[3];k++)
@@ -341,7 +341,7 @@ void Fluid::Update()
 
 	#pragma omp parallel
 	{
-		for (auto v : VectorizingRange<3>(*this,true))
+		for (auto v : VectorStripRange<3>(*this,true))
 		{
 			#pragma omp simd
 			for (tw::Int k=lb[3];k<=ub[3];k++)
@@ -440,21 +440,21 @@ void Fluid::Update()
 			// Here cell walls and centers need not be distinguished (dim=1).
 			if (dim[1]==1)
 			{
-				for (auto v : VectorizingRange<3>(*this,false))
+				for (auto v : VectorStripRange<3>(*this,false))
 					#pragma omp simd
 					for (tw::Int k=1;k<=dim[3];k++)
 						vel(v,k,1) *= owner->dS(v,k,1) * dt * state0(v,k,0);
 			}
 			if (dim[2]==1)
 			{
-				for (auto v : VectorizingRange<3>(*this,false))
+				for (auto v : VectorStripRange<3>(*this,false))
 					#pragma omp simd
 					for (tw::Int k=1;k<=dim[3];k++)
 						vel(v,k,2) *= owner->dS(v,k,2) * dt * state0(v,k,0);
 			}
 			if (dim[3]==1)
 			{
-				for (auto v : VectorizingRange<3>(*this,false))
+				for (auto v : VectorStripRange<3>(*this,false))
 					#pragma omp simd
 					for (tw::Int k=1;k<=dim[3];k++)
 						vel(v,k,3) *= owner->dS(v,k,3) * dt * state0(v,k,0);
@@ -462,7 +462,7 @@ void Fluid::Update()
 		}
 		#pragma omp parallel
 		{
-			for (auto v : VectorizingRange<3>(*this,false))
+			for (auto v : VectorStripRange<3>(*this,false))
 			{
 				#pragma omp simd
 				for (tw::Int k=1;k<=dim[3];k++)
@@ -826,12 +826,6 @@ void EquilibriumGroup::ReadInputFileDirective(std::stringstream& inputString,con
 {
 	std::string word;
 	Module::ReadInputFileDirective(inputString,command);
-	if (command=="new")
-	{
-		// DFG - part of improved containment model, add chemicals to the group
-		// possibly move this to the Module base class shortly
-		owner->ReadSubmoduleBlock(inputString,this);
-	}
 	if (command=="mobile")
 	{
 		inputString >> word >> word;
@@ -1285,34 +1279,36 @@ void sparc::HydroManager::ComputeCollisionalSources()
 				{
 					for (auto s : rx->sub)
 					{
-						tw::Float powerDensity = rateNow*(s->heat + s->vheat);
-						tw::Float vibrationalDensity = rateNow*(s->vheat);
+						tw::Float powerDensity = 0.0;
+						tw::Float vibrationalPowerDensity = 0.0;
 						tw::vec3 forceDensity = 0.0;
-						const tw::Float reactantDensitySum = s->ReactantDensitySum(state1,cell);
-						const tw::Float vibrationalDensitySum = s->ReactantVibrationalSum(state1,cell);
-						const tw::Float weight = 1.0/tw::Float(s->products.size());
 
+						// Direct loss of reactant mass, momentum, and energy
 						for (auto r : s->reactants)
 						{
-							const tw::Float powerNow = rateNow*state1(cell,r.u)/(tw::small_pos + reactantDensitySum);
-							const tw::Float FxNow = rateNow*state1(cell,r.npx)/(tw::small_pos + reactantDensitySum);
-							const tw::Float FyNow = rateNow*state1(cell,r.npy)/(tw::small_pos + reactantDensitySum);
-							const tw::Float FzNow = rateNow*state1(cell,r.npz)/(tw::small_pos + reactantDensitySum);
-							const tw::Float vibrationsNow = rateNow*state1(cell,r.x)/(tw::small_pos + vibrationalDensitySum);
+							// ASSUMES NO MIXING OF VIBRATING AND NON-VIBRATING CHEMICALS IN EQUILIBRIUM GROUPS
+							// (do not confuse the "group" of reactants with the EquilibriumGroup of a particular reactant)
+							const tw::Float V = 1.0/(tw::small_pos + r.DensitySum(state1,cell)); // specific volume of reactant's EquilibriumGroup
+							const tw::Float nFx = V*rateNow*state1(cell,r.npx);
+							const tw::Float nFy = V*rateNow*state1(cell,r.npy);
+							const tw::Float nFz = V*rateNow*state1(cell,r.npz);
+							const tw::Float nP = V*rateNow*state1(cell,r.u);
+							const tw::Float nPv = V*rateNow*state1(cell,r.x);
 
 							DestroyMass(cell,rateNow,r);
-							DestroyTotalEnergy(cell,powerNow,r);
-							DestroyMomentum(cell,1,FxNow,r);
-							DestroyMomentum(cell,2,FyNow,r);
-							DestroyMomentum(cell,3,FzNow,r);
-							DestroyVibrations(cell,vibrationsNow,r);
+							DestroyMomentum(cell,1,nFx,r);
+							DestroyMomentum(cell,2,nFy,r);
+							DestroyMomentum(cell,3,nFz,r);
+							DestroyTotalEnergy(cell,nP,r);
+							DestroyVibrations(cell,nPv,r);
 
-							powerDensity += powerNow;
-							forceDensity += tw::vec3(FxNow,FyNow,FzNow);
-							vibrationalDensity += vibrationsNow;
+							forceDensity += tw::vec3(nFx,nFy,nFz);
+							powerDensity += nP;
+							vibrationalPowerDensity += nPv;
 						}
-						// parcel out conserved quantities weighted by particle number
-						// ALL VIBRATIONAL ENERGY IS LOST TO TRANSLATIONAL
+						// parcel out conserved quantities weighted by stoichiometric coefficients
+						// ALL VIBRATIONAL ENERGY IS CONVERTED TO TRANSLATIONAL
+						const tw::Float weight = 1.0/tw::Float(s->products.size());
 						for (auto p : s->products)
 						{
 							CreateMass(cell,rateNow,p);
@@ -1321,6 +1317,19 @@ void sparc::HydroManager::ComputeCollisionalSources()
 							CreateMomentum(cell,2,weight*forceDensity.y,p);
 							CreateMomentum(cell,3,weight*forceDensity.z,p);
 						}
+						// Heat of reaction
+						// Affects the group of the last chemical in the reactant or product list
+						// Formerly it was all partitioned into product groups as a signed creation term
+						powerDensity = rateNow*(s->heat + s->vheat);
+						vibrationalPowerDensity = rateNow*(s->vheat);
+						if (powerDensity<0.0)
+							DestroyTotalEnergy(cell,-powerDensity,s->reactants.back());
+						else
+							CreateTotalEnergy(cell,powerDensity,s->products.back());
+						if (vibrationalPowerDensity<0.0)
+							DestroyVibrations(cell,-vibrationalPowerDensity,s->reactants.back());
+						else
+							CreateVibrations(cell,vibrationalPowerDensity,s->products.back());
 					}
 				}
 			}

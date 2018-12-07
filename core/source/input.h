@@ -22,6 +22,8 @@ namespace tw
 		std::vector<std::string> EnterInputFileBlock(std::stringstream& inputString,const std::string& end_tokens);
 
 		void ExitInputFileBlock(std::stringstream& inputString);
+
+		std::string GetPhrase(const std::vector<std::string>& words,tw::Int num_words);
 	}
 }
 

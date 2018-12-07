@@ -717,7 +717,24 @@ void AtomicPhysics::VerifyInput()
 void AtomicPhysics::ReadInputFileDirective(std::stringstream& inputString,const std::string& command)
 {
 	std::string word;
-	Module::ReadInputFileDirective(inputString,command);
+	// Must intercept new before Module::ReadInputFileDirective,
+	// otherwise submodule interpretation will be made.
+	if (command=="new")
+	{
+		inputString >> word;
+		if (word=="wavefunction")
+		{
+			waveFunction.push_back(qo::State(owner,owner->uniformDeviate));
+			waveFunction.back().ReadInputFileBlock(inputString);
+		}
+		if (word=="reference")
+		{
+			refState.push_back(qo::State(owner,owner->uniformDeviate));
+			refState.back().ReadInputFileBlock(inputString);
+		}
+	}
+	else
+		Module::ReadInputFileDirective(inputString,command);
 	// note: examples of charge are geared toward atomic units
 	// if using natural units, unit of charge is sqrt(alpha) ~ 0.085
 	// at present unit conversions are not performed in quantum modules---you have to enter it as it will be used
@@ -766,20 +783,6 @@ void AtomicPhysics::ReadInputFileDirective(std::stringstream& inputString,const 
 		if (owner->gridGeometry!=cartesian)
 			if (B0.x!=0.0 || B0.y!=0.0 || B0.z!=0.0)
 				throw tw::FatalError("Static B field assumes Cartesian geometry.");
-	}
-	if (command=="new")
-	{
-		inputString >> word;
-		if (word=="wavefunction")
-		{
-			waveFunction.push_back(qo::State(owner,owner->uniformDeviate));
-			waveFunction.back().ReadInputFileBlock(inputString);
-		}
-		if (word=="reference")
-		{
-			refState.push_back(qo::State(owner,owner->uniformDeviate));
-			refState.back().ReadInputFileBlock(inputString);
-		}
 	}
 }
 
@@ -1679,7 +1682,7 @@ void KleinGordon::UpdateJ4()
 {
 	#pragma omp parallel
 	{
-		for (auto v : VectorizingRange<1>(*this,false))
+		for (auto v : VectorStripRange<1>(*this,false))
 		{
 			for (tw::Int i=1;i<=dim[1];i++)
 			{
@@ -1746,7 +1749,7 @@ void KleinGordon::Update()
 	{
 		alignas(AB) tw::Float Ur[dim[1]],Ui[dim[1]],Dr[dim[1]],Di[dim[1]];
 		// Update psi
-		for (auto v : VectorizingRange<1>(*this,false))
+		for (auto v : VectorStripRange<1>(*this,false))
 		{
 			#pragma omp simd aligned(Ur,Ui:AB)
 			for (tw::Int i=1;i<=dim[1];i++)
@@ -1787,7 +1790,7 @@ void KleinGordon::Update()
 	{
 		alignas(AB) tw::Float Ur[dim[1]],Ui[dim[1]],Dr[dim[1]],Di[dim[1]];
 		// Update chi
-		for (auto v : VectorizingRange<1>(*this,false))
+		for (auto v : VectorStripRange<1>(*this,false))
 		{
 			#pragma omp simd aligned(Ur,Ui:AB)
 			for (tw::Int i=1;i<=dim[1];i++)

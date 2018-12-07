@@ -15,6 +15,9 @@ if len(sys.argv)<2:
 	print('Usage: python twtest.py tw_root tw_args')
 	print('tw_root = path to turboWAVE root directory.')
 	print('tw_args = any arguments to pass to turboWAVE.')
+	print('To select explicit categories, append then to tw_root with double colons.')
+	print('E.g., python twtest.py ~/turboWAVE::hydro::pic -n 4 -c 5')
+	print('N.b. as a corollary no double colons may appear in tw_root.')
 	exit(1)
 
 def cleanup(wildcarded_path):
@@ -150,10 +153,15 @@ def form_tw_cmd(num_procs,num_threads,dims):
 	else:
 		return 'tw3d -nointeractive -n '+str(num_procs)+' -c '+str(num_threads)
 
-tw_root = sys.argv[1]
+subargs = sys.argv[1].split('::')
+tw_root = subargs[0]
 if not os.path.isdir(tw_root):
 	print('You specified a root directory ('+tw_root+') which does not exist.')
 	exit(1)
+if len(subargs)>1:
+	req_categories = subargs[1:]
+else:
+	req_categories = []
 
 mpl.rcParams.update({'text.usetex' : False , 'font.size' : 16})
 
@@ -202,6 +210,11 @@ try:
 	category_list = []
 	for s in category_path_list:
 		category_list.append(s.split('/')[-1])
+	if len(req_categories)>0:
+		for req in req_categories:
+			if req not in category_list:
+				raise ValueError('Requested category '+req+' not found.')
+		category_list = req_categories
 
 	for cat in category_list:
 		print('=====================================')

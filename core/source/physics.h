@@ -91,6 +91,13 @@ namespace sparc
 			last = x;
 			return last+1;
 		}
+		tw::Float DensitySum(const Field& f,const tw::cell& cell)
+		{
+			tw::Float ans = 0.0;
+			for (tw::Int i=0;i<num;i++)
+				ans += f(cell,first+i);
+			return ans;
+		}
 		static const tw::Int count = 5; // gives count of state components not counting densities
 	};
 

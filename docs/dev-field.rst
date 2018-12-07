@@ -119,7 +119,7 @@ Suppose we have a ``Field`` with axis 3 as the packed axis.  Then an optimized l
 
 	#pragma omp parallel
 	{
-		for (auto v : VectorizingRange<3>(*this,false))
+		for (auto v : VectorStripRange<3>(*this,false))
 		{
 			#pragma omp simd
 			for (tw::Int i=0;i<=Dim(3);i++)
@@ -138,7 +138,7 @@ The ``Field`` class provides for differencing patterns that occur often in compu
 
 	#pragma omp parallel
 	{
-		for (auto v : VectorizingRange<3>(*this,false))
+		for (auto v : VectorStripRange<3>(*this,false))
 		{
 			#pragma omp simd
 			for (int i=0;i<Dim(3);i++)

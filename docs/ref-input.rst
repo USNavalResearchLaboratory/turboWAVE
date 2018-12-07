@@ -6,7 +6,7 @@ General Rules
 
 1.	Comments may be in C or C++ style
 2.	Case matters
-3.	Names assigned to objects must not contain white space, or any of the characters :samp:`={}(),%`
+3.	Names assigned to objects must not contain white space, or any of the characters :samp:`/={}(),%`
 4.	Any uninterrupted sequence of white space is equivalent to any other (same as in C)
 5.	Parenthesis or commas may be freely exchanged with any white space character
 
@@ -152,6 +152,25 @@ Top level directives tend to come first in an input file.  They are not containe
 .. py:function:: zboundary = ( b1 , b2 )
 
 	Boundary conditions for whole simulation at the extremities in the z-coordinate, see xboundary.
+
+Object Creation
+---------------
+
+There is a general form for creating objects:
+
+.. py:function:: new key1 [key2] ... [keyN] [name] { directives }
+
+This entire construct is called a block.  The start of the block is signaled by the word ``new``.  The next several words are ordered keys.  The keys are used to identify the type of object requested, and generally form an intelligible description.  The last word is a name, which can be anything selected by the user, within the general rules.  Providing a name is optional, but if no name is given, then the last key will be the name of the object.  If the name is already in use it will be automatically adjusted for uniqueness.  Finally, there is a set of directives enclosed by curly braces.  The directives can usually appear in any order, and many are optional.
+
+.. Note::
+
+	The parser is only required to check as many keys as are needed to guarantee uniqueness. Sometimes trailing keys can be altered or omitted without affecting the results.
+
+Sometimes low level objects use ordered directives.  Then the form is typically
+
+.. py:function:: new key1 [key2] .. [keyN] = directives
+
+There is usually only one key and no name given.  In this case the directives are all required and must be in the right order. However, an individual directive could itself be a variable length list.
 
 Numerical Grid
 --------------
@@ -321,6 +340,8 @@ Laser radiation, which in this context is a label for radiation in the paraxial 
 Equation of State Shared Directives
 -----------------------------------
 
+Equation of state tools may be created inside a module block on the fly, using the following shared directives.  They may also be created at the root level as named tools (not covered here).
+
 .. note::
 	As of this writing EOS is a moving target.  The interface may change.
 
@@ -332,17 +353,17 @@ Equation of State Shared Directives
 
 	Directs a module to use the ideal gas equation of state along with Braginskii electron transport coefficients
 
-.. py:function:: eos = mie-gruneisen , gruneisen parameter = grun
+.. py:function:: eos = simple-mie-gruneisen , gruneisen parameter = grun
 
 	Directs a module to use the simplified mie-gruneisen equation of state
 
 	:param float grun: the gruneisen parameter relating density, temperature, and pressure
 
-.. py:function:: eos = mie-gruneisen2 { directives }
+.. py:function:: eos = mie-gruneisen , subdirectives
 
-	Directs a module to use the full mie-gruneisen equation of state
+	Directs a module to use the full mie-gruneisen equation of state. The sub-directives are processed by the enclosing module and can be treated as any other module directive, so long as they come after ``mie-gruneisen``.
 
-	:param block directives: the following directives are supported:
+	:param block subdirectives: the following subdirectives are supported:
 
 		.. py:function:: gruneisen parameter = grun
 
