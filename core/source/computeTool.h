@@ -18,7 +18,7 @@ namespace tw
 		iterativePoissonSolver, facrPoissonSolver, eigenmodePoissonSolver, ellipticSolver1D,
 		generalParabolicPropagator, schroedingerPropagator,
 		yeePropagatorPML, lorentzPropagator, eosData, eosIdealGas, eosHotElectrons, // ASHER_MOD
-		eosMixture, eosIdealGasMix, eosMieGruneisen, eosMieGruneisen2  };
+		eosMixture, eosIdealGasMix, eosSimpleMieGruneisen, eosMieGruneisen  };
 }
 
 struct ComputeTool

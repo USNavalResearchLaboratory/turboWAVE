@@ -213,6 +213,7 @@ struct EOSComponent:ComputeTool
 		mat = m;
 	}
 
+	virtual void SetHeatCapacity(ScalarField& nm,Field& eos);
 	virtual void AddHeatCapacity(Field& hydro,Field& eos);
 	virtual void AddPKV(ScalarField& IE,ScalarField& nm,ScalarField& nu_e,Field& hydro,Field& eos);
 };
@@ -236,11 +237,11 @@ struct EOSHotElectrons:EOSComponent
 // as the results are rarely physicaly accurate
 // If you produce sound waves with this model (for example with Cu),
 // you'll notice the sound speed is off. Qualitatively, it gives a broad picture.
-struct EOSMieGruneisen:EOSComponent
+struct EOSSimpleMieGruneisen:EOSComponent
 {
 	tw::Float GRUN; // Gruneisen coefficient
 
-	EOSMieGruneisen(const std::string& name,MetricSpace *m,Task *tsk);
+	EOSSimpleMieGruneisen(const std::string& name,MetricSpace *m,Task *tsk);
 	virtual void AddPKV(ScalarField& IE,ScalarField& nm,ScalarField& nu_e,Field& hydro,Field& eos);
 	virtual void ReadInputFileDirective(std::stringstream& inputString,const std::string& command);
 	virtual void ReadData(std::ifstream& inFile);
@@ -252,14 +253,14 @@ struct EOSMieGruneisen:EOSComponent
 // This is what is more typically what is found in literature regarding MieGruneisen models
 // You'll get a more accurate sound speed and shock speeds, assuming that the simulation is
 // within the range of relevant Hugoniot data and model assumptions are properly met
-struct EOSMieGruneisen2:EOSComponent
+struct EOSMieGruneisen:EOSComponent
 {
 	tw::Float GRUN; // Gruneisen coefficient
 	tw::Float n0;   // Reference density
 	tw::Float c0;   // y - intercept of Hugoniot fit (usually appriximately speed of sound)
 	tw::Float S1;   // coefficient of linear fit of Hugoniot data
 
-	EOSMieGruneisen2(const std::string& name,MetricSpace *m,Task *tsk);
+	EOSMieGruneisen(const std::string& name,MetricSpace *m,Task *tsk);
 	virtual void AddPKV(ScalarField& IE,ScalarField& nm,ScalarField& nu_e,Field& hydro,Field& eos);
 	virtual void ReadInputFileDirective(std::stringstream& inputString,const std::string& command);
 	virtual void ReadData(std::ifstream& inFile);
@@ -319,14 +320,16 @@ struct EOSMixture:ComputeTool
 	}
 
 	EOSMixture(const std::string& name,MetricSpace *m,Task *tsk);
-	virtual void ApplyCaloricEOS(ScalarField& IE,ScalarField& nm,Field& hydro, Field& eos);
+	virtual void ComputeTemperature(ScalarField& IE,ScalarField& nm,Field& hydro,Field& eos);
+	virtual void ComputeTemperature(ScalarField& IE,ScalarField& nm,Field& hydroRef,Field& hydro,Field& eosRef,Field& eos);
+	virtual void UpdateEnergy(ScalarField& nm,ScalarField& T0,Field& hydro,Field& eos);
 };
-
-// DFG - ideal gas mix is just a copy of the base mixture for now, restore later if needed.
-// supposed to resolve to original algorithm.
 
 struct EOSIdealGasMix:EOSMixture
 {
-	// it seems nothing is different, unless we really want to override the constituents.
+	// This uses the polytropic ideal gas caloric EOS in its original form.
+	// However, see comments in UpdateEnergy.
 	EOSIdealGasMix(const std::string& name,MetricSpace *m,Task *tsk);
+	virtual void ComputeTemperature(ScalarField& IE,ScalarField& nm,Field& hydroRef,Field& hydro,Field& eosRef,Field& eos);
+	virtual void UpdateEnergy(ScalarField& nm,ScalarField& T0,Field& hydro,Field& eos);
 };

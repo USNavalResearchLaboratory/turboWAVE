@@ -435,11 +435,20 @@ EOSComponent::EOSComponent(const std::string& name,MetricSpace *m,Task *tsk) : C
 	typeCode = tw::tool_type::eosData;
 }
 
+void EOSComponent::SetHeatCapacity(ScalarField& nm,Field& eos)
+{
+	#pragma omp parallel firstprivate(eidx,mat)
+	{
+		for (auto cell : EntireCellRange(*space))
+			eos(cell,eidx.nmcv) = nm(cell) * mat.cvm / mat.mass;
+	}
+}
+
 void EOSComponent::AddHeatCapacity(Field& hydro,Field& eos)
 {
 	#pragma omp parallel firstprivate(hidx,eidx,mat)
 	{
-		for (auto cell : InteriorCellRange(*space))
+		for (auto cell : EntireCellRange(*space))
 			eos(cell,eidx.nmcv) += hydro(cell,hidx.ni) * mat.cvm;
 	}
 }
@@ -448,7 +457,7 @@ void EOSComponent::AddPKV(ScalarField& IE, ScalarField& nm, ScalarField& nu_e, F
 {
 	#pragma omp parallel firstprivate(hidx,eidx,mat)
 	{
-		for (auto cell : InteriorCellRange(*space))
+		for (auto cell : EntireCellRange(*space))
 		{
 			const tw::Float ngas = hydro(cell,hidx.ni);
 			eos(cell,eidx.P) += ngas*eos(cell,eidx.T);
@@ -486,7 +495,7 @@ void EOSHotElectrons::AddPKV(ScalarField& IE, ScalarField& nm, ScalarField& nu_e
 {
 	#pragma omp parallel firstprivate(hidx,eidx,mat)
 	{
-		for (auto cell : InteriorCellRange(*space))
+		for (auto cell : EntireCellRange(*space))
 		{
 			const tw::Float ne = hydro(cell,hidx.ni);
 			eos(cell,eidx.P) += ne*eos(cell,eidx.T);
@@ -498,24 +507,24 @@ void EOSHotElectrons::AddPKV(ScalarField& IE, ScalarField& nm, ScalarField& nu_e
 	}
 }
 
-///////////////////////
-//                   //
-// EOS Mie Gruneisen //
-//                   //
-///////////////////////
+//////////////////////////////////
+//                              //
+// EOS Simplified Mie Gruneisen //
+//                              //
+//////////////////////////////////
 
-EOSMieGruneisen::EOSMieGruneisen(const std::string& name,MetricSpace *m, Task *tsk) : EOSComponent(name,m,tsk)
+EOSSimpleMieGruneisen::EOSSimpleMieGruneisen(const std::string& name,MetricSpace *m, Task *tsk) : EOSComponent(name,m,tsk)
 {
-	typeCode = tw::tool_type::eosMieGruneisen;
+	typeCode = tw::tool_type::eosSimpleMieGruneisen;
 	GRUN = 2.0; // value for Cu on p. 257 of "Shock Wave Physics and Equation of State Modeling"
 	// GRUN = 0.1; // value for water in the above book.
 }
 
-void EOSMieGruneisen::AddPKV(ScalarField& IE, ScalarField& nm, ScalarField& nu_e, Field& hydro, Field& eos)
+void EOSSimpleMieGruneisen::AddPKV(ScalarField& IE, ScalarField& nm, ScalarField& nu_e, Field& hydro, Field& eos)
 {
 	#pragma omp parallel firstprivate(hidx,eidx,mat)
 	{
-		for (auto cell : InteriorCellRange(*space))
+		for (auto cell : EntireCellRange(*space))
 		{
 			const tw::Float nion = hydro(cell,hidx.ni);
 			const tw::Float partial_IE = IE(cell) * nion * mat.mass / nm(cell);
@@ -526,7 +535,7 @@ void EOSMieGruneisen::AddPKV(ScalarField& IE, ScalarField& nm, ScalarField& nu_e
 	}
 }
 
-void EOSMieGruneisen::ReadInputFileDirective(std::stringstream& inputString,const std::string& command)
+void EOSSimpleMieGruneisen::ReadInputFileDirective(std::stringstream& inputString,const std::string& command)
 {
 	// DFG - this is how the tool gets data from the input file.
 	// This supports both named tools and creating on the fly as before.
@@ -537,14 +546,14 @@ void EOSMieGruneisen::ReadInputFileDirective(std::stringstream& inputString,cons
 		inputString >> word >> word >> GRUN;
 }
 
-void EOSMieGruneisen::ReadData(std::ifstream& inFile)
+void EOSSimpleMieGruneisen::ReadData(std::ifstream& inFile)
 {
 	// DFG - now tools can have ReadData/WriteData to support their own restarts
 	EOSComponent::ReadData(inFile);
 	inFile.read((char*)&GRUN,sizeof(GRUN));
 }
 
-void EOSMieGruneisen::WriteData(std::ofstream& outFile)
+void EOSSimpleMieGruneisen::WriteData(std::ofstream& outFile)
 {
 	EOSComponent::WriteData(outFile);
 	outFile.write((char*)&GRUN,sizeof(GRUN));
@@ -552,14 +561,14 @@ void EOSMieGruneisen::WriteData(std::ofstream& outFile)
 
 /////////////////////////
 //                     //
-// EOS Mie Gruneisen 2 //
+//  EOS Mie Gruneisen  //
 //                     //
 /////////////////////////
 // better MieGruneisen EOS model that uses a linear Hugoniot fit
 
-EOSMieGruneisen2::EOSMieGruneisen2(const std::string& name,MetricSpace *m, Task *tsk) : EOSComponent(name,m,tsk)
+EOSMieGruneisen::EOSMieGruneisen(const std::string& name,MetricSpace *m, Task *tsk) : EOSComponent(name,m,tsk)
 {
-	typeCode = tw::tool_type::eosMieGruneisen2;
+	typeCode = tw::tool_type::eosMieGruneisen;
 	// Hugoniot data fit for Cu
 	n0 = 3.3e3;
 	c0 = 1.3248e-5;
@@ -574,11 +583,11 @@ EOSMieGruneisen2::EOSMieGruneisen2(const std::string& name,MetricSpace *m, Task 
 	// GRUN = 0.1; // value for water in the above book.
 }
 
-void EOSMieGruneisen2::AddPKV(ScalarField& IE, ScalarField& nm, ScalarField& nu_e, Field& hydro, Field& eos)
+void EOSMieGruneisen::AddPKV(ScalarField& IE, ScalarField& nm, ScalarField& nu_e, Field& hydro, Field& eos)
 {
 	#pragma omp parallel firstprivate(GRUN,n0,c0,S1,hidx,eidx,mat)
 	{
-		for (auto cell : InteriorCellRange(*space))
+		for (auto cell : EntireCellRange(*space))
 		{
 			const tw::Float nion = hydro(cell,hidx.ni);
 			const tw::Float partial_IE = IE(cell) * nion * mat.mass / nm(cell);
@@ -594,7 +603,7 @@ void EOSMieGruneisen2::AddPKV(ScalarField& IE, ScalarField& nm, ScalarField& nu_
 	}
 }
 
-void EOSMieGruneisen2::ReadInputFileDirective(std::stringstream& inputString,const std::string& command)
+void EOSMieGruneisen::ReadInputFileDirective(std::stringstream& inputString,const std::string& command)
 {
 	std::string word;
 	EOSComponent::ReadInputFileDirective(inputString,command);
@@ -612,7 +621,7 @@ void EOSMieGruneisen2::ReadInputFileDirective(std::stringstream& inputString,con
 	}
 }
 
-void EOSMieGruneisen2::ReadData(std::ifstream& inFile)
+void EOSMieGruneisen::ReadData(std::ifstream& inFile)
 {
 	EOSComponent::ReadData(inFile);
 	inFile.read((char*)&GRUN,sizeof(GRUN));
@@ -621,7 +630,7 @@ void EOSMieGruneisen2::ReadData(std::ifstream& inFile)
 	inFile.read((char*)&S1,sizeof(S1));
 }
 
-void EOSMieGruneisen2::WriteData(std::ofstream& outFile)
+void EOSMieGruneisen::WriteData(std::ofstream& outFile)
 {
 	EOSComponent::WriteData(outFile);
 	outFile.write((char*)&GRUN,sizeof(GRUN));
@@ -641,31 +650,115 @@ EOSMixture::EOSMixture(const std::string& name,MetricSpace *m, Task *tsk) : Comp
 	typeCode = tw::tool_type::eosMixture;
 }
 
-void EOSMixture::ApplyCaloricEOS(ScalarField& IE, ScalarField& nm, Field& hydro, Field& eos)
+void EOSMixture::ComputeTemperature(ScalarField& IE, ScalarField& nm, Field& hydro, Field& eos)
 {
-	// DFG - premise of this:
+	// DFG - caloric EOS with zero-reference (use if only one time level is available)
 	// Compute the temperature assuming nmcv has been loaded.
 	// Pass IE and nm back out for use by component EOS classes
 
-	for (auto cell : InteriorCellRange(*space))
+	#pragma omp parallel firstprivate(hidx,eidx)
 	{
-		nm(cell) = MassDensity(hydro,cell);
-		IE(cell) = InternalEnergy(nm(cell),hydro,cell);
-		const tw::Float epsvn = MixVibrationalEnergy(hydro,cell);
-		const tw::Float nv = MixVibrationalStates(hydro,cell);
+		for (auto cell : EntireCellRange(*space))
+		{
+			nm(cell) = MassDensity(hydro,cell);
+			IE(cell) = InternalEnergy(nm(cell),hydro,cell);
+			const tw::Float epsvn = MixVibrationalEnergy(hydro,cell);
+			const tw::Float nv = MixVibrationalStates(hydro,cell);
 
-		eos(cell,eidx.T) = IE(cell)/(tw::small_pos + eos(cell,eidx.nmcv));
-		eos(cell,eidx.Tv) = (epsvn/(nv+tw::small_pos))/log(1.0001 + epsvn/(hydro(cell,hidx.x)+tw::small_pos));
+			eos(cell,eidx.T) = IE(cell)/(tw::small_pos + eos(cell,eidx.nmcv));
+			eos(cell,eidx.Tv) = (epsvn/(nv+tw::small_pos))/log(1.0001 + epsvn/(hydro(cell,hidx.x)+tw::small_pos));
+		}
 	}
 }
 
-///////////////////////////////////////
-//                                   //
-//     Ideal Gas Mix - Purpose ?     //
-//                                   //
-///////////////////////////////////////
+void EOSMixture::ComputeTemperature(ScalarField& IE, ScalarField& nm, Field& hydroRef, Field& hydro, Field& eosRef, Field& eos)
+{
+	// DFG - caloric EOS accounting for nearby reference state (usually previous time level)
+	// Compute the temperature assuming nmcv has been loaded.
+	// Pass IE and nm back out for use by component EOS classes
+
+	#pragma omp parallel firstprivate(hidx,eidx)
+	{
+		for (auto cell : EntireCellRange(*space))
+		{
+			const tw::Float nm1 = tw::small_pos + MassDensity(hydro,cell);
+			const tw::Float IE1 = InternalEnergy(nm1,hydro,cell);
+			const tw::Float nm0 = tw::small_pos + MassDensity(hydroRef,cell);
+			const tw::Float IE0 = InternalEnergy(nm0,hydroRef,cell);
+			const tw::Float epsvn = MixVibrationalEnergy(hydro,cell);
+			const tw::Float nv = MixVibrationalStates(hydro,cell);
+			const tw::Float nmcv_sum = tw::small_pos + eosRef(cell,eidx.nmcv) + eos(cell,eidx.nmcv);
+
+			//eos(cell,eidx.T) = eosRef(cell,eidx.T) + 2.0*(IE1 - IE0)/nmcv_sum; // wrong
+			eos(cell,eidx.T) = eosRef(cell,eidx.T) + (IE1*(1.0+nm0/nm1) - IE0*(1.0+nm1/nm0))/nmcv_sum;
+			eos(cell,eidx.Tv) = (epsvn/(nv+tw::small_pos))/log(1.0001 + epsvn/(hydro(cell,hidx.x)+tw::small_pos));
+			nm(cell) = nm1;
+			IE(cell) = IE1;
+		}
+	}
+}
+
+void EOSMixture::UpdateEnergy(ScalarField& nm,ScalarField& T0,Field& hydro,Field& eos)
+{
+	// Add energy corresponding to a change in temperature only.
+	// Not centered, because cv is not updated.
+	// Must not assume hydro field has complete data, because of Chemical::GenerateFluid
+	#pragma omp parallel firstprivate(hidx,eidx)
+	{
+		for (auto cell : EntireCellRange(*space))
+			hydro(cell,hidx.u) += eos(cell,eidx.nmcv) * (eos(cell,eidx.T) - T0(cell));
+	}
+}
+
+///////////////////////////
+//                       //
+//     Ideal Gas Mix     //
+//                       //
+///////////////////////////
 
 EOSIdealGasMix::EOSIdealGasMix(const std::string& name,MetricSpace *m, Task *tsk) : EOSMixture(name,m,tsk)
 {
 	typeCode = tw::tool_type::eosIdealGasMix;
+}
+
+void EOSIdealGasMix::ComputeTemperature(ScalarField& IE, ScalarField& nm, Field& hydroRef, Field& hydro, Field& eosRef, Field& eos)
+{
+	// DFG - polytropic ideal gas caloric EOS in the original SPARC mode of calculation.  Ignores reference states.
+	// (does not force pressure to be ideal gas)
+	// Compute the temperature assuming nmcv has been loaded.
+	// Pass IE and nm back out for use by component EOS classes
+
+	#pragma omp parallel firstprivate(hidx,eidx)
+	{
+		for (auto cell : EntireCellRange(*space))
+		{
+			const tw::Float nm1 = MassDensity(hydro,cell);
+			const tw::Float IE1 = InternalEnergy(nm1,hydro,cell);
+			const tw::Float epsvn = MixVibrationalEnergy(hydro,cell);
+			const tw::Float nv = MixVibrationalStates(hydro,cell);
+
+			eos(cell,eidx.T) = IE1/(tw::small_pos + eos(cell,eidx.nmcv));
+			eos(cell,eidx.Tv) = (epsvn/(nv+tw::small_pos))/log(1.0001 + epsvn/(hydro(cell,hidx.x)+tw::small_pos));
+			nm(cell) = nm1;
+			IE(cell) = IE1;
+		}
+	}
+}
+
+void EOSIdealGasMix::UpdateEnergy(ScalarField& nm,ScalarField& T0,Field& hydro,Field& eos)
+{
+	// DFG - polytropic ideal gas caloric EOS in the original SPARC mode of calculation.  Ignores reference states.
+	// CANNOT USE: incompatible with generalized Chemical::GenerateFluid
+	// Therefore call the inherited function and comment out the rest.
+	EOSMixture::UpdateEnergy(nm,T0,hydro,eos);
+	// #pragma omp parallel firstprivate(hidx,eidx)
+	// {
+	// 	for (auto cell : EntireCellRange(*space))
+	// 	{
+	// 		hydro(cell,hidx.u) = eos(cell,eidx.nmcv) * eos(cell,eidx.T);
+	// 		hydro(cell,hidx.u) += 0.5*sqr(hydro(cell,hidx.npx))/(tw::small_pos + nm(cell));
+	// 		hydro(cell,hidx.u) += 0.5*sqr(hydro(cell,hidx.npy))/(tw::small_pos + nm(cell));
+	// 		hydro(cell,hidx.u) += 0.5*sqr(hydro(cell,hidx.npz))/(tw::small_pos + nm(cell));
+	// 	}
+	// }
 }

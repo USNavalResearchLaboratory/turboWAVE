@@ -53,7 +53,7 @@ struct Chemical:Module
 	virtual ~Chemical();
 	virtual void Initialize();
 
-	bool GenerateFluid(Field& f,bool init);
+	bool GenerateFluid(Field& hydro,Field& eos);
 
 	virtual void VerifyInput();
 	virtual void ReadInputFileDirective(std::stringstream& inputString,const std::string& command);
@@ -212,7 +212,7 @@ struct HydroManager:Module
 	void ChemAdvance(tw::Float dt);
 	void DiffusionAdvance(tw::Float dt);
 	void FieldAdvance(tw::Float dt);
-	void ApplyEOS(Field& hydro,Field& eos);
+	void EOSAdvance(tw::Float dt);
 	void FirstOrderAdvance(tw::Float dt,bool computeSources);
 	virtual void Update();
 

@@ -142,14 +142,26 @@ def parse_tw_args(arg_list):
 
 def form_tw_cmd(num_procs,num_threads,dims):
 	num_dims = 0
+	dim1 = 0
 	if dims[0]>1:
+		dim1 = dims[0]
 		num_dims += 1
 	if dims[1]>1:
+		dim1 = dims[1]
 		num_dims += 1
 	if dims[2]>1:
+		dim1 = dims[2]
 		num_dims += 1
 	if num_dims==1:
-		return 'tw3d -nointeractive -n '+str(num_procs*num_threads)
+		req_nodes = num_procs*num_threads
+		mpi_nodes = req_nodes
+		if dim1%mpi_nodes!=0:
+			# Try a power of 2
+			mpi_nodes = 2**int(np.log2(req_nodes))
+		if dim1%mpi_nodes!=0:
+			# Try a factor of 10
+			mpi_nodes = 10*int(req_nodes/10)
+		return 'tw3d -nointeractive -n '+str(mpi_nodes)
 	else:
 		return 'tw3d -nointeractive -n '+str(num_procs)+' -c '+str(num_threads)
 

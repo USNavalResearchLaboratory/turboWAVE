@@ -66,4 +66,5 @@ Background
 
 	bak-em-modes
 	bak-quantum
+	bak-eos
 	bak-publications

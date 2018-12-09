@@ -648,12 +648,18 @@ void Chemical::Initialize()
 		group->forceFilter = 0.0;
 	}
 	// can't generate in HydroManager::Initialize since profiles would not be initialized
-	GenerateFluid(master->state1,true);
+	GenerateFluid(master->state1,master->eos1);
 }
 
-bool Chemical::GenerateFluid(Field& f,bool init)
+bool Chemical::GenerateFluid(Field& hydro,Field& eos)
 {
-	tw::vec3 pos,np;
+	// Load the hydro data only (not eos).
+	// We need EOS information because the user will typically ask for a temperature.
+	// In this process the eos Field is used as a scratch array.
+	// Therefore this routine is destructive to the eos Field.
+
+	sparc::HydroManager *master = (sparc::HydroManager*)(super->super);
+	tw::vec3 p0;
 	tw::Float add,kT,dens,kinetic,vibrational;
 
 	bool timeGate,didGenerate=false;
@@ -687,48 +693,55 @@ bool Chemical::GenerateFluid(Field& f,bool init)
 		{
 			profile[s]->wasTriggered = true;
 			didGenerate = true;
+			kT = sqr(profile[s]->thermalMomentum.x)/mat.mass; // appropriate for exp(-v^2/(2*vth^2)) convention
+			if (profile[s]->temperature!=0.0)
+				kT = profile[s]->temperature;
+			p0.x = profile[s]->driftMomentum.x;
+			p0.y = profile[s]->driftMomentum.y;
+			p0.z = profile[s]->driftMomentum.z;
 			for (auto cell : EntireCellRange(*this))
 			{
-				pos = owner->Pos(cell);
-				dens = profile[s]->GetValue(pos,*owner);
+				dens = profile[s]->GetValue(owner->Pos(cell),*owner);
 				if (profile[s]->whichQuantity==densityProfile && dens>0.0)
 				{
-					kT = sqr(profile[s]->thermalMomentum.x)/mat.mass; // appropriate for exp(-v^2/(2*vth^2)) convention
-					if (profile[s]->temperature!=0.0)
-						kT = profile[s]->temperature;
-					np.x = dens*profile[s]->driftMomentum.x;
-					np.y = dens*profile[s]->driftMomentum.y;
-					np.z = dens*profile[s]->driftMomentum.z;
-					kinetic = 0.5*Norm(np)/(tw::small_pos + mat.mass*dens);
+					kinetic = 0.5*Norm(dens*p0)/(tw::small_pos + mat.mass*dens);
 					vibrational = dens*mat.excitationEnergy/(fabs(exp(mat.excitationEnergy/kT) - 1.0) + tw::small_pos);
-
-					f(cell,ns) = add*f(cell,ns) + dens;
-					f(cell,npx) = add*f(cell,npx) + np.x;
-					f(cell,npy) = add*f(cell,npy) + np.y;
-					f(cell,npz) = add*f(cell,npz) + np.z;
-					f(cell,U) = add*f(cell,U) + mat.cvm*dens*kT + kinetic + vibrational;
-					f(cell,Xi) = add*f(cell,Xi) + vibrational;
+					hydro(cell,ns) = add*hydro(cell,ns) + dens;
+					hydro(cell,npx) = add*hydro(cell,npx) + dens*p0.x;
+					hydro(cell,npy) = add*hydro(cell,npy) + dens*p0.y;
+					hydro(cell,npz) = add*hydro(cell,npz) + dens*p0.z;
+					hydro(cell,U) = add*hydro(cell,U) + kinetic + vibrational; // internal energy added below
+					hydro(cell,Xi) = add*hydro(cell,Xi) + vibrational;
+					master->scratch(cell) = dens*mat.mass; // save nm for use below
 				}
 				if (profile[s]->whichQuantity==energyProfile)
 				{
-					f(cell,U) = add*f(cell,U) + dens;
+					hydro(cell,U) = add*hydro(cell,U) + dens;
 				}
 				if (profile[s]->whichQuantity==pxProfile)
 				{
-					f(cell,npx) = add*f(cell,npx) + dens;
+					hydro(cell,npx) = add*hydro(cell,npx) + dens;
 				}
 				if (profile[s]->whichQuantity==pyProfile)
 				{
-					f(cell,npy) = add*f(cell,npy) + dens;
+					hydro(cell,npy) = add*hydro(cell,npy) + dens;
 				}
 				if (profile[s]->whichQuantity==pzProfile)
 				{
-					f(cell,npz) = add*f(cell,npz) + dens;
+					hydro(cell,npz) = add*hydro(cell,npz) + dens;
 				}
 			}
+			// DFG - Add the partial internal energy into the hydro state
+			// Cannot assume anything about what has been accumulated in hydro Field.
+			// OK to use eos as scratch at this point (see also HydroManager::Reset)
+			master->scratch2 = kT;
+			CopyFieldData(eos,Element(group->eidx.T),master->scratch2,0); // put desired kT in EOS
+			master->scratch2 = 0.0; // reference temperature is zero
+			eosData->SetHeatCapacity(master->scratch,eos);
+			group->eosMixData->UpdateEnergy(master->scratch,master->scratch2,hydro,eos);
 		}
 	}
-	f.ApplyBoundaryCondition(Element(ns,Xi));
+	hydro.ApplyBoundaryCondition(Element(ns,Xi));
 	return didGenerate;
 }
 
@@ -1188,15 +1201,30 @@ void sparc::HydroManager::Initialize()
 
 void sparc::HydroManager::Reset()
 {
-	bool didGenerate = false;
-	for (auto grp : group)
-		for (auto chem : grp->chemical)
-			didGenerate += chem->GenerateFluid(state1,false);
-	if (didGenerate || owner->IsFirstStep())
-		ApplyEOS(state1,eos1);
 	state0 = state1;
 	eos0 = eos1;
 	rho0 = rho;
+
+	if (owner->IsFirstStep())
+	{
+		EOSAdvance(0.0); // gets eos0 using state1 only
+		eos1 = eos0;
+	}
+	else
+	{
+		// Generate new fluid due to sources
+		// N.b. Chemical::GenerateFluid is destructive to the eos field that is passed in.
+		bool didGenerate = false;
+		for (auto grp : group)
+			for (auto chem : grp->chemical)
+				didGenerate += chem->GenerateFluid(state1,eos1);
+		if (didGenerate)
+		{
+			EOSAdvance(dt); // gets eos0 using state0 and state1
+			eos1 = eos0;
+			state0 = state1;
+		}
+	}
 }
 
 tw::Float sparc::HydroManager::CollisionCoefficient(Collision *coll,const tw::cell& cell,const UnitConverter& uc)
@@ -1778,36 +1806,26 @@ tw::Float sparc::HydroManager::EstimateTimeStep()
 
 void sparc::HydroManager::DiffusionAdvance(tw::Float dt)
 {
-	tw::Int s,ax;
-
 	for (auto g : group)
 	{
 		// HEAT CONDUCTION
 
-		g->LoadMassDensityCv(scratch,state1);
-		g->LoadMassDensity(scratch2,state1);
-		parabolicSolver->Advance(eos1,g->eidx.T,fluxMask,&scratch,0,&eos1,g->eidx.K,dt);
-
-		#pragma omp parallel
-		{
-			for (auto cell : InteriorCellRange(*this))
-			{
-				state1(cell,g->hidx.u) = 0.5*scratch2(cell)*Norm(g->Velocity(state1,cell));
-				state1(cell,g->hidx.u) += scratch(cell)*eos1(cell,g->eidx.T);
-			}
-		}
+		g->LoadMassDensity(scratch,state1);
+		CopyFieldData(scratch2,Element(0),eos1,Element(g->eidx.T));
+		parabolicSolver->Advance(eos1,g->eidx.T,fluxMask,&eos1,g->eidx.nmcv,&eos1,g->eidx.K,dt);
+		g->eosMixData->UpdateEnergy(scratch,scratch2,state1,eos1);
 
 		// VISCOSITY
 
-		for (ax=1;ax<=3;ax++)
+		for (tw::Int ax=1;ax<=3;ax++)
 		{
-			g->LoadVelocity(scratch,state1,ax);
-			CopyBoundaryConditions(scratch,0,state1,g->hidx.npx+ax-1);
-			parabolicSolver->Advance(scratch,0,fluxMask,&scratch2,0,&eos1,g->eidx.visc,dt);
+			g->LoadVelocity(scratch2,state1,ax);
+			CopyBoundaryConditions(scratch2,0,state1,g->hidx.npx+ax-1);
+			parabolicSolver->Advance(scratch2,0,fluxMask,&scratch,0,&eos1,g->eidx.visc,dt);
 			#pragma omp parallel
 			{
 				for (auto cell : InteriorCellRange(*this))
-					state1(cell,g->hidx.npx+ax-1) = scratch2(cell)*scratch(cell);
+					state1(cell,g->hidx.npx+ax-1) = scratch(cell)*scratch2(cell);
 			}
 		}
 	}
@@ -1917,12 +1935,36 @@ void sparc::HydroManager::ChemAdvance(tw::Float dt)
 	state0.ApplyBoundaryCondition();
 }
 
-void sparc::HydroManager::ApplyEOS(Field& hydro,Field& eos)
+void sparc::HydroManager::EOSAdvance(tw::Float dt)
 {
-	// Load (P,T,Tv,K,visc) into eos using (n,np,u,x) from hydro
-	// Reverse calculation is applied following diffusion steps
+	// Load (P,T,Tv,K,visc) into eos using (n,np,u,x) from state.
+	// dt = 0.0 signals that we want to use a method that involves only 1 time level.
+	// Otherwise we are allowed to use different time levels per the chain rule.
+	// E.g., d(u/nm)/dT = cv --> d(u/nm)/dt = cv*dT/dt
 	// Here we also impose quasineutrality and fix electron velocity
 	// Finally, we throw an error if numerical failure is detected
+
+	// Time centering information upon entry*:
+	// Trial Step:    Full Step:
+	// qty    time    qty    time
+	// ---    ----    ---    ----
+	// state0 0      state0  1/2
+	// state1 1/2    state1  1
+	// eos0   0      eos0    0
+	// eos1   0      eos1    1/2
+	// * notice eos1 and state0 are always known at the same time.
+	//   and that state1 is always 1/2 step after state0.
+	//   We are trying to load eos0 with the time level of state1.
+
+	// Time centering information upon output*:
+	// Trial Step:    Full Step:
+	// qty    time    qty    time
+	// ---    ----    ---    ----
+	// state0 0      state0  1/2
+	// state1 1/2    state1  1
+	// eos0   1/2    eos0    1
+	// eos1   0      eos1    1/2
+	// * eos0 and eos1 are swapped after exiting function
 
 	// Quasineutrality and velocity forcing
 	#pragma omp parallel
@@ -1930,7 +1972,7 @@ void sparc::HydroManager::ApplyEOS(Field& hydro,Field& eos)
 		tw::Float ionChargeDensity;
 		tw::vec3 ionVelocity;
 
-		for (auto cell : InteriorCellRange(*this))
+		for (auto cell : EntireCellRange(*this))
 		{
 			ionChargeDensity = 0.0;
 			ionVelocity = 0.0;
@@ -1938,46 +1980,51 @@ void sparc::HydroManager::ApplyEOS(Field& hydro,Field& eos)
 			{
 				if (g->chemical[0]!=electrons)
 				{
-					ionChargeDensity += g->DensityWeightedSum(hydro,g->matset.charge,cell);
-					ionVelocity += g->Velocity(hydro,cell);
+					ionChargeDensity += g->DensityWeightedSum(state1,g->matset.charge,cell);
+					ionVelocity += g->Velocity(state1,cell);
 				}
 			}
 			if (electrons)
 			{
 				// Impose quasineutrality and assume electron velocity = average heavy particle velocity
 				const tw::Float ne = -ionChargeDensity/electrons->mat.charge;
-				hydro(cell,ie) = ne;
-				hydro(cell,electrons->group->hidx.npx) = ne*electrons->mat.mass*ionVelocity.x/tw::Float(group.size()-1);
-				hydro(cell,electrons->group->hidx.npy) = ne*electrons->mat.mass*ionVelocity.y/tw::Float(group.size()-1);
-				hydro(cell,electrons->group->hidx.npz) = ne*electrons->mat.mass*ionVelocity.z/tw::Float(group.size()-1);
+				state1(cell,ie) = ne;
+				state1(cell,electrons->group->hidx.npx) = ne*electrons->mat.mass*ionVelocity.x/tw::Float(group.size()-1);
+				state1(cell,electrons->group->hidx.npy) = ne*electrons->mat.mass*ionVelocity.y/tw::Float(group.size()-1);
+				state1(cell,electrons->group->hidx.npz) = ne*electrons->mat.mass*ionVelocity.z/tw::Float(group.size()-1);
 			}
 		}
 	}
 
 	// DFG - factorized EOS loop, avoids nested tools.
-	eos = 0.0; // safest to explicitly reset here
+	eos0 = 0.0; // safest to explicitly reset here
 	for (auto g : group)
 	{
 		for (auto chem : g->chemical)
-			chem->eosData->AddHeatCapacity(hydro,eos);
+			chem->eosData->AddHeatCapacity(state1,eos0);
 		// The following loads T into eos, IE into scratch, and nm into scratch2
-		g->eosMixData->ApplyCaloricEOS(scratch,scratch2,hydro,eos);
+		// N.b. eos0 is sought at the time of state1, eos1 is known at the time of state0.
+		if (dt==0.0)
+			g->eosMixData->ComputeTemperature(scratch,scratch2,state1,eos0);
+		else
+			g->eosMixData->ComputeTemperature(scratch,scratch2,state0,state1,eos1,eos0);
 		for (auto chem : g->chemical)
-			chem->eosData->AddPKV(scratch,scratch2,nu_e,hydro,eos);
+			chem->eosData->AddPKV(scratch,scratch2,nu_e,state1,eos0);
 	}
 
 	// Check for numerical failure, defined by NaN in the hydro state vector
 	tw::Int badCells = 0;
 	for (auto cell : EntireCellRange(*this))
-		for (tw::Int c=0;c<hydro.Components();c++)
-			badCells += std::isnan(hydro(cell,c));
+		for (tw::Int c=0;c<state1.Components();c++)
+			badCells += std::isnan(state1(cell,c));
 	if (badCells)
 		throw tw::FatalError("Encountered NaN in hydrodynamic state");
 
-	hydro.CopyFromNeighbors();
-	hydro.ApplyBoundaryCondition();
-	eos.CopyFromNeighbors();
-	eos.ApplyBoundaryCondition();
+	// EntireCellRange has been updated, no need for message passing.
+	// state1.CopyFromNeighbors();
+	// state1.ApplyBoundaryCondition();
+	// eos0.CopyFromNeighbors();
+	// eos0.ApplyBoundaryCondition();
 }
 
 void sparc::HydroManager::FirstOrderAdvance(tw::Float dt,bool computeSources)
@@ -1991,9 +2038,9 @@ void sparc::HydroManager::FirstOrderAdvance(tw::Float dt,bool computeSources)
 	HydroAdvance(yAxis,dt);
 	HydroAdvance(zAxis,dt);
 	ChemAdvance(dt);
-	ApplyEOS(state0,eos0);
-
 	Swap(state0,state1);
+
+	EOSAdvance(dt);
 	Swap(eos0,eos1);
 
 	DiffusionAdvance(dt);
@@ -2281,7 +2328,8 @@ void sparc::HydroManager::BoxDiagnose(GridDataDescriptor* box)
 
 	if (owner->IsFirstStep())
 	{
-		ApplyEOS(state1,eos1);
+		EOSAdvance(0.0);
+		eos1 = eos0;
 		ComputeElectronCollisionFrequency();
 	}
 

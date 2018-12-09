@@ -166,6 +166,10 @@ This entire construct is called a block.  The start of the block is signaled by 
 
 	The parser is only required to check as many keys as are needed to guarantee uniqueness. Sometimes trailing keys can be altered or omitted without affecting the results.
 
+.. Tip::
+
+	Enclosing the name in quotes is not required, but can be helpful in distinguishing your own names from internal names.  If you use quotes remember they must be used everywhere the name is referenced.  Using quotes does not change the naming rules, e.g., you still may not use spaces.
+
 Sometimes low level objects use ordered directives.  Then the form is typically
 
 .. py:function:: new key1 [key2] .. [keyN] = directives
