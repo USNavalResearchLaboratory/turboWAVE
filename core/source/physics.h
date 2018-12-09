@@ -253,14 +253,14 @@ struct EOSSimpleMieGruneisen:EOSComponent
 // This is what is more typically what is found in literature regarding MieGruneisen models
 // You'll get a more accurate sound speed and shock speeds, assuming that the simulation is
 // within the range of relevant Hugoniot data and model assumptions are properly met
-struct EOSMieGruneisen:EOSComponent
+struct EOSLinearMieGruneisen:EOSComponent
 {
 	tw::Float GRUN; // Gruneisen coefficient
 	tw::Float n0;   // Reference density
 	tw::Float c0;   // y - intercept of Hugoniot fit (usually appriximately speed of sound)
 	tw::Float S1;   // coefficient of linear fit of Hugoniot data
 
-	EOSMieGruneisen(const std::string& name,MetricSpace *m,Task *tsk);
+	EOSLinearMieGruneisen(const std::string& name,MetricSpace *m,Task *tsk);
 	virtual void AddPKV(ScalarField& IE,ScalarField& nm,ScalarField& nu_e,Field& hydro,Field& eos);
 	virtual void ReadInputFileDirective(std::stringstream& inputString,const std::string& command);
 	virtual void ReadData(std::ifstream& inFile);

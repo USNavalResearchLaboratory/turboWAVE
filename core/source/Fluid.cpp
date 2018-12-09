@@ -2020,7 +2020,7 @@ void sparc::HydroManager::EOSAdvance(tw::Float dt)
 	if (badCells)
 		throw tw::FatalError("Encountered NaN in hydrodynamic state");
 
-	// EntireCellRange has been updated, no need for message passing.
+	// DFG - EntireCellRange has been updated, no need for message passing.
 	// state1.CopyFromNeighbors();
 	// state1.ApplyBoundaryCondition();
 	// eos0.CopyFromNeighbors();

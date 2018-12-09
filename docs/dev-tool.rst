@@ -21,10 +21,13 @@ The ``ComputeTool`` provides services for free that a simple function or user de
 Example
 -------
 
-A straightforward example is the ``FieldSolver`` class in ``fieldSolver.h`` and ``FieldSolver.cpp``.  This base class exists largely to manage various types of elliptical solvers, which are implemented as a ``ComputeTool`` inheritance tree.
+A straightforward example of a module that uses a ``ComputeTool`` inheritance tree is the ``FieldSolver`` module in ``fieldSolver.h`` and ``FieldSolver.cpp``.  This ``FieldSolver`` base class exists largely to manage various types of elliptical solvers.  The elliptical solver tools themselves are implemented in ``elliptic.h`` and ``Elliptic.cpp``.
+
+Implementing a ``ComputeTool``
+------------------------------
 
 Declaration
------------
+,,,,,,,,,,,
 
 When implementing a new ``ComputeTool``, first carry out the following.
 
@@ -36,8 +39,8 @@ When implementing a new ``ComputeTool``, first carry out the following.
 		* The tool can implement whatever methods are desired. A function that moves data forward by one time level is conventionally called ``Advance``.
 		* Further implementation details follow.
 
-Association
------------
+Association with ``Module``
+,,,,,,,,,,,,,,,,,,,,,,,,,,,
 
 Carry out the following for any ``Module`` that wants to use the tool.
 
@@ -46,7 +49,7 @@ Carry out the following for any ``Module`` that wants to use the tool.
 	#. In the destructor, if the pointer is not ``NULL``, call ``owner->RemoveTool`` with the pointer as the argument.
 
 Input File Support
-------------------
+,,,,,,,,,,,,,,,,,,
 
 There are two ways to create tools from the input file.
 
@@ -72,12 +75,12 @@ If you want the tool to be accessible from the input file, carry out the followi
 	If implemented correctly, tools are ready to be used by the time ``Module::Initialize`` is called.
 
 Restart File Support
---------------------
+,,,,,,,,,,,,,,,,,,,,
 
 To support restarting a tool, carry out the following steps.
 
-	#. Override the ``ReadData`` method.  Call the superclass ``ReadData`` method first.  Then read any necessary data from the restart file.
-	#. Override the ``WriteData`` method.  Call the superclass ``WriteData`` method first.  Then write any necessary data to the restart file.
+	#. Override the ``ReadData`` method.  Call the inherited ``ReadData`` method first.  Then read any necessary data from the restart file.
+	#. Override the ``WriteData`` method.  Call the inherited ``WriteData`` method first.  Then write any necessary data to the restart file.
 	#. Verify that ``ReadData`` and ``WriteData`` access the data in the same order.
 	#. For any Module that uses the tool:
 

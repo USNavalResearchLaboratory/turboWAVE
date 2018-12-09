@@ -121,8 +121,8 @@ tw::tool_type ComputeTool::CreateTypeFromInput(const std::vector<std::string>& p
 		return tw::tool_type::eosIdealGasMix;
 	if (key4=="eos simple mie gruneisen")
 		return tw::tool_type::eosSimpleMieGruneisen;
-	if (key2=="eos mie")
-		return tw::tool_type::eosMieGruneisen;
+	if (key4=="eos linear mie gruneisen")
+		return tw::tool_type::eosLinearMieGruneisen;
 	return tw::tool_type::nullTool;
 }
 
@@ -174,8 +174,8 @@ tw::tool_type ComputeTool::CreateTypeFromDirective(std::stringstream& inputStrin
 			return tw::tool_type::eosIdealGasMix;
 		if (word=="simple-mie-gruneisen")
 			return tw::tool_type::eosSimpleMieGruneisen;
-		if (word=="mie-gruneisen")
-			return tw::tool_type::eosMieGruneisen;
+		if (word=="linear-mie-gruneisen")
+			return tw::tool_type::eosLinearMieGruneisen;
 	}
 	return tw::tool_type::nullTool;
 }
@@ -239,8 +239,8 @@ ComputeTool* ComputeTool::CreateObjectFromType(const std::string& name,tw::tool_
 		case tw::tool_type::eosSimpleMieGruneisen:
 			ans = new EOSSimpleMieGruneisen(name,ms,tsk);
 			break;
-		case tw::tool_type::eosMieGruneisen:
-			ans = new EOSMieGruneisen(name,ms,tsk);
+		case tw::tool_type::eosLinearMieGruneisen:
+			ans = new EOSLinearMieGruneisen(name,ms,tsk);
 			break;
 	}
 	return ans;

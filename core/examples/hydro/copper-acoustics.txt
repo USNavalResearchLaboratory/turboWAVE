@@ -31,7 +31,7 @@ new grid
 	adaptive timestep = on
 }
 
-new eos mie gruneisen tool 'mg-eos'
+new eos linear mie gruneisen tool 'mg-eos'
 {
 	gruneisen parameter = 2.0
 	reference density = 3011

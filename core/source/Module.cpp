@@ -315,7 +315,7 @@ Module* Module::CreateObjectFromType(const std::string& name,tw::module_type the
 
 Module* Module::CreateObjectFromFile(std::ifstream& inFile,Simulation* sim)
 {
-	// This might work, but the containment heierarchy better be sorted.
+	// This might work, but the containment hierarchy better be sorted.
 	tw::module_type theType;
 	std::string name;
 	Module *ans;

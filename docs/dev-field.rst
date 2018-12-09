@@ -13,15 +13,25 @@ The ``Field`` object is essentially a 4-dimensional array, where one of the dime
 Index Space
 -----------
 
-No matter what the storage pattern is, the order of array indices always has the same meaning.  The first three indices are spatial, and the fourth indexes some set of elements that are known at a particular spacetime point, such as vector components.  The meaning of the spatial indices depends on the coordinate system chosen.  The ordering for the various coordinate systems is as follows.
+No matter what the storage pattern is, the order of array indices always has the same meaning.  The first three indices are spatial, and the fourth indexes elements, such as vector components.  The meaning of the spatial indices depends on the coordinate system chosen.  The ordering for the various coordinate systems is as follows.
 
-.. csv-table:: Table I. Coordinates.
-	:header: "System", "Ordering", "Comment"
+.. csv-table:: Table I. Coordinates and Field Arrays.
+	:header: "System", "Array", "Function", "Comment"
 	:delim: ;
 
-	"Cartesian"; :math:`x,y,z`; :math:`{\bf e}_x\times{\bf e}_y = {\bf e}_z`
-	"Cylindrical"; :math:`\varrho,\varphi,z`
-	"Spherical"; :math:`r,\varphi,\theta`; "Polar angle is last"
+	"Cartesian"; "A(i,j,k,c)"; :math:`A_c(x_i,y_j,z_k)`; :math:`{\bf e}_x\times{\bf e}_y = {\bf e}_z`
+	"Cylindrical"; "A(i,j,k,c)"; :math:`A_c(\varrho_i,\varphi_j,z_k)`; :math:`\varrho^2 = x^2 + y^2`
+	"Spherical"; "A(i,j,k,c)"; :math:`A_c(r_i,\varphi_j,\theta_k)`; "Polar angle is last"
+
+The range of the component index is :math:`[0,1,...,N-1]`, where N is the number fo components.  The range of a coordinate index is :math:`[1-L,2-L,...,M+L]`, where M is the number of coordinate points along the axis in question, and L is the number of ghost cell layers.
+
+.. Note::
+
+	The coordinate index can be negative if there are two or more ghost cell layers.
+
+.. Tip::
+
+	The interior cell indices always range from 1 through M, no matter the ghost cell layers.
 
 Loopless Operations
 -------------------
@@ -153,3 +163,33 @@ In mathematical notation this would be:
 .. Note::
 
 	When applying differencing operators the range must not include ghost cells.
+
+Message Passing
+---------------
+
+The most common message passing pattern is to update the ghost cells in a domain using information from neighboring domains.  This can be accomplished in one function call.  An example of a complete parallel calculation follows.
+
+.. code-block:: c++
+
+	// Assume we are in a module
+	Field A;
+	A.Initialize(2,*this,owner); // two components
+	DoSomethingToLoadFieldWithData(A);
+	// Carry out work on interior cells using a thread team.
+	// This will create a team of threads for each MPI process.
+	#pragma omp parallel
+	{
+		for (auto cell : InteriorCellRange(*this))
+			A(cell,0) += A(cell,1,1); // third argument on r.h.s. induces centered derivative in 1-direction
+	}
+	// All that remains is to load the ghost cells using the neighbor's data
+	A.CopyFromNeighbors(Element(0));  // only need to copy component 0
+
+Message passing is a costly operation.  The above code could be optimized by noting that the differencing operation is only along one axis, and therefore the ghost cells bounding that axis are the only ones that have to be updated.  To take advantage of this the last line could be replaced with
+
+.. code-block:: c++
+
+	A.DownwardCopy(xAxis,Element(0),1); // update 1 ghost cell layer moving data in the negative x-direction only
+	A.UpwardCopy(xAxis,Element(0),1); // update 1 ghost cell layer moving data in the positive x-direction only
+
+This operation is roughly 3 times faster (internally, ``CopyFromNeighbors`` calls the same two functions, but once for each axis).

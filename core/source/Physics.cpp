@@ -566,9 +566,9 @@ void EOSSimpleMieGruneisen::WriteData(std::ofstream& outFile)
 /////////////////////////
 // better MieGruneisen EOS model that uses a linear Hugoniot fit
 
-EOSMieGruneisen::EOSMieGruneisen(const std::string& name,MetricSpace *m, Task *tsk) : EOSComponent(name,m,tsk)
+EOSLinearMieGruneisen::EOSLinearMieGruneisen(const std::string& name,MetricSpace *m, Task *tsk) : EOSComponent(name,m,tsk)
 {
-	typeCode = tw::tool_type::eosMieGruneisen;
+	typeCode = tw::tool_type::eosLinearMieGruneisen;
 	// Hugoniot data fit for Cu
 	n0 = 3.3e3;
 	c0 = 1.3248e-5;
@@ -583,7 +583,7 @@ EOSMieGruneisen::EOSMieGruneisen(const std::string& name,MetricSpace *m, Task *t
 	// GRUN = 0.1; // value for water in the above book.
 }
 
-void EOSMieGruneisen::AddPKV(ScalarField& IE, ScalarField& nm, ScalarField& nu_e, Field& hydro, Field& eos)
+void EOSLinearMieGruneisen::AddPKV(ScalarField& IE, ScalarField& nm, ScalarField& nu_e, Field& hydro, Field& eos)
 {
 	#pragma omp parallel firstprivate(GRUN,n0,c0,S1,hidx,eidx,mat)
 	{
@@ -603,7 +603,7 @@ void EOSMieGruneisen::AddPKV(ScalarField& IE, ScalarField& nm, ScalarField& nu_e
 	}
 }
 
-void EOSMieGruneisen::ReadInputFileDirective(std::stringstream& inputString,const std::string& command)
+void EOSLinearMieGruneisen::ReadInputFileDirective(std::stringstream& inputString,const std::string& command)
 {
 	std::string word;
 	EOSComponent::ReadInputFileDirective(inputString,command);
@@ -621,7 +621,7 @@ void EOSMieGruneisen::ReadInputFileDirective(std::stringstream& inputString,cons
 	}
 }
 
-void EOSMieGruneisen::ReadData(std::ifstream& inFile)
+void EOSLinearMieGruneisen::ReadData(std::ifstream& inFile)
 {
 	EOSComponent::ReadData(inFile);
 	inFile.read((char*)&GRUN,sizeof(GRUN));
@@ -630,7 +630,7 @@ void EOSMieGruneisen::ReadData(std::ifstream& inFile)
 	inFile.read((char*)&S1,sizeof(S1));
 }
 
-void EOSMieGruneisen::WriteData(std::ofstream& outFile)
+void EOSLinearMieGruneisen::WriteData(std::ofstream& outFile)
 {
 	EOSComponent::WriteData(outFile);
 	outFile.write((char*)&GRUN,sizeof(GRUN));

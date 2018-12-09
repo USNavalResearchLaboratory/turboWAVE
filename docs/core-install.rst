@@ -13,7 +13,7 @@ UNIX operating systems typically have some kind of package management system,
 which we will use to install the compiler and other components we need.
 The package management system grabs software from internet repositories,
 and importantly, checks whether the software depends on or conflicts with some other
-software.  If there is a dependency, the system is supposed to grab the whole heierarchy
+software.  If there is a dependency, the system is supposed to grab the whole hierarchy
 of software that you need in order to complete the requested installation.
 
 On MacOS, the package management systems we support are MacPorts and Homebrew.

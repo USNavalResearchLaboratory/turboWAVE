@@ -2,38 +2,50 @@
 
 <h2 style="background-color:rgb(0,20,100);color:white;">Version Information</h2>
 
-<p>Date of report : 2018-12-08 20:58:52<p>Requested MPI processes = 4</p><p>Requested OMP threads = 5</p><p>Git status:</p><blockquote><pre># On branch dev
+<p>Date of report : 2018-12-09 11:25:20<p>Requested MPI processes = 4</p><p>Requested OMP threads = 5</p><p>Git status:</p><blockquote><pre># On branch dev
 # Changes not staged for commit:
 #   (use "git add <file>..." to update what will be committed)
 #   (use "git checkout -- <file>..." to discard changes in working directory)
 #
+#	modified:   ../../core/examples/hydro/copper-acoustics.txt
 #	modified:   ../../core/source/ComputeTool.cpp
-#	modified:   ../../core/source/Fluid.cpp
+#	modified:   ../../core/source/Module.cpp
+#	modified:   ../../core/source/Particles.cpp
 #	modified:   ../../core/source/Physics.cpp
 #	modified:   ../../core/source/computeTool.h
-#	modified:   ../../core/source/fluid.h
 #	modified:   ../../core/source/physics.h
-#	modified:   ../../docs/index.rst
+#	modified:   ../../docs/bak-eos.rst
+#	modified:   ../../docs/core-install.rst
+#	modified:   ../../docs/dev-field.rst
+#	modified:   ../../docs/dev-module.rst
+#	modified:   ../../docs/dev-tool.rst
+#	modified:   ../../docs/ref-fluid.rst
 #	modified:   ../../docs/ref-input.rst
-#	modified:   ../DataViewer.ipynb
-#	modified:   twtest.py
 #
-# Untracked files:
-#   (use "git add <file>..." to include in what will be committed)
-#
-#	../../core/examples/hydro/copper-acoustics.txt
-#	../../docs/bak-eos.rst
-#	stdin
-#	twreport.html
-#	twstat
 no changes added to commit (use "git add" and/or "git commit -a")
-</pre></blockquote><p>Git last commit:</p><blockquote><pre>commit b4bb82be1f0a3bfdda2bf2bab400ec3b6d369855
-Author: Daniel Gordon <daniel.gordon@nrl.navy.mil>
-Date:   Thu Dec 6 20:57:54 2018 -0500
+</pre></blockquote><p>Git last commit:</p><blockquote><pre>commit 9b52d200d9d4190291dabc1e824f52179c3c78aa
+Author: Daniel Gordon <gordon@overdrive.home>
+Date:   Sat Dec 8 21:10:21 2018 -0500
 
-    energy flow in reactions
+    caloric structure, all examples pass
 
 </pre></blockquote>
+
+<h2 style="background-color:rgb(0,20,100);color:white;">"fluid" Subdirectory</h2>
+
+
+<h3 style="background-color:rgb(100,250,200);">"LWFA-coulomb.txt" Example</h3>
+<p>TW command line = <samp>tw3d -nointeractive -n 4 -c 5</samp></p><p>Completed successfully but with warnings:</p><p><samp>WARNING: Bad decomposition (defaulting to 1x1x4)</samp></p><p>Representative figure:</p><p><img src="fluid-LWFA-coulomb.txt-phi.dvdat.gif" alt="Visualization is missing."</p>
+<h3 style="background-color:rgb(100,250,200);">"LWFA.txt" Example</h3>
+<p>TW command line = <samp>tw3d -nointeractive -n 4 -c 5</samp></p><p>Completed successfully but with warnings:</p><p><samp>WARNING: Bad decomposition (defaulting to 1x1x4)</samp></p><p>Representative figure:</p><p><img src="fluid-LWFA.txt-By.dvdat.gif" alt="Visualization is missing."</p>
+<h3 style="background-color:rgb(100,250,200);">"LWFA-PML.txt" Example</h3>
+<p>TW command line = <samp>tw3d -nointeractive -n 4 -c 5</samp></p><p>Completed successfully but with warnings:</p><p><samp>WARNING: Bad decomposition (defaulting to 1x1x4)</samp></p><p>Representative figure:</p><p><img src="fluid-LWFA-PML.txt-By.dvdat.gif" alt="Visualization is missing."</p>
+<h3 style="background-color:rgb(100,250,200);">"beatwave-3d.txt" Example</h3>
+<p>Test not requested, or not a TW input file.</p>
+<h3 style="background-color:rgb(100,250,200);">"beatwave.txt" Example</h3>
+<p>TW command line = <samp>tw3d -nointeractive -n 4 -c 5</samp></p><p>Completed successfully but with warnings:</p><p><samp>WARNING: Bad decomposition (defaulting to 1x1x4)</samp></p><p>Representative figure:</p><p><img src="fluid-beatwave.txt-phi.dvdat.gif" alt="Visualization is missing."</p>
+<h3 style="background-color:rgb(100,250,200);">"backward-raman.txt" Example</h3>
+<p>TW command line = <samp>tw3d -nointeractive -n 20</samp></p><p>Completed successfully but with warnings:</p><p><samp>WARNING: Bad decomposition (defaulting to 1x1x20)</samp></p><p>Representative figure:</p><p><img src="fluid-backward-raman.txt-Ex.dvdat.png" alt="Visualization is missing."</p>
 
 <h2 style="background-color:rgb(0,20,100);color:white;">"hydro" Subdirectory</h2>
 
@@ -57,4 +69,76 @@ Date:   Thu Dec 6 20:57:54 2018 -0500
 <h3 style="background-color:rgb(100,250,200);">"simple-1d-shock.txt" Example</h3>
 <p>TW command line = <samp>tw3d -nointeractive -n 20</samp></p><p>Completed successfully but with warnings:</p><p><samp>WARNING: Bad decomposition (defaulting to 20x1x1)</samp></p><p>Representative figure:</p><p><img src="hydro-simple-1d-shock.txt-air.dvdat.png" alt="Visualization is missing."</p>
 <h3 style="background-color:rgb(100,250,200);">"simple-diffusion.txt" Example</h3>
-<p>TW command line = <samp>tw3d -nointeractive -n 20</samp></p><p>Completed successfully but with warnings:</p><p><samp>WARNING: Bad decomposition (defaulting to 20x1x1)</samp></p><p>Representative figure:</p><p><img src="hydro-simple-diffusion.txt-T_M_sup.dvdat.png" alt="Visualization is missing."</p></body></html>
+<p>TW command line = <samp>tw3d -nointeractive -n 20</samp></p><p>Completed successfully but with warnings:</p><p><samp>WARNING: Bad decomposition (defaulting to 20x1x1)</samp></p><p>Representative figure:</p><p><img src="hydro-simple-diffusion.txt-T_M_sup.dvdat.png" alt="Visualization is missing."</p>
+
+<h2 style="background-color:rgb(0,20,100);color:white;">"misc" Subdirectory</h2>
+
+
+<h3 style="background-color:rgb(100,250,200);">"dipole-radiation.txt" Example</h3>
+<p>TW command line = <samp>tw3d -nointeractive -n 4 -c 5</samp></p><p>Completed successfully but with warnings:</p><p><samp>WARNING: Bad decomposition (defaulting to 1x1x4)</samp></p><p>Representative figure:</p><p><img src="misc-dipole-radiation.txt-Ey.dvdat.gif" alt="Visualization is missing."</p>
+<h3 style="background-color:rgb(100,250,200);">"fluid-pic-hybrid.txt" Example</h3>
+<p>TW command line = <samp>tw3d -nointeractive -n 4 -c 5</samp></p><p>Completed successfully but with warnings:</p><p><samp>WARNING: Bad decomposition (defaulting to 1x1x4)</samp></p><p><samp>WARNING: beam will be absorbed.</samp></p><p>Representative figure:</p><p><img src="misc-fluid-pic-hybrid.txt-beam.dvdat.gif" alt="Visualization is missing."</p>
+<h3 style="background-color:rgb(100,250,200);">"hermite00.txt" Example</h3>
+<p>TW command line = <samp>tw3d -nointeractive -n 4 -c 5</samp></p><p>Completed successfully but with warnings:</p><p><samp>WARNING: Bad decomposition (defaulting to 1x1x4)</samp></p><p>Representative figure:</p><p><img src="misc-hermite00.txt-Ex.dvdat.gif" alt="Visualization is missing."</p>
+<h3 style="background-color:rgb(100,250,200);">"mag-dipole.txt" Example</h3>
+<p>TW command line = <samp>tw3d -nointeractive -n 4 -c 5</samp></p><p>Completed successfully but with warnings:</p><p><samp>WARNING: Bad decomposition (defaulting to 1x1x4)</samp></p><p>Representative figure:</p><p><img src="misc-mag-dipole.txt-Ax.dvdat.gif" alt="Visualization is missing."</p>
+<h3 style="background-color:rgb(100,250,200);">"performance-3d.txt" Example</h3>
+<p>Test not requested, or not a TW input file.</p>
+<h3 style="background-color:rgb(100,250,200);">"regions-3d.txt" Example</h3>
+<p>TW command line = <samp>tw3d -nointeractive -n 4 -c 5</samp></p><p>Completed successfully but with warnings:</p><p><samp>WARNING: Bad decomposition (defaulting to 1x1x4)</samp></p><p>Representative figure:</p><p><img src="misc-regions-3d.txt-air.dvdat.gif" alt="Visualization is missing."</p>
+<h3 style="background-color:rgb(100,250,200);">"regions-2d.txt" Example</h3>
+<p>TW command line = <samp>tw3d -nointeractive -n 4 -c 5</samp></p><p>Completed successfully.</p><p>Representative figure:</p><p><img src="misc-regions-2d.txt-electrons.dvdat.gif" alt="Visualization is missing."</p>
+
+<h2 style="background-color:rgb(0,20,100);color:white;">"nonlinear-optics" Subdirectory</h2>
+
+
+<h3 style="background-color:rgb(100,250,200);">"FS-microsphere.txt" Example</h3>
+<p>TW command line = <samp>tw3d -nointeractive -n 4 -c 5</samp></p><p>Completed successfully but with warnings:</p><p><samp>WARNING: Bad decomposition (defaulting to 1x1x4)</samp></p><p>Representative figure:</p><p><img src="nonlinear-optics-FS-microsphere.txt-Ex.dvdat.gif" alt="Visualization is missing."</p>
+<h3 style="background-color:rgb(100,250,200);">"soliton.txt" Example</h3>
+<p>TW command line = <samp>tw3d -nointeractive -n 20</samp></p><p>Completed successfully but with warnings:</p><p><samp>WARNING: Bad decomposition (defaulting to 1x1x20)</samp></p><p>Representative figure:</p><p><img src="nonlinear-optics-soliton.txt-Ex.dvdat.png" alt="Visualization is missing."</p>
+
+<h2 style="background-color:rgb(0,20,100);color:white;">"pic" Subdirectory</h2>
+
+
+<h3 style="background-color:rgb(100,250,200);">"LWFA-Light-Frame-3d.txt" Example</h3>
+<p>Test not requested, or not a TW input file.</p>
+<h3 style="background-color:rgb(100,250,200);">"LWFA-Light-Frame.txt" Example</h3>
+<p>TW command line = <samp>tw3d -nointeractive -n 4 -c 5</samp></p><p>Completed successfully.</p><p>Representative figure:</p><p><img src="pic-LWFA-Light-Frame.txt-zpz.dvdat.gif" alt="Visualization is missing."</p>
+<h3 style="background-color:rgb(100,250,200);">"LWFA-Lab-Frame.txt" Example</h3>
+<p>TW command line = <samp>tw3d -nointeractive -n 4 -c 5</samp></p><p>Completed successfully.</p><p>Representative figure:</p><p><img src="pic-LWFA-Lab-Frame.txt-Ez.dvdat.gif" alt="Visualization is missing."</p>
+<h3 style="background-color:rgb(100,250,200);">"backward-raman.txt" Example</h3>
+<p>TW command line = <samp>tw3d -nointeractive -n 20</samp></p><p>Completed successfully but with warnings:</p><p><samp>WARNING: Bad decomposition (defaulting to 1x1x20)</samp></p><p><samp>WARNING: e will be absorbed.</samp></p><p>Representative figure:</p><p><img src="pic-backward-raman.txt-Ex.dvdat.png" alt="Visualization is missing."</p>
+<h3 style="background-color:rgb(100,250,200);">"corrugated-channel.txt" Example</h3>
+<p>TW command line = <samp>tw3d -nointeractive -n 4 -c 5</samp></p><p>Completed successfully but with warnings:</p><p><samp>WARNING: Bad decomposition (defaulting to 1x1x4)</samp></p><p>Representative figure:</p><p><img src="pic-corrugated-channel.txt-e.dvdat.gif" alt="Visualization is missing."</p>
+<h3 style="background-color:rgb(100,250,200);">"mori-beatwave-explicit.txt" Example</h3>
+<p>TW command line = <samp>tw3d -nointeractive -n 4 -c 5</samp></p><p>Completed successfully but with warnings:</p><p><samp>WARNING: Bad decomposition (defaulting to 1x1x4)</samp></p><p>Representative figure:</p><p><img src="pic-mori-beatwave-explicit.txt-phi.dvdat.png" alt="Visualization is missing."</p>
+
+<h2 style="background-color:rgb(0,20,100);color:white;">"pgc" Subdirectory</h2>
+
+
+<h3 style="background-color:rgb(100,250,200);">"LWFA-Light-Frame-cyl.txt" Example</h3>
+<p>TW command line = <samp>tw3d -nointeractive -n 4 -c 5</samp></p><p>Completed successfully but with warnings:</p><p><samp>WARNING: e will be absorbed.</samp></p><p>Representative figure:</p><p><img src="pgc-LWFA-Light-Frame-cyl.txt-Ez.dvdat.gif" alt="Visualization is missing."</p>
+<h3 style="background-color:rgb(100,250,200);">"LWFA-coulomb.txt" Example</h3>
+<p>TW command line = <samp>tw3d -nointeractive -n 4 -c 5</samp></p><p>Completed successfully but with warnings:</p><p><samp>WARNING: Bad decomposition (defaulting to 1x1x4)</samp></p><p>Representative figure:</p><p><img src="pgc-LWFA-coulomb.txt-phi.dvdat.gif" alt="Visualization is missing."</p>
+<h3 style="background-color:rgb(100,250,200);">"LWFA-coulomb-cyl.txt" Example</h3>
+<p>Test not requested, or not a TW input file.</p>
+<h3 style="background-color:rgb(100,250,200);">"LWFA-Light-Frame.txt" Example</h3>
+<p>TW command line = <samp>tw3d -nointeractive -n 4 -c 5</samp></p><p>Completed successfully but with warnings:</p><p><samp>WARNING: Bad decomposition (defaulting to 1x1x4)</samp></p><p><samp>WARNING: electrons will be absorbed.</samp></p><p>Representative figure:</p><p><img src="pgc-LWFA-Light-Frame.txt-Ez.dvdat.gif" alt="Visualization is missing."</p>
+<h3 style="background-color:rgb(100,250,200);">"beatwave-3d.txt" Example</h3>
+<p>Test not requested, or not a TW input file.</p>
+<h3 style="background-color:rgb(100,250,200);">"mori-beatwave-pgc.txt" Example</h3>
+<p>TW command line = <samp>tw3d -nointeractive -n 4 -c 5</samp></p><p>Completed successfully but with warnings:</p><p><samp>WARNING: Bad decomposition (defaulting to 1x1x4)</samp></p><p>Representative figure:</p><p><img src="pgc-mori-beatwave-pgc.txt-phi.dvdat.png" alt="Visualization is missing."</p>
+
+<h2 style="background-color:rgb(0,20,100);color:white;">"quantum" Subdirectory</h2>
+
+
+<h3 style="background-color:rgb(100,250,200);">"KG-tunneling.txt" Example</h3>
+<p>TW command line = <samp>tw3d -nointeractive -n 4 -c 5</samp></p><p>Completed successfully but with warnings:</p><p><samp>WARNING: Bad decomposition (defaulting to 1x4x1)</samp></p><p>Representative figure:</p><p><img src="quantum-KG-tunneling.txt-rho.dvdat.gif" alt="Visualization is missing."</p>
+<h3 style="background-color:rgb(100,250,200);">"bohmians.txt" Example</h3>
+<p>TW command line = <samp>tw3d -nointeractive -n 4 -c 5</samp></p><p>Completed successfully but with warnings:</p><p><samp>WARNING: Bad decomposition (defaulting to 1x1x4)</samp></p><p><samp>WARNING: test will be absorbed.</samp></p><p>Representative figure:</p><p><img src="quantum-bohmians.txt-test.dvdat.gif" alt="Visualization is missing."</p>
+<h3 style="background-color:rgb(100,250,200);">"dirac-tunneling.txt" Example</h3>
+<p>TW command line = <samp>tw3d -nointeractive -n 4 -c 5</samp></p><p>Completed successfully but with warnings:</p><p><samp>WARNING: Bad decomposition (defaulting to 1x4x1)</samp></p><p>Representative figure:</p><p><img src="quantum-dirac-tunneling.txt-rho.dvdat.gif" alt="Visualization is missing."</p>
+<h3 style="background-color:rgb(100,250,200);">"z92_c00.txt" Example</h3>
+<p>Test not requested, or not a TW input file.</p>
+<h3 style="background-color:rgb(100,250,200);">"z92_c00+.txt" Example</h3>
+<p>Test not requested, or not a TW input file.</p></body></html>

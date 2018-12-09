@@ -42,9 +42,9 @@ The following object generates a module that computes the motion of a cold, rela
 SPARC Hydro Modules
 -------------------
 
-.. py:function:: new chemistry { directives }
+.. py:function:: new hydrodynamics { directives }
 
-	This is the top level SPARC module.  Internally it contains and manages all other SPARC modules.
+	This is the top level SPARC module.  Internally it contains and manages all other SPARC modules.  The key may also be ``hydro`` or the legacy identifier ``chemistry``.
 
 	:param block directives: The following directives are supported:
 

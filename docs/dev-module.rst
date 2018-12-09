@@ -12,6 +12,8 @@ The preferred turboWAVE style is to use the horizontal publisher-consumer model,
 
 In principle the publisher-consumer model can handle most of the inter-module relationships one needs, but in some cases a containment structure is irresistible.  The longest-standing such relationship is the containment of ``Species`` modules within the ``Kinetics`` module.  The SPARC hydrodynamics modules actually have two levels of containment, the ``HydroManager`` module contains ``EquilibriumGroup`` modules, and the ``EquilibriumGroup`` modules contain ``Chemical`` modules.
 
+.. _pub-cons:
+
 Publisher-Consumer Model
 ------------------------
 
@@ -56,7 +58,70 @@ The ``Module`` objects use a simple tree structure.  Each ``Module`` has referen
 
 The containment hierarchy is created either while reading the input file, or while reading a restart file.
 
+Implementing a Module
+---------------------
 
+Declaration
+,,,,,,,,,,,
+
+When implementing a new ``Module``, first carry out the following.
+
+	#. In ``module.h``, introduce a new ``tw::module_type`` element to identify the type of module.
+	#. In ``Module.cpp``, add a case to the static member ``CreateObjectFromType`` for the new type.
+	#. If this is a singular module, modify the static member ``SingularType`` in ``Module.cpp`` appropriately.
+	#. In an appropriate header file, derive the new type from ``Module``.
+	#. In an appropriate source file, implement the ``Module``.
+
+		* Almost every module will override the ``Update`` method.
+		* Further implementation details follow.
+
+Constructor and Initializer
+,,,,,,,,,,,,,,,,,,,,,,,,,,,
+
+The constructor *must* set the ``typeCode`` of the module, which you defined in ``module.h``.  It should also be used to set default values for member variables, or set up any storage that is independent of subsequent input file processing.
+
+Values or allocations that can only be known after the whole input file is processed should be set in the ``Initialize`` method.
+
+Input File Support
+,,,,,,,,,,,,,,,,,,
+
+Modules are always created using :ref:`block form <block-create>`.  The block can appear either at the root level of the input file, or within another module block.  In the latter case a supermodule-submodule relationship is automatically established.
+
+If you want the module to be accessible from the input file, carry out the following steps.
+
+	#. Implement the ``ReadInputFileDirective`` method for the module.  Remember to call the inherited method.  This is the function where you process specific input file directives appearing inside the module block.
+	#. Add a case to the static member ``CreateTypeFromInput`` in ``Module.cpp``.  This is where you will define the input file keys.
+
+Containment Support
+,,,,,,,,,,,,,,,,,,,
+
+Module blocks within other module blocks automatically establish the containment tree.  However, there are some details of the relationship that have to be specified explicitly.
+
+#. If your module is intended as a supermodule:
+
+ 	* Override ``ValidSubmodule``.  Test the ``Module`` that is passed in and return a boolean indicating whether or not it is a suitable submodule (generally you will test the type of module).
+
+#. If your module is intended as a submodule:
+
+	* If you want a particular supermodule to be automatically created when your module is created, add a case to the static member ``CreateSupermoduleTypeFromSubmoduleKey``.
+
+#. If you want your module to use the ``ComputeTool`` system, see :doc:`dev-tool`.
+
+Intermodule Processing
+,,,,,,,,,,,,,,,,,,,,,,
+
+If your module needs to share data through the publisher-consumer mechanism, follow the guidance :ref:`above <pub-cons>`.  If you want to use the containment hierarchy to orchestrate more complex interactions, you may want to store explicitly typed pointers to the supermodule or certain submodules.  This should be done in the ``Initialize`` method.
+
+Restart File Support
+,,,,,,,,,,,,,,,,,,,,
+
+To support restarting a module, carry out the following steps.
+
+	#. Override the ``ReadData`` method.  Call the superclass ``ReadData`` method first.  Then read any necessary data from the restart file.
+	#. Override the ``WriteData`` method.  Call the superclass ``WriteData`` method first.  Then write any necessary data to the restart file.
+	#. Verify that ``ReadData`` and ``WriteData`` access the data in the same order.
+	#. If the module uses the ``ComputeTool`` system see :doc:`dev-tool`.
+	#. Carefully check that the ``Initialize`` function does not overwrite any restarted data.  You may need to enclose some code in a conditional that tests ``owner->restarted``.
 
 Glossary
 --------
@@ -74,3 +139,9 @@ Glossary
 
 	Singular Module
 		Any module which requires that there be only one instance of it per MPI task.
+
+Best Practices
+--------------
+
+#. Do not use upper case in defining your input file keys or directives.
+#. Use descriptive English language keys and directives, but without excessive verbosity.

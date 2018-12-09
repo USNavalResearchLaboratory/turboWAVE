@@ -6,7 +6,7 @@
 ////////////////////
 // KINETICS CLASS //
 ////////////////////
-// This is the top of the particle containment heierarchy
+// This is the top of the particle containment hierarchy
 // Kinetics <- Species <- Particle
 
 Kinetics::Kinetics(const std::string& name,Simulation* sim) : Module(name,sim)
