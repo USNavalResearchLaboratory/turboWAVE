@@ -7,8 +7,9 @@ import OCC.BRepBuilderAPI as occbuild
 import OCC.BRepAlgoAPI as occalgo
 from OCC.gp import *
 
-# Things needed for STEP export
+# Things needed for STEP or STL export
 from OCC.STEPControl import STEPControl_Writer, STEPControl_AsIs
+from OCC.StlAPI import StlAPI_Writer
 from OCC.Interface import Interface_Static_SetCVal
 from OCC.IFSelect import IFSelect_RetDone
 
@@ -432,21 +433,29 @@ for shape in tw_shape:
 		display.DisplayShape(shape.occ_shape,update=True,transparency=shape.transparency)
 start_display()
 
-# Export geometry to STEP if requested
+# Export geometry to STEP or STL if requested
 lastArg = sys.argv[-1].split('=')
 cmd = lastArg[0]
-if cmd=='stepfile':
+if cmd=='stepfile' or cmd=='stlfile':
 	if len(lastArg)==1:
-		print('ERROR: no name was given for the STEP file.')
+		print('ERROR: no name was given for the requested output file.')
 		exit(1)
 	filename = lastArg[1]
-	step_writer = STEPControl_Writer()
-	Interface_Static_SetCVal("write.step.schema","AP203")
-	for shape in tw_shape:
-		if shape.Name() in sys.argv:
-			step_writer.Transfer(shape.occ_shape,STEPControl_AsIs)
-			status = step_writer.Write(filename)
-			assert(status==IFSelect_RetDone)
-			exit(0)
-	print('ERROR: failed to write STEP file.')
+	if cmd=='stepfile':
+		step_writer = STEPControl_Writer()
+		Interface_Static_SetCVal("write.step.schema","AP203")
+		for shape in tw_shape:
+			if shape.Name() in sys.argv:
+				step_writer.Transfer(shape.occ_shape,STEPControl_AsIs)
+				status = step_writer.Write(filename+'.step')
+				assert(status==IFSelect_RetDone)
+				exit(0)
+	if cmd=='stlfile':
+		stl_writer = StlAPI_Writer()
+		stl_writer.SetASCIIMode(True)
+		for shape in tw_shape:
+			if shape.Name() in sys.argv:
+				status = stl_writer.Write(shape.occ_shape,filename+'.stl')
+				exit(0)
+	print('ERROR: failed to write requested ouptut file.')
 	print('Did you list a valid region on the command line?')

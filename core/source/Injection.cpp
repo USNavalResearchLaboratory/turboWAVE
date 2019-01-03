@@ -777,7 +777,7 @@ Wave::Wave(GaussianDeviate *gd)
 	focusPosition = tw::vec3(0.0,0.0,0.0);
 	a = tw::vec3(0.1,0.0,0.0);
 	nrefr = 1.0;
-	w = w0 = k0 = 1.0;
+	w = 1.0;
 	chirp = 0.0;
 	phase = 0.0;
 	randomPhase = 0.0;
@@ -796,8 +796,6 @@ void Wave::Initialize()
 	// set up a transformation so we can work in a coordinate system
 	// where the polarization direction is x and the propagation direction is z
 	vg = nrefr>1.0 ? 1.0/nrefr : nrefr;
-	w0 = w;
-	k0 = w*nrefr;
 	laserFrame.w = direction;
 	laserFrame.v = direction | a;
 	laserFrame.u = laserFrame.v | laserFrame.w;
@@ -1018,7 +1016,7 @@ void Wave::ReadInputFile(std::stringstream& inputString,std::string& command)
 		}
 	} while (word!="}");
 
-	if ((w==0.0 || w0==0.0) && (modeType==EM::hermite || modeType==EM::laguerre || modeType==EM::multipole))
+	if (w==0.0 && (modeType==EM::hermite || modeType==EM::laguerre || modeType==EM::multipole))
 		throw tw::FatalError("Zero frequency requested for an EM mode that does not support it.");
 }
 
@@ -1030,8 +1028,6 @@ void Wave::ReadData(std::ifstream& inFile)
 	inFile.read((char *)&a0,sizeof(tw::Float));
 	inFile.read((char *)&w,sizeof(tw::Float));
 	inFile.read((char *)&nrefr,sizeof(tw::Float));
-	inFile.read((char *)&w0,sizeof(tw::Float));
-	inFile.read((char *)&k0,sizeof(tw::Float));
 	inFile.read((char *)&phase,sizeof(tw::Float));
 	inFile.read((char *)&vg,sizeof(tw::Float));
 	inFile.read((char *)&chirp,sizeof(tw::Float));
@@ -1050,8 +1046,6 @@ void Wave::WriteData(std::ofstream& outFile)
 	outFile.write((char *)&a0,sizeof(tw::Float));
 	outFile.write((char *)&w,sizeof(tw::Float));
 	outFile.write((char *)&nrefr,sizeof(tw::Float));
-	outFile.write((char *)&w0,sizeof(tw::Float));
-	outFile.write((char *)&k0,sizeof(tw::Float));
 	outFile.write((char *)&phase,sizeof(tw::Float));
 	outFile.write((char *)&vg,sizeof(tw::Float));
 	outFile.write((char *)&chirp,sizeof(tw::Float));
@@ -1060,22 +1054,6 @@ void Wave::WriteData(std::ofstream& outFile)
 	outFile.write((char *)&modeType,sizeof(modeType));
 	outFile.write((char *)modeData,sizeof(modeData));
 	outFile.write((char *)&laserFrame,sizeof(laserFrame));
-}
-
-Pulse::Pulse(GaussianDeviate *gd) : Wave(gd)
-{
-}
-
-void Pulse::Initialize()
-{
-	// same as Wave::Initialize except don't overwrite carrier frequency
-	vg = nrefr>1.0 ? 1.0/nrefr : nrefr;
-	laserFrame.w = direction;
-	laserFrame.v = direction | a;
-	laserFrame.u = laserFrame.v | laserFrame.w;
-	Normalize(laserFrame);
-	a0 = Magnitude(a);
-	pulseShape.Initialize(pulseShape.delay + pulseShape.risetime);
 }
 
 

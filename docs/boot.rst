@@ -194,6 +194,22 @@ The arguments after the kernel file are the arguments to pass to the kernel itse
 	If ``linux`` fails try turning off secure-boot in UEFI setup, or using ``linuxefi`` to
 	load the kernel in the GRUB2 configuration.
 
+Synchronizing Clocks
+,,,,,,,,,,,,,,,,,,,,
+
+You may find that the time of day is off by several hours when using a multiboot configuration.  This happens because different operating systems make different assumptions about the meaning of the time given by the Real Time Clock (RTC) built into the motherboard.  Linux usually assumes the RTC is giving universal time, while Windows assumes that it is giving the local time.
+
+To make all operating systems treat the RTC as a universal time clock, proceed as follows.
+
+	#. For each Linux operating system:
+
+		* :samp:`sudo timedatectl -set-local-rtc 0`
+
+	#. For Windows, use ``regedit`` to change the RTC to universal time.
+
+		* Descend through the folders to find the key :samp:`HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Control\\TimeZoneInformation`
+		* Select the ``TimeZoneInformation`` key and use the ``Edit`` menu to add a ``DWORD`` type with name ``RealTimeIsUniversal`` and value ``1``.
+
 Summary
 ,,,,,,,
 

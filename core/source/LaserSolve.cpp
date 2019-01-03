@@ -61,10 +61,10 @@ void LaserSolver::Initialize()
 		{
 			pos = owner->Pos(cell);
 			pos.z = owner->ToLab(pos.z,-dth);
-			a0(cell) += polarizationFactor*pulse->VectorPotentialEnvelope(-dth,pos);
+			a0(cell) += polarizationFactor*pulse->VectorPotentialEnvelope(-dth,pos,laserFreq);
 			pos = owner->Pos(cell);
 			pos.z = owner->ToLab(pos.z,dth);
-			a1(cell) += polarizationFactor*pulse->VectorPotentialEnvelope(dth,pos);
+			a1(cell) += polarizationFactor*pulse->VectorPotentialEnvelope(dth,pos,laserFreq);
 		}
 }
 
@@ -256,10 +256,10 @@ void PGCSolver::AntiMoveWindow()
 		{
 			tw::vec3 pos = owner->Pos(s,0);
 			pos.z = owner->ToLab(pos.z,-dth);
-			incoming0 += polarizationFactor*owner->pulse[p]->VectorPotentialEnvelope(owner->elapsedTime-dth,pos);
+			incoming0 += polarizationFactor*owner->pulse[p]->VectorPotentialEnvelope(owner->elapsedTime-dth,pos,laserFreq);
 			pos = owner->Pos(s,0);
 			pos.z = owner->ToLab(pos.z,dth);
-			incoming1 += polarizationFactor*owner->pulse[p]->VectorPotentialEnvelope(owner->elapsedTime+dth,pos);
+			incoming1 += polarizationFactor*owner->pulse[p]->VectorPotentialEnvelope(owner->elapsedTime+dth,pos,laserFreq);
 		}
 		a0.Shift(s,1,incoming0);
 		a1.Shift(s,1,incoming1);

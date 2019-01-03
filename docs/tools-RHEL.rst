@@ -16,13 +16,16 @@ Python 3 Conda Environment
 #. Download Miniconda3 installer from internet
 #. Navigate to downloaded file
 #. :samp:`bash {downloaded_file}`
-#. Respond affirmatively if asked to modify the path.  Open a new terminal window when finished.
+#. Respond with defaults to prompts.  Open a new terminal window when finished.
+#. :samp:`conda update conda`
 #. Choose a name for the environment, denoted :samp:`{NAME}`
 #. :samp:`conda create -n {NAME}`
-#. :samp:`source activate {NAME}`
+#. :samp:`conda activate {NAME}`
+
+	* This is the new way to activate the environment.  If prompted to modify your login files follow the instructions and repeat.
+
 #. You are now in an isolated conda environment.  The environment must be activated each time you open a new terminal window.
-#. :samp:`conda install scipy matplotlib jupyter nb_conda`
-#. :samp:`conda install -c conda-forge widgetsnbextension`
+#. :samp:`conda install scipy matplotlib jupyter`
 #. Jupyter may default to the Konqueror browser.  It is recommended to switch the default to Firefox.
 
 	* :samp:`jupyter notebook --generate-config`
@@ -30,7 +33,8 @@ Python 3 Conda Environment
 
 #. If there are problems with Jupyter notebooks any or all of the following may be tried:
 
-	* :samp:`conda install widgetsnbextension={n}`, where :samp:`{n}` is some older version.
+	* Try adding ``-c conda-forge`` at any install step
+	* :samp:`conda install widgetsnbextension={n}`, where :samp:`{n}` is some preferred version.
 	* :samp:`conda install ipywidgets`
 	* :samp:`jupyter nbextension install --py --sys-prefix widgetsnbextension`
 	* :samp:`jupyter nbextension enable --py --sys-prefix widgetsnbextension`

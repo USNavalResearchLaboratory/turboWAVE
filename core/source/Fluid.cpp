@@ -161,8 +161,8 @@ void Fluid::Initialize()
 			state1(cell,3) += 0.5*(A1.x*A1.x + A1.y*A1.y);
 			for (tw::Int s=0;s<owner->pulse.size();s++)
 			{
-				state0(cell,3) += 0.25*norm(owner->pulse[s]->VectorPotentialEnvelope(-dth,pos));
-				state1(cell,3) += 0.25*norm(owner->pulse[s]->VectorPotentialEnvelope(0.0,pos));
+				state0(cell,3) += 0.25*norm(owner->pulse[s]->VectorPotentialEnvelope(-dth,pos,*carrierFrequency));
+				state1(cell,3) += 0.25*norm(owner->pulse[s]->VectorPotentialEnvelope(0.0,pos,*carrierFrequency));
 			}
 		}
 	}
@@ -1243,7 +1243,7 @@ tw::Float sparc::HydroManager::CollisionCoefficient(Collision *coll,const tw::ce
 	const tw::Float q2 = coll->m2.charge;
 	const tw::Float v12 = sqrt(8.0*(T1/m1 + T2/m2)/pi);
 	const tw::Float m12 = m1*m2/(m1+m2);
-	const tw::Float Ti = T1*T2/(T1+T2);
+	const tw::Float Ti = m1==1.0 ? T2 : T1;//T1*T2/(T1+T2);
 
 	if (coll->type==sparc::hard_sphere)
 		return (4.0/3.0) * coll->crossSection * v12;
@@ -1256,7 +1256,8 @@ tw::Float sparc::HydroManager::CollisionCoefficient(Collision *coll,const tw::ce
 
 	if (coll->type==sparc::metallic)
 	{
-		// Is the electron-phonon rate for momentum or energy?
+		// Electron-phonon rate is the collision frequency divided by a reference density
+		// The collision frequency is defined by the momentum loss rate, e.g., dp/dt = -nu*p
 		const tw::Float phonon = sparc::ElectronPhononRateCoeff(uc,Ti,coll->T_ref,coll->ks,coll->n_ref);
 		const tw::Float coulomb = (4.0/3.0) * sparc::CoulombCrossSection(uc,q1,q2,m12,v12,N1,N2,T1,T2) * v12;
 		return coulomb*phonon / (coulomb + phonon);
@@ -1283,6 +1284,8 @@ void sparc::HydroManager::ComputeElectronCollisionFrequency()
 			nu_e(cell) = aggregateCollFreq;
 		}
 	}
+	nu_e.CopyFromNeighbors();
+	nu_e.ApplyBoundaryCondition();
 }
 
 void sparc::HydroManager::ComputeCollisionalSources()
@@ -1659,19 +1662,35 @@ void sparc::HydroManager::LaserAdvance(tw::Float dt)
 	// Currently SPARC ignores differences in frequency between injected pulses.
 	// The average frequency of all the pulses is used throughout (see also HydroManager::Initialize).
 
+	auto vacuumE = [&] (tw::Complex A,tw::Float k,tw::Float z)
+	{
+		// take enveloped vector potential and get space resolved electric field
+		// only works in vacuum (e.g., at boundaries)
+		return std::exp(ii*k*z)*ii*std::fabs(k)*A;
+	};
+
 	if (owner->pulse.size() && lasModel==sparc::vacuum) // use a prescribed field
 	{
 		#pragma omp parallel
 		{
 			for (auto cell : InteriorCellRange(*this))
 			{
-				laserAmplitude(cell) = 0.0;
-				for (tw::Int s=0;s<owner->pulse.size();s++)
-					laserAmplitude(cell) += laserFrequency*owner->pulse[s]->VectorPotentialEnvelope(owner->elapsedTime,owner->Pos(cell));
+				tw::Complex fwd = 0.0;
+				tw::Complex bak = 0.0;
+				const tw::vec3 pos = owner->Pos(cell);
+				for (auto pulse : owner->pulse)
+				{
+					if (pulse->direction.z > 0.0)
+						fwd += pulse->VectorPotentialEnvelope(owner->elapsedTime,pos,laserFrequency);
+					else
+						bak += pulse->VectorPotentialEnvelope(owner->elapsedTime,pos,laserFrequency);
+				}
+				laserAmplitude(cell) = vacuumE(fwd,laserFrequency,pos.z) + vacuumE(bak,-laserFrequency,pos.z);
 				radiationIntensity(cell) = 0.5*norm(laserAmplitude(cell));
 			}
 		}
 	}
+
 	if (electrons && owner->pulse.size() && lasModel==sparc::isotropic && dim[3]>1)
 	{
 		#pragma omp parallel
@@ -1681,19 +1700,25 @@ void sparc::HydroManager::LaserAdvance(tw::Float dt)
 			for (auto strip : StripRange(*this,3,strongbool::no))
 			{
 				a0 = a1 = aN = aN1 = 0.0;
+				const tw::Float z0 = owner->Pos(strip,0).z;
+				const tw::Float z1 = owner->Pos(strip,1).z;
+				const tw::Float zN = owner->Pos(strip,dim[3]).z;
+				const tw::Float zN1 = owner->Pos(strip,dim[3]+1).z;
 				for (tw::Int s=0;s<owner->pulse.size();s++)
 				{
 					if (owner->pulse[s]->direction.z > 0.0)
 					{
-						a0 += std::exp(ii*laserFrequency*owner->Pos(strip,0).z)*laserFrequency*owner->pulse[s]->VectorPotentialEnvelope(owner->elapsedTime,owner->Pos(strip,0));
-						a1 += std::exp(ii*laserFrequency*owner->Pos(strip,1).z)*laserFrequency*owner->pulse[s]->VectorPotentialEnvelope(owner->elapsedTime,owner->Pos(strip,1));
+						a0 += owner->pulse[s]->VectorPotentialEnvelope(owner->elapsedTime,z0,laserFrequency);
+						a1 += owner->pulse[s]->VectorPotentialEnvelope(owner->elapsedTime,z1,laserFrequency);
 					}
 					else
 					{
-						aN += std::exp(ii*laserFrequency*owner->Pos(strip,0).z)*laserFrequency*owner->pulse[s]->VectorPotentialEnvelope(owner->elapsedTime,owner->Pos(strip,dim[3]));
-						aN1 += std::exp(ii*laserFrequency*owner->Pos(strip,1).z)*laserFrequency*owner->pulse[s]->VectorPotentialEnvelope(owner->elapsedTime,owner->Pos(strip,dim[3]+1));
+						aN += owner->pulse[s]->VectorPotentialEnvelope(owner->elapsedTime,zN,laserFrequency);
+						aN1 += owner->pulse[s]->VectorPotentialEnvelope(owner->elapsedTime,zN1,laserFrequency);
 					}
 				}
+				a0 = vacuumE(a0,laserFrequency,z0); a1 = vacuumE(a1,laserFrequency,z1);
+				aN = vacuumE(aN,-laserFrequency,zN); aN1 = vacuumE(aN1,-laserFrequency,zN1);
 				laserPropagator->SetupIncomingWaveLeft(strip,laserAmplitude,a0,a1,laserFrequency);
 				laserPropagator->SetupIncomingWaveRight(strip,laserAmplitude,aN,aN1,laserFrequency);
 
@@ -1711,9 +1736,6 @@ void sparc::HydroManager::LaserAdvance(tw::Float dt)
 					refractiveIndex(strip,k) -= state1(strip,k,ie)/sqr(laserFrequency)*(one - ii*nu_e(strip,k)/laserFrequency)/(one + sqr(nu_e(strip,k)/laserFrequency));
 					// Convert susceptibility to refractive index
 					refractiveIndex(strip,k) = std::sqrt(one + refractiveIndex(strip,k));
-					// Following may be used to populate laser amplitude with vacuum field due to first pulse
-					// In such case, laserPropagator->Advance should be commented out
-					//laserAmplitude(strip,k) = laserFrequency*owner->pulse[0]->VectorPotentialEnvelope(owner->elapsedTime,owner->Pos(strip,k));
 				}
 			}
 		}

@@ -147,7 +147,7 @@ struct Wave
 	tw::vec3 direction;
 	tw::vec3 focusPosition;
 	tw::vec3 a;
-	tw::Float a0,w,nrefr,w0,k0,phase,vg,chirp,randomPhase;
+	tw::Float a0,w,nrefr,phase,vg,chirp,randomPhase;
 	PulseShape pulseShape;
 	EM::mode modeType;
 	EM::mode_data modeData[2];
@@ -214,11 +214,11 @@ struct Wave
 
 struct Pulse:Wave
 {
-	Pulse(GaussianDeviate *deviate);
-	void Initialize();
-
+	Pulse(GaussianDeviate *deviate) : Wave(deviate)
+	{
+	}
 	// Dispatch function for all mode types
-	tw::Complex VectorPotentialEnvelope(tw::Float time,const tw::vec3& pos) const
+	tw::Complex VectorPotentialEnvelope(tw::Float time,const tw::vec3& pos,tw::Float w0) const
 	{
 		tw::Complex Ax;
 		tw::vec3 r = pos - focusPosition;
@@ -245,7 +245,7 @@ struct Pulse:Wave
 		}
 		// is this thread safe?
 		// Ax *= std::exp(ii*randomPhase*deviate->Next());
-		Ax *= std::exp(-ii*(k0*r.z - w0*t));
+		Ax *= std::exp(-ii*(w0*nrefr*r.z - w0*t));
 		return Ax;
 	}
 };

@@ -13,18 +13,24 @@ The graphical output from some python packages is displayed using X Windows.  On
 Python 3 via Anaconda
 ---------------------
 
-#. If you already have Anaconda3 installed, skip the next 3 steps.  If you have enough packages in your conda environment, it is possible you can skip this entire section: but to be safe create a new environment as detailed below.
+#. If you already have Anaconda3 installed, skip the next 4 steps.  If you have enough packages in your conda environment, it is possible you can skip this entire section: but to be safe create a new environment as detailed below.
 #. Download Miniconda3 installer from internet
 #. Navigate to downloaded file
 #. :samp:`bash {filename}`, where :samp:`{filename}` is the file that you just downloaded
+#. Respond with defaults to prompts.  Open a new terminal window when finished.
+#. :samp:`conda update conda`
 #. Choose a name for your environment, denoted :samp:`{NAME}`
 #. :samp:`conda create -n {NAME}`
-#. :samp:`source activate {NAME}`
+#. :samp:`conda activate {NAME}`
+
+	* This is the new way to activate the environment.  If prompted to modify your login files follow the instructions and repeat.
+
 #. You are now in an isolated conda environment.  The environment must be activated each time you open a new terminal window.
-#. :samp:`conda install scipy matplotlib jupyter nb_conda`
+#. :samp:`conda install scipy matplotlib jupyter`
 #. If there are problems with Jupyter notebooks any or all of the following may be tried:
 
-	* :samp:`conda install widgetsnbextension={n}`, where :samp:`{n}` is some older version.
+	* Try adding ``-c conda-forge`` at any install step
+	* :samp:`conda install widgetsnbextension={n}`, where :samp:`{n}` is some preferred version.
 	* :samp:`conda install ipywidgets`
 	* :samp:`jupyter nbextension install --py --sys-prefix widgetsnbextension`
 	* :samp:`jupyter nbextension enable --py --sys-prefix widgetsnbextension`
@@ -32,7 +38,7 @@ Python 3 via Anaconda
 TurboWAVE Python Packages
 -------------------------
 
-#. If this is a new terminal session, activate the conda environment with :samp:`source activate {NAME}`
+#. If this is a new terminal session, activate the conda environment as above.
 #. Navigate to the :samp:`{twroot}/tools/twutils` directory
 #. Do **not** descend into the second :samp:`twutils` directory within.
 #. :samp:`pip install --upgrade pip`
