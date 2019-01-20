@@ -87,6 +87,9 @@ void Kinetics::Update()
 		species[i]->DispatchPush();
 		species[i]->ApplyGlobalBoundaryConditions();
 	}
+	// This barrier helps keep the stack trace clean for debugging purposes.
+	// N.b. barriers are not implemented in TW_MPI.
+	owner->strip[0].Barrier();
 
 	TransferParticles();
 
@@ -335,14 +338,13 @@ tw::Float Kinetics::KineticEnergy(const Region& theRgn)
 	tw::Float p2,m0;
 	tw::vec3 pos;
 	tw::Int i,j;
-	Particle par;
 
 	for (i=0;i<species.size();i++)
 	{
 		m0 = species[i]->restMass;
 		for (j=0;j<species[i]->particle.size();j++)
 		{
-			par = species[i]->particle[j];
+			const Particle& par = species[i]->particle[j];
 			pos = owner->PositionFromPrimitive(par.q);
 			if (theRgn.Inside(pos,*owner))
 			{
@@ -373,18 +375,7 @@ void Kinetics::WriteData(std::ofstream& outFile)
 ////////////////////
 
 
-Particle::Particle()
-{
-	q.x[0] = 0.0;
-	q.x[1] = 0.0;
-	q.x[2] = 0.0;
-	q.cell = 0;
-	number = 1.0;
-	aux1 = 0.0;
-	aux2 = 0.0;
-}
-
-Particle::Particle(const tw::vec3& p,const Primitive& q,const float number,const float aux1,const float aux2)
+Particle::Particle(const tw::vec3& p,const Primitive& q,const float number,const float aux1,const float aux2) noexcept
 {
 	this->p = p;
 	this->q = q;
@@ -534,7 +525,7 @@ bool Species::InspectResource(void* resource,const std::string& description)
 
 void Species::AddParticle(const tw::vec3& p,const Primitive& q,const float& number)
 {
-	particle.push_back(Particle(p,q,number,count,owner->strip[0].Get_rank()));
+	particle.emplace_back(p,q,number,count,owner->strip[0].Get_rank());
 	count++; // this serves as a unique identifier for particles irrespective of any additions or deletions in the vector
 }
 
@@ -544,7 +535,7 @@ void Species::AddParticle(const TransferParticle& xfer)
 	tw::vec3 x = tw::vec3(xfer.x[1],xfer.x[2],xfer.x[3]);
 	tw::vec3 p = tw::vec3(xfer.p[1],xfer.p[2],xfer.p[3]);
 	SetPrimitiveWithPosition(q,x); // particle must be in extended domain
-	particle.push_back(Particle(p,q,xfer.number,xfer.aux1,xfer.aux2));
+	particle.emplace_back(p,q,xfer.number,xfer.aux1,xfer.aux2);
 	// don't update count because the transfer particle already has its identifier in aux1 and aux2
 }
 
@@ -564,8 +555,7 @@ void Species::AddTransferParticle(const Particle& src)
 
 void Species::CleanParticleList()
 {
-	tw::Int i;
-	for (i=0;i<particle.size();i++)
+	for (tw::Int i=0;i<particle.size();i++)
 	{
 		if (particle[i].number==0.0)
 		{
@@ -1214,11 +1204,10 @@ void Species::ReadData(std::ifstream& inFile)
 
 	inFile.read((char *)&num,sizeof(tw::Int));
 	(*owner->tw_out) << "Read " << num << " particles" << std::endl;
-	Particle newParticle;
 	for (i=0;i<num;i++)
 	{
-		particle.push_back(newParticle);
-		particle[i].ReadData(inFile);
+		particle.emplace_back(0,Primitive(),0,0,0);
+		particle.back().ReadData(inFile);
 	}
 }
 

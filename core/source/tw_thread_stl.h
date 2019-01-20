@@ -154,6 +154,10 @@ namespace tw
 		{
 			refNum = n;
 		}
+		virtual ~Thread()
+		{
+			// need to provide in case inherited classes want polymorphic desctruction
+		}
 		bool IsCallingThread()
 		{
 			return sysThread.get_id()==std::this_thread::get_id();

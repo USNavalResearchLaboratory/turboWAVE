@@ -33,6 +33,9 @@ Module::Module(const std::string& name,Simulation* sim)
 
 Module::~Module()
 {
+	for (tw::Int i=0;i<profile.size();i++)
+		delete profile[i];
+	
 	#ifdef USE_OPENCL
 
 	if (programFilename!="")

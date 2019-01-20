@@ -437,7 +437,7 @@ EOSComponent::EOSComponent(const std::string& name,MetricSpace *m,Task *tsk) : C
 
 void EOSComponent::SetHeatCapacity(ScalarField& nm,Field& eos)
 {
-	#pragma omp parallel firstprivate(eidx,mat)
+	#pragma omp parallel
 	{
 		for (auto cell : EntireCellRange(*space))
 			eos(cell,eidx.nmcv) = nm(cell) * mat.cvm / mat.mass;
@@ -446,7 +446,7 @@ void EOSComponent::SetHeatCapacity(ScalarField& nm,Field& eos)
 
 void EOSComponent::AddHeatCapacity(Field& hydro,Field& eos)
 {
-	#pragma omp parallel firstprivate(hidx,eidx,mat)
+	#pragma omp parallel
 	{
 		for (auto cell : EntireCellRange(*space))
 			eos(cell,eidx.nmcv) += hydro(cell,hidx.ni) * mat.cvm;
@@ -455,7 +455,7 @@ void EOSComponent::AddHeatCapacity(Field& hydro,Field& eos)
 
 void EOSComponent::AddPKV(ScalarField& IE, ScalarField& nm, ScalarField& nu_e, Field& hydro, Field& eos)
 {
-	#pragma omp parallel firstprivate(hidx,eidx,mat)
+	#pragma omp parallel
 	{
 		for (auto cell : EntireCellRange(*space))
 		{
@@ -493,7 +493,7 @@ EOSHotElectrons::EOSHotElectrons(const std::string& name,MetricSpace *m, Task *t
 
 void EOSHotElectrons::AddPKV(ScalarField& IE, ScalarField& nm, ScalarField& nu_e, Field& hydro, Field& eos)
 {
-	#pragma omp parallel firstprivate(hidx,eidx,mat)
+	#pragma omp parallel
 	{
 		for (auto cell : EntireCellRange(*space))
 		{
@@ -522,7 +522,7 @@ EOSSimpleMieGruneisen::EOSSimpleMieGruneisen(const std::string& name,MetricSpace
 
 void EOSSimpleMieGruneisen::AddPKV(ScalarField& IE, ScalarField& nm, ScalarField& nu_e, Field& hydro, Field& eos)
 {
-	#pragma omp parallel firstprivate(hidx,eidx,mat)
+	#pragma omp parallel
 	{
 		for (auto cell : EntireCellRange(*space))
 		{
@@ -585,7 +585,7 @@ EOSLinearMieGruneisen::EOSLinearMieGruneisen(const std::string& name,MetricSpace
 
 void EOSLinearMieGruneisen::AddPKV(ScalarField& IE, ScalarField& nm, ScalarField& nu_e, Field& hydro, Field& eos)
 {
-	#pragma omp parallel firstprivate(GRUN,n0,c0,S1,hidx,eidx,mat)
+	#pragma omp parallel
 	{
 		for (auto cell : EntireCellRange(*space))
 		{
@@ -656,7 +656,7 @@ void EOSMixture::ComputeTemperature(ScalarField& IE, ScalarField& nm, Field& hyd
 	// Compute the temperature assuming nmcv has been loaded.
 	// Pass IE and nm back out for use by component EOS classes
 
-	#pragma omp parallel firstprivate(hidx,eidx)
+	#pragma omp parallel
 	{
 		for (auto cell : EntireCellRange(*space))
 		{
@@ -677,7 +677,7 @@ void EOSMixture::ComputeTemperature(ScalarField& IE, ScalarField& nm, Field& hyd
 	// Compute the temperature assuming nmcv has been loaded.
 	// Pass IE and nm back out for use by component EOS classes
 
-	#pragma omp parallel firstprivate(hidx,eidx)
+	#pragma omp parallel
 	{
 		for (auto cell : EntireCellRange(*space))
 		{
@@ -703,7 +703,7 @@ void EOSMixture::UpdateEnergy(ScalarField& nm,ScalarField& T0,Field& hydro,Field
 	// Add energy corresponding to a change in temperature only.
 	// Not centered, because cv is not updated.
 	// Must not assume hydro field has complete data, because of Chemical::GenerateFluid
-	#pragma omp parallel firstprivate(hidx,eidx)
+	#pragma omp parallel
 	{
 		for (auto cell : EntireCellRange(*space))
 			hydro(cell,hidx.u) += eos(cell,eidx.nmcv) * (eos(cell,eidx.T) - T0(cell));
@@ -728,7 +728,7 @@ void EOSIdealGasMix::ComputeTemperature(ScalarField& IE, ScalarField& nm, Field&
 	// Compute the temperature assuming nmcv has been loaded.
 	// Pass IE and nm back out for use by component EOS classes
 
-	#pragma omp parallel firstprivate(hidx,eidx)
+	#pragma omp parallel
 	{
 		for (auto cell : EntireCellRange(*space))
 		{
@@ -751,7 +751,7 @@ void EOSIdealGasMix::UpdateEnergy(ScalarField& nm,ScalarField& T0,Field& hydro,F
 	// CANNOT USE: incompatible with generalized Chemical::GenerateFluid
 	// Therefore call the inherited function and comment out the rest.
 	EOSMixture::UpdateEnergy(nm,T0,hydro,eos);
-	// #pragma omp parallel firstprivate(hidx,eidx)
+	// #pragma omp parallel
 	// {
 	// 	for (auto cell : EntireCellRange(*space))
 	// 	{

@@ -32,7 +32,7 @@ struct Module:DiscreteSpace
 	#endif
 
 	Module(const std::string& name,Simulation* sim);
-	~Module();
+	virtual ~Module();
 	bool AddSubmodule(Module* sub);
 	virtual bool ValidSubmodule(Module* sub);
 	virtual void PublishResource(void* resource,const std::string& description);

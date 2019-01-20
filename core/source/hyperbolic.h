@@ -3,7 +3,7 @@ struct YeePropagatorPML:ComputeTool
 	YeePropagatorPML(const std::string& name,MetricSpace *m,Task *tsk);
 
 	#ifdef USE_OPENCL
-	~YeePropagatorPML();
+	virtual ~YeePropagatorPML();
 	cl_kernel k_advanceE,k_prepCenteredFields,k_advanceB,k_centeredFields;
 	void SetupComputeKernels(Field& F,Field& A,Field& PMLx,Field& PMLy,Field& PMLz,Field& j4);
 	#endif
@@ -22,7 +22,7 @@ struct LorentzPropagator:ComputeTool
 	LorentzPropagator(const std::string& name,MetricSpace *m,Task *tsk);
 
 	#ifdef USE_OPENCL
-	~LorentzPropagator();
+	virtual ~LorentzPropagator();
 	cl_kernel k_advance,k_swap,k_midstep,k_undoMidstep;
 	void SetupComputeKernels(Field& A4,Field& Ao4,Field& j4);
 	#endif

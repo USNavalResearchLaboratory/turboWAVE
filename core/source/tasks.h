@@ -189,6 +189,10 @@ namespace tw
 			else
 				MPI_Scatter(sb,count,MPI_BYTE,rb,count,MPI_BYTE,root,comm_cart);
 		}
+		void Barrier()
+		{
+			MPI_Barrier(comm_cart);
+		}
 	};
 }
 

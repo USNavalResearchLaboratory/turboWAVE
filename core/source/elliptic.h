@@ -32,7 +32,7 @@ struct IterativePoissonSolver:EllipticSolver
 	tw::Float tolerance,overrelaxation,minimumNorm;
 
 	IterativePoissonSolver(const std::string& name,MetricSpace *m,Task *tsk);
-	~IterativePoissonSolver();
+	virtual ~IterativePoissonSolver();
 	virtual void FixPotential(ScalarField& phi,Region* theRegion,const tw::Float& thePotential);
 	virtual void Solve(ScalarField& phi,ScalarField& source,tw::Float mul);
 	virtual void StatusMessage(std::ostream *theStream);
@@ -46,7 +46,7 @@ struct EllipticSolver1D:EllipticSolver
 	GlobalIntegrator<tw::Float> *globalIntegrator;
 
 	EllipticSolver1D(const std::string& name,MetricSpace *m,Task *tsk);
-	~EllipticSolver1D();
+	virtual ~EllipticSolver1D();
 	virtual void Solve(ScalarField& phi,ScalarField& source,tw::Float mul);
 };
 
@@ -55,7 +55,7 @@ struct PoissonSolver:EllipticSolver
 	GlobalIntegrator<tw::Float> *globalIntegrator;
 
 	PoissonSolver(const std::string& name,MetricSpace *m,Task *tsk);
-	~PoissonSolver();
+	virtual ~PoissonSolver();
 	virtual void Solve(ScalarField& phi,ScalarField& source,tw::Float mul);
 };
 
@@ -65,7 +65,7 @@ struct EigenmodePoissonSolver:EllipticSolver
 	GlobalIntegrator<tw::Float> *globalIntegrator;
 
 	EigenmodePoissonSolver(const std::string& name,MetricSpace *m,Task *tsk);
-	~EigenmodePoissonSolver();
+	virtual ~EigenmodePoissonSolver();
 	virtual void Initialize();
 	virtual void TransformBoundaryValues();
 	virtual void Solve(ScalarField& phi,ScalarField& source,tw::Float mul);

@@ -29,7 +29,7 @@ struct Launcher : tw::Thread
 		numOMPThreads=c;
 		tw = new Simulation;
 	}
-	~Launcher()
+	virtual ~Launcher()
 	{
 		delete tw; // delete grid must go before MPI_Finalize
 		MPI_Finalize();
@@ -207,10 +207,10 @@ int main(int argc,char *argv[])
 
 	TW_MPI_Lock();
 
-	std::valarray<tw::Thread*> launcher(numMPIThreads);
+	std::vector<tw::Thread*> launcher(numMPIThreads);
 	for (i=0;i<numMPIThreads;i++)
 		launcher[i] = new Launcher(i,numOMPThreads);
-	TW_MPI_Launch(numMPIThreads,&launcher[0]);
+	TW_MPI_Launch(launcher);
 
 	std::cout << "Internal MPI Startup Complete" << std::endl;
 

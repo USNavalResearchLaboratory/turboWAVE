@@ -6,12 +6,12 @@ struct Primitive
 {
 	float x[3];	// x[0],x[1],x[2] = relative position in cell using interval [-0.5,0.5); linearly mapped to curvilinear coordinates in cell
 	tw::Int cell; // encoded index of the reference cell
-	Primitive()
+	Primitive() noexcept
 	{
 		cell = 0;
 		x[0] = x[1] = x[2] = 0.0;
 	}
-	Primitive(tw::Int c,float x0,float x1,float x2)
+	Primitive(tw::Int c,float x0,float x1,float x2) noexcept
 	{
 		cell = c;
 		x[0] = x0;

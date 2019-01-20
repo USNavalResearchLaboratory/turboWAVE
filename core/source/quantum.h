@@ -72,7 +72,7 @@ struct AtomicPhysics:Module
 	Field J4; // EM 4-current
 
 	AtomicPhysics(const std::string& name,Simulation* sim);
-	~AtomicPhysics();
+	virtual ~AtomicPhysics();
 	void ExchangeResources();
 	tw::Float GetSphericalPotential(tw::Float r) const;
 	virtual void Initialize();
@@ -108,7 +108,7 @@ struct Schroedinger:AtomicPhysics
 	SchroedingerPropagator *propagator;
 
 	Schroedinger(const std::string& name,Simulation* sim);
-	~Schroedinger();
+	virtual ~Schroedinger();
 	virtual void Initialize();
 	virtual void Update();
 	virtual void VerifyInput();
@@ -132,7 +132,7 @@ struct Pauli:AtomicPhysics
 	SchroedingerPropagator *propagator;
 
 	Pauli(const std::string& name,Simulation* sim);
-	~Pauli();
+	virtual ~Pauli();
 	virtual void Initialize();
 	virtual void Update();
 	virtual void VerifyInput();
@@ -155,7 +155,7 @@ struct KleinGordon:AtomicPhysics
 	#endif
 
 	KleinGordon(const std::string& name,Simulation* sim);
-	~KleinGordon();
+	virtual ~KleinGordon();
 	virtual void Initialize();
 	virtual void Update();
 
@@ -191,7 +191,7 @@ struct Dirac:AtomicPhysics
 	#endif
 
 	Dirac(const std::string& name,Simulation* sim);
-	~Dirac();
+	virtual ~Dirac();
 	virtual void Initialize();
 	template <tw::Int OUT1,tw::Int OUT2,tw::Int IN1,tw::Int IN2>
 	void LeapFrog(tw::Float sgn);

@@ -3,7 +3,7 @@ struct FieldSolver:Module
 	EllipticSolver *ellipticSolver;
 
 	FieldSolver(const std::string& name,Simulation* sim);
-	~FieldSolver();
+	virtual ~FieldSolver();
 	virtual void VerifyInput();
 	virtual void ReadData(std::ifstream& inFile);
 	virtual void WriteData(std::ofstream& outFile);

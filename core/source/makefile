@@ -17,8 +17,8 @@ debug: tw3d_debug copy_files
 
 # Uncomment exactly one platform
 
-PLATFORM = OSX
-#PLATFORM = LINUX
+#PLATFORM = OSX
+PLATFORM = LINUX
 #PLATFORM = CRAY
 #PLATFORM = SGI
 
@@ -32,8 +32,8 @@ HARDWARE_ACCEL = OMP
 
 # Specify a preference for compiler (ignored in some cases)
 
-#COMPILER_PREF = GNU
-COMPILER_PREF = LLVM_CLANG
+COMPILER_PREF = GNU
+#COMPILER_PREF = LLVM_CLANG
 #COMPILER_PREF = INTEL
 #COMPILER_PREF = CRAY
 
@@ -187,10 +187,18 @@ ifeq ($(PLATFORM),SGI)
 	ifeq ($(HARDWARE_ACCEL),NONE)
 		TW_Compiler = icpc
 		TW_Linker = icpc
-		CCFLAGS = -c -std=c++11 -O3 -finline-functions
-		DBFLAGS = -c -g -std=c++11 -O0
+		CCFLAGS = -c -std=c++11 -fast
+		DBFLAGS = -c -g -std=c++11
 		LIB_PATH =
 		LIBS = -lmpi
+	endif
+	ifeq ($(HARDWARE_ACCEL),OMP)
+		TW_Compiler = mpiicpc
+		TW_Linker = mpiicpc
+		CCFLAGS = -c -std=c++11 -qopenmp -qopenmp-simd -fast
+		DBFLAGS = -c -g -std=c++11 -qopenmp -qopenmp-simd
+		LIB_PATH =
+		LIBS =
 	endif
 	ifeq ($(HARDWARE_ACCEL),CUDA)
 		CUDA_ROOT = /p/home/apps/cuda/7.5

@@ -335,10 +335,11 @@ Simulation::~Simulation()
 	for (i=0;i<region.size();i++)
 		delete region[i];
 
-	for (i=0;i<computeTool.size();i++)
-		delete computeTool[i];
 	for (i=0;i<module.size();i++)
 		delete module[i];
+	// clean up after any modules that did not release tools
+	for (i=0;i<computeTool.size();i++)
+		delete computeTool[i];
 
 	if (uniformDeviate!=NULL)
 		delete uniformDeviate;
@@ -347,6 +348,8 @@ Simulation::~Simulation()
 
 	if (dynamic_cast<std::ofstream*>(tw_out))
 		((std::ofstream*)tw_out)->close();
+	if (dynamic_cast<std::stringstream*>(tw_out))
+		delete tw_out;
 
 	#ifdef USE_OPENCL
 	if (waveBuffer!=NULL)

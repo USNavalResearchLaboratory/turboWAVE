@@ -191,7 +191,7 @@ void TW_MPI_Lock();
 void TW_MPI_Unlock();
 MPI_Comm TW_MPI_FindCommWorld();
 tw::Thread* TW_MPI_ThreadRef(MPI_Comm comm,int rank);
-void TW_MPI_Launch(int numThreads,tw::Thread **threadList);
+void TW_MPI_Launch(std::vector<tw::Thread*>& threadList);
 
 // Standard MPI
 
@@ -238,3 +238,4 @@ int MPI_Reduce(void *sb,void *rb,int count,MPI_Datatype dt,MPI_Op op,int root,MP
 int MPI_Bcast(void *buf,int count,MPI_Datatype dt,int root,MPI_Comm comm);
 int MPI_Gather(void *sb,int scount,MPI_Datatype sdt,void *rb,int rcount,MPI_Datatype rdt,int root,MPI_Comm comm);
 int MPI_Scatter(void *sb,int scount,MPI_Datatype sdt,void *rb,int rcount,MPI_Datatype rdt,int root,MPI_Comm comm);
+int MPI_Barrier(MPI_Comm comm);

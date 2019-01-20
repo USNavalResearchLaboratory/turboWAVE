@@ -26,7 +26,7 @@ The Principle Hugoniot
 
 The Rankine-Hugoniot relations are relevant to EOS models that use a point along the Hugoniot as a reference point for a broader calculation of EOS. These relations constrain the mass, momentum, and energy just upstream of a shock front. The collection of possible upstream states, in the case of vanishing downstream velocity and pressure, is called the principle Hugoniot. There are an infinite number of possible Hugoniots for arbitrary downstream conditions, but there is only one principle Hugoniot. The principle Hugoniot for a given material is closely related to its EOS.  Experimental measurements of shock and fluid velocities in a given material can be used to establish its principle Hugoniot, and therefore its EOS.
 
-The Hugoniot relations express the convervation of mass, momentum, and energy. Suppose that a planar shock front moves through a fluid at speed :math:`D`. The pressure and density of the material prior to the passing of the shock front are :math:`P_0` and :math:`\rho_0`, respectively. Immediately after the shock passes the pressure and density are :math:`P` and :math:`\rho`. Similarly, :math:`V` and :math:`V_0` are the upstream and downstream specific volumes, respectively, and :math:`\epsilon` and :math:`\epsilon_0` are the upstream and downstream specific internal energies.
+The Hugoniot relations express the conservation of mass, momentum, and energy. Suppose that a planar shock front moves through a fluid at speed :math:`D`. The pressure and density of the material prior to the passing of the shock front are :math:`P_0` and :math:`\rho_0`, respectively. Immediately after the shock passes the pressure and density are :math:`P` and :math:`\rho`. Similarly, :math:`V` and :math:`V_0` are the upstream and downstream specific volumes, respectively, and :math:`\epsilon` and :math:`\epsilon_0` are the upstream and downstream specific internal energies.
 
 An outline how the principle Hugoniot is determined is as follows (see Ref. [1] for detailed discussion). First one needs the three Rankine-Hugoniot relations.  Setting the quantity of mass entering and leaving the shock as equal (conservation of mass) gives
 
@@ -84,7 +84,7 @@ Various implementations of a Mie-Gruneisen EOS are possible, depending on how :m
 
 		.. py:function:: eos = linear-mie-grunseisen
 
-			Assumes the Gruneisen coefficient satisfies :math:`\gamma_G = \rho_R/\rho`, with :math:`\rho_R` a reference density, and derives :math:`P_R` and :math:`E_R` from a linear Hugoniot fit. As a result, four parameters must be specified: The y-intercept of the Hugoniot, :math:`c_0`, and the slope of the linear fit, :math:`S_1`, the Gruneisen parameter, and the reference density at which it is known.
+			Assumes the Gruneisen coefficient satisfies :math:`\gamma_G(\rho) = \gamma_G(\rho_R)\rho_R/\rho`, with :math:`\rho_R` a reference density, and derives :math:`P_R` and :math:`E_R` from a linear Hugoniot fit. As a result, four parameters must be specified: The y-intercept of the Hugoniot, :math:`c_0`, and the slope of the linear fit, :math:`S_1`, the Gruneisen parameter, and the reference density at which it is known.
 
 More complex implementations of the Mie Gruneisen EOS may be added in the future, such as a cubic interpolation of the Hugoniot and/or allowance for a small nonlinear dependence of :math:`\gamma_G` on specific volume. In addition, a different caloric EOS may be implemented in combination with these models.
 

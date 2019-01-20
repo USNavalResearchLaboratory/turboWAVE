@@ -5,28 +5,28 @@ namespace tw
 	{
 		tw::Float x,y,z;
 
-		vec3()
+		vec3() noexcept
 		{
 			x = 0.0;
 			y = 0.0;
 			z = 0.0;
 		}
 
-		vec3(const tw::Float& x,const tw::Float& y,const tw::Float& z)
+		vec3(const tw::Float& x,const tw::Float& y,const tw::Float& z) noexcept
 		{
 			this->x = x;
 			this->y = y;
 			this->z = z;
 		}
 
-		vec3(const vec3& v)
+		vec3(const vec3& v) noexcept
 		{
 			x = v.x;
 			y = v.y;
 			z = v.z;
 		}
 
-		vec3(const tw::Float& a)
+		vec3(const tw::Float& a) noexcept
 		{
 			x = a;
 			y = a;
@@ -34,7 +34,7 @@ namespace tw
 		}
 
 
-		vec3(const tw::Float *a)
+		vec3(const tw::Float *a) noexcept
 		{
 			x = a[0];
 			y = a[1];
@@ -79,7 +79,7 @@ namespace tw
 			return *this;
 		}
 
-		vec3& operator = (const vec3& v)
+		vec3& operator = (const vec3& v) noexcept
 		{
 			x = v.x;
 			y = v.y;
@@ -87,7 +87,7 @@ namespace tw
 			return *this;
 		}
 
-		vec3& operator = (const tw::Float& a)
+		vec3& operator = (const tw::Float& a) noexcept
 		{
 			x = a;
 			y = a;

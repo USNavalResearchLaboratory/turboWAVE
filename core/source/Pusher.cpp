@@ -37,10 +37,80 @@ void Species::GetSubarrayBounds(std::vector<ParticleRef>& sorted,tw::Int low[4],
 			high[i] += layers;
 		}
 		if (low[i]<owner->N0(i))
-			low[i] = owner->N0(i);
+			throw tw::FatalError("Particle unexpectedly low");
 		if (high[i]>owner->N1(i))
-			high[i] = owner->N1(i);
+			throw tw::FatalError("Particle unexpectedly high");
 	}
+}
+
+void Species::BunchTasks(std::vector<tw::Int>& task_map)
+{
+	for (tw::Int i=0;i<task_map.size();i++)
+		task_map[i] = i;
+}
+
+void Species::SpreadTasks(std::vector<tw::Int>& task_map)
+{
+	// Try to order tasks so they are spread out during concurrent execution.
+	// Gives us a chance of non-overlapping memory in the main source field.
+	const tw::Int num_tasks = task_map.size();
+	std::vector<tw::Int> assigned_tasks;
+	std::vector<tw::Int> unassigned_tasks(num_tasks);
+	for (tw::Int i=0;i<num_tasks;i++)
+		unassigned_tasks[i] = i;
+	// Assing the first task to the first slot
+	task_map[0] = *unassigned_tasks.begin();
+	assigned_tasks.push_back(*unassigned_tasks.begin());
+	unassigned_tasks.erase(unassigned_tasks.begin());
+	// Assign remaining tasks maximizing the distance to previously assigned tasks
+	for (tw::Int slot=1;slot<num_tasks;slot++)
+	{
+		tw::Int ans;
+		tw::Float distance = 0.0;
+		for (auto utask : unassigned_tasks)
+		{
+			tw::Float test = 0.0;
+			for (auto atask : assigned_tasks)
+				test += 1.0/sqr(tw::Float(atask-utask));
+			test = 1.0/test;
+			if (test>distance)
+			{
+				ans = utask;
+				distance = test;
+			}
+		}
+		task_map[slot] = ans;
+		assigned_tasks.push_back(ans);
+		unassigned_tasks.erase(std::find(unassigned_tasks.begin(),unassigned_tasks.end(),ans));
+	}
+}
+
+template <class BundleType>
+void Species::PushSlice(tw::Int first,tw::Int last)
+{
+	tw::Int next,low[4],high[4];
+	std::vector<ParticleRef> map;
+	BundleType b;
+	map.resize(last-first+1);
+	for (tw::Int i=first;i<=last;i++)
+		map[i-first] = ParticleRef(i,particle[i]);
+	std::sort(map.begin(),map.end());
+	GetSubarrayBounds(map,low,high,1);
+	b.LoadFieldSlice(this,low,high,ignorable);
+	GetSubarrayBounds(map,low,high,2);
+	b.InitSourceSlice(this,low,high,ignorable);
+	for (tw::Int i=first;i<=last;i++)
+	{
+		b.Append(particle[map[i-first].idx]);
+		next = i==last ? i : i+1;
+		if (i==last || b.Complete(particle[map[next-first].idx]))
+		{
+			b.Push(this);
+			b.CopyBack(this);
+			b.Reset();
+		}
+	}
+	b.DepositSourceSlice(this,true);
 }
 
 template <class BundleType>
@@ -50,41 +120,39 @@ void Species::Push()
 		return;
 
 	const tw::Int min_particles_per_task = 256;
-	const tw::Int num = particle.size();
-	const tw::Int max_tasks = 1 + num / min_particles_per_task;
-	const tw::Int preferred_tasks = 4*tw::GetOMPMaxThreads();
+	const tw::Int num_par = particle.size();
+	const tw::Int hardware_tasks = tw::GetOMPMaxThreads();
+	const tw::Int max_tasks = 1 + num_par / min_particles_per_task;
+	const tw::Int preferred_tasks = 4*hardware_tasks;
 	const tw::Int num_tasks = preferred_tasks > max_tasks ? max_tasks : preferred_tasks;
+	const tw::Int concurrent_sets = num_tasks / hardware_tasks;
+	const tw::Int remainder_tasks = num_tasks % hardware_tasks;
 
-	#pragma omp parallel for
-	for (tw::Int tsk=0;tsk<num_tasks;tsk++)
+	std::vector<tw::Int> task_map(num_tasks);
+	SpreadTasks(task_map);
+	//BunchTasks(task_map);
+
+	// Carry out the fully packed concurrent tasks
+	for (tw::Int c=0;c<concurrent_sets;c++)
 	{
-		#pragma omp task firstprivate(tsk)
+		#pragma omp parallel for
+		for (tw::Int t=0;t<hardware_tasks;t++)
 		{
-			tw::Int i,first,last,next,low[4],high[4];
-			std::vector<ParticleRef> map;
-			BundleType b;
-			tw::GetOMPTaskLoopRange(tsk,num,num_tasks,&first,&last);
-			map.resize(last-first+1);
-			for (i=first;i<=last;i++)
-				map[i-first] = ParticleRef(i,particle[i]);
-			std::sort(map.begin(),map.end());
-			GetSubarrayBounds(map,low,high,1);
-			b.LoadFieldSlice(this,low,high,ignorable);
-			GetSubarrayBounds(map,low,high,2);
-			b.InitSourceSlice(this,low,high,ignorable);
-			for (i=first;i<=last;i++)
-			{
-				b.Append(particle[map[i-first].idx]);
-				next = i==last ? i : i+1;
-				if (i==last || b.Complete(particle[map[next-first].idx]))
-				{
-					b.Push(this);
-					b.CopyBack(this);
-					b.Reset();
-				}
-			}
-			b.DepositSourceSlice(this);
+			tw::Int task_idx = task_map[c*hardware_tasks + t];
+			tw::Int first,last;
+			tw::GetOMPTaskLoopRange(task_idx,num_par,num_tasks,&first,&last);
+			PushSlice<BundleType>(first,last);
 		}
+	}
+
+	// Carry out the remainder tasks
+	#pragma omp parallel for
+	for (tw::Int t=0;t<remainder_tasks;t++)
+	{
+		tw::Int task_idx = task_map[concurrent_sets*hardware_tasks + t];
+		tw::Int first,last;
+		tw::GetOMPTaskLoopRange(task_idx,num_par,num_tasks,&first,&last);
+		PushSlice<BundleType>(first,last);
 	}
 }
 
@@ -236,49 +304,49 @@ void ParticleBundle2D::ScatterJ4(const float J[4][N],const float w0[3][3][N],con
 	// Scalar code to scatter current from inter-cell particles.
 	for (n=0;n<num;n++)
 	{
-		if (cellMask[n]==0.0)
-		{
-			get_cell_displ(dc,n);
+		if (cellMask[n]!=0.0)
+			continue;
 
-			// Build Extended Weights
-			for (i=0;i<5;i++)
-				for (j=0;j<3;j++)
-				{
-					xw0[i][j] = 0.0f;
-					xw1[i][j] = 0.0f;
-				}
-			for (i=0;i<3;i++)
-				for (j=0;j<3;j++)
-				{
-					xw0[i+1][j] = w0[i][j][n];
-					xw1[i+1+dc[j]][j] = w1[i][j][n];
-				}
-			for (i=0;i<5;i++)
-				for (j=0;j<3;j++)
-					xdw[i][j] = xw1[i][j] - xw0[i][j];
+		get_cell_displ(dc,n);
 
-			// Charge Deposition (as in coulombs in the cell)
-			for (i=0;i<5;i++)
-				for (k=0;k<5;k++)
-					xtile[i][k][0] += J[0][n]*xw1[i][0]*xw1[k][2];
+		// Build Extended Weights
+		for (i=0;i<5;i++)
+			for (j=0;j<3;j++)
+			{
+				xw0[i][j] = 0.0f;
+				xw1[i][j] = 0.0f;
+			}
+		for (i=0;i<3;i++)
+			for (j=0;j<3;j++)
+			{
+				xw0[i+1][j] = w0[i][j][n];
+				xw1[i+1+dc[j]][j] = w1[i][j][n];
+			}
+		for (i=0;i<5;i++)
+			for (j=0;j<3;j++)
+				xdw[i][j] = xw1[i][j] - xw0[i][j];
 
-			// Optimize Current Deposition Loops
-			i1 = dc[0]<0 ? 0 : 1;
-			i2 = dc[0]>0 ? 4 : 3;
-			k1 = dc[2]<0 ? 0 : 1;
-			k2 = dc[2]>0 ? 4 : 3;
+		// Charge Deposition (as in coulombs in the cell)
+		for (i=0;i<5;i++)
+			for (k=0;k<5;k++)
+				xtile[i][k][0] += J[0][n]*xw1[i][0]*xw1[k][2];
 
-			// Current Deposition (as in amps through the wall)
-			for (i=1;i<=i2;i++)
-				for (k=k1;k<=k2;k++)
-					xtile[i][k][1] += J[0][n]*dti*xdw[i][0]*(xw0[k][2]+0.5f*xdw[k][2]);
-			for (i=i1;i<=i2;i++)
-				for (k=k1;k<=k2;k++)
-					xtile[i][k][2] += J[2][n]*(xw0[i][0]*xw0[k][2]+0.5f*xdw[i][0]*xw0[k][2]+0.5f*xw0[i][0]*xdw[k][2]+0.3333333f*xdw[i][0]*xdw[k][2]);
-			for (i=i1;i<=i2;i++)
-				for (k=1;k<=k2;k++)
-					xtile[i][k][3] += J[0][n]*dti*xdw[k][2]*(xw0[i][0]+0.5f*xdw[i][0]);
-		}
+		// Optimize Current Deposition Loops
+		i1 = dc[0]<0 ? 0 : 1;
+		i2 = dc[0]>0 ? 4 : 3;
+		k1 = dc[2]<0 ? 0 : 1;
+		k2 = dc[2]>0 ? 4 : 3;
+
+		// Current Deposition (as in amps through the wall)
+		for (i=1;i<=i2;i++)
+			for (k=k1;k<=k2;k++)
+				xtile[i][k][1] += J[0][n]*dti*xdw[i][0]*(xw0[k][2]+0.5f*xdw[k][2]);
+		for (i=i1;i<=i2;i++)
+			for (k=k1;k<=k2;k++)
+				xtile[i][k][2] += J[2][n]*(xw0[i][0]*xw0[k][2]+0.5f*xdw[i][0]*xw0[k][2]+0.5f*xw0[i][0]*xdw[k][2]+0.3333333f*xdw[i][0]*xdw[k][2]);
+		for (i=i1;i<=i2;i++)
+			for (k=1;k<=k2;k++)
+				xtile[i][k][3] += J[0][n]*dti*xdw[k][2]*(xw0[i][0]+0.5f*xdw[i][0]);
 	}
 
 	// Vector code to scatter current from intra-cell particles
@@ -409,59 +477,59 @@ void ParticleBundle3D::ScatterJ4(const float J[4][N],const float w0[3][3][N],con
 	// Scalar code to scatter current from inter-cell particles.
 	for (n=0;n<num;n++)
 	{
-		if (cellMask[n]==0.0)
-		{
-			get_cell_displ(dc,n);
+		if (cellMask[n]!=0.0)
+			continue;
 
-			// Build Extended Weights
-			for (i=0;i<5;i++)
-				for (j=0;j<3;j++)
-				{
-					xw0[i][j] = 0.0f;
-					xw1[i][j] = 0.0f;
-				}
-			for (i=0;i<3;i++)
-				for (j=0;j<3;j++)
-				{
-					xw0[i+1][j] = w0[i][j][n];
-					xw1[i+1+dc[j]][j] = w1[i][j][n];
-				}
-			for (i=0;i<5;i++)
-				for (j=0;j<3;j++)
-					xdw[i][j] = xw1[i][j] - xw0[i][j];
+		get_cell_displ(dc,n);
 
-			// Charge Deposition (as in coulombs in the cell)
-			for (i=0;i<5;i++)
-				for (j=0;j<5;j++)
-					for (k=0;k<5;k++)
-						xtile[i][j][k][0] += J[0][n]*xw1[i][0]*xw1[j][1]*xw1[k][2];
+		// Build Extended Weights
+		for (i=0;i<5;i++)
+			for (j=0;j<3;j++)
+			{
+				xw0[i][j] = 0.0f;
+				xw1[i][j] = 0.0f;
+			}
+		for (i=0;i<3;i++)
+			for (j=0;j<3;j++)
+			{
+				xw0[i+1][j] = w0[i][j][n];
+				xw1[i+1+dc[j]][j] = w1[i][j][n];
+			}
+		for (i=0;i<5;i++)
+			for (j=0;j<3;j++)
+				xdw[i][j] = xw1[i][j] - xw0[i][j];
 
-			// Optimize Current Deposition Loops
-			i1 = dc[0]<0 ? 0 : 1;
-			i2 = dc[0]>0 ? 4 : 3;
-			j1 = dc[1]<0 ? 0 : 1;
-			j2 = dc[1]>0 ? 4 : 3;
-			k1 = dc[2]<0 ? 0 : 1;
-			k2 = dc[2]>0 ? 4 : 3;
+		// Charge Deposition (as in coulombs in the cell)
+		for (i=0;i<5;i++)
+			for (j=0;j<5;j++)
+				for (k=0;k<5;k++)
+					xtile[i][j][k][0] += J[0][n]*xw1[i][0]*xw1[j][1]*xw1[k][2];
 
-			// Current Deposition (as in amps through the wall)
+		// Optimize Current Deposition Loops
+		i1 = dc[0]<0 ? 0 : 1;
+		i2 = dc[0]>0 ? 4 : 3;
+		j1 = dc[1]<0 ? 0 : 1;
+		j2 = dc[1]>0 ? 4 : 3;
+		k1 = dc[2]<0 ? 0 : 1;
+		k2 = dc[2]>0 ? 4 : 3;
 
-			for (i=1;i<=i2;i++)
-				for (j=j1;j<=j2;j++)
-					for (k=k1;k<=k2;k++)
-						xtile[i][j][k][1] += J[0][n]*dti*xdw[i][0]*(xw0[j][1]*xw0[k][2]+
-							0.5f*xdw[j][1]*xw0[k][2]+0.5f*xw0[j][1]*xdw[k][2]+0.3333333f*xdw[j][1]*xdw[k][2]);
-			for (i=i1;i<=i2;i++)
-				for (j=1;j<=j2;j++)
-					for (k=k1;k<=k2;k++)
-						xtile[i][j][k][2] += J[0][n]*dti*xdw[j][1]*(xw0[i][0]*xw0[k][2]+
-							0.5f*xdw[i][0]*xw0[k][2]+0.5f*xw0[i][0]*xdw[k][2]+0.3333333f*xdw[i][0]*xdw[k][2]);
-			for (i=i1;i<=i2;i++)
-				for (j=j1;j<=j2;j++)
-					for (k=1;k<=k2;k++)
-						xtile[i][j][k][3] += J[0][n]*dti*xdw[k][2]*(xw0[i][0]*xw0[j][1]+
-							0.5f*xdw[i][0]*xw0[j][1]+0.5f*xw0[i][0]*xdw[j][1]+0.3333333f*xdw[i][0]*xdw[j][1]);
-		}
+		// Current Deposition (as in amps through the wall)
+
+		for (i=1;i<=i2;i++)
+			for (j=j1;j<=j2;j++)
+				for (k=k1;k<=k2;k++)
+					xtile[i][j][k][1] += J[0][n]*dti*xdw[i][0]*(xw0[j][1]*xw0[k][2]+
+						0.5f*xdw[j][1]*xw0[k][2]+0.5f*xw0[j][1]*xdw[k][2]+0.3333333f*xdw[j][1]*xdw[k][2]);
+		for (i=i1;i<=i2;i++)
+			for (j=1;j<=j2;j++)
+				for (k=k1;k<=k2;k++)
+					xtile[i][j][k][2] += J[0][n]*dti*xdw[j][1]*(xw0[i][0]*xw0[k][2]+
+						0.5f*xdw[i][0]*xw0[k][2]+0.5f*xw0[i][0]*xdw[k][2]+0.3333333f*xdw[i][0]*xdw[k][2]);
+		for (i=i1;i<=i2;i++)
+			for (j=j1;j<=j2;j++)
+				for (k=1;k<=k2;k++)
+					xtile[i][j][k][3] += J[0][n]*dti*xdw[k][2]*(xw0[i][0]*xw0[j][1]+
+						0.5f*xdw[i][0]*xw0[j][1]+0.5f*xw0[i][0]*xdw[j][1]+0.3333333f*xdw[i][0]*xdw[j][1]);
 	}
 
 	// Vector code to scatter current from intra-cell particles
@@ -610,28 +678,28 @@ void ParticleBundlePGC::ScatterChi(const float chi[N],const float w0[3][3][N],co
 	// Scalar code to scatter current from inter-cell particles.
 	for (n=0;n<num;n++)
 	{
-		if (cellMask[n]==0.0)
-		{
-			get_cell_displ(dc,n);
+		if (cellMask[n]!=0.0)
+			continue;
 
-			for (i=0;i<5;i++)
-				for (j=0;j<3;j++)
-				{
-					xw0[i][j] = 0.0f;
-					xw1[i][j] = 0.0f;
-				}
-			for (i=0;i<3;i++)
-				for (j=0;j<3;j++)
-				{
-					xw0[i+1][j] = w0[i][j][n];
-					xw1[i+1+dc[j]][j] = w1[i][j][n];
-				}
+		get_cell_displ(dc,n);
 
-			for (i=0;i<5;i++)
-				for (j=0;j<5;j++)
-					for (k=0;k<5;k++)
-						chi_tile[i][j][k] += 0.5f*chi[n]*(xw0[i][0]*xw0[j][1]*xw0[k][2] + xw1[i][0]*xw1[j][1]*xw1[k][2]);
-		}
+		for (i=0;i<5;i++)
+			for (j=0;j<3;j++)
+			{
+				xw0[i][j] = 0.0f;
+				xw1[i][j] = 0.0f;
+			}
+		for (i=0;i<3;i++)
+			for (j=0;j<3;j++)
+			{
+				xw0[i+1][j] = w0[i][j][n];
+				xw1[i+1+dc[j]][j] = w1[i][j][n];
+			}
+
+		for (i=0;i<5;i++)
+			for (j=0;j<5;j++)
+				for (k=0;k<5;k++)
+					chi_tile[i][j][k] += 0.5f*chi[n]*(xw0[i][0]*xw0[j][1]*xw0[k][2] + xw1[i][0]*xw1[j][1]*xw1[k][2]);
 	}
 
 	// Vector code to scatter current from intra-cell particles

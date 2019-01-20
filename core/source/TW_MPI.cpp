@@ -59,16 +59,16 @@ MPI_Comm TW_MPI_FindCommWorld()
 	return MPI_COMM_WORLD;
 }
 
-void TW_MPI_Launch(int numThreads,tw::Thread **threadList)
+void TW_MPI_Launch(std::vector<tw::Thread*>& threadList)
 {
 	tw::Int i;
 	// Set up comm world for each thread
-	for (i=0;i<numThreads;i++)
+	for (i=0;i<threadList.size();i++)
 	{
 		comm_world[i].rank = i;
 		comm_world[i].wrank = i;
 		comm_world[i].dims = 1;
-		comm_world[i].domains[1] = numThreads;
+		comm_world[i].domains[1] = threadList.size();
 		comm_world[i].periodic[1] = 0;
 		comm_world[i].stride[0] = 0;
 		comm_world[i].stride[1] = 1;
@@ -77,7 +77,7 @@ void TW_MPI_Launch(int numThreads,tw::Thread **threadList)
 		comm_world[i].threadRef = threadList[i];
 	}
 	// Start all the threads
-	for (i=0;i<numThreads;i++)
+	for (i=0;i<threadList.size();i++)
 		threadList[i]->Start();
 }
 
@@ -415,5 +415,13 @@ int MPI_Scatter(void *sb,int scount,MPI_Datatype sdt,void *rb,int rcount,MPI_Dat
 	{
 		MPI_Recv(rb,rcount,rdt,root,0,comm,&status);
 	}
+	return 0;
+}
+
+int MPI_Barrier(MPI_Comm comm)
+{
+	// WARNING: not implemented!
+	if (comm==MPI_COMM_WORLD)
+		comm = TW_MPI_FindCommWorld();
 	return 0;
 }

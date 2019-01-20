@@ -7,8 +7,7 @@ struct Particle
 	tw::vec3 p; // momentum , always known in cartesian coordinates
 	float number,aux1,aux2; // number = particles per macroparticle divided by n0*(c/wp)^3
 
-	Particle();
-	Particle(const tw::vec3& p,const Primitive& q,const float number,const float aux1,const float aux2);
+	Particle(const tw::vec3& p,const Primitive& q,const float number,const float aux1,const float aux2) noexcept;
 
 	void ReadData(std::ifstream& inFile);
 	void WriteData(std::ofstream& outFile);
@@ -39,12 +38,12 @@ struct ParticleRef
 {
 	// Used to create sorting map within a thread for subsets of particle lists
 	tw::Int idx,cell;
-	ParticleRef()
+	ParticleRef() noexcept
 	{
 		idx = 0;
 		cell = 0;
 	}
-	ParticleRef(tw::Int list_index,const Particle& par)
+	ParticleRef(tw::Int list_index,const Particle& par) noexcept
 	{
 		idx = list_index;
 		cell = par.q.cell;
@@ -109,7 +108,7 @@ struct ParticleBundleBohmian : ParticleBundle
 	float tile[3][3][3][4];
 	void LoadFieldSlice(Species *owner,tw::Int low[4],tw::Int high[4],tw::Int ignorable[4]);
 	void InitSourceSlice(Species *owner,tw::Int low[4],tw::Int high[4],tw::Int ignorable[4]);
-	void DepositSourceSlice(Species *owner);
+	void DepositSourceSlice(Species *owner,bool needsAtomic);
 	void GatherJ4(float J[4][N],const float w0[3][3][N]);
 	void Push(Species *owner);
 	void LoadTile();
@@ -120,7 +119,7 @@ struct ParticleBundleEM : ParticleBundle
 	Slice<float> Fx,Jx;
 	void LoadFieldSlice(Species *owner,tw::Int low[4],tw::Int high[4],tw::Int ignorable[4]);
 	void InitSourceSlice(Species *owner,tw::Int low[4],tw::Int high[4],tw::Int ignorable[4]);
-	void DepositSourceSlice(Species *owner);
+	void DepositSourceSlice(Species *owner,bool needsAtomic);
 };
 
 struct ParticleBundle2D : ParticleBundleEM
@@ -169,7 +168,7 @@ struct ParticleBundlePGC : ParticleBundle3D
 
 	void LoadFieldSlice(Species *owner,tw::Int low[4],tw::Int high[4],tw::Int ignorable[4]);
 	void InitSourceSlice(Species *owner,tw::Int low[4],tw::Int high[4],tw::Int ignorable[4]);
-	void DepositSourceSlice(Species *owner);
+	void DepositSourceSlice(Species *owner,bool needsAtomic);
 
 	void GatherLaser(float las[8][N],const float w0[3][3][N]);
 	void ScatterChi(const float chi[N],const float w0[3][3][N],const float w1[3][3][N],const float cellMask[N]);
@@ -262,9 +261,13 @@ struct Species:Module
 	virtual void WarningMessage(std::ostream *theStream);
 
 	void GetSubarrayBounds(std::vector<ParticleRef>& sorted,tw::Int low[4],tw::Int high[4],tw::Int layers);
+	void SpreadTasks(std::vector<tw::Int>& task_map);
+	void BunchTasks(std::vector<tw::Int>& task_map);
 	void DispatchPush();
 	template <class BundleType>
 	void Push();
+	template <class BundleType>
+	void PushSlice(tw::Int first,tw::Int last);
 };
 
 struct Kinetics:Module
@@ -468,9 +471,12 @@ inline void ParticleBundleEM::InitSourceSlice(Species *owner,tw::Int low[4],tw::
 	Jx.Resize(Element(0,3),low,high,ignorable);
 	Jx = 0.0f;
 }
-inline void ParticleBundleEM::DepositSourceSlice(Species *owner)
+inline void ParticleBundleEM::DepositSourceSlice(Species *owner,bool needsAtomic)
 {
-	owner->sources->AddDataFromImageAtomic<float>(&Jx);
+	if (needsAtomic)
+		owner->sources->AddDataFromImageAtomic<float>(&Jx);
+	else
+		owner->sources->AddDataFromImage<float>(&Jx);
 }
 inline void ParticleBundlePGC::LoadFieldSlice(Species *owner,tw::Int low[4],tw::Int high[4],tw::Int ignorable[4])
 {
@@ -486,10 +492,18 @@ inline void ParticleBundlePGC::InitSourceSlice(Species *owner,tw::Int low[4],tw:
 	chix.Resize(Element(0),low,high,ignorable);
 	chix = 0.0f;
 }
-inline void ParticleBundlePGC::DepositSourceSlice(Species *owner)
+inline void ParticleBundlePGC::DepositSourceSlice(Species *owner,bool needsAtomic)
 {
-	owner->sources->AddDataFromImageAtomic<float>(&Jx);
-	owner->chi->AddDataFromImageAtomic<float>(&chix);
+	if (needsAtomic)
+	{
+		owner->sources->AddDataFromImageAtomic<float>(&Jx);
+		owner->chi->AddDataFromImageAtomic<float>(&chix);
+	}
+	else
+	{
+		owner->sources->AddDataFromImage<float>(&Jx);
+		owner->chi->AddDataFromImage<float>(&chix);
+	}
 }
 inline void ParticleBundle2D::LoadTile()
 {
@@ -642,7 +656,7 @@ inline void ParticleBundleBohmian::LoadFieldSlice(Species *owner,tw::Int low[4],
 inline void ParticleBundleBohmian::InitSourceSlice(Species *owner,tw::Int low[4],tw::Int high[4],tw::Int ignorable[4])
 {
 }
-inline void ParticleBundleBohmian::DepositSourceSlice(Species *owner)
+inline void ParticleBundleBohmian::DepositSourceSlice(Species *owner,bool needsAtomic)
 {
 }
 inline void ParticleBundleBohmian::LoadTile()

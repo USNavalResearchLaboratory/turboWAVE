@@ -196,12 +196,6 @@ struct Slice
 	{
 		return data[(c-e.low) + (x-lb[1])*encodingStride[1] + (y-lb[2])*encodingStride[2] + (z-lb[3])*encodingStride[3]];
 	}
-	T operator () (const tw::strip& strip,const tw::Int& i,const tw::Int& c) const
-	{
-		tw::Int x,y,z;
-		strip.Decode(i,&x,&y,&z);
-		return (*this)(x,y,z,c);
-	}
 	Slice<T>& operator = (T a)
 	{
 		data = a;
@@ -245,7 +239,7 @@ struct Field:DiscreteSpace
 	// SETUP
 
 	Field();
-	~Field();
+	virtual ~Field();
 	void Initialize(tw::Int components,const DiscreteSpace& ds,Task *task,const axisSpec& axis);
 	void Initialize(tw::Int components,const DiscreteSpace& ds,Task *task) { Initialize(components,ds,task,zAxis); }
 	void SetBoundaryConditions(const Element& e,const axisSpec& axis,boundarySpec low,boundarySpec high);
