@@ -1,0 +1,16 @@
+#!/bin/bash
+
+#PBS -A NRLDC08284338
+#PBS -l walltime=01:00:00
+#PBS -l select=1:ncpus=48:mpiprocs=4
+#PBS -q standard
+#PBS -N turbowave
+#PBS -o tw.out
+#PBS -e tw.err
+
+cd $WORKDIR
+
+module load mpt
+module load compiler/intel
+
+mpiexec_mpt -n 4 ./tw3d

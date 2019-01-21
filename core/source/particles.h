@@ -23,14 +23,11 @@ struct TransferParticle
 {
 	// To avoid inconsistencies arising from FP comparisons on different nodes
 	// the destination information is computed on the source domain and packaged with the particle
+	// The position is kept as a double precision global coordinate until final call to AddParticle
 	tw::Int dst[4];
-	// (x[1],x[2],x[3]) is global double precision coordinate, (p[1],p[2],p[3]) is momentum
-	// Transformations between primitives and coordinates are safe for intra-domain particles only.
-	// Therefore best to work with global coordinates while moving between domains.
-	// Transformation to global coordinates happens in AddTransferParticle.
-	// Then we have movement between domains.
-	// Transformation back to primitive coordinates happens in AddParticle.
-	tw::vec4 x,p;
+	// dst[0] is rank of starting domain upon construction; gets set to destination domain later.
+	// dst[1..3] are +-1, giving direction of movement; zero if no movement.
+	tw::vec4 x,p; // can use x[0] or p[0] to pack extra info
 	float number,aux1,aux2;
 };
 

@@ -77,8 +77,7 @@ struct DiscreteSpace
 	}
 	void DecodeCell(const Primitive& q,tw::Int ijk[4]) const { DecodeCell(q.cell,ijk); }
 	void DecodeCell(const Primitive& q,tw::Int *i,tw::Int *j,tw::Int *k) const { DecodeCell(q.cell,i,j,k); }
-	bool PrimitiveInCell(const Primitive& q) const { return q.x[0]>=-0.5 && q.x[0]<0.5 && q.x[1]>=-0.5 && q.x[1]<0.5 && q.x[2]>=-0.5 && q.x[2]<0.5; }
-	bool PrimitiveInDomain(const Primitive& q) const;
+	bool RefCellInDomain(const Primitive& q) const;
 	void SetPrimitiveWithPosition(Primitive& q,const tw::vec3& pos) const;
 	void UpdatePrimitiveWithPosition(Primitive& q,const tw::vec3& pos) const;
 	tw::vec3 PositionFromPrimitive(const Primitive& q) const;
@@ -152,12 +151,13 @@ inline bool DiscreteSpace::TransversePowersOfTwo()
 	return (isPowerOfTwo(dim[1]) || dim[1]==1) && (isPowerOfTwo(dim[2]) || dim[2]==1);
 }
 
-inline bool DiscreteSpace::PrimitiveInDomain(const Primitive& q) const
+inline bool DiscreteSpace::RefCellInDomain(const Primitive& q) const
 {
-	const tw::vec3 r = PositionFromPrimitive(q) - corner;
-	return	((r.x>=0.0 && r.x<size.x) || dim[1]==1) &&
-			((r.y>=0.0 && r.y<size.y) || dim[2]==1) &&
-			((r.z>=0.0 && r.z<size.z) || dim[3]==1);
+	tw::Int ijk[4];
+	DecodeCell(q,ijk);
+	return	((ijk[1]>=1 && ijk[1]<=dim[1]) || dim[1]==1) &&
+			((ijk[2]>=1 && ijk[2]<=dim[2]) || dim[2]==1) &&
+			((ijk[3]>=1 && ijk[3]<=dim[3]) || dim[3]==1);
 }
 
 inline tw::vec3 DiscreteSpace::PositionFromPrimitive(const Primitive& q) const

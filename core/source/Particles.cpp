@@ -531,20 +531,40 @@ void Species::AddParticle(const tw::vec3& p,const Primitive& q,const float& numb
 
 void Species::AddParticle(const TransferParticle& xfer)
 {
+	// We assume the caller expects the particle to be in the interior
+	// To account for the possibility of roundoff error the reference cell is forced in
 	Primitive q;
+	tw::Int ijk[4];
 	tw::vec3 x = tw::vec3(xfer.x[1],xfer.x[2],xfer.x[3]);
 	tw::vec3 p = tw::vec3(xfer.p[1],xfer.p[2],xfer.p[3]);
-	SetPrimitiveWithPosition(q,x); // particle must be in extended domain
+	SetPrimitiveWithPosition(q,x); // particle must at least resolve inside the extended domain
+	DecodeCell(q,ijk);
+	for (tw::Int ax=1;ax<=3;ax++)
+	{
+		while (ijk[ax]<1)
+		{
+			ijk[ax]++;
+			q.x[ax] -= 1.0f;
+		}
+		while (ijk[ax]>dim[ax])
+		{
+			ijk[ax]--;
+			q.x[ax] += 1.0f;
+		}
+	}
+	q.cell = EncodeCell(ijk[1],ijk[2],ijk[3]);
 	particle.emplace_back(p,q,xfer.number,xfer.aux1,xfer.aux2);
 	// don't update count because the transfer particle already has its identifier in aux1 and aux2
 }
 
 void Species::AddTransferParticle(const Particle& src)
 {
+	tw::Int ijk[4];
 	TransferParticle dest;
+	DecodeCell(src.q,ijk);
 	dest.dst[0] = owner->strip[0].Get_rank();
 	for (tw::Int i=1;i<=3;i++)
-		dest.dst[i] = 0;
+		dest.dst[i] = tw::Int(ijk[i]>dim[i]) - tw::Int(ijk[i]<1);
 	dest.x = tw::vec4(0.0,PositionFromPrimitive(src.q));
 	dest.p = tw::vec4(0.0,src.p);
 	dest.number = src.number;
@@ -584,7 +604,6 @@ void Species::ApplyGlobalBoundaryConditions()
 	// except for particles crossing a periodic boundary.
 	// Result of the transformation can result in movement to new local domain.
 	// If absorption is desired leave particle out of global domain (destination calculation will send to MPI_PROC_NULL).
-	bool didLeave;
 	tw::Float extremum;
 	tw::Int ax,i,displ,src,dst;
 	tw_boundary_spec boundaryCondition;
@@ -599,8 +618,7 @@ void Species::ApplyGlobalBoundaryConditions()
 				for (i=0;i<transfer.size();i++)
 				{
 					extremum = displ==1 ? corner[ax-1] + size[ax-1] : corner[ax-1];
-					didLeave = displ==1 ? transfer[i].x[ax] >= extremum : transfer[i].x[ax] < extremum;
-					if (didLeave)
+					if (transfer[i].dst[ax]==displ)
 					{
 						switch (boundaryCondition)
 						{
@@ -612,6 +630,7 @@ void Species::ApplyGlobalBoundaryConditions()
 								// do nothing; let it leave
 								break;
 							case emitting:
+								transfer[i].dst[ax] = 0;
 								transfer[i].x[ax] = extremum - tw::Float(displ)*0.5*spacing[ax-1];
 								transfer[i].p[1] = emissionTemp.x*owner->gaussianDeviate->Next();
 								transfer[i].p[2] = emissionTemp.y*owner->gaussianDeviate->Next();
@@ -620,6 +639,7 @@ void Species::ApplyGlobalBoundaryConditions()
 								break;
 							case reflecting:
 							case axisymmetric:
+								transfer[i].dst[ax] = 0;
 								transfer[i].x[ax] += 2.0*(extremum - transfer[i].x[ax]);
 								transfer[i].p[ax] *= -1.0;
 								break;
@@ -651,24 +671,26 @@ void Species::ComputeTransferParticleDestinations()
 	{
 		for (ax=1;ax<=3;ax++)
 		{
-			if (transfer[i].x[ax] < corner[ax-1])
-			{
+			if (transfer[i].dst[ax] < 0)
 				if (owner->n0[ax]==MPI_PROC_NULL)
 					transfer[i].dst[0] = MPI_PROC_NULL;
-				else
-					transfer[i].dst[ax] = -1;
-			}
-			if (transfer[i].x[ax] >= corner[ax-1]+size[ax-1])
-			{
+			if (transfer[i].dst[ax] > 0)
 				if (owner->n1[ax]==MPI_PROC_NULL)
 					transfer[i].dst[0] = MPI_PROC_NULL;
-				else
-					transfer[i].dst[ax] = 1;
-			}
 			dest_coords[ax] = owner->domainIndex[ax] + transfer[i].dst[ax];
-			// allow for periodicity
-			if (dest_coords[ax]<0) dest_coords[ax] = owner->domains[ax]-1;
-			if (dest_coords[ax]>=owner->domains[ax]) dest_coords[ax] = 0;
+			if (owner->periodic[ax])
+			{
+				if (dest_coords[ax]<0)
+				{
+					dest_coords[ax] = owner->domains[ax]-1;
+					transfer[i].x[ax] += globalSize[ax-1];
+				}
+				if (dest_coords[ax]>=owner->domains[ax])
+				{
+					dest_coords[ax] = 0;
+					transfer[i].x[ax] -= globalSize[ax-1];
+				}
+			}
 			// if destination is this node stop the movement (e.g., single periodic node)
 			if (dest_coords[ax]==owner->domainIndex[ax])
 				transfer[i].dst[ax] = 0; // do not send
@@ -715,17 +737,7 @@ void Species::CollectTransfers()
 	tw::Int i,ax;
 	for (i=0;i<transfer.size();i++)
 		if (transfer[i].dst[0]==owner->strip[0].Get_rank())
-		{
-			// If global containment was lost, assume periodicity.
-			for (ax=1;ax<=3;ax++)
-			{
-				if (transfer[i].x[ax]<globalCorner[ax-1])
-					transfer[i].x[ax] += globalSize[ax-1];
-				if (transfer[i].x[ax]>=globalCorner[ax-1]+globalSize[ax-1])
-					transfer[i].x[ax] -= globalSize[ax-1];
-			}
 			AddParticle(transfer[i]);
-		}
 	transfer.clear();
 }
 
@@ -1031,9 +1043,8 @@ void Species::BeginMoveWindow()
 	for (i=0;i<particle.size();i++)
 	{
 		particle[i].q.x[2] -= 1.0;
-		if (PrimitiveInDomain(particle[i].q))
-			MinimizePrimitive(particle[i].q);
-		else
+		MinimizePrimitive(particle[i].q);
+		if (!RefCellInDomain(particle[i].q))
 		{
 			if (owner->n0[3]!=MPI_PROC_NULL) // need to transfer particle
 				AddTransferParticle(particle[i]);
@@ -1269,7 +1280,7 @@ void Species::CalculateDensity(ScalarField& dens)
 	dens.Initialize(*this,owner);
 	for (i=0;i<particle.size();i++)
 	{
-		if (PrimitiveInDomain(particle[i].q))
+		if (RefCellInDomain(particle[i].q))
 		{
 			dens.GetWeights(&w,particle[i].q);
 			dens.InterpolateOnto(particle[i].number,w);

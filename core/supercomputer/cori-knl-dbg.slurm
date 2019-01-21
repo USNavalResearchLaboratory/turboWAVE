@@ -15,7 +15,7 @@
 export ATP_ENABLED=1
 
 #OpenMP settings:
-export OMP_NUM_THREADS=17
+export OMP_NUM_THREADS=4
 export OMP_PLACES=threads
 export OMP_PROC_BIND=FALSE
 #export KMP_AFFINITY=verbose
@@ -24,6 +24,6 @@ export OMP_PROC_BIND=FALSE
 #module load valgrind
 
 #run the application with valgrind:
-#srun --ntasks 16 --cpus-per-task 17 --cpu_bind=no valgrind ./tw3d
+#srun --ntasks 16 --cpus-per-task 16 --cpu_bind=no valgrind ./tw3d
 #run the application without valgrind (still produces ATP report):
-srun --ntasks 16 --cpus-per-task 17 --cpu_bind=no ./tw3d
+srun --ntasks 16 --cpus-per-task 16 --cpu_bind=no ./tw3d
