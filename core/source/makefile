@@ -185,20 +185,20 @@ endif
 
 ifeq ($(PLATFORM),SGI)
 	ifeq ($(HARDWARE_ACCEL),NONE)
-		TW_Compiler = icpc
-		TW_Linker = icpc
+		TW_Compiler = mpicxx
+		TW_Linker = mpicxx
 		CCFLAGS = -c -std=c++11 -fast
 		DBFLAGS = -c -g -std=c++11
 		LIB_PATH =
 		LIBS = -lmpi
 	endif
 	ifeq ($(HARDWARE_ACCEL),OMP)
-		TW_Compiler = mpiicpc
-		TW_Linker = mpiicpc
+		TW_Compiler = mpicxx
+		TW_Linker = mpicxx
 		CCFLAGS = -c -std=c++11 -qopenmp -qopenmp-simd -fast
 		DBFLAGS = -c -g -std=c++11 -qopenmp -qopenmp-simd
 		LIB_PATH =
-		LIBS =
+		LIBS = -lmpi_mt -liomp5 -qopenmp
 	endif
 	ifeq ($(HARDWARE_ACCEL),CUDA)
 		CUDA_ROOT = /p/home/apps/cuda/7.5

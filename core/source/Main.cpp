@@ -144,7 +144,7 @@ int main(int argc,char *argv[])
 
 			if (arg=="--version")
 			{
-				std::cout << "turboWAVE version 3.2rc" << std::endl;
+				std::cout << "turboWAVE version 3.2" << std::endl;
 				if (argc==2)
 					exit(0);
 			}
@@ -152,7 +152,7 @@ int main(int argc,char *argv[])
 			if (arg=="--help")
 			{
 				std::cout << "This is turboWAVE, a PIC/hydro/quantum simulation code." << std::endl;
-				std::cout << "Please see the documentation at http://readthedocs.org." << std::endl;
+				std::cout << "Please see the documentation at https://turbowave.readthedocs.io" << std::endl;
 				if (argc==2)
 					exit(0);
 			}
