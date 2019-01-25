@@ -1038,6 +1038,8 @@ struct ComplexField:AutoField<tw::Complex>
 	void InverseFFT();
 	void TransverseFFT();
 	void InverseTransverseFFT();
+	void Hankel(tw::Int modes,std::valarray<tw::Float>& matrix);
+	void InverseHankel(tw::Int modes,std::valarray<tw::Float>& matrix);
 
 	// Assignment
 

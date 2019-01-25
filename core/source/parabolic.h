@@ -16,14 +16,18 @@ struct LaserPropagator:ComputeTool
 
 struct EigenmodePropagator:LaserPropagator
 {
+	tw::Int modes;
 	std::valarray<tw::Float> eigenvalue,hankel,inverseHankel;
 	GlobalIntegrator<tw::Complex>* globalIntegrator;
 
 	EigenmodePropagator(const std::string& name,MetricSpace *m,Task *tsk);
 	virtual ~EigenmodePropagator();
 	virtual void Initialize();
+	virtual void ReadInputFileDirective(std::stringstream& inputString,const std::string& command);
 	virtual void SetData(tw::Float w0,tw::Float dt,tw_polarization_type pol,bool mov);
 	virtual void Advance(ComplexField& a0,ComplexField& a1,ComplexField& chi);
+	virtual void ReadData(std::ifstream& inFile);
+	virtual void WriteData(std::ofstream& outFile);
 };
 
 struct ADIPropagator:LaserPropagator

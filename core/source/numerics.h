@@ -1,4 +1,5 @@
-void Transform(tw::Float * array,tw::Int num,tw::Int interval,std::valarray<tw::Float>& transform);
+void Transform(tw::Float * array,tw::Int pts,tw::Int modes,tw::Int interval,std::valarray<tw::Float>& transform);
+void ReverseTransform(tw::Float * array,tw::Int pts,tw::Int modes,tw::Int interval,std::valarray<tw::Float>& rev_transform);
 tw::Float GetSphericalGroundState(std::valarray<tw::Float>& vec,std::valarray<tw::Float>& phi,tw::Float dr);
 tw::Float GetCylindricalGroundState(std::valarray<tw::Float>& vec,std::valarray<tw::Float>& phi,tw::Float dr);
 void ComputeTransformMatrices(std::valarray<tw::Float>& eigenvalue,std::valarray<tw::Float>& fwd,std::valarray<tw::Float>& rev,MetricSpace *space,Task *tsk);
@@ -134,16 +135,14 @@ template <class T,class U>
 void TriDiagonal(std::valarray<T>& phi,std::valarray<T>& rho,U a,std::valarray<U>& b,U c)
 {
 	// invert A * phi = rho
-	// The rows of A are (b,c,0,...)(a,b,c,0,...)(0,a,b,c,0,...)...(0,...,a,b,c)(0,...,a,b)
-	// the array b has three elements:
-	// b[0] is for the first row, b[2] is for the last row, b[1] is for all other rows
+	// The rows of A are (b[0],c,0,...)(a,b[1],c,0,...)(0,a,b[2],c,0,...)...(0,...,a,b[N-2],c)(0,...,a,b[N-1])
 
 	tw::Int n = phi.size();
 	std::valarray<U> gam(n);
 
 	if (n==1)
 	{
-		phi[0] = rho[0]/(b[0] + b[2] - b[1]);
+		phi[0] = rho[0]/b[0];
 		return;
 	}
 
@@ -151,16 +150,12 @@ void TriDiagonal(std::valarray<T>& phi,std::valarray<T>& rho,U a,std::valarray<U
 	U bet;
 	bet = b[0];
 	phi[0] = rho[0]/bet;
-	for (i=1;i<n-1;i++)
+	for (i=1;i<=n-1;i++)
 	{
 		gam[i] = c/bet;
-		bet = b[1] - a*gam[i];
+		bet = b[i] - a*gam[i];
 		phi[i] = (rho[i] - a*phi[i-1])/bet;
 	}
-
-	gam[n-1] = c/bet;
-	bet = b[2] - a*gam[n-1];
-	phi[n-1] = (rho[n-1] - a*phi[n-2])/bet;
 
 	for (i=n-2;i>=0;i--)
 		phi[i] -= gam[i+1]*phi[i+1];

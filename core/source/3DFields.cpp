@@ -5,6 +5,7 @@
 #include "metricSpace.h"
 #include "3dfields.h"
 #include "fft.h"
+#include "numerics.h"
 
 
 /////////////////////////
@@ -916,6 +917,8 @@ void Field::Transpose(const Element& e,const axisSpec& axis1,const axisSpec& axi
 	// Instead, the nodes are lined up along a new axis.
 	// We choose the blocks so that #blocks <= #nodes.
 	// 'target' is an externally owned field that will receive the transposed data
+	// This routine resizes target when the forward transpose is invoked.
+	// As a corollary, upon reverse transposing, the same target should be passed in.
 	// 'inversion' is 1 if forward transpose, -1 if reverse transpose
 
 	// Ghost cell policy:
@@ -1708,4 +1711,28 @@ void ComplexField::InverseFFT()
 			}
 		Transpose(xAxis,yAxis,&T,-1);
 	}
+}
+
+void ComplexField::Hankel(tw::Int modes,std::valarray<tw::Float>& matrix)
+{
+	Field T;
+	Transpose(xAxis,zAxis,&T,1);
+	for (tw::Int i=T.N0(3);i<=T.N1(3);i++)
+	{
+		Transform(&T(1,1,i,0),task->globalCells[1],modes,T.Stride(1),matrix);
+		Transform(&T(1,1,i,1),task->globalCells[1],modes,T.Stride(1),matrix);
+	}
+	Transpose(xAxis,zAxis,&T,-1);
+}
+
+void ComplexField::InverseHankel(tw::Int modes,std::valarray<tw::Float>& matrix)
+{
+	Field T;
+	Transpose(xAxis,zAxis,&T,1);
+	for (tw::Int i=T.N0(3);i<=T.N1(3);i++)
+	{
+		ReverseTransform(&T(1,1,i,0),task->globalCells[1],modes,T.Stride(1),matrix);
+		ReverseTransform(&T(1,1,i,1),task->globalCells[1],modes,T.Stride(1),matrix);
+	}
+	Transpose(xAxis,zAxis,&T,-1);
 }

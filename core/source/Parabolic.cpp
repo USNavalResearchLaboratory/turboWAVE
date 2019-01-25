@@ -76,6 +76,7 @@ EigenmodePropagator::EigenmodePropagator(const std::string& name,MetricSpace *m,
 	const tw::Int yDim = space->Dim(2);
 	const tw::Int zDim = space->Dim(3);
 
+	modes = task->globalCells[1];
 	globalIntegrator = new GlobalIntegrator<tw::Complex>(&task->strip[3],xDim*yDim,zDim);
 }
 
@@ -89,6 +90,16 @@ void EigenmodePropagator::Initialize()
 	// Computing the matrices requires message passing, cannot go in constructor.
 	if (space->car!=1.0)
 		ComputeTransformMatrices(eigenvalue,hankel,inverseHankel,space,task);
+}
+
+void EigenmodePropagator::ReadInputFileDirective(std::stringstream& inputString,const std::string& command)
+{
+	std::string word;
+	ComputeTool::ReadInputFileDirective(inputString,command);
+	if (command=="modes") // eg, modes = 32
+	{
+		inputString >> word >> modes;
+	}
 }
 
 void EigenmodePropagator::SetData(tw::Float w0,tw::Float dt,tw_polarization_type pol,bool mov)
@@ -111,24 +122,34 @@ void EigenmodePropagator::Advance(ComplexField& a0,ComplexField& a1,ComplexField
 
 	tw::Int i,j,k;
 	tw::Float lambda;
-	tw::Complex T1,T2,T3;
-	std::valarray<tw::Complex> source(zDim),ans(zDim);
-	std::valarray<tw::Float> localEig(xDim+2);
+	std::valarray<tw::Complex> T2z(zDim),source(zDim),ans(zDim);
+	std::valarray<tw::Float> localEig(xDim+2),chi_ref(zDim+2);
 
-	T1 = -tw::Float(0.5)/(dz(*space)*dt);
-	T2 = ii*w0/dt;
-	T3 = -T1;
+	const tw::Complex T1 = -tw::Float(0.5)/(dz(*space)*dt);
+	const tw::Complex T2 = ii*w0/dt;
+	const tw::Complex T3 = -T1;
 
-	Field T;
 	if (space->car!=1.0)
 	{
 		for (i=1;i<=xDim;i++)
 			localEig[i] = eigenvalue[i-1+task->cornerCell[1]-1];
 	}
 
-	chi *= a1; // use chi to hold j (destroy chi)
+	// Setup reference chi and explicit current
+	// Current goes into chi, destroying chi
+	if (space->car==1.0)
+		chi_ref = 0.0;
+	else
+	{
+		for (k=0;k<=zDim+1;k++)
+			chi_ref[k] = std::real(chi(1,1,k));
+		task->strip[1].Bcast(&chi_ref[0],chi_ref.size(),0);
+	}
+	for (auto s : StripRange(*space,3,strongbool::yes))
+		for (k=0;k<=zDim+1;k++)
+			chi(s,k) = (chi(s,k) - chi_ref[k])*a1(s,k);
 
-	// Solve in Laser Frame
+	// Diagonalize Laplacian and solve in laser frame
 
 	if (space->car==1.0)
 	{
@@ -137,48 +158,38 @@ void EigenmodePropagator::Advance(ComplexField& a0,ComplexField& a1,ComplexField
 	}
 	else
 	{
-		chi.Transpose(xAxis,zAxis,&T,1);
-		for (i=T.N0(3);i<=T.N1(3);i++)
-		{
-			Transform(&T(1,1,i,0),task->globalCells[1],T.Stride(1),hankel);
-			Transform(&T(1,1,i,1),task->globalCells[1],T.Stride(1),hankel);
-		}
-		chi.Transpose(xAxis,zAxis,&T,-1);
-
-		a0.Transpose(xAxis,zAxis,&T,1);
-		for (i=T.N0(3);i<=T.N1(3);i++)
-		{
-			Transform(&T(1,1,i,0),task->globalCells[1],T.Stride(1),hankel);
-			Transform(&T(1,1,i,1),task->globalCells[1],T.Stride(1),hankel);
-		}
-		a0.Transpose(xAxis,zAxis,&T,-1);
+		a0.Hankel(modes,hankel);
+		chi.Hankel(modes,hankel);
 	}
 
-	for (j=1;j<=yDim;j++)
-		for (i=1;i<=xDim;i++)
+	// NOTE: VectorStripRange does not work for complex fields
+	StripRange range(*space,3,strongbool::no);
+	for (auto it=range.begin();it!=range.end();++it)
+	{
+		tw::strip s = *it;
+		if (space->car==1.0)
+			lambda = a0.CyclicEigenvalue(s.dcd1(0),s.dcd2(0));
+		else
+			lambda = localEig[s.dcd1(0)];
+		for (k=1;k<=zDim;k++)
 		{
-			if (space->car==1.0)
-				lambda = a0.CyclicEigenvalue(i,j);
-			else
-				lambda = localEig[i];
-
-			// following could be done once at the beginning to save a couple tridiagonal inversions
-			globalIntegrator->SetMatrix((j-1)*xDim + (i-1),T1,T2+tw::Float(0.5)*lambda,T3,T1,T3);
-			globalIntegrator->SetData((j-1)*xDim + (i-1),&a1(i,j,0),a1.Stride(3)/2); // need complex stride and stride[0]=1
-
-			for (k=1;k<=zDim;k++)
-				source[k-1] = T1*a0(i,j,k-1) + (T2-tw::Float(0.5)*lambda)*a0(i,j,k) + T3*a0(i,j,k+1) - chi(i,j,k);
-
-			TriDiagonal(ans,source,T1,T2+tw::Float(0.5)*lambda,T3);
-
-			a0(i,j,space->N0(3)) = a1(i,j,space->N0(3));
-			for (k=1;k<=zDim;k++)
-			{
-				a0(i,j,k) = a1(i,j,k);
-				a1(i,j,k) = ans[k-1];
-			}
-			a0(i,j,space->N1(3)) = a1(i,j,space->N1(3));
+			T2z[k-1] = T2 - tw::Float(0.5)*(lambda + chi_ref[k]);
+			source[k-1] = T1*a0(s,k-1) + T2z[k-1]*a0(s,k) + T3*a0(s,k+1) - chi(s,k);
+			T2z[k-1] = T2 + tw::Float(0.5)*(lambda + chi_ref[k]);
 		}
+
+		TriDiagonal(ans,source,T1,T2z,T3);
+
+		for (k=1;k<=zDim;k++)
+		{
+			a0(s,k) = a1(s,k);
+			a1(s,k) = ans[k-1];
+		}
+
+		globalIntegrator->SetMatrix(it.global_count(),T1,T2z,T3,T1,T3);
+		globalIntegrator->SetData(it.global_count(),&a1(s,0),a1.Stride(3)/2); // need complex stride and stride[0]=1
+	}
+	// The following can be replaced with a copy of ghost cells from a1 to a0
 	a0.CopyFromNeighbors();
 	a0.ApplyBoundaryCondition();
 
@@ -186,17 +197,14 @@ void EigenmodePropagator::Advance(ComplexField& a0,ComplexField& a1,ComplexField
 
 	globalIntegrator->Parallelize();
 
+	// Back to real space
+
 	if (space->car==1.0)
 		a1.InverseTransverseFFT();
 	else
 	{
-		a1.Transpose(xAxis,zAxis,&T,1);
-		for (i=T.N0(3);i<=T.N1(3);i++)
-		{
-			Transform(&T(1,1,i,0),task->globalCells[1],T.Stride(1),inverseHankel);
-			Transform(&T(1,1,i,1),task->globalCells[1],T.Stride(1),inverseHankel);
-		}
-		a1.Transpose(xAxis,zAxis,&T,-1);
+		a1.InverseHankel(modes,inverseHankel);
+		chi.InverseHankel(modes,inverseHankel);
 	}
 	a1.ApplyBoundaryCondition();
 
@@ -209,6 +217,18 @@ void EigenmodePropagator::Advance(ComplexField& a0,ComplexField& a1,ComplexField
 		for (j=space->N0(2);j<=space->N1(2);j++)
 			for (i=space->N0(1);i<=space->N1(1);i++)
 				a1(i,j,space->N1(3)) = a0(i,j,space->N1(3));
+}
+
+void EigenmodePropagator::ReadData(std::ifstream& inFile)
+{
+	ComputeTool::ReadData(inFile);
+	inFile.read((char*)&modes,sizeof(modes));
+}
+
+void EigenmodePropagator::WriteData(std::ofstream& outFile)
+{
+	ComputeTool::WriteData(outFile);
+	outFile.write((char*)&modes,sizeof(modes));
 }
 
 

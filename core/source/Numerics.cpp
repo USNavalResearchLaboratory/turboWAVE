@@ -6,18 +6,37 @@
 #include "3dfields.h"
 #include "numerics.h"
 
-void Transform(tw::Float *array,tw::Int num,tw::Int interval,std::valarray<tw::Float>& transform)
+void Transform(tw::Float *array,tw::Int pts,tw::Int modes,tw::Int interval,std::valarray<tw::Float>& transform)
 {
-	tw::Int j,n;
-	std::valarray<tw::Float> temp(num);
+	// Truncation of modes assumes eigenvalues sorted with increasing *absolute* value
+	tw::Int p,m;
+	std::valarray<tw::Float> temp(modes);
 
-	for (j=0;j<num;j++)
-		temp[j] = 0.0;
-	for (n=0;n<num;n++)
-		for (j=0;j<num;j++)
-			temp[j] += transform[j*num+n] * array[n*interval];
-	for (j=0;j<num;j++)
-		array[j*interval] = temp[j];
+	for (m=0;m<modes;m++)
+		temp[m] = 0.0;
+	for (p=0;p<pts;p++)
+		for (m=0;m<modes;m++)
+			temp[m] += transform[m*pts+p] * array[p*interval];
+	for (m=0;m<modes;m++)
+		array[m*interval] = temp[m];
+	for (m=modes;m<pts;m++)
+		array[m*interval] = 0.0;
+}
+
+void ReverseTransform(tw::Float *array,tw::Int pts,tw::Int modes,tw::Int interval,std::valarray<tw::Float>& rev_transform)
+{
+	// Truncation of modes assumes eigenvalues sorted with increasing *absolute* value
+	// This is the same operation as Transform only if pts=modes
+	tw::Int p,m;
+	std::valarray<tw::Float> temp(pts);
+
+	for (p=0;p<pts;p++)
+		temp[p] = 0.0;
+	for (m=0;m<modes;m++)
+		for (p=0;p<pts;p++)
+			temp[p] += rev_transform[p*pts+m] * array[m*interval];
+	for (p=0;p<pts;p++)
+		array[p*interval] = temp[p];
 }
 
 void LeftHalfRotation(ScalarField& A,tw::Int p,tw::Int q,tw::Float c,tw::Float s,tw::Int def1,tw::Int def2)
@@ -234,7 +253,12 @@ void SymmetricTridiagonalEigensystem(std::valarray<tw::Float>& eigenvalues,tw::F
 		} while (m!=l);
 	}
 	for (i=0;i<n;i++)
-		eigenvalues[i] = d[i+1];
+		//eigenvalues[i] = d[i+1]; // natural order, most negative first
+		eigenvalues[i] = d[n-i]; // reversing the order
+	// Reverse the matrix order.
+	for (k=0;k<n;k++)
+		for (i=0;i<n/2;i++)
+			std::swap(revTransform[k*n+i],revTransform[k*n+n-i-1]);
 }
 
 tw::Float GetSphericalGroundState(std::valarray<tw::Float>& vec,std::valarray<tw::Float>& phi,tw::Float dr)

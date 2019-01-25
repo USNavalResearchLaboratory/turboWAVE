@@ -310,8 +310,8 @@ void PGCSolver::EnergyColumns(std::vector<tw::Float>& cols,std::vector<bool>& av
 void PGCSolver::Update()
 {
 	tw::Int i,j,k;
-	//chi.ImpliedDeposit();
 	chi.DepositFromNeighbors();
+	chi.ApplyFoldingCondition();
 	chi.DivideCellVolume(*owner);
 	chi.ApplyBoundaryCondition();
 	if (owner->smoothing>0)

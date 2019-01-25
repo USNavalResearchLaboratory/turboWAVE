@@ -808,18 +808,19 @@ void EigenmodePoissonSolver::TransformBoundaryValues()
 {
 	// Presuming owner has already set lbc/rbc in real space, express lbc_t/rbc_t in eigenspace
 	const tw::Int xDim = space->Dim(1);
-	std::valarray<tw::Float> globalData(task->globalCells[1]+2);
+	const tw::Int rDim = task->globalCells[1];
+	std::valarray<tw::Float> globalData(rDim+2);
 
 	// LEFT SIDE
 	task->strip[1].Gather(&lbc[space->Layers(1)],&globalData[1],xDim*sizeof(tw::Float),0);
 	if (task->strip[1].Get_rank()==0)
-		Transform(&globalData[1],task->globalCells[1],1,hankel);
+		Transform(&globalData[1],rDim,rDim,1,hankel);
 	task->strip[1].Scatter(&lbc[space->Layers(1)],&globalData[1],xDim*sizeof(tw::Float),0);
 
 	// RIGHT SIDE
 	task->strip[1].Gather(&rbc[space->Layers(1)],&globalData[1],xDim*sizeof(tw::Float),0);
 	if (task->strip[1].Get_rank()==0)
-		Transform(&globalData[1],task->globalCells[1],1,hankel);
+		Transform(&globalData[1],rDim,rDim,1,hankel);
 	task->strip[1].Scatter(&rbc[space->Layers(1)],&globalData[1],xDim*sizeof(tw::Float),0);
 }
 
@@ -847,7 +848,7 @@ void EigenmodePoissonSolver::Solve(ScalarField& phi,ScalarField& source,tw::Floa
 	// Perform hankel transform
 	source.Transpose(xAxis,zAxis,&T,1);
 	for (i=T.N0(3);i<=T.N1(3);i++)
-		Transform(&T(1,1,i,0),task->globalCells[1],T.Stride(1),hankel);
+		Transform(&T(1,1,i,0),task->globalCells[1],task->globalCells[1],T.Stride(1),hankel);
 	source.Transpose(xAxis,zAxis,&T,-1);
 
 	// Solve on single node
@@ -954,12 +955,12 @@ void EigenmodePoissonSolver::Solve(ScalarField& phi,ScalarField& source,tw::Floa
 
 	phi.Transpose(xAxis,zAxis,&T,1);
 	for (i=T.N0(3);i<=T.N1(3);i++)
-		Transform(&T(1,1,i,0),task->globalCells[1],T.Stride(1),inverseHankel);
+		Transform(&T(1,1,i,0),task->globalCells[1],task->globalCells[1],T.Stride(1),inverseHankel);
 	phi.Transpose(xAxis,zAxis,&T,-1);
 
 // 	source.Transpose(xAxis,zAxis,&T,1);
 // 	for (i=ZN0(T);i<=ZN1(T);i++)
-// 		Transform(&T(1,1,i,0),task->globalCells[1],XStride(T),inverseHankel);
+// 		Transform(&T(1,1,i,0),task->globalCells[1],task->globalCells[1],XStride(T),inverseHankel);
 // 	source.Transpose(xAxis,zAxis,&T,-1);
 
 	// Global boundary conditions
