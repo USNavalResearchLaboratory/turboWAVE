@@ -918,7 +918,7 @@ void Field::Transpose(const Element& e,const axisSpec& axis1,const axisSpec& axi
 	// We choose the blocks so that #blocks <= #nodes.
 	// 'target' is an externally owned field that will receive the transposed data
 	// This routine resizes target when the forward transpose is invoked.
-	// As a corollary, upon reverse transposing, the same target should be passed in.
+	// Upon reverse transposing, the same target should be passed in.
 	// 'inversion' is 1 if forward transpose, -1 if reverse transpose
 
 	// Ghost cell policy:
@@ -1002,31 +1002,31 @@ void Field::Transpose(const Element& e,const axisSpec& axis1,const axisSpec& axi
 	{
 		j = thisNode;
 		block = FormTransposeBlock(e,axis1,axis2,dN0,dN1,start[j],end[j]);
-        if (inversion==-1)
-        {
-            block->Translate(axis1,j*dim1);
-            block->Translate(axis2,-j*cellsPerBlock);
-            target->LoadDataIntoImage<tw::Float>(block);
-            block->Translate(axis1,-j*dim1);
-            block->Translate(axis2,j*cellsPerBlock);
-            SaveDataFromImage<tw::Float>(block);
-        }
-        else
-        {
-            LoadDataIntoImage<tw::Float>(block);
-            block->Translate(axis1,j*dim1);
-            block->Translate(axis2,-j*cellsPerBlock);
-            target->SaveDataFromImage<tw::Float>(block);
-        }
+		if (inversion==-1)
+		{
+	    block->Translate(axis1,j*dim1);
+	    block->Translate(axis2,-j*cellsPerBlock);
+	    target->LoadDataIntoImage<tw::Float>(block);
+	    block->Translate(axis1,-j*dim1);
+	    block->Translate(axis2,j*cellsPerBlock);
+	    SaveDataFromImage<tw::Float>(block);
+		}
+		else
+		{
+	    LoadDataIntoImage<tw::Float>(block);
+	    block->Translate(axis1,j*dim1);
+	    block->Translate(axis2,-j*cellsPerBlock);
+	    target->SaveDataFromImage<tw::Float>(block);
+		}
 		delete block;
 	}
 
-    // Now exchange data between sub/super diagonal pairs
+  // Now exchange data between sub/super diagonal pairs
 
 	for (i=1;i<nodes;i++) // Loop over sub-diagonals
-        for (k=0;k<2;k++) // each sub-diagonal has 2 independent groups
-            for (l=k*i;l<nodes-i;l+=2*i) // Loop over super-blocks of this independent group
-                for (s=0;s<i && s<nodes-l-i;s++) // Loop over blocks in each super-block
+		for (k=0;k<2;k++) // each sub-diagonal has 2 independent groups
+	    for (l=k*i;l<nodes-i;l+=2*i) // Loop over super-blocks of this independent group
+	      for (s=0;s<i && s<nodes-l-i;s++) // Loop over blocks in each super-block
 				{
 					// sub-diagonal : (l+s , l+s+i) = (old node , old block) = (new block , new node)
 					// super-diagonal : (l+s+i , l+s) = (old node , old block) = (new block , new node)
@@ -1214,10 +1214,21 @@ void Field::Swap(const Element& e1,const Element& e2)
 
 void CopyFieldData(Field& dst,const Element& e_dst,Field& src,const Element& e_src)
 {
-	tw::Int c;
-	for (c=0;c<e_dst.Components();c++)
+	for (tw::Int c=0;c<e_dst.Components();c++)
 		for (auto cell : CellRange(dst,true))
 			dst(cell,e_dst.low+c) = src(cell,e_src.low+c);
+}
+
+void CopyGhostCellData(Field& dst,const Element& e_dst,Field& src,const Element& e_src)
+{
+	for (tw::Int c=0;c<e_dst.Components();c++)
+		for (tw::Int ax=1;ax<=3;ax++)
+			for (auto strip : StripRange(dst,ax,strongbool::yes))
+				for (tw::Int i=0;i<dst.layers[ax];i++)
+				{
+					dst(strip,dst.lb[ax]+i,e_dst.low+c) = src(strip,src.lb[ax]+i,e_src.low+c);
+					dst(strip,dst.ub[ax]-i,e_dst.low+c) = src(strip,src.ub[ax]-i,e_src.low+c);
+				}
 }
 
 void AddFieldData(Field& dst,const Element& e_dst,Field& src,const Element& e_src)

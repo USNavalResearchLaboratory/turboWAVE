@@ -141,8 +141,8 @@ void LaserSolver::BoxDiagnosticHeader(GridDataDescriptor* box)
 	owner->WriteBoxDataHeader("a2",box);
 	owner->WriteBoxDataHeader("e_real",box);
 	owner->WriteBoxDataHeader("e_imag",box);
-	owner->WriteBoxDataHeader("chi_real",box);
-	owner->WriteBoxDataHeader("chi_imag",box);
+	owner->WriteBoxDataHeader("j_real",box);
+	owner->WriteBoxDataHeader("j_imag",box);
 }
 
 void LaserSolver::PointDiagnosticHeader(std::ofstream& outFile)
@@ -381,6 +381,6 @@ void PGCSolver::BoxDiagnose(GridDataDescriptor* box)
 	owner->WriteBoxData("e_real",box,&er(0,0,0),er.Stride());
 	owner->WriteBoxData("e_imag",box,&ei(0,0,0),ei.Stride());
 	owner->WriteBoxData("a2",box,&F(0,0,0,7),F.Stride());
-	owner->WriteBoxData("chi_real",box,&chi(0,0,0,0),chi.Stride());
-	owner->WriteBoxData("chi_imag",box,&chi(0,0,0,1),chi.Stride());
+	owner->WriteBoxData("j_real",box,&chi(0,0,0,0),chi.Stride());
+	owner->WriteBoxData("j_imag",box,&chi(0,0,0,1),chi.Stride());
 }

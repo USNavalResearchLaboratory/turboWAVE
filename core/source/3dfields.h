@@ -409,6 +409,7 @@ struct Field:DiscreteSpace
 	friend void Swap(Field& f1,Field& f2);
 	void Swap(const Element& e1,const Element& e2);
 	friend void CopyFieldData(Field& dst,const Element& e_dst,Field& src,const Element& e_src);
+	friend void CopyGhostCellData(Field& dst,const Element& e_dst,Field& src,const Element& e_src);
 	friend void AddFieldData(Field& dst,const Element& e_dst,Field& src,const Element& e_src);
 	friend void AddMulFieldData(Field& dst,const Element& e_dst,Field& src,const Element& e_src,tw::Float mul);
 	void SmoothingPass(const Element& e,const MetricSpace& ds,const tw::Float& X0,const tw::Float& X1,const tw::Float& X2);

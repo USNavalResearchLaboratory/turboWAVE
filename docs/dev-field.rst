@@ -70,14 +70,14 @@ Range based loops over cells are used when the order of iterations does not requ
 	#pragma omp parallel
 	{
 		for (auto cell : InteriorCellRange(*this))
-			some_field(cell,0) *= 2;
+			some_field(cell,0) *= another_field(cell,1);
 	}
 
-In this example the first component of ``some_field`` is doubled.  Putting the loop inside a parallel region causes the ``InteriorCellRange`` object to automatically partition the iterations among the threads. The use of ``*this`` in the range constructor assumes that the loop is formed in the method of some object that derives from ``DiscreteSpace``, such as a ``Module``.  If calling from a ``ComputeTool`` method, ``*this`` would be replaced by ``*space``.  The ``InteriorCellRange`` is so named because it does not include ghost cells. To include them use ``EntireCellRange``.
+In this example the first component of ``some_field`` is multiplied by the second component of ``another_field``.  Putting the loop inside a parallel region causes the ``InteriorCellRange`` object to automatically partition the iterations among the threads. The use of ``*this`` in the range constructor assumes that the loop is formed in the method of some object that derives from ``DiscreteSpace``, such as a ``Module``.  If calling from a ``ComputeTool`` method, ``*this`` would be replaced by ``*space``.  The ``InteriorCellRange`` is so named because it does not include ghost cells. To include them use ``EntireCellRange``.
 
 .. Caution::
 
-	If for some reason you nest auto-threaded loops inside a parallel section, you will create a new team of threads for each thread in the outer team.
+	If for some reason you nest auto-threaded loops inside a parallel section, you may get unexpected results.
 
 If an iteration index is required, one may use the more explicit notation:
 
@@ -111,8 +111,8 @@ A frequent pattern is operating on strips of cells.  Often one would like to rep
 		#pragma omp parallel
 		{
 			for (auto strip : StripRange(*this,ax,strongbool::no))
-				for (int s=0;s<=Dim(ax);s++)
-					some_field(strip,s,0) *= 2.0;
+				for (int s=1;s<=Dim(ax);s++)
+					some_field(strip,s,0) *= another_field(strip,s,1);
 		}
 	}
 
@@ -132,12 +132,16 @@ Suppose we have a ``Field`` with axis 3 as the packed axis.  Then an optimized l
 		for (auto v : VectorStripRange<3>(*this,false))
 		{
 			#pragma omp simd
-			for (tw::Int i=0;i<=Dim(3);i++)
-				some_field(v,i,0) *= 2;
+			for (tw::Int i=1;i<=Dim(3);i++)
+				some_field(v,i,0) *= another_field(v,i,1);
 		}
 	}
 
 Here, we have again assumed the block is defined inside a derivative of ``DiscreteSpace``.  It is important to understand that this construction uses thread parallelism *across* strips, and vector parallelism *along* strips.  Therefore it is not effective for 1D problems.
+
+.. Warning::
+
+	Due to the assumption of a spatial axis being packed, derived field classes which assume components are packed, most notably ``ComplexField``, are incompatible with ``VectorStripRange``.
 
 Differencing
 ------------
@@ -151,7 +155,7 @@ The ``Field`` class provides for differencing patterns that occur often in compu
 		for (auto v : VectorStripRange<3>(*this,false))
 		{
 			#pragma omp simd
-			for (int i=0;i<Dim(3);i++)
+			for (int i=1;i<=Dim(3);i++)
 				A(v,i,0) = B.d2(v,i,0,2);
 		}
 	}

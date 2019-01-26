@@ -53,8 +53,8 @@ namespace tw
 	typedef uint32_t Uint;
 	typedef std::complex<tw::Float> Complex;
 	static const tw::Int cache_align_bytes = 64;
-	static const tw::Int vec_align_bytes = 64; // if not matched to hardware can lead to failures
-	static const tw::Int max_bundle_size = 16; // must be multiple of vec_align_bytes / 4
+	static const tw::Int vec_align_bytes = 32; // if not matched to hardware can lead to failures
+	static const tw::Int max_bundle_size = 8; // must be multiple of vec_align_bytes / 4
 	static const tw::Float small_neg = -1e9*std::numeric_limits<tw::Float>::min();
 	static const tw::Float small_pos = 1e9*std::numeric_limits<tw::Float>::min();
 	static const tw::Float big_neg = -1e-9*std::numeric_limits<tw::Float>::max();

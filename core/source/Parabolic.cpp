@@ -143,7 +143,7 @@ void EigenmodePropagator::Advance(ComplexField& a0,ComplexField& a1,ComplexField
 	{
 		for (k=0;k<=zDim+1;k++)
 			chi_ref[k] = std::real(chi(1,1,k));
-		task->strip[1].Bcast(&chi_ref[0],chi_ref.size(),0);
+		task->strip[1].Bcast(&chi_ref[0],sizeof(tw::Float)*chi_ref.size(),0);
 	}
 	for (auto s : StripRange(*space,3,strongbool::yes))
 		for (k=0;k<=zDim+1;k++)
@@ -189,9 +189,7 @@ void EigenmodePropagator::Advance(ComplexField& a0,ComplexField& a1,ComplexField
 		globalIntegrator->SetMatrix(it.global_count(),T1,T2z,T3,T1,T3);
 		globalIntegrator->SetData(it.global_count(),&a1(s,0),a1.Stride(3)/2); // need complex stride and stride[0]=1
 	}
-	// The following can be replaced with a copy of ghost cells from a1 to a0
-	a0.CopyFromNeighbors();
-	a0.ApplyBoundaryCondition();
+	CopyGhostCellData(a0,All(a0),a1,All(a1));
 
 	// Take into account the other nodes
 
@@ -209,14 +207,12 @@ void EigenmodePropagator::Advance(ComplexField& a0,ComplexField& a1,ComplexField
 	a1.ApplyBoundaryCondition();
 
 	if (task->n0[3]==MPI_PROC_NULL && zDim>1)
-		for (j=space->N0(2);j<=space->N1(2);j++)
-			for (i=space->N0(1);i<=space->N1(1);i++)
-				a1(i,j,space->N0(3)) = a0(i,j,space->N0(3));
+		for (auto s : StripRange(*space,3,strongbool::yes))
+			a1(s,space->N0(3)) = a0(s,space->N0(3));
 
 	if (task->n1[3]==MPI_PROC_NULL && zDim>1)
-		for (j=space->N0(2);j<=space->N1(2);j++)
-			for (i=space->N0(1);i<=space->N1(1);i++)
-				a1(i,j,space->N1(3)) = a0(i,j,space->N1(3));
+		for (auto s : StripRange(*space,3,strongbool::yes))
+			a1(s,space->N1(3)) = a0(s,space->N1(3));
 }
 
 void EigenmodePropagator::ReadData(std::ifstream& inFile)
