@@ -5,43 +5,33 @@
 # User additions to .bashrc go in this file
 #
 export NERSC_HOST=`/usr/common/usg/bin/nersc_host`
-
-if [ $NERSC_HOST == "davinci" ]
-then
-#  Replace the following line with personal settings for davinci
-  touch /dev/null
-fi
-
-if [ $NERSC_HOST == "datatran" ]
-then
-#  Replace the following line with personal settings for datatran
-  touch /dev/null
-fi
-
+export FRAMEWORK="tw"
+#export FRAMEWORK="os"
+#export TARGET="knl"
+export TARGET="cpu"
 if [ "$NERSC_HOST" == "cori" ]
 then
-  # following can be "turbowave" or "osiris"
-  export FRAMEWORK="turbowave"
-  # use "knl" for running on KNL nodes or "cpu" for Haswell nodes
-  export TARGET="knl"
-
   if [ "$TARGET" == "knl" ]
   then
-    # load modules for KNLs
     module unload craype-haswell
     module load craype-mic-knl
   fi
   if [ "$TARGET" == "cpu" ]
   then
-    # load modules for Hawell
+    module unload craype-mic-knl
     module load craype-haswell
   fi
-  
-  if [ "$FRAMEWORK" == "osiris" ]
-  then
-    # HDF5 has to be this version other not working on newer versions
-    module load cray-hdf5/1.8.16
 
+  if [ "$FRAMEWORK" == "tw" ]
+  then
+    module unload cray-hdf5
+    module unload impi
+    module load cray-mpich
+  fi
+
+  if [ "$FRAMEWORK" == "os" ]
+  then
+    module load cray-hdf5
     # use Intel MPI
     module load impi
     export I_MPI_FABRICS=ofi
@@ -49,6 +39,7 @@ then
     export I_MPI_OFI_LIBRARY=/usr/common/software/libfabric/1.5.0/gnu/lib/libfabric.so
     export I_MPI_PMI_LIBRARY=/usr/lib64/slurmpmi/libpmi.so
   fi
+
 fi
 [ -e $HOME/.dbgdot ] && echo "exiting .bashrc.ext"
 

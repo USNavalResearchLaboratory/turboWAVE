@@ -111,7 +111,7 @@ def Create(file_name,data_array,phys_dims,c_order=False):
 	"""Creates dvdat file using numpy array
 	inputs:
 	file_name (string)
-	data_array (3D numpy array)
+	data_array (3D or 4D numpy array)
 	phys_dims (6 element numpy array with x0,x1,y0,y1,z0,z1)
 	c_order (opt bool, false) - if true assume numpy ordering : data_array[x,y,z]"""
 	p = dvdatParams()
@@ -129,7 +129,26 @@ def Create(file_name,data_array,phys_dims,c_order=False):
 		p.dims.tofile(f)
 		p.phys_dims.tofile(f)
 		if c_order:
-			temp = np.copy(data_array.swapaxes(0,2))
+			if len(data_array.shape)==3:
+				temp = np.copy(data_array.swapaxes(0,2))
+			else:
+				temp = np.copy(data_array.swapaxes(1,3))
+			temp.astype(dt2).tofile(f)
+		else:
+			data_array.astype(dt2).tofile(f)
+
+def Append(file_name,data_array,c_order=False):
+	"""Add frames to a dvdat file given a numpy array
+	inputs:
+	file_name (string)
+	data_array (3D or 4D numpy array)
+	c_order (opt bool, false) - if true assume numpy ordering : data_array[x,y,z]"""
+	with open(file_name,"a") as f:
+		if c_order:
+			if len(data_array.shape)==3:
+				temp = np.copy(data_array.swapaxes(0,2))
+			else:
+				temp = np.copy(data_array.swapaxes(1,3))
 			temp.astype(dt2).tofile(f)
 		else:
 			data_array.astype(dt2).tofile(f)

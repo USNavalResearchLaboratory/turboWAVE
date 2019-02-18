@@ -298,7 +298,7 @@ void PGCSolver::EnergyColumns(std::vector<tw::Float>& cols,std::vector<bool>& av
 
 					eNow = ii*laserFreq*aNow - (dtau-dzeta);
 					bNow = ii*laserFreq*aNow + dzeta;
-					fieldEnergy += half*(norm(eNow) + norm(bNow))*owner->dS(i,j,k,0);
+					fieldEnergy += 0.25*(norm(eNow) + norm(bNow))*owner->dS(i,j,k,0);
 					waveAction += imag( conj(aNow)*bNow - aNow*conj(bNow) ) * owner->dS(i,j,k,0);
 				}
 			}

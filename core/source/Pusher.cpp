@@ -86,11 +86,13 @@ void Species::SpreadTasks(std::vector<tw::Int>& task_map)
 }
 
 template <class BundleType>
-void Species::PushSlice(tw::Int first,tw::Int last)
+void Species::PushSlice(tw::Int tasks,tw::Int tid,tw::Int bounds_data[][8])
 {
-	tw::Int next,low[4],high[4];
+	tw::Int first,last,next,low[4],high[4];
 	std::vector<ParticleRef> map;
 	BundleType b;
+	first = bounds_data[tid][0];
+	last = bounds_data[tid][1];
 	map.resize(last-first+1);
 	for (tw::Int i=first;i<=last;i++)
 		map[i-first] = ParticleRef(i,particle[i]);
@@ -99,6 +101,12 @@ void Species::PushSlice(tw::Int first,tw::Int last)
 	b.LoadFieldSlice(this,low,high,ignorable);
 	GetSubarrayBounds(map,low,high,2);
 	b.InitSourceSlice(this,low,high,ignorable);
+	// Save the bounds information
+	for (tw::Int i=1;i<=3;i++)
+	{
+		bounds_data[tid][i*2] = low[i];
+		bounds_data[tid][i*2+1] = high[i];
+	}
 	for (tw::Int i=first;i<=last;i++)
 	{
 		b.Append(particle[map[i-first].idx]);
@@ -110,7 +118,25 @@ void Species::PushSlice(tw::Int first,tw::Int last)
 			b.Reset();
 		}
 	}
-	b.DepositSourceSlice(this,true);
+	// Work out whether atomic operations are needed or not
+	bool needs_atomic = false;
+	#pragma omp barrier
+	for (tw::Int i=0;i<tasks;i++)
+	{
+		if (i!=tid)
+		{
+			bool disjoint =
+				bounds_data[tid][2]>bounds_data[i][3] ||
+				bounds_data[tid][4]>bounds_data[i][5] ||
+				bounds_data[tid][6]>bounds_data[i][7] ||
+				bounds_data[tid][3]<bounds_data[i][2] ||
+				bounds_data[tid][5]<bounds_data[i][4] ||
+				bounds_data[tid][7]<bounds_data[i][6];
+			needs_atomic = needs_atomic || !disjoint;
+		}
+	}
+	needs_atomic = needs_atomic && tw::GetOMPMaxThreads()>1;
+	b.DepositSourceSlice(this,needs_atomic);
 }
 
 template <class BundleType>
@@ -121,27 +147,28 @@ void Species::Push()
 
 	const tw::Int min_particles_per_task = 256;
 	const tw::Int num_par = particle.size();
-	const tw::Int hardware_tasks = tw::GetOMPMaxThreads();
+	const tw::Int concurrent_tasks = tw::GetOMPMaxThreads();
 	const tw::Int max_tasks = 1 + num_par / min_particles_per_task;
-	const tw::Int preferred_tasks = 4*hardware_tasks;
+	const tw::Int preferred_tasks = 4*concurrent_tasks;
 	const tw::Int num_tasks = preferred_tasks > max_tasks ? max_tasks : preferred_tasks;
-	const tw::Int concurrent_sets = num_tasks / hardware_tasks;
-	const tw::Int remainder_tasks = num_tasks % hardware_tasks;
+	const tw::Int concurrent_sets = num_tasks / concurrent_tasks;
+	const tw::Int remainder_tasks = num_tasks % concurrent_tasks;
 
 	std::vector<tw::Int> task_map(num_tasks);
 	SpreadTasks(task_map);
 	//BunchTasks(task_map);
 
 	// Carry out the fully packed concurrent tasks
+	// following has first,last,x0,x1,y0,y1,z0,z1
+	tw::Int bounds_data[concurrent_tasks][8];
 	for (tw::Int c=0;c<concurrent_sets;c++)
 	{
 		#pragma omp parallel for
-		for (tw::Int t=0;t<hardware_tasks;t++)
+		for (tw::Int t=0;t<concurrent_tasks;t++)
 		{
-			tw::Int task_idx = task_map[c*hardware_tasks + t];
-			tw::Int first,last;
-			tw::GetOMPTaskLoopRange(task_idx,num_par,num_tasks,&first,&last);
-			PushSlice<BundleType>(first,last);
+			tw::Int task_idx = task_map[c*concurrent_tasks + t];
+			tw::GetOMPTaskLoopRange(task_idx,num_par,num_tasks,&bounds_data[t][0],&bounds_data[t][1]);
+			PushSlice<BundleType>(concurrent_tasks,t,bounds_data);
 		}
 	}
 
@@ -149,10 +176,9 @@ void Species::Push()
 	#pragma omp parallel for
 	for (tw::Int t=0;t<remainder_tasks;t++)
 	{
-		tw::Int task_idx = task_map[concurrent_sets*hardware_tasks + t];
-		tw::Int first,last;
-		tw::GetOMPTaskLoopRange(task_idx,num_par,num_tasks,&first,&last);
-		PushSlice<BundleType>(first,last);
+		tw::Int task_idx = task_map[concurrent_sets*concurrent_tasks + t];
+		tw::GetOMPTaskLoopRange(task_idx,num_par,num_tasks,&bounds_data[t][0],&bounds_data[t][1]);
+		PushSlice<BundleType>(remainder_tasks,t,bounds_data);
 	}
 }
 

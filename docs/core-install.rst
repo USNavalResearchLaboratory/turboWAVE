@@ -23,6 +23,14 @@ On Windows we do not use any package manager.
 On HPC systems, we expect a suitable compiler to be pre-installed by the system
 administrators, although there may be modules to load, unload, or swap.
 
+OpenMP Option
+-------------
+
+It is recommended that turboWAVE always be compiled with OpenMP, even if shared memory parallelism is not going to be used.  There are two reasons for this:
+
+	1. All turboWAVE SIMD support relies on OpenMP.  So even if shared memory is not used at all, there can be a significant performance penalty when OpenMP is missing.
+	2. OpenMP enabled executables are tested more frequently than executables without OpenMP.
+
 Core Install by OS
 ------------------
 

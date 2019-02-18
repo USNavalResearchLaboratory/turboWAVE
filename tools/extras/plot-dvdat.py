@@ -1,5 +1,6 @@
 import sys
 import glob
+import os
 import subprocess
 import numpy as np
 import matplotlib as mpl
@@ -9,23 +10,63 @@ import twutils.dvdat as dv
 import twutils.pre as twpre
 from scipy import constants as C
 
+# Plotter for publication quality figures or presentation quality movies
+
 if len(sys.argv)<3:
-	print('Usage: plot-dvdat.py [slicing=slices] [file] [opt:dynamic range (induces log plot):0] [opt:color map:viridis]')
-	print('slicing is a 4-character string, such as xyzt, where the first axes appearing are the ones that are plotted.')
-	print('slices is a comma delimited list of slice indices, NO SPACES.')
-	print('If 2 slice indices are given a 2D plot is produced, if 3 a 1D plot is produced.')
-	print('Optional arguments must be in the order given or else not given at all.')
-	print('Dynamic range = 0 signals full range on linear scale.')
-	print('Colors: viridis,magma,plasma,inferno,Spectral,bwr,seismic,prism,ocean,rainbow,jet,nipy_spectral')
-	print('Color maps may be inverted by adding "_r" to the name')
-	print('Note any Matplotlib color maps can be used.')
-	print('Animations:')
+	print('Usage: python plot-dvdat.py slicing=slices;... file1,... [panels=a,b,...] [mult=1.0,1.0,1.0;...]')
+	print('    [range=low,high;...] [layout=2x2] [dr=0.0,...] [color=viridis,...] [roi=h0,h1,v0,v1;...]')
+	print('    [labels=hlab,vlab,clab;...]')
+	print('------------------Examples----------------')
+	print('2D plot: python plot-dvdat.py zxyt=0,0 rho.dvdat')
+	print('1D plot: python plot-dvdat.py xyzt=0,0,0 Ex.dvdat')
+	print('Hybrid: python plot-dvdat.py zxyt=0,0;zxyt=0,0,0 rho.dvdat,Ex.dvdat panels=a,b layout=1x2')
+	print('-------------------General Notes--------------------')
+	print('Extra spaces (e.g. around commas or equals) are not allowed.')
+	print('Displays any number of panels with common slicing.')
+	print('Required arguments are positional, optional arguments are key=value pairs.')
+	print('------------------Required Arguments-----------------------')
+	print('slicing: 4-character string, such as xyzt, where the first 1 or 2 axes are plotted.')
+	print('slices: is a comma delimited list of slice indices.')
+	print('   Number of slices determines whether the plot is 1D or 2D.')
+	print('file1: name of the first file to plot, etc. File names cannot contain commas.')
+	print('------------------Optional Arguments-----------------------')
+	print('panels: labels for the subplot panels, e.g., a,b,etc.')
+	print('mult: rescaling multipliers, multiplying haxis,vaxis,data.')
+	print('range: explicit setting of the low and high bounds of plotting range.')
+	print('layout: layout of the grid on which to put multiple plots.')
+	print('dr: 0.0 signals full range on linear scale, any other float is the number of decades spanned.')
+	print('color: viridis,magma,plasma,inferno,Spectral,bwr,seismic,prism,ocean,rainbow,jet,nipy_spectral')
+	print('   Color maps may be inverted by adding "_r" to the name')
+	print('   Note any Matplotlib color maps can be used.')
+	print('roi: select a subdomain to plot, otherwise the full domain is plotted.')
+	print('labels: labels for axes and colorbar. Cannot have space,comma,semicolon.')
+	print('   However, you can encode these by their names in all caps.')
+	print('----------------------Animations----------------------')
 	print('Put a python range as one of the slices to generate animated GIF.')
-	print('For example, zxyt=0,2:5 would animate the zx plane over time slices 2,3,4.')
+	print('For example, zxyt=0,0,2:5 would animate time slices 2,3,4.')
 	print('Note: ImageMagick suite must be installed for animations.')
+	print('On Windows hard coding the path to the correct convert.exe may be required.')
 	exit()
 
-# normalization constants in mks
+# Label scheme
+
+def format_label(l):
+	return l.replace('SPACE',' ').replace('COMMA',',').replace('SEMICOLON',';')
+
+cartesian = {
+ 'Axis0' : r'$\omega_p t$',
+ 'Axis1' : r'$\omega_p x/c$' ,
+ 'Axis2' : r'$\omega_p y/c$' ,
+ 'Axis3' : r'$\omega_p(z/c-t)$' }
+cylindrical = {
+ 'Axis0' : r'$\omega_p t$',
+ 'Axis1' : r'$\omega_p\rho/c$' ,
+ 'Axis2' : r'$\varphi$' ,
+ 'Axis3' : r'$\omega_p(z/c-t)$' }
+
+lab_dict = cylindrical
+
+# Normalization constants in mks
 
 n1 = 2.8e19*1e6
 su = twpre.SimUnits(n1*1e-6)
@@ -37,8 +78,7 @@ N1 = n1*x1**3
 
 # Matplotlib setup
 
-mpl.rcParams.update({'text.usetex' : False , 'font.size' : 14})
-my_color_map = 'viridis'
+mpl.rcParams.update({'text.usetex' : False , 'font.size' : 10})
 proportional = False
 if proportional:
 	my_aspect = 'equal'
@@ -49,9 +89,8 @@ else:
 
 def cleanup(wildcarded_path):
 	cleanstr = glob.glob(wildcarded_path)
-	if len(cleanstr)>0:
-		cleanstr.insert(0,'rm')
-		subprocess.run(cleanstr)
+	for f in cleanstr:
+		os.remove(f)
 
 def ParseSlices(dims,ax_list,slice_str_list):
 	'''Function to generate a list of slice tuples for the movie.
@@ -97,97 +136,212 @@ def ParseSlices(dims,ax_list,slice_str_list):
 
 # Process command line arguments and setup plotter object
 
-slicing_spec = sys.argv[1].split('=')[0]
-primitive_slices = (sys.argv[1].split('=')[1]).split(',')
-file_to_plot = sys.argv[2]
-if len(sys.argv)>3:
-	dyn_range = np.double(sys.argv[3])
-else:
-	dyn_range = 0.0
-if len(sys.argv)>4:
-	my_color_map = sys.argv[4]
+slicing_spec = []
+primitive_slices = []
+for spec in sys.argv[1].split(';'):
+	slicing_spec.append(spec.split('=')[0])
+	primitive_slices.append(spec.split('=')[1].split(','))
+file_to_plot = sys.argv[2].split(',')
+N = len(file_to_plot)
+panels = []
+rows = 1
+cols = N
+dyn_range = []
+color = []
+roi = []
+val_range = []
+mult = []
+labels=[]
 ask = 'yes'
+keylist = ['panels','layout','dr','color','roi','range','mult','labels']
+for keyval in sys.argv[3:]:
+	key = keyval.split('=')[0]
+	arg = keyval.split('=')[1]
+	if key not in keylist:
+		raise ValueError('Invalid key in optional arguments.')
+	if key=='panels':
+		panels = arg.split(',')
+	if key=='layout':
+		layout = arg.split('x')
+		rows = int(layout[0])
+		cols = int(layout[1])
+	if key=='dr':
+		dyn_range = arg.split(',')
+	if key=='color':
+		color = arg.split(',')
+	if key=='roi':
+		roi = arg.split(';')
+	if key=='range':
+		val_range = arg.split(';')
+	if key=='mult':
+		mult = arg.split(';')
+	if key=='labels':
+		labels = arg.split(';')
 
-plotter = twplot.plotter(file_to_plot)
-plotter.display_info()
+for i in range(N-len(slicing_spec)):
+	slicing_spec.append(slicing_spec[-1])
+	primitive_slices.append(primitive_slices[-1])
+for i in range(N-len(panels)):
+	panels.append('')
+for i in range(N-len(dyn_range)):
+	dyn_range.append('0')
+for i in range(N-len(val_range)):
+	val_range.append('')
+for i in range(N-len(color)):
+	color.append('viridis')
+for i in range(N-len(roi)):
+	roi.append('')
+for i in range(N-len(mult)):
+	mult.append('1.0,1.0,1.0')
+for i in range(N-len(labels)):
+	labels.append('')
+
+plotter = []
+for i,f in enumerate(file_to_plot):
+	needs_buffer = slicing_spec[i][0]=='t' or (slicing_spec[i][1]=='t' and len(primitive_slices[i])==2)
+	plotter.append(twplot.plotter(f,buffered=needs_buffer))
+plotter[0].display_info()
 
 # Set up animation slices
 
-axes = twplot.get_axis_info(slicing_spec)
-dims = plotter.dims4()
-slice_tuples,movie = ParseSlices(dims,axes,primitive_slices)
+slice_tuples = []
+movie = []
+for i in range(N):
+	axes = twplot.get_axis_info(slicing_spec[i])
+	dims = plotter[i].dims4()
+	st,m = ParseSlices(dims,axes,primitive_slices[i])
+	slice_tuples.append(st)
+	movie.append(m)
 
-# Check existing image files and clean
+# Check existing files and clean if there is a movie
 
-img_files = glob.glob('tempfile*.png')
-if len(img_files)>0 and ask=='yes':
-	ans = ''
-	while ans!='y' and ans!='n':
-		ans = input('Found some tempfile*.png files, OK to clean (y/n) ?')
-	if ans=='n':
-		print('STOPPED. Please run script in a directory where there are no important files of the form tempfile*.png.')
-		exit(1)
+if movie[0]:
+	img_files = glob.glob('frame*.png')
+	if len(img_files)>0 and ask=='yes':
+		ans = ''
+		while ans!='y' and ans!='n':
+			ans = input('Found some frame*.png files, OK to clean (y/n) ?')
+		if ans=='n':
+			print('STOPPED. Please run script in a directory where there are no important files of the form frame*.png.')
+			exit(1)
 
-for img_file in img_files:
-	subprocess.run(['rm',img_file])
+	for img_file in img_files:
+		os.remove(img_file)
+
+	mov_files = glob.glob('mov.gif')
+	if len(mov_files)>0 and ask=='yes':
+		ans = ''
+		while ans!='y' and ans!='n':
+			ans = input('Found mov.gif, OK to overwrite (y/n) ?')
+		if ans=='n':
+			print('STOPPED. Please do something with existing mov.gif and try again.')
+			exit(1)
 
 # Determine the global color scale bounds
 
-global_min = 1e50
-global_max = -1e50
-for file_idx,slice_now in enumerate(slice_tuples):
-	if len(primitive_slices)==2:
-		test_array,plot_dict = plotter.falsecolor2d(slicing_spec,slice_now,dyn_range)
-		local_min = plot_dict['vmin']
-		local_max = plot_dict['vmax']
-	if len(primitive_slices)==3:
-		abcissa,test_array,plot_dict = plotter.lineout(slicing_spec,slice_now,dyn_range)
-		local_min = np.min(test_array)
-		local_max = np.max(test_array)
-	if local_min<global_min:
-		global_min = local_min
-	if local_max>global_max:
-		global_max = local_max
+global_min = 1e50*np.ones(N)
+global_max = -1e50*np.ones(N)
+for i,p in enumerate(plotter):
+	if val_range[i]=='':
+		for slice_now in slice_tuples[i]:
+			dmult = float(mult[i].split(',')[2])
+			if len(primitive_slices[i])==2:
+				test_array,plot_dict = p.falsecolor2d(slicing_spec[i],slice_now,float(dyn_range[i]))
+				local_min = plot_dict['vmin']*dmult
+				local_max = plot_dict['vmax']*dmult
+			if len(primitive_slices[i])==3:
+				abcissa,test_array,plot_dict = p.lineout(slicing_spec[i],slice_now,float(dyn_range[i]))
+				local_min = np.min(test_array)*dmult
+				local_max = np.max(test_array)*dmult
+			if local_min>local_max:
+				local_min,local_max = local_max,local_min
+			if local_min<global_min[i]:
+				global_min[i] = local_min
+			if local_max>global_max[i]:
+				global_max[i] = local_max
+	else:
+		global_min[i] = float(val_range[i].split(',')[0])
+		global_max[i] = float(val_range[i].split(',')[1])
 
-# Generate the movie or show a single frame
+# Generate the movie or show a single frame.
+# The number of frames is dictated by the first panel.
 
-for file_idx,slice_now in enumerate(slice_tuples):
-	plt.figure(file_idx,figsize=(10,8),dpi=100)
+for file_idx in range(len(slice_tuples[0])):
 
-	if len(primitive_slices)==2:
-		data_slice,plot_dict = plotter.falsecolor2d(slicing_spec,slice_now,dyn_range)
-		plt.imshow(data_slice,
-			origin='lower',
-			aspect=my_aspect,
-			extent=plot_dict['extent'],
-			vmin=global_min,
-			vmax=global_max,
-			cmap=my_color_map)
-		plt.colorbar()
-		plt.xlabel(plot_dict['xlabel'],fontsize=18)
-		plt.ylabel(plot_dict['ylabel'],fontsize=18)
+	sz = (cols*5,rows*4)
+	plt.figure(file_idx,figsize=sz,dpi=100)
 
-	if len(primitive_slices)==3:
-		abcissa,ordinate,plot_dict = plotter.lineout(slicing_spec,slice_now,dyn_range)
-		plt.plot(abcissa,ordinate)
-		plt.ylim(global_min,global_max)
-		plt.xlabel(plot_dict['xlabel'],fontsize=18)
-		plt.ylabel(plot_dict['ylabel'],fontsize=18)
+	for i,p in enumerate(plotter):
+		slice_now = slice_tuples[i][file_idx]
+		exm = np.zeros(4)
+		exm[:2] = float(mult[i].split(',')[0])
+		exm[2:] = float(mult[i].split(',')[1])
+		dmult = float(mult[i].split(',')[2])
+		plt.subplot(rows,cols,i+1)
+		if len(primitive_slices[i])==2:
+			data_slice,plot_dict = p.falsecolor2d(slicing_spec[i],slice_now,float(dyn_range[i]))
+			plt.imshow(data_slice*dmult,
+				origin='lower',
+				aspect=my_aspect,
+				extent=np.array(plot_dict['extent'])*exm,
+				vmin=global_min[i],
+				vmax=global_max[i],
+				cmap=color[i])
+			b = plt.colorbar()
+			if not labels[i]=='':
+				plt.xlabel(format_label(labels[i].split(',')[0]),size=12)
+				plt.ylabel(format_label(labels[i].split(',')[1]),size=12)
+				b.set_label(format_label(labels[i].split(',')[2]),size=12)
+			else:
+				plt.xlabel(lab_dict[plot_dict['xlabel']],size=12)
+				plt.ylabel(lab_dict[plot_dict['ylabel']],size=12)
+			if roi[i]=='':
+				roi_i = plot_dict['extent']
+			else:
+				roi_i = []
+				for s in roi[i].split(','):
+					roi_i.append(float(s))
+				plt.xlim(roi_i[0],roi_i[1])
+				plt.ylim(roi_i[2],roi_i[3])
+			if not panels[i]=='':
+				plt.text(roi_i[0],roi_i[3]+0.03*(roi_i[3]-roi_i[2]),'('+panels[i]+')')
+		if len(primitive_slices[i])==3:
+			abcissa,ordinate,plot_dict = p.lineout(slicing_spec[i],slice_now,float(dyn_range[i]))
+			plt.plot(abcissa*exm[0],ordinate*exm[2])
+			if not labels[i]=='':
+				plt.xlabel(format_label(labels[i].split(',')[0]),size=12)
+				plt.ylabel(format_label(labels[i].split(',')[1]),size=12)
+			else:
+				plt.xlabel(lab_dict[plot_dict['xlabel']],size=12)
+			if roi[i]=='':
+				roi_i = [abcissa[0],abcissa[-1],global_min[i],global_max[i]]
+			else:
+				s = roi[i].split(',')
+				roi_i = [float(s[0]),float(s[1]),global_min[i],global_max[i]]
+				plt.xlim(roi_i[0],roi_i[1])
+				plt.ylim(roi_i[2],roi_i[3])
+			if not panels[i]=='':
+				plt.text(roi_i[0],roi_i[3]+0.03*(roi_i[3]-roi_i[2]),'('+panels[i]+')')
 
-	if movie:
+		plt.tight_layout()
+
+	if movie[0]:
 		img_file = 'frame{:03d}.png'.format(file_idx)
 		print('saving',img_file,'...')
 		plt.savefig(img_file)
 		plt.close()
 
-if movie:
+if movie[0]:
 	try:
 		print('Consolidating into movie file...')
-		subprocess.run(["convert","-delay","30","frame*.png","mov.gif"])
-		cleanup('frame*.png')
+		result = subprocess.run(['convert','-delay','30','frame*.png','mov.gif'])
+		if result.stdout[:7]=='Invalid':
+			print('Looks like Windows built in convert.exe is interfering.')
+		else:
+			cleanup('frame*.png')
 		print('Done.')
 	except:
-		cleanup('frame*.png')
-		raise OSError("The convert program from ImageMagick may not be installed.")
+		print('Could not run ImageMagick convert. Leaving the images.')
+		print('The command is: convert -delay 30 frame*.png mov.gif')
 else:
 	plt.show()

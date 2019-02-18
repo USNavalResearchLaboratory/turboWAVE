@@ -37,7 +37,7 @@ parallel processing models.  Unlike MPI, the OpenMP support relies on availabili
 OpenMP libraries.  Fortunately, OpenMP is becoming a standard part of modern compilers.
 As of this writing, the default compiler on RHEL/SL/CentOS, and on MacOS, does not have
 sufficient OpenMP support.  The installation documentation explains how to install updated
-compilers on these systems.
+compilers on these systems.  At the time of this writing, Microsoft Windows appears to be missing a free compiler with OpenMP support.
 
 TurboWAVE supports hardware acceleration with Graphical Processing Units (GPU) through OpenCL.
 However, this support is limited to selected modules.

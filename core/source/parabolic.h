@@ -16,7 +16,13 @@ struct LaserPropagator:ComputeTool
 
 struct EigenmodePropagator:LaserPropagator
 {
-	tw::Int modes;
+	// following selects number of radial modes to keep and absorbing layers
+	tw::Int modes,layers;
+	// causality = 0.0 gives centered differencing
+	// causality = -1.0 uses forward (downwind) differencing
+	// causality = 1.0 uses backward (upwind) differencing
+	// non-integral values are legal, and give a linear combination
+	tw::Float causality,dampingTime;
 	std::valarray<tw::Float> eigenvalue,hankel,inverseHankel;
 	GlobalIntegrator<tw::Complex>* globalIntegrator;
 

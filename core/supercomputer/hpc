@@ -1,38 +1,47 @@
-#!/bin/bash
-# provide a common interface for remote HPC machines
+#!/usr/bin/env bash
+# provide a common interface for remote HPC machines (bash version)
 # Examples:
-# 1) hpc ed login // login to edison
-# 2) hpc hop put "*.inp" // put all files with extension .inp in hopper scratch directory
-# 3) hpc pol get "gemini/plotfiles/*.dat" // get all .dat files from polar subdirectory
-# 4) hpc cori update // put all files in WD into ~/turbowave
+# 1) hpc cori login // login to Cori
+# 2) hpc cori th // sftp session starting in Cori home directory
+# 3) hpc cori t // sftp session starting in Cori scratch directory
+# 4) hpc onyx get "*.inp" // get all .inp files from Onyx scratch directory
+# 5) hpc onyx geth "*.dat" // get all .dat files from Onyx home directory
+# 6) hpc onyx put "*.inp" // put all .inp files in Onyx scratch directory
+# 7) hpc onyx puth "*.inp" // put all .inp files in Onyx home directory
+# 8) hpc cori update // put all files in working directory into ~/turbowave
 # note use of quotes enables wildcards
 
 case "$1" in
-	"ed" )
-		LOPT=
-		LOGIN=gordond@edison.nersc.gov
-		WORKDIR=/scratch2/scratchdirs/gordond;;
 	"cori" )
 		LOPT=
 		LOGIN=gordond@cori.nersc.gov
-		WORKDIR=/global/cscratch1/sd/gordond;;
-	"pol" )
-		LOPT="-F /Users/gordon/.ssh/ssh_config"
-		LOGIN=gordondf@polar.cmf.nrl.navy.mil
-		WORKDIR=/lustre/cmf/scratch/g/gordondf;;
+		WORKDIR=/global/cscratch1/sd/gordond
+		HOMEDIR=/global/homes/g/gordond;;
 	"onyx" )
 		LOPT=
 		LOGIN=gordon@onyx.erdc.hpc.mil
-		WORKDIR=/p/work/gordon;;
-	"top" )
+		WORKDIR=/p/work/gordon
+		HOMEDIR=/p/home/gordon;;
+	"must" )
 		LOPT=
-		LOGIN=gordon@topaz.erdc.hpc.mil
-		WORKDIR=/p/work2/gordon;;
+		LOGIN=gordon@mustang.afrl.hpc.mil
+		WORKDIR=/p/work1/gordon
+		HOMEDIR=/p/home/gordon;;
+	"thun" )
+		LOPT=
+		LOGIN=gordon@thunder.afrl.hpc.mil
+		WORKDIR=/workspace/gordon
+		HOMEDIR=/home/gordon;;
+	"water" )
+		LOPT=
+		LOGIN=gordon@ppdwater.nrl.navy.mil
+		WORKDIR=/home/gordon/Run
+		HOMEDIR=/home/gordon;;
 	* )
 		echo "Unrecognized remote machine (first argument)"
 		exit 1;;
 esac
-	
+
 case "$2" in
 	"login" )
 		ssh $LOPT $LOGIN;;
@@ -50,9 +59,27 @@ case "$2" in
 		else
 			scp ${LOGIN}:${WORKDIR}/$3 .
 		fi;;
+	"puth" )
+		if test -z "$3"
+		then
+			echo "Missing argument to put"
+		else
+			scp $3 ${LOGIN}:${HOMEDIR}
+		fi;;
+	"geth" )
+		if test -z "$3"
+		then
+			echo "Missing argument to get"
+		else
+			scp ${LOGIN}:${HOMEDIR}/$3 .
+		fi;;
+	"t" )
+		sftp ${LOGIN}:${WORKDIR};;
+	"th" )
+		sftp ${LOGIN}:${HOMEDIR};;
 	"update" )
 		scp * ${LOGIN}:~/turbowave;;
 	* )
-		echo "Unrecognized action (second argument = login , put , get)"
+		echo "Unrecognized action (2nd arg: login,put,get,puth,geth,t,th,update)"
 		exit 1;;
 esac

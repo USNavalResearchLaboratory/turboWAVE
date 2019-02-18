@@ -264,7 +264,7 @@ struct Species:Module
 	template <class BundleType>
 	void Push();
 	template <class BundleType>
-	void PushSlice(tw::Int first,tw::Int last);
+	void PushSlice(tw::Int tasks,tw::Int tid,tw::Int bounds_data[][8]);
 };
 
 struct Kinetics:Module

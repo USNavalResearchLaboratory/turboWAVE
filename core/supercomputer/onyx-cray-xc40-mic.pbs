@@ -1,0 +1,22 @@
+#!/bin/bash
+#PBS -l select=1:ncpus=64:mpiprocs=4:nmics=1
+#PBS -l walltime=00:05:00
+#PBS -N TW
+#PBS -q standard
+#PBS -A NRLDC08284338
+#PBS -o tw.out
+#PBS -e tw.err
+
+cd ${WORKDIR}
+
+module unload craype-broadwell
+module load craype-mic-knl
+
+export OMP_NUM_THREADS=64
+
+# -n = total MPI procs , -N = MPI procs per node
+# -d = threads per MPI , -j = logical cores per core
+# -cc = numa_node needed for intel compiler
+aprun -n 4 -N 4 -d 64 -j 4 -cc numa_node ./tw3d
+
+exit

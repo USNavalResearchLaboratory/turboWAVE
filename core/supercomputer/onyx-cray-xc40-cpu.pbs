@@ -1,0 +1,21 @@
+#!/bin/bash
+#PBS -l select=2:ncpus=44:mpiprocs=4
+#PBS -l walltime=04:00:00
+#PBS -N TW
+#PBS -q standard
+#PBS -A NRLDC08284338
+#PBS -o tw.out
+#PBS -e tw.err
+
+cd ${WORKDIR}
+
+export OMP_NUM_THREADS=11
+export OMP_PLACES=threads
+export OMP_PROC_BIND=close
+
+# -n = total MPI procs , -N = MPI procs per node
+# -d = threads per MPI , -j = logical cores per core
+# -cc numa_node needed for intel compiler
+aprun -n 8 -N 4 -d 11 -j 1 -cc numa_node ./tw3d
+
+exit

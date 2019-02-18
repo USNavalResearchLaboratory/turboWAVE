@@ -1,7 +1,7 @@
 // Best case scenario performance benchmark
 // 3D pusher with cubic shape = quadratic weights
-// Intel Xeon 16-core (Broadwell)
-// 62M pushes per second
+// Intel KNL 64-core
+// 127M pushes per second
 steps = 300
 timestep = 0.02
 dump period = 0
@@ -22,7 +22,7 @@ new grid
 	corner = ( 0.0 , 0.0 , 0.0 )
 	dimensions = ( 64 , 64 , 32 )
 	cell size = ( 0.05 , 0.05 , 0.05 )
-	decomposition = ( 4 , 4 , 2 )
+	decomposition = ( 4 , 4 , 4 )
 }
 
 new direct electromagnetic module
@@ -38,4 +38,3 @@ generate uniform e
 {
 	density = 1
 }
-

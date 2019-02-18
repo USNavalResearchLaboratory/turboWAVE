@@ -77,6 +77,9 @@ EigenmodePropagator::EigenmodePropagator(const std::string& name,MetricSpace *m,
 	const tw::Int zDim = space->Dim(3);
 
 	modes = task->globalCells[1];
+	causality = 0.0;
+	dampingTime = 1e10;
+	layers = 8;
 	globalIntegrator = new GlobalIntegrator<tw::Complex>(&task->strip[3],xDim*yDim,zDim);
 }
 
@@ -100,6 +103,18 @@ void EigenmodePropagator::ReadInputFileDirective(std::stringstream& inputString,
 	{
 		inputString >> word >> modes;
 	}
+	if (command=="causality") // eg, causality = 1
+	{
+		inputString >> word >> causality;
+	}
+	if (command=="damping") // eg, damping time = 10.0
+	{
+		inputString >> word >> word >> dampingTime;
+	}
+	if (command=="absorbing") // eg, absorbing layers = 8
+	{
+		inputString >> word >> word >> layers;
+	}
 }
 
 void EigenmodePropagator::SetData(tw::Float w0,tw::Float dt,tw_polarization_type pol,bool mov)
@@ -120,18 +135,17 @@ void EigenmodePropagator::Advance(ComplexField& a0,ComplexField& a1,ComplexField
 	const tw::Int yDim = space->Dim(2);
 	const tw::Int zDim = space->Dim(3);
 
-	tw::Int i,j,k;
 	tw::Float lambda;
 	std::valarray<tw::Complex> T2z(zDim),source(zDim),ans(zDim);
 	std::valarray<tw::Float> localEig(xDim+2),chi_ref(zDim+2);
 
-	const tw::Complex T1 = -tw::Float(0.5)/(dz(*space)*dt);
-	const tw::Complex T2 = ii*w0/dt;
-	const tw::Complex T3 = -T1;
+	const tw::Complex T1 = -(1+causality)/(2*dz(*space)*dt);
+	const tw::Complex T2 = ii*w0/dt + causality/(dz(*space)*dt);
+	const tw::Complex T3 = (1-causality)/(2*dz(*space)*dt);
 
 	if (space->car!=1.0)
 	{
-		for (i=1;i<=xDim;i++)
+		for (tw::Int i=1;i<=xDim;i++)
 			localEig[i] = eigenvalue[i-1+task->cornerCell[1]-1];
 	}
 
@@ -141,12 +155,12 @@ void EigenmodePropagator::Advance(ComplexField& a0,ComplexField& a1,ComplexField
 		chi_ref = 0.0;
 	else
 	{
-		for (k=0;k<=zDim+1;k++)
+		for (tw::Int k=0;k<=zDim+1;k++)
 			chi_ref[k] = std::real(chi(1,1,k));
 		task->strip[1].Bcast(&chi_ref[0],sizeof(tw::Float)*chi_ref.size(),0);
 	}
 	for (auto s : StripRange(*space,3,strongbool::yes))
-		for (k=0;k<=zDim+1;k++)
+		for (tw::Int k=0;k<=zDim+1;k++)
 			chi(s,k) = (chi(s,k) - chi_ref[k])*a1(s,k);
 
 	// Diagonalize Laplacian and solve in laser frame
@@ -171,7 +185,7 @@ void EigenmodePropagator::Advance(ComplexField& a0,ComplexField& a1,ComplexField
 			lambda = a0.CyclicEigenvalue(s.dcd1(0),s.dcd2(0));
 		else
 			lambda = localEig[s.dcd1(0)];
-		for (k=1;k<=zDim;k++)
+		for (tw::Int k=1;k<=zDim;k++)
 		{
 			T2z[k-1] = T2 - tw::Float(0.5)*(lambda + chi_ref[k]);
 			source[k-1] = T1*a0(s,k-1) + T2z[k-1]*a0(s,k) + T3*a0(s,k+1) - chi(s,k);
@@ -180,7 +194,7 @@ void EigenmodePropagator::Advance(ComplexField& a0,ComplexField& a1,ComplexField
 
 		TriDiagonal(ans,source,T1,T2z,T3);
 
-		for (k=1;k<=zDim;k++)
+		for (tw::Int k=1;k<=zDim;k++)
 		{
 			a0(s,k) = a1(s,k);
 			a1(s,k) = ans[k-1];
@@ -204,6 +218,18 @@ void EigenmodePropagator::Advance(ComplexField& a0,ComplexField& a1,ComplexField
 		a1.InverseHankel(modes,inverseHankel);
 		chi.InverseHankel(modes,inverseHankel);
 	}
+
+	// Damping layer
+
+	tw::Int xstart = task->globalCells[1] - layers + 1;
+	tw::Int xstart_local = xstart - task->cornerCell[1] + 1;
+	if (xstart_local >= 1)
+	{
+		for (tw::Int i=xstart_local;i<=xDim;i++)
+			for (tw::Int k=0;k<=zDim+1;k++)
+				a1(i,1,k) *= exp(-(i-xstart_local+1)*dt/dampingTime/tw::Float(layers));
+	}
+
 	a1.ApplyBoundaryCondition();
 
 	if (task->n0[3]==MPI_PROC_NULL && zDim>1)
@@ -219,12 +245,18 @@ void EigenmodePropagator::ReadData(std::ifstream& inFile)
 {
 	ComputeTool::ReadData(inFile);
 	inFile.read((char*)&modes,sizeof(modes));
+	inFile.read((char*)&layers,sizeof(layers));
+	inFile.read((char*)&causality,sizeof(causality));
+	inFile.read((char*)&dampingTime,sizeof(dampingTime));
 }
 
 void EigenmodePropagator::WriteData(std::ofstream& outFile)
 {
 	ComputeTool::WriteData(outFile);
 	outFile.write((char*)&modes,sizeof(modes));
+	outFile.write((char*)&layers,sizeof(layers));
+	outFile.write((char*)&causality,sizeof(causality));
+	outFile.write((char*)&dampingTime,sizeof(dampingTime));
 }
 
 
