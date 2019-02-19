@@ -111,15 +111,19 @@ Field solver modules have priority 3 in the update sequence.
 
 		.. py:function:: propagator = prop
 
-			:param enum prop: can be ``spectral`` or ``adi``.
+			:param enum prop: can be ``eigenmode`` or ``adi``.
 
-		.. py:function:: file = fname
+		.. py:function:: modes = n
 
-			:param str fname: Name of file to use for reading initial profile.  The file is expected to be in DataViewer binary format (.dvdat file).  The scalar data is :math:`a^2`.
+			:param int n: maximum number of radial modes to keep (eigenmode propagator only)
 
-		.. py:function:: byte reversal
+		.. py:function:: damping time = t
 
-			If directive is present, bytes are reversed when reading binary profile data
+			:param float t: e-folding time in the damping layers
+
+		.. py:function:: absorbing layers = l
+
+			:param int l: number of absorbing layers
 
 
 Particle Species

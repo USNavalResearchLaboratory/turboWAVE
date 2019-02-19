@@ -80,6 +80,7 @@ void Kinetics::Update()
 
 	// Assume source arrays are weighted by volume or zero
 
+	Ionize();
 	for (i=0;i<species.size();i++)
 	{
 		if (owner->stepNow%species[i]->sortPeriod==0)
@@ -92,8 +93,6 @@ void Kinetics::Update()
 	owner->strip[0].Barrier();
 
 	TransferParticles();
-
-	Ionize();
 
 	for (i=0;i<species.size();i++)
 	{
@@ -211,30 +210,31 @@ void Kinetics::TransferParticles()
 
 void Kinetics::Ionize()
 {
-	// Call at start of pusher, because:
-	// Consider N = particle number to be known at t = -1/2.  Use E and R at t = 0 to advance N to t = 1/2.
-	// Then we push the new and old particles, and deposit J at t = 1/2 using the new particle number.
-	// Here, we suppose the rates due to the envelope and wake are additive
+	// There is a diplacement of the bound particle before it turns free, satisfying qE.dr = Uion.
+	// This accounts for the work done to remove the particle from the binding potential.
+	// To include this we create the particle with initial velocity v = dr/dt = Uion/qEdt
+	// Ionization due to wake and laser are simply added (OK if they do not overlap much)
+	// Time centering:
+	// Fp[6] is a2 at t = 0, carrier resolved field also known at t = 0
+	// Ionized particle is being advanced in momentum from t = -1/2 to t = 1/2, and space from t = 0 to t = 1
 
-	tw::Int i,s;
 	weights_3D weights;
 	tw::Float instant,peak,a2,probability;
 	std::valarray<tw::Float> temp(6),Fp(8);
-	std::valarray<tw::Float> jV(4);
-	tw::vec3 r,E,vel,momentum;
+	tw::vec3 E,vel,momentum;
 	tw::Float gamma,m0,q0;
 	Species *s1,*s2;
 
 	// Find Laser Solver
 
 	LaserSolver *theLaserSolver = NULL;
-	for (i=0;i<owner->module.size();i++)
+	for (tw::Int i=0;i<owner->module.size();i++)
 		if (dynamic_cast<LaserSolver*>(owner->module[i]))
 			theLaserSolver = (LaserSolver*)owner->module[i];
 
 	// Photoionization
 
-	for (s=0;s<species.size();s++)
+	for (tw::Int s=0;s<species.size();s++)
 	{
 		IonizationData& ionization = species[s]->ionization;
 		std::vector<Particle>& particle = species[s]->particle;
@@ -245,10 +245,9 @@ void Kinetics::Ionize()
 
 		if (ionization.ionizationModel!=tw::ionization_model::none)
 		{
-			for (i=0;i<particle.size();i++)
+			for (tw::Int i=0;i<particle.size();i++)
 			{
 				Particle& curr = particle[i]; // curr = particle being ionized
-				r = owner->PositionFromPrimitive(curr.q);
 				owner->GetWeights(&weights,curr.q);
 				peak = instant = a2 = 0.0;
 				if (species[s]->laser)
@@ -263,34 +262,27 @@ void Kinetics::Ionize()
 				instant += Magnitude(E);
 				probability = ionization.Rate(instant,peak)*owner->dt;
 				gamma = sqrt(1.0 + Norm(curr.p)/(m0*m0) + 0.5*sqr(q0)*a2/(m0*m0));
+				// Starting velocity is that of the neutral
 				vel = curr.p/(gamma*m0);
 				if (probability > owner->uniformDeviate->Next())
 				{
-					throw tw::FatalError("Ionization not supported.");
-
 					momentum = s1->restMass*gamma*vel;
 					if (theLaserSolver)
 						momentum += theLaserSolver->GetIonizationKick(a2,s1->charge,s1->restMass);
 					s1->AddParticle(momentum,curr.q,curr.number);
 
-					momentum = s2->restMass*gamma*vel;
+					// For the electron, add the velocity accounting for depletion of the field due to ionization energy.
+					// This comes from a displacement satisfying dr.QE = dU, where dU = ionization energy.
+					const tw::Float dU = 2.66e-5 * ionization.ionizationPotential;
+					const tw::Float failsafe = sqr(0.01*ionization.Echar());
+					const tw::vec3 dr = E*dU/(s2->charge*curr.number*(Norm(E)+failsafe));
+
+					momentum = s2->restMass*gamma*(vel+dr/dt);
 					if (theLaserSolver)
 						momentum += theLaserSolver->GetIonizationKick(a2,s2->charge,s2->restMass);
 					s2->AddParticle(momentum,curr.q,curr.number);
 
-					// compute ionization current (not centered, but this is usually small)
-					if (!theLaserSolver)
-					{
-						jV[1] = 2.66e-5*ionization.ionizationPotential*curr.number/(Magnitude(E)*owner->dt);
-						jV[2] = jV[1];
-						jV[3] = jV[1];
-						Normalize(E);
-						jV[1] *= E.x;
-						jV[2] *= E.y;
-						jV[3] *= E.z;
-						s2->sources->InterpolateOnto(jV,Element(1,3),weights);
-					}
-
+					// Throw away the neutral
 					particle[i] = particle.back();
 					particle.pop_back();
 					--i;

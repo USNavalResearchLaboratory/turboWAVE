@@ -99,8 +99,6 @@ void LaserSolver::ReadInputFileDirective(std::stringstream& inputString,const st
 	{
 		inputString >> word >> word;
 		inputString >> laserFreq;
-		if (propagator!=NULL)
-			propagator->w0 = laserFreq;
 	}
 	if (command=="polarization") // eg, polarization = linear
 	{

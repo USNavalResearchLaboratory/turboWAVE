@@ -820,6 +820,14 @@ tw::Complex Wave::BesselPrimitive(tw::Float t,const tw::vec3& r) const
 	return a0 * j0(rbar) * pulseShape.PulseShapeFactor(tau) * std::exp(ii*psi);
 }
 
+tw::Complex Wave::AiryDiscPrimitive(tw::Float t,const tw::vec3& r) const
+{
+	const tw::Float rbar = sqrt(sqr(r.x) + sqr(r.y))/modeData[0].scale;
+	const tw::Float tau = t - nrefr*r.z;
+	const tw::Float psi = phase - w*tau - chirp*tau*tau;
+	return 2*a0 * (j1(rbar)/rbar) * pulseShape.PulseShapeFactor(tau) * std::exp(ii*psi);
+}
+
 tw::Complex Wave::LaguerrePrimitive(tw::Float t,const tw::vec3& r) const
 {
 	const tw::Float r0 = modeData[0].scale;
@@ -1003,6 +1011,8 @@ void Wave::ReadInputFile(std::stringstream& inputString,std::string& command)
 				modeType = EM::laguerre;
 			if (word=="bessel")
 				modeType = EM::bessel;
+			if (word=="airy_disc")
+				modeType = EM::airy_disc;
 		}
 		if (word=="shape")
 		{

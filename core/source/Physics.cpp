@@ -281,6 +281,26 @@ tw::Float IonizationData::wfunc(tw::Float x)
 	return 0.5 * exp(-x*x) * erfi(x) * sqrt(pi);
 }
 
+tw::Float IonizationData::Echar()
+{
+	// return characteristic field in simulation units
+	const tw::Float Uion = 0.5*ionizationPotential; // put in a.u.
+	if (ionizationModel==tw::ionization_model::MPI)
+	{
+		return E_MPI/E_sim_to_atomic;
+	}
+	if (ionizationModel==tw::ionization_model::ADK)
+	{
+		return two*pow(two*Uion,one+half)/tw::Float(3.0)/E_sim_to_atomic;
+	}
+	if (ionizationModel==tw::ionization_model::PPT)
+	{
+		const tw::Float F0 = pow(two*Uion,one+half);
+		return two*F0/tw::Float(3.0)/E_sim_to_atomic;
+	}
+	return 0.0;
+}
+
 tw::Float IonizationData::Rate(tw::Float instant,tw::Float peak)
 {
 	tw::Int i;
@@ -336,7 +356,7 @@ tw::Float IonizationData::Rate(tw::Float instant,tw::Float peak)
 
 void IonizationData::ReadInputFileDirective(std::stringstream& inputString,const std::string& command)
 {
-	// read ionspecies and electronspecies indices in Species::ReadInputFileDirective
+	// read ionspecies and electronspecies indices in Species::Initialize
 	// setup hydro indexing during Chemical::Initialize
 
 	std::string word;

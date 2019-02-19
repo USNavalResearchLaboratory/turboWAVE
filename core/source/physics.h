@@ -181,6 +181,7 @@ struct IonizationData
 	void Initialize(tw::Float unitDensity,tw::Float* carrierFrequency);
 	tw::Float wfunc(tw::Float x);
 	tw::Float Rate(tw::Float instant,tw::Float peak);
+	tw::Float Echar();
 	void ReadInputFileDirective(std::stringstream& inputString,const std::string& command);
 	void ReadData(std::ifstream& inFile);
 	void WriteData(std::ofstream& outFile);

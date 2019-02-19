@@ -10,7 +10,7 @@ namespace loading
 
 namespace EM
 {
-	enum mode { plane , hermite , laguerre , bessel , multipole };
+	enum mode { plane , hermite , laguerre , airy_disc , bessel , multipole };
 	struct mode_data
 	{
 		tw::Int order,exponent;
@@ -160,6 +160,7 @@ struct Wave
 
 	tw::Complex PlanePrimitive(tw::Float t,const tw::vec3& pos) const;
 	tw::Complex BesselPrimitive(tw::Float t,const tw::vec3& pos) const;
+	tw::Complex AiryDiscPrimitive(tw::Float t,const tw::vec3& pos) const;
 	tw::Complex MultipolePrimitive(tw::Float t,const tw::vec3& pos) const;
 	tw::Complex HermitePrimitive(tw::Float t,const tw::vec3& pos) const;
 	tw::Complex LaguerrePrimitive(tw::Float t,const tw::vec3& pos) const;
@@ -181,6 +182,9 @@ struct Wave
 				break;
 			case EM::bessel:
 				Ax = BesselPrimitive(t,r);
+				break;
+			case EM::airy_disc:
+				Ax = AiryDiscPrimitive(t,r);
 				break;
 			case EM::multipole:
 				Ax = MultipolePrimitive(t,r);
@@ -232,6 +236,9 @@ struct Pulse:Wave
 				break;
 			case EM::bessel:
 				Ax = BesselPrimitive(t,r);
+				break;
+			case EM::airy_disc:
+				Ax = AiryDiscPrimitive(t,r);
 				break;
 			case EM::multipole:
 				Ax = MultipolePrimitive(t,r);
