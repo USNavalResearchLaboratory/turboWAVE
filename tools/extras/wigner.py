@@ -11,7 +11,7 @@ from scipy import constants as C
 
 if len(sys.argv)<3:
 	print('Usage: python wigner.py slicing=slices real_file,imag_file [panels=a,b] [layout=1x2]')
-	print('   [dr=0.0,0.0] [color=viridis,jet] [roi=h0,h1,v0,v1;h0,h1,v0,v1]')
+	print('   [dr=0.0,0.0] [color=viridis,jet] [roi=h0,h1,v0,v1/h0,h1,v0,v1]')
 	print('------------------Examples----------------')
 	print('Envelope: python wigner.py xyzt=0,0,0 e_real.dvdat,e_imag.dvdat')
 	print('Carrier resolved: python wigner.py xyzt=0,0,0 Ex.dvdat,1.0')
@@ -41,7 +41,7 @@ if len(sys.argv)<3:
 	exit()
 
 def WignerTransform(A,ds,eta0):
-	# If A is in V/m, ds in secs, and eta0 in ohms, returns J/cm^2.
+	# If A is in V/m, ds in secs, and eta0 in ohms, returns J/m^2.
 	# Then, integration over consistent phase space units (dimensionless product) gives the actual fluence.
 	# The frequency variable is assumed to be an angular frequency (e.g. rad/s)
 	N = A.shape[0]
@@ -155,9 +155,9 @@ for keyval in sys.argv[3:]:
 	if key=='color':
 		color = val.split(',')
 	if key=='roi':
-		for s in val.split(';')[0].split(','):
+		for s in val.split('/')[0].split(','):
 			roi[0].append(int(s))
-		for s in val.split(';')[1].split(','):
+		for s in val.split('/')[1].split(','):
 			roi[1].append(int(s))
 
 plotter_r = twplot.plotter(real_data_file,buffered=False)

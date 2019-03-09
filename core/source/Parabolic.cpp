@@ -223,12 +223,12 @@ void EigenmodePropagator::Advance(ComplexField& a0,ComplexField& a1,ComplexField
 
 	tw::Int xstart = task->globalCells[1] - layers + 1;
 	tw::Int xstart_local = xstart - task->cornerCell[1] + 1;
-	if (xstart_local >= 1)
-	{
-		for (tw::Int i=xstart_local;i<=xDim;i++)
-			for (tw::Int k=0;k<=zDim+1;k++)
-				a1(i,1,k) *= exp(-(i-xstart_local+1)*dt/dampingTime/tw::Float(layers));
-	}
+	tw::Int first = xstart_local;
+	if (first<space->N0(1))
+		first = space->N0(1);
+	for (tw::Int i=first;i<=space->N1(1);i++)
+		for (tw::Int k=0;k<=zDim+1;k++)
+			a1(i,1,k) *= exp(-(i-xstart_local+1)*dt/dampingTime/tw::Float(layers));
 
 	a1.ApplyBoundaryCondition();
 

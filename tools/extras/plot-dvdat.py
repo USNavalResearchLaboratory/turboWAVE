@@ -13,13 +13,13 @@ from scipy import constants as C
 # Plotter for publication quality figures or presentation quality movies
 
 if len(sys.argv)<3:
-	print('Usage: python plot-dvdat.py slicing=slices;... file1,... [panels=a,b,...] [mult=1.0,1.0,1.0;...]')
-	print('    [range=low,high;...] [layout=2x2] [dr=0.0,...] [color=viridis,...] [roi=h0,h1,v0,v1;...]')
-	print('    [labels=hlab,vlab,clab;...]')
+	print('Usage: python plot-dvdat.py slicing=slices/... file1,... [panels=a,b,...] [mult=1.0,1.0,1.0/...]')
+	print('    [range=low,high/...] [layout=2x2] [dr=0.0,...] [color=viridis,...] [roi=h0,h1,v0,v1/...]')
+	print('    [labels=hlab,vlab,clab/...]')
 	print('------------------Examples----------------')
 	print('2D plot: python plot-dvdat.py zxyt=0,0 rho.dvdat')
 	print('1D plot: python plot-dvdat.py xyzt=0,0,0 Ex.dvdat')
-	print('Hybrid: python plot-dvdat.py zxyt=0,0;zxyt=0,0,0 rho.dvdat,Ex.dvdat panels=a,b layout=1x2')
+	print('Hybrid: python plot-dvdat.py zxyt=0,0/zxyt=0,0,0 rho.dvdat,Ex.dvdat panels=a,b layout=1x2')
 	print('-------------------General Notes--------------------')
 	print('Extra spaces (e.g. around commas or equals) are not allowed.')
 	print('Displays any number of panels with common slicing.')
@@ -39,8 +39,10 @@ if len(sys.argv)<3:
 	print('   Color maps may be inverted by adding "_r" to the name')
 	print('   Note any Matplotlib color maps can be used.')
 	print('roi: select a subdomain to plot, otherwise the full domain is plotted.')
-	print('labels: labels for axes and colorbar. Cannot have space,comma,semicolon.')
-	print('   However, you can encode these by their names in all caps.')
+	print('labels: labels for axes and colorbar.')
+	print('   Some characters require special treatment if you want to use them in a label.')
+	print('   Enter SPACE,COMMA,SEMICOLON,or SLASH to get the corresponding character.')
+	print('   Other characters may be intercepted by the shell, enclosing in quotes might help.')
 	print('----------------------Animations----------------------')
 	print('Put a python range as one of the slices to generate animated GIF.')
 	print('For example, zxyt=0,0,2:5 would animate time slices 2,3,4.')
@@ -51,7 +53,7 @@ if len(sys.argv)<3:
 # Label scheme
 
 def format_label(l):
-	return l.replace('SPACE',' ').replace('COMMA',',').replace('SEMICOLON',';')
+	return l.replace('SPACE',' ').replace('COMMA',',').replace('SEMICOLON',';').replace('SLASH','/')
 
 cartesian = {
  'Axis0' : r'$\omega_p t$',
@@ -138,7 +140,7 @@ def ParseSlices(dims,ax_list,slice_str_list):
 
 slicing_spec = []
 primitive_slices = []
-for spec in sys.argv[1].split(';'):
+for spec in sys.argv[1].split('/'):
 	slicing_spec.append(spec.split('=')[0])
 	primitive_slices.append(spec.split('=')[1].split(','))
 file_to_plot = sys.argv[2].split(',')
@@ -170,13 +172,13 @@ for keyval in sys.argv[3:]:
 	if key=='color':
 		color = arg.split(',')
 	if key=='roi':
-		roi = arg.split(';')
+		roi = arg.split('/')
 	if key=='range':
-		val_range = arg.split(';')
+		val_range = arg.split('/')
 	if key=='mult':
-		mult = arg.split(';')
+		mult = arg.split('/')
 	if key=='labels':
-		labels = arg.split(';')
+		labels = arg.split('/')
 
 for i in range(N-len(slicing_spec)):
 	slicing_spec.append(slicing_spec[-1])

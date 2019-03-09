@@ -119,7 +119,7 @@ Field solver modules have priority 3 in the update sequence.
 
 		.. py:function:: damping time = t
 
-			:param float t: e-folding time in the damping layers
+			:param float t: e-folding time in the absorbing layers
 
 		.. py:function:: absorbing layers = l
 

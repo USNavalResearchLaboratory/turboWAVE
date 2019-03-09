@@ -32,8 +32,7 @@ new direct electromagnetic module
 new pgc laser module
 {
 	carrier frequency = 50
-	propagator = adi
-	//propagator = spectral
+	propagator = eigenmode
 }
 
 new pulse

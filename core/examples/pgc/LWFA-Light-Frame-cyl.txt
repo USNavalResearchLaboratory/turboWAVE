@@ -34,7 +34,10 @@ new curvilinear direct solver
 new pgc laser module
 {
 	carrier frequency = 50
-	propagator = adi
+	propagator = eigenmode
+	modes = 50
+	damping time = 1.0
+	absorbing layers = 40
 }
 
 new pulse

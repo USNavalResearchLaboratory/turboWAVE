@@ -36,10 +36,10 @@ void Species::GetSubarrayBounds(std::vector<ParticleRef>& sorted,tw::Int low[4],
 			low[i] -= layers;
 			high[i] += layers;
 		}
-		if (low[i]<owner->N0(i))
-			throw tw::FatalError("Particle unexpectedly low");
-		if (high[i]>owner->N1(i))
-			throw tw::FatalError("Particle unexpectedly high");
+		// if (low[i]<owner->N0(i))
+		// 	throw tw::FatalError("Particle unexpectedly low");
+		// if (high[i]>owner->N1(i))
+		// 	throw tw::FatalError("Particle unexpectedly high");
 	}
 }
 
@@ -153,32 +153,24 @@ void Species::Push()
 	const tw::Int num_tasks = preferred_tasks > max_tasks ? max_tasks : preferred_tasks;
 	const tw::Int concurrent_sets = num_tasks / concurrent_tasks;
 	const tw::Int remainder_tasks = num_tasks % concurrent_tasks;
+	const tw::Int total_sets = concurrent_sets + (remainder_tasks?1:0);
 
 	std::vector<tw::Int> task_map(num_tasks);
 	SpreadTasks(task_map);
 	//BunchTasks(task_map);
 
-	// Carry out the fully packed concurrent tasks
 	// following has first,last,x0,x1,y0,y1,z0,z1
 	tw::Int bounds_data[concurrent_tasks][8];
-	for (tw::Int c=0;c<concurrent_sets;c++)
+	for (tw::Int c=0;c<total_sets;c++)
 	{
-		#pragma omp parallel for
-		for (tw::Int t=0;t<concurrent_tasks;t++)
+		tw::Int tasks_in_set = c<concurrent_sets ? concurrent_tasks : remainder_tasks;
+		#pragma omp parallel num_threads(tasks_in_set)
 		{
+			tw::Int t = tw::GetOMPThreadNum();
 			tw::Int task_idx = task_map[c*concurrent_tasks + t];
 			tw::GetOMPTaskLoopRange(task_idx,num_par,num_tasks,&bounds_data[t][0],&bounds_data[t][1]);
-			PushSlice<BundleType>(concurrent_tasks,t,bounds_data);
+			PushSlice<BundleType>(tasks_in_set,t,bounds_data);
 		}
-	}
-
-	// Carry out the remainder tasks
-	#pragma omp parallel for
-	for (tw::Int t=0;t<remainder_tasks;t++)
-	{
-		tw::Int task_idx = task_map[concurrent_sets*concurrent_tasks + t];
-		tw::GetOMPTaskLoopRange(task_idx,num_par,num_tasks,&bounds_data[t][0],&bounds_data[t][1]);
-		PushSlice<BundleType>(remainder_tasks,t,bounds_data);
 	}
 }
 

@@ -277,7 +277,7 @@ Compound Regions
 
 .. py:function:: new region intersection name { directives }
 
-	Create the intersection of several other regions.  This is the *boolean and*, i.e., if the union has elements A, B, and C, then a point in the union must be in A and in B and in C.  If C is the complement of D, then the point must be in A and in B and not in D.
+	Create the intersection of several other regions.  This is the *boolean and*, i.e., if the intersection has elements A, B, and C, then a point in the intersection must be in A and in B and in C.  If C is the complement of D, then the point must be in A and in B and not in D.
 
 	:param str name: assigns a name to the region
 	:param block directives: The following directives are supported:
