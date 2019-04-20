@@ -8,13 +8,12 @@ Field solver modules have priority 3 in the update sequence.
 
 .. py:function:: new electrostatic field solver { directives }
 
-	Installs a general electrostatic field solver
+	Installs a general electrostatic field solver.  Inhomogeneous boundary conditions are imposed using
+	:ref:`Conductor <conductor>` objects.  Conductor objects may fill either ghost cells or interior cells.
+	The topology of conductor objects is unrestricted.  However, elliptical solvers have varying restrictions
+	on the complexity of the topology.
 
 	:param block directives: The following directives are supported:
-
-		.. py:function:: elliptical solver = slv
-
-		 	:param enum slv: can be ``facr``, ``iterative``, or ``eigenmode``
 
 		.. py:function:: poisson boundary condition coord = ( bc1 , bc2 )
 
@@ -22,14 +21,14 @@ Field solver modules have priority 3 in the update sequence.
 			:param enum bc1: boundary condition on lower side, can be ``open``, ``dirichlet``, ``neumann``.
 			:param enum bc2: boundary condition on lower side, can be ``open``, ``dirichlet``, ``neumann``.
 
-			At present ``open`` only works for ``facr`` or ``eigenmode`` elliptical solvers.
+		.. py:function:: elliptical solver = slv
 
-		.. py:function:: external potential = ( val1 , val2 )
+		 	:param enum slv: can be one of the following:
 
-			In case of dirichlet boundary condition fix the lower and upper potential at the z boundaries at the given values.
-
-			:param float val1: potential at the lower z boundary
-			:param float val2: potential at the upper z boundary
+				* 1d - Allows variations along any single coordinate axis. Coordinate axis can be curvilinear. Exterior boundary conditions only.  Does not support ``open`` boundaries.
+				* iterative - Supports arbitrary coordinates in any dimension.  No restrictions on topology of boundary conditions.  Does not support ``open`` boundaries.
+				* facr - Cartesian coordinates, 2D or 3D.  Supports ``open`` boundaries along z-direction only.  Conductors affect only the z-boundaries.
+				* eigenmode - Cartesian or cylindrical coordinates, 2D only.  Supports ``open`` boundaries along z-direction only. Conductors affect only the z-boundaries.
 
 .. _coulomb-solver:
 .. py:function:: new coulomb electromagnetic module { directives }

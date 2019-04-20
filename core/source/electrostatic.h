@@ -1,22 +1,18 @@
 struct Electrostatic:FieldSolver
 {
-	Field sources;
+	Field J4;
 	ScalarField phi,source;
 	Vec3Field Ef;
-	std::valarray<tw::Float> lbc,rbc; // 2-ghost cell layers will break lbc and rbc access
-	tw::Float electrodeRadius,electrodePotential,slewRate;
-	
+
 	Electrostatic(const std::string& name,Simulation* sim);
 	virtual void Initialize();
 	virtual void ExchangeResources();
 	virtual void Reset();
 	virtual void Update();
-	virtual void ReadInputFileDirective(std::stringstream& inputString,const std::string& command);
 	virtual void ReadData(std::ifstream& inFile);
 	virtual void WriteData(std::ofstream& outFile);
 
 	virtual void SetupInitialPotential();
-	virtual void SetupElectrodePotential();
 	virtual void ComputeFinalFields();
 
 	virtual void EnergyHeadings(std::ofstream& outFile);

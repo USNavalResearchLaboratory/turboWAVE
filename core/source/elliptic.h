@@ -1,9 +1,23 @@
+// IterativePoissonSolver and EllipticSolver1D handle equations of the form div(coeff*grad(phi)) = mul*source
+// PoissonSolver and EigenmodePoissonSolver only handle div(phi) = mul*source
+// For PoissonSolver and EigenmodePoissonSolver, only z-boundary conditions are programmable
+
+// Boundary Conditions:
+// These tools expect boundary values to be stored in the outer ghost cells
+// E.g., if phi(i,j,-1) = V0 then:
+// BC Type          Explicit BC
+// -------------    ------------
+// dirichletCell    phi(i,j,0) = V0
+// neumannWall      phi(i,j,1) - phi(i,j,0) = V0
+// dirichletWall    phi(i,j,0)/2 + phi(i,j,1)/2 = V0
+
+// N.b. the BC handling assumes at least 2 ghost cell layers in the field
+
 struct EllipticSolver:ComputeTool
 {
 	ScalarField *coeff;
 	boundarySpec x0,x1,y0,y1,z0,z1;
 	boundarySpec x0s,x1s,y0s,y1s,z0s,z1s; // saved BC's
-	std::valarray<tw::Float> lbc,rbc,lbc_t,rbc_t;
 	tw::Float gammaBeam;
 
 	EllipticSolver(const std::string& name,MetricSpace *m,Task *tsk);
@@ -13,7 +27,6 @@ struct EllipticSolver:ComputeTool
 	virtual void SaveBoundaryConditions();
 	virtual void RestoreBoundaryConditions();
 	virtual void FixPotential(ScalarField& phi,Region* theRegion,const tw::Float& thePotential);
-	virtual void TransformBoundaryValues() {;}
 	virtual void ZeroModeGhostCellValues(tw::Float *phi0,tw::Float *phiN1,ScalarField& rho,tw::Float mul);
 	virtual void Solve(ScalarField& phi,ScalarField& source,tw::Float mul) = 0;
 	void FormOperatorStencil(std::valarray<tw::Float>& D,tw::Int i,tw::Int j,tw::Int k);
@@ -67,6 +80,5 @@ struct EigenmodePoissonSolver:EllipticSolver
 	EigenmodePoissonSolver(const std::string& name,MetricSpace *m,Task *tsk);
 	virtual ~EigenmodePoissonSolver();
 	virtual void Initialize();
-	virtual void TransformBoundaryValues();
 	virtual void Solve(ScalarField& phi,ScalarField& source,tw::Float mul);
 };

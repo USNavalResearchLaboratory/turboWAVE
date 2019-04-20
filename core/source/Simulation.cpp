@@ -191,7 +191,7 @@ void Simulation::SetCellWidthsAndLocalSize()
 
 	if (dim[3]>1 && region.size())
 	{
-		for (i=lb[3];i<=ub[3];i++)
+		for (i=lfg[3];i<=ufg[3];i++)
 		{
 			dX(i,3) = spacing.z;
 			for (j=0;j<region.size();j++)
@@ -816,7 +816,7 @@ void Simulation::MoveWindow()
 	windowPosition += spacing.z;
 	corner.z += spacing.z;
 	globalCorner.z += spacing.z;
-	for (i=lb[3];i<=ub[3];i++)
+	for (i=lfg[3];i<=ufg[3];i++)
 		X(i,3) += spacing.z;
 
 	for (i=0;i<clippingRegion.size();i++)

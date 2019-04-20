@@ -92,7 +92,7 @@ void EigenmodePropagator::Initialize()
 {
 	// Computing the matrices requires message passing, cannot go in constructor.
 	if (space->car!=1.0)
-		ComputeTransformMatrices(eigenvalue,hankel,inverseHankel,space,task);
+		ComputeTransformMatrices(dirichletWall,eigenvalue,hankel,inverseHankel,space,task);
 }
 
 void EigenmodePropagator::ReadInputFileDirective(std::stringstream& inputString,const std::string& command)
@@ -212,7 +212,10 @@ void EigenmodePropagator::Advance(ComplexField& a0,ComplexField& a1,ComplexField
 	// Back to real space
 
 	if (space->car==1.0)
+	{
 		a1.InverseTransverseFFT();
+		chi.InverseTransverseFFT();
+	}
 	else
 	{
 		a1.InverseHankel(modes,inverseHankel);
@@ -224,9 +227,9 @@ void EigenmodePropagator::Advance(ComplexField& a0,ComplexField& a1,ComplexField
 	tw::Int xstart = task->globalCells[1] - layers + 1;
 	tw::Int xstart_local = xstart - task->cornerCell[1] + 1;
 	tw::Int first = xstart_local;
-	if (first<space->N0(1))
-		first = space->N0(1);
-	for (tw::Int i=first;i<=space->N1(1);i++)
+	if (first<space->LFG(1))
+		first = space->LFG(1);
+	for (tw::Int i=first;i<=space->UFG(1);i++)
 		for (tw::Int k=0;k<=zDim+1;k++)
 			a1(i,1,k) *= exp(-(i-xstart_local+1)*dt/dampingTime/tw::Float(layers));
 
@@ -234,11 +237,11 @@ void EigenmodePropagator::Advance(ComplexField& a0,ComplexField& a1,ComplexField
 
 	if (task->n0[3]==MPI_PROC_NULL && zDim>1)
 		for (auto s : StripRange(*space,3,strongbool::yes))
-			a1(s,space->N0(3)) = a0(s,space->N0(3));
+			a1(s,space->LFG(3)) = a0(s,space->LFG(3));
 
 	if (task->n1[3]==MPI_PROC_NULL && zDim>1)
 		for (auto s : StripRange(*space,3,strongbool::yes))
-			a1(s,space->N1(3)) = a0(s,space->N1(3));
+			a1(s,space->UFG(3)) = a0(s,space->UFG(3));
 }
 
 void EigenmodePropagator::ReadData(std::ifstream& inFile)
@@ -365,9 +368,9 @@ void ADIPropagator::Advance(ComplexField& a0,ComplexField& a1,ComplexField& chi)
 				}
 
 				if (task->n0[1]==MPI_PROC_NULL)
-					a1.AdjustTridiagonalForBoundaries(xAxis,lowSide,&X1[0],&X2[0],&X3[0],&src[0],0.0);
+					a1.AdjustTridiagonalForBoundaries(xAxis,lowSide,X1,X2,X3,src,tw::Complex(0.0));
 				if (task->n1[1]==MPI_PROC_NULL)
-					a1.AdjustTridiagonalForBoundaries(xAxis,highSide,&X1[xDim-1],&X2[xDim-1],&X3[xDim-1],&src[xDim-1],0.0);
+					a1.AdjustTridiagonalForBoundaries(xAxis,highSide,X1,X2,X3,src,tw::Complex(0.0));
 
 				TriDiagonal(ans,src,X1,X2,X3);
 				for (i=1;i<=xDim;i++)
@@ -418,9 +421,9 @@ void ADIPropagator::Advance(ComplexField& a0,ComplexField& a1,ComplexField& chi)
 				}
 
 				if (task->n0[2]==MPI_PROC_NULL)
-					a1.AdjustTridiagonalForBoundaries(yAxis,lowSide,&Y1[0],&Y2[0],&Y3[0],&src[0],0.0);
+					a1.AdjustTridiagonalForBoundaries(yAxis,lowSide,Y1,Y2,Y3,src,tw::Complex(0.0));
 				if (task->n1[2]==MPI_PROC_NULL)
-					a1.AdjustTridiagonalForBoundaries(yAxis,highSide,&Y1[yDim-1],&Y2[yDim-1],&Y3[yDim-1],&src[yDim-1],0.0);
+					a1.AdjustTridiagonalForBoundaries(yAxis,highSide,Y1,Y2,Y3,src,tw::Complex(0.0));
 
 				TriDiagonal(ans,src,Y1,Y2,Y3);
 				for (j=1;j<=yDim;j++)
@@ -440,14 +443,14 @@ void ADIPropagator::Advance(ComplexField& a0,ComplexField& a1,ComplexField& chi)
 
 	a0 = aNow;
 	if (task->n0[3]==MPI_PROC_NULL && zDim>1)
-		for (j=space->N0(2);j<=space->N1(2);j++)
-			for (i=space->N0(1);i<=space->N1(1);i++)
-				a1(i,j,space->N0(3)) = a0(i,j,space->N0(3));
+		for (j=space->LFG(2);j<=space->UFG(2);j++)
+			for (i=space->LFG(1);i<=space->UFG(1);i++)
+				a1(i,j,space->LFG(3)) = a0(i,j,space->LFG(3));
 
 	if (task->n1[3]==MPI_PROC_NULL && zDim>1)
-		for (j=space->N0(2);j<=space->N1(2);j++)
-			for (i=space->N0(1);i<=space->N1(1);i++)
-				a1(i,j,space->N1(3)) = a0(i,j,space->N1(3));
+		for (j=space->LFG(2);j<=space->UFG(2);j++)
+			for (i=space->LFG(1);i<=space->UFG(1);i++)
+				a1(i,j,space->UFG(3)) = a0(i,j,space->UFG(3));
 
 	evenTime = !evenTime;
 }
@@ -608,9 +611,9 @@ void SchroedingerPropagator::ApplyDenominator(const axisSpec& axis,ComplexField&
 				}
 
 				if (task->n0[1]==MPI_PROC_NULL)
-					psi.AdjustTridiagonalForBoundaries(axis,lowSide,&T1[0],&T2[0],&T3[0],&src[0],0.0);
+					psi.AdjustTridiagonalForBoundaries(axis,lowSide,T1,T2,T3,src,tw::Complex(0.0));
 				if (task->n1[1]==MPI_PROC_NULL)
-					psi.AdjustTridiagonalForBoundaries(axis,highSide,&T1[sDim-1],&T2[sDim-1],&T3[sDim-1],&src[sDim-1],0.0);
+					psi.AdjustTridiagonalForBoundaries(axis,highSide,T1,T2,T3,src,tw::Complex(0.0));
 
 				TriDiagonal(ans,src,T1,T2,T3);
 				for (tw::Int i=1;i<=sDim;i++)
@@ -736,9 +739,9 @@ void ParabolicSolver::Advance(const axisSpec& axis,ScalarField& psi,ScalarField&
 			}
 
 			if (task->n0[ax]==MPI_PROC_NULL)
-				psi.AdjustTridiagonalForBoundaries(axis,lowSide,&T1[0],&T2[0],&T3[0],&src[0],0.0);
+				psi.AdjustTridiagonalForBoundaries(axis,lowSide,T1,T2,T3,src,0.0);
 			if (task->n1[ax]==MPI_PROC_NULL)
-				psi.AdjustTridiagonalForBoundaries(axis,highSide,&T1[sDim-1],&T2[sDim-1],&T3[sDim-1],&src[sDim-1],0.0);
+				psi.AdjustTridiagonalForBoundaries(axis,highSide,T1,T2,T3,src,0.0);
 
 			TriDiagonal(ans,src,T1,T2,T3);
 			for (tw::Int i=1;i<=sDim;i++)
@@ -789,7 +792,7 @@ void ParabolicSolver::Advance(	const axisSpec& axis,
 	#pragma omp parallel
 	{
 		StripRange range(*space,ax,strongbool::no);
-		tw::Float D1,D2,temp=0.0;
+		tw::Float D1,D2;
 		std::valarray<tw::Float> src,ans,T1,T2,T3;
 
 		ans.resize(sDim);
@@ -810,9 +813,9 @@ void ParabolicSolver::Advance(	const axisSpec& axis,
 			}
 
 			if (task->n0[ax]==MPI_PROC_NULL)
-				psi.AdjustTridiagonalForBoundaries(Element(psi_idx),axis,lowSide,&T1[0],&T2[0],&T3[0],&src[0],&temp);
+				psi.AdjustTridiagonalForBoundaries(Element(psi_idx),axis,lowSide,T1,T2,T3,src,0.0);
 			if (task->n1[ax]==MPI_PROC_NULL)
-				psi.AdjustTridiagonalForBoundaries(Element(psi_idx),axis,highSide,&T1[sDim-1],&T2[sDim-1],&T3[sDim-1],&src[sDim-1],&temp);
+				psi.AdjustTridiagonalForBoundaries(Element(psi_idx),axis,highSide,T1,T2,T3,src,0.0);
 
 			TriDiagonal(ans,src,T1,T2,T3);
 			for (tw::Int i=1;i<=sDim;i++)

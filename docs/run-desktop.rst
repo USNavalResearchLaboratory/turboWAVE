@@ -7,15 +7,13 @@ Desktop Runs
 
 .. note::
 
-	Once installed, running turboWAVE should be the same for any UNIX-based desktop system.  For Windows,
-	remember to replace the forward slash with the backslash in directory paths, and to use the Anaconda
-	prompt in place of the DOS prompt where appropriate.
+	Once installed, running turboWAVE should be very nearly the same for any desktop system. For Windows, this consistency depends on using the PowerShell as the terminal window.
 
 
 Parallel Programming Theory
 ---------------------------
 
-In order to run turboWAVE, it is useful to understand a little about the parallelization methods.  TurboWAVE uses a combination of distributed memory and shared memory methods.  The distributed memory method is called "domain decomposition", and corresponds to physically paritioning the simulation region into chunks that can be worked on by different processors.  The memory that holds each chunk is distributed in the sense that it may be connected only by a network cable.  The shared memory method is called "fork-join".  In this approach independent software threads are running on different cores, but in a setting where each core has equal access to the memory (e.g., the threads could be on different cores of the same multi-core processor).
+In order to run turboWAVE, it is useful to understand a little about the parallelization methods.  TurboWAVE uses a combination of distributed memory and shared memory methods.  The distributed memory method is called "domain decomposition", and corresponds to physically partitioning the simulation region into chunks that can be worked on by different processors.  The memory that holds each chunk is distributed in the sense that it may be connected only by a network cable.  The shared memory method is called "fork-join".  In this approach independent software threads are running on different cores, but in a setting where each core has equal access to the memory (e.g., the threads could be on different cores of the same multi-core processor).
 
 The distributed memory model is implemented using software called MPI.  The shared memory model is implemented using software called OpenMP.
 
@@ -38,7 +36,7 @@ Running an Example
 #. Activate your virtual environment (see :doc:`tools-install`)
 #. :samp:`jupyter notebook`
 #. Click on :samp:`DataViewer.ipynb`
-#. Locate the path variable in the source, and change to your own Run directory.  If you are using Windows, you will have to put a double backslash as the directory separator.
+#. Locate the path variable in the source, and change to your own Run directory. Prefixing the string with ``u`` allows forward slashes to be used as directory separators irrespective of operating system.
 #. Click on the button to run the notebook
 #. Use the File dropdown to select :samp:`phi.dvdat`.
 #. Advance the Frame slider to the last frame

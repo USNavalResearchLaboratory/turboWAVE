@@ -98,13 +98,23 @@ struct Matrix
 
 struct BoundaryCondition
 {
-	// General BC consists of a folding operation and a forcing operation.
+	// Consists of a folding operation and a forcing operation.
 	// The folding operation is used to clean up after source deposition operations.
 	// Typically folding operates on volume integrated states.
 	// Typically forcing operates on density states.
 	// Folding: strip_i = sum_j(fold_ij * strip_j)
 	// Forcing: strip_i = sum_j(force_ij * strip_j) + coeff_i * BC
 	// Setting a particular boundary condition consists of defining the matrices.
+	// To apply forcing, the caller must pass a value for BC.
+
+	// Handling of inhomogeneous boundary conditions:
+	// Each boundary condition object has to be fed a value of BC for each strip.
+	// Where this comes from is entirely up to the caller of ForcingOperation.
+	// The primary caller in turboWAVE is Field::ApplyBoundaryCondition.
+	// This can be passed an optional boolean argument ``homogeneous`` (defaults to true)
+	// If ``homogeneous==true`` we have BC=0.
+	// If ``homogeneous==false`` then BC is assumed to be stored in the far ghost cell.
+	// In the latter case part of the forcing matrix is redundant (redundant elements should be 0)
 
 	// WARNING: this object specialized for fields with 2 ghost cell layers
 
@@ -250,11 +260,11 @@ struct Field:DiscreteSpace
 	// Conventional accessors using fortran style array indexing
 	tw::Float& operator () (const tw::Int& x,const tw::Int& y,const tw::Int& z,const tw::Int& c)
 	{
-		return array[c*stride[0] + (x-lb[1])*stride[1] + (y-lb[2])*stride[2] + (z-lb[3])*stride[3]];
+		return array[c*stride[0] + (x-lfg[1])*stride[1] + (y-lfg[2])*stride[2] + (z-lfg[3])*stride[3]];
 	}
 	tw::Float operator () (const tw::Int& x,const tw::Int& y,const tw::Int& z,const tw::Int& c) const
 	{
-		return array[c*stride[0] + (x-lb[1])*stride[1] + (y-lb[2])*stride[2] + (z-lb[3])*stride[3]];
+		return array[c*stride[0] + (x-lfg[1])*stride[1] + (y-lfg[2])*stride[2] + (z-lfg[3])*stride[3]];
 	}
 	// Accessors for stepping through cells without concern for direction
 	tw::Float& operator () (const tw::cell& cell,const tw::Int& c)
@@ -416,17 +426,19 @@ struct Field:DiscreteSpace
 	void Smooth(const Element& e,const MetricSpace& ds,tw::Int smoothPasses,tw::Int compPasses);
 	void Shift(const Element& e,const tw::strip& s,tw::Int cells,const tw::Float* incoming);
 	void Shift(const Element& e,const tw::strip& s,tw::Int cells,const tw::Float& incoming);
+	void Hankel(const Element& e,tw::Int modes,std::valarray<tw::Float>& matrix);
+	void InverseHankel(const Element& e,tw::Int modes,std::valarray<tw::Float>& matrix);
 
 	// Subsets and Slices
 
 	void GetStrip(std::valarray<tw::Float>& cpy,const tw::strip& s,const tw::Int& c)
 	{
-		for (tw::Int i=0;i<N1(s.Axis());i++) // beware assumption of 2 layers
+		for (tw::Int i=0;i<=UNG(s.Axis());i++)
 			cpy[i] = (*this)(s,i,c);
 	}
 	void SetStrip(std::valarray<tw::Float>& cpy,const tw::strip& s,const tw::Int& c)
 	{
-		for (tw::Int i=0;i<N1(s.Axis());i++) // beware assumption of 2 layers
+		for (tw::Int i=0;i<=UNG(s.Axis());i++)
 			(*this)(s,i,c) = cpy[i];
 	}
 	tw::vec3 Vec3(const tw::Int& i,const tw::Int& j,const tw::Int& k,const tw::Int& c) const
@@ -455,8 +467,9 @@ struct Field:DiscreteSpace
 	// Boundaries, messages, smoothing
 
 	void ApplyFoldingCondition(const Element& e);
-	void ApplyBoundaryCondition(const Element& e);
-	void AdjustTridiagonalForBoundaries(const Element& e,const axisSpec& axis,const sideSpec& side,tw::Float *T1,tw::Float *T2,tw::Float *T3,tw::Float *source,tw::Float *val);
+	void ApplyBoundaryCondition(const Element& e,bool homogeneous = true);
+	template <class T>
+	void AdjustTridiagonalForBoundaries(const Element& e,const axisSpec& axis,const sideSpec& side,std::valarray<T>& T1,std::valarray<T>& T2,std::valarray<T>& T3,std::valarray<T>& source,T val);
 	void ZeroGhostCells(const Element& e);
 
 	void StripCopyProtocol(tw::Int axis,tw::Int shift,Slice<tw::Float> *planeIn,Slice<tw::Float> *planeOut,bool add);
@@ -516,13 +529,14 @@ struct Field:DiscreteSpace
 	{
 		ApplyFoldingCondition(All(*this));
 	}
-	void ApplyBoundaryCondition()
+	void ApplyBoundaryCondition(bool homogeneous = true)
 	{
-		ApplyBoundaryCondition(All(*this));
+		ApplyBoundaryCondition(All(*this),homogeneous);
 	}
-	void AdjustTridiagonalForBoundaries(const axisSpec& axis,const sideSpec& side,tw::Float *T1,tw::Float *T2,tw::Float *T3,tw::Float *source,tw::Float *val)
+	template <class T>
+	void AdjustTridiagonalForBoundaries(const axisSpec& axis,const sideSpec& side,std::valarray<T>& T1,std::valarray<T>& T2,std::valarray<T>& T3,std::valarray<T>& source,T val)
 	{
-		AdjustTridiagonalForBoundaries(All(*this),axis,side,T1,T2,T3,source,val);
+		AdjustTridiagonalForBoundaries<T>(Element(0),axis,side,T1,T2,T3,source,val);
 	}
 	void ZeroGhostCells()
 	{
@@ -539,6 +553,14 @@ struct Field:DiscreteSpace
 	void Shift(const tw::strip& s,tw::Int cells,const tw::Float& incoming)
 	{
 		Shift(All(*this),s,cells,incoming);
+	}
+	void Hankel(tw::Int modes,std::valarray<tw::Float>& matrix)
+	{
+		Hankel(All(*this),modes,matrix);
+	}
+	void InverseHankel(tw::Int modes,std::valarray<tw::Float>& matrix)
+	{
+		InverseHankel(All(*this),modes,matrix);
 	}
 
 	// File operations
@@ -632,6 +654,43 @@ struct Field:DiscreteSpace
 	friend tw::Float div(const Field& coeff,const Field& sf,tw::Int i,tw::Int j,tw::Int k,const MetricSpace& m);
 };
 
+template<class T>
+void Field::AdjustTridiagonalForBoundaries(const Element& e,const axisSpec& axis,const sideSpec& side,std::valarray<T>& T1,std::valarray<T>& T2,std::valarray<T>& T3,std::valarray<T>& source,T val)
+{
+	// Modify the tridiagonal matrix to respect the boundary condition cell_1 = force_1j * cell_j + coeff_1 * val
+	// force_ij and coeff_i are defined by the boundary condition object.
+	// Since val may be passed in based on values in the outermost ghost cell, we assume force_10 = 0.
+	// N.b. indexing of force_ij and coeff_i starts with outermost ghost cell = 0 and works inward, regardless of sideSpec.
+	// The element is only used to define the boundary conditions, no field data is used.
+	const tw::Int ax = naxis(axis);
+	const tw::Int N = Dim(ax)-1;
+	const tw::Int c = e.low; // component determining the BC
+	assert(e.low==e.high); // asking for more than one BC is not defined
+	assert(T1.size()==Dim(ax));
+	if (side==lowSide)
+	{
+		auto F = bc0(ax,c).force;
+		auto C = bc0(ax,c).coeff;
+		if (F[1][1]!=1.0) // if F11=1 this is presumed a node boundary
+		{
+			T2[0] += T1[0] * F[1][2] / (1.0 - F[1][1]);
+			T3[0] += T1[0] * F[1][3] / (1.0 - F[1][1]);
+			source[0] -= T1[0] * C[1] * val / (1.0 - F[1][1]);
+		}
+	}
+	if (side==highSide)
+	{
+		auto F = bc1(ax,c).force;
+		auto C = bc1(ax,c).coeff;
+		if (F[1][1]!=1.0) // if F11=1 this is presumed a node boundary
+		{
+			T2[N] += T3[N] * F[1][2] / (1.0 - F[1][1]);
+			T1[N] += T3[N] * F[1][3] / (1.0 - F[1][1]);
+			source[N] -= T3[N] * C[1] * val / (1.0 - F[1][1]);
+		}
+	}
+}
+
 template<tw::Int T,tw::Int X,tw::Int Y,tw::Int Z>
 inline void conserved_current_to_dens(Field& current,const MetricSpace& m)
 {
@@ -651,7 +710,7 @@ template <tw::Int C,tw::Int X,tw::Int Y,tw::Int Z>
 inline void assign_grad(const Field& sf,Field& vf,const MetricSpace& m,const tw::Float& scaleFactor)
 {
 	// assign the gradient of a scalar field (sf) to a vector field (vf)
-	const tw::Int xN1=m.N1(1),yN1=m.N1(2),zN1=m.N1(3);
+	const tw::Int xN1=m.UNG(1),yN1=m.UNG(2),zN1=m.UNG(3);
 	#pragma omp parallel for collapse(3) schedule(static)
 	for (tw::Int i=1;i<=xN1;i++)
 		for (tw::Int j=1;j<=yN1;j++)
@@ -667,7 +726,7 @@ template <tw::Int C,tw::Int X,tw::Int Y,tw::Int Z>
 inline void add_grad(const Field& sf,Field& vf,const MetricSpace& m,const tw::Float& scaleFactor)
 {
 	// add the gradient of a scalar field (sf) to a vector field (vf)
-	const tw::Int xN1=m.N1(1),yN1=m.N1(2),zN1=m.N1(3);
+	const tw::Int xN1=m.UNG(1),yN1=m.UNG(2),zN1=m.UNG(3);
 	#pragma omp parallel for collapse(3) schedule(static)
 	for (tw::Int i=1;i<=xN1;i++)
 		for (tw::Int j=1;j<=yN1;j++)
@@ -684,7 +743,7 @@ inline void add_curlB(const Field& src,Field& dst,const MetricSpace& m,const tw:
 {
 	// curl of B-field on generalized Yee mesh
 	const tw::Int xDim=m.Dim(1),yDim=m.Dim(2),zDim=m.Dim(3);
-	const tw::Int xN1=m.N1(1),yN1=m.N1(2),zN1=m.N1(3);
+	const tw::Int xN1=m.UNG(1),yN1=m.UNG(2),zN1=m.UNG(3);
 	#pragma omp parallel for collapse(2) schedule(static)
 	for (tw::Int i=1;i<=xN1;i++)
 		for (tw::Int j=1;j<=yDim;j++)
@@ -731,7 +790,7 @@ template <tw::Int U,tw::Int V,tw::Int W,tw::Int X,tw::Int Y,tw::Int Z>
 inline void add_curlE(const Field& src,Field& dst,const MetricSpace& m,const tw::Float& scaleFactor)
 {
 	// curl of E-field on generalized Yee mesh
-	const tw::Int xN1=m.N1(1),yN1=m.N1(2),zN1=m.N1(3);
+	const tw::Int xN1=m.UNG(1),yN1=m.UNG(2),zN1=m.UNG(3);
 	#pragma omp parallel for collapse(2) schedule(static)
 	for (tw::Int i=1;i<=xN1;i++)
 		for (tw::Int j=1;j<=yN1;j++)
@@ -940,10 +999,6 @@ struct AutoField : Field
 			elementArray[i] = ((tw::Float*)&val)[i];
 		Field::InterpolateOnto(elementArray,weights);
 	}
-	void AdjustTridiagonalForBoundaries(const axisSpec& axis,const sideSpec& side,T *T1,T *T2,T *T3,T *source,T val)
-	{
-		Field::AdjustTridiagonalForBoundaries(axis,side,(tw::Float*)T1,(tw::Float*)T2,(tw::Float*)T3,(tw::Float*)source,(tw::Float*)&val);
-	}
 	void Shift(const tw::strip& s,tw::Int cells,const T& incoming)
 	{
 		Field::Shift(s,cells,(tw::Float*)&incoming);
@@ -1039,8 +1094,6 @@ struct ComplexField:AutoField<tw::Complex>
 	void InverseFFT();
 	void TransverseFFT();
 	void InverseTransverseFFT();
-	void Hankel(tw::Int modes,std::valarray<tw::Float>& matrix);
-	void InverseHankel(tw::Int modes,std::valarray<tw::Float>& matrix);
 
 	// Assignment
 

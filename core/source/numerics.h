@@ -2,7 +2,7 @@ void Transform(tw::Float * array,tw::Int pts,tw::Int modes,tw::Int interval,std:
 void ReverseTransform(tw::Float * array,tw::Int pts,tw::Int modes,tw::Int interval,std::valarray<tw::Float>& rev_transform);
 tw::Float GetSphericalGroundState(std::valarray<tw::Float>& vec,std::valarray<tw::Float>& phi,tw::Float dr);
 tw::Float GetCylindricalGroundState(std::valarray<tw::Float>& vec,std::valarray<tw::Float>& phi,tw::Float dr);
-void ComputeTransformMatrices(std::valarray<tw::Float>& eigenvalue,std::valarray<tw::Float>& fwd,std::valarray<tw::Float>& rev,MetricSpace *space,Task *tsk);
+void ComputeTransformMatrices(boundarySpec radial_bc,std::valarray<tw::Float>& eigenvalue,std::valarray<tw::Float>& fwd,std::valarray<tw::Float>& rev,MetricSpace *space,Task *tsk);
 
 template <class T,class U>
 void TriDiagonal(std::valarray<T>& phi,std::valarray<T>& rho,U a,U b,U c);

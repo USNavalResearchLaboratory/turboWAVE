@@ -230,9 +230,9 @@ void Electromagnetic::ForceQuasistaticVectorPotential(Field& A4,ScalarField& DtP
 			}
 		rhs.CopyFromNeighbors();
 
-		for (k=lb[3];k<=dim[3];k++)
-			for (j=lb[2];j<=ub[2];j++)
-				for (i=lb[1];i<=ub[1];i++)
+		for (k=lfg[3];k<=dim[3];k++)
+			for (j=lfg[2];j<=ufg[2];j++)
+				for (i=lfg[1];i<=ufg[1];i++)
 					rhs(i,j,k) = (1.0 - w)*rhs(i,j,k) + w*rhs(i,j,k+1);
 		rhs.DownwardCopy(zAxis,1);
 
@@ -875,7 +875,7 @@ void DirectSolver::SetupPML(Field& pml,tw::Int g0,tw::Int gN,tw::Int L0,tw::Int 
 	tw::Float delta,maxConductivity,p,p0,sigma;
 	const tw::Int bufferZone = 8;
 
-	for (i=pml.N0(1);i<=pml.N1(1);i++)
+	for (i=pml.LFG(1);i<=pml.UFG(1);i++)
 	{
 		pml(i,0,0,0) = 1.0;
 		pml(i,0,0,1) = dt;
@@ -891,7 +891,7 @@ void DirectSolver::SetupPML(Field& pml,tw::Int g0,tw::Int gN,tw::Int L0,tw::Int 
 		delta = L * ds;
 		maxConductivity = -1.5*log(reflectionCoefficient)/delta;
 		p0 = delta - 0.5*ds;
-		for (i=pml.N0(1);i<=pml.N1(1);i++)
+		for (i=pml.LFG(1);i<=pml.UFG(1);i++)
 		{
 			ig = g0+i;
 			p = tw::Float(ig-1)*ds + 0.5*ds;
@@ -925,7 +925,7 @@ void DirectSolver::SetupPML(Field& pml,tw::Int g0,tw::Int gN,tw::Int L0,tw::Int 
 		delta = L * ds;
 		maxConductivity = -1.5*log(reflectionCoefficient)/delta;
 		p0 = ds*N1 - delta - 0.5*ds;
-		for (i=pml.N0(1);i<=pml.N1(1);i++)
+		for (i=pml.LFG(1);i<=pml.UFG(1);i++)
 		{
 			ig = g0+i;
 			p = tw::Float(ig-1)*ds + 0.5*ds;
@@ -989,7 +989,7 @@ void DirectSolver::Initialize()
 		for (auto v : VectorStripRange<3>(*this,true))
 		{
 			#pragma omp simd
-			for (tw::Int k=lb[3];k<=ub[3];k++)
+			for (tw::Int k=lfg[3];k<=ufg[3];k++)
 			{
 				A(v,k,0) = 0.5*dti*A0(v,k,0);
 				A(v,k,1) = 0.5*dti*A0(v,k,0);
@@ -1019,7 +1019,7 @@ void DirectSolver::Initialize()
 		for (auto v : VectorStripRange<3>(*this,true))
 		{
 			#pragma omp simd
-			for (tw::Int k=lb[3];k<=ub[3];k++)
+			for (tw::Int k=lfg[3];k<=ufg[3];k++)
 			{
 				A(v,k,0) -= 0.5*dti*A0(v,k,0);
 				A(v,k,1) -= 0.5*dti*A0(v,k,0);
@@ -1209,7 +1209,7 @@ void CurvilinearDirectSolver::Initialize()
 		for (auto v : VectorStripRange<3>(*this,true))
 		{
 			#pragma omp simd
-			for (tw::Int k=lb[3];k<=ub[3];k++)
+			for (tw::Int k=lfg[3];k<=ufg[3];k++)
 			{
 				A(v,k,0) = dti*A0(v,k,0);
 				A(v,k,1) = dti*A0(v,k,1);
@@ -1228,7 +1228,7 @@ void CurvilinearDirectSolver::Initialize()
 		for (auto v : VectorStripRange<3>(*this,true))
 		{
 			#pragma omp simd
-			for (tw::Int k=lb[3];k<=ub[3];k++)
+			for (tw::Int k=lfg[3];k<=ufg[3];k++)
 			{
 				A(v,k,0) -= dti*A0(v,k,0);
 				A(v,k,1) -= dti*A0(v,k,1);
@@ -1258,7 +1258,7 @@ void CurvilinearDirectSolver::Initialize()
 		for (auto v : VectorStripRange<3>(*this,true))
 		{
 			#pragma omp simd
-			for (tw::Int k=lb[3];k<=ub[3];k++)
+			for (tw::Int k=lfg[3];k<=ufg[3];k++)
 			{
 				F(v,k,0) = A(v,k,0);
 				F(v,k,1) = A(v,k,1);
@@ -1276,27 +1276,27 @@ void CurvilinearDirectSolver::SetSingularPointsE()
 	tw::Int i,j,k;
 	if (owner->gridGeometry==cylindrical && owner->X(0,1)<0.0)
 	{
-		for (k=lb[3];k<=ub[3];k++)
-			for (j=lb[2];j<=ub[2];j++)
+		for (k=lfg[3];k<=ufg[3];k++)
+			for (j=lfg[2];j<=ufg[2];j++)
 				A(1,j,k,0) = 0.0;
 	}
 	if (owner->gridGeometry==spherical && owner->X(0,1)<0.0)
 	{
-		for (k=lb[3];k<=ub[3];k++)
-			for (j=lb[2];j<=ub[2];j++)
+		for (k=lfg[3];k<=ufg[3];k++)
+			for (j=lfg[2];j<=ufg[2];j++)
 				A(1,j,k,0) = 0.0;
 	}
 	if (owner->gridGeometry==spherical && owner->X(0,2)<0.0)
 	{
-		for (k=lb[3];k<=ub[3];k++)
-			for (i=lb[1];i<=ub[1];i++)
+		for (k=lfg[3];k<=ufg[3];k++)
+			for (i=lfg[1];i<=ufg[1];i++)
 				A(i,1,k,1) = 0.0;
 	}
-	if (owner->gridGeometry==spherical && owner->X(ub[2],2)>pi)
+	if (owner->gridGeometry==spherical && owner->X(ufg[2],2)>pi)
 	{
-		for (k=lb[3];k<=ub[3];k++)
-			for (i=lb[1];i<=ub[1];i++)
-				A(i,ub[2],k,1) = 0.0;
+		for (k=lfg[3];k<=ufg[3];k++)
+			for (i=lfg[1];i<=ufg[1];i++)
+				A(i,ufg[2],k,1) = 0.0;
 	}
 }
 
@@ -1307,8 +1307,8 @@ void CurvilinearDirectSolver::SetSingularPointsB()
 	tw::Int i,j,k;
 	if (owner->gridGeometry==cylindrical && owner->X(0,1)<0.0)
 	{
-		for (k=lb[3];k<=ub[3];k++)
-			for (j=lb[2];j<=ub[2];j++)
+		for (k=lfg[3];k<=ufg[3];k++)
+			for (j=lfg[2];j<=ufg[2];j++)
 			{
 				A(1,j,k,4) = 0.0;
 				A(1,j,k,5) = F(1,j,k,5) - 2.0*dt*A(1,j,k,1)/owner->X(1,1);
@@ -1316,20 +1316,20 @@ void CurvilinearDirectSolver::SetSingularPointsB()
 	}
 	if (owner->gridGeometry==spherical && owner->X(0,2)<0.0)
 	{
-		for (k=lb[3];k<=ub[3];k++)
-			for (i=lb[1];i<=ub[1];i++)
+		for (k=lfg[3];k<=ufg[3];k++)
+			for (i=lfg[1];i<=ufg[1];i++)
 			{
 				A(i,1,k,5) = 0.0;
 				A(i,1,k,3) = F(i,1,k,3) - 2.0*dt*A(i,1,k,2)/(owner->X(i,1)*sin(owner->X(1,2)));
 			}
 	}
-	if (owner->gridGeometry==spherical && owner->X(ub[2],2)>pi)
+	if (owner->gridGeometry==spherical && owner->X(ufg[2],2)>pi)
 	{
-		for (k=lb[3];k<=ub[3];k++)
-			for (i=lb[1];i<=ub[1];i++)
+		for (k=lfg[3];k<=ufg[3];k++)
+			for (i=lfg[1];i<=ufg[1];i++)
 			{
-				A(i,ub[2],k,5) = 0.0;
-				A(i,ub[2],k,3) = F(i,ub[2],k,3) + 2.0*dt*A(i,dim[2],k,2)/(owner->X(i,1)*sin(owner->X(dim[2],2)));
+				A(i,ufg[2],k,5) = 0.0;
+				A(i,ufg[2],k,3) = F(i,ufg[2],k,3) + 2.0*dt*A(i,dim[2],k,2)/(owner->X(i,1)*sin(owner->X(dim[2],2)));
 			}
 	}
 }
@@ -1382,7 +1382,7 @@ void CurvilinearDirectSolver::Update()
 		for (auto v : VectorStripRange<3>(*this,true))
 		{
 			#pragma omp simd
-			for (tw::Int k=lb[3];k<=ub[3];k++)
+			for (tw::Int k=lfg[3];k<=ufg[3];k++)
 			{
 				F(v,k,0) = A(v,k,0);
 				F(v,k,1) = A(v,k,1);

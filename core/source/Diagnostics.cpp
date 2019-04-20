@@ -1102,18 +1102,18 @@ void Simulation::WriteBoxDataHeader(const std::string& quantity,GridDataDescript
 		fileName << strip[0].Get_rank() << "_" << theBox->filename << "_" << quantity;
 	fileName << ".dvdat";
 
-	xPoints = ub[1] - lb[1] + 1;
-	yPoints = ub[2] - lb[2] + 1;
-	zPoints = ub[3] - lb[3] + 1;
+	xPoints = ufg[1] - lfg[1] + 1;
+	yPoints = ufg[2] - lfg[2] + 1;
+	zPoints = ufg[3] - lfg[3] + 1;
 
 	outFile.open(fileName.str().c_str(),std::ios::binary);
 	WriteDVHeader(outFile,2,xPoints,yPoints,zPoints,
-		corner.x + spacing.x*(lb[1]-1),
-		corner.x + spacing.x*ub[1],
-		corner.y + spacing.y*(lb[2]-1),
-		corner.y + spacing.y*ub[2],
-		corner.z + spacing.z*(lb[3]-1),
-		corner.z + spacing.z*ub[3]);
+		corner.x + spacing.x*(lfg[1]-1),
+		corner.x + spacing.x*ufg[1],
+		corner.y + spacing.y*(lfg[2]-1),
+		corner.y + spacing.y*ufg[2],
+		corner.z + spacing.z*(lfg[3]-1),
+		corner.z + spacing.z*ufg[3]);
 	outFile.close();
 	Unlock();
 }
@@ -1135,9 +1135,9 @@ void Simulation::WriteBoxData(const std::string& quantity,GridDataDescriptor* th
 	fileName << ".dvdat";
 
 	outFile.open(fileName.str().c_str(),std::ios::app | std::ios::binary);
-	for (k=lb[3];k<=ub[3];k++)
-		for (j=lb[2];j<=ub[2];j++)
-			for (i=lb[1];i<=ub[1];i++)
+	for (k=lfg[3];k<=ufg[3];k++)
+		for (j=lfg[2];j<=ufg[2];j++)
+			for (i=lfg[1];i<=ufg[1];i++)
 			{
 				data = theData[i*stride[1] + j*stride[2] + k*stride[3]];
 				WriteBigEndian((char*)&data,sizeof(float),sizeof(float),outFile);

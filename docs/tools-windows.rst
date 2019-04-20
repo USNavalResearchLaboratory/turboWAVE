@@ -16,11 +16,17 @@ Python 3 via Anaconda
 #. Run Miniconda3 installer from internet
 #. Open the Anaconda Prompt from the Start menu
 #. :samp:`conda update conda`
+#. :samp:`conda init powershell`
+#. Put away the terminal and open a user PowerShell
+#. If you get an error you likely need to update the Execution Policy
+
+	* :samp:`Set-ExecutionPolicy Bypass -Scope CurrentUser`
+	* Respond affirmatively to the prompt, close and reopen the PowerShell
+
 #. Choose a name for your environment, denoted :samp:`{NAME}`
-#. :samp:`conda create -n {NAME}`
+#. :samp:`conda create -n {NAME} scipy matplotlib jupyter`
 #. :samp:`conda activate {NAME}`
 #. You are now in an isolated conda environment.  The environment must be activated each time you open a new terminal window.
-#. :samp:`conda install scipy matplotlib jupyter`
 #. If there are problems with Jupyter notebooks any or all of the following may be tried:
 
 	* Try adding ``-c conda-forge`` at any install step
@@ -33,9 +39,8 @@ Python 3 via Anaconda
 TurboWAVE Python Packages
 -------------------------
 
-#. If this is a new terminal session, activate the conda environment with :samp:`activate {NAME}`
-#. Remember to use the Anaconda prompt, not the usual command prompt
-#. Navigate to the :samp:`{twroot}\\tools\\twutils` directory
+#. If this is a new PowerShell session, activate the conda environment with :samp:`conda activate {NAME}`
+#. :samp:`cd {twroot}/tools/twutils`
 #. Do **not** descend into the second :samp:`twutils` directory within.
 #. :samp:`pip install --upgrade pip`
 #. :samp:`pip install .`
@@ -45,12 +50,12 @@ Native DataViewer
 -----------------
 
 #. For Windows there is a native DataViewer application
-#. You should be able to immediately run the :samp:`DataViewer.exe` application in :samp:`{twroot}\\tools`.
+#. You should be able to immediately run the :samp:`DataViewer.exe` application in :samp:`{twroot}/tools`.
 #. This was written for Windows XP and we have lost the source, but it mostly still works.
 
 Python DataViewer
 -----------------
 
 #. The Python DataViewer may also be useful since you can modify the source
-#. Copy :samp:`{twroot}\\tools\\DataViewer.ipynb` to some convenient place, such as :samp:`{Run}`.
-#. Create a directory :samp:`{C}:\\Users\\{account_name}\\.jupyter\\custom\\` and copy :samp:`{twroot}\\core\\documentation\\config-files\\custom.css` to the new directory.
+#. Copy :samp:`{twroot}/tools/DataViewer.ipynb` to :samp:`~/bin`.
+#. Create a directory :samp:`~/.jupyter/custom/` and copy :samp:`{twroot}/tools/config-files/custom.css` to the new directory.

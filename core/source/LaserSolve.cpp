@@ -314,8 +314,8 @@ void PGCSolver::Update()
 	chi.ApplyBoundaryCondition();
 	if (owner->smoothing>0)
 		chi.Smooth(*owner,owner->smoothing,owner->compensation);
-	for (i=lb[1];i<=ub[1];i++)
-		for (j=lb[2];j<=ub[2];j++)
+	for (i=lfg[1];i<=ufg[1];i++)
+		for (j=lfg[2];j<=ufg[2];j++)
 			for (k=1;k<=dim[3];k++)
 				chi(i,j,k) = owner->ValueOnLightGrid<ComplexField,tw::Complex>(chi,i,j,k,dth);
 	chi.DownwardCopy(zAxis,1);
@@ -330,8 +330,8 @@ void PGCSolver::ComputeFinalFields()
 {
 	tw::Int i,j,k;
 
-	for (i=lb[1];i<=ub[1];i++)
-		for (j=lb[2];j<=ub[2];j++)
+	for (i=lfg[1];i<=ufg[1];i++)
+		for (j=lfg[2];j<=ufg[2];j++)
 			for (k=1;k<=dim[3];k++)
 			{
 				F(i,j,k,7) = norm(owner->ValueOnLabGrid<ComplexField,tw::Complex>(a1,i,j,k,dth));

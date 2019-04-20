@@ -48,8 +48,10 @@ struct DiscreteSpace
 	// The Field class governs packing of quantities in cells
 	// matching the encoding and storage patterns may boost performance
 	tw::Int encodingStride[4],decodingStride[4];
-	// The following are the indices of the extreme cells (which may be ghost cells)
-	tw::Int lb[4],ub[4];
+	// The following are the indices of the lower and upper far ghost cells
+	tw::Int lfg[4],ufg[4];
+	// The following are the indices of the lower and upper near ghost cells
+	tw::Int lng[4],ung[4];
 	// The following is the number of layers of ghost cells, layers[0] holds the maximum layers
 	tw::Int layers[4];
 	// Identify ignorable dimensions, 1 if axis is ignorable, 0 otherwise
@@ -61,19 +63,19 @@ struct DiscreteSpace
 	DiscreteSpace(tw::Float dt,tw::Int x,tw::Int y,tw::Int z,const tw::vec3& corner,const tw::vec3& size,tw::Int ghostCellLayers);
 	void Resize(tw::Int x,tw::Int y,tw::Int z,const tw::vec3& corner,const tw::vec3& size,tw::Int ghostCellLayers);
 	void Resize(tw::Int x,tw::Int y,tw::Int z,const tw::vec3& corner,const tw::vec3& size);
-	tw::Int EncodeCell(tw::Int i,tw::Int j,tw::Int k) const { return (i-lb[1])*encodingStride[1] + (j-lb[2])*encodingStride[2] + (k-lb[3])*encodingStride[3]; }
+	tw::Int EncodeCell(tw::Int i,tw::Int j,tw::Int k) const { return (i-lfg[1])*encodingStride[1] + (j-lfg[2])*encodingStride[2] + (k-lfg[3])*encodingStride[3]; }
 	void DecodeCell(const tw::Int& cell,tw::Int ijk[4]) const
 	{
 		// Assumes z-packed encoding pattern, i.e. decodingStride[3]=1
-		ijk[1] = lb[1] + cell / decodingStride[1];
-		ijk[2] = lb[2] + (cell % decodingStride[1]) / decodingStride[2];
-		ijk[3] = lb[3] + (cell % decodingStride[1]) % decodingStride[2];
+		ijk[1] = lfg[1] + cell / decodingStride[1];
+		ijk[2] = lfg[2] + (cell % decodingStride[1]) / decodingStride[2];
+		ijk[3] = lfg[3] + (cell % decodingStride[1]) % decodingStride[2];
 	}
 	void DecodeCell(const tw::Int& cell,tw::Int *i,tw::Int *j,tw::Int *k) const
 	{
-		*i = lb[1] + cell / decodingStride[1];
-		*j = lb[2] + (cell % decodingStride[1]) / decodingStride[2];
-		*k = lb[3] + (cell % decodingStride[1]) % decodingStride[2];
+		*i = lfg[1] + cell / decodingStride[1];
+		*j = lfg[2] + (cell % decodingStride[1]) / decodingStride[2];
+		*k = lfg[3] + (cell % decodingStride[1]) % decodingStride[2];
 	}
 	void DecodeCell(const Primitive& q,tw::Int ijk[4]) const { DecodeCell(q.cell,ijk); }
 	void DecodeCell(const Primitive& q,tw::Int *i,tw::Int *j,tw::Int *k) const { DecodeCell(q.cell,i,j,k); }
@@ -87,8 +89,10 @@ struct DiscreteSpace
 	tw::Int Dim(const tw::Int& ax) const { return dim[ax]; }
 	tw::Int Num(const tw::Int& ax) const { return num[ax]; }
 	tw::Int Layers(const tw::Int& ax) const { return layers[ax]; }
-	tw::Int N0(const tw::Int& ax) const { return lb[ax]; }
-	tw::Int N1(const tw::Int& ax) const { return ub[ax]; }
+	tw::Int LNG(const tw::Int& ax) const { return lng[ax]; }
+	tw::Int UNG(const tw::Int& ax) const { return ung[ax]; }
+	tw::Int LFG(const tw::Int& ax) const { return lfg[ax]; }
+	tw::Int UFG(const tw::Int& ax) const { return ufg[ax]; }
 	friend tw::Float dt(const DiscreteSpace& A) { return A.dt; }
 	friend tw::Float dx(const DiscreteSpace& A)  { return A.spacing.x; }
 	friend tw::Float dy(const DiscreteSpace& A)  { return A.spacing.y; }
@@ -125,9 +129,9 @@ inline bool DiscreteSpace::IsWithinInset(const Primitive& q,tw::Int inset) const
 {
 	tw::Int i,j,k;
 	DecodeCell(q,&i,&j,&k);
-	return (dim[1]==1 || (i>=lb[1]+inset && i<=ub[1]-inset))
-		&& (dim[2]==1 || (j>=lb[2]+inset && j<=ub[2]-inset))
-		&& (dim[3]==1 || (k>=lb[3]+inset && k<=ub[3]-inset));
+	return (dim[1]==1 || (i>=lfg[1]+inset && i<=ufg[1]-inset))
+		&& (dim[2]==1 || (j>=lfg[2]+inset && j<=ufg[2]-inset))
+		&& (dim[3]==1 || (k>=lfg[3]+inset && k<=ufg[3]-inset));
 }
 
 inline bool DiscreteSpace::IsPointValid(const tw::vec3& P)
@@ -219,7 +223,7 @@ inline void DiscreteSpace::MinimizePrimitive(tw::Int cell[tw::max_bundle_size],t
 		{
 			for (par=0;par<N;par++)
 			{
-				itest[par] = tw::Int(x[ax][par]<-0.5 && ijk[ax][par]>lb[ax+1]) - tw::Int(x[ax][par]>=0.5 && ijk[ax][par]<ub[ax+1]);
+				itest[par] = tw::Int(x[ax][par]<-0.5 && ijk[ax][par]>lfg[ax+1]) - tw::Int(x[ax][par]>=0.5 && ijk[ax][par]<ufg[ax+1]);
 				ftest[par] = float(itest[par]);
 			}
 			#pragma omp simd aligned(itest,ijk:AB)
@@ -230,7 +234,7 @@ inline void DiscreteSpace::MinimizePrimitive(tw::Int cell[tw::max_bundle_size],t
 				x[ax][par] += ftest[par];
 			repeat = 0;
 			for (par=0;par<N;par++)
-				repeat += tw::Int(x[ax][par]<-0.5 && ijk[ax][par]>lb[ax+1]) + tw::Int(x[ax][par]>=0.5 && ijk[ax][par]<ub[ax+1]);
+				repeat += tw::Int(x[ax][par]<-0.5 && ijk[ax][par]>lfg[ax+1]) + tw::Int(x[ax][par]>=0.5 && ijk[ax][par]<ufg[ax+1]);
 		} while (repeat);
 		for (par=0;par<N;par++)
 			ftest[par] = float(tw::Int(ijk[ax][par]>=1 && ijk[ax][par]<=dim[ax+1]));
@@ -255,8 +259,8 @@ inline void DiscreteSpace::MinimizePrimitive(Primitive& q) const
 	{
 		do
 		{
-			test = tw::Int(q.x[ax-1]<-0.5 && ijk[ax]>lb[ax]);
-			test -= tw::Int(q.x[ax-1]>=0.5 && ijk[ax]<ub[ax]);
+			test = tw::Int(q.x[ax-1]<-0.5 && ijk[ax]>lfg[ax]);
+			test -= tw::Int(q.x[ax-1]>=0.5 && ijk[ax]<ufg[ax]);
 			ijk[ax] -= test;
 			q.x[ax-1] += float(test);
 		} while (test);
@@ -327,7 +331,7 @@ struct MetricSpace:DiscreteSpace
 {
 	tw::Float car,cyl,sph; // set variable corresponding to coordinate system to 1.0, all others to 0.0
 	tw::Int mnum[4]; // num for metric arrays (see DiscreteSpace)
-	tw::Int mlb[4],mub[4]; // lb and ub for metric arrays (see DiscreteSpace)
+	tw::Int mlb[4],mub[4]; // lfg and ufg for metric arrays (see DiscreteSpace)
 	tw::Int I3x3[3][3];
 
 	std::valarray<tw::Float> gpos; // global positions in parameter space

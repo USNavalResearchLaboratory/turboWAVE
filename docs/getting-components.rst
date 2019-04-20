@@ -21,13 +21,14 @@ The first step to getting the components is to clone the repository.  This copie
 
 	#. Open a terminal window
 	#. Test to see if you have Git installed by executing :samp:`git --version`
-	#. Install Git if necessary.
+	#. Install Git if necessary.  If the procedure is unclear you can skip ahead to :doc:`core-install`.  You will be directed back to this page at the appropriate point.
 
 		* Anaconda --- :samp:`conda install git`
 		* CentOS/RHEL/SL --- :samp:`sudo yum install git`
-		* Homebrew --- :samp:`brew install git`
-		* MacPorts --- :samp:`sudo port install git`
+		* MacOS with Homebrew --- :samp:`brew install git`
+		* MacOS with MacPorts --- :samp:`sudo port install git`
 		* Ubuntu --- :samp:`sudo apt install git`
+		* Windows PowerShell with Chocolatey --- :samp:`choco install git`
 
 	#. Navigate to the directory where you want to install turboWAVE (you don't need to make an enclosing directory).
 	#. :samp:`git clone https://github.com/USNavalResearchLaboratory/turboWAVE.git`

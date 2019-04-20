@@ -4,32 +4,22 @@
 //                                                                 //
 // This file contains definitions of basic data types and provides //
 // a generalized interface for platform specific features.         //
-// To compile on a specific platform comment/uncomment the define  //
-// directives immediately below.                                   //
+// It also contains constants affecting optimization               //
+//                                                                 //
+// Following are now defined on the compile line in the makefile:  //
+// USE_DESKTOP : if defined compile for a desktop system           //
+// USE_HPC : if defined compile for a generic MPI cluster          //
+// USE_OPENCL : if defined executable uses OpenCL kernels          //
+// USE_OPENMP : if defined executable uses OpenMP threads          //
+//                                                                 //
+// Coordinate system is fully controllable from input file.        //
 //                                                                 //
 /////////////////////////////////////////////////////////////////////
 
-#define USE_DESKTOP
-//#define USE_CRAY
-
-/////////////////////////////////////////////////////////////////////
-//                                                                 //
-// Uncomment the following to enable OpenCL or OpenMP              //
-// This is used mainly for GPGPU or MIC acceleration               //
-//                                                                 //
-/////////////////////////////////////////////////////////////////////
-
-//#define USE_OPENCL
-#define USE_OPENMP
-
-/////////////////////////////////////////////////////////////////////
-//                                                                 //
-// Coordinate system is now fully controllable from input file.    //
-//                                                                 //
-/////////////////////////////////////////////////////////////////////
-
+//#define NDEBUG
 #include <stdint.h>
 #include <memory.h>
+#include <cassert>
 #include <cmath>
 #include <complex>
 #include <iostream>
@@ -54,7 +44,7 @@ namespace tw
 	typedef std::complex<tw::Float> Complex;
 	static const tw::Int cache_align_bytes = 64;
 	static const tw::Int vec_align_bytes = 32; // if not matched to hardware can lead to failures
-	static const tw::Int max_bundle_size = 8; // must be multiple of vec_align_bytes / 4
+	static const tw::Int max_bundle_size = 16; // must be multiple of vec_align_bytes / 4
 	static const tw::Float small_neg = -1e9*std::numeric_limits<tw::Float>::min();
 	static const tw::Float small_pos = 1e9*std::numeric_limits<tw::Float>::min();
 	static const tw::Float big_neg = -1e-9*std::numeric_limits<tw::Float>::max();
@@ -295,7 +285,7 @@ static const bool parallelFileSystem = false;
 //////////////////////
 
 
-#ifdef USE_CRAY
+#ifdef USE_HPC
 
 #include "mpi.h"
 

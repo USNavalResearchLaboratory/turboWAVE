@@ -147,6 +147,14 @@ struct ParticleBundle3D : ParticleBundleEM
 	void StoreXTile();
 };
 
+struct ParticleBundleElectrostatic : ParticleBundle3D
+{
+	void LoadFieldSlice(Species *owner,tw::Int low[4],tw::Int high[4],tw::Int ignorable[4]);
+	void GatherF(float F[6][N],const float w0[3][3][N],const float l0[3][3][N]);
+	void Push(Species *owner);
+	void LoadTile();
+};
+
 struct ParticleBundlePGC : ParticleBundle3D
 {
 	alignas(AB) float las[8][N];
@@ -474,6 +482,19 @@ inline void ParticleBundleEM::DepositSourceSlice(Species *owner,bool needsAtomic
 		owner->sources->AddDataFromImageAtomic<float>(&Jx);
 	else
 		owner->sources->AddDataFromImage<float>(&Jx);
+}
+inline void ParticleBundleElectrostatic::LoadFieldSlice(Species *owner,tw::Int low[4],tw::Int high[4],tw::Int ignorable[4])
+{
+	Fx.Resize(Element(0,2),low,high,ignorable);
+	owner->ESField->LoadDataIntoImage<float>(&Fx);
+}
+inline void ParticleBundleElectrostatic::LoadTile()
+{
+	for (tw::Int i=0;i<3;i++)
+		for (tw::Int j=0;j<3;j++)
+			for (tw::Int k=0;k<3;k++)
+				for (tw::Int s=0;s<3;s++)
+					tile[i][j][k][s] = Fx(ijk0[0]-1+i,ijk0[1]-1+j,ijk0[2]-1+k,s);
 }
 inline void ParticleBundlePGC::LoadFieldSlice(Species *owner,tw::Int low[4],tw::Int high[4],tw::Int ignorable[4])
 {

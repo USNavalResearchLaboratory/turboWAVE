@@ -61,16 +61,18 @@ void BoundaryCondition::Set(boundarySpec theBoundaryCondition,sideSpec whichSide
 			// quantities known on cell walls that are fixed on the wall
 			if (whichSide==lowSide)
 			{
+				// If we are using 0 to store BC we can't force it
+				//force[0][0] = 0.0;
 				fold[3][1] = -1.0;
-				force[0][0] = 0.0;
 				force[1][1] = 0.0;
 				force[2][2] = 0.0;
 				coeff[2] = 1.0;
 			}
 			else
 			{
+				// If we are using 0 to store BC we can't force it
+				//force[0][0] = 0.0;
 				fold[2][0] = -1.0;
-				force[0][0] = 0.0;
 				force[1][1] = 0.0;
 				coeff[1] = 1.0;
 			}
@@ -78,31 +80,34 @@ void BoundaryCondition::Set(boundarySpec theBoundaryCondition,sideSpec whichSide
 		case neumannWall:
 			// quantities known at cell centers that are continued outside domain
 			// strip_1 = strip_2 - BC <--> strip_2 - strip_1 = BC
-			force[0][0] = 0.0;
+			// If we are using 0 to store BC we can't force it
+			//force[0][0] = 0.0;
+			//force[0][3] = 1.0;
+			//coeff[0] = -1.0;
 			force[1][1] = 0.0;
-			force[0][3] = 1.0;
 			force[1][2] = 1.0;
-			coeff[0] = -1.0;
 			coeff[1] = -1.0;
 			break;
 		case dirichletWall:
 			// quantities known at cell centers which are fixed on cell walls
 			// (e.g., a no-slip boundary condition for tangential fluid velocity)
 			// strip_1 = 2*BC - strip_2 <--> (strip_1+strip_2)/2 = BC
-			force[0][0] = 0.0;
+			// If we are using 0 to store BC we can't force it
+			//force[0][0] = 0.0;
+			//force[0][3] = -1.0;
+			//coeff[0] = 2.0;
 			force[1][1] = 0.0;
-			force[0][3] = -1.0;
 			force[1][2] = -1.0;
-			coeff[0] = 2.0;
 			coeff[1] = 2.0;
 			break;
 		case dirichletCell:
 			// quantities known at cell centers which are fixed outside domain
+			// If we are using 0 to store BC we can't force it
+			//force[0][0] = 0.0;
+			//coeff[0] = 1.0;
 			fold[2][1] = 1.0;
 			fold[3][0] = 1.0;
-			force[0][0] = 0.0;
 			force[1][1] = 0.0;
-			coeff[0] = 1.0;
 			coeff[1] = 1.0;
 			break;
 		case none:
@@ -265,13 +270,13 @@ void Field::Initialize(tw::Int components,const DiscreteSpace& ds,Task *task,con
 				{
 					for (tw::Int i=0;i<2*layers[ax];i++)
 					{
-						boundaryDataIndexMap[bOffset+i] = s.Index(lb[ax]+i,c,stride);
-						boundaryDataIndexMap[bOffset+2*layers[ax]+i] = s.Index(ub[ax]-2*layers[ax]+i+1,c,stride);
+						boundaryDataIndexMap[bOffset+i] = s.Index(lfg[ax]+i,c,stride);
+						boundaryDataIndexMap[bOffset+2*layers[ax]+i] = s.Index(ufg[ax]-2*layers[ax]+i+1,c,stride);
 					}
 					for (tw::Int i=0;i<layers[ax];i++)
 					{
-						ghostDataIndexMap[gOffset+i] = s.Index(lb[ax]+i,c,stride);
-						ghostDataIndexMap[gOffset+layers[ax]+i] = s.Index(ub[ax]-layers[ax]+i+1,c,stride);
+						ghostDataIndexMap[gOffset+i] = s.Index(lfg[ax]+i,c,stride);
+						ghostDataIndexMap[gOffset+layers[ax]+i] = s.Index(ufg[ax]-layers[ax]+i+1,c,stride);
 					}
 					bOffset += 4*layers[ax];
 					gOffset += 2*layers[ax];
@@ -302,19 +307,19 @@ void Field::Shift(const Element& e,const tw::strip& s,tw::Int cells,const tw::Fl
 
 	if (cells>0)
 	{
-		for (i=N1(ax);i>=N0(ax)+cells;i--)
+		for (i=UFG(ax);i>=LFG(ax)+cells;i--)
 			for (c=e.low;c<=e.high;c++)
 				(*this)(s,i,c) = (*this)(s,i-cells,c);
-		for (i=N0(ax);i<N0(ax)+cells;i++)
+		for (i=LFG(ax);i<LFG(ax)+cells;i++)
 			for (c=e.low;c<=e.high;c++)
 				(*this)(s,i,c) = incoming[c-e.low];
 	}
 	if (cells<0)
 	{
-		for (i=N0(ax);i<=N1(ax)+cells;i++)
+		for (i=LFG(ax);i<=UFG(ax)+cells;i++)
 			for (c=e.low;c<=e.high;c++)
 				(*this)(s,i,c) = (*this)(s,i-cells,c);
-		for (i=N1(ax)+1+cells;i<=N1(ax);i++)
+		for (i=UFG(ax)+1+cells;i<=UFG(ax);i++)
 			for (c=e.low;c<=e.high;c++)
 				(*this)(s,i,c) = incoming[c-e.low];
 	}
@@ -329,19 +334,19 @@ void Field::Shift(const Element& e,const tw::strip& s,tw::Int cells,const tw::Fl
 
 	if (cells>0)
 	{
-		for (i=N1(ax);i>=N0(ax)+cells;i--)
+		for (i=UFG(ax);i>=LFG(ax)+cells;i--)
 			for (c=e.low;c<=e.high;c++)
 				(*this)(s,i,c) = (*this)(s,i-cells,c);
-		for (i=N0(ax);i<N0(ax)+cells;i++)
+		for (i=LFG(ax);i<LFG(ax)+cells;i++)
 			for (c=e.low;c<=e.high;c++)
 				(*this)(s,i,c) = incoming;
 	}
 	if (cells<0)
 	{
-		for (i=N0(ax);i<=N1(ax)+cells;i++)
+		for (i=LFG(ax);i<=UFG(ax)+cells;i++)
 			for (c=e.low;c<=e.high;c++)
 				(*this)(s,i,c) = (*this)(s,i-cells,c);
-		for (i=N1(ax)+1+cells;i<=N1(ax);i++)
+		for (i=UFG(ax)+1+cells;i<=UFG(ax);i++)
 			for (c=e.low;c<=e.high;c++)
 				(*this)(s,i,c) = incoming;
 	}
@@ -376,7 +381,7 @@ void Field::ZeroGhostCells(const Element& e)
 			for (auto strip : StripRange(*this,ax,strongbool::yes))
 				for (s=0;s<layers[ax];s++)
 				{
-					(*this)(strip,lb[ax]+s,c) = 0.0;
+					(*this)(strip,lfg[ax]+s,c) = 0.0;
 					(*this)(strip,dim[ax]+s+1,c) = 0.0;
 				}
 }
@@ -389,50 +394,23 @@ void Field::ApplyFoldingCondition(const Element& e)
 			if (num[ax]>1)
 				for (auto strip : StripRange(*this,ax,strongbool::yes))
 				{
-					bc0(ax,c).FoldingOperation(&(*this)(strip,lb[ax],c),stride[ax]);
-					bc1(ax,c).FoldingOperation(&(*this)(strip,ub[ax],c),stride[ax]);
+					bc0(ax,c).FoldingOperation(&(*this)(strip,lfg[ax],c),stride[ax]);
+					bc1(ax,c).FoldingOperation(&(*this)(strip,ufg[ax],c),stride[ax]);
 				}
 }
 
-void Field::ApplyBoundaryCondition(const Element& e)
+void Field::ApplyBoundaryCondition(const Element& e,bool homogeneous)
 {
 	tw::Int ax,c;
+	tw::Float mult = homogeneous ? 0.0 : 1.0;
 	for (c=e.low;c<=e.high;c++)
 		for (ax=1;ax<=3;ax++)
 			if (num[ax]>1)
 				for (auto strip : StripRange(*this,ax,strongbool::yes))
 				{
-					bc0(ax,c).ForcingOperation(&(*this)(strip,lb[ax],c),stride[ax],0.0);
-					bc1(ax,c).ForcingOperation(&(*this)(strip,ub[ax],c),stride[ax],0.0);
+					bc0(ax,c).ForcingOperation(&(*this)(strip,lfg[ax],c),stride[ax],(*this)(strip,lfg[ax],c) * mult);
+					bc1(ax,c).ForcingOperation(&(*this)(strip,ufg[ax],c),stride[ax],(*this)(strip,ufg[ax],c) * mult);
 				}
-}
-
-void Field::AdjustTridiagonalForBoundaries(const Element& e,const axisSpec& axis,const sideSpec& side,tw::Float *T1,tw::Float *T2,tw::Float *T3,tw::Float *source,tw::Float *val)
-{
-	// General rule is ghostCell_i = force_ij * cell_j + coeff_i * BC
-	// N.b. the indexing starts with outermost ghost cell = 0 and works inward, regardless of sideSpec
-	// 2 layers is assumed in the indexing, but only 1 enters into the calculation.
-	// Assumes only force_12, force_13, and coeff_1 come into the tridiagonal equation.
-	tw::Int i;
-	tw::Int a = naxis(axis);
-	if (side==lowSide)
-	{
-		for (i=e.low;i<=e.high;i++)
-		{
-			T2[i-e.low] += T1[i-e.low] * bc0(a,i).force[1][2];
-			T3[i-e.low] += T1[i-e.low] * bc0(a,i).force[1][3];
-			source[i-e.low] -= T1[i-e.low] * bc0(a,i).coeff[1] * val[i-e.low];
-		}
-	}
-	if (side==highSide)
-	{
-		for (i=e.low;i<=e.high;i++)
-		{
-			T2[i-e.low] += T3[i-e.low] * bc1(a,i).force[1][2];
-			T1[i-e.low] += T3[i-e.low] * bc1(a,i).force[1][3];
-			source[i-e.low] -= T3[i-e.low] * bc1(a,i).coeff[1] * val[i-e.low];
-		}
-	}
 }
 
 void Field::BoundaryDataToField()
@@ -524,7 +502,7 @@ void Field::ReceiveBoundaryCellsFromComputeBuffer()
 tw::Float Field::CellValueInComputeBuffer(tw::Int i,tw::Int j,tw::Int k,tw::Int c)
 {
 	tw::Float ans;
-	tw::Int idx = c*stride[0] + (i-lb[1])*stride[1] + (j-lb[2])*stride[2] + (k-lb[3])*stride[3];
+	tw::Int idx = c*stride[0] + (i-lfg[1])*stride[1] + (j-lfg[2])*stride[2] + (k-lfg[3])*stride[3];
 	clEnqueueReadBuffer(task->commandQueue,computeBuffer,CL_TRUE,sizeof(tw::Float)*idx,sizeof(tw::Float),&ans,  0,NULL,NULL);
 	clFinish(task->commandQueue);
 	return ans;
@@ -700,28 +678,18 @@ void Field::StripCopyProtocol(tw::Int axis,tw::Int shift,Slice<tw::Float> *plane
 void Field::DownwardCopy(const axisSpec& axis,const Element& e,tw::Int cells)
 {
 	Slice<tw::Float> *planeIn,*planeOut;
+	const tw::Int ax = naxis(axis);
+	tw::Int b[6];
 
-	switch (axis)
+	if (dim[ax]==1) return;
+	for (tw::Int i=1;i<=3;i++)
 	{
-		case tAxis:
-			return;
-			break;
-		case xAxis:
-			if (dim[1]==1) return;
-			planeIn = new Slice<tw::Float>(e,dim[1]+1,dim[1]+cells, lb[2],ub[2], lb[3],ub[3]);
-			planeOut = new Slice<tw::Float>(e,1,cells, lb[2],ub[2], lb[3],ub[3]);
-			break;
-		case yAxis:
-			if (dim[2]==1) return;
-			planeIn = new Slice<tw::Float>(e,lb[1],ub[1], dim[2]+1,dim[2]+cells, lb[3],ub[3]);
-			planeOut = new Slice<tw::Float>(e,lb[1],ub[1], 1,cells, lb[3],ub[3]);
-			break;
-		case zAxis:
-			if (dim[3]==1) return;
-			planeIn = new Slice<tw::Float>(e,lb[1],ub[1], lb[2],ub[2], dim[3]+1,dim[3]+cells);
-			planeOut = new Slice<tw::Float>(e,lb[1],ub[1], lb[2],ub[2], 1,cells);
-			break;
+		b[(i-1)*2] = ax==i ? ung[i] : lfg[i];
+		b[(i-1)*2+1] = ax==i ? ung[i] + cells - 1 : ufg[i];
 	}
+	planeIn = new Slice<tw::Float>(e,b[0],b[1],b[2],b[3],b[4],b[5]);
+	planeOut = new Slice<tw::Float>(e,b[0],b[1],b[2],b[3],b[4],b[5]);
+	planeOut->Translate(axis,lng[ax] + 1 - ung[ax]);
 
 	StripCopyProtocol(naxis(axis),-1,planeIn,planeOut,false);
 
@@ -732,28 +700,18 @@ void Field::DownwardCopy(const axisSpec& axis,const Element& e,tw::Int cells)
 void Field::UpwardCopy(const axisSpec& axis,const Element& e,tw::Int cells)
 {
 	Slice<tw::Float> *planeIn,*planeOut;
+	const tw::Int ax = naxis(axis);
+	tw::Int b[6];
 
-	switch (axis)
+	if (dim[ax]==1) return;
+	for (tw::Int i=1;i<=3;i++)
 	{
-		case tAxis:
-			return;
-			break;
-		case xAxis:
-			if (dim[1]==1) return;
-			planeIn = new Slice<tw::Float>(e,1-cells,0, lb[2],ub[2], lb[3],ub[3]);
-			planeOut = new Slice<tw::Float>(e,dim[1]-cells+1,dim[1], lb[2],ub[2], lb[3],ub[3]);
-			break;
-		case yAxis:
-			if (dim[2]==1) return;
-			planeIn = new Slice<tw::Float>(e,lb[1],ub[1], 1-cells,0, lb[3],ub[3]);
-			planeOut = new Slice<tw::Float>(e,lb[1],ub[1], dim[2]-cells+1,dim[2], lb[3],ub[3]);
-			break;
-		case zAxis:
-			if (dim[3]==1) return;
-			planeIn = new Slice<tw::Float>(e,lb[1],ub[1], lb[2],ub[2], 1-cells,0);
-			planeOut = new Slice<tw::Float>(e,lb[1],ub[1], lb[2],ub[2], dim[3]-cells+1,dim[3]);
-			break;
+		b[(i-1)*2] = ax==i ? lng[i] - cells + 1 : lfg[i];
+		b[(i-1)*2+1] = ax==i ? lng[i] : ufg[i];
 	}
+	planeIn = new Slice<tw::Float>(e,b[0],b[1],b[2],b[3],b[4],b[5]);
+	planeOut = new Slice<tw::Float>(e,b[0],b[1],b[2],b[3],b[4],b[5]);
+	planeOut->Translate(axis,ung[ax] - lng[ax] - 1);
 
 	StripCopyProtocol(naxis(axis),1,planeIn,planeOut,false);
 
@@ -767,27 +725,18 @@ void Field::DownwardDeposit(const axisSpec& axis,const Element& e,tw::Int cells)
 	// Before accepting the return message these cells are zeroed.
 	// The return message then effectively overwrites them with the correct data.
 	Slice<tw::Float> *planeIn,*planeOut;
+	const tw::Int ax = naxis(axis);
+	tw::Int b[6];
 
-	switch (axis)
+	if (dim[ax]==1) return;
+	for (tw::Int i=1;i<=3;i++)
 	{
-		case tAxis:
-			break;
-		case xAxis:
-			if (dim[1]==1) return;
-			planeIn = new Slice<tw::Float>(e,dim[1]-cells+1,dim[1]+cells, lb[2],ub[2], lb[3],ub[3]);
-			planeOut = new Slice<tw::Float>(e,1-cells,1+cells-1, lb[2],ub[2], lb[3],ub[3]);
-			break;
-		case yAxis:
-			if (dim[2]==1) return;
-			planeIn = new Slice<tw::Float>(e,lb[1],ub[1], dim[2]-cells+1,dim[2]+cells, lb[3],ub[3]);
-			planeOut = new Slice<tw::Float>(e,lb[1],ub[1], 1-cells,1+cells-1, lb[3],ub[3]);
-			break;
-		case zAxis:
-			if (dim[3]==1) return;
-			planeIn = new Slice<tw::Float>(e,lb[1],ub[1], lb[2],ub[2], dim[3]-cells+1,dim[3]+cells);
-			planeOut = new Slice<tw::Float>(e,lb[1],ub[1], lb[2],ub[2], 1-cells,1+cells-1);
-			break;
+		b[(i-1)*2] = ax==i ? ung[i] - cells : lfg[i];
+		b[(i-1)*2+1] = ax==i ? ung[i] + cells - 1 : ufg[i];
 	}
+	planeIn = new Slice<tw::Float>(e,b[0],b[1],b[2],b[3],b[4],b[5]);
+	planeOut = new Slice<tw::Float>(e,b[0],b[1],b[2],b[3],b[4],b[5]);
+	planeOut->Translate(axis,lng[ax] + 1 - ung[ax]);
 
 	StripCopyProtocol(naxis(axis),-1,planeIn,planeOut,true);
 
@@ -801,27 +750,18 @@ void Field::UpwardDeposit(const axisSpec& axis,const Element& e,tw::Int cells)
 	// Before accepting the return message these cells are zeroed.
 	// The return message then effectively overwrites them with the correct data.
 	Slice<tw::Float> *planeIn,*planeOut;
+	const tw::Int ax = naxis(axis);
+	tw::Int b[6];
 
-	switch (axis)
+	if (dim[ax]==1) return;
+	for (tw::Int i=1;i<=3;i++)
 	{
-		case tAxis:
-			break;
-		case xAxis:
-			if (dim[1]==1) return;
-			planeIn = new Slice<tw::Float>(e,1-cells,1+cells-1, lb[2],ub[2], lb[3],ub[3]);
-			planeOut = new Slice<tw::Float>(e,dim[1]-cells+1,dim[1]+cells, lb[2],ub[2], lb[3],ub[3]);
-			break;
-		case yAxis:
-			if (dim[2]==1) return;
-			planeIn = new Slice<tw::Float>(e,lb[1],ub[1], 1-cells,1+cells-1, lb[3],ub[3]);
-			planeOut = new Slice<tw::Float>(e,lb[1],ub[1], dim[2]-cells+1,dim[2]+cells, lb[3],ub[3]);
-			break;
-		case zAxis:
-			if (dim[3]==1) return;
-			planeIn = new Slice<tw::Float>(e,lb[1],ub[1], lb[2],ub[2], 1-cells,1+cells-1);
-			planeOut = new Slice<tw::Float>(e,lb[1],ub[1], lb[2],ub[2], dim[3]-cells+1,dim[3]+cells);
-			break;
+		b[(i-1)*2] = ax==i ? lng[i] + 1 - cells : lfg[i];
+		b[(i-1)*2+1] = ax==i ? lng[i] + cells : ufg[i];
 	}
+	planeIn = new Slice<tw::Float>(e,b[0],b[1],b[2],b[3],b[4],b[5]);
+	planeOut = new Slice<tw::Float>(e,b[0],b[1],b[2],b[3],b[4],b[5]);
+	planeOut->Translate(axis,ung[ax] - lng[ax] - 1);
 
 	StripCopyProtocol(naxis(axis),1,planeIn,planeOut,true);
 
@@ -843,43 +783,22 @@ void Field::CopyFromNeighbors(const Element& e)
 
 void Field::DepositFromNeighbors(const Element& e)
 {
-	tw::Int cells = layers[0];
-
-	if (dim[1]>1)
-	{
-		DownwardDeposit(xAxis,e,cells);
-		if (task->n0[1]!=MPI_PROC_NULL)
+	for (tw::Int ax=1;ax<=3;ax++)
+		if (dim[ax]>1)
 		{
-			Slice<tw::Float>* plane = new Slice<tw::Float>(e,1-cells,1+cells-1,lb[2],ub[2],lb[3],ub[3]);
-			ZeroDataInField<tw::Float>(plane);
-			delete plane;
+			DownwardDeposit(enumaxis(ax),e,layers[ax]);
+			if (task->n0[ax]!=MPI_PROC_NULL)
+			{
+				tw::Int ub = lfg[ax] + 2*layers[ax] - 1;
+				tw::Int x1 = ax==1 ? ub : ufg[1];
+				tw::Int y1 = ax==2 ? ub : ufg[2];
+				tw::Int z1 = ax==3 ? ub : ufg[3];
+				Slice<tw::Float>* plane = new Slice<tw::Float>(e,lfg[1],x1,lfg[2],y1,lfg[3],z1);
+				ZeroDataInField<tw::Float>(plane);
+				delete plane;
+			}
+			UpwardDeposit(enumaxis(ax),e,layers[ax]);
 		}
-		UpwardDeposit(xAxis,e,cells);
-	}
-
-	if (dim[2]>1)
-	{
-		DownwardDeposit(yAxis,e,cells);
-		if (task->n0[2]!=MPI_PROC_NULL)
-		{
-			Slice<tw::Float>* plane = new Slice<tw::Float>(e,lb[1],ub[1],1-cells,1+cells-1,lb[3],ub[3]);
-			ZeroDataInField<tw::Float>(plane);
-			delete plane;
-		}
-		UpwardDeposit(yAxis,e,cells);
-	}
-
-	if (dim[3]>1)
-	{
-		DownwardDeposit(zAxis,e,cells);
-		if (task->n0[3]!=MPI_PROC_NULL)
-		{
-			Slice<tw::Float>* plane = new Slice<tw::Float>(e,lb[1],ub[1],lb[2],ub[2],1-cells,1+cells-1);
-			ZeroDataInField<tw::Float>(plane);
-			delete plane;
-		}
-		UpwardDeposit(zAxis,e,cells);
-	}
 }
 
 Slice<tw::Float>* Field::FormTransposeBlock(const Element& e,const axisSpec& axis1,const axisSpec& axis2,tw::Int start1,tw::Int end1,tw::Int start2,tw::Int end2)
@@ -888,23 +807,23 @@ Slice<tw::Float>* Field::FormTransposeBlock(const Element& e,const axisSpec& axi
 	if (axis1==xAxis)
 	{
 		if (axis2==yAxis)
-			ans = new Slice<tw::Float>(e,start1,end1,start2,end2,lb[3],ub[3]);
+			ans = new Slice<tw::Float>(e,start1,end1,start2,end2,lfg[3],ufg[3]);
 		else
-			ans = new Slice<tw::Float>(e,start1,end1,lb[2],ub[2],start2,end2);
+			ans = new Slice<tw::Float>(e,start1,end1,lfg[2],ufg[2],start2,end2);
 	}
 	if (axis1==yAxis)
 	{
 		if (axis2==xAxis)
-			ans = new Slice<tw::Float>(e,start2,end2,start1,end1,lb[3],ub[3]);
+			ans = new Slice<tw::Float>(e,start2,end2,start1,end1,lfg[3],ufg[3]);
 		else
-			ans = new Slice<tw::Float>(e,lb[1],ub[1],start1,end1,start2,end2);
+			ans = new Slice<tw::Float>(e,lfg[1],ufg[1],start1,end1,start2,end2);
 	}
 	if (axis1==zAxis)
 	{
 		if (axis2==xAxis)
-			ans = new Slice<tw::Float>(e,start2,end2,lb[2],ub[2],start1,end1);
+			ans = new Slice<tw::Float>(e,start2,end2,lfg[2],ufg[2],start1,end1);
 		else
-			ans = new Slice<tw::Float>(e,lb[1],ub[1],start2,end2,start1,end1);
+			ans = new Slice<tw::Float>(e,lfg[1],ufg[1],start2,end2,start1,end1);
 	}
 	return ans;
 }
@@ -926,45 +845,42 @@ void Field::Transpose(const Element& e,const axisSpec& axis1,const axisSpec& axi
 	// The ghost cells are not sent in the direction parallel to 'axis1'
 	// However, the ghost cells are sent in all directions if inversion=-1
 
-	tw::Int i,j,k,l,s;
-	tw::Int nodes,thisNode,dim1,dim2,dN0,dN1,cellsPerBlock,cellsRemaining,fullBlocks;
+	tw::Int dN0,dN1;
 	Slice<tw::Float>* block;
-	std::vector<tw::Int> blockSize,start,end;
 	DiscreteSpace transposedSpace;
 
-	dim1 = task->localCells[naxis(axis1)];
-	dim2 = task->localCells[naxis(axis2)];
-	nodes = task->domains[naxis(axis1)];
-	thisNode = task->strip[naxis(axis1)].Get_rank(); // assumes rank=coord
+	const tw::Int ax1 = naxis(axis1);
+	const tw::Int ax2 = naxis(axis2);
+	const tw::Int nodes = task->domains[ax1];
+	const tw::Int thisNode = task->strip[ax1].Get_rank(); // assumes rank=coord
+	const tw::Int cellsPerBlock = num[ax2]/nodes + 1;
+	const tw::Int interiorCellsPerBlock = cellsPerBlock - 2*layers[ax2];
+	const tw::Int fullBlocks = num[ax2]/cellsPerBlock;
+	const tw::Int cellsRemaining = num[ax2] - cellsPerBlock*fullBlocks;
+	std::vector<tw::Int> blockSize(nodes),start(nodes),end(nodes),offset(nodes);
 
 	if (inversion==1)
 	{
 		dN0 = 1;
-		dN1 = dim1;
+		dN1 = dim[ax1];
 	}
 	else
 	{
 		dN0 = 0;
-		dN1 = dim1 + 1;
+		dN1 = dim[ax1] + 1;
 	}
 
-	cellsPerBlock = dim2/nodes + 1;
-	fullBlocks = dim2/cellsPerBlock;
-	cellsRemaining = dim2 - cellsPerBlock*fullBlocks;
-
-	blockSize.resize(nodes);
-	start.resize(nodes);
-	end.resize(nodes);
-	for (i=0;i<nodes;i++)
+	for (tw::Int i=0;i<nodes;i++)
 	{
-		start[i] = i*cellsPerBlock;
+		start[i] = i*cellsPerBlock + 1 - layers[ax2];
 		if (i<fullBlocks)
 			blockSize[i] = cellsPerBlock;
 		if (i==fullBlocks)
 			blockSize[i] = cellsRemaining;
 		if (i>fullBlocks)
 			blockSize[i] = 0;
-		end[i] = start[i] + blockSize[i] + 1;
+		end[i] = start[i] + blockSize[i] - 1;
+		offset[i] = start[i] + layers[ax2] - 1;
 	}
 
 	if (inversion==1)
@@ -972,25 +888,25 @@ void Field::Transpose(const Element& e,const axisSpec& axis1,const axisSpec& axi
 		if (axis1==xAxis)
 		{
 			if (axis2==yAxis)
-				transposedSpace.Resize(dim1*nodes,cellsPerBlock,dim[3],corner,size);
+				transposedSpace.Resize(dim[ax1]*nodes,interiorCellsPerBlock,dim[3],corner,size);
 			else
-				transposedSpace.Resize(dim1*nodes,dim[2],cellsPerBlock,corner,size);
+				transposedSpace.Resize(dim[ax1]*nodes,dim[2],interiorCellsPerBlock,corner,size);
 		}
 		if (axis1==yAxis)
 		{
 			if (axis2==xAxis)
-				transposedSpace.Resize(cellsPerBlock,dim1*nodes,dim[3],corner,size);
+				transposedSpace.Resize(interiorCellsPerBlock,dim[ax1]*nodes,dim[3],corner,size);
 			else
-				transposedSpace.Resize(dim[1],dim1*nodes,cellsPerBlock,corner,size);
+				transposedSpace.Resize(dim[1],dim[ax1]*nodes,interiorCellsPerBlock,corner,size);
 		}
 		if (axis1==zAxis)
 		{
 			if (axis2==xAxis)
-				transposedSpace.Resize(cellsPerBlock,dim[2],dim1*nodes,corner,size);
+				transposedSpace.Resize(interiorCellsPerBlock,dim[2],dim[ax1]*nodes,corner,size);
 			else
-				transposedSpace.Resize(dim[1],cellsPerBlock,dim1*nodes,corner,size);
+				transposedSpace.Resize(dim[1],interiorCellsPerBlock,dim[ax1]*nodes,corner,size);
 		}
-		target->Initialize(num[0],transposedSpace,task);
+		target->Initialize(e.Components(),transposedSpace,task);
 	}
 
   // The message passing pattern is to have simultaneous exchanges between pairs.
@@ -1000,22 +916,22 @@ void Field::Transpose(const Element& e,const axisSpec& axis1,const axisSpec& axi
 
 	if (blockSize[thisNode]>0)
 	{
-		j = thisNode;
+		const tw::Int j = thisNode;
 		block = FormTransposeBlock(e,axis1,axis2,dN0,dN1,start[j],end[j]);
 		if (inversion==-1)
 		{
-	    block->Translate(axis1,j*dim1);
-	    block->Translate(axis2,-j*cellsPerBlock);
+	    block->Translate(axis1,j*dim[ax1]);
+	    block->Translate(axis2,-offset[j]);
 	    target->LoadDataIntoImage<tw::Float>(block);
-	    block->Translate(axis1,-j*dim1);
-	    block->Translate(axis2,j*cellsPerBlock);
+	    block->Translate(axis1,-j*dim[ax1]);
+	    block->Translate(axis2,offset[j]);
 	    SaveDataFromImage<tw::Float>(block);
 		}
 		else
 		{
 	    LoadDataIntoImage<tw::Float>(block);
-	    block->Translate(axis1,j*dim1);
-	    block->Translate(axis2,-j*cellsPerBlock);
+	    block->Translate(axis1,j*dim[ax1]);
+	    block->Translate(axis2,-offset[j]);
 	    target->SaveDataFromImage<tw::Float>(block);
 		}
 		delete block;
@@ -1023,10 +939,10 @@ void Field::Transpose(const Element& e,const axisSpec& axis1,const axisSpec& axi
 
   // Now exchange data between sub/super diagonal pairs
 
-	for (i=1;i<nodes;i++) // Loop over sub-diagonals
-		for (k=0;k<2;k++) // each sub-diagonal has 2 independent groups
-	    for (l=k*i;l<nodes-i;l+=2*i) // Loop over super-blocks of this independent group
-	      for (s=0;s<i && s<nodes-l-i;s++) // Loop over blocks in each super-block
+	for (tw::Int i=1;i<nodes;i++) // Loop over sub-diagonals
+		for (tw::Int k=0;k<2;k++) // each sub-diagonal has 2 independent groups
+	    for (tw::Int l=k*i;l<nodes-i;l+=2*i) // Loop over super-blocks of this independent group
+	      for (tw::Int s=0;s<i && s<nodes-l-i;s++) // Loop over blocks in each super-block
 				{
 					// sub-diagonal : (l+s , l+s+i) = (old node , old block) = (new block , new node)
 					// super-diagonal : (l+s+i , l+s) = (old node , old block) = (new block , new node)
@@ -1038,13 +954,13 @@ void Field::Transpose(const Element& e,const axisSpec& axis1,const axisSpec& axi
 							block = FormTransposeBlock(e,axis1,axis2,dN0,dN1,start[l+s],end[l+s]);
 							if (inversion==-1)
 							{
-								task->strip[naxis(axis1)].Recv(block->Buffer(),block->BufferSize(),l+s);
+								task->strip[ax1].Recv(block->Buffer(),block->BufferSize(),l+s);
 								SaveDataFromImage<tw::Float>(block);
 							}
 							else
 							{
 								LoadDataIntoImage<tw::Float>(block);
-								task->strip[naxis(axis1)].Send(block->Buffer(),block->BufferSize(),l+s);
+								task->strip[ax1].Send(block->Buffer(),block->BufferSize(),l+s);
 							}
 							delete block;
 						}
@@ -1053,16 +969,16 @@ void Field::Transpose(const Element& e,const axisSpec& axis1,const axisSpec& axi
 						if (blockSize[thisNode]>0)
 						{
 							block = FormTransposeBlock(e,axis1,axis2,dN0,dN1,start[thisNode],end[thisNode]);
-							block->Translate(axis1,(l+s)*dim1);
-							block->Translate(axis2,-start[thisNode]);
+							block->Translate(axis1,(l+s)*dim[ax1]);
+							block->Translate(axis2,-offset[thisNode]);
 							if (inversion==-1)
 							{
 								target->LoadDataIntoImage<tw::Float>(block);
-								task->strip[naxis(axis1)].Send(block->Buffer(),block->BufferSize(),l+s);
+								task->strip[ax1].Send(block->Buffer(),block->BufferSize(),l+s);
 							}
 							else
 							{
-								task->strip[naxis(axis1)].Recv(block->Buffer(),block->BufferSize(),l+s);
+								task->strip[ax1].Recv(block->Buffer(),block->BufferSize(),l+s);
 								target->SaveDataFromImage<tw::Float>(block);
 							}
 							delete block;
@@ -1074,16 +990,16 @@ void Field::Transpose(const Element& e,const axisSpec& axis1,const axisSpec& axi
 						if (blockSize[thisNode]>0)
 						{
 							block = FormTransposeBlock(e,axis1,axis2,dN0,dN1,start[thisNode],end[thisNode]);
-							block->Translate(axis1,(l+s+i)*dim1);
-							block->Translate(axis2,-start[thisNode]);
+							block->Translate(axis1,(l+s+i)*dim[ax1]);
+							block->Translate(axis2,-offset[thisNode]);
 							if (inversion==-1)
 							{
 								target->LoadDataIntoImage<tw::Float>(block);
-								task->strip[naxis(axis1)].Send(block->Buffer(),block->BufferSize(),l+s+i);
+								task->strip[ax1].Send(block->Buffer(),block->BufferSize(),l+s+i);
 							}
 							else
 							{
-								task->strip[naxis(axis1)].Recv(block->Buffer(),block->BufferSize(),l+s+i);
+								task->strip[ax1].Recv(block->Buffer(),block->BufferSize(),l+s+i);
 								target->SaveDataFromImage<tw::Float>(block);
 							}
 							delete block;
@@ -1095,13 +1011,13 @@ void Field::Transpose(const Element& e,const axisSpec& axis1,const axisSpec& axi
 							block = FormTransposeBlock(e,axis1,axis2,dN0,dN1,start[l+s+i],end[l+s+i]);
 							if (inversion==-1)
 							{
-								task->strip[naxis(axis1)].Recv(block->Buffer(),block->BufferSize(),l+s+i);
+								task->strip[ax1].Recv(block->Buffer(),block->BufferSize(),l+s+i);
 								SaveDataFromImage<tw::Float>(block);
 							}
 							else
 							{
 								LoadDataIntoImage<tw::Float>(block);
-								task->strip[naxis(axis1)].Send(block->Buffer(),block->BufferSize(),l+s+i);
+								task->strip[ax1].Send(block->Buffer(),block->BufferSize(),l+s+i);
 							}
 							delete block;
 						}
@@ -1134,8 +1050,8 @@ void Field::SmoothingPass(const Element& e,const MetricSpace& ds,const tw::Float
 						temp = (*this)(s,i,c);
 						(*this)(s,i,c) = ansNow;
 					}
-					bc0(ax,c).ForcingOperation(&(*this)(s,lb[ax],c),stride[ax],0.0);
-					bc1(ax,c).ForcingOperation(&(*this)(s,ub[ax],c),stride[ax],0.0);
+					bc0(ax,c).ForcingOperation(&(*this)(s,lfg[ax],c),stride[ax],0.0);
+					bc1(ax,c).ForcingOperation(&(*this)(s,ufg[ax],c),stride[ax],0.0);
 				}
 
 	for (ax=1;ax<=3;ax++)
@@ -1226,8 +1142,8 @@ void CopyGhostCellData(Field& dst,const Element& e_dst,Field& src,const Element&
 			for (auto strip : StripRange(dst,ax,strongbool::yes))
 				for (tw::Int i=0;i<dst.layers[ax];i++)
 				{
-					dst(strip,dst.lb[ax]+i,e_dst.low+c) = src(strip,src.lb[ax]+i,e_src.low+c);
-					dst(strip,dst.ub[ax]-i,e_dst.low+c) = src(strip,src.ub[ax]-i,e_src.low+c);
+					dst(strip,dst.lfg[ax]+i,e_dst.low+c) = src(strip,src.lfg[ax]+i,e_src.low+c);
+					dst(strip,dst.ufg[ax]-i,e_dst.low+c) = src(strip,src.ufg[ax]-i,e_src.low+c);
 				}
 }
 
@@ -1307,181 +1223,160 @@ tw::Float ScalarField::CyclicEigenvalue(tw::Int x,tw::Int y,tw::Int z)
 
 void ScalarField::AxialSineTransform()
 {
-	tw::Int i,j;
 	Field T;
-
 	if (task->globalCells[3]>1)
 	{
 		Transpose(zAxis,xAxis,&T,1);
-		for (j=T.N0(2);j<=T.N1(2);j++)
-			for (i=T.N0(1);i<=T.N1(1);i++)
-				SineTransform( &T(i,j,1,0), task->globalCells[3], T.Stride(3), 1 );
+		#pragma omp parallel
+		{
+			for (auto strip : StripRange(T,3,strongbool::yes))
+				SineTransform( &T(strip,1,0), T.Dim(3), T.Stride(3), 1 );
+		}
 		Transpose(zAxis,xAxis,&T,-1);
 	}
 }
 
 void ScalarField::InverseAxialSineTransform()
 {
-	tw::Int i,j;
 	Field T;
-
 	if (task->globalCells[3]>1)
 	{
 		Transpose(zAxis,xAxis,&T,1);
-		for (j=T.N0(2);j<=T.N1(2);j++)
-			for (i=T.N0(1);i<=T.N1(1);i++)
+		#pragma omp parallel
+		{
+			for (auto strip : StripRange(T,3,strongbool::yes))
 			{
-				SineTransform( &T(i,j,1,0), task->globalCells[3], T.Stride(3), -1 );
-				T(i,j,0,0) = -T(i,j,2,0);
-				T(i,j,task->globalCells[3]+1,0) = 0.0;
+				SineTransform( &T(strip,1,0), T.Dim(3), T.Stride(3), -1 );
+				T(strip,T.LNG(3),0) = -T(strip,2,0);
+				T(strip,T.UNG(3),0) = 0.0;
 			}
+		}
 		Transpose(zAxis,xAxis,&T,-1);
 	}
 }
 
 void ScalarField::TransverseCosineTransform()
 {
-	tw::Int i,j,k;
 	Field T;
-
-	if (task->globalCells[1]>1)
+	axisSpec axis1,axis2;
+	for (tw::Int ax=1;ax<=2;ax++)
 	{
-		Transpose(xAxis,zAxis,&T,1);
-		for (k=T.N0(3);k<=T.N1(3);k++)
-			for (j=T.N0(2);j<=T.N1(2);j++)
-				CosineTransform( &T(1,j,k,0), task->globalCells[1], T.Stride(1), 1 );
-		Transpose(xAxis,zAxis,&T,-1);
-	}
-
-	if (task->globalCells[2]>1)
-	{
-		Transpose(yAxis,zAxis,&T,1);
-		for (k=T.N0(3);k<=T.N1(3);k++)
-			for (i=T.N0(1);i<=T.N1(1);i++)
-				CosineTransform( &T(i,1,k,0), task->globalCells[2], T.Stride(2), 1 );
-		Transpose(yAxis,zAxis,&T,-1);
+		axis1 = enumaxis(ax);
+		axis2 = zAxis;
+		if (task->globalCells[ax]>1)
+		{
+			Transpose(axis1,axis2,&T,1);
+			#pragma omp parallel
+			{
+				for (auto strip : StripRange(T,ax,strongbool::yes))
+					CosineTransform( &T(strip,1,0), T.Dim(ax), T.Stride(ax), 1 );
+			}
+			Transpose(axis1,axis2,&T,-1);
+		}
 	}
 }
 
 void ScalarField::InverseTransverseCosineTransform()
 {
-	tw::Int i,j,k;
 	Field T;
-
-	if (task->globalCells[2]>1)
+	axisSpec axis1,axis2;
+	for (tw::Int ax=2;ax>=1;ax--)
 	{
-		Transpose(yAxis,zAxis,&T,1);
-		for (k=T.N0(3);k<=T.N1(3);k++)
-			for (i=T.N0(1);i<=T.N1(1);i++)
+		axis1 = enumaxis(ax);
+		axis2 = zAxis;
+		if (task->globalCells[ax]>1)
+		{
+			Transpose(axis1,axis2,&T,1);
+			#pragma omp parallel
 			{
-				CosineTransform( &T(i,1,k,0), task->globalCells[2], T.Stride(2), -1 );
-				T(i,0,k,0) = T(i,1,k,0);
-				T(i,task->globalCells[2]+1,k,0) = T(i,task->globalCells[2],k,0);
+				for (auto strip : StripRange(T,ax,strongbool::yes))
+				{
+					CosineTransform( &T(strip,1,0), T.Dim(ax), T.Stride(ax), -1 );
+					T(strip,T.LNG(ax),0) = T(strip,1,0);
+					T(strip,T.UNG(ax),0) = T(strip,T.Dim(ax),0);
+				}
 			}
-		Transpose(yAxis,zAxis,&T,-1);
-	}
-
-	if (task->globalCells[1]>1)
-	{
-		Transpose(xAxis,zAxis,&T,1);
-		for (k=T.N0(3);k<=T.N1(3);k++)
-			for (j=T.N0(2);j<=T.N1(2);j++)
-			{
-				CosineTransform( &T(1,j,k,0), task->globalCells[1], T.Stride(1), -1 );
-				T(0,j,k,0) = T(1,j,k,0);
-				T(task->globalCells[1]+1,j,k,0) = T(task->globalCells[1],j,k,0);
-			}
-		Transpose(xAxis,zAxis,&T,-1);
+			Transpose(axis1,axis2,&T,-1);
+		}
 	}
 }
 
 void ScalarField::TransverseSineTransform()
 {
-	tw::Int i,j,k;
 	Field T;
-
-	if (task->globalCells[1]>1)
+	axisSpec axis1,axis2;
+	for (tw::Int ax=1;ax<=2;ax++)
 	{
-		Transpose(xAxis,zAxis,&T,1);
-		for (k=T.N0(3);k<=T.N1(3);k++)
-			for (j=T.N0(2);j<=T.N1(2);j++)
-				SineTransform( &T(1,j,k,0), task->globalCells[1], T.Stride(1), 1 );
-		Transpose(xAxis,zAxis,&T,-1);
-	}
-
-	if (task->globalCells[2]>1)
-	{
-		Transpose(yAxis,zAxis,&T,1);
-		for (k=T.N0(3);k<=T.N1(3);k++)
-			for (i=T.N0(1);i<=T.N1(1);i++)
-				SineTransform( &T(i,1,k,0), task->globalCells[2], T.Stride(2), 1 );
-		Transpose(yAxis,zAxis,&T,-1);
+		axis1 = enumaxis(ax);
+		axis2 = zAxis;
+		if (task->globalCells[ax]>1)
+		{
+			Transpose(axis1,axis2,&T,1);
+			#pragma omp parallel
+			{
+				for (auto strip : StripRange(T,ax,strongbool::yes))
+					SineTransform( &T(strip,1,0), T.Dim(ax), T.Stride(ax), 1 );
+			}
+			Transpose(axis1,axis2,&T,-1);
+		}
 	}
 }
 
 void ScalarField::InverseTransverseSineTransform()
 {
-	tw::Int i,j,k;
 	Field T;
-
-	if (task->globalCells[2]>1)
+	axisSpec axis1,axis2;
+	for (tw::Int ax=2;ax>=1;ax--)
 	{
-		Transpose(yAxis,zAxis,&T,1);
-		for (k=T.N0(3);k<=T.N1(3);k++)
-			for (i=T.N0(1);i<=T.N1(1);i++)
+		axis1 = enumaxis(ax);
+		axis2 = zAxis;
+		if (task->globalCells[ax]>1)
+		{
+			Transpose(axis1,axis2,&T,1);
+			#pragma omp parallel
 			{
-				SineTransform( &T(i,1,k,0), task->globalCells[2], T.Stride(2), -1 );
-				T(i,0,k,0) = -T(i,2,k,0);
-				T(i,task->globalCells[2]+1,k,0) = 0.0;
+				for (auto strip : StripRange(T,ax,strongbool::yes))
+				{
+					SineTransform( &T(strip,1,0), T.Dim(ax), T.Stride(ax), -1 );
+					T(strip,T.LNG(ax),0) = -T(strip,2,0);
+					T(strip,T.UNG(ax),0) = 0.0;
+				}
 			}
-		Transpose(yAxis,zAxis,&T,-1);
-	}
-
-	if (task->globalCells[1]>1)
-	{
-		Transpose(xAxis,zAxis,&T,1);
-		for (k=T.N0(3);k<=T.N1(3);k++)
-			for (j=T.N0(2);j<=T.N1(2);j++)
-			{
-				SineTransform( &T(1,j,k,0), task->globalCells[1], T.Stride(1), -1 );
-				T(0,j,k,0) = -T(2,j,k,0);
-				T(task->globalCells[1]+1,j,k,0) = 0.0;
-			}
-		Transpose(xAxis,zAxis,&T,-1);
+			Transpose(axis1,axis2,&T,-1);
+		}
 	}
 }
 
 void ScalarField::TransverseFFT()
 {
-	tw::Int i,j,k;
 	Field T;
 
 	if (task->globalCells[1]>1)
 	{
 		Transpose(xAxis,zAxis,&T,1);
-		const tw::Int yN0=T.N0(2),yN1=T.N1(2),zN0=T.N0(3),zN1=T.N1(3);
-		#pragma omp parallel for private(j,k) collapse(2) schedule(static)
-		for (j=yN0;j<=yN1;j++)
-			for (k=zN0;k<=zN1;k++)
-				RealFFT( &T(1,j,k,0), task->globalCells[1], T.Stride(1), 1);
+		#pragma omp parallel
+		{
+			for (auto strip : StripRange(T,1,strongbool::yes))
+				RealFFT( &T(strip,1,0), T.Dim(1), T.Stride(1), 1);
+		}
 		Transpose(xAxis,zAxis,&T,-1);
 	}
 
 	if (task->globalCells[2]>1)
 	{
 		Transpose(yAxis,zAxis,&T,1);
-		const tw::Int xDim=T.Dim(1),zN0=T.N0(3),zN1=T.N1(3);
-		#pragma omp parallel for private(i,k) collapse(2) schedule(static)
-		for (i=1;i<=xDim;i+=2) // can't include ghost cells due to complex numbers; instead do copy ops below
-			for (k=zN0;k<=zN1;k++)
+		const tw::Int xDim=T.Dim(1),zN0=T.LFG(3),zN1=T.UFG(3);
+		#pragma omp parallel for collapse(2) schedule(static)
+		for (tw::Int i=1;i<=xDim;i+=2) // can't include ghost cells due to complex numbers; instead do copy ops below
+			for (tw::Int k=zN0;k<=zN1;k++)
 			{
 				if (task->GlobalCellIndex(i,1)==1)
 				{
-					RealFFT( &T(i,1,k,0), task->globalCells[2], T.Stride(2), 1);
-					RealFFT( &T(i+1,1,k,0), task->globalCells[2], T.Stride(2), 1);
+					RealFFT( &T(i,1,k,0), T.Dim(2), T.Stride(2), 1);
+					RealFFT( &T(i+1,1,k,0), T.Dim(2), T.Stride(2), 1);
 				}
 				else
-					ComplexFFT( &T(i,1,k,0), &T(i+1,1,k,0), task->globalCells[2], T.Stride(2), 1.0);
+					ComplexFFT( &T(i,1,k,0), &T(i+1,1,k,0), T.Dim(2), T.Stride(2), 1.0);
 			}
 		T.UpwardCopy(xAxis,1);
 		T.DownwardCopy(xAxis,1);
@@ -1491,33 +1386,32 @@ void ScalarField::TransverseFFT()
 
 void ScalarField::InverseTransverseFFT()
 {
-	tw::Int i,j,k;
 	Field T;
 
 	if (task->globalCells[2]>1)
 	{
 		Transpose(yAxis,zAxis,&T,1);
-		const tw::Int xDim=T.Dim(1),zN0=T.N0(3),zN1=T.N1(3);
-		#pragma omp parallel for private(i,k) collapse(2) schedule(static)
-		for (i=1;i<=xDim;i+=2) // can't include ghost cells due to complex numbers; instead do copy ops below
-			for (k=zN0;k<=zN1;k++)
+		const tw::Int xDim=T.Dim(1),zN0=T.LFG(3),zN1=T.UFG(3);
+		#pragma omp parallel for collapse(2) schedule(static)
+		for (tw::Int i=1;i<=xDim;i+=2) // can't include ghost cells due to complex numbers; instead do copy ops below
+			for (tw::Int k=zN0;k<=zN1;k++)
 			{
 				if (task->GlobalCellIndex(i,1)==1)
 				{
-					RealFFT( &T(i,1,k,0), task->globalCells[2], T.Stride(2), -1);
-					T(i,0,k,0) = T(i,task->globalCells[2],k,0);
-					T(i,task->globalCells[2]+1,k,0) = T(i,1,k,0);
-					RealFFT( &T(i+1,1,k,0), task->globalCells[2], T.Stride(2), -1);
-					T(i+1,0,k,0) = T(i+1,task->globalCells[2],k,0);
-					T(i+1,task->globalCells[2]+1,k,0) = T(i+1,1,k,0);
+					RealFFT( &T(i,1,k,0), T.Dim(2), T.Stride(2), -1);
+					T(i,T.LNG(2),k,0) = T(i,T.Dim(2),k,0);
+					T(i,T.UNG(2),k,0) = T(i,1,k,0);
+					RealFFT( &T(i+1,1,k,0), T.Dim(2), T.Stride(2), -1);
+					T(i+1,T.LNG(2),k,0) = T(i+1,T.Dim(2),k,0);
+					T(i+1,T.UNG(2),k,0) = T(i+1,1,k,0);
 				}
 				else
 				{
-					ComplexFFT( &T(i,1,k,0), &T(i+1,1,k,0), task->globalCells[2], T.Stride(2), -1.0);
-					T(i,0,k,0) = T(i,task->globalCells[2],k,0);
-					T(i,task->globalCells[2]+1,k,0) = T(i,1,k,0);
-					T(i+1,0,k,0) = T(i+1,task->globalCells[2],k,0);
-					T(i+1,task->globalCells[2]+1,k,0) = T(i+1,1,k,0);
+					ComplexFFT( &T(i,1,k,0), &T(i+1,1,k,0), T.Dim(2), T.Stride(2), -1.0);
+					T(i,T.LNG(2),k,0) = T(i,T.Dim(2),k,0);
+					T(i,T.UNG(2),k,0) = T(i,1,k,0);
+					T(i+1,T.LNG(2),k,0) = T(i+1,T.Dim(2),k,0);
+					T(i+1,T.UNG(2),k,0) = T(i+1,1,k,0);
 				}
 			}
 		T.UpwardCopy(xAxis,1);
@@ -1528,15 +1422,15 @@ void ScalarField::InverseTransverseFFT()
 	if (task->globalCells[1]>1)
 	{
 		Transpose(xAxis,zAxis,&T,1);
-		const tw::Int yN0=T.N0(2),yN1=T.N1(2),zN0=T.N0(3),zN1=T.N1(3);
-		#pragma omp parallel for private(j,k) collapse(2) schedule(static)
-		for (j=yN0;j<=yN1;j++)
-			for (k=zN0;k<=zN1;k++)
+		#pragma omp parallel
+		{
+			for (auto strip : StripRange(T,1,strongbool::yes))
 			{
-				RealFFT( &T(1,j,k,0), task->globalCells[1], T.Stride(1), -1);
-				T(0,j,k,0) = T(task->globalCells[1],j,k,0);
-				T(task->globalCells[1]+1,j,k,0) = T(1,j,k,0);
+				RealFFT( &T(strip,1,0), T.Dim(1), T.Stride(1), -1);
+				T(strip,T.LNG(1),0) = T(strip,T.Dim(1),0);
+				T(strip,T.UNG(1),0) = T(strip,1,0);
 			}
+		}
 		Transpose(xAxis,zAxis,&T,-1);
 	}
 }
@@ -1566,184 +1460,122 @@ tw::Float ComplexField::CyclicEigenvalue(tw::Int x,tw::Int y,tw::Int z)
 
 void ComplexField::TransverseFFT()
 {
-	tw::Int i,j,k;
 	Field T;
-
-	if (task->globalCells[1]>1)
+	axisSpec axis1,axis2;
+	for (tw::Int ax=1;ax<=2;ax++)
 	{
-		Transpose(xAxis,zAxis,&T,1);
-		const tw::Int yN0=T.N0(2),yN1=T.N1(2),zN0=T.N0(3),zN1=T.N1(3);
-		#pragma omp parallel for private(j,k) collapse(2) schedule(static)
-		for (j=yN0;j<=yN1;j++)
-			for (k=zN0;k<=zN1;k++)
-				ComplexFFT( &T(1,j,k,0), &T(1,j,k,1), task->globalCells[1], T.Stride(1), 1.0 );
-		Transpose(xAxis,zAxis,&T,-1);
-	}
-
-	if (task->globalCells[2]>1)
-	{
-		Transpose(yAxis,zAxis,&T,1);
-		const tw::Int xN0=T.N0(1),xN1=T.N1(1),zN0=T.N0(3),zN1=T.N1(3);
-		#pragma omp parallel for private(i,k) collapse(2) schedule(static)
-		for (i=xN0;i<=xN1;i++)
-			for (k=zN0;k<=zN1;k++)
-				ComplexFFT( &T(i,1,k,0), &T(i,1,k,1), task->globalCells[2], T.Stride(2), 1.0 );
-		Transpose(yAxis,zAxis,&T,-1);
+		axis1 = enumaxis(ax);
+		axis2 = zAxis;
+		if (task->globalCells[ax]>1)
+		{
+			Transpose(axis1,axis2,&T,1);
+			#pragma omp parallel
+			{
+				for (auto strip : StripRange(T,ax,strongbool::yes))
+					ComplexFFT( &T(strip,1,0), &T(strip,1,1), T.Dim(ax), T.Stride(ax), 1.0 );
+			}
+			Transpose(axis1,axis2,&T,-1);
+		}
 	}
 }
 
 void ComplexField::InverseTransverseFFT()
 {
-	tw::Int i,j,k;
 	Field T;
-
-	if (task->globalCells[2]>1)
+	axisSpec axis1,axis2;
+	for (tw::Int ax=2;ax>=1;ax--)
 	{
-		Transpose(yAxis,zAxis,&T,1);
-		const tw::Int xN0=T.N0(1),xN1=T.N1(1),zN0=T.N0(3),zN1=T.N1(3);
-		#pragma omp parallel for private(i,k) collapse(2) schedule(static)
-		for (i=xN0;i<=xN1;i++)
-			for (k=zN0;k<=zN1;k++)
+		axis1 = enumaxis(ax);
+		axis2 = zAxis;
+		if (task->globalCells[ax]>1)
+		{
+			Transpose(axis1,axis2,&T,1);
+			#pragma omp parallel
 			{
-				ComplexFFT( &T(i,1,k,0), &T(i,1,k,1), task->globalCells[2], T.Stride(2), -1.0 );
-				T(i,0,k,0) = T(i,task->globalCells[2],k,0);
-				T(i,0,k,1) = T(i,task->globalCells[2],k,1);
-				T(i,task->globalCells[2]+1,k,0) = T(i,1,k,0);
-				T(i,task->globalCells[2]+1,k,1) = T(i,1,k,1);
+				for (auto strip : StripRange(T,ax,strongbool::yes))
+				{
+					ComplexFFT( &T(strip,1,0), &T(strip,1,1), T.Dim(ax), T.Stride(ax), -1.0 );
+					T(strip,T.LNG(ax),0) = T(strip,T.Dim(ax),0);
+					T(strip,T.LNG(ax),1) = T(strip,T.Dim(ax),1);
+					T(strip,T.UNG(ax),0) = T(strip,1,0);
+					T(strip,T.UNG(ax),1) = T(strip,1,1);
+				}
 			}
-		Transpose(yAxis,zAxis,&T,-1);
-	}
-
-	if (task->globalCells[1]>1)
-	{
-		Transpose(xAxis,zAxis,&T,1);
-		const tw::Int yN0=T.N0(2),yN1=T.N1(2),zN0=T.N0(3),zN1=T.N1(3);
-		#pragma omp parallel for private(j,k) collapse(2) schedule(static)
-		for (j=yN0;j<=yN1;j++)
-			for (k=zN0;k<=zN1;k++)
-			{
-				ComplexFFT( &T(1,j,k,0), &T(1,j,k,1), task->globalCells[1], T.Stride(1), -1.0 );
-				T(0,j,k,0) = T(task->globalCells[1],j,k,0);
-				T(0,j,k,1) = T(task->globalCells[1],j,k,1);
-				T(task->globalCells[1]+1,j,k,0) = T(1,j,k,0);
-				T(task->globalCells[1]+1,j,k,1) = T(1,j,k,1);
-			}
-		Transpose(xAxis,zAxis,&T,-1);
+			Transpose(axis1,axis2,&T,-1);
+		}
 	}
 }
 
 void ComplexField::FFT()
 {
-	tw::Int i,j,k;
 	Field T;
-	std::slice s;
-	std::valarray<tw::Float> temp;
-
-	if (task->globalCells[1]>1)
+	axisSpec axis1,axis2;
+	for (tw::Int ax=1;ax<=3;ax++)
 	{
-		Transpose(xAxis,yAxis,&T,1);
-		for (k=T.N0(3);k<=T.N1(3);k++)
-			for (j=T.N0(2);j<=T.N1(2);j++)
+		axis1 = enumaxis(ax);
+		axis2 = enumaxis(ax==3 ? 1 : ax+1);
+		if (task->globalCells[ax]>1)
+		{
+			Transpose(axis1,axis2,&T,1);
+			#pragma omp parallel
 			{
-				ComplexFFT( &T(1,j,k,0), &T(1,j,k,1), task->globalCells[1], T.Stride(1), 1.0 );
+				for (auto strip : StripRange(T,ax,strongbool::yes))
+					ComplexFFT( &T(strip,1,0), &T(strip,1,1), T.Dim(ax), T.Stride(ax), 1.0 );
 			}
-		Transpose(xAxis,yAxis,&T,-1);
-	}
-
-	if (task->globalCells[2]>1)
-	{
-		Transpose(yAxis,xAxis,&T,1);
-		for (k=T.N0(3);k<=T.N1(3);k++)
-			for (i=T.N0(1);i<=T.N1(1);i++)
-			{
-				ComplexFFT( &T(i,1,k,0), &T(i,1,k,1), task->globalCells[2], T.Stride(2), 1.0 );
-			}
-		Transpose(yAxis,xAxis,&T,-1);
-	}
-
-	if (task->globalCells[3]>1)
-	{
-		Transpose(zAxis,xAxis,&T,1);
-		for (j=T.N0(2);j<=T.N1(2);j++)
-			for (i=T.N0(1);i<=T.N1(1);i++)
-			{
-				ComplexFFT( &T(i,j,1,0), &T(i,j,1,1), task->globalCells[3], T.Stride(3), 1.0 );
-			}
-		Transpose(zAxis,xAxis,&T,-1);
+			Transpose(axis1,axis2,&T,-1);
+		}
 	}
 }
 
 void ComplexField::InverseFFT()
 {
-	tw::Int i,j,k;
 	Field T;
-
-	if (task->globalCells[3]>1)
+	axisSpec axis1,axis2;
+	for (tw::Int ax=3;ax>=1;ax--)
 	{
-		Transpose(zAxis,xAxis,&T,1);
-		for (j=T.N0(2);j<=T.N1(2);j++)
-			for (i=T.N0(1);i<=T.N1(1);i++)
+		axis1 = enumaxis(ax);
+		axis2 = enumaxis(ax==3 ? 1 : ax+1);
+		if (task->globalCells[ax]>1)
+		{
+			Transpose(axis1,axis2,&T,1);
+			#pragma omp parallel
 			{
-				ComplexFFT( &T(i,j,1,0), &T(i,j,1,1), task->globalCells[3], T.Stride(3), -1.0);
-				T(i,j,0,0) = T(i,j,task->globalCells[3],0);
-				T(i,j,0,1) = T(i,j,task->globalCells[3],1);
-				T(i,j,task->globalCells[3]+1,0) = T(i,j,1,0);
-				T(i,j,task->globalCells[3]+1,1) = T(i,j,1,1);
+				for (auto strip : StripRange(T,ax,strongbool::yes))
+				{
+					ComplexFFT( &T(strip,1,0), &T(strip,1,1), T.Dim(ax), T.Stride(ax), -1.0 );
+					T(strip,T.LNG(ax),0) = T(strip,T.Dim(ax),0);
+					T(strip,T.LNG(ax),1) = T(strip,T.Dim(ax),1);
+					T(strip,T.UNG(ax),0) = T(strip,1,0);
+					T(strip,T.UNG(ax),1) = T(strip,1,1);
+				}
 			}
-		Transpose(zAxis,xAxis,&T,-1);
-	}
-
-	if (task->globalCells[2]>1)
-	{
-		Transpose(yAxis,xAxis,&T,1);
-		for (k=T.N0(3);k<=T.N1(3);k++)
-			for (i=T.N0(1);i<=T.N1(1);i++)
-			{
-				ComplexFFT( &T(i,1,k,0), &T(i,1,k,1), task->globalCells[2], T.Stride(2), -1.0 );
-				T(i,0,k,0) = T(i,task->globalCells[2],k,0);
-				T(i,0,k,1) = T(i,task->globalCells[2],k,1);
-				T(i,task->globalCells[2]+1,k,0) = T(i,1,k,0);
-				T(i,task->globalCells[2]+1,k,1) = T(i,1,k,1);
-			}
-		Transpose(yAxis,xAxis,&T,-1);
-	}
-
-	if (task->globalCells[1]>1)
-	{
-		Transpose(xAxis,yAxis,&T,1);
-		for (k=T.N0(3);k<=T.N1(3);k++)
-			for (j=T.N0(2);j<=T.N1(2);j++)
-			{
-				ComplexFFT( &T(1,j,k,0), &T(1,j,k,1), task->globalCells[1], T.Stride(1), -1.0 );
-				T(1,j,k,0) = T(task->globalCells[1],j,k,0);
-				T(1,j,k,1) = T(task->globalCells[1],j,k,1);
-				T(task->globalCells[1]+1,j,k,0) = T(1,j,k,0);
-				T(task->globalCells[1]+1,j,k,1) = T(1,j,k,1);
-			}
-		Transpose(xAxis,yAxis,&T,-1);
+			Transpose(axis1,axis2,&T,-1);
+		}
 	}
 }
 
-void ComplexField::Hankel(tw::Int modes,std::valarray<tw::Float>& matrix)
+void Field::Hankel(const Element& e,tw::Int modes,std::valarray<tw::Float>& matrix)
 {
 	Field T;
-	Transpose(xAxis,zAxis,&T,1);
-	for (tw::Int i=T.N0(3);i<=T.N1(3);i++)
+	Transpose(e,xAxis,zAxis,&T,1);
+	#pragma omp parallel
 	{
-		Transform(&T(1,1,i,0),task->globalCells[1],modes,T.Stride(1),matrix);
-		Transform(&T(1,1,i,1),task->globalCells[1],modes,T.Stride(1),matrix);
+		for (auto strip : StripRange(T,1,strongbool::yes))
+			for (tw::Int c=e.low;c<=e.high;c++)
+				Transform(&T(strip,1,c),T.Dim(1),modes,T.Stride(1),matrix);
 	}
-	Transpose(xAxis,zAxis,&T,-1);
+	Transpose(e,xAxis,zAxis,&T,-1);
 }
 
-void ComplexField::InverseHankel(tw::Int modes,std::valarray<tw::Float>& matrix)
+void Field::InverseHankel(const Element& e,tw::Int modes,std::valarray<tw::Float>& matrix)
 {
 	Field T;
-	Transpose(xAxis,zAxis,&T,1);
-	for (tw::Int i=T.N0(3);i<=T.N1(3);i++)
+	Transpose(e,xAxis,zAxis,&T,1);
+	#pragma omp parallel
 	{
-		ReverseTransform(&T(1,1,i,0),task->globalCells[1],modes,T.Stride(1),matrix);
-		ReverseTransform(&T(1,1,i,1),task->globalCells[1],modes,T.Stride(1),matrix);
+		for (auto strip : StripRange(T,1,strongbool::yes))
+			for (tw::Int c=e.low;c<=e.high;c++)
+				ReverseTransform(&T(strip,1,c),T.Dim(1),modes,T.Stride(1),matrix);
 	}
-	Transpose(xAxis,zAxis,&T,-1);
+	Transpose(e,xAxis,zAxis,&T,-1);
 }

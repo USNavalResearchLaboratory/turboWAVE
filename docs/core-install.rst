@@ -1,27 +1,46 @@
 Core Installation
 =================
 
-General Notes
--------------
+Compiler Notes
+--------------
 
-We consider three compilers for desktop turboWAVE.  The first is the GNU C++ compiler,
-typically referred to as GCC, and invoked as ``g++``.  The second is the LLVM C++
-compiler, typically referred to as CLANG, and invoked as ``clang++``.
-The third is the compiler Microsoft packages with Visual Studio.
+We support several compilers for desktop turboWAVE.  Explicit instructions are given for the following OS/compiler combinations:
 
-UNIX operating systems typically have some kind of package management system,
+.. csv-table:: Table I. Desktop C++ Compilers.
+	:header: "Umbrella", "Compiler Command", "Operating Systems"
+
+	"GNU", ``g++``, "Linux"
+	"LLVM", ``clang++``, "Linux, MacOS"
+	"Intel Parallel Studio", ``icl``, "Windows"
+	"Microsoft Visual Studio", ``cl``, "Windows"
+
+The GNU and LLVM compilers can be freely downloaded.  Intel and Microsoft compilers
+are commercial products, but typically offer free trial downloads.  Other combinations
+are possible, such as LLVM on Windows, Intel on MacOS, etc..
+
+On HPC systems, we expect a suitable compiler to be pre-installed by the system
+administrators, although there may be modules to load, unload, or swap.
+
+Note on Packages
+----------------
+
+Linux distributions typically have a native package management system,
 which we will use to install the compiler and other components we need.
 The package management system grabs software from internet repositories,
 and importantly, checks whether the software depends on or conflicts with some other
 software.  If there is a dependency, the system is supposed to grab the whole hierarchy
-of software that you need in order to complete the requested installation.
+of software that you need in order to complete the requested installation.  MacOS and
+Windows have package managers that can be installed as add-ons.
 
-On MacOS, the package management systems we support are MacPorts and Homebrew.
-On Ubuntu, the system is Debian.  On RHEL/SL/CentOS, the system is RPM.
-On Windows we do not use any package manager.
+.. csv-table:: Table II. Package Managers.
+	:header: "System", "Command Interface", "Operating Systems"
 
-On HPC systems, we expect a suitable compiler to be pre-installed by the system
-administrators, although there may be modules to load, unload, or swap.
+	"Anaconda", ``conda``, "Any"
+	"Chocolatey", ``choco``, "Windows"
+	"Debian", ``apt``, "Ubuntu (native)"
+	"Homebrew", ``brew``, "MacOS"
+	"MacPorts", ``port``, "MacOS"
+	"RPM", ``yum``, "CentOS/RHEL/SL (native)"
 
 OpenMP Option
 -------------

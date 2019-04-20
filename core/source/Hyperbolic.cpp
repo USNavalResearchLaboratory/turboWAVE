@@ -74,7 +74,7 @@ void YeePropagatorPML::AdvanceE(Field& A,Field& PMLx,Field& PMLy,Field& PMLz,Fie
 void YeePropagatorPML::AdvanceB(Field& A,Field& PMLx,Field& PMLy,Field& PMLz)
 {
  	size_t global_offset[3] = { (size_t)A.Layers(1) , (size_t)A.Layers(2) , (size_t)A.Layers(3) };
-	size_t global_work_range[3] = { (size_t)A.N1(1) , (size_t)A.N1(2) , (size_t)A.N1(3) }; // dim+1, or 1
+	size_t global_work_range[3] = { (size_t)A.UNG(1) , (size_t)A.UNG(2) , (size_t)A.UNG(3) }; // dim+1, or 1
 	clEnqueueNDRangeKernel(task->commandQueue,k_advanceB,3,global_offset,global_work_range,NULL,  0,NULL,NULL);
 	clFinish(task->commandQueue);
 
@@ -88,7 +88,7 @@ void YeePropagatorPML::AdvanceB(Field& A,Field& PMLx,Field& PMLy,Field& PMLz)
 void YeePropagatorPML::PrepCenteredFields(Field& F,Field& A)
 {
 	// set up indexing for [0...dim] or [0]
-	size_t global_work_range[3] = { (size_t)A.N1(1) , (size_t)A.N1(2) , (size_t)A.N1(3) }; // dim+1, or 1
+	size_t global_work_range[3] = { (size_t)A.UNG(1) , (size_t)A.UNG(2) , (size_t)A.UNG(3) }; // dim+1, or 1
 	clEnqueueNDRangeKernel(task->commandQueue,k_prepCenteredFields,3,NULL,global_work_range,NULL,  0,NULL,NULL);
 	clFinish(task->commandQueue);
 }
@@ -96,7 +96,7 @@ void YeePropagatorPML::PrepCenteredFields(Field& F,Field& A)
 void YeePropagatorPML::CenteredFields(Field& F,Field& A)
 {
 	// set up indexing for [0...dim] or [0]
-	size_t global_work_range[3] = { (size_t)A.N1(1) , (size_t)A.N1(2) , (size_t)A.N1(3) }; // dim+1, or 1
+	size_t global_work_range[3] = { (size_t)A.UNG(1) , (size_t)A.UNG(2) , (size_t)A.UNG(3) }; // dim+1, or 1
 	clEnqueueNDRangeKernel(task->commandQueue,k_centeredFields,3,NULL,global_work_range,NULL,  0,NULL,NULL);
 	clFinish(task->commandQueue);
 
@@ -110,7 +110,7 @@ void YeePropagatorPML::CenteredFields(Field& F,Field& A)
 
 #else
 
- void YeePropagatorPML::AdvanceE(Field& A,Field& PMLx,Field& PMLy,Field& PMLz,Field& j4)
+void YeePropagatorPML::AdvanceE(Field& A,Field& PMLx,Field& PMLy,Field& PMLz,Field& j4)
 {
 	const tw::Int xDim = A.Dim(1);
 	const tw::Int yDim = A.Dim(2);
@@ -154,9 +154,9 @@ void YeePropagatorPML::CenteredFields(Field& F,Field& A)
 
 void YeePropagatorPML::AdvanceB(Field& A,Field& PMLx,Field& PMLy,Field& PMLz)
 {
-	const tw::Int xN1 = A.N1(1);
-	const tw::Int yN1 = A.N1(2);
-	const tw::Int zN1 = A.N1(3);
+	const tw::Int xN1 = A.UNG(1);
+	const tw::Int yN1 = A.UNG(2);
+	const tw::Int zN1 = A.UNG(3);
 
 	const tw::vec3 freq(dxi(*space),dyi(*space),dzi(*space));
 
@@ -236,7 +236,7 @@ void YeePropagatorPML::UpdateExteriorBoundary(Field& A,Field& PMLx,Field& PMLy,F
 
 	tw::Int i,j,k;
 
-	i = A.N1(1);
+	i = A.UNG(1);
 	if (task->n1[1]==MPI_PROC_NULL)
 		for (j=1;j<=yDim;j++)
 			for (k=1;k<=zDim;k++)
@@ -244,7 +244,7 @@ void YeePropagatorPML::UpdateExteriorBoundary(Field& A,Field& PMLx,Field& PMLy,F
 				A(i,j,k,0) = PMLy(j,0,0,0)*A(i,j,k,0) + PMLy(j,0,0,1)*freq.y*(A(i,j+1,k,10)+A(i,j+1,k,11)-A(i,j,k,10)-A(i,j,k,11));
 				A(i,j,k,1) = PMLz(k,0,0,0)*A(i,j,k,1) - PMLz(k,0,0,1)*freq.z*(A(i,j,k+1,8)+A(i,j,k+1,9)-A(i,j,k,8)-A(i,j,k,9));
 			}
-	j = A.N1(2);
+	j = A.UNG(2);
 	if (task->n1[2]==MPI_PROC_NULL)
 		for (i=1;i<=xDim;i++)
 			for (k=1;k<=zDim;k++)
@@ -252,7 +252,7 @@ void YeePropagatorPML::UpdateExteriorBoundary(Field& A,Field& PMLx,Field& PMLy,F
 				A(i,j,k,2) = PMLz(k,0,0,0)*A(i,j,k,2) + PMLz(k,0,0,1)*freq.z*(A(i,j,k+1,6)+A(i,j,k+1,7)-A(i,j,k,6)-A(i,j,k,7));
 				A(i,j,k,3) = PMLx(i,0,0,0)*A(i,j,k,3) - PMLx(i,0,0,1)*freq.x*(A(i+1,j,k,10)+A(i+1,j,k,11)-A(i,j,k,10)-A(i,j,k,11));
 			}
-	k = A.N1(3);
+	k = A.UNG(3);
 	if (task->n1[3]==MPI_PROC_NULL)
 		for (i=1;i<=xDim;i++)
 			for (j=1;j<=yDim;j++)
@@ -267,9 +267,9 @@ void YeePropagatorPML::UpdateInteriorBoundaryE(Field& A,const ScalarField& condu
 	// Conductor fills cells shifted back by 1/2
 	// Strategy is to zero components along all 12 edges of every hexahedral cell
 	// This is highly redundant but very simple
-	const tw::Int xN1 = A.N1(1);
-	const tw::Int yN1 = A.N1(2);
-	const tw::Int zN1 = A.N1(3);
+	const tw::Int xN1 = A.UNG(1);
+	const tw::Int yN1 = A.UNG(2);
+	const tw::Int zN1 = A.UNG(3);
 	#pragma omp parallel for collapse(2) schedule(static)
 	for (tw::Int i=1;i<=xN1;i++)
 		for (tw::Int j=1;j<=yN1;j++)
@@ -316,9 +316,9 @@ void YeePropagatorPML::UpdateInteriorBoundaryB(Field& A,const ScalarField& condu
 	// Conductor fills cells shifted back by 1/2
 	// Strategy is to zero components normal to all 6 walls of every hexahedral cell
 	// This is highly redundant but very simple
-	const tw::Int xN1 = A.N1(1);
-	const tw::Int yN1 = A.N1(2);
-	const tw::Int zN1 = A.N1(3);
+	const tw::Int xN1 = A.UNG(1);
+	const tw::Int yN1 = A.UNG(2);
+	const tw::Int zN1 = A.UNG(3);
 	#pragma omp parallel for collapse(2) schedule(static)
 	for (tw::Int i=1;i<=xN1;i++)
 		for (tw::Int j=1;j<=yN1;j++)
@@ -434,7 +434,7 @@ void LorentzPropagator::Advance(Field& A4,Field& Ao4,Field& j4,const tw::Float m
 		#pragma omp parallel firstprivate(c)
 		{
 			for (auto v : VectorStripRange<1>(*space,true))
-				for (tw::Int i=A4.N0(1);i<=A4.N1(1);i++)
+				for (tw::Int i=A4.LNG(1);i<=A4.UNG(1);i++)
 					std::swap(A4(v,i,c),Ao4(v,i,c));
 		}
 	}
@@ -449,7 +449,7 @@ void LorentzPropagator::MidstepEstimate(Field& A4,Field& Ao4)
 		#pragma omp parallel firstprivate(c)
 		{
 			for (auto v : VectorStripRange<1>(*space,true))
-				for (tw::Int i=A4.N0(1);i<=A4.N1(1);i++)
+				for (tw::Int i=A4.LNG(1);i<=A4.UNG(1);i++)
 					A4(v,i,c) = 0.5*(Ao4(v,i,c) + A4(v,i,c));
 		}
 	}
@@ -463,7 +463,7 @@ void LorentzPropagator::UndoMidstepEstimate(Field& A4,Field& Ao4)
 		#pragma omp parallel firstprivate(c)
 		{
 			for (auto v : VectorStripRange<1>(*space,true))
-				for (tw::Int i=A4.N0(1);i<=A4.N1(1);i++)
+				for (tw::Int i=A4.LNG(1);i<=A4.UNG(1);i++)
 					A4(v,i,c) = 2.0*A4(v,i,c) - Ao4(v,i,c);
 		}
 	}

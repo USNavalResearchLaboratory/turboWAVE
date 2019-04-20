@@ -84,9 +84,9 @@ namespace tw
 			this->i = i;
 			this->j = j;
 			this->k = k;
-			i0 = i - ds.N0(1);
-			j0 = j - ds.N0(2);
-			k0 = k - ds.N0(3);
+			i0 = i - ds.LFG(1);
+			j0 = j - ds.LFG(2);
+			k0 = k - ds.LFG(3);
 		}
 		void Decode(tw::Int *x,tw::Int *y,tw::Int *z) const
 		{
@@ -133,9 +133,9 @@ namespace tw
 			di = tw::Int(ax==1);
 			dj = tw::Int(ax==2);
 			dk = tw::Int(ax==3);
-			i0 = i - ds.N0(1);
-			j0 = j - ds.N0(2);
-			k0 = k - ds.N0(3);
+			i0 = i - ds.LFG(1);
+			j0 = j - ds.LFG(2);
+			k0 = k - ds.LFG(3);
 		}
 		tw::Int Axis() const { return ax; } // axis parallel to the strip
 		void Decode(tw::Int s,tw::Int *x,tw::Int *y,tw::Int *z) const
@@ -228,9 +228,9 @@ public:
 		io = includeGhostCells ? 0 : space.Layers(1);
 		jo = includeGhostCells ? 0 : space.Layers(2);
 		ko = includeGhostCells ? 0 : space.Layers(3);
-		is = space.N0(1);
-		js = space.N0(2);
-		ks = space.N0(3);
+		is = space.LFG(1);
+		js = space.LFG(2);
+		ks = space.LFG(3);
 		iCells = includeGhostCells ? space.Num(1) : space.Dim(1);
 		jCells = includeGhostCells ? space.Num(2) : space.Dim(2);
 		kCells = includeGhostCells ? space.Num(3) : space.Dim(3);
@@ -285,9 +285,9 @@ public:
 		di = tw::Int(ax==1);
 		dj = tw::Int(ax==2);
 		dk = tw::Int(ax==3);
-		is = space.N0(1);
-		js = space.N0(2);
-		ks = space.N0(3);
+		is = space.LFG(1);
+		js = space.LFG(2);
+		ks = space.LFG(3);
 		io = includeGhostCells==strongbool::yes ? 0 : space.Layers(1);
 		jo = includeGhostCells==strongbool::yes ? 0 : space.Layers(2);
 		ko = includeGhostCells==strongbool::yes ? 0 : space.Layers(3);

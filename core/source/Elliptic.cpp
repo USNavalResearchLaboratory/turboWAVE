@@ -15,20 +15,13 @@
 //                              //
 //////////////////////////////////
 
+// Fixed boundary values are expected to be loaded into the far ghost cells before calling Solve
 
 EllipticSolver::EllipticSolver(const std::string& name,MetricSpace *m,Task *tsk) : ComputeTool(name,m,tsk)
 {
 	coeff = NULL;
 	x0 = x1 = y0 = y1 = z0 = z1 = none;
 	gammaBeam = 1.0;
-	lbc.resize(space->Num(1));
-	rbc.resize(space->Num(1));
-	lbc_t.resize(space->Num(1));
-	rbc_t.resize(space->Num(1));
-	lbc = 0.0;
-	rbc = 0.0;
-	lbc_t = 0.0;
-	rbc_t = 0.0;
 }
 
 void EllipticSolver::FormOperatorStencil(std::valarray<tw::Float>& D,tw::Int i,tw::Int j,tw::Int k)
@@ -57,6 +50,12 @@ void EllipticSolver::FormOperatorStencil(std::valarray<tw::Float>& D,tw::Int i,t
 
 void EllipticSolver::FixPotential(ScalarField& phi,Region* theRegion,const tw::Float& thePotential)
 {
+	#pragma omp parallel
+	{
+		for (auto cell : EntireCellRange(*space))
+			if (theRegion->Inside(space->Pos(cell),*space))
+				phi(cell) = thePotential;
+	}
 }
 
 void EllipticSolver::SetCoefficients(ScalarField *coefficients)
@@ -264,6 +263,7 @@ void EllipticSolver1D::Solve(ScalarField& phi,ScalarField& source,tw::Float mul)
 		dk = 1;
 	}
 	ax = naxis(axis);
+	tw::strip strip(ax,*space,0,0,0);
 
 	std::valarray<tw::Float> T1(sDim),T2(sDim),T3(sDim),src(sDim),ans(sDim);
 
@@ -276,23 +276,19 @@ void EllipticSolver1D::Solve(ScalarField& phi,ScalarField& source,tw::Float mul)
 		src[s-1] = mul*source(s*di,s*dj,s*dk);
 	}
 	if (task->n0[ax]==MPI_PROC_NULL)
-		phi.AdjustTridiagonalForBoundaries(axis,lowSide,&T1[0],&T2[0],&T3[0],&src[0],0.0);
+		phi.AdjustTridiagonalForBoundaries(axis,lowSide,T1,T2,T3,src,phi(strip,-1));
 	if (task->n1[ax]==MPI_PROC_NULL)
-		phi.AdjustTridiagonalForBoundaries(axis,highSide,&T1[sDim-1],&T2[sDim-1],&T3[sDim-1],&src[sDim-1],0.0);
+		phi.AdjustTridiagonalForBoundaries(axis,highSide,T1,T2,T3,src,phi(strip,sDim+2));
 	TriDiagonal<tw::Float,tw::Float>(ans,src,T1,T2,T3);
 	for (s=1;s<=sDim;s++)
-		phi(s*di,s*dj,s*dk) = ans[s-1];
+		phi(strip,s) = ans[s-1];
 	globalIntegrator->SetMatrix(0,T1,T2,T3);
 	globalIntegrator->SetData(0,&phi(0,0,0),1);
 
 	globalIntegrator->Parallelize();
 
 	phi.CopyFromNeighbors();
-	phi.ApplyBoundaryCondition();
-	/*if (task->n0[ax]==MPI_PROC_NULL)
-		phi(0,0,0) = 0.0;
-	if (task->n1[ax]==MPI_PROC_NULL)
-		phi(di*(sDim+1),dj*(sDim+1),dk*(sDim+1)) = 0.0;*/
+	phi.ApplyBoundaryCondition(false);
 }
 
 
@@ -352,26 +348,21 @@ IterativePoissonSolver::~IterativePoissonSolver()
 
 void IterativePoissonSolver::FixPotential(ScalarField& phi,Region* theRegion,const tw::Float& thePotential)
 {
-	const tw::Int xDim = space->Dim(1);
-	const tw::Int yDim = space->Dim(2);
-	const tw::Int zDim = space->Dim(3);
-
-	tw::Int i,j,k,n;
-
-	for (k=1;k<=zDim;k++)
-		for (j=1;j<=yDim;j++)
-			for (i=1;i<=xDim;i++)
+	EllipticSolver::FixPotential(phi,theRegion,thePotential);
+	#pragma omp parallel
+	{
+		tw::Int i,j,k,n;
+		for (auto cell : InteriorCellRange(*space))
+		{
+			cell.Decode(&i,&j,&k);
+			n = (i-1) + (j-1)*space->Dim(1) + (k-1)*space->Dim(1)*space->Dim(2);
+			if (theRegion->Inside(space->Pos(cell),*space))
 			{
-				n = (i-1) + (j-1)*xDim + (k-1)*xDim*yDim;
-				if (theRegion->Inside(space->Pos(i,j,k),*space))
-				{
-					mask1[n] = 0;
-					mask2[n] = 0;
-					phi(i,j,k) = thePotential;
-				}
+				mask1[n] = 0;
+				mask2[n] = 0;
 			}
-	phi.CopyFromNeighbors();
-	phi.ApplyBoundaryCondition();
+		}
+	}
 }
 
 #ifdef USE_OPENCL
@@ -489,19 +480,7 @@ void IterativePoissonSolver::Solve(ScalarField& phi,ScalarField& source,tw::Floa
 					}
 
 			phi.CopyFromNeighbors();
-			phi.ApplyBoundaryCondition();
-
-			// Handle non-zero dirichlet BC's
-			// Note: specifying cell wall potential appears unstable
-
-			if (task->n0[3]==MPI_PROC_NULL)
-				for (i=phi.N0(1);i<=phi.N1(1);i++)
-					for (j=phi.N0(2);j<=phi.N1(2);j++)
-						phi(i,j,0) = lbc[i-phi.N0(1)];
-			if (task->n1[3]==MPI_PROC_NULL)
-				for (i=phi.N0(1);i<=phi.N1(1);i++)
-					for (j=phi.N0(2);j<=phi.N1(2);j++)
-						phi(i,j,zDim+1) = rbc[i-phi.N0(1)];
+			phi.ApplyBoundaryCondition(false);
 		}
 
 		task->strip[0].AllSum(&normResidual,&normResidual,sizeof(tw::Float),0);
@@ -604,6 +583,14 @@ void PoissonSolver::Solve(ScalarField& phi,ScalarField& source,tw::Float mul)
 
 	// Transform to frequency space in the transverse direction
 
+	// Use outer ghost cells of the source to transform the boundary data for free
+	if (task->n0[3]==MPI_PROC_NULL)
+		for (auto strip : StripRange(*space,3,strongbool::no))
+			source(strip,space->LFG(3)) = phi(strip,space->LFG(3));
+	if (task->n1[3]==MPI_PROC_NULL)
+		for (auto strip : StripRange(*space,3,strongbool::no))
+			source(strip,space->UFG(3)) = phi(strip,space->UFG(3));
+
 	switch (x0)
 	{
     	case none:
@@ -623,6 +610,14 @@ void PoissonSolver::Solve(ScalarField& phi,ScalarField& source,tw::Float mul)
 			source.TransverseSineTransform();
 			break;
 	}
+
+	// Copy the transformed boundary data back into the potential
+	if (task->n0[3]==MPI_PROC_NULL)
+		for (auto strip : StripRange(*space,3,strongbool::no))
+			phi(strip,space->LFG(3)) = source(strip,space->LFG(3));
+	if (task->n1[3]==MPI_PROC_NULL)
+		for (auto strip : StripRange(*space,3,strongbool::no))
+			phi(strip,space->UFG(3)) = source(strip,space->UFG(3));
 
 	// Solve on single node
 
@@ -666,7 +661,7 @@ void PoissonSolver::Solve(ScalarField& phi,ScalarField& source,tw::Float mul)
 					}
 				}
 				else
-					phi.AdjustTridiagonalForBoundaries(zAxis,lowSide,&T1[0],&T2[0],&T3[0],&s[0],0.0);
+					phi.AdjustTridiagonalForBoundaries(zAxis,lowSide,T1,T2,T3,s,phi(i,j,space->LFG(3)));
 			}
 			if (task->n1[3]==MPI_PROC_NULL)
 			{
@@ -683,7 +678,7 @@ void PoissonSolver::Solve(ScalarField& phi,ScalarField& source,tw::Float mul)
 					}
 				}
 				else
-					phi.AdjustTridiagonalForBoundaries(zAxis,highSide,&T1[zDim-1],&T2[zDim-1],&T3[zDim-1],&s[zDim-1],0.0);
+					phi.AdjustTridiagonalForBoundaries(zAxis,highSide,T1,T2,T3,s,phi(i,j,space->UFG(3)));
 			}
 			TriDiagonal<tw::Float,tw::Float>(u,s,T1,T2,T3);
 			for (k=1;k<=zDim;k++)
@@ -769,7 +764,7 @@ void PoissonSolver::Solve(ScalarField& phi,ScalarField& source,tw::Float mul)
 
 	// Global boundary conditions
 
-	phi.ApplyBoundaryCondition();
+	phi.ApplyBoundaryCondition(false);
 }
 
 
@@ -784,8 +779,12 @@ void PoissonSolver::Solve(ScalarField& phi,ScalarField& source,tw::Float mul)
 EigenmodePoissonSolver::EigenmodePoissonSolver(const std::string& name,MetricSpace *m,Task *tsk) : EllipticSolver(name,m,tsk)
 {
 	typeCode = tw::tool_type::eigenmodePoissonSolver;
-	z0 = dirichletWall;
-	z1 = dirichletWall;
+	x0 = neumannWall;
+	x1 = dirichletCell;
+	y0 = periodic;
+	y1 = periodic;
+	z0 = dirichletCell;
+	z1 = dirichletCell;
 
 	const tw::Int rDim = space->Dim(1);
 	const tw::Int zDim = space->Dim(3);
@@ -801,32 +800,11 @@ EigenmodePoissonSolver::~EigenmodePoissonSolver()
 void EigenmodePoissonSolver::Initialize()
 {
 	// The following call involves message passing.
-	ComputeTransformMatrices(eigenvalue,hankel,inverseHankel,space,task);
-}
-
-void EigenmodePoissonSolver::TransformBoundaryValues()
-{
-	// Presuming owner has already set lbc/rbc in real space, express lbc_t/rbc_t in eigenspace
-	const tw::Int xDim = space->Dim(1);
-	const tw::Int rDim = task->globalCells[1];
-	std::valarray<tw::Float> globalData(rDim+2);
-
-	// LEFT SIDE
-	task->strip[1].Gather(&lbc[space->Layers(1)],&globalData[1],xDim*sizeof(tw::Float),0);
-	if (task->strip[1].Get_rank()==0)
-		Transform(&globalData[1],rDim,rDim,1,hankel);
-	task->strip[1].Scatter(&lbc[space->Layers(1)],&globalData[1],xDim*sizeof(tw::Float),0);
-
-	// RIGHT SIDE
-	task->strip[1].Gather(&rbc[space->Layers(1)],&globalData[1],xDim*sizeof(tw::Float),0);
-	if (task->strip[1].Get_rank()==0)
-		Transform(&globalData[1],rDim,rDim,1,hankel);
-	task->strip[1].Scatter(&rbc[space->Layers(1)],&globalData[1],xDim*sizeof(tw::Float),0);
+	ComputeTransformMatrices(x1,eigenvalue,hankel,inverseHankel,space,task);
 }
 
 void EigenmodePoissonSolver::Solve(ScalarField& phi,ScalarField& source,tw::Float mul)
 {
-	// lbc_t and rbc_t must have been set up via TransformBoundaryValues externally
 	tw::Int i,k;
 	tw::Int rDim = space->Dim(1);
 	tw::Int zDim = space->Dim(3);
@@ -834,7 +812,6 @@ void EigenmodePoissonSolver::Solve(ScalarField& phi,ScalarField& source,tw::Floa
 	tw::Float T1_lbc,T2_lbc,T3_lbc,T1_rbc,T2_rbc,T3_rbc;
 	std::valarray<tw::Float> localEig(rDim+2);
 
-	Field T;
 	for (i=1;i<=rDim;i++)
 		localEig[i] = eigenvalue[i-1+task->cornerCell[1]-1];
 
@@ -845,11 +822,25 @@ void EigenmodePoissonSolver::Solve(ScalarField& phi,ScalarField& source,tw::Floa
 	T1_rbc = T3_rbc = 1.0/sqr(space->dX(zDim+1,3));
 	T2_rbc = -2.0/sqr(space->dX(zDim+1,3)); // add the eigenvalue later
 
+	// Use outer ghost cells of the source to transform the boundary data for free
+	if (task->n0[3]==MPI_PROC_NULL)
+		for (auto strip : StripRange(*space,3,strongbool::no))
+			source(strip,space->LFG(3)) = phi(strip,space->LFG(3));
+	if (task->n1[3]==MPI_PROC_NULL)
+		for (auto strip : StripRange(*space,3,strongbool::no))
+			source(strip,space->UFG(3)) = phi(strip,space->UFG(3));
+
 	// Perform hankel transform
-	source.Transpose(xAxis,zAxis,&T,1);
-	for (i=T.N0(3);i<=T.N1(3);i++)
-		Transform(&T(1,1,i,0),task->globalCells[1],task->globalCells[1],T.Stride(1),hankel);
-	source.Transpose(xAxis,zAxis,&T,-1);
+
+	source.Hankel(task->globalCells[1],hankel);
+
+	// Copy the transformed boundary data back into the potential
+	if (task->n0[3]==MPI_PROC_NULL)
+		for (auto strip : StripRange(*space,3,strongbool::no))
+			phi(strip,space->LFG(3)) = source(strip,space->LFG(3));
+	if (task->n1[3]==MPI_PROC_NULL)
+		for (auto strip : StripRange(*space,3,strongbool::no))
+			phi(strip,space->UFG(3)) = source(strip,space->UFG(3));
 
 	// Solve on single node
 
@@ -885,7 +876,7 @@ void EigenmodePoissonSolver::Solve(ScalarField& phi,ScalarField& source,tw::Floa
 				}
 			}
 			else
-				phi.AdjustTridiagonalForBoundaries(zAxis,lowSide,&T1[0],&T2[0],&T3[0],&s[0],lbc_t[i-phi.N0(1)]);
+				phi.AdjustTridiagonalForBoundaries(zAxis,lowSide,T1,T2,T3,s,phi(i,0,space->LFG(3)));
 		}
 		if (task->n1[3]==MPI_PROC_NULL)
 		{
@@ -902,7 +893,7 @@ void EigenmodePoissonSolver::Solve(ScalarField& phi,ScalarField& source,tw::Floa
 				}
 			}
 			else
-				phi.AdjustTridiagonalForBoundaries(zAxis,highSide,&T1[zDim-1],&T2[zDim-1],&T3[zDim-1],&s[zDim-1],rbc_t[i-phi.N0(1)]);
+				phi.AdjustTridiagonalForBoundaries(zAxis,highSide,T1,T2,T3,s,phi(i,0,space->UFG(3)));
 		}
 
 		TriDiagonal<tw::Float,tw::Float>(u,s,T1,T2,T3);
@@ -953,22 +944,10 @@ void EigenmodePoissonSolver::Solve(ScalarField& phi,ScalarField& source,tw::Floa
 
 	// back to real space
 
-	phi.Transpose(xAxis,zAxis,&T,1);
-	for (i=T.N0(3);i<=T.N1(3);i++)
-		Transform(&T(1,1,i,0),task->globalCells[1],task->globalCells[1],T.Stride(1),inverseHankel);
-	phi.Transpose(xAxis,zAxis,&T,-1);
-
-// 	source.Transpose(xAxis,zAxis,&T,1);
-// 	for (i=ZN0(T);i<=ZN1(T);i++)
-// 		Transform(&T(1,1,i,0),task->globalCells[1],task->globalCells[1],XStride(T),inverseHankel);
-// 	source.Transpose(xAxis,zAxis,&T,-1);
+	phi.InverseHankel(task->globalCells[1],inverseHankel);
+	//source.InverseHankel(task->globalCells[1],inverseHankel);
 
 	// Global boundary conditions
 
-	phi.ApplyBoundaryCondition();
-	for (i=phi.N0(1);i<=phi.N1(1);i++)
-	{
-		phi(i,0,0) = lbc[i-phi.N0(1)];
-		phi(i,0,zDim+1) = rbc[i-phi.N0(1)];
-	}
+	phi.ApplyBoundaryCondition(false);
 }

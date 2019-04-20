@@ -3,14 +3,20 @@
 
 # 'make' produces optimized executable and copies files
 # 'make debug' produces debugging executable and copies files
-# 'make tw3d' produces optimized executable (no copy files)
+# 'make profile' produces profiling executable and copies files
+# 'make tw3d_release' produces optimized executable (no copy files)
 # 'make tw3d_debug' produces debugging executable (no copy files)
+# 'make tw3d_profile' produces profiling executable (no copy files)
 # 'make copy_files' copies files only
 # 'make clean' removes all object files and the tw3d executable
 # For specific platforms and hardware accelerators comment/uncomment variable definitions below
 
-all: tw3d copy_files
+# WARNING: release,debug, and profile objects are in the same directory.
+# This means you must 'make clean' before switching build modes.
+
+all: tw3d_release copy_files
 debug: tw3d_debug copy_files
+profile: tw3d_profile copy_files
 
 #################################################
 # BEGIN INPUT VARIABLES BLOCK
@@ -57,16 +63,16 @@ ifeq ($(PLATFORM),OSX)
 	ifeq ($(HARDWARE_ACCEL),NONE)
 		TW_Compiler = clang++ -stdlib=libc++
 		TW_Linker = clang++
-		CCFLAGS = -c -std=c++11 -O3
-		DBFLAGS = -c -g -std=c++11 -O0
+		RELEASE_FLAGS = -c -std=c++11 -O3 -DUSE_DESKTOP
+		DEBUG_FLAGS = -c -g -std=c++11 -O0 -DUSE_DESKTOP
 		LIB_PATH =
 		LIBS = -lc++
 	endif
 	ifeq ($(HARDWARE_ACCEL),APPLE_CL)
 		TW_Compiler = clang++
 		TW_Linker = clang++
-		CCFLAGS = -c -std=c++11 -O3
-		DBFLAGS = -c -g -std=c++11 -O0
+		RELEASE_FLAGS = -c -std=c++11 -O3 -DUSE_DESKTOP -DUSE_OPENCL
+		DEBUG_FLAGS = -c -g -std=c++11 -O0 -DUSE_DESKTOP -DUSE_OPENCL
 		LIB_PATH =
 		LIBS = -lc++ -framework OpenCL
 	endif
@@ -79,9 +85,9 @@ ifeq ($(PLATFORM),OSX)
 			# Remember to run port select clang mp-clang-x.x
 			TW_Compiler = /opt/local/bin/clang++ -stdlib=libc++
 			TW_Linker = /opt/local/bin/clang++
-			CCFLAGS = -c -O3 -std=c++11 -march=native -fopenmp -I/opt/local/include
-			#CCFLAGS = -c -O3 -std=c++11 -fopenmp -Rpass-analysis=loop-vectorize -I/opt/local/include
-			DBFLAGS = -c -g -O0 -std=c++11 -fopenmp -I/opt/local/include
+			RELEASE_FLAGS = -c -O3 -std=c++11 -march=native -fopenmp -I/opt/local/include -DUSE_DESKTOP -DUSE_OPENMP
+			PROFILE_FLAGS = -c -O3 -std=c++11 -fopenmp -Rpass-analysis=loop-vectorize -I/opt/local/include -DUSE_DESKTOP -DUSE_OPENMP
+			DEBUG_FLAGS = -c -g -O0 -std=c++11 -fopenmp -I/opt/local/include -DUSE_DESKTOP -DUSE_OPENMP
 			LIB_PATH = -L/opt/local/lib -Wl,-rpath,/opt/local/lib
 			LIBS = -lc++ -fopenmp
 		endif
@@ -89,9 +95,9 @@ ifeq ($(PLATFORM),OSX)
 			# Tested for Mac OS 10.13
 			TW_Compiler = /usr/local/opt/llvm/bin/clang++ -stdlib=libc++
 			TW_Linker = /usr/local/opt/llvm/bin/clang++
-			CCFLAGS = -c -O3 -std=c++11 -march=native -fopenmp -I/usr/local/opt/llvm/include/
-			#CCFLAGS = -c -O3 -std=c++11 -fopenmp -Rpass-analysis=loop-vectorize -I/usr/local/opt/llvm/include
-			DBFLAGS = -c -g -O0 -std=c++11 -fopenmp -I/usr/local/opt/llvm/include/
+			RELEASE_FLAGS = -c -O3 -std=c++11 -march=native -fopenmp -I/usr/local/opt/llvm/include/ -DUSE_DESKTOP -DUSE_OPENMP
+			PROFILE_FLAGS = -c -O3 -std=c++11 -fopenmp -Rpass-analysis=loop-vectorize -I/usr/local/opt/llvm/include -DUSE_DESKTOP -DUSE_OPENMP
+			DEBUG_FLAGS = -c -g -O0 -std=c++11 -fopenmp -I/usr/local/opt/llvm/include/ -DUSE_DESKTOP -DUSE_OPENMP
 			LIB_PATH = -L/usr/local/opt/llvm/lib -Wl,-rpath,/usr/local/opt/llvm/lib
 			LIBS = -lc++ -fopenmp
 		endif
@@ -113,26 +119,27 @@ ifeq ($(PLATFORM),LINUX)
 		LIBS0 = -lstdc++
 	endif
 	ifeq ($(HARDWARE_ACCEL),NONE)
-		CCFLAGS = -c -std=c++11 -O3
-		DBFLAGS = -c -g -std=c++11 -O0
+		RELEASE_FLAGS = -c -std=c++11 -O3 -DUSE_DESKTOP
+		DEBUG_FLAGS = -c -g -std=c++11 -O0 -DUSE_DESKTOP
 		LIB_PATH =
 		LIBS = $(LIBS0) -pthread
 	endif
 	ifeq ($(HARDWARE_ACCEL),OMP)
-		CCFLAGS = -c -std=c++11 -O3 -march=native -fopenmp# -Rpass-analysis=loop-vectorize
-		DBFLAGS = -c -g -std=c++11 -O0 -fopenmp
+		RELEASE_FLAGS = -c -std=c++11 -O3 -march=native -fopenmp -mavx2 -DUSE_DESKTOP -DUSE_OPENMP
+		PROFILE_FLAGS = -c -std=c++11 -O3 -march=native -fopenmp -mavx2 -Rpass-analysis=loop-vectorize -DUSE_DESKTOP -DUSE_OPENMP
+		DEBUG_FLAGS = -c -g -std=c++11 -O0 -fopenmp -DUSE_DESKTOP -DUSE_OPENMP
 		LIB_PATH =
 		LIBS = $(LIBS0) -fopenmp
 	endif
 	ifeq ($(HARDWARE_ACCEL),CUDA)
-		CCFLAGS = -c -std=c++11 -O3
-		DBFLAGS = -c -g -std=c++11 -O0
+		RELEASE_FLAGS = -c -std=c++11 -O3 -DUSE_DESKTOP -DUSE_OPENCL
+		DEBUG_FLAGS = -c -g -std=c++11 -O0 -DUSE_DESKTOP -DUSE_OPENCL
 		LIB_PATH =
 		LIBS = $(LIBS0) -lOpenCL -pthread
 	endif
 	ifeq ($(HARDWARE_ACCEL),RADEON_PRO)
-		CCFLAGS = -c -std=c++11 -O3
-		DBFLAGS = -c -g -std=c++11 -O0
+		RELEASE_FLAGS = -c -std=c++11 -O3 -DUSE_DESKTOP -DUSE_OPENCL
+		DEBUG_FLAGS = -c -g -std=c++11 -O0 -DUSE_DESKTOP -DUSE_OPENCL
 		LIB_PATH =
 		LIBS = $(LIBS0) -lOpenCL -pthread
 	endif
@@ -146,17 +153,17 @@ ifeq ($(PLATFORM),CRAY)
 		ifeq ($(HARDWARE_ACCEL),NONE)
 			TW_Compiler = CC
 			TW_Linker = CC
-			CCFLAGS = -c -O2 -h std=c++11 -h noomp
-			DBFLAGS = -c -g -O0 -h std=c++11 -h noomp
+			RELEASE_FLAGS = -c -O2 -h std=c++11 -h noomp -DUSE_HPC
+			DEBUG_FLAGS = -c -g -O0 -h std=c++11 -h noomp -DUSE_HPC
 			LIB_PATH =
 			LIBS =
 		endif
 		ifeq ($(HARDWARE_ACCEL),OMP)
 			TW_Compiler = CC
 			TW_Linker = CC
-			CCFLAGS = -c -O2 -h std=c++11
-			#CCFLAGS = -c -O2 -hlist=m -h std=c++11
-			DBFLAGS = -c -g -O0 -h std=c++11
+			RELEASE_FLAGS = -c -O2 -h std=c++11 -DUSE_HPC -DUSE_OPENMP
+			PROFILE_FLAGS = -c -O2 -hlist=m -h std=c++11 -DUSE_HPC -DUSE_OPENMP
+			DEBUG_FLAGS = -c -g -O0 -h std=c++11 -DUSE_HPC -DUSE_OPENMP
 			LIB_PATH =
 			LIBS =
 		endif
@@ -165,20 +172,20 @@ ifeq ($(PLATFORM),CRAY)
 		ifeq ($(HARDWARE_ACCEL),NONE)
 			TW_Compiler = CC
 			TW_Linker = CC
-			CCFLAGS = -c -std=c++11 -fast
-			DBFLAGS = -c -g -std=c++11
+			RELEASE_FLAGS = -c -std=c++11 -fast -DUSE_HPC
+			DEBUG_FLAGS = -c -g -std=c++11 -DUSE_HPC
 			LIB_PATH =
 			LIBS =
 		endif
 		ifeq ($(HARDWARE_ACCEL),OMP)
 			TW_Compiler = CC
 			TW_Linker = CC
-			CCFLAGS = -c -std=c++11 -qopenmp -qopenmp-simd -fast
-			#CCFLAGS = -c -std=c++11 -qopenmp -qopenmp-simd -qopt-report -qopt-report-phase=vec -fast
-			DBFLAGS = -c -g -std=c++11 -qopenmp -qopenmp-simd
+			RELEASE_FLAGS = -c -std=c++11 -qopenmp -qopenmp-simd -fast -DUSE_HPC -DUSE_OPENMP
+			PROFILE_FLAGS = -c -std=c++11 -qopenmp -qopenmp-simd -qopt-report -qopt-report-phase=vec -fast -DUSE_HPC -DUSE_OPENMP
+			DEBUG_FLAGS = -c -g -std=c++11 -qopenmp -qopenmp-simd -DUSE_HPC -DUSE_OPENMP
 			LIB_PATH =
 			LIBS = -qopenmp -qopenmp-simd
-			#LIBS = -qopenmp -qopenmp-simd -qopt-report -qopt-report-phase=vec
+			LD_PROFILE_FLAGS = -qopt-report -qopt-report-phase=vec
 		endif
 	endif
 endif
@@ -187,16 +194,16 @@ ifeq ($(PLATFORM),SGI)
 	ifeq ($(HARDWARE_ACCEL),NONE)
 		TW_Compiler = mpicxx
 		TW_Linker = mpicxx
-		CCFLAGS = -c -std=c++11 -fast
-		DBFLAGS = -c -g -std=c++11
+		RELEASE_FLAGS = -c -std=c++11 -fast -DUSE_HPC
+		DEBUG_FLAGS = -c -g -std=c++11 -DUSE_HPC
 		LIB_PATH =
 		LIBS = -lmpi
 	endif
 	ifeq ($(HARDWARE_ACCEL),OMP)
 		TW_Compiler = mpicxx
 		TW_Linker = mpicxx
-		CCFLAGS = -c -std=c++11 -qopenmp -qopenmp-simd -fast
-		DBFLAGS = -c -g -std=c++11 -qopenmp -qopenmp-simd
+		RELEASE_FLAGS = -c -std=c++11 -qopenmp -qopenmp-simd -fast -DUSE_HPC -DUSE_OPENMP
+		DEBUG_FLAGS = -c -g -std=c++11 -qopenmp -qopenmp-simd -DUSE_HPC -DUSE_OPENMP
 		LIB_PATH =
 		LIBS = -lmpi_mt -liomp5 -qopenmp
 	endif
@@ -204,30 +211,37 @@ ifeq ($(PLATFORM),SGI)
 		CUDA_ROOT = /p/home/apps/cuda/7.5
 		TW_Compiler = icpc
 		TW_Linker = icpc
-		CCFLAGS = -c -std=c++11 -O3 -finline-functions -I$(CUDA_ROOT)/include
-		DBFLAGS = -c -g -std=c++11 -O0 -I$(CUDA_ROOT)/include
+		RELEASE_FLAGS = -c -std=c++11 -O3 -finline-functions -I$(CUDA_ROOT)/include -DUSE_HPC -DUSE_OPENCL
+		DEBUG_FLAGS = -c -g -std=c++11 -O0 -I$(CUDA_ROOT)/include -DUSE_HPC -DUSE_OPENCL
 		LIB_PATH = -L$(CUDA_ROOT)/lib64
 		LIBS = -lmpi -lOpenCL
 	endif
 endif
 
-ifdef TW_MPI
-BASE_HEADERS = definitions.h tw_mpi.h tasks.h ctools.h 3dmath.h metricSpace.h 3dfields.h region.h tw_iterator.h
-SIM_HEADERS = $(BASE_HEADERS) functions.h physics.h chemistry.h numerics.h computeTool.h elliptic.h parabolic.h hyperbolic.h fft.h injection.h input.h diagnostics.h module.h simulation.h
-MODULE_HEADERS = fieldSolve.h electrostatic.h laserSolve.h fluid.h quantum.h particles.h solidState.h
-tw3d: 3dfields.cl particles.cl elliptic.cl hyperbolic.cl quantum.cl Main.o TW_MPI.o Tasks.o MetricSpace.o 3DFields.o Region.o FFT.o Physics.o Chemistry.o Numerics.o ComputeTool.o Parabolic.o Elliptic.o Hyperbolic.o Functions.o Simulation.o Module.o FieldSolve.o Electrostatic.o LaserSolve.o Fluid.o Quantum.o SolidState.o Particles.o Pusher.o Diagnostics.o Injection.o Input.o
-	$(TW_Linker) -o tw3d Main.o TW_MPI.o Tasks.o MetricSpace.o 3DFields.o Region.o FFT.o Physics.o Chemistry.o Numerics.o ComputeTool.o Parabolic.o Elliptic.o Hyperbolic.o Functions.o Simulation.o Module.o FieldSolve.o Electrostatic.o LaserSolve.o Fluid.o Quantum.o SolidState.o Particles.o Pusher.o Diagnostics.o Injection.o Input.o $(LIB_PATH) $(LIBS)
-tw3d_debug: 3dfields.cl particles.cl elliptic.cl hyperbolic.cl quantum.cl Main.d TW_MPI.d Tasks.d MetricSpace.d 3DFields.d Region.d FFT.d Physics.d Chemistry.d Numerics.d ComputeTool.d Parabolic.d Elliptic.d Hyperbolic.d Functions.d Simulation.d Module.d FieldSolve.d Electrostatic.d LaserSolve.d Fluid.d Quantum.d SolidState.d Particles.d Pusher.d Diagnostics.d Injection.d Input.d
-	$(TW_Linker) -o tw3d Main.o TW_MPI.o Tasks.o MetricSpace.o 3DFields.o Region.o FFT.o Physics.o Chemistry.o Numerics.o ComputeTool.o Parabolic.o Elliptic.o Hyperbolic.o Functions.o Simulation.o Module.o FieldSolve.o Electrostatic.o LaserSolve.o Fluid.o Quantum.o SolidState.o Particles.o Pusher.o Diagnostics.o Injection.o Input.o $(LIB_PATH) $(LIBS)
-else
+ifndef PROFILE_FLAGS
+	PROFILE_FLAGS = $(RELEASE_FLAGS)
+endif
+
+tw3d_release: CCFLAGS = $(RELEASE_FLAGS)
+tw3d_release: tw3d
+
+tw3d_debug: CCFLAGS = $(DEBUG_FLAGS)
+tw3d_debug: tw3d
+
+tw3d_profile: CCFLAGS = $(PROFILE_FLAGS)
+tw3d_profile: tw3d
+
 BASE_HEADERS = definitions.h tasks.h ctools.h 3dmath.h metricSpace.h 3dfields.h region.h tw_iterator.h
 SIM_HEADERS = $(BASE_HEADERS) functions.h physics.h chemistry.h numerics.h computeTool.h elliptic.h parabolic.h hyperbolic.h fft.h injection.h input.h diagnostics.h module.h simulation.h
 MODULE_HEADERS = fieldSolve.h electrostatic.h laserSolve.h fluid.h quantum.h particles.h solidState.h
-tw3d: 3dfields.cl particles.cl elliptic.cl hyperbolic.cl quantum.cl Main.o Tasks.o MetricSpace.o 3DFields.o Region.o FFT.o Physics.o Chemistry.o Numerics.o ComputeTool.o Parabolic.o Elliptic.o Hyperbolic.o Functions.o Simulation.o Module.o FieldSolve.o Electrostatic.o LaserSolve.o Fluid.o Quantum.o SolidState.o Particles.o Pusher.o Diagnostics.o Injection.o Input.o
-	$(TW_Linker) -o tw3d Main.o Tasks.o MetricSpace.o 3DFields.o Region.o FFT.o Physics.o Chemistry.o Numerics.o ComputeTool.o Parabolic.o Elliptic.o Hyperbolic.o Functions.o Simulation.o Module.o FieldSolve.o Electrostatic.o LaserSolve.o Fluid.o Quantum.o SolidState.o Particles.o Pusher.o Diagnostics.o Injection.o Input.o $(LIB_PATH) $(LIBS)
-tw3d_debug: 3dfields.cl particles.cl elliptic.cl hyperbolic.cl quantum.cl Main.d Tasks.d MetricSpace.d 3DFields.d Region.d FFT.d Physics.d Chemistry.d Numerics.d ComputeTool.d Parabolic.d Elliptic.d Hyperbolic.d Functions.d Simulation.d Module.d FieldSolve.d Electrostatic.d LaserSolve.d Fluid.d Quantum.d SolidState.d Particles.d Pusher.d Diagnostics.d Injection.d Input.d
-	$(TW_Linker) -o tw3d Main.o Tasks.o MetricSpace.o 3DFields.o Region.o FFT.o Physics.o Chemistry.o Numerics.o ComputeTool.o Parabolic.o Elliptic.o Hyperbolic.o Functions.o Simulation.o Module.o FieldSolve.o Electrostatic.o LaserSolve.o Fluid.o Quantum.o SolidState.o Particles.o Pusher.o Diagnostics.o Injection.o Input.o $(LIB_PATH) $(LIBS)
+OBJ_LIST = Main.o Tasks.o MetricSpace.o 3DFields.o Region.o FFT.o Physics.o Chemistry.o Numerics.o ComputeTool.o Parabolic.o Elliptic.o Hyperbolic.o Functions.o Simulation.o Module.o FieldSolve.o Electrostatic.o LaserSolve.o Fluid.o Quantum.o SolidState.o Particles.o Pusher.o Diagnostics.o Injection.o Input.o
+ifdef TW_MPI
+	BASE_HEADERS += tw_mpi.h
+	OBJ_LIST += TW_MPI.o
 endif
+
+tw3d: 3dfields.cl particles.cl elliptic.cl hyperbolic.cl quantum.cl $(OBJ_LIST)
+	$(TW_Linker) -o tw3d $(OBJ_LIST) $(LIB_PATH) $(LIBS)
 
 copy_files:
 ifdef BINARY_PATH
@@ -326,93 +340,3 @@ Injection.o: Injection.cpp $(SIM_HEADERS)
 
 Input.o: Input.cpp $(SIM_HEADERS)
 	$(TW_Compiler) $(CCFLAGS) Input.cpp
-
-################################################
-#              DEBUG DEPENDENCIES              #
-################################################
-
-Main.d: Main.cpp $(SIM_HEADERS)
-	$(TW_Compiler) $(DBFLAGS) Main.cpp
-
-ifdef TW_MPI
-TW_MPI.d: TW_MPI.cpp definitions.h tw_mpi.h
-	$(TW_Compiler) $(DBFLAGS) TW_MPI.cpp
-endif
-
-Tasks.d: Tasks.cpp definitions.h tasks.h
-	$(TW_Compiler) $(DBFLAGS) Tasks.cpp
-
-MetricSpace.d: MetricSpace.cpp $(BASE_HEADERS)
-	$(TW_Compiler) $(DBFLAGS) MetricSpace.cpp
-
-3DFields.d: 3DFields.cpp $(BASE_HEADERS) fft.h
-	$(TW_Compiler) $(DBFLAGS) 3DFields.cpp
-
-Region.d: Region.cpp $(BASE_HEADERS)
-	$(TW_Compiler) $(DBFLAGS) Region.cpp
-
-FFT.d: FFT.cpp definitions.h fft.h
-	$(TW_Compiler) $(DBFLAGS) FFT.cpp
-
-Physics.d: Physics.cpp $(SIM_HEADERS)
-	$(TW_Compiler) $(DBFLAGS) Physics.cpp
-
-Chemistry.d: Chemistry.cpp $(SIM_HEADERS)
-	$(TW_Compiler) $(DBFLAGS) Chemistry.cpp
-
-Numerics.d: Numerics.cpp $(BASE_HEADERS) numerics.h
-	$(TW_Compiler) $(DBFLAGS) Numerics.cpp
-
-ComputeTool.d: ComputeTool.cpp $(SIM_HEADERS)
-	$(TW_Compiler) $(DBFLAGS) ComputeTool.cpp
-
-Elliptic.d: Elliptic.cpp $(BASE_HEADERS) numerics.h computeTool.h elliptic.h
-	$(TW_Compiler) $(DBFLAGS) Elliptic.cpp
-
-Parabolic.d: Parabolic.cpp $(BASE_HEADERS) numerics.h computeTool.h parabolic.h
-	$(TW_Compiler) $(DBFLAGS) Parabolic.cpp
-
-Hyperbolic.d: Hyperbolic.cpp $(BASE_HEADERS) numerics.h computeTool.h hyperbolic.h
-	$(TW_Compiler) $(DBFLAGS) Hyperbolic.cpp
-
-Functions.d: Functions.cpp definitions.h ctools.h functions.h
-	$(TW_Compiler) $(DBFLAGS) Functions.cpp
-
-Simulation.d: Simulation.cpp $(SIM_HEADERS) $(MODULE_HEADERS)
-	$(TW_Compiler) $(DBFLAGS) Simulation.cpp
-
-Module.d: Module.cpp $(SIM_HEADERS) $(MODULE_HEADERS)
-	$(TW_Compiler) $(DBFLAGS) Module.cpp
-
-FieldSolve.d: FieldSolve.cpp $(SIM_HEADERS) fieldSolve.h
-	$(TW_Compiler) $(DBFLAGS) FieldSolve.cpp
-
-Electrostatic.d: Electrostatic.cpp $(SIM_HEADERS) fieldSolve.h electrostatic.h
-	$(TW_Compiler) $(DBFLAGS) Electrostatic.cpp
-
-LaserSolve.d: LaserSolve.cpp $(SIM_HEADERS) fieldSolve.h laserSolve.h
-	$(TW_Compiler) $(DBFLAGS) LaserSolve.cpp
-
-Fluid.d: Fluid.cpp $(SIM_HEADERS) fieldSolve.h fluid.h
-	$(TW_Compiler) $(DBFLAGS) Fluid.cpp
-
-Quantum.d: Quantum.cpp $(SIM_HEADERS) fieldSolve.h quantum.h
-	$(TW_Compiler) $(DBFLAGS) Quantum.cpp
-
-SolidState.d: SolidState.cpp $(SIM_HEADERS) solidState.h
-	$(TW_Compiler) $(DBFLAGS) SolidState.cpp
-
-Particles.d: Particles.cpp $(SIM_HEADERS) particles.h fieldSolve.h laserSolve.h
-	$(TW_Compiler) $(DBFLAGS) Particles.cpp
-
-Pusher.d: Pusher.cpp $(SIM_HEADERS) particles.h fieldSolve.h laserSolve.h
-	$(TW_Compiler) $(DBFLAGS) Pusher.cpp
-
-Diagnostics.d: Diagnostics.cpp $(SIM_HEADERS)
-	$(TW_Compiler) $(DBFLAGS) Diagnostics.cpp
-
-Injection.d: Injection.cpp $(SIM_HEADERS)
-	$(TW_Compiler) $(DBFLAGS) Injection.cpp
-
-Input.d: Input.cpp $(SIM_HEADERS)
-	$(TW_Compiler) $(DBFLAGS) Input.cpp

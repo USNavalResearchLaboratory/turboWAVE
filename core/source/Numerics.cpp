@@ -426,7 +426,7 @@ tw::Float GetCylindricalGroundState(std::valarray<tw::Float>& vec,std::valarray<
 	return eigenvalue;
 }
 
-void ComputeTransformMatrices(std::valarray<tw::Float>& eigenvalue,std::valarray<tw::Float>& fwd,std::valarray<tw::Float>& rev,MetricSpace *space,Task *task)
+void ComputeTransformMatrices(boundarySpec radial_bc,std::valarray<tw::Float>& eigenvalue,std::valarray<tw::Float>& fwd,std::valarray<tw::Float>& rev,MetricSpace *space,Task *task)
 {
 	tw::Int i,j,dim;
 	tw::Float dr1,dr2;
@@ -484,8 +484,21 @@ void ComputeTransformMatrices(std::valarray<tw::Float>& eigenvalue,std::valarray
 	}
 	// set neumann condition at r = 0 (this is actually redundant since T1[0]=0)
 	T2[0] += T1[0];
-	// set dirichlet condition at r = R
-	T2[dim-1] -= T3[dim-1];
+	// set boundary condition at r = R
+	switch (radial_bc)
+	{
+		case dirichletCell:
+			break;
+		case dirichletWall:
+			T2[dim-1] -= T3[dim-1];
+			break;
+		case neumannWall:
+			T2[dim-1] += T3[dim-1];
+			break;
+		default:
+			throw tw::FatalError("Unhandled boundary condition during diagonalization.");
+			break;
+	}
 
 	// Symmetrize the matrix ; i.e., form Diag[Lambda] * Tri[T1,T2,T3] * Diag[Lambda]^-1
 	// Note that if matrix were complex, this would make it Hermitian

@@ -149,7 +149,7 @@ void Species::Push()
 	const tw::Int num_par = particle.size();
 	const tw::Int concurrent_tasks = tw::GetOMPMaxThreads();
 	const tw::Int max_tasks = 1 + num_par / min_particles_per_task;
-	const tw::Int preferred_tasks = 4*concurrent_tasks;
+	const tw::Int preferred_tasks = 8*concurrent_tasks;
 	const tw::Int num_tasks = preferred_tasks > max_tasks ? max_tasks : preferred_tasks;
 	const tw::Int concurrent_sets = num_tasks / concurrent_tasks;
 	const tw::Int remainder_tasks = num_tasks % concurrent_tasks;
@@ -179,6 +179,11 @@ void Species::DispatchPush()
 	if (qo_j4)
 	{
 		Push<ParticleBundleBohmian>();
+		return;
+	}
+	if (ESField)
+	{
+		Push<ParticleBundleElectrostatic>();
 		return;
 	}
 	if (laser)
@@ -612,6 +617,59 @@ void ParticleBundle3D::ScatterJ4(const float J[4][N],const float w0[3][3][N],con
 			sum += xtile[j][k][1][3]; xtile[j][k][1][3] = sum;
 			xtile[j][k][0][3] = 0.0;
 		}
+}
+
+void ParticleBundleElectrostatic::Push(Species *owner)
+{
+	// The empty particles in the bundle can be operated on harmlessly
+	// except in gather scatter.
+	// N = particles in a full bundle
+	// num = particles in this bundle
+	Simulation *sim = owner->owner;
+	const tw::Float q0 = owner->charge;
+	const tw::Float m0 = owner->restMass;
+	const tw::Float dth = sim->dth;
+	const tw::Float dt = sim->dt;
+	const tw::Float k[3] = { dxi(*sim) , dyi(*sim) , dzi(*sim) };
+	const float dti = 1.0/dt;
+
+	PadBundle();
+
+	cell0 = cell[0];
+	sim->DecodeCell(cell0,&ijk0[0],&ijk0[1],&ijk0[2]);
+	sim->GetWeights(w0,x);
+	sim->GetWallWeights(l0,x);
+	LoadTile();
+	GatherF(F,w0,l0);
+
+	impulse(p,F,q0,dt);
+	velocity(vel,p,m0);
+	translate(x,vel,k,dt);
+	load_j4(J,number,vel,k,q0);
+
+	sim->MinimizePrimitive(cell,ijk,x,domainMask);
+	sim->GetWeights(w1,x);
+	set_cell_mask(cellMask,cell0,cell);
+	ResetXTile();
+	ScatterJ4(J,w0,w1,cellMask,dti);
+	StoreXTile();
+}
+
+void ParticleBundleElectrostatic::GatherF(float F[6][N],const float w[3][3][N],const float l[3][3][N])
+{
+	// Assumes every particle in bundle is in the same cell and data is packed with Yee fields
+	tw::Int i,j,k,n;
+	ZeroArray(F,0,2);
+	for (i=0;i<3;i++)
+		for (j=0;j<3;j++)
+			for (k=0;k<3;k++)
+				#pragma omp simd aligned(F,w,l:AB)
+				for (n=0;n<N;n++)
+				{
+					F[0][n] += l[i][0][n]*w[j][1][n]*w[k][2][n]*tile[i][j][k][0];
+					F[1][n] += w[i][0][n]*l[j][1][n]*w[k][2][n]*tile[i][j][k][1];
+					F[2][n] += w[i][0][n]*w[j][1][n]*l[k][2][n]*tile[i][j][k][2];
+				}
 }
 
 void ParticleBundlePGC::Push(Species *owner)

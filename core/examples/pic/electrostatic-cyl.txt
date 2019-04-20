@@ -1,0 +1,99 @@
+// Keep the following line for generating twtest reports
+// TWTEST matplotlib zxyt=0,-1 phi.dvdat
+
+steps = 256
+timestep = 0.1
+dump period = 0
+moving window = no
+neutralize = yes
+append mode = true
+
+xboundary = ( reflecting , reflecting )
+yboundary = ( periodic , periodic )
+zboundary = ( reflecting , reflecting )
+
+new grid
+{
+	corner = ( 0.0 , -3.1416 , -12.8 )
+	dimensions = ( 64 , 1 , 128 )
+	cell size = ( 0.2 , 6.2832 , 0.2 )
+	decomposition = ( 2 , 1 , 2 )
+	geometry = cylindrical
+}
+
+new electrostatic field solver
+{
+	elliptical solver = eigenmode
+	// Because we will put a charged electrode on the lower z-boundary,
+	// it is necessary to use a neumann condition on the outer radial boundary.
+	// Otherwise we would have a discontinuity in potential at the corner.
+	poisson boundary condition x = ( neumann, neumann )
+	poisson boundary condition z = ( dirichlet , dirichlet )
+}
+
+new species electrons
+{
+	charge = -1
+	mass = 1
+	particles per cell = ( 8 , 1 , 8 ) when density = 1
+}
+
+new region circ 'c1'
+{
+	radius = 3.0
+}
+
+new region rect 'electrode1'
+{
+	bounds = ( -1e5,1e5 , -1e5,1e5 , -1e5 -12.8 )
+}
+
+new region rect 'electrode2'
+{
+	bounds = ( -1e5,1e5, -1e5,1e5, 12.8,1e5 )
+}
+
+new conductor
+{
+	clipping region = 'electrode1'
+	potential = { 0.5 }
+	w = { 1.0 }
+	phase = { 0.0 }
+	risetime = .01
+	holdtime = 1e5
+	falltime = .01
+}
+
+new conductor
+{
+	clipping region = 'electrode2'
+	potential = { -0.5 }
+	w = { 1.0 }
+	phase = { 0.0 }
+	risetime = .01
+	holdtime = 1e5
+	falltime = .01
+}
+
+generate uniform electrons
+{
+	clipping region = 'c1'
+	loading = deterministic
+	particle density = fixed
+	density = 1
+	// Cannot correctly account for thermal expansion
+	// until coordinate transformations are restored
+	// in the pusher.  Therefore comment out for now.
+	//thermal momentum = ( 0.1 , 0.1 , 0.1 )
+}
+
+new box diagnostic
+{
+	filename = full
+	period = 8
+}
+
+new energy diagnostic
+{
+	period = 8
+}

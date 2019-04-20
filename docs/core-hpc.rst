@@ -25,10 +25,6 @@ Compiling on Cray Systems
 
   #. In the makefile, you must comment/uncomment lines to select platform, hardware acceleration, compiler, and package manager.  You will only be editing the lines between :samp:`BEGIN INPUT VARIABLES BLOCK` and :samp:`END INPUT VARIABLES BLOCK`.  In a makefile, comments are preceded by :samp:`#`.  For this installation, only :samp:`PLATFORM = CRAY`, :samp:`HARDWARE_ACCEL = OMP`, and :samp:`COMPILER_PREF = INTEL`, should be uncommented.
 
-  #. Edit :samp:`{turbowave}/definitions.h`
-
-  #. In the definitions file, you must comment/uncomment lines to select platform and acceleration options.  In a C++ file, comments are preceded by :samp:`//`.  For this installation, only :samp:`#define USE_CRAY` and :samp:`#define USE_OPENMP` should be uncommented.
-
   #. Type :samp:`make`
 
   #. You must manually copy the executable to the scratch directory.  For example, at NERSC, this would be done with :samp:`cp tw3d $SCRATCH`.

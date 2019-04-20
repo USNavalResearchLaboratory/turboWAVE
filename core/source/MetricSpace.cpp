@@ -41,16 +41,20 @@ void DiscreteSpace::Resize(tw::Int x,tw::Int y,tw::Int z,const tw::vec3& corner,
 		if (dim[i]==1)
 		{
 			layers[i] = 0;
-			lb[i] = 1;
-			ub[i] = 1;
+			lfg[i] = 1;
+			ufg[i] = 1;
+			lng[i] = 1;
+			ung[i] = 1;
 		}
 		else
 		{
 			layers[i] = ghostCellLayers;
-			lb[i] = 1 - layers[i];
-			ub[i] = dim[i] + layers[i];
+			lfg[i] = 1 - layers[i];
+			ufg[i] = dim[i] + layers[i];
+			lng[i] = 0;
+			ung[i] = dim[i] + 1;
 		}
-		num[i] = ub[i] - lb[i] + 1;
+		num[i] = ufg[i] - lfg[i] + 1;
 	}
 
 	decodingStride[1] = encodingStride[1] = num[2]*num[3];
@@ -92,8 +96,10 @@ void DiscreteSpace::ReadData(std::ifstream& inFile)
 	inFile.read((char*)&freq,sizeof(tw::vec3));
 	inFile.read((char*)num,sizeof(num));
 	inFile.read((char*)dim,sizeof(dim));
-	inFile.read((char*)lb,sizeof(lb));
-	inFile.read((char*)ub,sizeof(ub));
+	inFile.read((char*)lfg,sizeof(lfg));
+	inFile.read((char*)ufg,sizeof(ufg));
+	inFile.read((char*)lng,sizeof(lng));
+	inFile.read((char*)ung,sizeof(ung));
 	inFile.read((char*)ignorable,sizeof(ignorable));
 	inFile.read((char*)encodingStride,sizeof(encodingStride));
 	inFile.read((char*)decodingStride,sizeof(decodingStride));
@@ -111,8 +117,10 @@ void DiscreteSpace::WriteData(std::ofstream& outFile)
 	outFile.write((char*)&freq,sizeof(tw::vec3));
 	outFile.write((char*)num,sizeof(num));
 	outFile.write((char*)dim,sizeof(dim));
-	outFile.write((char*)lb,sizeof(lb));
-	outFile.write((char*)ub,sizeof(ub));
+	outFile.write((char*)lfg,sizeof(lfg));
+	outFile.write((char*)ufg,sizeof(ufg));
+	outFile.write((char*)lng,sizeof(lng));
+	outFile.write((char*)ung,sizeof(ung));
 	outFile.write((char*)ignorable,sizeof(ignorable));
 	outFile.write((char*)encodingStride,sizeof(encodingStride));
 	outFile.write((char*)decodingStride,sizeof(decodingStride));

@@ -1,0 +1,86 @@
+// Keep the following line for generating twtest reports
+// TWTEST matplotlib zxyt=0,-1 phi.dvdat
+
+steps = 256
+timestep = 0.1
+dump period = 0
+moving window = no
+neutralize = yes
+append mode = true
+
+xboundary = ( periodic , periodic )
+yboundary = ( periodic , periodic )
+zboundary = ( reflecting , reflecting )
+
+new grid
+{
+	corner = ( -12.8 , -0.5 , -12.8 )
+	dimensions = ( 128 , 1 , 128 )
+	cell size = ( 0.2 , 1.0 , 0.2 )
+	decomposition = ( 2 , 1 , 2 )
+}
+
+new electrostatic field solver
+{
+	elliptical solver = facr
+	poisson boundary condition = ( dirichlet , dirichlet )
+}
+
+new species electrons
+{
+	charge = -1
+	mass = 1
+	particles per cell = ( 8 , 1 , 8 ) when density = 1
+}
+
+new region circ 'c1'
+{
+	radius = 3.0
+}
+
+new region rect 'electrode1'
+{
+	bounds = ( -1e5,1e5 , -1e5,1e5 , -1e5 -12.8 )
+}
+
+new region rect 'electrode2'
+{
+	bounds = ( -1e5,1e5, -1e5,1e5, 12.8,1e5 )
+}
+
+new conductor
+{
+	clipping region = 'electrode1'
+	potential = { 0.5 }
+	w = { 1.0 }
+	phase = { 0.0 }
+	risetime = .01
+	holdtime = 1e5
+	falltime = .01
+}
+
+new conductor
+{
+	clipping region = 'electrode2'
+	potential = { -0.5 }
+	w = { 1.0 }
+	phase = { 0.0 }
+	risetime = .01
+	holdtime = 1e5
+	falltime = .01
+}
+
+generate uniform electrons
+{
+	clipping region = 'c1'
+	loading = deterministic
+	particle density = fixed
+	density = 1
+	thermal momentum = ( 0.1 , 0.1 , 0.1 )
+}
+
+new box diagnostic
+{
+	filename = full
+	period = 8
+}

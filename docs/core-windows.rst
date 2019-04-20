@@ -1,21 +1,61 @@
 Core Install for Windows 10
 ===========================
 
-We will use the free version of Visual Studio from Microsoft to compile turboWAVE.
-Most turboWAVE text files, such as input file examples, have UNIX line feeds.  This is no problem for WordPad (set word wrap to no wrap), but Notepad will not display them properly.  Installing a developer-oriented text editor, such as Atom, might be useful.
+PowerShell Setup
+----------------
+
+#. Enter ``powershell`` into the Cortana search field.  You should see the PowerShell as an option.  Right click this and select ``Run as Administrator``.
+#. In your internet browser search for Chocolatey and follow the instructions to install it using a PowerShell command.
+
+	* You should be guided through setting up the ExecutionPolicy prior to running the installation command
+
+#. Close the PowerShell window and open a new one, again as administrator.
+#. :samp:`choco install git`
+#. Close the administrator PowerShell.
+#. Open a PowerShell window as a user (left click).
+#. :samp:`mkdir ~/bin`
+#. :samp:`mkdir ~/Run`
+
+.. tip::
+
+	The PowerShell supports the use of many UNIX style conventions, such as forward slashes as directory separators, the twiddle as a short-cut for the home directory, and short form commands like ``ls`` and ``cp``.
+
+Notes on Text Editors
+----------------------
+
+Most turboWAVE text files, such as input file examples, have UNIX line feeds.  This is no problem for WordPad (set word wrap to no wrap), but Notepad may not display them properly.  Installing a developer-oriented text editor (e.g. Atom, Sublime) might be useful.  You can also install terminal-style editors such as ``vim`` for use in the PowerShell::
+
+	choco install vim
+
+If you use :samp:`vim`, you may want to copy :samp:`{twroot}/tools/config-files/filetype.vim` to :samp:`~/vimfiles/` (you may need to create the directory).  This will enable syntax highlighting while editing turboWAVE input files.
+
+Path Variable
+-------------
+
+#. Determine the full pathname of ``~/bin``, e.g., by using File Explorer.  Let us denote this :samp:`{full_path_to_bin}`.
+#. Open Windows Settings, and click on the System category.
+#. Enter ``path`` into the search box, and select ``Edit environment variables for your account``.
+#. Highlight ``path`` in the user variables area and click ``Edit...``.
+#. Click ``New...`` and enter :samp:`{full_path_to_bin}`.
+#. Click ``OK`` and dismiss all windows.
+
+Compile
+-------
+
+#. Download and install Intel Parallel Studio.
+
+	* The Intel compiler is a commercial product, but you may be able to use it freely on a trial basis.
 
 #. Get the turboWAVE components, see :doc:`getting-components`. You should end up with a new directory containing at least ``core`` and ``tools``.  This directory can be renamed if desired.  We refer to it generically as :samp:`{twroot}` throughout this documentation.
-#. Edit :samp:`{twroot}\\core\\source\\definitions.h`
-#. In the definitions file, you must comment/uncomment lines to select platform and acceleration options.  In a C++ file, comments are preceded by :samp:`//`, and :samp:`#` is **not** a comment.  For this installation, only :samp:`#define USE_DESKTOP` and :samp:`#define USE_OPENMP` should be uncommented.
-#. Install Visual Studio Community Edition (find installer via internet search)
+#. Edit :samp:`{twroot}\\core\\source\\win.make`
 
-	* Install the :samp:`Desktop Development with C++` and :samp:`Python Development` components.
+	* Uncomment ``COMPILER_PREF = INTEL`` and comment out ``COMPILER_PREF = VS``. In a makefile, comments are preceded by :samp:`#`.
+	* Uncomment ``CCFLAGS = $(RELEASE_FLAGS)`` and comment out ``CCFLAGS = $(DEBUG_FLAGS)`` and ``CCFLAGS = $(PROFILE_FLAGS)``.
 
-#. When installation of Visual Studio is complete, open the :samp:`Developer Command Prompt for VS {YYYY}`.  You can find this in the start menu under :samp:`Visual Studio {YYYY}`.
+#. Open the special Intel compiler command prompt for the appropriate processor type.  You can find this in the start menu.
 
-	* The usual Windows command prompt may not be used.
+	* You cannot use the PowerShell or the usual command prompt.
 
 #. :samp:`cd` :samp:`{twroot}`:samp:`\\core\\source`
-#. :samp:`nmake /F winmakefile`
-#. Create a directory called :samp:`{Run}` wherever you prefer in the file system.
-#. Move :samp:`tw3d.exe` to :samp:`{Run}`.
+#. :samp:`nmake /F win.make`
+#. The makefile should automatically copy the executable into your :samp:`~/bin` directory for later use.  OpenCL kernel files may also be copied into :samp:`~/Run`, but these will not be used.

@@ -17,42 +17,33 @@ Electrostatic::Electrostatic(const std::string& name,Simulation* sim):FieldSolve
 	phi.Initialize(*this,owner);
 	source.Initialize(*this,owner);
 	Ef.Initialize(*this,owner);
-	sources.Initialize(4,*this,owner);
-	lbc.resize(Num(1));
-	rbc.resize(Num(1));
+	J4.Initialize(4,*this,owner);
 
 	Ef.SetBoundaryConditions(xAxis,neumannWall,neumannWall);
+	Ef.SetBoundaryConditions(Element(0),xAxis,none,normalFluxFixed);
+
 	Ef.SetBoundaryConditions(yAxis,neumannWall,neumannWall);
+	Ef.SetBoundaryConditions(Element(1),yAxis,none,normalFluxFixed);
+
 	Ef.SetBoundaryConditions(zAxis,neumannWall,neumannWall);
+	Ef.SetBoundaryConditions(Element(2),zAxis,none,normalFluxFixed);
 
-	sources.SetBoundaryConditions(xAxis,dirichletCell,dirichletCell);
-	sources.SetBoundaryConditions(Element(1),xAxis,normalFluxFixed,normalFluxFixed);
+	J4.SetBoundaryConditions(xAxis,dirichletCell,dirichletCell);
+	J4.SetBoundaryConditions(Element(1),xAxis,normalFluxFixed,normalFluxFixed);
 
-	sources.SetBoundaryConditions(yAxis,dirichletCell,dirichletCell);
-	sources.SetBoundaryConditions(Element(2),yAxis,normalFluxFixed,normalFluxFixed);
+	J4.SetBoundaryConditions(yAxis,dirichletCell,dirichletCell);
+	J4.SetBoundaryConditions(Element(2),yAxis,normalFluxFixed,normalFluxFixed);
 
-	sources.SetBoundaryConditions(zAxis,dirichletCell,dirichletCell);
-	sources.SetBoundaryConditions(Element(3),zAxis,normalFluxFixed,normalFluxFixed);
-
-	if (owner->gridGeometry!=cartesian)
-	{
-		Ef.SetBoundaryConditions(Element(0),xAxis,dirichletWall,neumannWall);
-		sources.SetBoundaryConditions(Element(1),xAxis,dirichletWall,neumannWall);
-	}
-
-	electrodeRadius = 0.0; // indicates "no electrode"
-	electrodePotential = 0.0;
-	slewRate = 0.0;
-
-	lbc = 0.0;
-	rbc = 0.0;
+	J4.SetBoundaryConditions(zAxis,dirichletCell,dirichletCell);
+	J4.SetBoundaryConditions(Element(3),zAxis,normalFluxFixed,normalFluxFixed);
 }
 
 void Electrostatic::Initialize()
 {
 	FieldSolver::Initialize();
 	ellipticSolver->SetBoundaryConditions(phi);
-	SetupElectrodePotential();
+	for (auto conductor : owner->conductor)
+		ellipticSolver->FixPotential(phi,conductor->theRgn,conductor->Voltage(owner->elapsedTime));
 	SetupInitialPotential();
 
 	if (!owner->restarted)
@@ -63,58 +54,29 @@ void Electrostatic::ExchangeResources()
 {
 	PublishResource(&Ef,"electrostatic:E");
 	PublishResource(&phi,"electrostatic:phi");
-	PublishResource(&sources,"electromagnetic:sources"); // use electromagnetic format for sources
+	PublishResource(&J4,"electromagnetic:sources"); // use electromagnetic format for sources
 	PublishResource(this,"electrostatic:module");
 }
 
 void Electrostatic::Reset()
 {
-	sources = 0.0;
-}
-
-void Electrostatic::ReadInputFileDirective(std::stringstream& inputString,const std::string& command)
-{
-	std::string word;
-	tw::Float lbc0,rbc0;
-	FieldSolver::ReadInputFileDirective(inputString,command);
-	if (command=="external") // eg, external potential = ( 0.0 , 1.0 )
-	{
-		inputString >> word >> word >> lbc0 >> rbc0;
-		lbc = lbc0;
-		rbc = rbc0;
-	}
-	if (command=="electrode") // eg, electrode : radius = 1e5 , potential = 0.5 , slew rate = 0.01
-	{
-		inputString >> word >> word >> word >> electrodeRadius;
-		inputString >> word >> word >> electrodePotential;
-		inputString >> word >> word >> word >> slewRate;
-	}
+	J4 = 0.0;
 }
 
 void Electrostatic::ReadData(std::ifstream& inFile)
 {
 	FieldSolver::ReadData(inFile);
-	inFile.read((char *)&lbc[0],Num(1)*sizeof(tw::Float));
-	inFile.read((char *)&rbc[0],Num(1)*sizeof(tw::Float));
-	inFile.read((char *)&electrodeRadius,sizeof(tw::Float));
-	inFile.read((char *)&electrodePotential,sizeof(tw::Float));
-	inFile.read((char *)&slewRate,sizeof(tw::Float));
 
 	phi.ReadData(inFile);
-	sources.ReadData(inFile);
+	J4.ReadData(inFile);
 }
 
 void Electrostatic::WriteData(std::ofstream& outFile)
 {
 	FieldSolver::WriteData(outFile);
-	outFile.write((char *)&lbc[0],Num(1)*sizeof(tw::Float));
-	outFile.write((char *)&rbc[0],Num(1)*sizeof(tw::Float));
-	outFile.write((char *)&electrodeRadius,sizeof(tw::Float));
-	outFile.write((char *)&electrodePotential,sizeof(tw::Float));
-	outFile.write((char *)&slewRate,sizeof(tw::Float));
 
 	phi.WriteData(outFile);
-	sources.WriteData(outFile);
+	J4.WriteData(outFile);
 }
 
 void Electrostatic::EnergyHeadings(std::ofstream& outFile)
@@ -141,8 +103,8 @@ void Electrostatic::EnergyColumns(std::vector<tw::Float>& cols,std::vector<bool>
 				if (theRgn.Inside(pos,*owner))
 				{
 					fieldEnergy += 0.5 * owner->dS(i,j,k,0) * Norm(Ef(i,j,k));
-					totalCharge += owner->dS(i,j,k,0) * sources(i,j,k,0);
-					current += owner->dS(i,j,k,3) * 0.5 * (sources(i,j,k-1,3) + sources(i,j,k,3)) / tw::Float(z1 - z0 + 1);
+					totalCharge += owner->dS(i,j,k,0) * J4(i,j,k,0);
+					current += owner->dS(i,j,k,3) * 0.5 * (J4(i,j,k-1,3) + J4(i,j,k,3)) / tw::Float(z1 - z0 + 1);
 				}
 			}
 
@@ -153,29 +115,15 @@ void Electrostatic::EnergyColumns(std::vector<tw::Float>& cols,std::vector<bool>
 
 void Electrostatic::Update()
 {
-	tw::Int i;
-	tw::Float t = owner->elapsedTime;
+	J4.DepositFromNeighbors();
+	J4.ApplyFoldingCondition();
+	conserved_current_to_dens<0,1,2,3>(J4,*owner);
+	J4.ApplyBoundaryCondition();
 
-	sources.DepositFromNeighbors();
-	sources.ApplyFoldingCondition();
-	conserved_current_to_dens<0,1,2,3>(sources,*owner);
-	sources.ApplyBoundaryCondition();
+	for (auto conductor : owner->conductor)
+		ellipticSolver->FixPotential(phi,conductor->theRgn,conductor->Voltage(owner->elapsedTime));
 
-	if (suppressNextUpdate)
-	{
-		suppressNextUpdate = false;
-		return;
-	}
-
-	SetupElectrodePotential();
-	ellipticSolver->lbc = lbc;
-	ellipticSolver->rbc = rbc;
-	ellipticSolver->TransformBoundaryValues();
-
-	for (i=0;i<owner->conductor.size();i++)
-		ellipticSolver->FixPotential(phi,owner->conductor[i]->theRgn,owner->conductor[i]->Voltage(t));
-
-	CopyFieldData(source,Element(0),sources,Element(0));
+	CopyFieldData(source,Element(0),J4,Element(0));
 	ellipticSolver->Solve(phi,source,-1.0);
 
 	ComputeFinalFields();
@@ -207,10 +155,10 @@ void Electrostatic::BoxDiagnose(GridDataDescriptor* box)
 	owner->WriteBoxData("Ex",box,&Ef(0,0,0).x,Ef.Stride());
 	owner->WriteBoxData("Ey",box,&Ef(0,0,0).y,Ef.Stride());
 	owner->WriteBoxData("Ez",box,&Ef(0,0,0).z,Ef.Stride());
-	owner->WriteBoxData("rho",box,&sources(0,0,0,0),sources.Stride());
-	owner->WriteBoxData("Jx",box,&sources(0,0,0,1),sources.Stride());
-	owner->WriteBoxData("Jy",box,&sources(0,0,0,2),sources.Stride());
-	owner->WriteBoxData("Jz",box,&sources(0,0,0,3),sources.Stride());
+	owner->WriteBoxData("rho",box,&J4(0,0,0,0),J4.Stride());
+	owner->WriteBoxData("Jx",box,&J4(0,0,0,1),J4.Stride());
+	owner->WriteBoxData("Jy",box,&J4(0,0,0,2),J4.Stride());
+	owner->WriteBoxData("Jz",box,&J4(0,0,0,3),J4.Stride());
 }
 
 void Electrostatic::PointDiagnosticHeader(std::ofstream& outFile)
@@ -225,34 +173,11 @@ void Electrostatic::PointDiagnose(std::ofstream& outFile,const weights_3D& w)
 
 	phi.Interpolate(&valNow,w);
 	outFile << valNow << " ";
-	sources.Interpolate(j4,w);
+	J4.Interpolate(j4,w);
 	outFile << j4[0] << " ";
-}
-
-void Electrostatic::SetupElectrodePotential()
-{
-	tw::Int i;
-	tw::Float rNow,r0,phiNow;
-	r0 = electrodeRadius;
-	phiNow = electrodePotential + slewRate*owner->elapsedTime;
-	if (r0!=0.0)
-		for (i=N0(1);i<=N1(1);i++)
-		{
-			rNow = owner->X(i,1);
-			if (rNow/r0<0.5*pi)
-				lbc[i] = phiNow*sqr(cos(rNow/r0));
-			else
-				lbc[i] = 0.0;
-		}
 }
 
 void Electrostatic::SetupInitialPotential()
 {
-	tw::Int i,j,k;
-
-	for (auto cell : EntireCellRange(*this))
-	{
-		cell.Decode(&i,&j,&k);
-		phi(i,j,k) = lbc[i] + (rbc[i]-lbc[i])*(owner->X(k,3)-GlobalCorner(*owner).z)/GlobalPhysicalSize(*owner).z;
-	}
+	// As an optimization, something can go here to try to make an initial guess other than zero.
 }

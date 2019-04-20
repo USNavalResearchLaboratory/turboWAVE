@@ -211,7 +211,7 @@ void BoundElectrons::Update()
 	// FNL = -a*R*R + b*(R.R)*R (really F/m)
 	// At start, E is known at t = 0, R0 at t = -1, R1 at t = 0
 
-	const tw::Int zLast = owner->n1[3]==MPI_PROC_NULL ? ub[3]-6 : dim[3];
+	const tw::Int zLast = owner->n1[3]==MPI_PROC_NULL ? ufg[3]-6 : dim[3];
 
 	#pragma omp parallel
 	{

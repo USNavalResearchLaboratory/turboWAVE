@@ -26,8 +26,6 @@ Simple Install
 #. Edit :samp:`~/.bash_profile`, adding the line :samp:`export PATH=~/bin/:$PATH` (no spaces around equals sign)
 #. Edit :samp:`{twroot}/core/source/makefile`
 #. In the makefile, you must comment/uncomment lines to select platform, hardware acceleration, compiler, and package manager.  You will only be editing the lines between :samp:`BEGIN INPUT VARIABLES BLOCK` and :samp:`END INPUT VARIABLES BLOCK`.  In a makefile, comments are preceded by :samp:`#`.  For this installation, only :samp:`PLATFORM = OSX` should be uncommented.
-#. Edit :samp:`{twroot}/core/source/definitions.h`
-#. In the definitions file, you must comment/uncomment lines to select platform and acceleration options.  In a C++ file, comments are preceded by :samp:`//`, and :samp:`#` is **not** a comment.  For this installation, only :samp:`#define USE_DESKTOP` should be uncommented.  Comment out :samp:`#define USE_OPENMP` and :samp:`#define USE_OPENCL` if they are not already.
 #. Open a new terminal window and navigate to :samp:`{twroot}/core/source`
 #. Type :samp:`make`
 #. The makefile should automatically copy the executable into your :samp:`~/bin` directory for later use.  OpenCL kernel files may also be copied into :samp:`~/Run`, but these will not be used.
@@ -52,8 +50,6 @@ Advanced Install with Homebrew
 #. Edit :samp:`~/.bash_profile`, adding the line :samp:`export PATH=~/bin/:$PATH`
 #. Edit :samp:`{twroot}/core/source/makefile`
 #. In the makefile, you must comment/uncomment lines to select platform, hardware acceleration, compiler, and package manager.  You will only be editing the lines between :samp:`BEGIN INPUT VARIABLES BLOCK` and :samp:`END INPUT VARIABLES BLOCK`.  In a makefile, comments are preceded by :samp:`#`.  For this installation, only :samp:`PLATFORM = OSX`, :samp:`HARDWARE_ACCEL = OMP`, :samp:`COMPILER_PREF = LLVM_CLANG`, and :samp:`PACKAGE_PREF = HOMEBREW` should be uncommented.
-#. Edit :samp:`{twroot}/core/source/definitions.h`
-#. In the definitions file, you must comment/uncomment lines to select platform and acceleration options.  In a C++ file, comments are preceded by :samp:`//`.  For this installation, only :samp:`#define USE_DESKTOP` and :samp:`#define USE_OPENMP` should be uncommented.
 #. Open a new terminal window and navigate to :samp:`{twroot}/core/source`
 #. Type :samp:`make`
 #. The makefile should automatically copy the executable into your :samp:`~/bin` directory for later use.  OpenCL kernel files may also be copied into :samp:`~/Run`, but these will not be used.
@@ -80,8 +76,6 @@ Advanced Install with MacPorts
 #. Edit :samp:`~/.bash_profile`, adding the line :samp:`export PATH=~/bin/:$PATH`
 #. Edit :samp:`{twroot}/core/source/makefile`
 #. In the makefile, you must comment/uncomment lines to select platform, hardware acceleration, compiler, and package manager.  You will only be editing the lines between :samp:`BEGIN INPUT VARIABLES BLOCK` and :samp:`END INPUT VARIABLES BLOCK`.  In a makefile, comments are preceded by :samp:`#`.  For this installation, only :samp:`PLATFORM = OSX`, :samp:`HARDWARE_ACCEL = OMP`, :samp:`COMPILER_PREF = LLVM_CLANG`, and :samp:`PACKAGE_PREF = MACPORTS` should be uncommented.
-#. Edit :samp:`{twroot}/core/source/definitions.h`
-#. In the definitions file, you must comment/uncomment lines to select platform and acceleration options.  In a C++ file, comments are preceded by :samp:`//`.  For this installation, only :samp:`#define USE_DESKTOP` and :samp:`#define USE_OPENMP` should be uncommented.
 #. Open a new terminal window and navigate to :samp:`{twroot}/core/source`
 #. Type :samp:`make`
 #. The makefile should automatically copy the executable into your :samp:`~/bin` directory for later use.  OpenCL kernel files may also be copied into :samp:`~/Run`, but these will not be used.

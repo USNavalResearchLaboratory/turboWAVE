@@ -344,16 +344,16 @@ void Fluid::Update()
 		for (auto v : VectorStripRange<3>(*this,true))
 		{
 			#pragma omp simd
-			for (tw::Int k=lb[3];k<=ub[3];k++)
+			for (tw::Int k=lfg[3];k<=ufg[3];k++)
 				vel(v,k,0) = m0*m0 + sqr(state1(v,k,1)) + sqr(state1(v,k,2)) + sqr(state1(v,k,3));
 			if (laser)
 			{
 				#pragma omp simd
-				for (tw::Int k=lb[3];k<=ub[3];k++)
+				for (tw::Int k=lfg[3];k<=ufg[3];k++)
 					vel(v,k,0) += 0.5*q0*q0*(*laser)(v,k,7);
 			}
 			#pragma omp simd
-			for (tw::Int k=lb[3];k<=ub[3];k++)
+			for (tw::Int k=lfg[3];k<=ufg[3];k++)
 			{
 				vel(v,k,0) = 1.0/sqrt(vel(v,k,0));
 				vel(v,k,1) = state1(v,k,1)*vel(v,k,0);
@@ -413,9 +413,9 @@ void Fluid::Update()
 
 	if (ionization.ionizationModel!=tw::ionization_model::none)
 	{
-		for (tw::Int i=lb[1];i<=ub[1];i++)
-			for (tw::Int j=lb[2];j<=ub[2];j++)
-				for (tw::Int k=lb[3];k<=ub[3];k++)
+		for (tw::Int i=lfg[1];i<=ufg[1];i++)
+			for (tw::Int j=lfg[2];j<=ufg[2];j++)
+				for (tw::Int k=lfg[3];k<=ufg[3];k++)
 				{
 					field = sqrt(sqr((*EM)(i,j,k,0))+sqr((*EM)(i,j,k,1))+sqr((*EM)(i,j,k,2)));
 					ionizedDensity = gas(i,j,k)*dt*ionization.Rate(field,0.0);
@@ -1138,9 +1138,9 @@ void sparc::HydroManager::Initialize()
 		for (auto strip : StripRange(*this,ax,strongbool::yes))
 		{
 			if (bc0[ax]==dirichletWall && owner->n0[ax]==MPI_PROC_NULL && dim[ax]>1)
-				fluxMask(strip,lb[ax]) = fluxMask(strip,0) = 0.0;
+				fluxMask(strip,lfg[ax]) = fluxMask(strip,lng[ax]) = 0.0;
 			if (bc1[ax]==dirichletWall && owner->n1[ax]==MPI_PROC_NULL && dim[ax]>1)
-				fluxMask(strip,ub[ax]) = fluxMask(strip,dim[ax]+1) = 0.0;
+				fluxMask(strip,ufg[ax]) = fluxMask(strip,ung[ax]) = 0.0;
 		}
 
 	// Non-vector boundary conditions; vector elements are modified after setting up indexing.
