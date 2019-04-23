@@ -16,7 +16,6 @@
 //                                                                 //
 /////////////////////////////////////////////////////////////////////
 
-//#define NDEBUG
 #include <stdint.h>
 #include <memory.h>
 #include <cassert>

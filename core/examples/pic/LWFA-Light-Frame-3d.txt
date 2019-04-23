@@ -1,7 +1,6 @@
 // NOTE: size of example not suitable for desktop machine
-// NERSC Cori-Haswell: 8 nodes, 27 minutes
-// NERSC Cori-KNL: 8 nodes, 43 minutes
-steps = 1500
+// NERSC Cori-Haswell: 8 nodes, 15 minutes
+steps = 800
 timestep = 0.04
 dump period = 0
 moving window = yes
@@ -21,7 +20,7 @@ new grid
 	corner = ( -64 , -64 , -51.2 )
 	dimensions = ( 256 , 256 , 1024 )
 	cell size = ( 0.5 , 0.5 , 0.05 )
-	decomposition = ( 16 , 16 , 2 )
+	decomposition = ( 16 , 16 , 1 )
 }
 
 new region rect r1
@@ -77,4 +76,3 @@ new phase space plot for electrons
 	minimum = -50 0
 	maximum = 0 20
 }
-

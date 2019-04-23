@@ -16,7 +16,7 @@ We support several compilers for desktop turboWAVE.  Explicit instructions are g
 
 The GNU and LLVM compilers can be freely downloaded.  Intel and Microsoft compilers
 are commercial products, but typically offer free trial downloads.  Other combinations
-are possible, such as LLVM on Windows, Intel on MacOS, etc..
+are possible, these are merely the ones that are tested and directly supported.
 
 On HPC systems, we expect a suitable compiler to be pre-installed by the system
 administrators, although there may be modules to load, unload, or swap.
@@ -25,7 +25,7 @@ Note on Packages
 ----------------
 
 Linux distributions typically have a native package management system,
-which we will use to install the compiler and other components we need.
+which we use to install the compiler and other components we need.
 The package management system grabs software from internet repositories,
 and importantly, checks whether the software depends on or conflicts with some other
 software.  If there is a dependency, the system is supposed to grab the whole hierarchy

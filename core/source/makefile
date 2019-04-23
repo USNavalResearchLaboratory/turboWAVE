@@ -125,8 +125,8 @@ ifeq ($(PLATFORM),LINUX)
 		LIBS = $(LIBS0) -pthread
 	endif
 	ifeq ($(HARDWARE_ACCEL),OMP)
-		RELEASE_FLAGS = -c -std=c++11 -O3 -march=native -fopenmp -mavx2 -DUSE_DESKTOP -DUSE_OPENMP
-		PROFILE_FLAGS = -c -std=c++11 -O3 -march=native -fopenmp -mavx2 -Rpass-analysis=loop-vectorize -DUSE_DESKTOP -DUSE_OPENMP
+		RELEASE_FLAGS = -c -std=c++11 -O3 -march=native -fopenmp -DUSE_DESKTOP -DUSE_OPENMP
+		PROFILE_FLAGS = -c -std=c++11 -O3 -march=native -fopenmp -Rpass-analysis=loop-vectorize -DUSE_DESKTOP -DUSE_OPENMP
 		DEBUG_FLAGS = -c -g -std=c++11 -O0 -fopenmp -DUSE_DESKTOP -DUSE_OPENMP
 		LIB_PATH =
 		LIBS = $(LIBS0) -fopenmp
@@ -222,7 +222,7 @@ ifndef PROFILE_FLAGS
 	PROFILE_FLAGS = $(RELEASE_FLAGS)
 endif
 
-tw3d_release: CCFLAGS = $(RELEASE_FLAGS)
+tw3d_release: CCFLAGS = $(RELEASE_FLAGS) -DNDEBUG
 tw3d_release: tw3d
 
 tw3d_debug: CCFLAGS = $(DEBUG_FLAGS)

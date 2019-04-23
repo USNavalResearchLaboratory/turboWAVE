@@ -52,12 +52,12 @@ Command line arguments
 
 The full command line specification is
 
-.. py:function:: tw3d -n procs -c threads -nointeractive --version --help
+.. py:function:: tw3d -n procs -c threads --no-interactive --version --help
 
 	:param int procs: number of MPI processes
 	:param int threads: number of OpenMP threads
 
-	The :samp:`-nointeractive` argument, if present, suppresses the interactive thread.
+	The :samp:`--no-interactive` argument, if present, suppresses the interactive thread.
 
 	The :samp:`--version` argument, if present, prints the version number.  If this is the only argument, no simulation is attempted.
 
@@ -67,7 +67,7 @@ These arguments are only used on the desktop.  If you enter only :samp:`tw3d` wi
 
 When you ran the example above, you may have noticed turboWAVE issuing a warning about the domain decomposition.  That is because if you choose to specify the domain decomposition in the input file, the product of the three integers is supposed to equal the number of processes requested.  If this is not the case, turboWAVE will try to find a suitable decomposition on its own.  There are some rules about how this can be done.  Sometimes turboWAVE will fail to find a suitable decomposition and report an error.
 
-Finally, if you want to disable the interactive thread, add the command line argument :samp:`-nointeractive`.  This can be important for batch processing, because when the interactive thread is used, the :samp:`tw3d` process will not stop without a keystroke from the user.
+Finally, if you want to disable the interactive thread, add the command line argument :samp:`--no-interactive`.  This can be important for batch processing, because when the interactive thread is used, the :samp:`tw3d` process will not stop without a keystroke from the user.
 
 Error Handling
 --------------
@@ -92,7 +92,7 @@ In order to run the script navigate to :samp:`tools/twtest` and invoke
 
 :kbd:`python twtest.py` *twroot* *args*
 
-where *twroot* is the turboWAVE root directory path and *args* are the usual command line arguments used to specify parallelism options (you do not need to add :samp:`-nointeractive` as this is put in automatically).  Due to the large number of simulations to be run this may take several hours.  You can limit the test to specific categories by appending them to *twroot* using double colon separators.  For example,
+where *twroot* is the turboWAVE root directory path and *args* are the usual command line arguments used to specify parallelism options (you do not need to add :samp:`--no-interactive` as this is put in automatically).  Due to the large number of simulations to be run this may take several hours.  You can limit the test to specific categories by appending them to *twroot* using double colon separators.  For example,
 
 :kbd:`python twtest.py ~/turboWAVE::hydro::pic -n 4`
 

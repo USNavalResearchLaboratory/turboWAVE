@@ -161,9 +161,9 @@ def form_tw_cmd(num_procs,num_threads,dims):
 		if dim1%(2*mpi_nodes)!=0:
 			# Try a factor of 10
 			mpi_nodes = 10*int(req_nodes/10)
-		return 'tw3d -nointeractive -n '+str(mpi_nodes)
+		return 'tw3d --no-interactive -n '+str(mpi_nodes)
 	else:
-		return 'tw3d -nointeractive -n '+str(num_procs)+' -c '+str(num_threads)
+		return 'tw3d --no-interactive -n '+str(num_procs)+' -c '+str(num_threads)
 
 subargs = sys.argv[1].split('::')
 tw_root = subargs[0]

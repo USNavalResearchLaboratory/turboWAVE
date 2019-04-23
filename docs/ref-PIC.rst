@@ -39,14 +39,12 @@ Field solver modules have priority 3 in the update sequence.
 
 		.. py:function:: elliptical solver = slv
 
-			:param enum slv: can be ``facr``, ``iterative``, or ``eigenmode``
+			:param enum slv: At present only ``facr`` solver is recommended.
 
 		.. py:function:: poisson boundary condition z = ( bc1 , bc2 )
 
 			:param enum bc1: boundary condition on lower side, can be ``open``, ``dirichlet``, ``neumann``.
 			:param enum bc2: boundary condition on lower side, can be ``open``, ``dirichlet``, ``neumann``.
-
-			At present ``open`` only works for ``facr`` or ``eigenmode`` elliptical solvers.
 
 		.. py:function::	dipole center = (x,y,z)
 
@@ -59,7 +57,7 @@ Field solver modules have priority 3 in the update sequence.
 
 .. py:function:: new curvilinear coulomb module { directives }
 
-	Create a WAVE type EM solver that works in arbitrary coordinates.  Directives are the same as :ref:`coulomb electromagnetic module <coulomb-solver>`.  Elliptical solver cannot be :samp:`facr`.
+	Disabled in all public versions up to present.
 
 .. _direct-solver:
 .. py:function:: new direct electromagnetic module { directives }
@@ -92,7 +90,7 @@ Field solver modules have priority 3 in the update sequence.
 
 .. py:function:: new curvilinear direct module { directives }
 
-	Same as :ref:`direct electromagnetic module <direct-solver>` except for arbitrary coordinate system. Elliptical solver cannot be ``facr``.
+	Same as :ref:`direct electromagnetic module <direct-solver>` except for arbitrary coordinate system. Elliptical solver should be ``eigenmode``.
 
 .. py:function:: new pgc laser module { directives }
 
@@ -110,7 +108,7 @@ Field solver modules have priority 3 in the update sequence.
 
 		.. py:function:: propagator = prop
 
-			:param enum prop: can be ``eigenmode`` or ``adi``.
+			:param enum prop: can be ``eigenmode`` or ``adi``.  In cases of significant pump depletion ``eigenmode`` is highly recommended.
 
 		.. py:function:: modes = n
 

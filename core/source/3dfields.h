@@ -250,8 +250,7 @@ struct Field:DiscreteSpace
 
 	Field();
 	virtual ~Field();
-	void Initialize(tw::Int components,const DiscreteSpace& ds,Task *task,const axisSpec& axis);
-	void Initialize(tw::Int components,const DiscreteSpace& ds,Task *task) { Initialize(components,ds,task,zAxis); }
+	void Initialize(tw::Int components,const DiscreteSpace& ds,Task *task,const axisSpec& axis = zAxis);
 	void SetBoundaryConditions(const Element& e,const axisSpec& axis,boundarySpec low,boundarySpec high);
 	friend void CopyBoundaryConditions(Field& dst,const Element& dstElement,Field& src,const Element& srcElement);
 

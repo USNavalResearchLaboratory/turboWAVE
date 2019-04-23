@@ -139,12 +139,12 @@ int main(int argc,char *argv[])
 		{
 			arg = std::string(argv[idx]);
 
-			if (arg!="-n" && arg!="-c" && arg!="-nointeractive" && arg!="--version" && arg!="--help")
+			if (arg!="-n" && arg!="-c" && arg!="--no-interactive" && arg!="--version" && arg!="--help")
 				throw tw::FatalError("Unrecognized argument");
 
 			if (arg=="--version")
 			{
-				std::cout << "turboWAVE version 3.3rc" << std::endl;
+				std::cout << "turboWAVE version 3.3" << std::endl;
 				if (argc==2)
 					exit(0);
 			}
@@ -175,7 +175,7 @@ int main(int argc,char *argv[])
 					throw tw::FatalError("Incomplete arguments");
 			}
 
-			if (arg=="-nointeractive")
+			if (arg=="--no-interactive")
 				interactive = false;
 
 			idx++;
