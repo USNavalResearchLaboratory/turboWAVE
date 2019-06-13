@@ -22,9 +22,6 @@ Module::Module(const std::string& name,Simulation* sim)
 	super = NULL;
 	programFilename = "";
 	buildLog = "";
-	dt = sim->dt;
-	dth = sim->dth;
-	dti = 1.0/dt;
 	updateSequencePriority = 1;
 	typeCode = tw::module_type::nullModule;
 	suppressNextUpdate = false;
@@ -35,7 +32,7 @@ Module::~Module()
 {
 	for (tw::Int i=0;i<profile.size();i++)
 		delete profile[i];
-	
+
 	#ifdef USE_OPENCL
 
 	if (programFilename!="")

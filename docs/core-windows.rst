@@ -27,7 +27,11 @@ Most turboWAVE text files, such as input file examples, have UNIX line feeds.  T
 
 	choco install vim
 
-If you use :samp:`vim`, you may want to copy :samp:`{twroot}/tools/config-files/filetype.vim` to :samp:`~/vimfiles/` (you may need to create the directory).  This will enable syntax highlighting while editing turboWAVE input files.
+To enable turboWAVE input file syntax highlights with the :samp:`vim` editor:
+
+	* Create :samp:`~/vimfiles/` and :samp:`~/vimfiles/syntax/` if they do not already exist
+	* Copy :samp:`{twroot}/tools/config-files/filetype.vim` to :samp:`~/vimfiles/`
+	* Copy :samp:`{twroot}/tools/config-files/tw3d.vim` to :samp:`~/vimfiles/syntax/`
 
 Path Variable
 -------------

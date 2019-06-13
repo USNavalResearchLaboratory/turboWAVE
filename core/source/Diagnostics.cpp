@@ -517,7 +517,7 @@ void FarFieldDetectorDescriptor::AccumulateField(const tw::Float& elapsedTime,Fi
 	tw::Float zmin = space->X(1,3) - 0.5*space->dX(1,3);
 	tw::Float zmax = space->X(space->Dim(3),3) + 0.5*space->dX(space->Dim(3),3);
 	tw::Float tp = elapsedTime;
-	tw::Float dtau = timePeriod==0.0 ? dt(*space) * tw::Float(period) : timePeriod;
+	tw::Float dtau = timePeriod==0.0 ? timestep(*space) * tw::Float(period) : timePeriod;
 
 	phiNow = phi0 + 0.5*dphi;
 	for (k=1;k<=phiPts;k++)
@@ -566,7 +566,7 @@ void Simulation::GetGlobalBoxDataIndexing(GridDataDescriptor* theBox,tw::Int pts
 	// On output, pts has the number of cells, glb has the global index bounds, skip has the skip corrected for ignorable dimensions
 	tw::Int s[4] = { 0 , theBox->xSkip , theBox->ySkip , theBox->zSkip };
 
-	theBox->theRgn->GetGlobalCellBounds(&glb[0],&glb[1],&glb[2],&glb[3],&glb[4],&glb[5]);
+	theBox->theRgn->GetGlobalCellBounds(glb);
 
 	for (tw::Int ax=1;ax<=3;ax++)
 	{
@@ -734,55 +734,6 @@ void Simulation::WriteBoxData(const std::string& quantity,GridDataDescriptor* th
 }
 
 #endif
-
-void Simulation::WriteMomentumDataHeader(const std::string& quantity,GridDataDescriptor* theBox)
-{
-	if (appendMode && restarted)
-		return;
-
-	tw::Int x0,x1,y0,y1,z0,z1;
-	theBox->theRgn->GetGlobalCellBounds(&x0,&x1,&y0,&y1,&z0,&z1);
-
-	// Only the task at index (0,0,0) will write data
-
-	if (strip[0].Get_rank()!=0)
-		return;
-
-	std::ofstream outFile;
-	std::stringstream fileName;
-	tw::Int xPoints,yPoints,zPoints;
-
-	fileName.str("");
-	if (theBox->filename=="full")
-		fileName << quantity;
-	else
-		fileName << theBox->filename << "_" << quantity;
-	fileName << ".dvdat";
-
-	if (dim[1]==1) theBox->xSkip = 1;
-	if (dim[2]==1) theBox->ySkip = 1;
-	if (dim[3]==1) theBox->zSkip = 1;
-
-	xPoints = (x1 - x0 + 1)/theBox->xSkip;
-	yPoints = (y1 - y0 + 1)/theBox->ySkip;
-	zPoints = (z1 - z0 + 1)/theBox->zSkip;
-
-	outFile.open(fileName.str().c_str(),std::ios::binary);
-	WriteDVHeader(outFile,2,xPoints,yPoints,zPoints,
-		-pi/spacing.x-pi/globalSize.x + 2.0*pi*(x0-1)/globalSize.x,
-		-pi/spacing.x-pi/globalSize.x + 2.0*pi*x1/globalSize.x,
-		-pi/spacing.y-pi/globalSize.y + 2.0*pi*(y0-1)/globalSize.y,
-		-pi/spacing.y-pi/globalSize.y + 2.0*pi*y1/globalSize.y,
-		-pi/spacing.z-pi/globalSize.z + 2.0*pi*(z0-1)/globalSize.z,
-		-pi/spacing.z-pi/globalSize.z + 2.0*pi*z1/globalSize.z);
-	outFile.close();
-}
-
-void Simulation::WriteMomentumData(const std::string& quantity,GridDataDescriptor* theBox,tw::Float* theData,const tw::Int *stride)
-{
-	WriteBoxData(quantity,theBox,theData,stride);
-}
-
 
 void Simulation::WriteCellDataHeader(GridDataDescriptor* theBox)
 {

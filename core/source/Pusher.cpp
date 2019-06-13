@@ -215,8 +215,8 @@ void ParticleBundleBohmian::Push(Species *owner)
 	Simulation *sim = owner->owner;
 	const tw::Float q0 = owner->charge;
 	const tw::Float m0 = owner->restMass;
-	const tw::Float dth = sim->dth;
-	const tw::Float dt = sim->dt;
+	const tw::Float dth = 0.5*timestep(*sim);
+	const tw::Float dt = timestep(*sim);
 	const tw::Float k[3] = { dxi(*sim) , dyi(*sim) , dzi(*sim) };
 	const float dti = 1.0/dt;
 
@@ -262,8 +262,8 @@ void ParticleBundle2D::Push(Species *owner)
 	Simulation *sim = owner->owner;
 	const tw::Float q0 = owner->charge;
 	const tw::Float m0 = owner->restMass;
-	const tw::Float dth = sim->dth;
-	const tw::Float dt = sim->dt;
+	const tw::Float dth = 0.5*timestep(*sim);
+	const tw::Float dt = timestep(*sim);
 	const tw::Float k[3] = { dxi(*sim) , dyi(*sim) , dzi(*sim) };
 	const float dti = 1.0/dt;
 
@@ -434,8 +434,8 @@ void ParticleBundle3D::Push(Species *owner)
 	Simulation *sim = owner->owner;
 	const tw::Float q0 = owner->charge;
 	const tw::Float m0 = owner->restMass;
-	const tw::Float dth = sim->dth;
-	const tw::Float dt = sim->dt;
+	const tw::Float dth = 0.5*timestep(*sim);
+	const tw::Float dt = timestep(*sim);
 	const tw::Float k[3] = { dxi(*sim) , dyi(*sim) , dzi(*sim) };
 	const float dti = 1.0/dt;
 
@@ -628,8 +628,8 @@ void ParticleBundleElectrostatic::Push(Species *owner)
 	Simulation *sim = owner->owner;
 	const tw::Float q0 = owner->charge;
 	const tw::Float m0 = owner->restMass;
-	const tw::Float dth = sim->dth;
-	const tw::Float dt = sim->dt;
+	const tw::Float dth = 0.5*timestep(*sim);
+	const tw::Float dt = timestep(*sim);
 	const tw::Float k[3] = { dxi(*sim) , dyi(*sim) , dzi(*sim) };
 	const float dti = 1.0/dt;
 
@@ -681,8 +681,8 @@ void ParticleBundlePGC::Push(Species *owner)
 	Simulation *sim = owner->owner;
 	const tw::Float q0 = owner->charge;
 	const tw::Float m0 = owner->restMass;
-	const tw::Float dth = sim->dth;
-	const tw::Float dt = sim->dt;
+	const tw::Float dth = 0.5*timestep(*sim);
+	const tw::Float dt = timestep(*sim);
 	const tw::Float k[3] = { dxi(*sim) , dyi(*sim) , dzi(*sim) };
 	const float dti = 1.0/dt;
 

@@ -25,6 +25,7 @@ profile: tw3d_profile copy_files
 
 #PLATFORM = OSX
 PLATFORM = LINUX
+#PLATFORM = OPENMPI
 #PLATFORM = CRAY
 #PLATFORM = SGI
 
@@ -148,6 +149,46 @@ ifeq ($(PLATFORM),LINUX)
 	TW_MPI = yes
 endif
 
+ifeq ($(PLATFORM),OPENMPI)
+	TW_Compiler = mpicxx
+	TW_Linker = mpicxx
+	ifeq ($(COMPILER_PREF),LLVM_CLANG)
+		export OMPI_CXX=clang++ -stdlib=libc++
+		LIBS0 = -lc++
+	else
+		# DEFAULT TO GNU
+		export OMPI_CXX=g++
+		LIBS0 = -lstdc++
+	endif
+	ifeq ($(HARDWARE_ACCEL),NONE)
+		RELEASE_FLAGS = -c -std=c++11 -O3 -DUSE_HPC
+		DEBUG_FLAGS = -c -g -std=c++11 -O0 -DUSE_HPC
+		LIB_PATH =
+		LIBS = $(LIBS0) -pthread
+	endif
+	ifeq ($(HARDWARE_ACCEL),OMP)
+		RELEASE_FLAGS = -c -std=c++11 -O3 -march=native -fopenmp -DUSE_HPC -DUSE_OPENMP
+		PROFILE_FLAGS = -c -std=c++11 -O3 -march=native -fopenmp -Rpass-analysis=loop-vectorize -DUSE_HPC -DUSE_OPENMP
+		DEBUG_FLAGS = -c -g -std=c++11 -O0 -fopenmp -DUSE_HPC -DUSE_OPENMP
+		LIB_PATH =
+		LIBS = $(LIBS0) -fopenmp
+	endif
+	ifeq ($(HARDWARE_ACCEL),CUDA)
+		RELEASE_FLAGS = -c -std=c++11 -O3 -DUSE_HPC -DUSE_OPENCL
+		DEBUG_FLAGS = -c -g -std=c++11 -O0 -DUSE_HPC -DUSE_OPENCL
+		LIB_PATH =
+		LIBS = $(LIBS0) -lOpenCL -pthread
+	endif
+	ifeq ($(HARDWARE_ACCEL),RADEON_PRO)
+		RELEASE_FLAGS = -c -std=c++11 -O3 -DUSE_HPC -DUSE_OPENCL
+		DEBUG_FLAGS = -c -g -std=c++11 -O0 -DUSE_HPC -DUSE_OPENCL
+		LIB_PATH =
+		LIBS = $(LIBS0) -lOpenCL -pthread
+	endif
+	BINARY_PATH = ~/bin
+	WORK_PATH = ~/Run
+endif
+
 ifeq ($(PLATFORM),CRAY)
 	ifeq ($(COMPILER_PREF),CRAY)
 		ifeq ($(HARDWARE_ACCEL),NONE)
@@ -192,29 +233,29 @@ endif
 
 ifeq ($(PLATFORM),SGI)
 	ifeq ($(HARDWARE_ACCEL),NONE)
-		TW_Compiler = mpicxx
-		TW_Linker = mpicxx
+		TW_Compiler = icpc
+		TW_Linker = icpc
 		RELEASE_FLAGS = -c -std=c++11 -fast -DUSE_HPC
 		DEBUG_FLAGS = -c -g -std=c++11 -DUSE_HPC
 		LIB_PATH =
-		LIBS = -lmpi
+		LIBS = -lmpi -lmpi++
 	endif
 	ifeq ($(HARDWARE_ACCEL),OMP)
-		TW_Compiler = mpicxx
-		TW_Linker = mpicxx
-		RELEASE_FLAGS = -c -std=c++11 -qopenmp -qopenmp-simd -fast -DUSE_HPC -DUSE_OPENMP
-		DEBUG_FLAGS = -c -g -std=c++11 -qopenmp -qopenmp-simd -DUSE_HPC -DUSE_OPENMP
+		TW_Compiler = icpc
+		TW_Linker = icpc
+		RELEASE_FLAGS = -c -std=c++11 -qopenmp -fast -DUSE_HPC -DUSE_OPENMP
+		DEBUG_FLAGS = -c -g -std=c++11 -qopenmp -DUSE_HPC -DUSE_OPENMP
 		LIB_PATH =
-		LIBS = -lmpi_mt -liomp5 -qopenmp
+		LIBS = -lmpi -lmpi++ -qopenmp
 	endif
 	ifeq ($(HARDWARE_ACCEL),CUDA)
 		CUDA_ROOT = /p/home/apps/cuda/7.5
 		TW_Compiler = icpc
 		TW_Linker = icpc
-		RELEASE_FLAGS = -c -std=c++11 -O3 -finline-functions -I$(CUDA_ROOT)/include -DUSE_HPC -DUSE_OPENCL
-		DEBUG_FLAGS = -c -g -std=c++11 -O0 -I$(CUDA_ROOT)/include -DUSE_HPC -DUSE_OPENCL
+		RELEASE_FLAGS = -c -std=c++11 -fast -I$(CUDA_ROOT)/include -DUSE_HPC -DUSE_OPENCL
+		DEBUG_FLAGS = -c -g -std=c++11 -I$(CUDA_ROOT)/include -DUSE_HPC -DUSE_OPENCL
 		LIB_PATH = -L$(CUDA_ROOT)/lib64
-		LIBS = -lmpi -lOpenCL
+		LIBS = -lmpi -lmpi++ -lOpenCL
 	endif
 endif
 

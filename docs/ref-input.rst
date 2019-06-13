@@ -4,25 +4,60 @@ Input File: Base
 General Rules
 --------------
 
-1.	Comments may be in C or C++ style
-2.	Case matters
-3.	Names assigned to objects must not contain white space, or any of the characters :samp:`/={}(),%`
-4.	Any uninterrupted sequence of white space is equivalent to any other (same as in C)
-5.	Parenthesis or commas may be freely exchanged with any white space character
+#.	Comments may be in C or C++ style
+#.	Case matters
+#.	Names assigned to objects must not contain white space, or any of the characters :samp:`/={}()`
+#.  Any word starting with the :samp:`%` character triggers a macro substitution (see :ref:`preprocessor`)
+#.	Any uninterrupted sequence of white space is equivalent to any other (same as in C)
+#.	Parenthesis or commas may be freely exchanged with any white space character
 
 	* :samp:`( 1 , 2 , 3 )` is the same as :samp:`1 2 3`
 	* Do not confuse parenthesis with curly braces, cf. :samp:`()` and :samp:`{}`
 
-6.	Spaces around an equals sign or curly braces may be omitted
+#.	Spaces around an equals sign or curly braces may be omitted
 
  	* :samp:`x=1` is the same as :samp:`x = 1`
 
-7.	All boolean variables can be set to an affirmative value using either :samp:`true`, :samp:`yes`, or :samp:`on`, any other input resolves to a negative value
-8.	Variable length lists are enclosed by curly braces
+#.	All boolean variables can be set to an affirmative value using either :samp:`true`, :samp:`yes`, or :samp:`on`, any other input resolves to a negative value
+#.	Variable length lists are enclosed by curly braces
 
 	* ``{ 0 , 1 , 2 , 3 }`` is a list that can have any number of elements
 
-9.	The % character is reserved for unit conversion macros. The format is :samp:`%{n}{u}`, where :samp:`{n}` is a number and :samp:`{u}` is a string identifying the units.  An example is :samp:`%10ps`, which means 10 picoseconds. No spaces may appear in the macro.  Supported units and identifier string are:
+.. _preprocessor:
+
+Input Preprocessor
+------------------
+
+The turboWAVE input file is run through a preprocessor.  The features provided are as follows.
+
+File Substitution
+,,,,,,,,,,,,,,,,,
+
+While preprocessing the input file, the contents of another file can be inserted.  The format is similar to that used by the C preprocessor.  For example,
+
+.. code-block:: c
+
+	#include myfile.tw3d
+
+would substitute the contents of ``myfile.tw3d`` at the point in the file where the ``#include`` directive appears.  This can be done recursively. The ``#include`` directive may appear anywhere in the input file, except where it would interrupt another directive.
+
+User Defined Macros
+,,,,,,,,,,,,,,,,,,,
+
+The effect of user variables can be achieved via macro substitution.  The format is the same as that used by the C preprocessor.  For example,
+
+.. code-block:: c
+
+	#define $r0 2.5
+
+causes every subsequent occurrence of ``$r0`` to be replaced with ``2.5``.  The use of the ``$`` prefix is optional, but highly recommended, as it helps prevent unintended substitutions, and improves readability.
+
+User macros can be defined at any point in an input file, except where they would interrupt another directive. Attempting to redefine a macro throws an error.
+
+Unit Conversion
+,,,,,,,,,,,,,,,
+
+There are several pre-defined macros for unit conversion.  These are triggered by the ``%`` character. The format is :samp:`%{n}{u}`, where :samp:`{n}` is a number and :samp:`{u}` is a string identifying the units.  An example is :samp:`%10ps`, which means 10 picoseconds. No spaces may appear in the macro.  Supported units and identifier string are:
 
 	* micrometers = um
 	* millimeters = mm
@@ -40,17 +75,23 @@ General Rules
 	* electron volts = eV
 	* Kelvin = K
 
+Preprocessor Order
+,,,,,,,,,,,,,,,,,,
+
+The order of preprocessor operations is as follows:
+
+	#. Strip comments and decorative characters
+	#. Recursive file substitution
+
+		* Comments and decorative characters are stripped at each level
+
+	#. Process predefined macros
+	#. Process user defined macros
 
 Top Level Directives
 --------------------
 
 Top level directives tend to come first in an input file.  They are not contained in any other block or structure.
-
-.. py:function:: include file
-
-	include a file, cannot be done recursively at present.
-
-	:param str file: Name of the file to include
 
 .. py:function:: hardware acceleration device string = dev
 

@@ -50,6 +50,9 @@ Compile turboWAVE
 #. Open a terminal window and navigate to :samp:`{twroot}/core/source`
 #. Type :samp:`scl enable devtoolset-7 'make'`
 #. The makefile should automatically copy the executable into your :samp:`~/bin` directory for later use.  OpenCL kernel files may also be copied into :samp:`~/Run`, but these will not be used.
-#. If you use :samp:`vim`, you may want to copy :samp:`{twroot}/tools/config-files/filetype.vim` to :samp:`~/.vim`.  This will enable syntax highlighting while editing turboWAVE input files.
+#. To enable turboWAVE input file syntax highlights with the :samp:`vim` editor
+
+	* Copy :samp:`{twroot}/tools/config-files/filetype.vim` to :samp:`~/.vim/`
+	* Copy :samp:`{twroot}/tools/config-files/tw3d.vim` to :samp:`~/.vim/syntax/`
 
 If you want to enable the developer toolset for the duration of a session, start a new shell using :samp:`scl enable devtoolset-7 'bash'`

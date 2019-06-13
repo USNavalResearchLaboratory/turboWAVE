@@ -76,63 +76,128 @@ void ReduceInputFile(std::ifstream& inFile,std::stringstream& out)
 	}
 }
 
+tw::Int IncludeFiles(std::stringstream& in,std::stringstream& out)
+{
+	tw::Int count = 0;
+	std::ifstream *includedFile;
+	std::string word;
+	while (!in.eof())
+	{
+		in >> word;
+		if (!in.eof())
+		{
+			if (word=="#include")
+			{
+				in >> word;
+				includedFile = new std::ifstream(word.c_str());
+				if (includedFile->rdstate() & std::ios::failbit)
+					throw tw::FatalError("couldn't open " + word);
+				ReduceInputFile(*includedFile,out);
+				delete includedFile;
+				count++;
+			}
+			else
+			{
+				out << word << " ";
+			}
+		}
+	}
+	return count;
+}
+
 void PreprocessInputFile(std::ifstream& inFile,std::stringstream& out)
 {
-	// This routine erroneously adds closing braces to the end of "out".
-	// This does not corrupt subsequent parsing, however.
-	std::ifstream *includedFile;
-	std::stringstream stage1,stage2,stage3;
+	std::stringstream temp;
 	std::string word;
 	tw::Float unitDensityCGS;
 
-	// Handle included files, strip comments, clean whitespace
-	ReduceInputFile(inFile,stage1);
-	stage1.seekg(0);
-	while (!stage1.eof())
+	auto reset_read = [&] (std::stringstream& ss)
 	{
-		stage1 >> word;
-		if (word=="include")
-		{
-			stage1 >> word;
-			includedFile = new std::ifstream(word.c_str());
-			if (includedFile->rdstate() & std::ios::failbit)
-				throw tw::FatalError("couldn't open " + word);
-			ReduceInputFile(*includedFile,stage2);
-			delete includedFile;
-		}
-		else
-		{
-			stage2 << word << " ";
-		}
+		ss.seekg(0,ss.beg);
+		ss.clear();
+	};
+
+	auto reset_write = [&] (std::stringstream& ss)
+	{
+		ss.str("");
+		ss.seekp(0,ss.beg);
+		ss.clear();
+	};
+
+	auto setup_read = [&] (std::stringstream& ss,const std::string& s)
+	{
+		ss.str(s);
+		ss.seekg(0,ss.beg);
+		ss.clear();
+	};
+
+	// Handle included files, strip comments, clean whitespace
+	ReduceInputFile(inFile,temp);
+	reset_read(temp);
+	while (IncludeFiles(temp,out))
+	{
+		setup_read(temp,out.str());
+		reset_write(out);
 	}
 
 	// Set up the unit converter
-	stage2.seekg(0);
-	while (!stage2.eof())
+	setup_read(temp,out.str());
+	while (!temp.eof())
 	{
-		stage2 >> word;
-		stage3 << word << " ";
+		temp >> word;
 		if (word=="unit")
 		{
-			stage2 >> word;
-			stage3 << word << " ";
+			temp >> word;
 			if (word=="density")
-			{
-				stage2 >> word >> unitDensityCGS;
-				stage3 << " = " << unitDensityCGS << " ";
-			}
+				temp >> word >> unitDensityCGS;
 		}
 	}
 	UnitConverter uc(unitDensityCGS);
 
 	// Unit conversion macro substitution
-	stage3.seekg(0);
-	while (!stage3.eof())
+	setup_read(temp,out.str());
+	reset_write(out);
+	while (!temp.eof())
 	{
-		stage3 >> word;
-		if (word[0]=='%')
-			tw::input::NormalizeInput(uc,word);
-		out << word << " ";
+		temp >> word;
+		if (!temp.eof())
+		{
+			if (word[0]=='%')
+				tw::input::NormalizeInput(uc,word);
+			out << word << " ";
+		}
+	}
+
+	// C style macro substitution
+	setup_read(temp,out.str());
+	reset_write(out);
+	std::map<std::string,std::string> macros;
+	std::map<std::string,std::string>::iterator it;
+	std::string key,val;
+	while (!temp.eof())
+	{
+		temp >> word;
+		if (!temp.eof())
+		{
+			if (word=="#define")
+			{
+				temp >> key >> val;
+				it = macros.find(key);
+				if (it==macros.end())
+					macros[key] = val;
+				else
+					throw tw::FatalError("Macro "+key+" was already used.");
+			}
+			else
+			{
+				it = macros.find(word);
+				if (it==macros.end())
+					out << word << " ";
+				else
+					out << macros[word] << " ";
+
+			}
+		}
 	}
 }
 
@@ -270,8 +335,7 @@ Simulation::Simulation()
 	gridGeometry = cartesian;
 
 	dt0 = 0.1;
-	dt = 0.1;
-	dth = 0.05;
+	SetupTimeInfo(dt0);
 	dtMin = tw::small_pos;
 	dtMax = tw::big_pos;
 	elapsedTime = 0.0;
@@ -794,20 +858,6 @@ bool Simulation::RemoveTool(ComputeTool *theTool)
 		return true;
 	}
 	return false;
-}
-
-void Simulation::SetupTimeInfo(tw::Float dt)
-{
-	this->dt = dt;
-	dth = 0.5*dt;
-
-	tw::Int i;
-	for (i=0;i<module.size();i++)
-	{
-		module[i]->dt = dt;
-		module[i]->dth = dth;
-		module[i]->dti = 1.0/dt;
-	}
 }
 
 void Simulation::MoveWindow()
@@ -1383,7 +1433,7 @@ void Simulation::GridFromInputFile()
 		{
 			inputString >> word;
 			inputString >> dt0;
-			SetupTimeInfo(dt0);
+			UpdateTimestep(dt0);
 			(*tw_out) << "Timestep = " << dt << std::endl;
 		}
 

@@ -229,6 +229,7 @@ struct Species:Module
 	Field *qo_j4; // 4-current from quantum optics modules
 
 	Species(const std::string& name,Simulation* sim);
+	virtual ~Species();
 	virtual bool InspectResource(void* resource,const std::string& description);
 	virtual void Initialize();
 	void AddParticle(const tw::vec3& p,const Primitive& q,const float& number);

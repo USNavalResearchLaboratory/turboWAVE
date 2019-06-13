@@ -43,8 +43,7 @@ void tw::input::ReadArray(std::valarray<T>& theArray,std::stringstream& inputStr
 			temp.push_back(std::stod(word,NULL));
 	} while (word!="}");
 
-	tw::Int i;
 	theArray.resize(temp.size());
-	for (i=0;i<temp.size();i++)
+	for (tw::Int i=0;i<temp.size();i++)
 		theArray[i] = temp[i];
 }

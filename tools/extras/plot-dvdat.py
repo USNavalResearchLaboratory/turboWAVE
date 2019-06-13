@@ -1,7 +1,7 @@
 import sys
 import glob
 import os
-import subprocess
+import PIL.Image
 import numpy as np
 import matplotlib as mpl
 import matplotlib.pyplot as plt
@@ -15,7 +15,7 @@ from scipy import constants as C
 if len(sys.argv)<3:
 	print('Usage: python plot-dvdat.py slicing=slices/... file1,... [panels=a,b,...] [mult=1.0,1.0,1.0/...]')
 	print('    [range=low,high/...] [layout=2x2] [dr=0.0,...] [color=viridis,...] [roi=h0,h1,v0,v1/...]')
-	print('    [labels=hlab,vlab,clab/...]')
+	print('    [[tex]labels=hlab,vlab,clab/...]')
 	print('------------------Examples----------------')
 	print('2D plot: python plot-dvdat.py zxyt=0,0 rho.dvdat')
 	print('1D plot: python plot-dvdat.py xyzt=0,0,0 Ex.dvdat')
@@ -39,10 +39,11 @@ if len(sys.argv)<3:
 	print('   Color maps may be inverted by adding "_r" to the name')
 	print('   Note any Matplotlib color maps can be used.')
 	print('roi: select a subdomain to plot, otherwise the full domain is plotted.')
-	print('labels: labels for axes and colorbar.')
+	print('[tex]labels: labels for axes and colorbar.')
+	print('   Including prefix tex causes each string to be automatically enclosed in $ tokens')
 	print('   Some characters require special treatment if you want to use them in a label.')
 	print('   Enter SPACE,COMMA,SEMICOLON,or SLASH to get the corresponding character.')
-	print('   Other characters may be intercepted by the shell, enclosing in quotes might help.')
+	print('   Depending on shell, various characters may need to be escaped (KNOW YOUR SHELL).')
 	print('----------------------Animations----------------------')
 	print('Put a python range as one of the slices to generate animated GIF.')
 	print('For example, zxyt=0,0,2:5 would animate time slices 2,3,4.')
@@ -154,8 +155,9 @@ roi = []
 val_range = []
 mult = []
 labels=[]
+texlabels=[]
 ask = 'yes'
-keylist = ['panels','layout','dr','color','roi','range','mult','labels']
+keylist = ['panels','layout','dr','color','roi','range','mult','labels','texlabels']
 for keyval in sys.argv[3:]:
 	key = keyval.split('=')[0]
 	arg = keyval.split('=')[1]
@@ -179,6 +181,8 @@ for keyval in sys.argv[3:]:
 		mult = arg.split('/')
 	if key=='labels':
 		labels = arg.split('/')
+	if key=='texlabels':
+		texlabels = arg.split('/')
 
 for i in range(N-len(slicing_spec)):
 	slicing_spec.append(slicing_spec[-1])
@@ -197,6 +201,8 @@ for i in range(N-len(mult)):
 	mult.append('1.0,1.0,1.0')
 for i in range(N-len(labels)):
 	labels.append('')
+for i in range(N-len(texlabels)):
+	texlabels.append('')
 
 plotter = []
 for i,f in enumerate(file_to_plot):
@@ -294,7 +300,11 @@ for file_idx in range(len(slice_tuples[0])):
 				plt.xlabel(format_label(labels[i].split(',')[0]),size=12)
 				plt.ylabel(format_label(labels[i].split(',')[1]),size=12)
 				b.set_label(format_label(labels[i].split(',')[2]),size=12)
-			else:
+			if not texlabels[i]=='':
+				plt.xlabel(format_label(r'$'+texlabels[i].split(',')[0]+r'$'),size=12)
+				plt.ylabel(format_label(r'$'+texlabels[i].split(',')[1]+r'$'),size=12)
+				b.set_label(format_label(r'$'+texlabels[i].split(',')[2]+r'$'),size=12)
+			if labels[i]=='' and texlabels[i]=='':
 				plt.xlabel(lab_dict[plot_dict['xlabel']],size=12)
 				plt.ylabel(lab_dict[plot_dict['ylabel']],size=12)
 			if roi[i]=='':
@@ -313,7 +323,10 @@ for file_idx in range(len(slice_tuples[0])):
 			if not labels[i]=='':
 				plt.xlabel(format_label(labels[i].split(',')[0]),size=12)
 				plt.ylabel(format_label(labels[i].split(',')[1]),size=12)
-			else:
+			if not texlabels[i]=='':
+				plt.xlabel(format_label(r'$'+texlabels[i].split(',')[0]+r'$'),size=12)
+				plt.ylabel(format_label(r'$'+texlabels[i].split(',')[1]+r'$'),size=12)
+			if labels[i]=='' and texlabels[i]=='':
 				plt.xlabel(lab_dict[plot_dict['xlabel']],size=12)
 			if roi[i]=='':
 				roi_i = [abcissa[0],abcissa[-1],global_min[i],global_max[i]]
@@ -334,16 +347,14 @@ for file_idx in range(len(slice_tuples[0])):
 		plt.close()
 
 if movie[0]:
-	try:
-		print('Consolidating into movie file...')
-		result = subprocess.run(['convert','-delay','30','frame*.png','mov.gif'])
-		if result.stdout[:7]=='Invalid':
-			print('Looks like Windows built in convert.exe is interfering.')
-		else:
-			cleanup('frame*.png')
-		print('Done.')
-	except:
-		print('Could not run ImageMagick convert. Leaving the images.')
-		print('The command is: convert -delay 30 frame*.png mov.gif')
+	print('Consolidating into movie file...')
+	images = []
+	frameRateHz = 5
+	img_files = sorted(glob.glob('frame*.png'))
+	for f in img_files:
+		images.append(PIL.Image.open(f))
+	images[0].save('mov.gif',save_all=True,append_images=images[1:],duration=int(1000/frameRateHz),loop=0)
+	cleanup('frame*.png')
+	print('Done.')
 else:
 	plt.show()

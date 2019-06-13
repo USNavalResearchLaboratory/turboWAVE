@@ -1,6 +1,7 @@
+import os
 import sys
 import glob
-import subprocess
+import PIL.Image
 import numpy as np
 from mayavi import mlab
 import twutils.plot as twplot
@@ -9,15 +10,6 @@ import twutils.plot as twplot
 # To install mayavi into a conda environment use pip:
 # execute: pip install mayavi
 # As of this writing do NOT use conda for installing mayavi (but you can operate in a conda environment).
-
-# To create animation:
-# Install ImageMagick suite if not already installed (e.g., sudo apt install ImageMagick)
-# Give one slice index as x, this will make a sequence of image files varying that slice.
-
-# To create subset of the animation, do the above and then from the command line (e.g.):
-# convert -delay 20 test.gif'[4-6]' sub.gif
-# To extend the last frame by one frame (can be repeated, effectively pauses on the last frame)
-# convert -delay 20 test.gif test.gif[-1] test.gif
 
 if len(sys.argv)<3:
 	print('Usage: maya-dvdat.py [slicing=slices] [file] [type=1] [dr=0.0] [ask=yes]')
@@ -107,7 +99,7 @@ if len(img_files)>0 and ask=='yes':
 		exit(1)
 
 for img_file in img_files:
-	subprocess.run(['rm',img_file])
+	os.remove(img_file)
 
 # Make Plots
 
@@ -188,15 +180,17 @@ if num_slice_axes==1:
 
 # Produce animation
 
-try:
-	img_files = glob.glob('tempfile*.png')
-	if len(img_files)>1:
-		subprocess.run(['convert','-delay','20','tempfile*.png','tempfile.gif'])
-		for img_file in img_files:
-			subprocess.run(['rm',img_file])
-except OSError:
-	print('WARNING: Failed to create animated GIF, is ImageMagick "convert" installed?')
-	print('INFO: We will leave image sequence in directory.')
+img_files = sorted(glob.glob('tempfile*.png'))
+frameRateHz = 5
+if len(img_files)>1:
+	print('Consolidating into movie file...')
+	images = []
+	for f in img_files:
+		images.append(PIL.Image.open(f))
+	images[0].save('mov.gif',save_all=True,append_images=images[1:],duration=int(1000/frameRateHz),loop=0)
+	for img_file in img_files:
+		os.remove(img_file)
+	print('Done.')
 
 print('Processing complete...to quit close Maya window.')
 mlab.show()

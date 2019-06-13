@@ -181,6 +181,7 @@ int MPI_Cart_sub(MPI_Comm oldComm,int *remain_dims,MPI_Comm *newComm)
 
 	*newComm = (MPI_Comm)malloc(sizeof(MPI_Comm_object));
 	(*newComm)->wstride[0] = oldComm->wstride[0];
+	(*newComm)->stride[0] = 0;
 	for (i=1;i<=oldComm->dims;i++)
 	{
 		if (remain_dims[i-1])
@@ -190,6 +191,10 @@ int MPI_Cart_sub(MPI_Comm oldComm,int *remain_dims,MPI_Comm *newComm)
 			(*newComm)->domains[d] = oldComm->domains[i];
 			(*newComm)->wstride[d] = oldComm->wstride[i];
 			new_coords[d] = old_coords[i];
+			if (d==1)
+				(*newComm)->stride[d] = 1;
+			else
+				(*newComm)->stride[d] = (*newComm)->stride[d-1] * (*newComm)->domains[d-1];
 		}
 		else
 		{
@@ -198,11 +203,6 @@ int MPI_Cart_sub(MPI_Comm oldComm,int *remain_dims,MPI_Comm *newComm)
 	}
 	(*newComm)->dims = d;
 	(*newComm)->threadRef = oldComm->threadRef;
-
-	(*newComm)->stride[0] = 0;
-	(*newComm)->stride[1] = 1;
-	(*newComm)->stride[2] = (*newComm)->domains[1];
-	(*newComm)->stride[3] = (*newComm)->domains[1]*(*newComm)->domains[2];
 
 	(*newComm)->wrank = oldComm->wrank;
 	MPI_Cart_rank(*newComm,&new_coords[1],&(*newComm)->rank);

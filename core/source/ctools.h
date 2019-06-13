@@ -205,138 +205,138 @@ struct GaussianDeviate
 	}
 };
 
-namespace tw
-{
-	template <class T>
-	class valarray
-	{
-		std::size_t num;
-		T* xbuff;
-		T* data;
-
-		public:
-		valarray()
-		{
-			num = 0;
-			xbuff = NULL;
-			data = NULL;
-		}
-		valarray(std::size_t n)
-		{
-			num = n;
-			xbuff = (T*)std::malloc(num*sizeof(T));
-			data = xbuff;
-		}
-		valarray(tw::Int AB,std::size_t n)
-		{
-			// Dangerous? see notes on resize below.
-			num = n;
-			std::size_t ext_bytes = num*sizeof(T)+AB;
-			const std::size_t req_bytes = num*sizeof(T);
-			xbuff = (T*)std::malloc(ext_bytes);
-			void* temp = (void*)xbuff;
-			data = (T*)std::align(AB,req_bytes,temp,ext_bytes);
-		}
-		~valarray()
-		{
-			if (xbuff!=NULL)
-				std::free(xbuff);
-		}
-		void resize(std::size_t n)
-		{
-			if (xbuff!=NULL)
-				std::free(xbuff);
-			num = n;
-			xbuff = (T*)std::malloc(num*sizeof(T));
-			data = xbuff;
-		}
-		void resize(tw::Int AB,std::size_t n)
-		{
-			// Dangerous way to do this.
-			// std::valarray.resize can be called the same way with
-			// different interpretation of arguments.
-			if (xbuff!=NULL)
-				std::free(xbuff);
-			num = n;
-			std::size_t ext_bytes = num*sizeof(T)+AB;
-			const std::size_t req_bytes = num*sizeof(T);
-			xbuff = (T*)std::malloc(ext_bytes);
-			void* temp = (void*)xbuff;
-			data = (T*)std::align(AB,req_bytes,temp,ext_bytes);
-		}
-		std::size_t size() const
-		{
-			return num;
-		}
-		T& operator [] (const tw::Int& x)
-		{
-			return data[x];
-		}
-		T operator [] (const tw::Int& x) const
-		{
-			return data[x];
-		}
-		tw::valarray<T>& operator = (const tw::valarray<T>& A)
-		{
-			if (num!=A.size())
-				resize(A.size());
-			for (tw::Int i=0;i<num;i++)
-				data[i] = A[i];
-			return *this;
-		}
-		tw::valarray<T>& operator += (const tw::valarray<T>& A)
-		{
-			for (tw::Int i=0;i<num;i++)
-				data[i] += A[i];
-			return *this;
-		}
-		tw::valarray<T>& operator -= (const tw::valarray<T>& A)
-		{
-			for (tw::Int i=0;i<num;i++)
-				data[i] -= A[i];
-			return *this;
-		}
-		tw::valarray<T>& operator *= (const tw::valarray<T>& A)
-		{
-			for (tw::Int i=0;i<num;i++)
-				data[i] *= A[i];
-			return *this;
-		}
-		tw::valarray<T>& operator /= (const tw::valarray<T>& A)
-		{
-			for (tw::Int i=0;i<num;i++)
-				data[i] /= A[i];
-			return *this;
-		}
-		tw::valarray<T>& operator = (const T& A)
-		{
-			for (tw::Int i=0;i<num;i++)
-				data[i] = A;
-			return *this;
-		}
-		tw::valarray<T>& operator += (const T& A)
-		{
-			for (tw::Int i=0;i<num;i++)
-				data[i] += A;
-			return *this;
-		}
-		tw::valarray<T>& operator -= (const T& A)
-		{
-			for (tw::Int i=0;i<num;i++)
-				data[i] -= A;
-			return *this;
-		}
-		tw::valarray<T>& operator *= (const T& A)
-		{
-			for (tw::Int i=0;i<num;i++)
-				data[i] *= A;
-			return *this;
-		}
-		tw::valarray<T>& operator /= (const T& A)
-		{
-			for (tw::Int i=0;i<num;i++)
-				data[i] /= A;
-			return *this;
-		}
-	};
-}
+// namespace tw
+// {
+// 	template <class T>
+// 	class valarray
+// 	{
+// 		std::size_t num;
+// 		T* xbuff;
+// 		T* data;
+//
+// 		public:
+// 		valarray()
+// 		{
+// 			num = 0;
+// 			xbuff = NULL;
+// 			data = NULL;
+// 		}
+// 		valarray(std::size_t n)
+// 		{
+// 			num = n;
+// 			xbuff = (T*)std::malloc(num*sizeof(T));
+// 			data = xbuff;
+// 		}
+// 		valarray(tw::Int AB,std::size_t n)
+// 		{
+// 			// Dangerous? see notes on resize below.
+// 			num = n;
+// 			std::size_t ext_bytes = num*sizeof(T)+AB;
+// 			const std::size_t req_bytes = num*sizeof(T);
+// 			xbuff = (T*)std::malloc(ext_bytes);
+// 			void* temp = (void*)xbuff;
+// 			data = (T*)std::align(AB,req_bytes,temp,ext_bytes);
+// 		}
+// 		~valarray()
+// 		{
+// 			if (xbuff!=NULL)
+// 				std::free(xbuff);
+// 		}
+// 		void resize(std::size_t n)
+// 		{
+// 			if (xbuff!=NULL)
+// 				std::free(xbuff);
+// 			num = n;
+// 			xbuff = (T*)std::malloc(num*sizeof(T));
+// 			data = xbuff;
+// 		}
+// 		void resize(tw::Int AB,std::size_t n)
+// 		{
+// 			// Dangerous way to do this.
+// 			// std::valarray.resize can be called the same way with
+// 			// different interpretation of arguments.
+// 			if (xbuff!=NULL)
+// 				std::free(xbuff);
+// 			num = n;
+// 			std::size_t ext_bytes = num*sizeof(T)+AB;
+// 			const std::size_t req_bytes = num*sizeof(T);
+// 			xbuff = (T*)std::malloc(ext_bytes);
+// 			void* temp = (void*)xbuff;
+// 			data = (T*)std::align(AB,req_bytes,temp,ext_bytes);
+// 		}
+// 		std::size_t size() const
+// 		{
+// 			return num;
+// 		}
+// 		T& operator [] (const tw::Int& x)
+// 		{
+// 			return data[x];
+// 		}
+// 		T operator [] (const tw::Int& x) const
+// 		{
+// 			return data[x];
+// 		}
+// 		tw::valarray<T>& operator = (const tw::valarray<T>& A)
+// 		{
+// 			if (num!=A.size())
+// 				resize(A.size());
+// 			for (tw::Int i=0;i<num;i++)
+// 				data[i] = A[i];
+// 			return *this;
+// 		}
+// 		tw::valarray<T>& operator += (const tw::valarray<T>& A)
+// 		{
+// 			for (tw::Int i=0;i<num;i++)
+// 				data[i] += A[i];
+// 			return *this;
+// 		}
+// 		tw::valarray<T>& operator -= (const tw::valarray<T>& A)
+// 		{
+// 			for (tw::Int i=0;i<num;i++)
+// 				data[i] -= A[i];
+// 			return *this;
+// 		}
+// 		tw::valarray<T>& operator *= (const tw::valarray<T>& A)
+// 		{
+// 			for (tw::Int i=0;i<num;i++)
+// 				data[i] *= A[i];
+// 			return *this;
+// 		}
+// 		tw::valarray<T>& operator /= (const tw::valarray<T>& A)
+// 		{
+// 			for (tw::Int i=0;i<num;i++)
+// 				data[i] /= A[i];
+// 			return *this;
+// 		}
+// 		tw::valarray<T>& operator = (const T& A)
+// 		{
+// 			for (tw::Int i=0;i<num;i++)
+// 				data[i] = A;
+// 			return *this;
+// 		}
+// 		tw::valarray<T>& operator += (const T& A)
+// 		{
+// 			for (tw::Int i=0;i<num;i++)
+// 				data[i] += A;
+// 			return *this;
+// 		}
+// 		tw::valarray<T>& operator -= (const T& A)
+// 		{
+// 			for (tw::Int i=0;i<num;i++)
+// 				data[i] -= A;
+// 			return *this;
+// 		}
+// 		tw::valarray<T>& operator *= (const T& A)
+// 		{
+// 			for (tw::Int i=0;i<num;i++)
+// 				data[i] *= A;
+// 			return *this;
+// 		}
+// 		tw::valarray<T>& operator /= (const T& A)
+// 		{
+// 			for (tw::Int i=0;i<num;i++)
+// 				data[i] /= A;
+// 			return *this;
+// 		}
+// 	};
+// }

@@ -23,7 +23,7 @@ struct Simulation;
 #include "module.h"
 
 void ReduceInputFile(std::ifstream& inputFile,std::stringstream& out);
-
+tw::Int IncludeFiles(std::stringstream& in,std::stringstream& out);
 void PreprocessInputFile(std::ifstream& inputFile,std::stringstream& out);
 
 struct NonUniformRegion
@@ -44,7 +44,7 @@ struct Simulation:Task,MetricSpace
 	tw::Float radialProgressionFactor;
 
 	tw_geometry gridGeometry;
-	tw::Float dt0,dt,dth,dtMin,dtMax,elapsedTime,elapsedTimeMax;
+	tw::Float dt0,dtMin,dtMax,elapsedTime,elapsedTimeMax;
 	tw::Float signalPosition,windowPosition,signalSpeed;
 	tw::Float antiSignalPosition,antiWindowPosition;
 	tw::Float unitDensityCGS;
@@ -94,9 +94,7 @@ struct Simulation:Task,MetricSpace
 	void GetGlobalBoxDataIndexing(GridDataDescriptor* theBox,tw::Int pts[4],tw::Int glob[6],tw::Int skip[4]);
 	void GetLocalBoxDataIndexing(GridDataDescriptor* theBox,const tw::Int pts[4],const tw::Int glob[6],const tw::Int skip[4],tw::Int loc[6],const tw::Int coords[4]);
 	void WriteBoxDataHeader(const std::string& quantity,GridDataDescriptor* theBox);
-	void WriteMomentumDataHeader(const std::string& quantity,GridDataDescriptor* theBox);
 	void WriteBoxData(const std::string& quantity,GridDataDescriptor* theBox,tw::Float* theData,const tw::Int *stride);
-	void WriteMomentumData(const std::string& quantity,GridDataDescriptor* theBox,tw::Float* theData,const tw::Int *stride);
 	void WriteCellDataHeader(GridDataDescriptor* theBox);
 	void WriteCellData(GridDataDescriptor* theBox);
 
@@ -155,8 +153,13 @@ struct Simulation:Task,MetricSpace
 	}
 	#endif
 
-	void SetupTimeInfo(tw::Float dt);
-
+	void UpdateTimestep(tw::Float dt0)
+	{
+		SetupTimeInfo(dt0);
+		for (auto m : module)
+			m->SetupTimeInfo(dt0);
+	}
+	
 	bool IsFirstStep()
 	{
 		return stepNow == 1;

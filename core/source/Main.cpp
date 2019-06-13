@@ -144,7 +144,7 @@ int main(int argc,char *argv[])
 
 			if (arg=="--version")
 			{
-				std::cout << "turboWAVE version 3.3" << std::endl;
+				std::cout << "turboWAVE version 3.4a" << std::endl;
 				if (argc==2)
 					exit(0);
 			}

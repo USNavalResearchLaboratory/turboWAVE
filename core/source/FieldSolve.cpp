@@ -58,7 +58,7 @@ void FieldSolver::WriteData(std::ofstream& outFile)
 
 Electromagnetic::Electromagnetic(const std::string& name,Simulation* sim):FieldSolver(name,sim)
 {
-	if (1.0/sim->dt <= sqrt(
+	if (1.0/dt <= sqrt(
 		(sim->globalCells[1]==1 ? 0.0 : 1.0)/sqr(dx(*sim)) +
 		(sim->globalCells[2]==1 ? 0.0 : 1.0)/sqr(dy(*sim)) +
 		(sim->globalCells[3]==1 ? 0.0 : 1.0)/sqr(dz(*sim))))
@@ -489,7 +489,7 @@ void Electromagnetic::CustomDiagnose()
 
 	for (s=0;s<farFieldDetector.size();s++)
 	{
-		if (farFieldDetector[s]->WriteThisStep(owner->elapsedTime,owner->dt,owner->stepNow))
+		if (farFieldDetector[s]->WriteThisStep(owner->elapsedTime,dt,owner->stepNow))
 			farFieldDetector[s]->AccumulateField(owner->elapsedTime,sources);
 	}
 
@@ -506,7 +506,7 @@ void Electromagnetic::CustomDiagnose()
 			det = farFieldDetector[s];
 			dtheta = (det->theta1-det->theta0)/tw::Float(det->thetaPts);
 			dphi = (det->phi1-det->phi0)/tw::Float(det->phiPts);
-			DiscreteSpace ff_layout(owner->dt,det->timePts,det->thetaPts,det->phiPts,tw::vec3(0.0,0.0,0.0),tw::vec3(det->t1-det->t0,det->theta1-det->theta0,det->phi1-det->phi0),1);
+			DiscreteSpace ff_layout(dt,det->timePts,det->thetaPts,det->phiPts,tw::vec3(0.0,0.0,0.0),tw::vec3(det->t1-det->t0,det->theta1-det->theta0,det->phi1-det->phi0),1);
 			accum.Initialize(ff_layout,owner);
 			owner->strip[0].Sum(&det->A(0,0,0),&accum(0,0,0),sizeof(tw::vec3)*accum.TotalCells(),master);
 

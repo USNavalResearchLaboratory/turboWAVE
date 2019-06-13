@@ -19,14 +19,19 @@ namespace tw
 		{
 			comm_cart = MPI_COMM_WORLD;
 			sendToSelfData = NULL;
-			if (sizeof(tw::Float)==4)
+			if (sizeof(tw::Float)==sizeof(float))
 				tw_float_type = MPI_FLOAT;
-			else
+			if (sizeof(tw::Float)==sizeof(double))
 				tw_float_type = MPI_DOUBLE;
-			if (sizeof(tw::Int)==4)
+			tw_int_type = MPI_SHORT;
+			if (sizeof(tw::Int)==sizeof(int))
+				tw_int_type = MPI_INT;
+			if (sizeof(tw::Int)==sizeof(long))
 				tw_int_type = MPI_LONG;
-			else
+			if (sizeof(tw::Int)==sizeof(long long))
 				tw_int_type = MPI_LONG_LONG_INT;
+			if (tw_int_type==MPI_SHORT)
+				throw tw::FatalError("Unsupported tw::Int type.");
 		}
 		~comm()
 		{

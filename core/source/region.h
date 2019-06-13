@@ -52,11 +52,10 @@ struct Region
 		*low = center[ax-1] - rbox[ax-1];
 		*high = center[ax-1] + rbox[ax-1];
 	}
-	void GetGlobalCellBounds(tw::Int *x0,tw::Int *x1,tw::Int *y0,tw::Int *y1,tw::Int *z0,tw::Int *z1) const
+	void GetGlobalCellBounds(tw::Int g[6]) const
 	{
-		*x0 = globalBounds[0]; *x1 = globalBounds[1];
-		*y0 = globalBounds[2]; *y1 = globalBounds[3];
-		*z0 = globalBounds[4]; *z1 = globalBounds[5];
+		for (tw::Int i=0;i<6;i++)
+			g[i] = globalBounds[i];
 	}
 	void GetLocalCellBounds(tw::Int *x0,tw::Int *x1,tw::Int *y0,tw::Int *y1,tw::Int *z0,tw::Int *z1) const
 	{

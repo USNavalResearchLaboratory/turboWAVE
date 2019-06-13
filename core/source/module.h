@@ -10,7 +10,6 @@ namespace tw
 
 struct Module:DiscreteSpace
 {
-	tw::Float dt,dth,dti;
 	std::string name;
 	std::vector<Profile*> profile;
 	Simulation* owner;

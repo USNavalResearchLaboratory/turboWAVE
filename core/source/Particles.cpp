@@ -260,7 +260,7 @@ void Kinetics::Ionize()
 				species[s]->EM->Interpolate(temp,Element(0,2),weights);
 				E.x = temp[0]; E.y = temp[1]; E.z = temp[2];
 				instant += Magnitude(E);
-				probability = ionization.Rate(instant,peak)*owner->dt;
+				probability = ionization.Rate(instant,peak)*dt;
 				gamma = sqrt(1.0 + Norm(curr.p)/(m0*m0) + 0.5*sqr(q0)*a2/(m0*m0));
 				// Starting velocity is that of the neutral
 				vel = curr.p/(gamma*m0);
@@ -426,12 +426,21 @@ Species::Species(const std::string& name,Simulation* sim) : Module(name,sim)
 	qo_j4 = NULL;
 }
 
+Species::~Species()
+{
+	for (auto diag : phaseSpacePlot)
+		delete diag;
+	for (auto diag : orbitDiagnostic)
+		delete diag;
+	for (auto diag : detector)
+		delete diag;
+}
+
 void Species::Initialize()
 {
-	tw::Int i;
 	Module::Initialize();
-	for (i=0;i<phaseSpacePlot.size();i++)
-		phaseSpacePlot[i]->SetupGeometry(owner->gridGeometry);
+	for (auto diag : phaseSpacePlot)
+		diag->SetupGeometry(owner->gridGeometry);
 	if (ionization.ionizationModel!=tw::ionization_model::none)
 	{
 		ionization.Initialize(owner->unitDensityCGS,carrierFrequency);
@@ -1416,10 +1425,10 @@ void Species::CustomDiagnose()
 
 	for (s=0;s<phaseSpacePlot.size();s++)
 	{
-		if (phaseSpacePlot[s]->WriteThisStep(owner->elapsedTime,owner->dt,owner->stepNow))
+		if (phaseSpacePlot[s]->WriteThisStep(owner->elapsedTime,dt,owner->stepNow))
 		{
 			phaseSpaceSize = phaseSpacePlot[s]->max - phaseSpacePlot[s]->min;
-			DiscreteSpace plot_layout(owner->dt,phaseSpacePlot[s]->hDim,phaseSpacePlot[s]->vDim,1,phaseSpacePlot[s]->min,phaseSpaceSize,1);
+			DiscreteSpace plot_layout(dt,phaseSpacePlot[s]->hDim,phaseSpacePlot[s]->vDim,1,phaseSpacePlot[s]->min,phaseSpaceSize,1);
 			field.Initialize(plot_layout,owner);
 			field.SetBoundaryConditions(xAxis,dirichletCell,dirichletCell);
 			field.SetBoundaryConditions(yAxis,dirichletCell,dirichletCell);
@@ -1461,7 +1470,7 @@ void Species::CustomDiagnose()
 
 	for (s=0;s<orbitDiagnostic.size();s++)
 	{
-		if (orbitDiagnostic[s]->WriteThisStep(owner->elapsedTime,owner->dt,owner->stepNow))
+		if (orbitDiagnostic[s]->WriteThisStep(owner->elapsedTime,dt,owner->stepNow))
 		{
 			parData.clear();
 			for (i=0;i<particle.size();i++)

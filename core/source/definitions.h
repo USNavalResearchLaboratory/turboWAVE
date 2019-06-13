@@ -27,10 +27,12 @@
 #include <ctime>
 #include <vector>
 #include <valarray>
+#include <map>
 #include <algorithm>
 #include <limits>
 #include <exception>
 #include <string>
+#include <cctype>
 #ifdef USE_OPENMP
 #include <omp.h>
 #endif

@@ -20,9 +20,9 @@ DiscreteSpace::DiscreteSpace()
 	ignorable[3] = 0;
 }
 
-DiscreteSpace::DiscreteSpace(tw::Float dt,tw::Int x,tw::Int y,tw::Int z,const tw::vec3& corner,const tw::vec3& size,tw::Int ghostCellLayers)
+DiscreteSpace::DiscreteSpace(tw::Float dt0,tw::Int x,tw::Int y,tw::Int z,const tw::vec3& corner,const tw::vec3& size,tw::Int ghostCellLayers)
 {
-	this->dt = dt;
+	SetupTimeInfo(dt0);
 	ignorable[1] = 0;
 	ignorable[2] = 0;
 	ignorable[3] = 0;
@@ -31,10 +31,16 @@ DiscreteSpace::DiscreteSpace(tw::Float dt,tw::Int x,tw::Int y,tw::Int z,const tw
 
 void DiscreteSpace::Resize(tw::Int x,tw::Int y,tw::Int z,const tw::vec3& corner,const tw::vec3& size,tw::Int ghostCellLayers)
 {
+	// init unused elements so later assignments are memcheck clean.
+	dim[0] = num[0] = 0;
+	ignorable[0] = 0;
+	lfg[0] = ufg[0] = lng[0] = ung[0] = 0;
+	decodingStride[0] = encodingStride[0] = 0;
+
+	layers[0] = ghostCellLayers;
 	dim[1] = x;
 	dim[2] = y;
 	dim[3] = z;
-	layers[0] = ghostCellLayers;
 
 	for (tw::Int i=1;i<=3;i++)
 	{
@@ -88,6 +94,8 @@ void DiscreteSpace::Resize(tw::Int x,tw::Int y,tw::Int z,const tw::vec3& corner,
 void DiscreteSpace::ReadData(std::ifstream& inFile)
 {
 	inFile.read((char*)&dt,sizeof(dt));
+	inFile.read((char*)&dth,sizeof(dth));
+	inFile.read((char*)&dti,sizeof(dti));
 	inFile.read((char*)&corner,sizeof(tw::vec3));
 	inFile.read((char*)&size,sizeof(tw::vec3));
 	inFile.read((char*)&globalCorner,sizeof(tw::vec3));
@@ -109,6 +117,8 @@ void DiscreteSpace::ReadData(std::ifstream& inFile)
 void DiscreteSpace::WriteData(std::ofstream& outFile)
 {
 	outFile.write((char*)&dt,sizeof(dt));
+	outFile.write((char*)&dth,sizeof(dth));
+	outFile.write((char*)&dti,sizeof(dti));
 	outFile.write((char*)&corner,sizeof(tw::vec3));
 	outFile.write((char*)&size,sizeof(tw::vec3));
 	outFile.write((char*)&globalCorner,sizeof(tw::vec3));

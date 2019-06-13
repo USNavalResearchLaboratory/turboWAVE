@@ -2083,7 +2083,7 @@ void sparc::HydroManager::Update()
 		ComputeElectronCollisionFrequency();
 		ComputeSources();
 		dts = EstimateTimeStep();
-		owner->SetupTimeInfo(dts);
+		owner->UpdateTimestep(dts);
 		FirstOrderAdvance(0.5*dt,false);
 		FirstOrderAdvance(dt,true);
 	}

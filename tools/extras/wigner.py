@@ -1,7 +1,7 @@
 import sys
 import glob
 import os
-import subprocess
+import PIL.Image
 import numpy as np
 import matplotlib as mpl
 import matplotlib.pyplot as plt
@@ -109,7 +109,7 @@ def ParseSlices(dims,ax_list,slice_str_list):
 
 # normalization constants in mks
 
-n1 = 1.87e18*1e6
+n1 = 2.65e17*1e6
 su = twpre.SimUnits(n1*1e-6)
 t1 = su.t1
 x1 = su.x1
@@ -142,7 +142,7 @@ if len(primitive_slices)!=3:
 real_data_file = sys.argv[2].split(',')[0]
 imag_data_file = sys.argv[2].split(',')[1]
 for keyval in sys.argv[3:]:
-	key = keval.split('=')[0]
+	key = keyval.split('=')[0]
 	val = keyval.split('=')[1]
 	if key=='panels':
 		panels = val.split(',')
@@ -310,16 +310,14 @@ for file_idx,slice_now in enumerate(slice_tuples):
 		plt.close()
 
 if movie:
-	try:
-		print('Consolidating into movie file...')
-		result = subprocess.run(['convert','-delay','30','frame*.png','mov.gif'])
-		if result.stdout[:7]=='Invalid':
-			print('Looks like Windows built in convert.exe is interfering.')
-		else:
-			cleanup('frame*.png')
-		print('Done.')
-	except:
-		print('Could not run ImageMagick convert. Leaving the images.')
-		print('The command is: convert -delay 30 frame*.png mov.gif')
+	print('Consolidating into movie file...')
+	images = []
+	frameRateHz = 5
+	img_files = sorted(glob.glob('frame*.png'))
+	for f in img_files:
+		images.append(PIL.Image.open(f))
+	images[0].save('mov.gif',save_all=True,append_images=images[1:],duration=int(1000/frameRateHz),loop=0)
+	cleanup('frame*.png')
+	print('Done.')
 else:
 	plt.show()

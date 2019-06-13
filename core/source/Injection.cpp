@@ -822,7 +822,9 @@ tw::Complex Wave::BesselPrimitive(tw::Float t,const tw::vec3& r) const
 
 tw::Complex Wave::AiryDiscPrimitive(tw::Float t,const tw::vec3& r) const
 {
-	const tw::Float rbar = sqrt(sqr(r.x) + sqr(r.y))/modeData[0].scale;
+	// User input is the radius of the first zero.
+	// This is convenient because then the energy corresponds to a Gaussian with the same radius.
+	const tw::Float rbar = sqrt(sqr(r.x) + sqr(r.y))*3.83171/modeData[0].scale;
 	const tw::Float tau = t - nrefr*r.z;
 	const tw::Float psi = phase - w*tau - chirp*tau*tau;
 	return 2*a0 * (j1(rbar)/rbar) * pulseShape.PulseShapeFactor(tau) * std::exp(ii*psi);

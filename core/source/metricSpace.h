@@ -37,7 +37,7 @@ struct DiscreteSpace
 
 	protected:
 
-	tw::Float dt; // timestep, only for constant timestep
+	tw::Float dt,dth,dti; // timestep, half timestep, inverse timestep
 	tw::vec3 corner,size,globalCorner,globalSize,spacing,freq; // spacing and freq are only for uniform grids
 	// Indexing in the following has 0=components, (1,2,3)=spatial axes
 	// num includes ghost cells, dim does not
@@ -63,6 +63,7 @@ struct DiscreteSpace
 	DiscreteSpace(tw::Float dt,tw::Int x,tw::Int y,tw::Int z,const tw::vec3& corner,const tw::vec3& size,tw::Int ghostCellLayers);
 	void Resize(tw::Int x,tw::Int y,tw::Int z,const tw::vec3& corner,const tw::vec3& size,tw::Int ghostCellLayers);
 	void Resize(tw::Int x,tw::Int y,tw::Int z,const tw::vec3& corner,const tw::vec3& size);
+	void SetupTimeInfo(tw::Float dt0) { dt = dt0; dth = 0.5*dt0; dti = 1.0/dt0; }
 	tw::Int EncodeCell(tw::Int i,tw::Int j,tw::Int k) const { return (i-lfg[1])*encodingStride[1] + (j-lfg[2])*encodingStride[2] + (k-lfg[3])*encodingStride[3]; }
 	void DecodeCell(const tw::Int& cell,tw::Int ijk[4]) const
 	{
@@ -93,7 +94,7 @@ struct DiscreteSpace
 	tw::Int UNG(const tw::Int& ax) const { return ung[ax]; }
 	tw::Int LFG(const tw::Int& ax) const { return lfg[ax]; }
 	tw::Int UFG(const tw::Int& ax) const { return ufg[ax]; }
-	friend tw::Float dt(const DiscreteSpace& A) { return A.dt; }
+	friend tw::Float timestep(const DiscreteSpace& A) { return A.dt; }
 	friend tw::Float dx(const DiscreteSpace& A)  { return A.spacing.x; }
 	friend tw::Float dy(const DiscreteSpace& A)  { return A.spacing.y; }
 	friend tw::Float dz(const DiscreteSpace& A)  { return A.spacing.z; }

@@ -24,7 +24,7 @@ Python 3 via Anaconda
 	* Respond affirmatively to the prompt, close and reopen the PowerShell
 
 #. Choose a name for your environment, denoted :samp:`{NAME}`
-#. :samp:`conda create -n {NAME} scipy matplotlib jupyter`
+#. :samp:`conda create -n {NAME} scipy matplotlib pillow jupyter`
 #. :samp:`conda activate {NAME}`
 #. You are now in an isolated conda environment.  The environment must be activated each time you open a new terminal window.
 #. If there are problems with Jupyter notebooks any or all of the following may be tried:

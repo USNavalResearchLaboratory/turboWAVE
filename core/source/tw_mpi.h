@@ -6,7 +6,7 @@ static const int MAX_THREADS = 256;
 static const int MPI_PROC_NULL = -3;
 static void * MPI_IN_PLACE = NULL;
 
-enum MPI_Datatype { MPI_BYTE, MPI_INT, MPI_LONG, MPI_LONG_LONG_INT, MPI_FLOAT, MPI_DOUBLE };
+enum MPI_Datatype { MPI_BYTE, MPI_SHORT, MPI_INT, MPI_LONG, MPI_LONG_LONG_INT, MPI_FLOAT, MPI_DOUBLE };
 enum MPI_Op { MPI_MAX, MPI_MIN, MPI_SUM };
 
 typedef struct {
@@ -41,12 +41,14 @@ inline void* TW_MPI_Offset_Pointer(int offset,void *ptr,MPI_Datatype dt)
 	{
 		case MPI_BYTE:
 			return (char*)ptr+offset;
+		case MPI_SHORT:
+			return (short*)ptr+offset;
 		case MPI_INT:
 			return (int*)ptr+offset;
 		case MPI_LONG:
-			return (int32_t*)ptr+offset;
+			return (long*)ptr+offset;
 		case MPI_LONG_LONG_INT:
-			return (int64_t*)ptr+offset;
+			return (long long*)ptr+offset;
 		case MPI_FLOAT:
 			return (float*)ptr+offset;
 		case MPI_DOUBLE:
@@ -62,12 +64,14 @@ inline int TW_MPI_GetDataSize(MPI_Datatype dt)
 	{
 		case MPI_BYTE:
 			return 1;
+		case MPI_SHORT:
+			return sizeof(short);
 		case MPI_INT:
 			return sizeof(int);
 		case MPI_LONG:
-			return sizeof(int32_t);
+			return sizeof(long);
 		case MPI_LONG_LONG_INT:
-			return sizeof(int64_t);
+			return sizeof(long long);
 		case MPI_FLOAT:
 			return sizeof(float);
 		case MPI_DOUBLE:
@@ -83,14 +87,17 @@ inline void TW_MPI_Add_Datatype(int i,void *ans,void *x,void *y,MPI_Datatype dt)
 		case MPI_BYTE:
 			*((char*)ans+i) = *((char*)x+i) + *((char*)y+i);
 			break;
+		case MPI_SHORT:
+			*((short*)ans+i) = *((short*)x+i) + *((short*)y+i);
+			break;
 		case MPI_INT:
 			*((int*)ans+i) = *((int*)x+i) + *((int*)y+i);
 			break;
 		case MPI_LONG:
-			*((int32_t*)ans+i) = *((int32_t*)x+i) + *((int32_t*)y+i);
+			*((long*)ans+i) = *((long*)x+i) + *((long*)y+i);
 			break;
 		case MPI_LONG_LONG_INT:
-			*((int64_t*)ans+i) = *((int64_t*)x+i) + *((int64_t*)y+i);
+			*((long long*)ans+i) = *((long long*)x+i) + *((long long*)y+i);
 			break;
 		case MPI_FLOAT:
 			*((float*)ans+i) = *((float*)x+i) + *((float*)y+i);
@@ -111,6 +118,12 @@ inline void TW_MPI_Minimize_Datatype(int i,void *ans,void *x,void *y,MPI_Datatyp
 			else
 				*((char*)ans+i) = *((char*)y+i);
 			break;
+		case MPI_SHORT:
+			if (*((short*)x+i) < *((short*)y+i))
+				*((short*)ans+i) = *((short*)x+i);
+			else
+				*((short*)ans+i) = *((short*)y+i);
+			break;
 		case MPI_INT:
 			if (*((int*)x+i) < *((int*)y+i))
 				*((int*)ans+i) = *((int*)x+i);
@@ -118,16 +131,16 @@ inline void TW_MPI_Minimize_Datatype(int i,void *ans,void *x,void *y,MPI_Datatyp
 				*((int*)ans+i) = *((int*)y+i);
 			break;
 		case MPI_LONG:
-			if (*((int32_t*)x+i) < *((int32_t*)y+i))
-				*((int32_t*)ans+i) = *((int32_t*)x+i);
+			if (*((long*)x+i) < *((long*)y+i))
+				*((long*)ans+i) = *((long*)x+i);
 			else
-				*((int32_t*)ans+i) = *((int32_t*)y+i);
+				*((long*)ans+i) = *((long*)y+i);
 			break;
 		case MPI_LONG_LONG_INT:
-			if (*((int64_t*)x+i) < *((int64_t*)y+i))
-				*((int64_t*)ans+i) = *((int64_t*)x+i);
+			if (*((long long*)x+i) < *((long long*)y+i))
+				*((long long*)ans+i) = *((long long*)x+i);
 			else
-				*((int64_t*)ans+i) = *((int64_t*)y+i);
+				*((long long*)ans+i) = *((long long*)y+i);
 			break;
 		case MPI_FLOAT:
 			if (*((float*)x+i) < *((float*)y+i))
@@ -154,6 +167,12 @@ inline void TW_MPI_Maximize_Datatype(int i,void *ans,void *x,void *y,MPI_Datatyp
 			else
 				*((char*)ans+i) = *((char*)y+i);
 			break;
+		case MPI_SHORT:
+			if (*((short*)x+i) > *((short*)y+i))
+				*((short*)ans+i) = *((short*)x+i);
+			else
+				*((short*)ans+i) = *((short*)y+i);
+			break;
 		case MPI_INT:
 			if (*((int*)x+i) > *((int*)y+i))
 				*((int*)ans+i) = *((int*)x+i);
@@ -161,16 +180,16 @@ inline void TW_MPI_Maximize_Datatype(int i,void *ans,void *x,void *y,MPI_Datatyp
 				*((int*)ans+i) = *((int*)y+i);
 			break;
 		case MPI_LONG:
-			if (*((int32_t*)x+i) > *((int32_t*)y+i))
-				*((int32_t*)ans+i) = *((int32_t*)x+i);
+			if (*((long*)x+i) > *((long*)y+i))
+				*((long*)ans+i) = *((long*)x+i);
 			else
-				*((int32_t*)ans+i) = *((int32_t*)y+i);
+				*((long*)ans+i) = *((long*)y+i);
 			break;
 		case MPI_LONG_LONG_INT:
-			if (*((int64_t*)x+i) > *((int64_t*)y+i))
-				*((int64_t*)ans+i) = *((int64_t*)x+i);
+			if (*((long long*)x+i) > *((long long*)y+i))
+				*((long long*)ans+i) = *((long long*)x+i);
 			else
-				*((int64_t*)ans+i) = *((int64_t*)y+i);
+				*((long long*)ans+i) = *((long long*)y+i);
 			break;
 		case MPI_FLOAT:
 			if (*((float*)x+i) > *((float*)y+i))
