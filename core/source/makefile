@@ -113,10 +113,15 @@ ifeq ($(PLATFORM),LINUX)
 		TW_Compiler = clang++ -stdlib=libc++
 		TW_Linker = clang++
 		LIBS0 = -lc++
-	else
-		# DEFAULT TO GNU
+	endif
+	ifeq ($(COMPILER_PREF),GNU)
 		TW_Compiler = g++
 		TW_Linker = g++
+		LIBS0 = -lstdc++
+	endif
+	ifeq ($(COMPILER_PREF),INTEL)
+		TW_Compiler = icpc
+		TW_Linker = icpc
 		LIBS0 = -lstdc++
 	endif
 	ifeq ($(HARDWARE_ACCEL),NONE)
@@ -155,8 +160,12 @@ ifeq ($(PLATFORM),OPENMPI)
 	ifeq ($(COMPILER_PREF),LLVM_CLANG)
 		export OMPI_CXX=clang++ -stdlib=libc++
 		LIBS0 = -lc++
-	else
-		# DEFAULT TO GNU
+	endif
+	ifeq ($(COMPILER_PREF),INTEL)
+		export OMPI_CXX=icpc
+		LIBS0 = -lstdc++
+	endif
+	ifeq ($(COMPILER_PREF),GNU)
 		export OMPI_CXX=g++
 		LIBS0 = -lstdc++
 	endif

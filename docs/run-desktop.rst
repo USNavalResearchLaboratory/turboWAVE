@@ -26,7 +26,7 @@ Running an Example
 #. For definiteness, let us use :samp:`{twroot}/core/examples/pgc/LWFA-coulomb.txt`
 #. Open a terminal window and navigate to :samp:`~/Run`
 #. :samp:`cp {twroot}/core/examples/pgc/LWFA-coulomb.txt stdin`
-#. This puts the input file in :samp:`~/Run` with the name :samp:`stdin`.  TurboWAVE always expects the input file to have the name :samp:`stdin` or :samp:`stdin.txt`, and to be in the working directory.
+#. This puts the input file in :samp:`~/Run` with the name :samp:`stdin`.  By default, turboWAVE assumes the input file is in the working directory with the name :samp:`stdin`.
 #. :samp:`tw3d -n 4`
 #. The above command runs the problem with 4 MPI proceses and 1 thread per process.  Of course this choice may not be optimal for your system, method of compiling, etc., but it should suffice for this example.
 #. As the problem runs, you can press the enter key to prompt turboWAVE to report the current step.  Enter :samp:`help` to get the full list of interactive commands.
@@ -47,15 +47,18 @@ Running an Example
 
 	Fig. 1 --- Python DataViewer output of the scalar potential produced by the :file:`LWFA-coulomb.txt` example.
 
+.. _args:
+
 Command line arguments
 ----------------------
 
 The full command line specification is
 
-.. py:function:: tw3d -n procs -c threads --no-interactive --version --help
+.. py:function:: tw3d -n procs -c threads --input-file file --no-interactive --version --help
 
-	:param int procs: number of MPI processes
-	:param int threads: number of OpenMP threads
+	:param int procs: number of MPI processes (default=1)
+	:param int threads: number of OpenMP threads (see below for default)
+	:param str file: name or path of the file to use as the input file (default=stdin)
 
 	The :samp:`--no-interactive` argument, if present, suppresses the interactive thread.
 
@@ -63,7 +66,7 @@ The full command line specification is
 
 	The :samp:`--help` argument, if present, prints out a message pointing to the online documentation.  If this is the only argument, no simulation is attempted.
 
-These arguments are only used on the desktop.  If you enter only :samp:`tw3d` with no arguments, turboWAVE will use a single MPI processes, and will fork as many threads as there are logical cores on the system.  If you enter :samp:`tw3d -n {procs}`, turboWAVE will use the requested number of MPI processes, but only a single thread.  Finally, if you enter :samp:`tw3d -n {procs} -c {threads}`, turboWAVE will use the requested number for both processes and threads.
+Except for :samp:`--input-file`, these arguments are only used on the desktop.  If you enter only :samp:`tw3d` with no arguments, turboWAVE will use a single MPI processes, and will fork as many threads as there are logical cores on the system.  If you enter :samp:`tw3d -n {procs}`, turboWAVE will use the requested number of MPI processes, but only a single thread.  Finally, if you enter :samp:`tw3d -n {procs} -c {threads}`, turboWAVE will use the requested number for both processes and threads.
 
 When you ran the example above, you may have noticed turboWAVE issuing a warning about the domain decomposition.  That is because if you choose to specify the domain decomposition in the input file, the product of the three integers is supposed to equal the number of processes requested.  If this is not the case, turboWAVE will try to find a suitable decomposition on its own.  There are some rules about how this can be done.  Sometimes turboWAVE will fail to find a suitable decomposition and report an error.
 

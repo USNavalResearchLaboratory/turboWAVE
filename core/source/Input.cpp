@@ -1,5 +1,240 @@
 #include "simulation.h"
 
+tw::Float tw::input::GetUnitDensityCGS(std::stringstream& in)
+{
+	tw::Float ans = 0.0;
+	std::string word;
+	while (!in.eof())
+	{
+		in >> word;
+		if (word=="unit")
+		{
+			in >> word;
+			if (word=="density")
+				in >> word >> ans;
+		}
+	}
+	return ans;
+}
+
+void tw::input::StripComments(std::ifstream& inFile,std::stringstream& out)
+{
+	bool ignoreUntilMark,ignoreUntilEOL;
+	char charNow,nextChar;
+
+	ignoreUntilMark = false;
+	ignoreUntilEOL = false;
+	while (inFile.get(charNow))
+	{
+		if (charNow=='/' || charNow=='*' || charNow=='\n' || charNow=='\r')
+		{
+			if (charNow=='/')
+			{
+				inFile.get(nextChar);
+				if (nextChar=='/')
+					ignoreUntilEOL = true;
+				if (nextChar=='*' && !ignoreUntilEOL)
+					ignoreUntilMark = true;
+				if (nextChar!='/' && nextChar!='*')
+				{
+					if (!ignoreUntilMark && !ignoreUntilEOL)
+						out << charNow;
+					inFile.putback(nextChar);
+				}
+			}
+			if (charNow=='*')
+			{
+				inFile.get(nextChar);
+				if (nextChar=='/')
+					ignoreUntilMark = false;
+				else
+				{
+					if (!ignoreUntilMark && !ignoreUntilEOL)
+						out << charNow;
+					inFile.putback(nextChar);
+				}
+			}
+			if (charNow=='\n' || charNow=='\r')
+			{
+				if (!ignoreUntilMark)
+					out << charNow;
+				ignoreUntilEOL = false;
+			}
+		}
+		else
+		{
+			if (!ignoreUntilMark && !ignoreUntilEOL)
+			{
+				out << charNow;
+			}
+		}
+	}
+}
+
+void tw::input::StripDecorations(std::stringstream& in,std::stringstream& out)
+{
+	// Replace commas and parenthesis with spaces
+	char charNow;
+	while (in.get(charNow))
+	{
+		if (charNow==',' || charNow=='(' || charNow==')')
+			out << ' ';
+		else
+			out << charNow;
+	}
+}
+
+void tw::input::InsertWhitespace(std::stringstream& in,std::stringstream& out)
+{
+	// Insert spaces around braces and equal signs
+	char charNow;
+	while (in.get(charNow))
+	{
+		if (charNow=='{' || charNow=='}' || charNow=='=')
+			out << ' ';
+		out << charNow;
+		if (charNow=='{' || charNow=='}' || charNow=='=')
+			out << ' ';
+	}
+}
+
+void tw::input::UserMacros(std::stringstream& in,std::stringstream& out)
+{
+	std::map<std::string,std::string> macros;
+	std::map<std::string,std::string>::iterator it;
+	std::string word,key,val;
+	while (!in.eof())
+	{
+		in >> word;
+		if (!in.eof())
+		{
+			if (word=="#define")
+			{
+				in >> key >> val;
+				it = macros.find(key);
+				if (it==macros.end())
+					macros[key] = val;
+				else
+					throw tw::FatalError("Macro "+key+" was already used.");
+			}
+			else
+			{
+				it = macros.find(word);
+				if (it==macros.end())
+					out << word << " ";
+				else
+					out << macros[word] << " ";
+
+			}
+		}
+	}
+}
+
+void tw::input::UnitMacros(std::stringstream& in,std::stringstream& out)
+{
+	tw::Float unitDensityCGS = tw::input::GetUnitDensityCGS(in);
+	if (unitDensityCGS==0.0)
+		throw tw::FatalError("Unit density directive is required.");
+	UnitConverter uc(unitDensityCGS);
+
+	in.clear();
+	in.seekg(0,in.beg);
+	std::string word;
+	while (!in.eof())
+	{
+		in >> word;
+		if (!in.eof())
+		{
+			if (word[0]=='%')
+				tw::input::NormalizeInput(uc,word);
+			out << word << " ";
+		}
+	}
+}
+
+tw::Int tw::input::IncludeFiles(std::stringstream& in,std::stringstream& out)
+{
+	tw::Int count = 0;
+	std::ifstream *includedFile;
+	std::string word;
+	while (!in.eof())
+	{
+		in >> word;
+		if (!in.eof())
+		{
+			if (word=="#include")
+			{
+				in >> word;
+				includedFile = new std::ifstream(word.c_str());
+				if (includedFile->rdstate() & std::ios::failbit)
+					throw tw::FatalError("couldn't open " + word);
+				StripComments(*includedFile,out);
+				delete includedFile;
+				count++;
+			}
+			else
+			{
+				out << word << " ";
+			}
+		}
+	}
+	return count;
+}
+
+void tw::input::PreprocessInputFile(std::ifstream& inFile,std::stringstream& out)
+{
+	std::stringstream temp;
+	std::string word;
+	tw::Float unitDensityCGS;
+
+	auto reset_in = [&] (std::stringstream& ss)
+	{
+		ss.clear();
+		ss.seekg(0,ss.beg);
+	};
+
+	auto reset_in_out = [&] (std::stringstream& i,std::stringstream& o)
+	{
+		i.clear();
+		i.str(o.str());
+		i.seekg(0,i.beg);
+		o.clear();
+		o.str("");
+		o.seekp(0,o.beg);
+	};
+
+	// Handle included files, strip comments
+	tw::input::StripComments(inFile,temp);
+	reset_in(temp);
+	while (tw::input::IncludeFiles(temp,out))
+		reset_in_out(temp,out);
+	// std::cout << out.str();
+	// std::cout << std::endl << std::endl;
+
+	// Clean formatting
+	reset_in_out(temp,out);
+	tw::input::StripDecorations(temp,out);
+	// std::cout << out.str();
+	// std::cout << std::endl << std::endl;
+	reset_in_out(temp,out);
+	tw::input::InsertWhitespace(temp,out);
+	// std::cout << out.str();
+	// std::cout << std::endl << std::endl;
+
+	// User macro substitution
+	reset_in_out(temp,out);
+	tw::input::UserMacros(temp,out);
+	// std::cout << out.str();
+	// std::cout << std::endl << std::endl;
+
+	// Unit conversion macro substitution
+	reset_in_out(temp,out);
+	tw::input::UnitMacros(temp,out);
+	// std::cout << out.str();
+	// std::cout << std::endl << std::endl;
+}
+
+
 // Read a python.numpy style range, but it is a floating point range
 // thus, blank resolves to 0 or big_pos
 

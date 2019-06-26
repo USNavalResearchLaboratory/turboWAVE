@@ -21,6 +21,7 @@ void NormalizeLeftRight(std::valarray<tw::Float>& left,std::valarray<tw::Float>&
 
 // symmetric matrices
 void SymmetricTridiagonalEigensystem(std::valarray<tw::Float>& eigenvalues,tw::Float *revTransform,std::valarray<tw::Float>& T1,std::valarray<tw::Float>& T2);
+void SortEigensystem(std::valarray<tw::Float>& eigenvalues,tw::Float *revTransform);
 
 template <class T>
 void ComputeAlphasAndBetas(tw::comm *strip,tw::Int systems,T* k);

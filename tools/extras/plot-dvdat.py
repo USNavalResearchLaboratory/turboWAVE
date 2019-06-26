@@ -22,7 +22,7 @@ if len(sys.argv)<3:
 	print('Hybrid: python plot-dvdat.py zxyt=0,0/zxyt=0,0,0 rho.dvdat,Ex.dvdat panels=a,b layout=1x2')
 	print('-------------------General Notes--------------------')
 	print('Extra spaces (e.g. around commas or equals) are not allowed.')
-	print('Displays any number of panels with common slicing.')
+	print('Displays any number of panels.')
 	print('Required arguments are positional, optional arguments are key=value pairs.')
 	print('------------------Required Arguments-----------------------')
 	print('slicing: 4-character string, such as xyzt, where the first 1 or 2 axes are plotted.')
@@ -47,8 +47,6 @@ if len(sys.argv)<3:
 	print('----------------------Animations----------------------')
 	print('Put a python range as one of the slices to generate animated GIF.')
 	print('For example, zxyt=0,0,2:5 would animate time slices 2,3,4.')
-	print('Note: ImageMagick suite must be installed for animations.')
-	print('On Windows hard coding the path to the correct convert.exe may be required.')
 	exit()
 
 # Label scheme

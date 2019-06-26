@@ -3,8 +3,9 @@
 " Maintainer: Daniel Gordon
 
 " Syntax highlighting for turboWAVE input files:
-" Put tw3d.vim into ~/.vim/synax/ to highlight files with .tw3d extension
-" ALSO put filetype.vim into ~/.vim to highlight stdin and stdin.txt
+" Put tw3d.vim into ~/.vim/syntax/ and put filetype.vim into ~/.vim
+" This causes stdin, stdin.txt, and *.tw3d to be highlighted
+" To highlight any other file from within vim, use ``:set syntax=tw3d``
 
 " Quit when a (custom) syntax file was already loaded
 if exists("b:current_syntax")
@@ -15,12 +16,11 @@ syn match twDefine "#define"
 syn match twInclude "#include"
 syn keyword	twStatement	new generate
 
-syn match twLengthUnit "%[0-9+-.eE]*\(um\|mm\|cm\|m\)"
-syn match twTimeUnit "%[0-9+-.eE]*\(fs\|ps\|ns\|us\|s\)"
-syn match twUnit "%[0-9+-.eE]*\(m-3\|cm-3\|Jm3\|Jcm3\|eV\|K\|s\)"
-syn region twUserMacro display start="\$" end="\s"he=s-1
+syn match twUnit  "\v(\s|\(|\{|\,|\=)\%[0-9]+\.=[0-9]*[eE]=[\+\-]=[0-9]*(um|mm|cm|m|fs|ps|ns|us|s|m\-3|cm\-3|Jm3|Jcm3|eV|K)(\s|\)|\}|\,|\n)"hs=s+1,he=e-1
+syn match twUnit2 "\v(\s|\(|\{|\,|\=)\%\.[0-9]+[eE]=[\+\-][0-9]*(um|mm|cm|m|fs|ps|ns|us|s|m\-3|cm\-3|Jm3|Jcm3|eV|K)(\s|\)|\}|\,|\n)"hs=s+1,he=e-1
+syn region twUserMacro display start="\$" end="\s\|$"he=s-1
 syn region twComment start="/\*" end="\*/"
-syn region twCommentL start="//" skip="\\$" end="$" keepend
+syn region twCommentL start="//" end="$" keepend
 
 syn keyword twconst none full
 syn keyword twload deterministic statistical variable fixed triggered maintained
@@ -38,9 +38,8 @@ hi def link twDefine	Define
 hi def link twInclude	Define
 hi def link twStatement		Statement
 hi def link twLabel			Label
-hi def link twLengthUnit	Macro
-hi def link twTimeUnit		Macro
 hi def link twUnit			Macro
+hi def link twUnit2			Macro
 hi def link twUserMacro		Macro
 hi def link twComment		Comment
 hi def link twCommentL		Comment

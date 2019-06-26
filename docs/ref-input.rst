@@ -52,6 +52,8 @@ The effect of user variables can be achieved via macro substitution.  The format
 
 causes every subsequent occurrence of ``$r0`` to be replaced with ``2.5``.  The use of the ``$`` prefix is optional, but highly recommended, as it helps prevent unintended substitutions, and improves readability.
 
+The analogy with the C preprocessor is limited.  Function-like macros are not supported.  The substitution value cannot contain any white space characters.
+
 User macros can be defined at any point in an input file, except where they would interrupt another directive. Attempting to redefine a macro throws an error.
 
 Unit Conversion
@@ -80,13 +82,14 @@ Preprocessor Order
 
 The order of preprocessor operations is as follows:
 
-	#. Strip comments and decorative characters
+	#. Strip comments
 	#. Recursive file substitution
 
-		* Comments and decorative characters are stripped at each level
+		* Comments are stripped at each level
 
-	#. Process predefined macros
+	#. Clean white space
 	#. Process user defined macros
+	#. Process predefined macros
 
 Top Level Directives
 --------------------

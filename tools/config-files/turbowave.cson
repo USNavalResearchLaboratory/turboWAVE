@@ -1,0 +1,71 @@
+# Syntax highlighting for turboWAVE input files with Github's Atom editor
+# You must create the following tree:
+# ~/.atom/packages/language-turbowave/grammars/turbowave.cson
+# ~/.atom/packages/language-turbowave/package.json
+# Then extension .tw3d should automatically have highlights
+# Other files can be highlighted by using the ``Select Grammar`` menu item (choose tw3d)
+
+'scopeName': 'source.tw3d'
+'name': 'tw3d'
+'fileTypes': ['tw3d']
+
+'patterns': [
+	{
+		'match': '\\b(([0-9]+\\.?[0-9]*[eE]?(\\+|\\-)?[0-9]*)|(\\.[0-9]+[eE]?(\\+|\\-)?[0-9]*))\\b'
+		'name': 'constant.numeric.tw3d'
+	},
+	{
+		'match': '\\b(true|false|on|off|yes|no)\\b'
+		'name': 'constant.language.tw3d'
+	},
+	{
+		'match': '(\\#)define\\b'
+		'name': 'keyword.control.directive.define.tw3d'
+	},
+	{
+		'match': '(\\#)include\\b'
+		'name': 'keyword.control.directive.define.tw3d'
+	},
+	{
+		'match': '\\b(new|generate)\\b'
+		'name': 'keyword.operator.tw3d'
+	},
+	{
+		'begin': '//'
+		'end': '\\n'
+		'name': 'comment.line.tw3d'
+	},
+	{
+		'begin': '/\\*'
+		'end': '\\*/'
+		'name': 'comment.block.tw3d'
+	},
+	{
+		'begin': '\''
+		'end': '\''
+		'name': 'string.quoted.single.tw3d'
+	},
+	{
+		'begin': '\\s\\$'
+		'end': '\\s'
+		'name': 'variable.other.tw3d'
+	},
+	{
+		# Unit conversion matching type 1
+		'match': '(\\s|\\(|\\=|\\{|\\,)(%)([0-9]+\\.?[0-9]*[eE]?(\\+|\\-)?[0-9]*)(um|mm|cm|m|fs|ps|ns|us|s|m\\-3|cm\\-3|Jm3|Jcm3|eV|K)(\\s|\\)|\\}|\\,)'
+		captures:
+			2: name: 'constant.other.tw3d'
+			3: name: 'constant.other.tw3d'
+			4: name: 'constant.other.tw3d'
+			5: name: 'constant.other.tw3d'
+	},
+	{
+		# Unit conversion matching type 2
+		'match': '(\\s|\\(|\\=|\\{|\\,)(%)(\\.[0-9]+[eE]?(\\+|\\-)?[0-9]*)(um|mm|cm|m|fs|ps|ns|us|s|m\\-3|cm\\-3|Jm3|Jcm3|eV|K)(\\s|\\)|\\}|\\,)'
+		captures:
+			2: name: 'constant.other.tw3d'
+			3: name: 'constant.other.tw3d'
+			4: name: 'constant.other.tw3d'
+			5: name: 'constant.other.tw3d'
+	},
+]

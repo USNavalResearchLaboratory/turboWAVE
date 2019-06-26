@@ -8,201 +8,6 @@
 #include "solidState.h"
 //#include <unistd.h>
 
-//////////////////////
-//  TEXT PROCESSOR  //
-//////////////////////
-
-
-void ReduceInputFile(std::ifstream& inFile,std::stringstream& out)
-{
-	// Strips comments
-	// Strips decorative punctuation tokens (commas,parenthesis)
-	// Inserts spaces before and after equals signs and curly braces
-	bool ignoreUntilMark,ignoreUntilEOL;
-	char charNow,nextChar;
-
-	ignoreUntilMark = false;
-	ignoreUntilEOL = false;
-	while (inFile.get(charNow))
-	{
-		if (charNow=='/' || charNow=='*' || charNow=='\n' || charNow=='\r')
-		{
-			if (charNow=='/')
-			{
-				inFile.get(nextChar);
-				if (nextChar=='/')
-					ignoreUntilEOL = true;
-				if (nextChar=='*' && !ignoreUntilEOL)
-					ignoreUntilMark = true;
-				if (nextChar!='/' && nextChar!='*')
-				{
-					if (!ignoreUntilMark && !ignoreUntilEOL)
-						out << charNow;
-					inFile.putback(nextChar);
-				}
-			}
-			if (charNow=='*')
-			{
-				inFile.get(nextChar);
-				if (nextChar=='/')
-					ignoreUntilMark = false;
-				else
-				{
-					if (!ignoreUntilMark && !ignoreUntilEOL)
-						out << charNow;
-					inFile.putback(nextChar);
-				}
-			}
-			if (charNow=='\n' || charNow=='\r')
-			{
-				if (!ignoreUntilMark)
-					out << charNow;
-				ignoreUntilEOL = false;
-			}
-		}
-		else
-		{
-			if (!ignoreUntilMark && !ignoreUntilEOL)
-			{
-				if (charNow==',' || charNow=='(' || charNow==')')
-					charNow = ' ';
-				if (charNow=='{' || charNow=='}' || charNow=='=')
-					out << ' ';
-				out << charNow;
-				if (charNow=='{' || charNow=='}' || charNow=='=')
-					out << ' ';
-			}
-		}
-	}
-}
-
-tw::Int IncludeFiles(std::stringstream& in,std::stringstream& out)
-{
-	tw::Int count = 0;
-	std::ifstream *includedFile;
-	std::string word;
-	while (!in.eof())
-	{
-		in >> word;
-		if (!in.eof())
-		{
-			if (word=="#include")
-			{
-				in >> word;
-				includedFile = new std::ifstream(word.c_str());
-				if (includedFile->rdstate() & std::ios::failbit)
-					throw tw::FatalError("couldn't open " + word);
-				ReduceInputFile(*includedFile,out);
-				delete includedFile;
-				count++;
-			}
-			else
-			{
-				out << word << " ";
-			}
-		}
-	}
-	return count;
-}
-
-void PreprocessInputFile(std::ifstream& inFile,std::stringstream& out)
-{
-	std::stringstream temp;
-	std::string word;
-	tw::Float unitDensityCGS;
-
-	auto reset_read = [&] (std::stringstream& ss)
-	{
-		ss.seekg(0,ss.beg);
-		ss.clear();
-	};
-
-	auto reset_write = [&] (std::stringstream& ss)
-	{
-		ss.str("");
-		ss.seekp(0,ss.beg);
-		ss.clear();
-	};
-
-	auto setup_read = [&] (std::stringstream& ss,const std::string& s)
-	{
-		ss.str(s);
-		ss.seekg(0,ss.beg);
-		ss.clear();
-	};
-
-	// Handle included files, strip comments, clean whitespace
-	ReduceInputFile(inFile,temp);
-	reset_read(temp);
-	while (IncludeFiles(temp,out))
-	{
-		setup_read(temp,out.str());
-		reset_write(out);
-	}
-
-	// Set up the unit converter
-	setup_read(temp,out.str());
-	while (!temp.eof())
-	{
-		temp >> word;
-		if (word=="unit")
-		{
-			temp >> word;
-			if (word=="density")
-				temp >> word >> unitDensityCGS;
-		}
-	}
-	UnitConverter uc(unitDensityCGS);
-
-	// Unit conversion macro substitution
-	setup_read(temp,out.str());
-	reset_write(out);
-	while (!temp.eof())
-	{
-		temp >> word;
-		if (!temp.eof())
-		{
-			if (word[0]=='%')
-				tw::input::NormalizeInput(uc,word);
-			out << word << " ";
-		}
-	}
-
-	// C style macro substitution
-	setup_read(temp,out.str());
-	reset_write(out);
-	std::map<std::string,std::string> macros;
-	std::map<std::string,std::string>::iterator it;
-	std::string key,val;
-	while (!temp.eof())
-	{
-		temp >> word;
-		if (!temp.eof())
-		{
-			if (word=="#define")
-			{
-				temp >> key >> val;
-				it = macros.find(key);
-				if (it==macros.end())
-					macros[key] = val;
-				else
-					throw tw::FatalError("Macro "+key+" was already used.");
-			}
-			else
-			{
-				it = macros.find(word);
-				if (it==macros.end())
-					out << word << " ";
-				else
-					out << macros[word] << " ";
-
-			}
-		}
-	}
-}
-
-
-
 
 ///////////////////////////
 //  NON-UNIFORM REGIONS  //
@@ -328,8 +133,9 @@ void Simulation::SetGlobalSizeAndLocalCorner()
 ////////////////////////
 
 
-Simulation::Simulation()
+Simulation::Simulation(const std::string& file_name)
 {
+	inputFileName = file_name;
 	clippingRegion.push_back(new EntireRegion(clippingRegion));
 
 	gridGeometry = cartesian;
@@ -1122,16 +928,11 @@ void Simulation::WriteData(std::ofstream& outFile)
 
 void Simulation::OpenInputFile(std::ifstream& inFile)
 {
-	std::string fileName;
-	fileName = InputPathName() + "stdin";
-	inFile.open(fileName.c_str());
-	if (!(inFile.rdstate() & std::ios::failbit))
-		return;
-	fileName = InputPathName() + "stdin.txt";
-	inFile.open(fileName.c_str());
-	if (!(inFile.rdstate() & std::ios::failbit))
-		return;
-	throw tw::FatalError("couldn't open stdin");
+	std::string inputPath;
+	inputPath = InputPathName() + inputFileName;
+	inFile.open(inputPath.c_str());
+	if (inFile.rdstate() & std::ios::failbit)
+		throw tw::FatalError("couldn't open input file " + inputPath);
 }
 
 std::string Simulation::InputFileFirstPass()
@@ -1157,7 +958,7 @@ std::string Simulation::InputFileFirstPass()
 
 		OpenInputFile(inFile);
 
-		PreprocessInputFile(inFile,inputString);
+		tw::input::PreprocessInputFile(inFile,inputString);
 		inFile.close();
 
 		inputString.seekg(0);
@@ -1359,7 +1160,7 @@ void Simulation::GridFromInputFile()
 	std::ifstream inFile;
 	std::stringstream inputString;
 	OpenInputFile(inFile);
-	PreprocessInputFile(inFile,inputString);
+	tw::input::PreprocessInputFile(inFile,inputString);
 	inFile.close();
 
 	inputString.seekg(0);
@@ -1503,7 +1304,7 @@ void Simulation::ReadInputFile()
 	(*tw_out) << std::endl << "Reading Input File..." << std::endl << std::endl;
 
 	OpenInputFile(inFile);
-	PreprocessInputFile(inFile,inputString);
+	tw::input::PreprocessInputFile(inFile,inputString);
 	inFile.close();
 
 	inputString.seekg(0);

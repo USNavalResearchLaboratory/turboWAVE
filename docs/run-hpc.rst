@@ -25,7 +25,7 @@ Running an Example
 #. For definiteness, let us use :samp:`{twroot}/core/examples/pgc/beatwave-3d.txt`
 #. Let us assume that you will use :samp:`scp` to copy files to the HPC system
 #. :samp:`scp {twroot}/core/examples/pgc/beatwave-3d.txt {user@HPC_URL:HPC_scratch_directory}/stdin`
-#. This puts the input file in the HPC scratch space with the name :samp:`stdin`.  TurboWAVE always expects the input file to have the name :samp:`stdin` or :samp:`stdin.txt`, and to be in the working directory.
+#. This puts the input file in the HPC scratch space with the name :samp:`stdin`.  By default, turboWAVE expects the input file to have the name :samp:`stdin`, and to be in the working directory.
 #. Create a batch script according to the instructions for your machine.  Note the decomposition in the example input file.  The product of the three integers is the number of MPI processes you should request.  Assuming you don't fork threads, the number of cores you request should be the same as the number of MPI processes.  If you fork threads, then you must multiply the total cores by the number of threads you fork from each MPI process.  When forming your batch script, be careful to note whether a parameter refers to the cores per node, or the total cores for the entire job.
 #. Submit the script according to the instructions for your machine.
 #. As the problem runs, you can monitor the progress by examining the contents of the file :samp:`twstat`.

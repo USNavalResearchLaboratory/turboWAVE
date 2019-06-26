@@ -36,8 +36,6 @@ if len(sys.argv)<3:
 	print('----------------------Animations----------------------')
 	print('Put a python range as one of the slices to generate animated GIF.')
 	print('For example, zxyt=0,0,2:5 would animate time slices 2,3,4.')
-	print('Note: ImageMagick suite must be installed for animations.')
-	print('On Windows hard coding the path to the correct convert.exe may be required.')
 	exit()
 
 def WignerTransform(A,ds,eta0):

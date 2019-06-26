@@ -24,10 +24,10 @@ struct Launcher : tw::Thread
 {
 	Simulation *tw;
 	tw::Int numOMPThreads;
-	Launcher(tw::Int rank,tw::Int c) : tw::Thread(rank)
+	Launcher(tw::Int rank,tw::Int c,const std::string& fileName) : tw::Thread(rank)
 	{
 		numOMPThreads=c;
-		tw = new Simulation;
+		tw = new Simulation(fileName);
 	}
 	virtual ~Launcher()
 	{
@@ -77,13 +77,40 @@ void TW_Interactive::Run()
 #ifndef USING_TW_MPI
 int main(int argc,char *argv[])
 {
-	std::string initMessage;
+	std::string initMessage,arg,inputFileName("stdin");
 	std::set_new_handler(&out_of_store);
 	tw::Int bitsPerFloat = sizeof(tw::Float)*8;
 
 	MPI_Init(&argc,&argv);
 
-	Simulation *tw = new Simulation;
+	try
+	{
+		tw::Int idx = 1;
+		while (idx<argc)
+		{
+			arg = std::string(argv[idx]);
+
+			if (arg!="--input-file")
+				throw tw::FatalError("Unrecognized argument");
+
+			if (arg=="--input-file")
+			{
+				idx++;
+				if (idx<argc)
+					inputFileName = std::string(argv[idx]);
+				else
+					throw tw::FatalError("Incomplete arguments");
+			}
+			idx++;
+		}
+	}
+	catch (tw::FatalError& e)
+	{
+		std::cout << "COMMAND LINE ERROR: " << e.what() << std::endl;
+		exit(1);
+	}
+
+	Simulation *tw = new Simulation(inputFileName);
 	initMessage = tw->InputFileFirstPass();
 	*tw->tw_out << std::endl << "*** Starting turboWAVE Session ***" << std::endl;
 	*tw->tw_out << "Floating point precision = " << bitsPerFloat << " bits" << std::endl;
@@ -116,7 +143,7 @@ int main(int argc,char *argv[])
 	int numMPIThreads=1,numOMPThreads=1;
 	bool interactive = true;
 	tw::Int i,numCompleted=0;
-	std::string arg;
+	std::string arg,inputFileName("stdin");
 	std::set_new_handler(&out_of_store);
 	tw::Int bitsPerFloat = sizeof(tw::Float)*8;
 
@@ -139,12 +166,21 @@ int main(int argc,char *argv[])
 		{
 			arg = std::string(argv[idx]);
 
-			if (arg!="-n" && arg!="-c" && arg!="--no-interactive" && arg!="--version" && arg!="--help")
+			if (arg!="-n" && arg!="-c" && arg!="--no-interactive" && arg!="--version" && arg!="--help" && arg!="--input-file")
 				throw tw::FatalError("Unrecognized argument");
+
+			if (arg=="--input-file")
+			{
+				idx++;
+				if (idx<argc)
+					inputFileName = std::string(argv[idx]);
+				else
+					throw tw::FatalError("Incomplete arguments");
+			}
 
 			if (arg=="--version")
 			{
-				std::cout << "turboWAVE version 3.4a" << std::endl;
+				std::cout << "turboWAVE version 3.4a2" << std::endl;
 				if (argc==2)
 					exit(0);
 			}
@@ -209,7 +245,7 @@ int main(int argc,char *argv[])
 
 	std::vector<tw::Thread*> launcher(numMPIThreads);
 	for (i=0;i<numMPIThreads;i++)
-		launcher[i] = new Launcher(i,numOMPThreads);
+		launcher[i] = new Launcher(i,numOMPThreads,inputFileName);
 	TW_MPI_Launch(launcher);
 
 	std::cout << "Internal MPI Startup Complete" << std::endl;

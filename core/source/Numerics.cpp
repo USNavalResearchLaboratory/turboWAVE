@@ -253,13 +253,29 @@ void SymmetricTridiagonalEigensystem(std::valarray<tw::Float>& eigenvalues,tw::F
 		} while (m!=l);
 	}
 	for (i=0;i<n;i++)
-		//eigenvalues[i] = d[i+1]; // natural order, most negative first
-		eigenvalues[i] = d[n-i]; // reversing the order
-	// Reverse the matrix order.
-	if (revTransform!=NULL)
-		for (k=0;k<n;k++)
-			for (i=0;i<n/2;i++)
-				std::swap(revTransform[k*n+i],revTransform[k*n+n-i-1]);
+		eigenvalues[i] = d[i+1];
+	SortEigensystem(eigenvalues,revTransform);
+}
+
+void SortEigensystem(std::valarray<tw::Float>& eigenvalues,tw::Float *revTransform)
+{
+	// Sort according to absolute value using simple insertion sort
+	// Also sort revTransform matrix if it is not NULL
+	tw::Int n = eigenvalues.size();
+	for (tw::Int i=1;i<n;i++)
+	{
+		tw::Int j = i;
+		while (fabs(eigenvalues[j-1]) > fabs(eigenvalues[j]))
+		{
+			std::swap(eigenvalues[j],eigenvalues[j-1]);
+			if (revTransform!=NULL)
+				for (tw::Int k=0;k<n;k++)
+					std::swap(revTransform[k*n+j],revTransform[k*n+j-1]);
+			j--;
+			if (j==0)
+				break;
+		}
+	}
 }
 
 tw::Float GetSphericalGroundState(std::valarray<tw::Float>& vec,std::valarray<tw::Float>& phi,tw::Float dr)

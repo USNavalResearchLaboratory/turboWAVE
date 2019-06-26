@@ -22,10 +22,6 @@ struct Simulation;
 #include "diagnostics.h"
 #include "module.h"
 
-void ReduceInputFile(std::ifstream& inputFile,std::stringstream& out);
-tw::Int IncludeFiles(std::stringstream& in,std::stringstream& out);
-void PreprocessInputFile(std::ifstream& inputFile,std::stringstream& out);
-
 struct NonUniformRegion
 {
 	tw::Int i1,i2,ih,N;
@@ -38,6 +34,7 @@ struct NonUniformRegion
 
 struct Simulation:Task,MetricSpace
 {
+	std::string inputFileName;
 	std::ostream *tw_out;
 
 	std::vector<NonUniformRegion*> region;
@@ -81,7 +78,7 @@ struct Simulation:Task,MetricSpace
 	cl_mem waveBuffer;
 	#endif
 
-	Simulation();
+	Simulation(const std::string& inputFileName);
 	virtual ~Simulation();
 	virtual void Run();
 	void SetupGeometry();
@@ -159,7 +156,7 @@ struct Simulation:Task,MetricSpace
 		for (auto m : module)
 			m->SetupTimeInfo(dt0);
 	}
-	
+
 	bool IsFirstStep()
 	{
 		return stepNow == 1;

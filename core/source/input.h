@@ -2,6 +2,15 @@ namespace tw
 {
 	namespace input
 	{
+		tw::Float GetUnitDensityCGS(std::stringstream& in);
+		tw::Int IncludeFiles(std::stringstream& in,std::stringstream& out);
+		void StripComments(std::ifstream& inputFile,std::stringstream& out);
+		void StripDecorations(std::stringstream& in,std::stringstream& out);
+		void InsertWhitespace(std::stringstream& in,std::stringstream& out);
+		void UserMacros(std::stringstream& in,std::stringstream& out);
+		void UnitMacros(std::stringstream& in,std::stringstream& out);
+		void PreprocessInputFile(std::ifstream& inputFile,std::stringstream& out);
+
 		void PythonRange(std::string& source,tw::Float *v0,tw::Float *v1);
 
 		void ReadRect(Region *ans,std::stringstream& source);
