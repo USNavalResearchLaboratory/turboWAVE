@@ -1,5 +1,5 @@
 // Keep the following line for generating twtest reports
-// TWTEST matplotlib zxyt=0,-1 phi.dvdat
+// TWTEST matplotlib zxyt=0,: phi.dvdat
 
 steps = 256
 timestep = 0.1
@@ -8,22 +8,27 @@ moving window = no
 neutralize = yes
 append mode = true
 
-xboundary = ( periodic , periodic )
+xboundary = ( reflecting , reflecting )
 yboundary = ( periodic , periodic )
 zboundary = ( reflecting , reflecting )
 
 new grid
 {
-	corner = ( -12.8 , -0.5 , -12.8 )
-	dimensions = ( 128 , 1 , 128 )
-	cell size = ( 0.2 , 1.0 , 0.2 )
+	corner = ( 0.0 , -3.1416 , -12.8 )
+	dimensions = ( 64 , 1 , 128 )
+	cell size = ( 0.2 , 6.2832 , 0.2 )
 	decomposition = ( 2 , 1 , 2 )
+	geometry = cylindrical
 }
 
 new electrostatic field solver
 {
-	elliptical solver = facr
-	poisson boundary condition = ( dirichlet , dirichlet )
+	elliptical solver = eigenmode
+	// Because we will put a charged electrode on the lower z-boundary,
+	// it is necessary to use a neumann condition on the outer radial boundary.
+	// Otherwise we would have a discontinuity in potential at the corner.
+	poisson boundary condition x = ( neumann, neumann )
+	poisson boundary condition z = ( dirichlet , dirichlet )
 }
 
 new species electrons
@@ -76,11 +81,19 @@ generate uniform electrons
 	loading = deterministic
 	particle density = fixed
 	density = 1
-	thermal momentum = ( 0.1 , 0.1 , 0.1 )
+	// Cannot correctly account for thermal expansion
+	// until coordinate transformations are restored
+	// in the pusher.  Therefore comment out for now.
+	//thermal momentum = ( 0.1 , 0.1 , 0.1 )
 }
 
 new box diagnostic
 {
 	filename = full
+	period = 8
+}
+
+new energy diagnostic
+{
 	period = 8
 }

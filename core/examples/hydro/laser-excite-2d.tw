@@ -1,9 +1,11 @@
 // Keep the following line for generating twtest reports
-// TWTEST matplotlib xtyz=0,0 Ar2[+].dvdat 2.0
+// TWTEST matplotlib zxyt=0,: Ar2[+].dvdat dr=2.0
 
-// SPARC input file to model laser excitation of an Argon plasma
+// SPARC input file to model 2D axisymmetric laser excitation of an Argon plasma
 // This includes photo and collisional ionization
 // Increasing laser intensity may require timestep reduction
+// If you want electrostatic fields, set plasma model = quasineutral
+// (quasineutral model will be slow)
 append mode = on
 steps = 2000
 timestep = %100fs
@@ -23,10 +25,10 @@ zboundary = ( open  open )
 
 new grid
 {
-	corner = ( 0.0 , -3.1416 , -0.5 )
-	dimensions = ( 2000 1 1 )
-	cell size = ( 0.2 6.2832 1.0 )
-	decomposition = ( 1  1  1 )
+	corner = ( 0.0 , -3.1416 , -2000 )
+	dimensions = ( 100 1 200 )
+	cell size = ( 1.0 6.2832 20.0 )
+	decomposition = ( 2  1  4 )
 	geometry = cylindrical
 	adaptive timestep = off
 }
@@ -36,19 +38,21 @@ new chemistry
 	epsilon factor = 1e-4
 	radiation model = none
 	laser model = vacuum
-	plasma model = quasineutral
+	plasma model = neutral
+	// following affects accuracy of electrostatic field
+	// (quasineutral model only)
+	tolerance = 1e-3
 }
 
 new pulse
 {
-	type = bessel
 	a = .002 0 0
 	w = 10
-	r0 = 10 10
+	r0 = 30 30
 	delay = 0
-	risetime = 29850 // 100 ps
+	risetime = %100ps
 	holdtime = 0
-	falltime = 29850
+	falltime = %100ps
 }
 
 new chemical e

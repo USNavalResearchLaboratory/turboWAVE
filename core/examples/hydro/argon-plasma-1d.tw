@@ -1,12 +1,12 @@
 // Keep the following line for generating twtest reports
-// TWTEST matplotlib zxyt=0,-1 e.dvdat 4.0
+// TWTEST matplotlib xtyz=0,0 e.dvdat dr=4.0
 
-// SPARC input file to model relaxation of a 2D axisymmetric Argon plasma
-// if you want electrostatic field, set plasma model = quasineutral
+// SPARC input file to model relaxation of an Argon plasma
 append mode = on
-steps = 3000
+steps = 20000
 timestep = %0.1ns
 dtmax = %1ns
+maxtime = %100ns
 dump period = 0
 moving window = no
 neutralize = yes
@@ -22,10 +22,10 @@ zboundary = ( open  open )
 
 new grid
 {
-	corner = ( 0.0 , -3.1416 , -50.0 )
-	dimensions = ( 100 1 200 )
-	cell size = ( 0.5 6.2832 0.5 )
-	decomposition = ( 2  1  4 )
+	corner = ( 0.0 , -3.1416 , 0.0 )
+	dimensions = ( 2000 1 1 )
+	cell size = ( 0.5 6.2832 1.0 )
+	decomposition = ( 1  1  1 )
 	geometry = cylindrical
 	adaptive timestep = on
 }
@@ -34,9 +34,7 @@ new chemistry
 {
 	epsilon factor = 1e-4
 	radiation model = none
-	plasma model = neutral
-	// If using quasineutral model, the following sets the tolerance
-	tolerance = 1e-3
+	plasma model = quasineutral
 }
 
 new chemical e
@@ -84,9 +82,10 @@ new reaction = { Ar[+] + e -> Ar } rate = 2.7e-13 -0.5 0.0 e(:)
 new reaction = { Ar[+] + Ar + Ar -> Ar2[+] + Ar + 2.61 } rate = 2.55e-31 0.0 0.0 e(:)
 new reaction = { Ar2[+] + e -> Ar + Ar + 13.15 } rate = 5.4e-8 -0.667 0.0 e(:)
 
-generate uniform Ar
+generate piecewise Ar
 {
-	density = 1
+	xdensity = { 0.9 1.0 1.0 }
+	xpoints = { 0.0 100.0 1e5 }
 	temperature = %300K
 }
 
@@ -108,18 +107,20 @@ generate uniform e
 	temperature = %300K
 }
 
-generate gaussian Ar[+]
+generate piecewise Ar[+]
 {
-	density = 0.1
-	size = 5 10 10
+	xdensity = { 1e-1 1e-5 1e-5 }
+	xpoints = { 0.0 100.0 1e5 }
 	temperature = %300K
+	shape = quintic
 }
 
-generate gaussian e
+generate piecewise e
 {
-	density = 0.1
-	size = 5 10 10
+	xdensity = { 1e-1 1e-5 1e-5 }
+	xpoints = { 0.0 100.0 1e5 }
 	temperature = %2.0eV
+	shape = quintic
 }
 
 new box diagnostic

@@ -50,9 +50,9 @@ The effect of user variables can be achieved via macro substitution.  The format
 
 	#define $r0 2.5
 
-causes every subsequent occurrence of ``$r0`` to be replaced with ``2.5``.  The use of the ``$`` prefix is optional, but highly recommended, as it helps prevent unintended substitutions, and improves readability.
+causes every subsequent occurrence of ``$r0`` to be replaced with ``2.5``.  The use of the ``$`` prefix is optional, but highly recommended, as it helps prevent unintended substitutions, and improves readability (including syntax highlights in supported editors).
 
-The analogy with the C preprocessor is limited.  Function-like macros are not supported.  The substitution value cannot contain any white space characters.
+The analogy with the C preprocessor is limited.  Function-like macros are not supported.  The substitution value cannot contain any white space characters.  The substitution is unconditional, e.g., if the key occurs as a word in a string it is replaced.
 
 User macros can be defined at any point in an input file, except where they would interrupt another directive. Attempting to redefine a macro throws an error.
 

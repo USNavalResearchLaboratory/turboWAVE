@@ -1,4 +1,5 @@
 import os
+import shutil
 import glob
 import sys
 import traceback
@@ -10,23 +11,24 @@ import twutils.dvdat as dv
 import twutils.plot as twplot
 import matplotlib as mpl
 import matplotlib.pyplot as plt
+import PIL.Image
 
 if len(sys.argv)<2:
-	print('Usage: python twtest.py tw_root tw_args')
+	print('Usage: python twtest.py tw_root cmd')
 	print('tw_root = path to turboWAVE root directory.')
-	print('tw_args = any arguments to pass to turboWAVE.')
+	print('cmd = command line to execute for each test.')
 	print('To select explicit categories, append then to tw_root with double colons.')
-	print('E.g., python twtest.py ~/turboWAVE::hydro::pic -n 4 -c 5')
+	print('desktop example: python twtest.py ~/turboWAVE::hydro::pic tw3d -n 4 -c 5')
+	print('cluster example: python twtest.py ~/turboWAVE mpirun -np 4 tw3d')
 	print('N.b. as a corollary no double colons may appear in tw_root.')
 	exit(1)
 
 def cleanup(wildcarded_path):
 	cleanstr = glob.glob(wildcarded_path)
-	if len(cleanstr)>0:
-		cleanstr.insert(0,'rm')
-		subprocess.run(cleanstr)
+	for f in cleanstr:
+		os.remove(f)
 
-def gen_plot(img_file,plotter,slicing_spec,slices,dyn_range=0.0,my_color_map='viridis',global_contrast=False):
+def gen_plot(img_file,plotter,slicing_spec,slices,dyn_range=0.0,val_range=(0.0,0.0),my_color_map='viridis',global_contrast=False):
 	fig = plt.figure(figsize=(7,5),dpi=75)
 	if len(slices)==2:
 		data_slice,plot_dict = plotter.falsecolor2d(slicing_spec,slices,dyn_range)
@@ -35,6 +37,9 @@ def gen_plot(img_file,plotter,slicing_spec,slices,dyn_range=0.0,my_color_map='vi
 		else:
 			minval = plot_dict['vmin']
 			maxval = plot_dict['vmax']
+		if val_range!=(0.0,0.0):
+			minval = val_range[0]
+			maxval = val_range[1]
 		plt.imshow(data_slice,
 			origin='lower',
 			aspect='auto',
@@ -57,28 +62,36 @@ def gen_plot(img_file,plotter,slicing_spec,slices,dyn_range=0.0,my_color_map='vi
 	plt.savefig(img_file)
 	plt.close()
 
-def gen_movie(mov_file,plotter,slicing_spec,slices,dyn_range=0.0,my_color_map='viridis'):
-	for i in range(plotter.dims4()[0]):
+def gen_movie(mov_file,plotter,slicing_spec,slices,dyn_range=0.0,val_range=(0.0,0.0),my_color_map='viridis'):
+	frames = plotter.dims4()[0]
+	for i in range(frames):
 		img_file = 'frame{:03d}.png'.format(i)
 		c = slicing_spec.find('t')
-		slices[c-2] = i
-		gen_plot(img_file,plotter,slicing_spec,slices,dyn_range,my_color_map,True)
-	try:
-		subprocess.run(["convert","-delay","30","frame*.png",mov_file])
-		cleanup('frame*.png')
-	except:
-		cleanup('frame*.png')
-		raise OSError("The convert program from ImageMagick may not be installed.")
+		slices[c-2] = str(i)
+		gen_plot(img_file,plotter,slicing_spec,tuple(map(int,slices)),dyn_range,val_range,my_color_map,True)
+	images = []
+	frameRateHz = 5
+	img_files = sorted(glob.glob('frame*.png'))
+	for f in img_files:
+		images.append(PIL.Image.open(f))
+	images[0].save(mov_file,save_all=True,append_images=images[1:],duration=int(1000/frameRateHz),loop=0)
+	cleanup('frame*.png')
 
-def gen_viz(primitive_file,file_to_plot,slicing_spec,slices,dyn_range=0.0,my_color_map='viridis'):
+def gen_viz(primitive_file,fig_dict):
 	'''Figure out whether a still image or movie was requested and call appropriate routine'''
+	file_to_plot = fig_dict['data']
+	slicing_spec = fig_dict['slicing_spec']
+	slices = fig_dict['slices']
+	dyn_range = fig_dict['dyn_range']
+	val_range = fig_dict['val_range']
+	my_color_map = fig_dict['color']
 	plotter = twplot.plotter(file_to_plot)
 	c = slicing_spec.find('t')
-	if (c==2 or c==3) and slices[c-2]==-1:
-		gen_movie(primitive_file+'.gif',plotter,slicing_spec,slices,dyn_range,my_color_map)
+	if (c==2 or c==3) and slices[c-2]==':':
+		gen_movie(primitive_file+'.gif',plotter,slicing_spec,slices,dyn_range,val_range,my_color_map)
 		return primitive_file+'.gif'
 	else:
-		gen_plot(primitive_file+'.png',plotter,slicing_spec,slices,dyn_range,my_color_map)
+		gen_plot(primitive_file+'.png',plotter,slicing_spec,tuple(map(int,slices)),dyn_range,val_range,my_color_map)
 		return primitive_file+'.png'
 
 def comment_remover(text):
@@ -108,15 +121,25 @@ def parse_input_file(ex_path):
 				if args[1]!='matplotlib':
 					raise ValueError('Example file with invalid plotter'+args[1])
 				fig_dict['slicing_spec'] = args[2].split('=')[0]
-				slicing = []
+				slices = []
 				for s in args[2].split('=')[1].split(','):
-					slicing.append(int(s))
-				fig_dict['slicing'] = slicing
+					slices.append(s)
+				fig_dict['slices'] = slices
 				fig_dict['data'] = args[3]
+				fig_dict['dyn_range'] = 0.0
+				fig_dict['val_range'] = (0.0,0.0)
+				fig_dict['color'] = 'viridis'
 				if len(args)>4:
-					fig_dict['dyn_range'] = np.float(args[4])
-				else:
-					fig_dict['dyn_range'] = 0.0
+					for keyval in args[4:]:
+						key = keyval.split('=')[0]
+						val = keyval.split('=')[1]
+						if key=='dr':
+							fig_dict['dyn_range'] = np.float(val)
+						if key=='range':
+							r = val.split(',')
+							fig_dict['val_range'] = ( np.float(r[0]) , np.float(r[1]) )
+						if key=='color':
+							fig_dict['color'] = val
 	with open(ex_path) as f:
 		data = f.read()
 		data = comment_remover(data)
@@ -130,17 +153,21 @@ def parse_input_file(ex_path):
 				start_looking = False
 	return fig_dict,input_dict
 
-def parse_tw_args(arg_list):
+def parse_cmd(arg_list):
+	cmd = ''
 	mpi_procs = 1
 	omp_threads = 1
 	for i,arg in enumerate(arg_list):
-		if arg=='-n':
+		if arg=='-n' or arg=='-np':
 			mpi_procs = int(arg_list[i+1])
+			arg_list[i+1] = 'TWPROCS'
 		if arg=='-c':
 			omp_threads = int(arg_list[i+1])
-	return mpi_procs,omp_threads
+			arg_list[i+1] = 'TWTHREADS'
+		cmd = cmd + arg + ' '
+	return cmd,mpi_procs,omp_threads
 
-def form_tw_cmd(num_procs,num_threads,dims):
+def optimize_parallel(num_procs,num_threads,dims):
 	num_dims = 0
 	dim1 = 0
 	if dims[0]>1:
@@ -161,9 +188,9 @@ def form_tw_cmd(num_procs,num_threads,dims):
 		if dim1%(2*mpi_nodes)!=0:
 			# Try a factor of 10
 			mpi_nodes = 10*int(req_nodes/10)
-		return 'tw3d --no-interactive -n '+str(mpi_nodes)
+		return mpi_nodes,1
 	else:
-		return 'tw3d --no-interactive -n '+str(num_procs)+' -c '+str(num_threads)
+		return num_procs,num_threads
 
 subargs = sys.argv[1].split('::')
 tw_root = subargs[0]
@@ -186,7 +213,9 @@ html_doc += '<h1 style="background-color:black;color:white;">TurboWAVE Test Suit
 
 html_doc += '<h2 style="background-color:rgb(0,20,100);color:white;">Version Information</h2>\n\n'
 html_doc += '<p>Date of report : ' + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-mpi_procs,omp_threads = parse_tw_args(sys.argv[2:])
+# Get the command but insert placeholders for procs and threads ('TWPROCS' and 'TWTHREADS')
+# The requested procs and threads are stored separately
+tw_cmd,mpi_procs,omp_threads = parse_cmd(sys.argv[2:])
 html_doc += '<p>Requested MPI processes = ' + str(mpi_procs) + '</p>'
 html_doc += '<p>Requested OMP threads = ' + str(omp_threads) + '</p>'
 
@@ -238,22 +267,23 @@ try:
 		for s in ex_path_list:
 			# Copy all the txt files in case some are required data
 			if s[-4:]=='.txt':
-				subprocess.run(["cp",s,"."])
+				shutil.copy(s,os.getcwd())
 			ex_list.append(s.split('/')[-1])
 		for i,ex_path in enumerate(ex_path_list):
 			print('--------------------------------------')
 			print('Example',ex_list[i])
 			html_doc += '\n<h3 style="background-color:rgb(100,250,200);">"' + ex_list[i] + '" Example</h3>\n'
 
-			subprocess.run(["cp",ex_path,"stdin"])
 			fig_dict,input_dict = parse_input_file(ex_path)
 
 			if len(fig_dict)>0:
 				# Run this case
-				tw_cmd = form_tw_cmd(mpi_procs,omp_threads,input_dict['dims'])
-				print('Executing',tw_cmd,'...')
-				html_doc += '<p>TW command line = <samp>'+tw_cmd+'</samp></p>'
-				compl = subprocess.run(tw_cmd.split(),stdout=subprocess.PIPE,universal_newlines=True)
+				nprocs,nthreads = optimize_parallel(mpi_procs,omp_threads,input_dict['dims'])
+				tw_cmd_now = tw_cmd.replace('TWPROCS',str(nprocs)).replace('TWTHREADS',str(nthreads))
+				tw_cmd_now += '--no-interactive --input-file ' + ex_path
+				print('Executing',tw_cmd_now,'...')
+				html_doc += '<p>TW command line = <samp>'+tw_cmd_now+'</samp></p>'
+				compl = subprocess.run(tw_cmd_now.split(),stdout=subprocess.PIPE,universal_newlines=True)
 
 				# Record the results
 				if compl.returncode==0:
@@ -274,13 +304,13 @@ try:
 					print('Generating visualization...',end='',flush=True)
 					primitive_file = cat + '-' + ex_list[i] + '-' + fig_dict['data']
 					try:
-						viz_file = gen_viz(primitive_file,fig_dict['data'],fig_dict['slicing_spec'],fig_dict['slicing'],fig_dict['dyn_range'])
+						viz_file = gen_viz(primitive_file,fig_dict)
 						html_doc += '<p><img src="' + viz_file + '" alt="Visualization is missing."</p>'
 						print('OK')
 					except OSError as err:
 						print("Trouble")
 						print(err)
-						html_doc += '<p>There was a problem creating the visualization.  Perhaps ImagMagick is not installed.</p>'
+						html_doc += '<p>There was a problem creating the visualization.</p>'
 				else:
 					print('Did not complete successfully.  Error report from TW follows:')
 					html_doc += '<p>Did not complete successfully.  Error report from TW follows:</p>'
@@ -293,8 +323,8 @@ try:
 				html_doc += '<p>Test not requested, or not a TW input file.</p>'
 
 			cleanup('*.dvdat')
-			subprocess.run(["rm","-f","stdin"])
-			subprocess.run(["rm","-f","twstat"])
+			if len(glob.glob('twstat'))==1:
+				os.remove('twstat')
 
 		cleanup('*.txt')
 except:

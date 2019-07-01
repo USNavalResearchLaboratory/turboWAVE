@@ -2,70 +2,70 @@
 # You must create the following tree:
 # ~/.atom/packages/language-turbowave/grammars/turbowave.cson
 # ~/.atom/packages/language-turbowave/package.json
-# Then extension .tw3d should automatically have highlights
-# Other files can be highlighted by using the ``Select Grammar`` menu item (choose tw3d)
+# Then extension .tw should automatically have highlights
+# Other files can be highlighted by using the ``Select Grammar`` menu item (choose turbowave)
 
-'scopeName': 'source.tw3d'
-'name': 'tw3d'
-'fileTypes': ['tw3d']
+'scopeName': 'source.tw'
+'name': 'turbowave'
+'fileTypes': ['tw']
 
 'patterns': [
 	{
 		'match': '\\b(([0-9]+\\.?[0-9]*[eE]?(\\+|\\-)?[0-9]*)|(\\.[0-9]+[eE]?(\\+|\\-)?[0-9]*))\\b'
-		'name': 'constant.numeric.tw3d'
+		'name': 'constant.numeric.tw'
 	},
 	{
 		'match': '\\b(true|false|on|off|yes|no)\\b'
-		'name': 'constant.language.tw3d'
+		'name': 'constant.language.tw'
 	},
 	{
 		'match': '(\\#)define\\b'
-		'name': 'keyword.control.directive.define.tw3d'
+		'name': 'keyword.control.directive.define.tw'
 	},
 	{
 		'match': '(\\#)include\\b'
-		'name': 'keyword.control.directive.define.tw3d'
+		'name': 'keyword.control.directive.define.tw'
 	},
 	{
 		'match': '\\b(new|generate)\\b'
-		'name': 'keyword.operator.tw3d'
+		'name': 'keyword.operator.tw'
 	},
 	{
 		'begin': '//'
 		'end': '\\n'
-		'name': 'comment.line.tw3d'
+		'name': 'comment.line.tw'
 	},
 	{
 		'begin': '/\\*'
 		'end': '\\*/'
-		'name': 'comment.block.tw3d'
+		'name': 'comment.block.tw'
 	},
 	{
 		'begin': '\''
 		'end': '\''
-		'name': 'string.quoted.single.tw3d'
+		'name': 'string.quoted.single.tw'
 	},
 	{
 		'begin': '\\s\\$'
 		'end': '\\s'
-		'name': 'variable.other.tw3d'
+		'name': 'variable.other.tw'
 	},
 	{
 		# Unit conversion matching type 1
-		'match': '(\\s|\\(|\\=|\\{|\\,)(%)([0-9]+\\.?[0-9]*[eE]?(\\+|\\-)?[0-9]*)(um|mm|cm|m|fs|ps|ns|us|s|m\\-3|cm\\-3|Jm3|Jcm3|eV|K)(\\s|\\)|\\}|\\,)'
+		'match': '(\\b|\\s|\\(|\\=|\\{|\\,)(%)([0-9]+\\.?[0-9]*[eE]?(\\+|\\-)?[0-9]*)(um|mm|cm|m|fs|ps|ns|us|s|m\\-3|cm\\-3|Jm3|Jcm3|eV|K)(\\s|\\)|\\}|\\,)'
 		captures:
-			2: name: 'constant.other.tw3d'
-			3: name: 'constant.other.tw3d'
-			4: name: 'constant.other.tw3d'
-			5: name: 'constant.other.tw3d'
+			2: name: 'constant.other.tw'
+			3: name: 'constant.other.tw'
+			4: name: 'constant.other.tw'
+			5: name: 'constant.other.tw'
 	},
 	{
 		# Unit conversion matching type 2
-		'match': '(\\s|\\(|\\=|\\{|\\,)(%)(\\.[0-9]+[eE]?(\\+|\\-)?[0-9]*)(um|mm|cm|m|fs|ps|ns|us|s|m\\-3|cm\\-3|Jm3|Jcm3|eV|K)(\\s|\\)|\\}|\\,)'
+		'match': '(\\b|\\s|\\(|\\=|\\{|\\,)(%)(\\.[0-9]+[eE]?(\\+|\\-)?[0-9]*)(um|mm|cm|m|fs|ps|ns|us|s|m\\-3|cm\\-3|Jm3|Jcm3|eV|K)(\\s|\\)|\\}|\\,)'
 		captures:
-			2: name: 'constant.other.tw3d'
-			3: name: 'constant.other.tw3d'
-			4: name: 'constant.other.tw3d'
-			5: name: 'constant.other.tw3d'
+			2: name: 'constant.other.tw'
+			3: name: 'constant.other.tw'
+			4: name: 'constant.other.tw'
+			5: name: 'constant.other.tw'
 	},
 ]

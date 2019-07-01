@@ -45,4 +45,4 @@ Compile turboWAVE
 	#. To enable turboWAVE input file syntax highlights with the :samp:`vim` editor
 
 		* Copy :samp:`{twroot}/tools/config-files/filetype.vim` to :samp:`~/.vim/`
-		* Copy :samp:`{twroot}/tools/config-files/tw3d.vim` to :samp:`~/.vim/syntax/`
+		* Copy :samp:`{twroot}/tools/config-files/turbowave.vim` to :samp:`~/.vim/syntax/`

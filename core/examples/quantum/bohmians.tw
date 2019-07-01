@@ -1,5 +1,5 @@
 // Keep the following line for generating twtest reports
-// TWTEST matplotlib zxyt=0,-1 test.dvdat 2.0
+// TWTEST matplotlib zxyt=0,: test.dvdat dr=2.0
 
 // Bohmian particles in a Rabi oscillation
 // The Rabi frequency is 0.0137 a.u.

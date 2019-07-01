@@ -1,5 +1,5 @@
 // Keep the following line for generating twtest reports
-// TWTEST matplotlib xyzt=0,-1 rho.dvdat 5.0
+// TWTEST matplotlib xyzt=0,: rho.dvdat dr=5.0
 
 ////////////////////////////////
 // BEGIN INPUT FILE FOR Z = 92.0

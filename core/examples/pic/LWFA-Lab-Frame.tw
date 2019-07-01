@@ -1,10 +1,10 @@
 // Keep the following line for generating twtest reports
-// TWTEST matplotlib xyzt=0,-1 zpz.dvdat 5.0
+// TWTEST matplotlib zxyt=0,: Ez.dvdat
 
 steps = 2000
 timestep = 0.04
 dump period = 0
-moving window = yes
+moving window = no
 neutralize = yes
 unit density = 1e19
 
@@ -18,7 +18,7 @@ zboundary = ( reflecting , reflecting )
 
 new grid
 {
-	corner = ( -64 , -0.5 , -51.2 )
+	corner = ( -64 , -0.5 , 0.0 )
 	dimensions = ( 256 , 1 , 1024 )
 	cell size = ( 0.5 , 1.0 , 0.05 )
 	decomposition = ( 2 , 1 , 2 )
@@ -26,8 +26,12 @@ new grid
 
 new region rect r1
 {
-	bounds = -40 40 -1e5 1e5 10 40
-	move with window = false
+	bounds = -1e5 , 1e5 , -1e5 , 1e5 , 10 , 40
+}
+
+new region rect antenna_rect
+{
+	bounds = -40 , 40 , -1e5 , 1e5 , 5.01 , 5.04
 }
 
 new direct electromagnetic module
@@ -35,17 +39,6 @@ new direct electromagnetic module
 	elliptical solver = facr
 	layer thickness = 8
 	reflection coefficient = 1e-4
-}
-
-new wave
-{
-	a = 2.5 0.0 0.0
-	w = 5.0
-	r0 = ( 10 , 1e5 )
-	delay = 1
-	risetime = 3
-	holdtime = 0
-	falltime = 3
 }
 
 new species electrons
@@ -60,6 +53,23 @@ generate uniform electrons
 	loading = deterministic
 }
 
+// conductor object serves as antenna
+// conducting region must not overlap PML regions
+new conductor
+{
+	clipping region = antenna_rect
+	current type = electric // required, or no emission
+	// a=eA/mc^2 can be estimated as 0.5 * px * dz * Nz , where Nz = cells along z within clipping region
+	// Here, dz = 0.05 , Nz = 1 , so px=40 would give a=1
+	px = { 100.0 } // polarization density
+	w = { 5.0 } // frequency
+	gaussian size = ( 10 , 1e5 , 1e5 )
+	delay = 0
+	risetime = 3
+	holdtime = 0
+	falltime = 3
+}
+
 new box diagnostic
 {
 	period = 100
@@ -72,6 +82,6 @@ new phase space plot for electrons
 	ordinate = pz
 	dimensions = 200 200
 	period = 100
-	minimum = -50 0
-	maximum = 0 20
+	minimum = 0 0
+	maximum = 51.2 20
 }

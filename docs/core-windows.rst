@@ -31,7 +31,7 @@ To enable turboWAVE input file syntax highlights with the :samp:`vim` editor:
 
 	* Create :samp:`~/vimfiles/` and :samp:`~/vimfiles/syntax/` if they do not already exist
 	* Copy :samp:`{twroot}/tools/config-files/filetype.vim` to :samp:`~/vimfiles/`
-	* Copy :samp:`{twroot}/tools/config-files/tw3d.vim` to :samp:`~/vimfiles/syntax/`
+	* Copy :samp:`{twroot}/tools/config-files/turbowave.vim` to :samp:`~/vimfiles/syntax/`
 
 Path Variable
 -------------

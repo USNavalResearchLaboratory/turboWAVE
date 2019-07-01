@@ -1,5 +1,5 @@
 // Keep the following line for generating twtest reports
-// TWTEST matplotlib zxyt=0,-1 e.dvdat
+// TWTEST matplotlib zxyt=0,: e.dvdat
 
 // Radially polarized pulse in corrugated channel
 // (pulse is arbitrary, i.e., not matched)

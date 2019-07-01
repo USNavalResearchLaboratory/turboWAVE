@@ -3,9 +3,9 @@
 " Maintainer: Daniel Gordon
 
 " Syntax highlighting for turboWAVE input files:
-" Put tw3d.vim into ~/.vim/syntax/ and put filetype.vim into ~/.vim
-" This causes stdin, stdin.txt, and *.tw3d to be highlighted
-" To highlight any other file from within vim, use ``:set syntax=tw3d``
+" Put turbowave.vim into ~/.vim/syntax/ and put filetype.vim into ~/.vim
+" This causes stdin, stdin.txt, and *.tw to be highlighted
+" To highlight any other file from within vim, use ``:set syntax=turbowave``
 
 " Quit when a (custom) syntax file was already loaded
 if exists("b:current_syntax")

@@ -132,14 +132,26 @@ void tw::input::UserMacros(std::stringstream& in,std::stringstream& out)
 
 void tw::input::UnitMacros(std::stringstream& in,std::stringstream& out)
 {
+	bool unitMacrosPresent = false;
+	std::string word;
+
+	while (!in.eof())
+	{
+		in >> word;
+		if (!in.eof())
+			if (word[0]=='%')
+				unitMacrosPresent = true;
+	}
+
+	in.clear();
+	in.seekg(0,in.beg);
 	tw::Float unitDensityCGS = tw::input::GetUnitDensityCGS(in);
-	if (unitDensityCGS==0.0)
+	if (unitDensityCGS==0.0 && unitMacrosPresent)
 		throw tw::FatalError("Unit density directive is required.");
 	UnitConverter uc(unitDensityCGS);
 
 	in.clear();
 	in.seekg(0,in.beg);
-	std::string word;
 	while (!in.eof())
 	{
 		in >> word;

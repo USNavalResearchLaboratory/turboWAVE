@@ -1,8 +1,12 @@
-// Keep the following line for generating twtest reports
-// TWTEST matplotlib zxyt=0,-1 phi.dvdat
+// problem size not appropriate for desktop
+// <15 minutes on NERSC Cori
+
+#define $a0 0.2
+#define $r0 6.0
+#define $t0 40
 
 steps = 1000
-timestep = 0.08
+timestep = 0.07
 dump period = 0
 moving window = no
 neutralize = yes
@@ -19,10 +23,10 @@ zboundary = ( absorbing , absorbing )
 
 new grid
 {
-	corner = ( -32.0 , -0.50 , 0.0 )
-	dimensions = ( 128 , 1 , 512 )
-	cell size = ( 0.5 , 1.0 , 0.1 )
-	decomposition = ( 2 , 1 , 4 )
+	corner = ( -32.0 , -32.0 , 0.0 )
+	dimensions = ( 128 , 128 , 512 )
+	cell size = ( 0.5 , 0.5 , 0.1 )
+	decomposition = ( 4 , 4 , 16 )
 }
 
 new coulomb electromagnetic module
@@ -38,34 +42,32 @@ new pgc laser module
 
 new pulse
 {
-	a = ( 0.2 , 0 , 0 )
+	a = ( $a0 , 0 , 0 )
 	direction = ( 0 , 0 , 1 )
 	focus position = ( 0 , 0 , 0 )
 	delay = 0
-	risetime = 40
+	risetime = $t0
 	holdtime = 0
-	falltime = 40
+	falltime = $t0
 	w = 30.5
-	r0 = ( 6 , 1e5 )
+	r0 = ( $r0 , $r0 )
 }
 
 new pulse
 {
-	a = ( 0.2 , 0 , 0 )
+	a = ( $a0 , 0 , 0 )
 	direction = ( 0 , 0 , 1 )
 	focus position = ( 0 , 0 , 0 )
 	delay = 0
-	risetime = 40
+	risetime = $t0
 	holdtime = 0
-	falltime = 40
+	falltime = $t0
 	w = 31.5
-	r0 = ( 6 , 1e5 )
+	r0 = ( $r0 , $r0 )
 }
 
 new fluid electrons
 {
-	charge = -1
-	mass = 1
 }
 
 generate piecewise electrons
@@ -79,7 +81,7 @@ generate piecewise electrons
 new box diagnostic
 {
 	filename = full
-	period = 100
+	period = 1000
 }
 
 new energy series

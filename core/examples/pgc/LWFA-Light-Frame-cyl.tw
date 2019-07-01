@@ -1,5 +1,10 @@
 // Keep the following line for generating twtest reports
-// TWTEST matplotlib zxyt=0,-1 Ez.dvdat
+// TWTEST matplotlib zxyt=0,: Ez.dvdat
+
+// The following illustrates unit conversions and user variables.
+// Note a length gets used as a time between diagnostics.
+// This works because in normalized units 10um = 10um/c.
+#define $diag_step %10um
 
 steps = 1000
 timestep = 0.05
@@ -67,10 +72,10 @@ generate piecewise e
 new energy series
 {
 	filename = energy
-	period = 100
+	time period = $diag_step
 }
 
 new box diagnostic
 {
-	period = 100
+	time period = $diag_step
 }

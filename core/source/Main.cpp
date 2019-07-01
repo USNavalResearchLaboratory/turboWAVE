@@ -1,4 +1,5 @@
 #include "simulation.h"
+#define TW_VERSION_STRING "3.4b"
 
 ////////////////////
 // ERROR HANDLING //
@@ -77,6 +78,7 @@ void TW_Interactive::Run()
 #ifndef USING_TW_MPI
 int main(int argc,char *argv[])
 {
+	int numOMPThreads=0; // indicates -c argument was not given
 	std::string initMessage,arg,inputFileName("stdin");
 	std::set_new_handler(&out_of_store);
 	tw::Int bitsPerFloat = sizeof(tw::Float)*8;
@@ -90,9 +92,23 @@ int main(int argc,char *argv[])
 		{
 			arg = std::string(argv[idx]);
 
-			if (arg!="--input-file")
+			if (arg!="--input-file" && arg!="--no-interactive" && arg!="--version" && arg!="--help" && arg!="-c")
 				throw tw::FatalError("Unrecognized argument");
 
+			if (arg=="--version")
+			{
+				std::cout << "turboWAVE version " << TW_VERSION_STRING << std::endl;
+				if (argc==2)
+					exit(0);
+			}
+
+			if (arg=="--help")
+			{
+				std::cout << "This is turboWAVE, a PIC/hydro/quantum simulation code." << std::endl;
+				std::cout << "Please see the documentation at https://turbowave.readthedocs.io" << std::endl;
+				if (argc==2)
+					exit(0);
+			}
 			if (arg=="--input-file")
 			{
 				idx++;
@@ -101,8 +117,22 @@ int main(int argc,char *argv[])
 				else
 					throw tw::FatalError("Incomplete arguments");
 			}
+			if (arg=="-c")
+			{
+				idx++;
+				if (idx<argc)
+					numOMPThreads = atoi(argv[idx]);
+				else
+					throw tw::FatalError("Incomplete arguments");
+				if (numOMPThreads<1)
+					throw tw::FatalError("Number of OpenMP threads < 1");
+			}
 			idx++;
 		}
+		#ifndef USE_OPENMP
+		if (numOMPThreads>1)
+			throw tw::FatalError("Requested OpenMP threads but this executable not OpenMP enabled");
+		#endif
 	}
 	catch (tw::FatalError& e)
 	{
@@ -115,6 +145,8 @@ int main(int argc,char *argv[])
 	*tw->tw_out << std::endl << "*** Starting turboWAVE Session ***" << std::endl;
 	*tw->tw_out << "Floating point precision = " << bitsPerFloat << " bits" << std::endl;
 	#ifdef USE_OPENMP
+	if (numOMPThreads>0)
+		omp_set_num_threads(numOMPThreads);
 	*tw->tw_out << "Maximum OpenMP threads = " << omp_get_max_threads() << std::endl;
 	#endif
 	*tw->tw_out << std::endl;
@@ -180,7 +212,7 @@ int main(int argc,char *argv[])
 
 			if (arg=="--version")
 			{
-				std::cout << "turboWAVE version 3.4a2" << std::endl;
+				std::cout << "turboWAVE version " << TW_VERSION_STRING << std::endl;
 				if (argc==2)
 					exit(0);
 			}

@@ -24,8 +24,8 @@ profile: tw3d_profile copy_files
 # Uncomment exactly one platform
 
 #PLATFORM = OSX
-PLATFORM = LINUX
-#PLATFORM = OPENMPI
+#PLATFORM = LINUX
+PLATFORM = OPENMPI
 #PLATFORM = CRAY
 #PLATFORM = SGI
 

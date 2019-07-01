@@ -56,8 +56,8 @@ The full command line specification is
 
 .. py:function:: tw3d -n procs -c threads --input-file file --no-interactive --version --help
 
-	:param int procs: number of MPI processes (default=1)
-	:param int threads: number of OpenMP threads (see below for default)
+	:param int procs: number of MPI processes (default=1, desktop only)
+	:param int threads: number of OpenMP threads (see below for default, desktop only)
 	:param str file: name or path of the file to use as the input file (default=stdin)
 
 	The :samp:`--no-interactive` argument, if present, suppresses the interactive thread.
@@ -66,7 +66,7 @@ The full command line specification is
 
 	The :samp:`--help` argument, if present, prints out a message pointing to the online documentation.  If this is the only argument, no simulation is attempted.
 
-Except for :samp:`--input-file`, these arguments are only used on the desktop.  If you enter only :samp:`tw3d` with no arguments, turboWAVE will use a single MPI processes, and will fork as many threads as there are logical cores on the system.  If you enter :samp:`tw3d -n {procs}`, turboWAVE will use the requested number of MPI processes, but only a single thread.  Finally, if you enter :samp:`tw3d -n {procs} -c {threads}`, turboWAVE will use the requested number for both processes and threads.
+If you enter only :samp:`tw3d` with no arguments, turboWAVE will use a single MPI processes, and will fork as many threads as there are logical cores on the system.  If you enter :samp:`tw3d -n {procs}`, turboWAVE will use the requested number of MPI processes, but only a single thread.  Finally, if you enter :samp:`tw3d -n {procs} -c {threads}`, turboWAVE will use the requested number for both processes and threads.
 
 When you ran the example above, you may have noticed turboWAVE issuing a warning about the domain decomposition.  That is because if you choose to specify the domain decomposition in the input file, the product of the three integers is supposed to equal the number of processes requested.  If this is not the case, turboWAVE will try to find a suitable decomposition on its own.  There are some rules about how this can be done.  Sometimes turboWAVE will fail to find a suitable decomposition and report an error.
 
@@ -85,21 +85,25 @@ It is important to pay attention to the output file if you are having problems. 
 Test Suite
 ----------
 
-The example input files comprise a test suite for the turboWAVE installation.  There is a Python script :samp:`tools/twtest/twtest.py` which automatically runs all of the example cases and generates a report.  The report contains animations produced using the ImageMagick suite's :samp:`convert` program.  Check to see if it is installed using
-
-:kbd:`convert --version`
-
-If you don't see the ImageMagick version number displayed, you must install it.  It should be installable with any package manager (apt, yum, homebrew, etc.).
+The example input files comprise a test suite for the turboWAVE installation.  There is a Python script :samp:`tools/twtest/twtest.py` which automatically runs all of the example cases and generates a report.
 
 In order to run the script navigate to :samp:`tools/twtest` and invoke
 
-:kbd:`python twtest.py` *twroot* *args*
+:kbd:`python twtest.py` *twroot* *cmd*
 
-where *twroot* is the turboWAVE root directory path and *args* are the usual command line arguments used to specify parallelism options (you do not need to add :samp:`--no-interactive` as this is put in automatically).  Due to the large number of simulations to be run this may take several hours.  You can limit the test to specific categories by appending them to *twroot* using double colon separators.  For example,
+where *twroot* is the turboWAVE root directory path and *cmd* is the command that the script will invoke to execute each simulation in the test suite.  The command line arguments :samp:`--no-interactive` and :samp:`--input-file` are added automatically, and should therefore be omitted.  Due to the large number of simulations to be run this may take several hours.  You can limit the test to specific categories by appending them to *twroot* using double colon separators.  For example,
 
-:kbd:`python twtest.py ~/turboWAVE::hydro::pic -n 4`
+:kbd:`python twtest.py ~/turboWAVE::hydro::pic tw3d -n 4`
 
-would test all the examples in the ``hydro`` and ``pic`` directories using a four-way domain decomposition.
+would test all the examples in the ``hydro`` and ``pic`` directories using a four-way domain decomposition.  On the other hand,
+
+:kbd:`python twtest.py ~/turboWAVE tw3d -n 4`
+
+would run the test cases in every directory.  If turboWAVE is compiled against an external MPI library, simply substitute the appropriate command, e.g.,
+
+:kbd:`python twtest.py ~/turboWAVE mpirun -np 4 tw3d -c 2`
+
+would use OpenMPI to launch 4 processes, and OpenMP to fork 2 threads per process.
 
 .. note::
 
@@ -111,9 +115,9 @@ would test all the examples in the ``hydro`` and ``pic`` directories using a fou
 
 There is a special comment line in most of the example files that triggers execution by :samp:`twtest.py`.  The form is
 
-:samp:`// TWTEST matplotlib` *slicing_spec=slices* *file* *dynamic_range*
+:samp:`// TWTEST matplotlib` *slicing_spec=slices* *file* *key=val*...
 
-The ``TWTEST`` token tells ``twtest.py`` to process this line.  The ``matplotlib`` token indicates that the ``matplotlib`` library will be used to make the figure to include in the report.  The *slicing_spec* is replaced by a four character ordered list of axes, such as ``zxyt``.  The first two characters are the axes to plot, the last two are sliced using the indices given by *slices*.  These are separated by a comma.  An example of a full slicing specification is ``zxyt=0,-1``.  Note that the index -1 is special, indicating that an animation over all frames should be created.  Other negative indices work in the usual Python manner.  The *file* is the name of the file to plot (do not include path).  The *dynamic_range* is a floating point number, which, if zero, leads to a linear scale, if non-zero, leads to a log-plot with the requested dynamic range.
+The ``TWTEST`` token tells ``twtest.py`` to process this line.  The ``matplotlib`` token indicates that the ``matplotlib`` library will be used to make the figure to include in the report.  The *slicing_spec* is replaced by a four character ordered list of axes, such as ``zxyt``.  The first two characters are the axes to plot, the last two are sliced using the indices given by *slices*.  These are separated by a comma.  An example of a full slicing specification is ``zxyt=0,:``.  The colon is a special slice that indicates that an animation over all frames should be created.  Negative slices are interpreted in the usual Python manner.  The *file* is the name of the file to plot (do not include path).  Trailing arguments are optional key/value pairs separated by equals signs (no intervening spaces).
 
 .. note::
 

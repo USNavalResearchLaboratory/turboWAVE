@@ -1,10 +1,10 @@
 // Keep the following line for generating twtest reports
-// TWTEST matplotlib zxyt=0,-1 By.dvdat
+// TWTEST matplotlib zxyt=0,: phi.dvdat
 
 steps = 1000
-timestep = 0.08
+timestep = 0.04
 dump period = 0
-moving window = yes
+moving window = no
 neutralize = yes
 unit density = 1.1e+17
 append mode = true
@@ -19,50 +19,43 @@ zboundary = ( absorbing , absorbing )
 
 new grid
 {
-	corner = ( -16.0 , -0.5 , -25.6 )
-	dimensions = ( 128 , 1 , 256 )
-	cell size = ( 0.25 , 1.0 , 0.1 )
+	corner = ( -32.0 , -0.5 , 0.0 )
+	dimensions = ( 256 , 1 , 512 )
+	cell size = ( 0.25 , 1.0 , 0.05 )
 	decomposition = ( 1 , 1 , 1 )
 }
 
-new direct electromagnetic module
+new coulomb electromagnetic module
 {
+	poisson boundary condition = open open
 }
 
-new pgc laser module
+new wave
 {
-	carrier frequency = 50
-	propagator = adi
-}
-
-new pulse
-{
-	a = ( 0.5 , 0.0 , 0.0 )
-	r0 = ( 5 , 1e5 )
-	w = 50
+	a = 0.0 0.5 0.0
+	r0 = ( 1e5 , 10 )
+	w = 4
 	risetime = 3
 	holdtime = 0
 	falltime = 3
-	delay = 5
-	focus position = ( 0 , 0 , 0 )
+	delay = 25
+	focus position = ( 0 , 0 , 25 )
 	direction = ( 0 , 0 , 1 )
 }
 
 new fluid electrons
 {
-	mass = 1.0
-	charge = -1.0
 }
 
 generate piecewise electrons
 {
-	zdensity = { 0.0 1.0 1.0 }
-	zpoints = { 0.0 10.0 10000.0 }
-	temperature = %1.0eV
+	zdensity = { 0.0 1.0 1.0 0.0 }
+	zpoints = { 0.0 5.0 20.6 25.6 }
 	shape = quintic
+	temperature = %1.0eV
 }
 
 new box diagnostic
 {
-	period = 50
+	period = 100
 }
