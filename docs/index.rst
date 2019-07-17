@@ -12,7 +12,7 @@ Preliminaries
 
 	license
 	overview
-	boot
+	workstation
 
 Installation
 ------------
@@ -31,8 +31,11 @@ Running
 .. toctree::
 	:maxdepth: 1
 
+	run-theory
 	run-desktop
+	run-cluster
 	run-hpc
+	run-testing
 	run-input-files
 
 User Reference
@@ -46,6 +49,7 @@ User Reference
 	ref-PIC
 	ref-fluid
 	ref-QO
+	ref-boot
 
 Developer Reference
 -------------------

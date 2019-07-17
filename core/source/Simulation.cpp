@@ -142,6 +142,7 @@ Simulation::Simulation(const std::string& file_name)
 
 	dt0 = 0.1;
 	SetupTimeInfo(dt0);
+	dtCritical = tw::small_pos;
 	dtMin = tw::small_pos;
 	dtMax = tw::big_pos;
 	elapsedTime = 0.0;
@@ -253,8 +254,14 @@ void Simulation::Run()
 			(*tw_out) << std::endl << "WARNING: System clock is not responding properly." << std::endl << std::endl;
 		}
 
+		#ifdef USE_HPC
+		(*tw_out) << "Current status can be viewed in 'twstat' file." << std::endl;
+		(*tw_out) << "This executable does not support interactive commands." << std::endl << std::endl;
+		#endif
+		#ifdef USE_DESKTOP
 		(*tw_out) << "Current status can be viewed in 'twstat' file or by pressing enter key." << std::endl;
 		(*tw_out) << "Enter 'help' for list of interactive commands." << std::endl << std::endl;
+		#endif
 
 		while (stepNow <= stepsToTake && elapsedTime < elapsedTimeMax)
 		{
@@ -706,6 +713,7 @@ void Simulation::ReadData(std::ifstream& inFile)
 	inFile.read((char *)&dt0,sizeof(tw::Float));
 	inFile.read((char *)&dt,sizeof(tw::Float));
 	inFile.read((char *)&dth,sizeof(tw::Float));
+	inFile.read((char *)&dtCritical,sizeof(tw::Float));
 	inFile.read((char *)&dtMin,sizeof(tw::Float));
 	inFile.read((char *)&dtMax,sizeof(tw::Float));
 	inFile.read((char *)&elapsedTime,sizeof(tw::Float));
@@ -843,6 +851,7 @@ void Simulation::WriteData(std::ofstream& outFile)
 	outFile.write((char *)&dt0,sizeof(tw::Float));
 	outFile.write((char *)&dt,sizeof(tw::Float));
 	outFile.write((char *)&dth,sizeof(tw::Float));
+	outFile.write((char *)&dtCritical,sizeof(tw::Float));
 	outFile.write((char *)&dtMin,sizeof(tw::Float));
 	outFile.write((char *)&dtMax,sizeof(tw::Float));
 	outFile.write((char *)&elapsedTime,sizeof(tw::Float));
@@ -1500,29 +1509,31 @@ void Simulation::ReadInputFile()
 
 		if (com1=="dtmax") // eg, dtmax = 100.0
 		{
-			inputString >> word;
-			inputString >> dtMax;
+			inputString >> word >> dtMax;
 			(*tw_out) << "Set Maximum Timestep = " << dtMax << std::endl;
+		}
+
+		if (com1=="dtcrit") // eg, dtcrit = 1.0
+		{
+			inputString >> word >> dtCritical;
+			(*tw_out) << "Set Critical Timestep = " << dtCritical << std::endl;
 		}
 
 		if (com1=="dtmin") // eg, dtmin = 1.0
 		{
-			inputString >> word;
-			inputString >> dtMin;
+			inputString >> word >> dtMin;
 			(*tw_out) << "Set Minimum Timestep = " << dtMin << std::endl;
 		}
 
 		if (com1=="maxtime") // eg, maxtime = 1e4
 		{
-			inputString >> word;
-			inputString >> elapsedTimeMax;
+			inputString >> word >> elapsedTimeMax;
 			(*tw_out) << "Set Maximum Elapsed Time = " << elapsedTimeMax << std::endl;
 		}
 
 		if (com1=="steps") // eg, steps = 10
 		{
-			inputString >> word;
-			inputString >> stepsToTake;
+			inputString >> word >> stepsToTake;
 			(*tw_out) << "Steps to Take = " << stepsToTake << std::endl;
 		}
 

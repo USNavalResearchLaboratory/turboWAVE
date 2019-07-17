@@ -9,26 +9,16 @@ Desktop Runs
 
 	Once installed, running turboWAVE should be very nearly the same for any desktop system. For Windows, this consistency depends on using the PowerShell as the terminal window.
 
-
-Parallel Programming Theory
----------------------------
-
-In order to run turboWAVE, it is useful to understand a little about the parallelization methods.  TurboWAVE uses a combination of distributed memory and shared memory methods.  The distributed memory method is called "domain decomposition", and corresponds to physically partitioning the simulation region into chunks that can be worked on by different processors.  The memory that holds each chunk is distributed in the sense that it may be connected only by a network cable.  The shared memory method is called "fork-join".  In this approach independent software threads are running on different cores, but in a setting where each core has equal access to the memory (e.g., the threads could be on different cores of the same multi-core processor).
-
-The distributed memory model is implemented using software called MPI.  The shared memory model is implemented using software called OpenMP.
-
-As the user, you have to choose how to partition the problem.  In particular, you must choose the number of MPI processes, and the number of threads.  If you opt to have more than one MPI process, you may also want to control exactly how the physical simulation domain is partitioned into chunks.
-
 Running an Example
 ------------------
 
 #. Pick some example from :samp:`{twroot}/core/examples`.  For this test you should avoid the 3D examples.
-#. For definiteness, let us use :samp:`{twroot}/core/examples/pgc/LWFA-coulomb.txt`
+#. For definiteness, let us use :samp:`{twroot}/core/examples/pgc/LWFA-coulomb.tw`
 #. Open a terminal window and navigate to :samp:`~/Run`
-#. :samp:`cp {twroot}/core/examples/pgc/LWFA-coulomb.txt stdin`
+#. :samp:`cp {twroot}/core/examples/pgc/LWFA-coulomb.tw stdin`
 #. This puts the input file in :samp:`~/Run` with the name :samp:`stdin`.  By default, turboWAVE assumes the input file is in the working directory with the name :samp:`stdin`.
 #. :samp:`tw3d -n 4`
-#. The above command runs the problem with 4 MPI proceses and 1 thread per process.  Of course this choice may not be optimal for your system, method of compiling, etc., but it should suffice for this example.
+#. The above command runs the problem with 4 MPI processes and 1 thread per process.  Of course this choice may not be optimal for your system, method of compiling, etc., but it should suffice for this example.
 #. As the problem runs, you can press the enter key to prompt turboWAVE to report the current step.  Enter :samp:`help` to get the full list of interactive commands.
 #. When the run is finished, you should have several files with the extension :samp:`dvdat`.  This is a simple binary format.  The twutils Python package has a function to read data into numpy arrays from this type of file.  If you want to see an example of how to read this file from C++, you can look in :samp:`{twroot}/tools/twpost`.
 #. Let us plot the results using DataViewer.  If you have the native MacOS or Windows version, double-click on :samp:`phi.dvdat` and advance the "Frame" slider.  You may like to go to the "View" menu and select "Autoscale Plot" to get a better color contrast.
@@ -45,26 +35,26 @@ Running an Example
 .. figure:: LWFA-coulomb.png
 	:figwidth: 80%
 
-	Fig. 1 --- Python DataViewer output of the scalar potential produced by the :file:`LWFA-coulomb.txt` example.
+	Fig. 1 --- Python DataViewer output of the scalar potential produced by the :file:`LWFA-coulomb.tw` example.
 
 .. _args:
 
 Command line arguments
 ----------------------
 
-The full command line specification is
+For desktop installations the command line specification is
 
-.. py:function:: tw3d -n procs -c threads --input-file file --no-interactive --version --help
+.. py:function:: tw3d [-n <procs>] [-c <threads>] [--input-file <file>] [--no-interactive] [--version] [--help]
 
 	:param int procs: number of MPI processes (default=1, desktop only)
-	:param int threads: number of OpenMP threads (see below for default, desktop only)
+	:param int threads: number of OpenMP threads (see below for default)
 	:param str file: name or path of the file to use as the input file (default=stdin)
 
 	The :samp:`--no-interactive` argument, if present, suppresses the interactive thread.
 
 	The :samp:`--version` argument, if present, prints the version number.  If this is the only argument, no simulation is attempted.
 
-	The :samp:`--help` argument, if present, prints out a message pointing to the online documentation.  If this is the only argument, no simulation is attempted.
+	The :samp:`--help` argument, if present, prints the command line arguments and the link to the online documentation.  If this is the only argument, no simulation is attempted.
 
 If you enter only :samp:`tw3d` with no arguments, turboWAVE will use a single MPI processes, and will fork as many threads as there are logical cores on the system.  If you enter :samp:`tw3d -n {procs}`, turboWAVE will use the requested number of MPI processes, but only a single thread.  Finally, if you enter :samp:`tw3d -n {procs} -c {threads}`, turboWAVE will use the requested number for both processes and threads.
 
@@ -81,54 +71,3 @@ It is important to pay attention to the output file if you are having problems. 
 	#. This line can go anywhere except within a :samp:`new` block or :samp:`generate` block
 	#. Run the problem again
 	#. If the error is not reported on the console, try :samp:`grep ERROR *stdout*`
-
-Test Suite
-----------
-
-The example input files comprise a test suite for the turboWAVE installation.  There is a Python script :samp:`tools/twtest/twtest.py` which automatically runs all of the example cases and generates a report.
-
-In order to run the script navigate to :samp:`tools/twtest` and invoke
-
-:kbd:`python twtest.py` *twroot* *cmd*
-
-where *twroot* is the turboWAVE root directory path and *cmd* is the command that the script will invoke to execute each simulation in the test suite.  The command line arguments :samp:`--no-interactive` and :samp:`--input-file` are added automatically, and should therefore be omitted.  Due to the large number of simulations to be run this may take several hours.  You can limit the test to specific categories by appending them to *twroot* using double colon separators.  For example,
-
-:kbd:`python twtest.py ~/turboWAVE::hydro::pic tw3d -n 4`
-
-would test all the examples in the ``hydro`` and ``pic`` directories using a four-way domain decomposition.  On the other hand,
-
-:kbd:`python twtest.py ~/turboWAVE tw3d -n 4`
-
-would run the test cases in every directory.  If turboWAVE is compiled against an external MPI library, simply substitute the appropriate command, e.g.,
-
-:kbd:`python twtest.py ~/turboWAVE mpirun -np 4 tw3d -c 2`
-
-would use OpenMPI to launch 4 processes, and OpenMP to fork 2 threads per process.
-
-.. note::
-
-	The :samp:`twtest.py` script will try to adjust the parallel parameters between 1D and 2D examples.  A safe choice is to use 4 MPI processes and enough threads per process to occupy all the cores on your system.  Choices that cause the script to fail are possible.
-
-.. warning::
-
-	The :samp:`twtest.py` script assumes the standard turboWAVE directory structure has not been disturbed.  The script freely deletes files in the :samp:`twtest` directory during cleanup operations.
-
-There is a special comment line in most of the example files that triggers execution by :samp:`twtest.py`.  The form is
-
-:samp:`// TWTEST matplotlib` *slicing_spec=slices* *file* *key=val*...
-
-The ``TWTEST`` token tells ``twtest.py`` to process this line.  The ``matplotlib`` token indicates that the ``matplotlib`` library will be used to make the figure to include in the report.  The *slicing_spec* is replaced by a four character ordered list of axes, such as ``zxyt``.  The first two characters are the axes to plot, the last two are sliced using the indices given by *slices*.  These are separated by a comma.  An example of a full slicing specification is ``zxyt=0,:``.  The colon is a special slice that indicates that an animation over all frames should be created.  Negative slices are interpreted in the usual Python manner.  The *file* is the name of the file to plot (do not include path).  Trailing arguments are optional key/value pairs separated by equals signs (no intervening spaces).
-
-.. note::
-
-	There are going to be speckles in the movie images due to GIF compression.
-
-When the script completes there should be a file called :samp:`twreport.html`.  Open this in your browser to examine the results.  There should be a heading for each example subdirectory and a subheading for each example.  If the run failed any error messages are recorded.  If it succeeded an image or animation showing the data that was produced is displayed.
-
-.. tip::
-
-	If you would like to check on the progress of a particular run that has been executed by the script, open a separate terminal window, navigate to the :samp:`tools/twtest` directory, and type :kbd:`cat twstat`.
-
-.. tip::
-
-	If you would like to "comment out the comment", e.g., to skip over the longer examples, change ``TWTEST`` to lower case.

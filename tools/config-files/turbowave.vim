@@ -54,4 +54,4 @@ hi def link twString1		String
 hi def link twString2		String
 hi def link twCurlyError	Error
 
-let b:current_syntax = "tw3d"
+let b:current_syntax = "turbowave"

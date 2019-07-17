@@ -50,6 +50,22 @@ It is recommended that turboWAVE always be compiled with OpenMP, even if shared 
 	1. All turboWAVE SIMD support relies on OpenMP.  So even if shared memory is not used at all, there can be a significant performance penalty when OpenMP is missing.
 	2. OpenMP enabled executables are tested more frequently than executables without OpenMP.
 
+External MPI Option
+-------------------
+
+For desktop systems, the installation instructions assume the use of turboWAVE's internal MPI implementation.  This is primarily for convenience.  Better performance might be obtained by using an external MPI implementation, even on the desktop.  This can be particularly advantageous if measures for controlling thread or CPU affinity are undertaken.  For guidance on this, see :doc:`core-cluster`.
+
+Performance Tuning Parameters
+-----------------------------
+
+There are a few parameters hard coded in source that can be used to tune performance.  These are as follows.
+
+#. Vector length - In ``definitions.h``, you should adjust the constant ``vec_align_bytes`` to match the vector processor of the target system.  For example, systems with AVX2 should set this to 32, while systems with AVX-512 should set this to 64.
+
+#. Particle bundle size - In ``definitions.h``, whenever ``vec_align_bytes`` is changed, you should also change ``max_bundle_size`` to be a multiple of ``vec_align_bytes`` divided by four. The optimal choice is difficult to predict, but a rule of thumb is to make it close to the typical number of particles per cell.
+
+#. There are some constants in ``Pusher.cpp``, in the method ``Species::Push``, that it may be advantageous to adjust.  Namely, the constants ``min_particles_per_task`` and ``preferred_tasks``.  This has to do with how particles are partitioned among OpenMP threads.
+
 Core Install by OS
 ------------------
 
@@ -60,4 +76,5 @@ Core Install by OS
 	core-RHEL
 	core-ubuntu
 	core-windows
+	core-cluster
 	core-hpc

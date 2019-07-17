@@ -3,28 +3,18 @@ HPC Runs
 
 In referring to High Performance Computing (HPC), we have in mind a large scale computing cluster, managed by a professional staff, and accessed remotely.
 
-When running on an HPC system, you will be dealing with a queuing system such as PBS or SLURM.  The turboWAVE executable will usually not be run directly.  Instead, a launcher program such as :samp:`aprun` or :samp:`srun` will take :samp:`tw3d` as an argument.  The launcher program is usually invoked from a batch script.
+When running on an HPC system, you will be dealing with a queuing system such as PBS or SLURM.  The turboWAVE executable will usually not be run directly.  Instead, a launcher program such as :samp:`aprun` or :samp:`srun` will take :samp:`tw3d` as an argument.  The launcher program is usually invoked from a job script.
 
 It will likely be necessary to study the documentation for the particular HPC system in question.
 
-Parallel Programming Theory
-----------------------------
-
-In order to run turboWAVE, it is useful to understand a little about the parallelization methods.  TurboWAVE uses a combination of distributed memory and shared memory methods.  The distributed memory method is called "domain decomposition", and corresponds to physically paritioning the simulation region into chunks that can be worked on by different processors.  The memory that holds each chunk is distributed in the sense that it may be connected only by a network cable.  The shared memory method is called "fork-join".  In this approach independent software threads are running on different cores, but in a setting where each core has equal access to the memory (e.g., the threads could be on different cores of the same multi-core processor).
-
-The distributed memory model is implemented using software called MPI.  The shared memory model is implemented using software called OpenMP.
-
-As the user, you have to choose how to partition the problem.  In particular, you must choose the number of MPI processes, and the number of threads.  If you opt to have more than one MPI process, you may also want to control exactly how the physical simulation domain is partitioned into chunks.
-
-On HPC systems in particular, the term "node" refers to a set of physical processor cores that have access to the same shared memory.  Often you must specify resources requested in terms of nodes.
 
 Running an Example
 -------------------
 
 #. Pick some example from :samp:`{twroot}/core/examples`.  For this test a 3D example is appropriate.
-#. For definiteness, let us use :samp:`{twroot}/core/examples/pgc/beatwave-3d.txt`
+#. For definiteness, let us use :samp:`{twroot}/core/examples/pgc/beatwave-3d.tw`
 #. Let us assume that you will use :samp:`scp` to copy files to the HPC system
-#. :samp:`scp {twroot}/core/examples/pgc/beatwave-3d.txt {user@HPC_URL:HPC_scratch_directory}/stdin`
+#. :samp:`scp {twroot}/core/examples/pgc/beatwave-3d.tw {user@HPC_URL:HPC_scratch_directory}/stdin`
 #. This puts the input file in the HPC scratch space with the name :samp:`stdin`.  By default, turboWAVE expects the input file to have the name :samp:`stdin`, and to be in the working directory.
 #. Create a batch script according to the instructions for your machine.  Note the decomposition in the example input file.  The product of the three integers is the number of MPI processes you should request.  Assuming you don't fork threads, the number of cores you request should be the same as the number of MPI processes.  If you fork threads, then you must multiply the total cores by the number of threads you fork from each MPI process.  When forming your batch script, be careful to note whether a parameter refers to the cores per node, or the total cores for the entire job.
 #. Submit the script according to the instructions for your machine.
@@ -41,6 +31,14 @@ Running an Example
 #. Use the File dropdown to select :samp:`phi.dvdat`.
 #. Advance the Frame slider to examine the frames
 
+Command line arguments
+----------------------
+
+For HPC the command line specification is technically the same as is it is for local clusters. However, the following points should be noted:
+
+	* The command is issued from within a job script, with launcher and associated command line options determined by the particular queuing system and operating environment.
+	* The hostfile is rarely used, instead the queuing system designates the nodes.
+	* The number of OpenMP threads forked by each MPI process is typically determined by setting an environment variable in the job script.  On the other hand, if the ``-c <threads>`` argument is used, it takes precedence.
 
 Error Handling
 ---------------

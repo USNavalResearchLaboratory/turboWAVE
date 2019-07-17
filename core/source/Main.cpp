@@ -1,5 +1,5 @@
 #include "simulation.h"
-#define TW_VERSION_STRING "3.4b"
+#define TW_VERSION_STRING "3.4rc"
 
 ////////////////////
 // ERROR HANDLING //
@@ -105,7 +105,15 @@ int main(int argc,char *argv[])
 			if (arg=="--help")
 			{
 				std::cout << "This is turboWAVE, a PIC/hydro/quantum simulation code." << std::endl;
-				std::cout << "Please see the documentation at https://turbowave.readthedocs.io" << std::endl;
+				std::cout << "Usage: <launcher> -np <procs> tw3d [-c <threads>] [--input-file <path>] [--version] [--help] [--no-interactive]" << std::endl;
+				std::cout << "<launcher>             MPI launcher such as mpirun, mpiexec, etc.." << std::endl;
+				std::cout << "-np <procs>            Launch <procs> MPI processes (flag may vary with launcher program)." << std::endl;
+				std::cout << "-c <threads>           Fork <threads> OpenMP threads per MPI process." << std::endl;
+				std::cout << "--input-file <path>    Use <path> as the input file." << std::endl;
+				std::cout << "--version              Display the version number (no simulation if only argument)." << std::endl;
+				std::cout << "--help                 Display this message (no simulation if only argument)." << std::endl;
+				std::cout << "--no-interactive       Suppress the interactive thread." << std::endl;
+				std::cout << "Full documentation can be found at https://turbowave.readthedocs.io" << std::endl;
 				if (argc==2)
 					exit(0);
 			}
@@ -220,7 +228,14 @@ int main(int argc,char *argv[])
 			if (arg=="--help")
 			{
 				std::cout << "This is turboWAVE, a PIC/hydro/quantum simulation code." << std::endl;
-				std::cout << "Please see the documentation at https://turbowave.readthedocs.io" << std::endl;
+				std::cout << "Usage: tw3d [-n <threads>] [-c <threads>] [--input-file <path>] [--version] [--help] [--no-interactive]" << std::endl;
+				std::cout << "-n <threads>           Start <threads> MPI threads." << std::endl;
+				std::cout << "-c <threads>           Fork <threads> OpenMP threads per MPI thread." << std::endl;
+				std::cout << "--input-file <path>    Use <path> as the input file." << std::endl;
+				std::cout << "--version              Display the version number (no simulation if only argument)." << std::endl;
+				std::cout << "--help                 Display this message (no simulation if only argument)." << std::endl;
+				std::cout << "--no-interactive       Suppress the interactive thread." << std::endl;
+				std::cout << "Full documentation can be found at https://turbowave.readthedocs.io" << std::endl;
 				if (argc==2)
 					exit(0);
 			}

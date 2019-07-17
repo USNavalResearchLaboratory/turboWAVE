@@ -40,7 +40,6 @@ struct IterativePoissonSolver:EllipticSolver
 	char *mask1,*mask2;
 	tw::Int iterationsPerformed;
 	tw::Float normResidualAchieved,normSource;
-	tw::Float overrelaxationChange;
 	tw::Int maxIterations;
 	tw::Float tolerance,overrelaxation,minimumNorm;
 

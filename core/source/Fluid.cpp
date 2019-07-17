@@ -1822,6 +1822,12 @@ tw::Float sparc::HydroManager::EstimateTimeStep()
 	dtMaxAllThreads = *std::min_element(std::begin(dtMax),std::end(dtMax));
 	// Choose the smallest maximum step from all the nodes
 	dtMaxAllNodes = owner->strip[0].GetMin(dtMaxAllThreads);
+	// If the critical time step is reached, switch to fixed time step and hope for the best!
+	if (dtMaxAllNodes < owner->dtCritical)
+	{
+		dtMaxAllNodes = owner->dt0; // use the starting time step
+		owner->adaptiveTimestep = false; // no more adaptive stepping after this
+	}
 	// Don't let it fall below the minimum time step
 	return dtMaxAllNodes < owner->dtMin ? owner->dtMin : dtMaxAllNodes;
 }

@@ -41,7 +41,7 @@ struct Simulation:Task,MetricSpace
 	tw::Float radialProgressionFactor;
 
 	tw_geometry gridGeometry;
-	tw::Float dt0,dtMin,dtMax,elapsedTime,elapsedTimeMax;
+	tw::Float dt0,dtMin,dtMax,dtCritical,elapsedTime,elapsedTimeMax;
 	tw::Float signalPosition,windowPosition,signalSpeed;
 	tw::Float antiSignalPosition,antiWindowPosition;
 	tw::Float unitDensityCGS;

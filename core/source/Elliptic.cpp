@@ -311,12 +311,14 @@ IterativePoissonSolver::IterativePoissonSolver(const std::string& name,MetricSpa
 	mask2 = new char[xDim*yDim*zDim];
 	maxIterations = 1000;
 	tolerance = 1e-8;
-	overrelaxation = 1.9;
+	const tw::Int SOR1 = tsk->globalCells[1] - (tsk->globalCells[1]==1 ? 1 : 0);
+	const tw::Int SOR2 = tsk->globalCells[2] - (tsk->globalCells[2]==1 ? 1 : 0);
+	const tw::Int SOR3 = tsk->globalCells[3] - (tsk->globalCells[3]==1 ? 1 : 0);
+	overrelaxation = 2.0 - 10.0/(SOR1 + SOR2 + SOR3);
 	minimumNorm = tw::small_pos;
 	iterationsPerformed = 0;
 	normSource = 0.0;
 	normResidualAchieved = 0.0;
-	overrelaxationChange = 0.001;
 	InitializeCLProgram("elliptic.cl");
 
 	bool redSquare = true;
@@ -447,7 +449,7 @@ void IterativePoissonSolver::Solve(ScalarField& phi,ScalarField& source,tw::Floa
 	const tw::Int yDim = space->Dim(2);
 	const tw::Int zDim = space->Dim(3);
 
-	tw::Float residual,normResidual,normResidual0=0.0,normResidual1=0.0,normResidual2=0.0;
+	tw::Float residual,normResidual;
 	tw::Float domega,rp1,rp2;
 	std::valarray<tw::Float> D(7);
 
@@ -484,25 +486,6 @@ void IterativePoissonSolver::Solve(ScalarField& phi,ScalarField& source,tw::Floa
 		}
 
 		task->strip[0].AllSum(&normResidual,&normResidual,sizeof(tw::Float),0);
-		normResidual0 = normResidual1;
-		normResidual1 = normResidual2;
-		normResidual2 = normResidual;
-		if (overrelaxation!=1.0) // If Gauss-Seidel requested, don't try to over-relax
-		{
-			overrelaxation += overrelaxationChange;
-			if (iter>0 && iter%3==0)
-			{
-				rp1 = (normResidual1-normResidual0)/overrelaxationChange;
-				rp2 = (normResidual2-normResidual1)/overrelaxationChange;
-				domega = rp2*overrelaxationChange/(rp2-rp1);
-				if (domega>0.05) domega=0.05;
-				if (domega<-0.05) domega=-0.05;
-				overrelaxation += domega - overrelaxationChange;
-				if (overrelaxation>1.99) overrelaxation=1.99;
-				if (overrelaxation<1.01) overrelaxation=1.01;
-				overrelaxationChange *= -1.0;
-			}
-		}
 		if (normResidual <= tolerance*normSource)
 			break;
 	}

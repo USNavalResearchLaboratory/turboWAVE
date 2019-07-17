@@ -37,9 +37,9 @@ While preprocessing the input file, the contents of another file can be inserted
 
 .. code-block:: c
 
-	#include myfile.tw3d
+	#include myfile.tw
 
-would substitute the contents of ``myfile.tw3d`` at the point in the file where the ``#include`` directive appears.  This can be done recursively. The ``#include`` directive may appear anywhere in the input file, except where it would interrupt another directive.
+would substitute the contents of ``myfile.tw`` at the point in the file where the ``#include`` directive appears.  This can be done recursively. The ``#include`` directive may appear anywhere in the input file, except where it would interrupt another directive.
 
 User Defined Macros
 ,,,,,,,,,,,,,,,,,,,
@@ -89,6 +89,9 @@ The order of preprocessor operations is as follows:
 
 	#. Clean white space
 	#. Process user defined macros
+
+		* At present keys must be unique across all included files.
+
 	#. Process predefined macros
 
 Top Level Directives
@@ -134,9 +137,17 @@ Top level directives tend to come first in an input file.  They are not containe
 
 	:param float dt: the timestep in units of :math:`\omega_p^{-1}`
 
-.. py:function:: dtmax = dtm
+.. py:function:: dtmin = dtm
 
-	:param float dtm: if adaptive timestep in use, don't let it become greater than this
+	:param float dtm: if adaptive timestep in use, don't let it become less than this
+
+.. py:function:: dtmax = dtx
+
+	:param float dtx: if adaptive timestep in use, don't let it become greater than this
+
+.. py:function:: dtcrit = dtc
+
+	:param float dtc: if adaptive timestep falls below this value, switch to a fixed timestep.  The fixed timestep is taken from the ``timestep`` directive.
 
 .. py:function:: maxtime = tm
 
