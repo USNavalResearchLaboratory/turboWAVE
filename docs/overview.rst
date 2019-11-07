@@ -14,12 +14,11 @@ nonlinear optics models, and quantum optics models.
 All these modules can be invoked from the same executable file.
 TurboWAVE consists of the following software components:
 
-	1.	:samp:`twutils`---Distribution of python modules useful for pre and post processing
-	2.	:samp:`twcad`---CAD rendering program to visualize turboWAVE geometries
-	3.	:samp:`twpost`---Command line post-processing program written in C++
-	4.	:samp:`DataViewer`---A graphical application for viewing data
-	5.	:samp:`SPARC database`---chemical reactions for use in SPARC
-	6.	:samp:`tw3d`---The executable file
+	#.	:samp:`twutils`---Distribution of python modules useful for pre and post processing
+	#.	:samp:`twcad`---CAD rendering program to visualize turboWAVE geometries
+	#.	:samp:`DataViewer`---A graphical application for viewing data
+	#.	:samp:`SPARC database`---chemical reactions for use in SPARC
+	#.	:samp:`tw3d`---The executable file
 
 On the desktop, turboWAVE is essentially self-contained, in that no external libraries are
 needed, other than those commonly included with every C++ compiler.

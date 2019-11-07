@@ -66,12 +66,15 @@ namely, that things may not associate in the way you expect.  In particular,
 	2.	The OS does not necessarily mount the ESP that booted it.  This can cause major
 		confusion if you are trying to make changes to the bootloader from within the OS.
 
+If the workstation has a permanent drive configuration, one can avoid confusion by using a single ESP for all the bootloaders.
+If drives are to be swapped in and out, one must either designate a permanent drive to contain the ESP, or put an ESP on each drive.
+
 .. sidebar:: Legacy BIOS
 
 	The legacy BIOS firmware is usually supported by UEFI.  Legacy BIOS firmware
 	searches for a Master Boot Record (MBR).  The MBR is like the ESP, but less flexible.
 
-In order to discover which partitions are being mounted upon startup by a Linux OS, you can run:
+In order to discover which partitions are being mounted upon startup by a Linux OS, use:
 
 	:samp:`cat /etc/fstab`
 
@@ -79,7 +82,9 @@ To identify the ESP, look for the mount point ``/boot/efi``.  In order to discov
 
 	:samp:`sudo fdisk -l`
 
-The ESP partitions can be identified by looking at the ``Type`` column.
+The ESP partitions can be identified by looking at the ``Type`` column.  To decode a UUID, use:
+
+ 	:samp:`blkid -U <UUID>`
 
 Bootloader Software
 ,,,,,,,,,,,,,,,,,,,
@@ -116,8 +121,7 @@ On Ubuntu, this utility is invoked using:
 .. tip::
 	Utilities like ``update-grub`` update the ``grub.cfg`` on the ESP that is mounted.
 	If you are booting from a different ESP it can seem as if the update had no effect.
-	I recommend always mounting the ESP you boot from.  If this is not the case,
-	it can be fixed by editing ``/etc/fstab``.
+	Linux determines which partitions to mount by reading ``/etc/fstab``.
 
 More generically, one has to resort to
 

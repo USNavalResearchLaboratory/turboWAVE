@@ -674,7 +674,7 @@ tw::Float CorrugatedProfile::GetValue(const tw::vec3& pos,const MetricSpace& ds)
 	const tw::Float z = p.z; // z = 0 is initial injection point
 	r2 = x*x + y*y;
 	psi = delta*wp0*wp0/(2.0*w0*km);
-	a0Hat = 4.0*j1(psi)*a0/(w0*rchannel);
+	a0Hat = 4.0*tw::cyl_bessel_j(1,psi)*a0/(w0*rchannel);
 	kHat = w0 + km - 0.5*w0*(sqr(wp0/w0) + 8.0/sqr(w0*rchannel));
 	wp1s = 2.0*w0*kHat - 2.0*sqrt(sqr(gamma0+a0Hat*w0*z)/(sqr(gamma0+a0Hat*w0*z)-1.0))*w0*w0;
 	dens = wp0*wp0*(1.0 + delta*sin(km*z)) + wp1s + 4.0*r2/pow(rchannel,tw::Float(4.0));
@@ -817,7 +817,7 @@ tw::Complex Wave::BesselPrimitive(tw::Float t,const tw::vec3& r) const
 	const tw::Float rbar = sqrt(sqr(r.x) + sqr(r.y))/modeData[0].scale;
 	const tw::Float tau = t - nrefr*r.z;
 	const tw::Float psi = phase - w*tau - chirp*tau*tau;
-	return a0 * j0(rbar) * pulseShape.PulseShapeFactor(tau) * std::exp(ii*psi);
+	return a0 * tw::cyl_bessel_j(0,rbar) * pulseShape.PulseShapeFactor(tau) * std::exp(ii*psi);
 }
 
 tw::Complex Wave::AiryDiscPrimitive(tw::Float t,const tw::vec3& r) const
@@ -827,7 +827,7 @@ tw::Complex Wave::AiryDiscPrimitive(tw::Float t,const tw::vec3& r) const
 	const tw::Float rbar = sqrt(sqr(r.x) + sqr(r.y))*3.83171/modeData[0].scale;
 	const tw::Float tau = t - nrefr*r.z;
 	const tw::Float psi = phase - w*tau - chirp*tau*tau;
-	return 2*a0 * (j1(rbar)/rbar) * pulseShape.PulseShapeFactor(tau) * std::exp(ii*psi);
+	return 2*a0 * (tw::cyl_bessel_j(1,rbar)/rbar) * pulseShape.PulseShapeFactor(tau) * std::exp(ii*psi);
 }
 
 tw::Complex Wave::LaguerrePrimitive(tw::Float t,const tw::vec3& r) const
@@ -849,7 +849,7 @@ tw::Complex Wave::LaguerrePrimitive(tw::Float t,const tw::vec3& r) const
 
 	// compute factors for r-phi profile
 	Ax *= r0/rm;
-	Ax *= Laguerre(mu,mv,two*sqr(rho/rm));
+	Ax *= tw::assoc_laguerre(mu,mv,two*sqr(rho/rm));
 	Ax *= nexp%2==0 ? exp(-pow(rho/rm,nexp)) : pow(cos(0.5*pi*rho/rm),nexp+1)*tw::Float(rho<rm);
 	Ax *= pow(sqrt(two)*rho/rm,tw::Float(mv)); // put appropriate hole on axis
 	Ax *= sqrt(Factorial(mu)/Factorial(mu+mv)); // Laguerre normalization
@@ -876,7 +876,7 @@ tw::Complex Wave::HermitePrimitive(tw::Float t,const tw::vec3& r) const
 		const tw::Float rm = r00*sqrt(1.0 + r.z*r.z/(zR*zR));
 		guoy_shift -= (0.5 + m)*atan(r.z/zR);
 		Ax *= sqrt(r00/rm);
-		Ax *= Hermite(m,1.414*x/rm);
+		Ax *= tw::hermite(m,1.41421356*x/rm);
 		Ax *= nexp[ax-1]%2==0 ? exp(-pow(x/rm,nexp[ax-1])) : pow(cos(0.5*pi*x/rm),nexp[ax-1]+1)*tw::Float(x*x<rm*rm);
 		Ax /= sqrt(pow(two,tw::Float(m))*Factorial(m)); // Hermite normalization
 		tau += guoy_shift/w - 0.5*nrefr*x*x*r.z/(r.z*r.z + zR*zR);

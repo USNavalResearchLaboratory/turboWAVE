@@ -1,6 +1,21 @@
 Core Installation
 =================
 
+Core Install by OS
+------------------
+
+If you want to dive right in, select your operating system or configuration below.  If you want some background, skip to the below subsections first.
+
+.. toctree::
+	:maxdepth: 1
+
+	core-mac
+	core-RHEL
+	core-ubuntu
+	core-windows
+	core-cluster
+	core-hpc
+
 Compiler Notes
 --------------
 
@@ -10,7 +25,7 @@ We support several compilers for desktop turboWAVE.  Explicit instructions are g
 	:header: "Umbrella", "Compiler Command", "Operating Systems"
 
 	"GNU", ``g++``, "Linux"
-	"LLVM", ``clang++``, "Linux, MacOS"
+	"LLVM", ``clang++``, "Linux, MacOS, Windows"
 	"Intel Parallel Studio", ``icl``, "Windows"
 	"Microsoft Visual Studio", ``cl``, "Windows"
 
@@ -65,16 +80,3 @@ There are a few parameters hard coded in source that can be used to tune perform
 #. Particle bundle size - In ``definitions.h``, whenever ``vec_align_bytes`` is changed, you should also change ``max_bundle_size`` to be a multiple of ``vec_align_bytes`` divided by four. The optimal choice is difficult to predict, but a rule of thumb is to make it close to the typical number of particles per cell.
 
 #. There are some constants in ``Pusher.cpp``, in the method ``Species::Push``, that it may be advantageous to adjust.  Namely, the constants ``min_particles_per_task`` and ``preferred_tasks``.  This has to do with how particles are partitioned among OpenMP threads.
-
-Core Install by OS
-------------------
-
-.. toctree::
-	:maxdepth: 1
-
-	core-mac
-	core-RHEL
-	core-ubuntu
-	core-windows
-	core-cluster
-	core-hpc

@@ -42,7 +42,3 @@ Compile turboWAVE
 	#. Open a new terminal window and navigate to :samp:`{twroot}/core/source`
 	#. Type :samp:`make`
 	#. The makefile should automatically copy the executable into your :samp:`~/bin` directory for later use.  OpenCL kernel files may also be copied into :samp:`~/Run`, but these will not be used.
-	#. To enable turboWAVE input file syntax highlights with the :samp:`vim` editor
-
-		* Copy :samp:`{twroot}/tools/config-files/filetype.vim` to :samp:`~/.vim/`
-		* Copy :samp:`{twroot}/tools/config-files/turbowave.vim` to :samp:`~/.vim/syntax/`

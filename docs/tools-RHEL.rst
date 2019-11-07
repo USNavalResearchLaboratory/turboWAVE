@@ -1,13 +1,9 @@
-Tools Install for RHEL 7.5
-==========================
+Tools Install for RHEL/CentOS 8
+===============================
 
 .. caution::
 
 	We assume core TurboWAVE has already been installed.
-
-.. note::
-
-	CentOS and Scienfific Linux are clones of RHEL, and so should behave the same way.
 
 Python 3 Conda Environment
 --------------------------
@@ -23,11 +19,6 @@ Python 3 Conda Environment
 #. :samp:`conda create -n {NAME} scipy matplotlib pillow jupyter`
 #. :samp:`conda activate {NAME}`
 #. You are now in an isolated conda environment.  The environment must be activated each time you open a new terminal window.
-#. Jupyter may default to the Konqueror browser.  It is recommended to switch the default to Firefox.
-
-	* :samp:`jupyter notebook --generate-config`
-	* Edit :samp:`~/.jupyter/jupyter_notebook_config.py`, uncomment the :samp:`c.NotebookApp.browser` definition, and replace the empty string with :samp:`'firefox'`.
-
 #. If there are problems with Jupyter notebooks any or all of the following may be tried:
 
 	* Try adding ``-c conda-forge`` at any install step
@@ -52,3 +43,21 @@ Python DataViewer
 #. The Python DataViewer has to be run in a Jupyter Notebook.
 #. Copy :samp:`{twroot}/tools/DataViewer.ipynb` to :samp:`~/bin`
 #. Create a directory :samp:`~/.jupyter/custom/` and copy :samp:`{twroot}/tools/config-files/custom.css` to the new directory.
+
+Input File Syntax Highlights
+----------------------------
+
+You can add syntax highlights for ``vim`` and ``Atom`` editors.  Syntax highlights assign different colors to different input file elements, such as comments, macros, keywords, etc..  This often makes the file easier to read and helps identify errors.
+
+#. To enable turboWAVE input file syntax highlights with the :samp:`vim` editor
+
+	* Copy :samp:`{twroot}/tools/config-files/filetype.vim` to :samp:`~/.vim/`
+	* Copy :samp:`{twroot}/tools/config-files/turbowave.vim` to :samp:`~/.vim/syntax/`
+	* Files with extension ``.tw`` or the name ``stdin`` will be highlighted
+
+#. To enable turboWAVE input file syntax highlights with the :samp:`Atom` editor
+
+	* Create directory :samp:`~/.atom/packages/language-turbowave/grammars/` and copy :samp:`{twroot}/tools/config-files/turbowave.cson` to the new directory
+	* Create directory :samp:`~/.atom/packages/language-turbowave/` and copy :samp:`{twroot}/tools/config-files/package.json` to the new directory
+	* Restart Atom
+	* Files with the extension ``.tw`` will be highlighted.  Using the ``Select Grammar`` menu item and choosing ``turbowave`` allows any file to be highlighted.

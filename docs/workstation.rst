@@ -10,16 +10,14 @@ Workstation Setup
 Operating System
 ----------------
 
-TurboWAVE is most at home on a UNIX style operating system (OS), such as Linux or MacOS.
-Windows is supported as well, but testing is less extensive, and free compilers are less obvious.
-If you would like to run Windows and Linux on the same machine, you may be interested in :doc:`ref-boot`.
+TurboWAVE can be readily installed on Linux, MacOS, or Windows.  The workflow tends to be UNIX-oriented, which is natural for Linux and MacOS, and thanks to PowerShell, fairly seamless even on Windows.
 
 MacOS and Windows have native applications to visualize turboWAVE output files.
 The native viewer for Windows is dated, however, and is not being updated.
 For Linux, visualization is accomplished using either command line Python scripts,
 or using interactive Python notebooks.
 
-Desktop OS's that are explicitly supported at the time of this writing include MacOS 10.13, RHEL 7.5 and clones, Ubuntu 18.04, and Windows 10.  Supercomputer platforms that are known to work well include Cray and SGI.
+Desktop OS's that are explicitly supported at the time of this writing include MacOS 10.15, RHEL 8.0 and clones, Ubuntu 18.04, and Windows 10.  Supercomputer platforms that are known to work well include Cray and SGI.
 
 Hardware
 --------

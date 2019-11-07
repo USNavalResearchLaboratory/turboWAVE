@@ -1,5 +1,5 @@
-NVIDIA GPGPU on RHEL 7.5
-========================
+NVIDIA GPGPU on RHEL/CentOS 8
+=============================
 
 .. caution::
 
@@ -8,17 +8,7 @@ NVIDIA GPGPU on RHEL 7.5
 Driver
 ------
 
-#. :samp:`sudo yum update`
-#. :samp:`sudo yum install ocl-icd clinfo`
-#. Perform internet search to find instructions for installing ``ELRepo``, and carry out.
-#. :samp:`sudo yum install kmod-nvidia`
-#. Reboot the system
-#. :samp:`clinfo` should give a listing of platforms and devices, if the installation succeeded.
-#. If there is a problem compiling (see below), you may need to explicitly create a symbolic link as follows:
-
-	* :samp:`sudo ln -s /usr/lib64/libOpenCL.so.1.0.0 /usr/lib64/libOpenCL.so`
-
-#. Close all terminal windows
+Waiting for ELRepo 8 ``kmod-nvidia``.
 
 Compile with OpenCL
 --------------------
@@ -26,6 +16,6 @@ Compile with OpenCL
 #. Edit :samp:`{twroot}/core/source/makefile`
 #. In the makefile, you must comment/uncomment lines to select platform, hardware acceleration, compiler, and package manager.  You will only be editing the lines between :samp:`BEGIN INPUT VARIABLES BLOCK` and :samp:`END INPUT VARIABLES BLOCK`.  In a makefile, comments are preceded by :samp:`#`.  For this installation, only :samp:`PLATFORM = LINUX`, :samp:`HARDWARE_ACCEL = CUDA`, and :samp:`COMPILER_PREF = GNU` should be uncommented.
 #. Open a new terminal window and navigate to :samp:`{twroot}/core/source`
-#. Type :samp:`scl enable devtoolset-7 'make clean'`
-#. Type :samp:`scl enable devtoolset-7 'make'`
+#. Type :samp:`make clean`
+#. Type :samp:`make`
 #. The makefile should automatically copy the executable into your :samp:`~/bin` directory for later use.  The OpenCL kernel files will be copied into :samp:`~/Run`.  The OpenCL enabled code will not run without the kernel files.

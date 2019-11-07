@@ -1,5 +1,6 @@
 // problem size not appropriate for desktop
 // NERSC Edison: 11 nodes, 7.5 minutes
+// NERSC Cori-Haswell: 8 nodes, 7.2 minutes
 // NERSC Cori-KNL: 8 nodes, 10 minutes
 steps = 1000
 timestep = 0.08
@@ -89,5 +90,3 @@ new energy series
 {
 	period = 100
 }
-
-

@@ -1,57 +1,115 @@
-// simple home-built special functions
+// Special functions and special function dispatch.
+// To deal with current compiler differences we wrap some special functions in the tw namespace.
+// Definitions passed in from make:
+// SF_STD : if defined C++17 special functions are in the std namespace
+// SF_ROOT : if defined C++17 special functions are in the root namespace
+// If neither are defined use our own special functions.
 
-inline tw::Complex erfcc(const tw::Complex x)
-{
-	// modified from NR to support complex argument
-	tw::Complex z,t,ans;
-	const tw::Complex z0(1.26551223,0.0);
-	const tw::Complex z1(1.00002368,0.0);
-	const tw::Complex z2(0.37409196,0.0);
-	const tw::Complex z3(0.09678418,0.0);
-	const tw::Complex z4(0.18628806,0.0);
-	const tw::Complex z5(0.27886807,0.0);
-	const tw::Complex z6(1.13520398,0.0);
-	const tw::Complex z7(1.48851587,0.0);
-	const tw::Complex z8(0.82215223,0.0);
-	const tw::Complex z9(0.17087277,0.0);
-	z = tw::Complex(fabs(real(x)),imag(x));
-	t=two/(two+z);
-	ans=t*std::exp(-z*z-z0+t*(z1+t*(z2+t*(z3+t*(-z4+t*(z5+t*(-z6+t*(z7+t*(-z8+t*z9)))))))));
-	return real(x) >= 0.0 ? ans : tw::Complex(2.0-real(ans),imag(ans));
-}
+#ifndef SF_STD
+#ifndef SF_ROOT
 
-inline tw::Float erfi(const tw::Float x)
+namespace tw
 {
-	return real((one - erfcc(ii*x))/ii);
-}
 
-inline tw::Float Hermite(tw::Int n,tw::Float x)
-{
-	tw::Float y0 = 1.0;
-	tw::Float y1 = 2.0*x;
-	tw::Float y2 = n==0 ? 1.0 : 2.0*x;
-	tw::Int i = 2;
-	while (i<=n)
+	inline tw::Float cyl_bessel_j(tw::Int n,tw::Float x)
 	{
-		y2 = 2.0*x*y1 - 2.0*tw::Float(i-1)*y0;
-		y0 = y1;
-		y1 = y2;
-		i++;
+		if (n==0) return j0(x);
+		if (n==1) return j1(x);
+		return 0.0;
 	}
-	return y2;
+
+	inline tw::Float hermite(tw::Int n,tw::Float x)
+	{
+		tw::Float y0 = 1.0;
+		tw::Float y1 = 2.0*x;
+		tw::Float y2 = n==0 ? 1.0 : 2.0*x;
+		tw::Int i = 2;
+		while (i<=n)
+		{
+			y2 = 2.0*x*y1 - 2.0*tw::Float(i-1)*y0;
+			y0 = y1;
+			y1 = y2;
+			i++;
+		}
+		return y2;
+	}
+
+	inline tw::Float assoc_laguerre(tw::Int n,tw::Int m,tw::Float x)
+	{
+		if (n==0)
+			return 1.0;
+		if (n==1)
+			return 1.0 + m - x;
+		if (n==2)
+			return 0.5*(x*x - 2.0*(m+2.0)*x + (m+1.0)*(m+2.0));
+		if (n==3)
+			return (6.0 + 11.0*m + 6.0*m*m + m*m*m - 18.0*x - 15.0*m*x - 3.0*m*m*x + 9.0*x*x + 3*m*x*x - x*x*x)/6.0;
+		return 0.0;
+	}
+
 }
 
-inline tw::Float Laguerre(tw::Int n,tw::Float m,tw::Float x)
+#endif
+#endif
+
+#ifdef SF_ROOT
+
+namespace tw
 {
-	if (n==0)
-		return 1.0;
-	if (n==1)
-		return 1.0 + m - x;
-	if (n==2)
-		return 0.5*(x*x - 2.0*(m+2.0)*x + (m+1.0)*(m+2.0));
-	if (n==3)
-		return (6.0 + 11.0*m + 6.0*m*m + m*m*m - 18.0*x - 15.0*m*x - 3.0*m*m*x + 9.0*x*x + 3*m*x*x - x*x*x)/6.0;
-	return 0.0;
+
+	inline tw::Float cyl_bessel_j(tw::Int n,tw::Float x) { return cyl_bessel_j(n,x); }
+
+	inline tw::Float hermite(tw::Int n,tw::Float x) { return hermite(n,x); }
+
+	inline tw::Float assoc_laguerre(tw::Int n,tw::Int m,tw::Float x) { return assoc_laguerre(n,m,x); }
+
+}
+
+#endif
+
+#ifdef SF_STD
+
+namespace tw
+{
+
+	inline tw::Float cyl_bessel_j(tw::Int n,tw::Float x) { return std::cyl_bessel_j(n,x); }
+
+	inline tw::Float hermite(tw::Int n,tw::Float x) { return std::hermite(n,x); }
+
+	inline tw::Float assoc_laguerre(tw::Int n,tw::Int m,tw::Float x) { return std::assoc_laguerre(n,m,x); }
+
+}
+
+#endif
+
+namespace tw
+{
+
+	inline tw::Complex erfcc(const tw::Complex x)
+	{
+		// modified from NR to support complex argument
+		tw::Complex z,t,ans;
+		const tw::Complex z0(1.26551223,0.0);
+		const tw::Complex z1(1.00002368,0.0);
+		const tw::Complex z2(0.37409196,0.0);
+		const tw::Complex z3(0.09678418,0.0);
+		const tw::Complex z4(0.18628806,0.0);
+		const tw::Complex z5(0.27886807,0.0);
+		const tw::Complex z6(1.13520398,0.0);
+		const tw::Complex z7(1.48851587,0.0);
+		const tw::Complex z8(0.82215223,0.0);
+		const tw::Complex z9(0.17087277,0.0);
+		z = tw::Complex(fabs(real(x)),imag(x));
+		t=two/(two+z);
+		ans=t*std::exp(-z*z-z0+t*(z1+t*(z2+t*(z3+t*(-z4+t*(z5+t*(-z6+t*(z7+t*(-z8+t*z9)))))))));
+		return real(x) >= 0.0 ? ans : tw::Complex(2.0-real(ans),imag(ans));
+	}
+
+	inline tw::Float erfi(const tw::Float x)
+	{
+		return real((one - erfcc(ii*x))/ii);
+	}
+
 }
 
 inline tw::Float Factorial(tw::Int n)

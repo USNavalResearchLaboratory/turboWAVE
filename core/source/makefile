@@ -23,8 +23,9 @@ profile: tw3d_profile copy_files
 
 # Uncomment exactly one platform
 
-PLATFORM = OSX
-#PLATFORM = LINUX
+#PLATFORM = OSX
+#PLATFORM = WIN
+PLATFORM = LINUX
 #PLATFORM = OPENMPI
 #PLATFORM = CRAY
 #PLATFORM = SGI
@@ -39,15 +40,15 @@ HARDWARE_ACCEL = OMP
 
 # Specify a preference for compiler (ignored in some cases)
 
-#COMPILER_PREF = GNU
-COMPILER_PREF = LLVM_CLANG
+COMPILER_PREF = GNU
+#COMPILER_PREF = LLVM_CLANG
 #COMPILER_PREF = INTEL
 #COMPILER_PREF = CRAY
 
 # Specify a package manager preference (ignored in some cases)
 
 #PACKAGE_PREF = HOMEBREW
-PACKAGE_PREF = MACPORTS
+#PACKAGE_PREF = MACPORTS
 
 # END INPUT VARIABLES BLOCK
 #################################################
@@ -61,211 +62,199 @@ ifndef PACKAGE_PREF
 endif
 
 ifeq ($(PLATFORM),OSX)
+	# Tested for Mac OS 10.15
+	BASE_FLAGS = -c -std=c++17 -stdlib=libc++ -DUSE_DESKTOP
+	LIBS = -lc++
 	ifeq ($(HARDWARE_ACCEL),NONE)
-		TW_Compiler = clang++ -stdlib=libc++
+		TW_Compiler = clang++
 		TW_Linker = clang++
-		RELEASE_FLAGS = -c -std=c++11 -O3 -DUSE_DESKTOP
-		DEBUG_FLAGS = -c -g -std=c++11 -O0 -DUSE_DESKTOP
-		LIB_PATH =
-		LIBS = -lc++
 	endif
 	ifeq ($(HARDWARE_ACCEL),APPLE_CL)
 		TW_Compiler = clang++
 		TW_Linker = clang++
-		RELEASE_FLAGS = -c -std=c++11 -O3 -DUSE_DESKTOP -DUSE_OPENCL
-		DEBUG_FLAGS = -c -g -std=c++11 -O0 -DUSE_DESKTOP -DUSE_OPENCL
-		LIB_PATH =
-		LIBS = -lc++ -framework OpenCL
+		BASE_FLAGS += -DUSE_OPENCL
+		LIBS += -framework OpenCL
 	endif
 	ifeq ($(HARDWARE_ACCEL),OMP)
-		ifeq ($(PACKAGE_PREF),NONE)
-			TW_Compiler = "ERROR: bad settings."
-		endif
+		BASE_FLAGS += -DUSE_OPENMP -fopenmp
+		LIBS += -fopenmp
 		ifeq ($(PACKAGE_PREF),MACPORTS)
-			# Tested for Mac OS 10.14
-			# Remember to run port select clang mp-clang-x.x
-			TW_Compiler = /opt/local/bin/clang++ -stdlib=libc++
+			TW_Compiler = /opt/local/bin/clang++
 			TW_Linker = /opt/local/bin/clang++
-			RELEASE_FLAGS = -c -O3 -std=c++11 -march=native -fopenmp -I/opt/local/include -DUSE_DESKTOP -DUSE_OPENMP
-			PROFILE_FLAGS = -c -O3 -std=c++11 -fopenmp -Rpass-analysis=loop-vectorize -I/opt/local/include -DUSE_DESKTOP -DUSE_OPENMP
-			DEBUG_FLAGS = -c -g -O0 -std=c++11 -fopenmp -I/opt/local/include -DUSE_DESKTOP -DUSE_OPENMP
-			LIB_PATH = -L/opt/local/lib -Wl,-rpath,/opt/local/lib
-			LIBS = -lc++ -fopenmp
+			BASE_FLAGS += -I/opt/local/include
+			LIBS += -L/opt/local/lib -Wl,-rpath,/opt/local/lib
 		endif
 		ifeq ($(PACKAGE_PREF),HOMEBREW)
-			# Tested for Mac OS 10.13
-			TW_Compiler = /usr/local/opt/llvm/bin/clang++ -stdlib=libc++
+			TW_Compiler = /usr/local/opt/llvm/bin/clang++
 			TW_Linker = /usr/local/opt/llvm/bin/clang++
-			RELEASE_FLAGS = -c -O3 -std=c++11 -march=native -fopenmp -I/usr/local/opt/llvm/include/ -DUSE_DESKTOP -DUSE_OPENMP
-			PROFILE_FLAGS = -c -O3 -std=c++11 -fopenmp -Rpass-analysis=loop-vectorize -I/usr/local/opt/llvm/include -DUSE_DESKTOP -DUSE_OPENMP
-			DEBUG_FLAGS = -c -g -O0 -std=c++11 -fopenmp -I/usr/local/opt/llvm/include/ -DUSE_DESKTOP -DUSE_OPENMP
-			LIB_PATH = -L/usr/local/opt/llvm/lib -Wl,-rpath,/usr/local/opt/llvm/lib
-			LIBS = -lc++ -fopenmp
+			BASE_FLAGS += -isysroot /Applications/XCode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk
+			BASE_FLAGS += -I/usr/local/opt/llvm/include/
+			LIBS += -L/usr/local/opt/llvm/lib -Wl,-rpath,/usr/local/opt/llvm/lib
 		endif
 	endif
+	RELEASE_FLAGS = $(BASE_FLAGS) -O3 -march=native
+	PROFILE_FLAGS = $(BASE_FLAGS) -O3 -march=native -Rpass-analysis=loop-vectorize
+	DEBUG_FLAGS = $(BASE_FLAGS) -g -O0
 	BINARY_PATH = ~/bin
 	WORK_PATH = ~/Run
 	TW_MPI = yes
 endif
 
+ifeq ($(PLATFORM),WIN)
+	BASE_FLAGS = -c -std=c++17 -DUSE_DESKTOP -DSF_STD
+	TW_Compiler = clang++
+	TW_Linker = clang++
+	LIBS =
+	ifeq ($(HARDWARE_ACCEL),OMP)
+		BASE_FLAGS += -DUSE_OPENMP -fopenmp
+		LIBS += -fopenmp
+	endif
+	RELEASE_FLAGS = $(BASE_FLAGS) -O3 -march=native
+	PROFILE_FLAGS = $(BASE_FLAGS) -O3 -march=native -Rpass-analysis=loop-vectorize
+	DEBUG_FLAGS = $(BASE_FLAGS) -g -O0
+	BINARY_PATH = $(HOMEPATH)\bin
+	WORK_PATH = $(HOMEPATH)\Run
+	TW_MPI = yes
+endif
+
 ifeq ($(PLATFORM),LINUX)
+	BASE_FLAGS = -c -std=c++17 -DUSE_DESKTOP
 	ifeq ($(COMPILER_PREF),LLVM_CLANG)
-		TW_Compiler = clang++ -stdlib=libc++
+		TW_Compiler = clang++
 		TW_Linker = clang++
-		LIBS0 = -lc++
+		LIBS = -lc++
+		BASE_FLAGS += -stdlib=libc++
 	endif
 	ifeq ($(COMPILER_PREF),GNU)
 		TW_Compiler = g++
 		TW_Linker = g++
-		LIBS0 = -lstdc++
+		LIBS = -lstdc++
+		BASE_FLAGS += -DSF_STD
 	endif
 	ifeq ($(COMPILER_PREF),INTEL)
 		TW_Compiler = icpc
 		TW_Linker = icpc
-		LIBS0 = -lstdc++
+		LIBS = -lstdc++
+		BASE_FLAGS += -DSF_STD
 	endif
 	ifeq ($(HARDWARE_ACCEL),NONE)
-		RELEASE_FLAGS = -c -std=c++11 -O3 -DUSE_DESKTOP
-		DEBUG_FLAGS = -c -g -std=c++11 -O0 -DUSE_DESKTOP
-		LIB_PATH =
-		LIBS = $(LIBS0) -pthread
+		LIBS += -pthread
 	endif
 	ifeq ($(HARDWARE_ACCEL),OMP)
-		RELEASE_FLAGS = -c -std=c++11 -O3 -march=native -fopenmp -DUSE_DESKTOP -DUSE_OPENMP
-		PROFILE_FLAGS = -c -std=c++11 -O3 -march=native -fopenmp -Rpass-analysis=loop-vectorize -DUSE_DESKTOP -DUSE_OPENMP
-		DEBUG_FLAGS = -c -g -std=c++11 -O0 -fopenmp -DUSE_DESKTOP -DUSE_OPENMP
-		LIB_PATH =
-		LIBS = $(LIBS0) -fopenmp
+		BASE_FLAGS += -DUSE_OPENMP -fopenmp
+		LIBS += -fopenmp
 	endif
 	ifeq ($(HARDWARE_ACCEL),CUDA)
-		RELEASE_FLAGS = -c -std=c++11 -O3 -DUSE_DESKTOP -DUSE_OPENCL
-		DEBUG_FLAGS = -c -g -std=c++11 -O0 -DUSE_DESKTOP -DUSE_OPENCL
-		LIB_PATH =
-		LIBS = $(LIBS0) -lOpenCL -pthread
+		BASE_FLAGS += -DUSE_OPENCL
+		LIBS += -lOpenCL -pthread
 	endif
 	ifeq ($(HARDWARE_ACCEL),RADEON_PRO)
-		RELEASE_FLAGS = -c -std=c++11 -O3 -DUSE_DESKTOP -DUSE_OPENCL
-		DEBUG_FLAGS = -c -g -std=c++11 -O0 -DUSE_DESKTOP -DUSE_OPENCL
-		LIB_PATH =
-		LIBS = $(LIBS0) -lOpenCL -pthread
+		BASE_FLAGS += -DUSE_OPENCL
+		LIBS += -lOpenCL -pthread
 	endif
+	RELEASE_FLAGS = $(BASE_FLAGS) -O3 -march=native
+	PROFILE_FLAGS = $(BASE_FLAGS) -O3 -march=native -Rpass-analysis=loop-vectorize
+	DEBUG_FLAGS = $(BASE_FLAGS) -g -O0
 	BINARY_PATH = ~/bin
 	WORK_PATH = ~/Run
 	TW_MPI = yes
 endif
 
 ifeq ($(PLATFORM),OPENMPI)
+	BASE_FLAGS = -c -std=c++17 -DUSE_HPC
 	TW_Compiler = mpicxx
 	TW_Linker = mpicxx
 	ifeq ($(COMPILER_PREF),LLVM_CLANG)
-		export OMPI_CXX=clang++ -stdlib=libc++
-		LIBS0 = -lc++
+		export OMPI_CXX=clang++
+		LIBS = -lc++
+		BASE_FLAGS += -stdlib=libc++
 	endif
 	ifeq ($(COMPILER_PREF),INTEL)
 		export OMPI_CXX=icpc
-		LIBS0 = -lstdc++
+		LIBS = -lstdc++
+		BASE_FLAGS += -DSF_STD
 	endif
 	ifeq ($(COMPILER_PREF),GNU)
 		export OMPI_CXX=g++
-		LIBS0 = -lstdc++
+		LIBS = -lstdc++
+		BASE_FLAGS += -DSF_STD
 	endif
 	ifeq ($(HARDWARE_ACCEL),NONE)
-		RELEASE_FLAGS = -c -std=c++11 -O3 -DUSE_HPC
-		DEBUG_FLAGS = -c -g -std=c++11 -O0 -DUSE_HPC
-		LIB_PATH =
-		LIBS = $(LIBS0) -pthread
+		LIBS += -pthread
 	endif
 	ifeq ($(HARDWARE_ACCEL),OMP)
-		RELEASE_FLAGS = -c -std=c++11 -O3 -march=native -fopenmp -DUSE_HPC -DUSE_OPENMP
-		PROFILE_FLAGS = -c -std=c++11 -O3 -march=native -fopenmp -Rpass-analysis=loop-vectorize -DUSE_HPC -DUSE_OPENMP
-		DEBUG_FLAGS = -c -g -std=c++11 -O0 -fopenmp -DUSE_HPC -DUSE_OPENMP
-		LIB_PATH =
-		LIBS = $(LIBS0) -fopenmp
+		BASE_FLAGS += -DUSE_OPENMP -fopenmp
+		LIBS += -fopenmp
 	endif
 	ifeq ($(HARDWARE_ACCEL),CUDA)
-		RELEASE_FLAGS = -c -std=c++11 -O3 -DUSE_HPC -DUSE_OPENCL
-		DEBUG_FLAGS = -c -g -std=c++11 -O0 -DUSE_HPC -DUSE_OPENCL
-		LIB_PATH =
-		LIBS = $(LIBS0) -lOpenCL -pthread
+		BASE_FLAGS += -DUSE_OPENCL
+		LIBS += -lOpenCL -pthread
 	endif
 	ifeq ($(HARDWARE_ACCEL),RADEON_PRO)
-		RELEASE_FLAGS = -c -std=c++11 -O3 -DUSE_HPC -DUSE_OPENCL
-		DEBUG_FLAGS = -c -g -std=c++11 -O0 -DUSE_HPC -DUSE_OPENCL
-		LIB_PATH =
-		LIBS = $(LIBS0) -lOpenCL -pthread
+		BASE_FLAGS += -DUSE_OPENCL
+		LIBS += -lOpenCL -pthread
 	endif
+	RELEASE_FLAGS = $(BASE_FLAGS) -O3 -march=native
+	PROFILE_FLAGS = $(BASE_FLAGS) -O3 -march=native -Rpass-analysis=loop-vectorize
+	DEBUG_FLAGS = $(BASE_FLAGS) -g -O0
 	BINARY_PATH = ~/bin
 	WORK_PATH = ~/Run
 endif
 
 ifeq ($(PLATFORM),CRAY)
+	BASE_FLAGS = -c -DUSE_HPC
 	ifeq ($(COMPILER_PREF),CRAY)
+		BASE_FLAGS += -h std=c++17
+		TW_Compiler = CC
+		TW_Linker = CC
 		ifeq ($(HARDWARE_ACCEL),NONE)
-			TW_Compiler = CC
-			TW_Linker = CC
-			RELEASE_FLAGS = -c -O2 -h std=c++11 -h noomp -DUSE_HPC
-			DEBUG_FLAGS = -c -g -O0 -h std=c++11 -h noomp -DUSE_HPC
-			LIB_PATH =
-			LIBS =
+			BASE_FLAGS += -h noomp
 		endif
 		ifeq ($(HARDWARE_ACCEL),OMP)
-			TW_Compiler = CC
-			TW_Linker = CC
-			RELEASE_FLAGS = -c -O2 -h std=c++11 -DUSE_HPC -DUSE_OPENMP
-			PROFILE_FLAGS = -c -O2 -hlist=m -h std=c++11 -DUSE_HPC -DUSE_OPENMP
-			DEBUG_FLAGS = -c -g -O0 -h std=c++11 -DUSE_HPC -DUSE_OPENMP
-			LIB_PATH =
-			LIBS =
+			BASE_FLAGS += -DUSE_OPENMP
 		endif
+		RELEASE_FLAGS = $(BASE_FLAGS) -O2
+		PROFILE_FLAGS = $(BASE_FLAGS) -O2 -hlist=m
+		DEBUG_FLAGS = $(BASE_FLAGS) -g -O0
+		LIBS =
 	else
 		# DEFAULT TO INTEL
+		BASE_FLAGS += -std=c++17 -DSF_STD
+		TW_Compiler = CC
+		TW_Linker = CC
 		ifeq ($(HARDWARE_ACCEL),NONE)
-			TW_Compiler = CC
-			TW_Linker = CC
-			RELEASE_FLAGS = -c -std=c++11 -fast -DUSE_HPC
-			DEBUG_FLAGS = -c -g -std=c++11 -DUSE_HPC
-			LIB_PATH =
 			LIBS =
 		endif
 		ifeq ($(HARDWARE_ACCEL),OMP)
-			TW_Compiler = CC
-			TW_Linker = CC
-			RELEASE_FLAGS = -c -std=c++11 -qopenmp -qopenmp-simd -fast -DUSE_HPC -DUSE_OPENMP
-			PROFILE_FLAGS = -c -std=c++11 -qopenmp -qopenmp-simd -qopt-report -qopt-report-phase=vec -fast -DUSE_HPC -DUSE_OPENMP
-			DEBUG_FLAGS = -c -g -std=c++11 -qopenmp -qopenmp-simd -DUSE_HPC -DUSE_OPENMP
-			LIB_PATH =
+			BASE_FLAGS += -qopenmp -qopenmp-simd -DUSE_OPENMP
 			LIBS = -qopenmp -qopenmp-simd
-			LD_PROFILE_FLAGS = -qopt-report -qopt-report-phase=vec
 		endif
+		RELEASE_FLAGS = $(BASE_FLAGS) -fast
+		PROFILE_FLAGS = $(BASE_FLAGS) -qopt-report -qopt-report-phase=vec -fast
+		DEBUG_FLAGS = $(BASE_FLAGS) -g
 	endif
 endif
 
 ifeq ($(PLATFORM),SGI)
+	BASE_FLAGS = -c -std=c++17 -DUSE_HPC
+	TW_Compiler = icpc
+	TW_Linker = icpc
 	ifeq ($(HARDWARE_ACCEL),NONE)
-		TW_Compiler = icpc
-		TW_Linker = icpc
-		RELEASE_FLAGS = -c -std=c++11 -fast -DUSE_HPC
-		DEBUG_FLAGS = -c -g -std=c++11 -DUSE_HPC
-		LIB_PATH =
 		LIBS = -lmpi -lmpi++
 	endif
 	ifeq ($(HARDWARE_ACCEL),OMP)
-		TW_Compiler = icpc
-		TW_Linker = icpc
-		RELEASE_FLAGS = -c -std=c++11 -qopenmp -fast -DUSE_HPC -DUSE_OPENMP
-		DEBUG_FLAGS = -c -g -std=c++11 -qopenmp -DUSE_HPC -DUSE_OPENMP
-		LIB_PATH =
+		BASE_FLAGS += -qopenmp -DUSE_OPENMP
 		LIBS = -lmpi -lmpi++ -qopenmp
 	endif
 	ifeq ($(HARDWARE_ACCEL),CUDA)
 		CUDA_ROOT = /p/home/apps/cuda/7.5
-		TW_Compiler = icpc
-		TW_Linker = icpc
-		RELEASE_FLAGS = -c -std=c++11 -fast -I$(CUDA_ROOT)/include -DUSE_HPC -DUSE_OPENCL
-		DEBUG_FLAGS = -c -g -std=c++11 -I$(CUDA_ROOT)/include -DUSE_HPC -DUSE_OPENCL
-		LIB_PATH = -L$(CUDA_ROOT)/lib64
-		LIBS = -lmpi -lmpi++ -lOpenCL
+		BASE_FLAGS += -I$(CUDA_ROOT)/include -DUSE_OPENCL
+		LIBS = -L$(CUDA_ROOT)/lib64
+		LIBS += -lmpi -lmpi++ -lOpenCL
 	endif
+	RELEASE_FLAGS = $(BASE_FLAGS) -fast
+	PROFILE_FLAGS = $(BASE_FLAGS) -qopt-report -qopt-report-phase=vec -fast
+	DEBUG_FLAGS = $(BASE_FLAGS) -g
 endif
 
 ifndef PROFILE_FLAGS
@@ -291,19 +280,32 @@ ifdef TW_MPI
 endif
 
 tw3d: 3dfields.cl particles.cl elliptic.cl hyperbolic.cl quantum.cl $(OBJ_LIST)
-	$(TW_Linker) -o tw3d $(OBJ_LIST) $(LIB_PATH) $(LIBS)
+	$(TW_Linker) -o tw3d $(OBJ_LIST) $(LIBS)
 
 copy_files:
 ifdef BINARY_PATH
+ifeq ($(PLATFORM),WIN)
+	copy tw3d $(BINARY_PATH)\tw3d.exe
+else
 	cp tw3d $(BINARY_PATH)
 endif
+endif
 ifdef WORK_PATH
+ifeq ($(PLATFORM),WIN)
+	copy *.cl $(WORK_PATH)
+else
 	cp *.cl $(WORK_PATH)
+endif
 endif
 
 clean:
+ifeq ($(PLATFORM),WIN)
+	del *.o
+	del tw3d
+else
 	rm -f *.o
 	rm -f tw3d
+endif
 
 Main.o: Main.cpp $(SIM_HEADERS)
 	$(TW_Compiler) $(CCFLAGS) Main.cpp

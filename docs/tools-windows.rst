@@ -12,17 +12,15 @@ Tools Install for Windows 10
 Python 3 via Anaconda
 ---------------------
 
-#. If you already have Anaconda3 installed, skip the next step.  If you have enough packages in your conda environment, it is possible you can skip this entire section: but to be safe create a new environment as detailed below.
-#. Run Miniconda3 installer from internet
-#. Open the Anaconda Prompt from the Start menu
-#. :samp:`conda update conda`
-#. :samp:`conda init powershell`
-#. Put away the terminal and open a user PowerShell
+#. If you already a sufficiently recent Anaconda3 installed, you may be able to skip the next step.  The danger is that older versions have trouble with PowerShell.
+#. Run Miniconda3 installer from internet, accept defaults.
+#. Open a new PowerShell window
 #. If you get an error you likely need to update the Execution Policy
 
 	* :samp:`Set-ExecutionPolicy Bypass -Scope CurrentUser`
 	* Respond affirmatively to the prompt, close and reopen the PowerShell
 
+#. :samp:`conda update conda`
 #. Choose a name for your environment, denoted :samp:`{NAME}`
 #. :samp:`conda create -n {NAME} scipy matplotlib pillow jupyter`
 #. :samp:`conda activate {NAME}`
@@ -59,3 +57,22 @@ Python DataViewer
 #. The Python DataViewer may also be useful since you can modify the source
 #. Copy :samp:`{twroot}/tools/DataViewer.ipynb` to :samp:`~/bin`.
 #. Create a directory :samp:`~/.jupyter/custom/` and copy :samp:`{twroot}/tools/config-files/custom.css` to the new directory.
+
+Input File Syntax Highlights
+----------------------------
+
+You can add syntax highlights for ``vim`` and ``Atom`` editors.  Syntax highlights assign different colors to different input file elements, such as comments, macros, keywords, etc..  This often makes the file easier to read and helps identify errors.
+
+#. To enable turboWAVE input file syntax highlights with the :samp:`vim` editor
+
+	* Create :samp:`~/vimfiles/` and :samp:`~/vimfiles/syntax/` if they do not already exist
+	* Copy :samp:`{twroot}/tools/config-files/filetype.vim` to :samp:`~/vimfiles/`
+	* Copy :samp:`{twroot}/tools/config-files/turbowave.vim` to :samp:`~/vimfiles/syntax/`
+	* Files with extension ``.tw`` or the name ``stdin`` will be highlighted
+
+#. To enable turboWAVE input file syntax highlights with the :samp:`Atom` editor
+
+	* Create directory :samp:`~/.atom/packages/language-turbowave/grammars/` and copy :samp:`{twroot}/tools/config-files/turbowave.cson` to the new directory
+	* Create directory :samp:`~/.atom/packages/language-turbowave/` and copy :samp:`{twroot}/tools/config-files/package.json` to the new directory
+	* Restart Atom
+	* Files with the extension ``.tw`` will be highlighted.  Using the ``Select Grammar`` menu item and choosing ``turbowave`` allows any file to be highlighted.

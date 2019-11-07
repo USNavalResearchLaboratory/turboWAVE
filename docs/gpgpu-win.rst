@@ -13,7 +13,4 @@ Update to the latest graphics drivers, following the guidance on the vendor's we
 Compile with OpenCL
 -------------------
 
-#. Edit :samp:`{twroot}\\core\\source\\win.make`
-#. Change ``win.make`` to support OpenCL compilation (TBD)
-#. From the developer/intel prompt navigate to :samp:`{twroot}`:samp:`\\core\\source`
-#. :samp:`nmake /F win.make`
+To be determined.

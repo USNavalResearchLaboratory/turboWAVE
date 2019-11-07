@@ -278,7 +278,7 @@ tw::Float IonizationData::wfunc(tw::Float x)
 {
 	// the argument of this function varies from 0 up to sqrt(2*terms)
 	// where terms is the number of terms kept in the ppt expansion
-	return 0.5 * exp(-x*x) * erfi(x) * sqrt(pi);
+	return 0.5 * exp(-x*x) * tw::erfi(x) * sqrt(pi);
 }
 
 tw::Float IonizationData::Echar()

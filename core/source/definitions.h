@@ -16,7 +16,7 @@
 //                                                                 //
 /////////////////////////////////////////////////////////////////////
 
-#include <stdint.h>
+//#include <stdint.h>
 #include <memory.h>
 #include <cassert>
 #include <cmath>
@@ -54,7 +54,12 @@ namespace tw
 	{
 		char messg[256];
 		public:
-		FatalError(const std::string& s) { strcpy(messg,s.c_str()); }
+		FatalError(const std::string& s)
+		{
+			s.copy(messg,sizeof(messg));
+			if (s.size()<sizeof(messg))
+				messg[s.size()] = 0;
+		}
 		virtual const char* what() const throw()
 		{
 			return messg;

@@ -976,6 +976,7 @@ std::string Simulation::InputFileFirstPass()
 
 		do
 		{
+			com1.clear();
 			inputString >> com1;
 
 			if (com1=="threads")
@@ -1176,6 +1177,7 @@ void Simulation::GridFromInputFile()
 
 	do
 	{
+		com1.clear();
 		inputString >> com1;
 
 		if (com1=="new")
@@ -1246,8 +1248,6 @@ void Simulation::GridFromInputFile()
 			UpdateTimestep(dt0);
 			(*tw_out) << "Timestep = " << dt << std::endl;
 		}
-
-		com1 = "???";
 
 	} while (!inputString.eof());
 
@@ -1341,6 +1341,7 @@ void Simulation::ReadInputFile()
 
 	do
 	{
+		com1.clear();
 		inputString >> com1;
 
 		if (com1=="new")
@@ -1594,8 +1595,6 @@ void Simulation::ReadInputFile()
 			inputString >> word >> word >> word;
 			appendMode = (word=="on" || word=="true" || word=="yes");
 		}
-
-		com1 = "???";
 
 	} while (!inputString.eof());
 
