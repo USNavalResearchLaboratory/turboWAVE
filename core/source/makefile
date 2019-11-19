@@ -27,6 +27,7 @@ profile: tw3d_profile copy_files
 #PLATFORM = WIN
 PLATFORM = LINUX
 #PLATFORM = OPENMPI
+#PLATFORM = INTELMPI
 #PLATFORM = CRAY
 #PLATFORM = SGI
 
@@ -59,6 +60,16 @@ endif
 
 ifndef PACKAGE_PREF
 	PACKAGE_PREF = NONE
+endif
+
+ifeq ($(COMPILER_PREF),GNU)
+	OMP_FLAG = -fopenmp
+endif
+ifeq ($(COMPILER_PREF),LLVM_CLANG)
+	OMP_FLAG = -fopenmp
+endif
+ifeq ($(COMPILER_PREF),INTEL)
+	OMP_FLAG = -qopenmp
 endif
 
 ifeq ($(PLATFORM),OSX)
@@ -141,8 +152,8 @@ ifeq ($(PLATFORM),LINUX)
 		LIBS += -pthread
 	endif
 	ifeq ($(HARDWARE_ACCEL),OMP)
-		BASE_FLAGS += -DUSE_OPENMP -fopenmp
-		LIBS += -fopenmp
+		BASE_FLAGS += -DUSE_OPENMP $(OMP_FLAG)
+		LIBS += $(OMP_FLAG)
 	endif
 	ifeq ($(HARDWARE_ACCEL),CUDA)
 		BASE_FLAGS += -DUSE_OPENCL
@@ -172,19 +183,17 @@ ifeq ($(PLATFORM),OPENMPI)
 	ifeq ($(COMPILER_PREF),INTEL)
 		export OMPI_CXX=icpc
 		LIBS = -lstdc++
-		BASE_FLAGS += -DSF_STD
 	endif
 	ifeq ($(COMPILER_PREF),GNU)
 		export OMPI_CXX=g++
 		LIBS = -lstdc++
-		BASE_FLAGS += -DSF_STD
 	endif
 	ifeq ($(HARDWARE_ACCEL),NONE)
 		LIBS += -pthread
 	endif
 	ifeq ($(HARDWARE_ACCEL),OMP)
-		BASE_FLAGS += -DUSE_OPENMP -fopenmp
-		LIBS += -fopenmp
+		BASE_FLAGS += -DUSE_OPENMP $(OMP_FLAG)
+		LIBS += $(OMP_FLAG)
 	endif
 	ifeq ($(HARDWARE_ACCEL),CUDA)
 		BASE_FLAGS += -DUSE_OPENCL
@@ -194,11 +203,41 @@ ifeq ($(PLATFORM),OPENMPI)
 		BASE_FLAGS += -DUSE_OPENCL
 		LIBS += -lOpenCL -pthread
 	endif
-	RELEASE_FLAGS = $(BASE_FLAGS) -O3 -march=native
-	PROFILE_FLAGS = $(BASE_FLAGS) -O3 -march=native -Rpass-analysis=loop-vectorize
+	RELEASE_FLAGS = $(BASE_FLAGS) -O3
+	PROFILE_FLAGS = $(BASE_FLAGS) -O3 -Rpass-analysis=loop-vectorize
 	DEBUG_FLAGS = $(BASE_FLAGS) -g -O0
-	BINARY_PATH = ~/bin
-	WORK_PATH = ~/Run
+endif
+
+ifeq ($(PLATFORM),INTELMPI)
+	BASE_FLAGS = -c -std=c++17 -DUSE_HPC
+	ifeq ($(COMPILER_PREF),INTEL)
+		TW_Compiler = mpiicpc
+		TW_Linker = mpiicpc
+		LIBS = -lstdc++
+	endif
+	ifeq ($(COMPILER_PREF),GNU)
+		TW_Compiler = mpicxx
+		TW_Linker = mpicxx
+		LIBS = -lstdc++
+	endif
+	ifeq ($(HARDWARE_ACCEL),NONE)
+		LIBS += -pthread
+	endif
+	ifeq ($(HARDWARE_ACCEL),OMP)
+		BASE_FLAGS += -DUSE_OPENMP $(OMP_FLAG)
+		LIBS += $(OMP_FLAG)
+	endif
+	ifeq ($(HARDWARE_ACCEL),CUDA)
+		BASE_FLAGS += -DUSE_OPENCL
+		LIBS += -lOpenCL -pthread
+	endif
+	ifeq ($(HARDWARE_ACCEL),RADEON_PRO)
+		BASE_FLAGS += -DUSE_OPENCL
+		LIBS += -lOpenCL -pthread
+	endif
+	RELEASE_FLAGS = $(BASE_FLAGS) -O3
+	PROFILE_FLAGS = $(BASE_FLAGS) -O3 -Rpass-analysis=loop-vectorize
+	DEBUG_FLAGS = $(BASE_FLAGS) -g -O0
 endif
 
 ifeq ($(PLATFORM),CRAY)
