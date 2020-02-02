@@ -141,6 +141,8 @@ void LaserSolver::BoxDiagnosticHeader(GridDataDescriptor* box)
 	owner->WriteBoxDataHeader("e_imag",box);
 	owner->WriteBoxDataHeader("j_real",box);
 	owner->WriteBoxDataHeader("j_imag",box);
+	owner->WriteBoxDataHeader("a_real_raw",box);
+	owner->WriteBoxDataHeader("a_imag_raw",box);
 }
 
 void LaserSolver::PointDiagnosticHeader(std::ofstream& outFile)
@@ -307,17 +309,20 @@ void PGCSolver::EnergyColumns(std::vector<tw::Float>& cols,std::vector<bool>& av
 
 void PGCSolver::Update()
 {
-	tw::Int i,j,k;
 	chi.DepositFromNeighbors();
 	chi.ApplyFoldingCondition();
 	chi.DivideCellVolume(*owner);
 	chi.ApplyBoundaryCondition();
 	if (owner->smoothing>0)
 		chi.Smooth(*owner,owner->smoothing,owner->compensation);
-	for (i=lfg[1];i<=ufg[1];i++)
-		for (j=lfg[2];j<=ufg[2];j++)
-			for (k=1;k<=dim[3];k++)
-				chi(i,j,k) = owner->ValueOnLightGrid<ComplexField,tw::Complex>(chi,i,j,k,dth);
+	#pragma omp parallel
+	{
+		for (auto s : StripRange(*this,3,strongbool::yes))
+		{
+			for (tw::Int k=1;k<=dim[3];k++)
+				chi(s,k) = owner->ValueOnLightGrid<ComplexField,tw::Complex>(chi,s,k,dth);
+		}
+	}
 	chi.DownwardCopy(zAxis,1);
 	chi.UpwardCopy(zAxis,1);
 	chi.ApplyBoundaryCondition();
@@ -328,32 +333,35 @@ void PGCSolver::Update()
 
 void PGCSolver::ComputeFinalFields()
 {
-	tw::Int i,j,k;
-
-	for (i=lfg[1];i<=ufg[1];i++)
-		for (j=lfg[2];j<=ufg[2];j++)
-			for (k=1;k<=dim[3];k++)
+	#pragma omp parallel
+	{
+		for (auto s : StripRange(*this,3,strongbool::yes))
+		{
+			for (tw::Int k=1;k<=dim[3];k++)
 			{
-				F(i,j,k,7) = norm(owner->ValueOnLabGrid<ComplexField,tw::Complex>(a1,i,j,k,dth));
-				F(i,j,k,6) = norm(owner->ValueOnLabGrid<ComplexField,tw::Complex>(a0,i,j,k,-dth));
-				F(i,j,k,6) = 0.5*(F(i,j,k,6) + F(i,j,k,7));
+				F(s,k,7) = norm(owner->ValueOnLabGrid<ComplexField,tw::Complex>(a1,s,k,dth));
+				F(s,k,6) = norm(owner->ValueOnLabGrid<ComplexField,tw::Complex>(a0,s,k,-dth));
+				F(s,k,6) = 0.5*(F(s,k,6) + F(s,k,7));
 			}
+		}
+	}
 
 	F.DownwardCopy(zAxis,Element(6,7),1);
 	F.UpwardCopy(zAxis,Element(6,7),1);
 
-	for (i=1;i<=dim[1];i++)
-		for (j=1;j<=dim[2];j++)
-			for (k=1;k<=dim[3];k++)
-			{
-				F(i,j,k,0) = (F(i+1,j,k,6) - F(i-1,j,k,6)) / owner->dL(i,j,k,1);
-				F(i,j,k,1) = (F(i,j+1,k,6) - F(i,j-1,k,6)) / owner->dL(i,j,k,2);
-				F(i,j,k,2) = (F(i,j,k+1,6) - F(i,j,k-1,6)) / owner->dL(i,j,k,3);
+	#pragma omp parallel
+	{
+		for (auto cell : InteriorCellRange(*this))
+		{
+			F(cell,0) = F(cell,6,1);
+			F(cell,1) = F(cell,6,2);
+			F(cell,2) = F(cell,6,3);
 
-				F(i,j,k,3) = (F(i+1,j,k,7) - F(i-1,j,k,7)) / owner->dL(i,j,k,1);
-				F(i,j,k,4) = (F(i,j+1,k,7) - F(i,j-1,k,7)) / owner->dL(i,j,k,2);
-				F(i,j,k,5) = (F(i,j,k+1,7) - F(i,j,k-1,7)) / owner->dL(i,j,k,3);
-			}
+			F(cell,3) = F(cell,7,1);
+			F(cell,4) = F(cell,7,2);
+			F(cell,5) = F(cell,7,3);
+		}
+	}
 
 	F.CopyFromNeighbors(Element(0,5));
 	F.ApplyBoundaryCondition();
@@ -365,17 +373,19 @@ void PGCSolver::BoxDiagnose(GridDataDescriptor* box)
 	er.Initialize(*this,owner);
 	ei.Initialize(*this,owner);
 	tw::Complex dadt,anow;
-	tw::Int i,j,k;
-	for (i=1;i<=dim[1];i++)
-		for (j=1;j<=dim[2];j++)
-			for (k=1;k<=dim[3];k++)
-			{
-				dadt = dti*(owner->ValueOnLabGrid<ComplexField,tw::Complex>(a1,i,j,k,dth) - owner->ValueOnLabGrid<ComplexField,tw::Complex>(a0,i,j,k,-dth));
-				anow = tw::Float(0.5)*(owner->ValueOnLabGrid<ComplexField,tw::Complex>(a0,i,j,k,-dth) + owner->ValueOnLabGrid<ComplexField,tw::Complex>(a1,i,j,k,dth));
-				er(i,j,k) = -real(dadt - ii*laserFreq*anow);
-				ei(i,j,k) = -imag(dadt - ii*laserFreq*anow);
-			}
+	for (auto s : StripRange(*this,3,strongbool::no))
+	{
+		for (tw::Int k=1;k<=dim[3];k++)
+		{
+			dadt = dti*(owner->ValueOnLabGrid<ComplexField,tw::Complex>(a1,s,k,dth) - owner->ValueOnLabGrid<ComplexField,tw::Complex>(a0,s,k,-dth));
+			anow = tw::Float(0.5)*(owner->ValueOnLabGrid<ComplexField,tw::Complex>(a0,s,k,-dth) + owner->ValueOnLabGrid<ComplexField,tw::Complex>(a1,s,k,dth));
+			er(s,k) = -real(dadt - ii*laserFreq*anow);
+			ei(s,k) = -imag(dadt - ii*laserFreq*anow);
+		}
+	}
 
+	owner->WriteBoxData("a_real_raw",box,&a1(0,0,0,0),a1.Stride());
+	owner->WriteBoxData("a_imag_raw",box,&a1(0,0,0,1),a1.Stride());
 	owner->WriteBoxData("e_real",box,&er(0,0,0),er.Stride());
 	owner->WriteBoxData("e_imag",box,&ei(0,0,0),ei.Stride());
 	owner->WriteBoxData("a2",box,&F(0,0,0,7),F.Stride());

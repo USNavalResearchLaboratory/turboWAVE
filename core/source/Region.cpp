@@ -170,11 +170,13 @@ Region* Region::CreateObjectFromFile(std::vector<Region*>& ml,std::ifstream& inF
 
 Region* Region::ReadRegion(std::vector<Region*>& ml,Region *curr,std::stringstream& source,const std::string& com)
 {
+	std::string word;
 	if (com=="clipping") // eg, clipping region = region1
 	{
-		std::string word;
 		source >> word >> word >> word;
 		curr = FindRegion(ml,word);
+		if (curr==NULL)
+			throw tw::FatalError("Could not find clipping region " + word);
 	}
 	return curr;
 }
@@ -209,6 +211,9 @@ void Region::ReadInputFileDirective(std::stringstream& inputString,const std::st
 	{
 		tw::vec3 r0,r1;
 		inputString >> word >> r0.x >> r1.x >> r0.y >> r1.y >> r0.z >> r1.z;
+		if (r0.x>r1.x) std::swap(r0.x,r1.x);
+		if (r0.y>r1.y) std::swap(r0.y,r1.y);
+		if (r0.z>r1.z) std::swap(r0.z,r1.z);
 		center = 0.5*(r0 + r1);
 		rbox = 0.5*(r1 - r0);
 	}

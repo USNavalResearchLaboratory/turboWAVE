@@ -560,14 +560,53 @@ namespace tw
 			array[3] = a[3];
 		}
 
-		friend tw::Float Norm_pmmm(const vec4& v)
+		tw::vec3 spatial()
 		{
-			return v.array[0]*v.array[0] - v.array[1]*v.array[1] - v.array[2]*v.array[2] - v.array[3]*v.array[3];
+			return tw::vec3(array[1],array[2],array[3]);
 		}
 
-		friend tw::Float Norm_mppp(const vec4& v)
+		friend tw::Float Inner(const vec4& v1,const vec4& v2)
 		{
-			return -v.array[0]*v.array[0] + v.array[1]*v.array[1] + v.array[2]*v.array[2] + v.array[3]*v.array[3];
+			// Be sure to raise one of the two vectors to form the Minkowski product.
+			// Otherwise we have the Euclidean inner product.
+			return v1.array[0]*v2.array[0] + v1.array[1]*v2.array[1] + v1.array[2]*v2.array[2] + v1.array[3]*v2.array[3];
+		}
+
+		tw::vec4 raise_pmmm()
+		{
+			return tw::vec4(array[0],-array[1],-array[2],-array[3]);
+		}
+
+		tw::vec4 raise_mppp()
+		{
+			return tw::vec4(-array[0],array[1],array[2],array[3]);
+		}
+
+		void zBoost(const tw::Float& g,const tw::Float& sgn)
+		{
+			tw::vec4 v(*this);
+			tw::vec4 L0(g,0.0,0.0,sgn*sqrt(g*g-1.0));
+			tw::vec4 L3(sgn*sqrt(g*g-1.0),0.0,0.0,g);
+			// Here L is a pure matrix, no need to raise the vector.
+			array[0] = Inner(L0,v);
+			array[3] = Inner(L3,v);
+		}
+
+		void Boost(const tw::vec4& gb)
+		{
+			// Boost in an arbitrary direction with relativistic 4-velocity gb (gamma*beta)
+			tw::vec4 v(*this);
+			tw::Float b2 = gb[1]*gb[1] + gb[2]*gb[2] + gb[3]*gb[3];
+			auto Lij = [&] (tw::Int i,tw::Int j) { return gb[i]*gb[j]*(gb[0]-1)/(tw::small_pos+b2); };
+			tw::vec4 L0(gb[0],gb[1],gb[2],gb[3]);
+			tw::vec4 L1(gb[1],1+Lij(1,1),Lij(1,2),Lij(1,3));
+			tw::vec4 L2(gb[2],Lij(2,1),1+Lij(2,2),Lij(2,3));
+			tw::vec4 L3(gb[3],Lij(3,1),Lij(3,2),1+Lij(3,3));
+			// Here L is a pure matrix, no need to raise the vector.
+			array[0] = Inner(L0,v);
+			array[1] = Inner(L1,v);
+			array[2] = Inner(L2,v);
+			array[3] = Inner(L3,v);
 		}
 
 		const tw::Float& operator [] (const tw::Int& i) const

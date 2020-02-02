@@ -1,5 +1,72 @@
 #include "simulation.h"
 
+tw::input::DirectiveReader::DirectiveReader()
+{
+	maxKeyWords = 0;
+}
+
+tw::input::DirectiveReader::~DirectiveReader()
+{
+}
+
+void tw::input::DirectiveReader::Add(const std::string& key,tw::input::Directive *dir)
+{
+	dmap[key] = dir;
+	// count number of words in this key
+	std::string word;
+	std::stringstream s(key);
+	tw::Int words = 0;
+	while (!s.eof())
+	{
+		s >> word;
+		if (!s.eof())
+			words++;
+	}
+	// update max words
+	if (words>maxKeyWords)
+		maxKeyWords = words;
+}
+
+std::string tw::input::DirectiveReader::ReadNext(std::stringstream& in)
+{
+	std::string word,key;
+	in >> key;
+	if (key=="}")
+		return key;
+	tw::Int word_count = 0;
+	do
+	{
+		word_count++;
+		if (dmap.find(key)!=dmap.end()) // key has been found
+		{
+			keysFound[key] = 0;
+			dmap[key]->Read(in,key);
+			return key;
+		}
+		if (word_count<maxKeyWords)
+		{
+			in >> word;
+			key += " " + word;
+		}
+	} while(word_count<maxKeyWords);
+	throw tw::FatalError("Unexpected directive: "+key);
+	return key;
+}
+
+void tw::input::DirectiveReader::ReadAll(std::stringstream& in)
+{
+	std::string s;
+	do
+	{
+		s = ReadNext(in);
+	} while(s!="}");
+}
+
+bool tw::input::DirectiveReader::TestKey(const std::string& test)
+{
+	return (keysFound.find(test)!=keysFound.end());
+}
+
 tw::Float tw::input::GetUnitDensityCGS(std::stringstream& in)
 {
 	tw::Float ans = 0.0;
@@ -119,12 +186,24 @@ void tw::input::UserMacros(std::stringstream& in,std::stringstream& out)
 			}
 			else
 			{
-				it = macros.find(word);
+				char unaryOp = ' ';
+				key = word;
+				it = macros.find(key);
+				if (it==macros.end())
+				{
+					// If not a direct macro, check to see if there is a unary operator.
+					// At present negation is the only one.
+					if (word[0]=='-')
+					{
+						unaryOp = '-';
+						key = word.substr(1,std::string::npos);
+						it = macros.find(key);
+					}
+				}
 				if (it==macros.end())
 					out << word << " ";
 				else
-					out << macros[word] << " ";
-
+					out << unaryOp << macros[key] << " ";
 			}
 		}
 	}
@@ -438,10 +517,10 @@ std::string tw::input::GetPhrase(const std::vector<std::string>& words,tw::Int n
 	return ans;
 }
 
-void tw::input::ExitInputFileBlock(std::stringstream& inputString)
+void tw::input::ExitInputFileBlock(std::stringstream& inputString,bool alreadyEntered)
 {
 	std::string word;
-	tw::Int leftCount=0;
+	tw::Int leftCount=alreadyEntered?1:0;
 	tw::Int rightCount=0;
 	do
 	{

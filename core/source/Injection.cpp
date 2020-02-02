@@ -27,6 +27,7 @@ Profile::Profile(std::vector<Region*>& rlist) : rgnList(rlist)
 	orientation.u = tw::vec3(1,0,0);
 	orientation.v = tw::vec3(0,1,0);
 	orientation.w = tw::vec3(0,0,1);
+	gamma_boost = 1.0;
 }
 
 Profile* Profile::CreateObjectFromFile(std::vector<Region*>& rgnList,std::ifstream& inFile)
@@ -165,6 +166,10 @@ void Profile::ReadInputFileDirective(std::stringstream& inputString,const std::s
 		inputString >> word >> word >> alpha >> beta >> gamma;
 		orientation.SetWithEulerAngles(alpha*pi/180.0,beta*pi/180.0,gamma*pi/180.0);
 	}
+	if (com=="boosted") // e.g., boosted frame gamma = 1
+	{
+		inputString >> word >> word >> word >> gamma_boost;
+	}
 }
 
 void Profile::ReadData(std::ifstream& inFile)
@@ -189,6 +194,7 @@ void Profile::ReadData(std::ifstream& inFile)
 	inFile.read((char *)&wasTriggered,sizeof(bool));
 	inFile.read((char *)&t0,sizeof(tw::Float));
 	inFile.read((char *)&t1,sizeof(tw::Float));
+	inFile.read((char *)&gamma_boost,sizeof(tw::Float));
 }
 
 void Profile::WriteData(std::ofstream& outFile)
@@ -213,11 +219,41 @@ void Profile::WriteData(std::ofstream& outFile)
 	outFile.write((char *)&wasTriggered,sizeof(bool));
 	outFile.write((char *)&t0,sizeof(tw::Float));
 	outFile.write((char *)&t1,sizeof(tw::Float));
+	outFile.write((char *)&gamma_boost,sizeof(tw::Float));
+}
+
+tw::vec3 Profile::DriftMomentum(const tw::Float& mass)
+{
+	tw::vec4 v4(0.0,driftMomentum/mass);
+	tw::Float gb2 = v4 ^ v4;
+	v4[0] = sqrt(1.0 + gb2);
+	v4.zBoost(gamma_boost,-1.0);
+	return mass*v4.spatial();
+}
+
+tw::vec3 Profile::Boost(const tw::vec3& pos)
+{
+	// Here the boost only works if the profile is constant in time.
+	// The function's caller is giving us boosted frame coordinates.
+	// The user is giving us lab frame coordinates.
+	// Therefore first transform arguments to lab frame, then proceed as usual.
+	tw::vec4 x4(0.0,pos);
+	x4.zBoost(gamma_boost,1.0);
+	return x4.spatial();
+}
+
+tw::vec3 Profile::Translate_Rotate(const tw::vec3& pos)
+{
+	// The argument should already be boosted.
+	// N.b. the boost applies to both region and profile, while translate-rotate applies only to the profile.
+	tw::vec3 p = pos - centerPt;
+	orientation.ExpressInBasis(&p);
+	return p;
 }
 
 tw::Float Profile::GetValue(const tw::vec3& pos,const MetricSpace& ds)
 {
-	return theRgn->Inside(pos,ds) ? 1.0 : 0.0;
+	return theRgn->Inside(Boost(pos),ds) ? 1.0 : 0.0;
 }
 
 void UniformProfile::ReadInputFileDirective(std::stringstream& inputString,const std::string& com)
@@ -242,7 +278,7 @@ void UniformProfile::WriteData(std::ofstream& outFile)
 
 tw::Float UniformProfile::GetValue(const tw::vec3& pos,const MetricSpace& ds)
 {
-	return theRgn->Inside(pos,ds) ? density : 0.0;
+	return theRgn->Inside(Boost(pos),ds) ? gamma_boost*density : 0.0;
 }
 
 void GaussianProfile::ReadInputFileDirective(std::stringstream& inputString,const std::string& com)
@@ -272,12 +308,12 @@ void GaussianProfile::WriteData(std::ofstream& outFile)
 tw::Float GaussianProfile::GetValue(const tw::vec3& pos,const MetricSpace& ds)
 {
 	tw::Float dens = density;
-	tw::vec3 p = pos - centerPt;
-	orientation.ExpressInBasis(&p);
+	tw::vec3 b = Boost(pos);
+	tw::vec3 p = Translate_Rotate(b);
 	dens *= exp(-sqr(p.x/beamSize.x));
 	dens *= exp(-sqr(p.y/beamSize.y));
 	dens *= exp(-sqr(p.z/beamSize.z));
-	return theRgn->Inside(pos,ds) ? dens : 0.0;
+	return theRgn->Inside(b,ds) ? gamma_boost*dens : 0.0;
 }
 
 void ChannelProfile::ReadInputFileDirective(std::stringstream& inputString,const std::string& com)
@@ -328,8 +364,8 @@ tw::Float ChannelProfile::GetValue(const tw::vec3& pos,const MetricSpace& ds)
 {
 	tw::Int i;
 	tw::Float r2,w,dens = 0.0;
-	tw::vec3 p = pos - centerPt;
-	orientation.ExpressInBasis(&p);
+	tw::vec3 b = Boost(pos);
+	tw::vec3 p = Translate_Rotate(b);
 	for (i=0;i<z.size()-1;i++)
 	{
 		if (p.z>=z[i] && p.z<=z[i+1])
@@ -344,7 +380,7 @@ tw::Float ChannelProfile::GetValue(const tw::vec3& pos,const MetricSpace& ds)
 	}
 	r2 = sqr(p.x) + sqr(p.y);
 	dens *= n0 + n2*r2 + n4*r2*r2 + n6*r2*r2*r2;
-	return theRgn->Inside(pos,ds) ? dens : 0.0;
+	return theRgn->Inside(b,ds) ? gamma_boost*dens : 0.0;
 }
 
 void ColumnProfile::ReadInputFileDirective(std::stringstream& inputString,const std::string& com)
@@ -387,8 +423,8 @@ tw::Float ColumnProfile::GetValue(const tw::vec3& pos,const MetricSpace& ds)
 {
 	tw::Int i;
 	tw::Float w,dens = 0.0;
-	tw::vec3 p = pos - centerPt;
-	orientation.ExpressInBasis(&p);
+	tw::vec3 b = Boost(pos);
+	tw::vec3 p = Translate_Rotate(b);
 	for (i=0;i<z.size()-1;i++)
 	{
 		if (p.z>=z[i] && p.z<=z[i+1])
@@ -403,7 +439,7 @@ tw::Float ColumnProfile::GetValue(const tw::vec3& pos,const MetricSpace& ds)
 	}
 	dens *= exp(-sqr(p.x/beamSize.x));
 	dens *= exp(-sqr(p.y/beamSize.y));
-	return theRgn->Inside(pos,ds) ? dens : 0.0;
+	return theRgn->Inside(b,ds) ? gamma_boost*dens : 0.0;
 }
 
 void PiecewiseProfile::Initialize(MetricSpace *ds)
@@ -503,8 +539,8 @@ tw::Float PiecewiseProfile::GetValue(const tw::vec3& pos,const MetricSpace& ds)
 	tw::Int i;
 	tw::Float r,w;
 
-	tw::vec3 p = pos - centerPt;
-	orientation.ExpressInBasis(&p);
+	tw::vec3 b = Boost(pos);
+	tw::vec3 p = Translate_Rotate(b);
 
 	const tw::Float x0 = p.x;
 	const tw::Float y0 = p.y;
@@ -617,7 +653,7 @@ tw::Float PiecewiseProfile::GetValue(const tw::vec3& pos,const MetricSpace& ds)
 	}
 
 	tw::Float dens = ansX*ansY*ansZ*sqr(cos(0.5*modeNumber.x*p.x)*cos(0.5*modeNumber.y*p.y)*cos(0.5*modeNumber.z*p.z));
-	return theRgn->Inside(pos,ds) ? dens : 0.0;
+	return theRgn->Inside(b,ds) ? gamma_boost*dens : 0.0;
 }
 
 void CorrugatedProfile::ReadInputFileDirective(std::stringstream& inputString,const std::string& com)
@@ -667,8 +703,8 @@ void CorrugatedProfile::WriteData(std::ofstream& outFile)
 tw::Float CorrugatedProfile::GetValue(const tw::vec3& pos,const MetricSpace& ds)
 {
 	tw::Float dens,wp1s,r2,psi,a0Hat,kHat;
-	tw::vec3 p = pos - centerPt;
-	orientation.ExpressInBasis(&p);
+	tw::vec3 b = Boost(pos);
+	tw::vec3 p = Translate_Rotate(b);
 	const tw::Float x = p.x;
 	const tw::Float y = p.y;
 	const tw::Float z = p.z; // z = 0 is initial injection point
@@ -678,7 +714,7 @@ tw::Float CorrugatedProfile::GetValue(const tw::vec3& pos,const MetricSpace& ds)
 	kHat = w0 + km - 0.5*w0*(sqr(wp0/w0) + 8.0/sqr(w0*rchannel));
 	wp1s = 2.0*w0*kHat - 2.0*sqrt(sqr(gamma0+a0Hat*w0*z)/(sqr(gamma0+a0Hat*w0*z)-1.0))*w0*w0;
 	dens = wp0*wp0*(1.0 + delta*sin(km*z)) + wp1s + 4.0*r2/pow(rchannel,tw::Float(4.0));
-	return theRgn->Inside(pos,ds) ? dens : 0.0;
+	return theRgn->Inside(b,ds) ? gamma_boost*dens : 0.0;
 }
 
 
@@ -781,6 +817,7 @@ Wave::Wave(GaussianDeviate *gd)
 	chirp = 0.0;
 	phase = 0.0;
 	randomPhase = 0.0;
+	gamma_boost = 1.0;
 	modeType = EM::hermite;
 	modeData[0].order = 0;
 	modeData[1].order = 0;
@@ -1026,6 +1063,10 @@ void Wave::ReadInputFile(std::stringstream& inputString,std::string& command)
 			if (word=="sech")
 				pulseShape.whichProfile = loading::sech;
 		}
+		if (word=="boosted") // e.g., boosted frame gamma = 1
+		{
+			inputString >> word >> word >> word >> gamma_boost;
+		}
 	} while (word!="}");
 
 	if (w==0.0 && (modeType==EM::hermite || modeType==EM::laguerre || modeType==EM::multipole))
@@ -1044,6 +1085,7 @@ void Wave::ReadData(std::ifstream& inFile)
 	inFile.read((char *)&vg,sizeof(tw::Float));
 	inFile.read((char *)&chirp,sizeof(tw::Float));
 	inFile.read((char *)&randomPhase,sizeof(tw::Float));
+	inFile.read((char *)&gamma_boost,sizeof(tw::Float));
 	inFile.read((char *)&pulseShape,sizeof(PulseShape));
 	inFile.read((char *)&modeType,sizeof(modeType));
 	inFile.read((char *)modeData,sizeof(modeData));
@@ -1062,6 +1104,7 @@ void Wave::WriteData(std::ofstream& outFile)
 	outFile.write((char *)&vg,sizeof(tw::Float));
 	outFile.write((char *)&chirp,sizeof(tw::Float));
 	outFile.write((char *)&randomPhase,sizeof(tw::Float));
+	outFile.write((char *)&gamma_boost,sizeof(tw::Float));
 	outFile.write((char *)&pulseShape,sizeof(PulseShape));
 	outFile.write((char *)&modeType,sizeof(modeType));
 	outFile.write((char *)modeData,sizeof(modeData));

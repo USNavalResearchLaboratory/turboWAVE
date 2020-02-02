@@ -23,7 +23,7 @@ No matter what the storage pattern is, the order of array indices always has the
 	"Cylindrical"; "A(i,j,k,c)"; :math:`A_c(\varrho_i,\varphi_j,z_k)`; :math:`\varrho^2 = x^2 + y^2`
 	"Spherical"; "A(i,j,k,c)"; :math:`A_c(r_i,\varphi_j,\theta_k)`; "Polar angle is last"
 
-The range of the component index is :math:`[0,1,...,N-1]`, where N is the number fo components.  The range of a coordinate index is :math:`[1-L,2-L,...,M+L]`, where M is the number of coordinate points along the axis in question, and L is the number of ghost cell layers.
+The range of the component index is :math:`[0,1,...,N-1]`, where N is the number of components.  The range of a coordinate index is :math:`[1-L,2-L,...,M+L]`, where M is the number of coordinate points along the axis in question, and L is the number of ghost cell layers.
 
 .. Note::
 

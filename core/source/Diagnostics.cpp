@@ -933,7 +933,7 @@ void Simulation::Diagnose()
 		if (IsFirstStep() && !(appendMode&&restarted) && curr==master)
 		{
 			energyFile.open(fileName.str().c_str());
-			energyFile << "Time dt ";
+			energyFile << "Time dt zwindow ";
 			for (i=0;i<module.size();i++)
 				module[i]->EnergyHeadings(energyFile);
 			energyFile << std::endl;
@@ -944,7 +944,7 @@ void Simulation::Diagnose()
 			if (curr==master)
 			{
 				energyFile.open(fileName.str().c_str(),std::ios::app);
-				energyFile << elapsedTime << " " << dt << " ";
+				energyFile << elapsedTime << " " << dt << " " << windowPosition << " ";
 			}
 			cols.clear();
 			avg.clear();

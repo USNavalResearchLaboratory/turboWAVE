@@ -113,13 +113,13 @@ struct Simulation:Task,MetricSpace
 	tw::Float ToLab(tw::Float zeta,tw::Float relativeTime);
 	tw::Float ToLight(tw::Float z,tw::Float relativeTime);
 	template <class T,class U>
-	U ValueOnLabGrid(T& A,tw::Int i,tw::Int j,tw::Int k,tw::Float relativeTime);
+	U ValueOnLabGrid(T& A,tw::strip s,tw::Int k,tw::Float relativeTime);
 	template <class T,class U>
-	U ValueOnLightGrid(T& A,tw::Int i,tw::Int j,tw::Int k,tw::Float relativeTime);
+	U ValueOnLightGrid(T& A,tw::strip s,tw::Int k,tw::Float relativeTime);
 
 	void OpenInputFile(std::ifstream& inFile);
 	std::string InputFileFirstPass();
-	void GridFromInputFile();
+	void SetupLocalGrid();
 	void ReadSubmoduleBlock(std::stringstream& inputString,Module *sup);
 	void ReadInputFile();
 	void ReadData(std::ifstream& inFile);
@@ -184,27 +184,27 @@ inline tw::Float Simulation::ToLight(tw::Float z,tw::Float relativeTime)
 }
 
 template <class T,class U>
-U Simulation::ValueOnLabGrid(T& A,tw::Int i,tw::Int j,tw::Int k,tw::Float relativeTime)
+U Simulation::ValueOnLabGrid(T& A,tw::strip s,tw::Int k,tw::Float relativeTime)
 {
 	// Take a quantity known on the light grid and get its value in a cell of the lab grid
-	tw::Int cell;
+	tw::Int klight;
 	tw::Float z,zeta,w;
-	z = Pos(i,j,k).z - corner.z;
+	z = Pos(s,k).z - corner.z;
 	zeta = ToLight(z,relativeTime);
-	cell = MyFloor(zeta*freq.z + 0.5001);
-	w = 0.5 - zeta*freq.z + tw::Float(cell);
-	return w*A(i,j,cell) + (one - w)*A(i,j,cell+1);
+	klight = MyFloor(zeta*freq.z + 0.5001);
+	w = 0.5 - zeta*freq.z + tw::Float(klight);
+	return w*A(s,klight) + (one - w)*A(s,klight+1);
 }
 
 template <class T,class U>
-U Simulation::ValueOnLightGrid(T& A,tw::Int i,tw::Int j,tw::Int k,tw::Float relativeTime)
+U Simulation::ValueOnLightGrid(T& A,tw::strip s,tw::Int k,tw::Float relativeTime)
 {
 	// Take a quantity known on the lab grid and get its value in a cell of the light grid
-	tw::Int cell;
+	tw::Int klab;
 	tw::Float z,zeta,w;
-	zeta = Pos(i,j,k).z - corner.z;
+	zeta = Pos(s,k).z - corner.z;
 	z = ToLab(zeta,relativeTime);
-	cell = MyFloor(z*freq.z + 0.4999);
-	w = 0.5 - z*freq.z + tw::Float(cell);
-	return w*A(i,j,cell) + (one - w)*A(i,j,cell+1);
+	klab = MyFloor(z*freq.z + 0.4999);
+	w = 0.5 - z*freq.z + tw::Float(klab);
+	return w*A(s,klab) + (one - w)*A(s,klab+1);
 }

@@ -136,8 +136,8 @@ void Fluid::Initialize()
 			{
 				for (tw::Int c=1;c<=3;c++)
 				{
-					state0(cell,c) = profile[s]->driftMomentum[c-1];
-					state1(cell,c) = profile[s]->driftMomentum[c-1];
+					state0(cell,c) = profile[s]->DriftMomentum(1.0)[c-1];
+					state1(cell,c) = profile[s]->DriftMomentum(1.0)[c-1];
 				}
 				density = profile[s]->GetValue(pos,*owner);
 				gas(cell) += (1.0 - initialIonizationFraction)*density;
@@ -696,9 +696,9 @@ bool Chemical::GenerateFluid(Field& hydro,Field& eos)
 			kT = sqr(profile[s]->thermalMomentum.x)/mat.mass; // appropriate for exp(-v^2/(2*vth^2)) convention
 			if (profile[s]->temperature!=0.0)
 				kT = profile[s]->temperature;
-			p0.x = profile[s]->driftMomentum.x;
-			p0.y = profile[s]->driftMomentum.y;
-			p0.z = profile[s]->driftMomentum.z;
+			p0.x = profile[s]->DriftMomentum(mat.mass).x;
+			p0.y = profile[s]->DriftMomentum(mat.mass).y;
+			p0.z = profile[s]->DriftMomentum(mat.mass).z;
 			for (auto cell : EntireCellRange(*this))
 			{
 				dens = profile[s]->GetValue(owner->Pos(cell),*owner);

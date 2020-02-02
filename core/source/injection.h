@@ -27,12 +27,16 @@ struct Profile
 	tw::vec3 modeNumber;
 	tw::Float modeAmplitude;
 	tw::basis orientation;
+	tw::Float gamma_boost;
 	Region *theRgn;
 	std::vector<Region*>& rgnList;
 
 	// items needed for particle/fluid loading
+private:
+	tw::vec3 driftMomentum;
+public:
 	tw_profile_quantity whichQuantity;
-	tw::vec3 thermalMomentum,driftMomentum;
+	tw::vec3 thermalMomentum;
 	tw::Float temperature;
 	bool neutralize,variableCharge;
 	tw_load_method loadingMethod;
@@ -42,6 +46,9 @@ struct Profile
 
 	Profile(std::vector<Region*>& rgnList);
 	virtual void Initialize(MetricSpace *ds) {;}
+	tw::vec3 DriftMomentum(const tw::Float& mass);
+	tw::vec3 Boost(const tw::vec3& pos);
+	tw::vec3 Translate_Rotate(const tw::vec3& pos);
 	virtual tw::Float GetValue(const tw::vec3& pos,const MetricSpace& ds);
 	virtual void ReadInputFileBlock(std::stringstream& inputString,bool neutralize);
 	virtual void ReadInputFileDirective(std::stringstream& inputString,const std::string& command);
@@ -147,7 +154,7 @@ struct Wave
 	tw::vec3 direction;
 	tw::vec3 focusPosition;
 	tw::vec3 a;
-	tw::Float a0,w,nrefr,phase,vg,chirp,randomPhase;
+	tw::Float a0,w,nrefr,phase,vg,chirp,randomPhase,gamma_boost;
 	PulseShape pulseShape;
 	EM::mode modeType;
 	EM::mode_data modeData[2];
@@ -168,13 +175,20 @@ struct Wave
 	// Dispatch function for all mode types
 	tw::vec3 VectorPotential(tw::Float time,const tw::vec3& pos) const
 	{
-		tw::Complex Ax;
 		tw::vec3 ans;
-		tw::vec3 r = pos - focusPosition;
+		tw::Complex Ax;
+		tw::vec4 x4(time,pos);
+		// N.b. at present boost only works if polarization is orthogonal to z.
+		// Otherwise we would have to bring in the scalar potential.
+		// The function's caller is giving us boosted frame coordinates.
+		// The user is giving us lab frame coordinates.
+		// Therefore first transform arguments to lab frame, then proceed as usual.
+		x4.zBoost(gamma_boost,1.0);
+		tw::vec3 r = x4.spatial() - focusPosition;
 		laserFrame.ExpressInBasis(&r);
 
 		const tw::Float rho = tw::small_pos + sqrt(r.x*r.x+r.y*r.y);
-		const tw::Float t = time - pulseShape.delay - pulseShape.risetime;
+		const tw::Float t = x4[0] - pulseShape.delay - pulseShape.risetime;
 		switch (modeType)
 		{
 			case EM::plane:

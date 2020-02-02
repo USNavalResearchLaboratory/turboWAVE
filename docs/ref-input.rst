@@ -18,7 +18,7 @@ General Rules
 
  	* :samp:`x=1` is the same as :samp:`x = 1`
 
-#.	All boolean variables can be set to an affirmative value using either :samp:`true`, :samp:`yes`, or :samp:`on`, any other input resolves to a negative value
+#.	All boolean variables can be set to an affirmative value using either :samp:`true`, :samp:`yes`, or :samp:`on`, any other input resolves to a negative value (in future specific negative values :samp:`false`, :samp:`no`, or :samp:`off` will be required).
 #.	Variable length lists are enclosed by curly braces
 
 	* ``{ 0 , 1 , 2 , 3 }`` is a list that can have any number of elements
@@ -245,10 +245,11 @@ Numerical Grid
 
 			:param enum g: can be ``cartesian``, ``cylindrical``, ``spherical``
 
-		.. py:function:: corner = ( x0 , y0 , z0 )
+		.. py:function:: corner[ijk] = ( x0 , y0 , z0 )
 
-			Coordinates of the vertex of the grid region where all coordinates are minimum.  Not necessarily Cartesian, but rather in coordinate system of the grid.
+			Coordinates of the given vertex of the grid region.  If the optional ``ijk`` are omitted the vertex is the one where all coordinates are minimum.  Otherwise ``ijk`` is a binary code identifying one of eight vertices. Only one vertex may be given, otherwise the geometry is over-specified.  The coordinates are not necessarily Cartesian, but rather in the coordinate system of the grid.
 
+			:param binary ijk: three binary digits, 0 indicates low side, 1 indicates high side.  For example, 011 means low x-side, high y-side, and high z-side.  Can be omitted, defaults to 000.
 			:param float x0: The first coordinate of the corner
 			:param float y0: the second coordinate of the corner
 			:param float z0: the third coordinate of the corner
@@ -389,6 +390,10 @@ Laser radiation, which in this context is a label for radiation in the paraxial 
 		.. py:function:: shape = pulse_shape
 
 			:param enum pulse_shape: determines the shape of the pulse envelope, can be ``quintic`` (default), ``sin2``, ``sech``
+
+		.. py:function:: boosted frame gamma = g
+
+			:param float g: relativistic Lorentz factor of the boosted frame (default=1).  If g>1, turboWAVE will transform the wave into the boosted frame.  The parameters describing the wave should all be given in lab frame coordinates.  The grid coordinates are taken as the boosted frame.  At present this feature should only be used for paraxial modes propagating along the z-axis.
 
 .. _pulse-obj:
 .. py:function:: new pulse { directives }
@@ -566,6 +571,9 @@ The following directives may be used with any profile type
 
 	:param float stop_time: time at which matter loading ends.  If timing is ``triggered`` this is ignored.
 
+.. py:function:: boosted frame gamma = g
+
+	:param float g: relativistic Lorentz factor of the boosted frame (default=1).  If g>1, turboWAVE will transform the profile and clipping region into the boosted frame.  The parameters describing the profile and region should all be given in lab frame coordinates.  The grid coordinates are taken as the boosted frame.  When using a boosted frame the ``neutralize`` top level directive must be ``false``.
 
 Specific Matter Loading Profiles
 ,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,

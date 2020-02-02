@@ -776,7 +776,7 @@ void Species::GenerateParticles(bool init)
 		if ( timeGate )
 		{
 			profile[s]->wasTriggered = true;
-			loadingData.driftMomentum = profile[s]->driftMomentum;
+			loadingData.driftMomentum = profile[s]->DriftMomentum(restMass);
 			loadingData.neutralize = profile[s]->neutralize;
 			loadingData.thermalMomentum = profile[s]->thermalMomentum;
 			for (i=1;i<=owner->Dim(1);i++)
@@ -1076,7 +1076,7 @@ void Species::FinishMoveWindow()
 		{
 			loadingData.neutralize = profile[s]->neutralize;
 			loadingData.thermalMomentum = profile[s]->thermalMomentum;
-			loadingData.driftMomentum = profile[s]->driftMomentum;
+			loadingData.driftMomentum = profile[s]->DriftMomentum(restMass);
 			for (j=1;j<=dim[2];j++)
 				for (i=1;i<=dim[1];i++)
 				{

@@ -342,7 +342,7 @@ void Simulation::PrepareSimulation()
 	#endif
 
 	if (!restarted)
-		GridFromInputFile();
+		SetupLocalGrid();
 
 	ReadInputFile();
 
@@ -1008,33 +1008,75 @@ std::string Simulation::InputFileFirstPass()
 
 			if (com1=="new")
 			{
-				inputString >> com1;
-				if (com1=="grid")
-				{
-					foundGrid = true;
+				std::vector<std::string> preamble = tw::input::EnterInputFileBlock(inputString,"{");
 
+				if (preamble[0]=="grid")
+				{
+					if (preamble.size()!=1)
+						throw tw::FatalError("Ill-formed grid block.");
+					foundGrid = true;
+					corner = globalCorner = size = globalSize = tw::vec3(0.0,0.0,0.0);
+					tw::input::DirectiveReader directives;
+					// allow user to choose any of 8 corners with strings like corner001, corner010, etc.
+					tw::vec3 corner[2][2][2];
+					auto corner_str = [&] (tw::Int i,tw::Int j,tw::Int k)
+					{
+						return "corner" + std::to_string(i) + std::to_string(j) + std::to_string(k);
+					};
+					for (tw::Int i=0;i<2;i++)
+						for (tw::Int j=0;j<2;j++)
+							for (tw::Int k=0;k<2;k++)
+								directives.Add(corner_str(i,j,k),new tw::input::Numbers<tw::Float>(&corner[i][j][k][0],3));
+					directives.Add("corner",new tw::input::Numbers<tw::Float>(&globalCorner[0],3));
+					directives.Add("cell size",new tw::input::Numbers<tw::Float>(&spacing[0],3));
+					directives.Add("radial progression factor",new tw::input::Numbers<tw::Float>(&radialProgressionFactor,1));
+					directives.Add("adaptive timestep",new tw::input::Bool(&adaptiveTimestep));
+					directives.Add("adaptive grid",new tw::input::Bool(&adaptiveGrid));
+					directives.Add("dimensions",new tw::input::Numbers<tw::Int>(&globalCells[1],3));
+					directives.Add("decomposition",new tw::input::Numbers<tw::Int>(&domains[1],3));
+					std::map<std::string,tw_geometry> geo = {{"cartesian",cartesian},{"cylindrical",cylindrical},{"spherical",spherical}};
+					directives.Add("geometry",new tw::input::Enums<tw_geometry>(geo,&gridGeometry));
+					directives.Add("region",new tw::input::Custom);
 					do
 					{
-						inputString >> com2;
-
-						if (com2=="dimensions") // eg, dimensions = 32 32 32
+						com2 = directives.ReadNext(inputString);
+						if (com2=="region") // eg, region : start = 1 , end = 100 , length = 1e4
 						{
-							inputString >> word;
-							inputString >> globalCells[1] >> globalCells[2] >> globalCells[3];
-						}
-						if (com2=="decomposition") // eg, decomposition = 8 4 1
-						{
-							inputString >> word;
-							inputString >> domains[1] >> domains[2] >> domains[3];
+							tw::Int i1,i2;
+							tw::Float length;
+							inputString >> word >> word >> word >> i1 >> word >> word >> i2 >> word >> word >> length;
+							region.push_back(new NonUniformRegion(i1,i2,length,spacing.z));
 						}
 					} while (com2!="}");
+					tw::Int corners_given = directives.TestKey("corner") ? 1 : 0;
+					for (tw::Int i=0;i<2;i++)
+						for (tw::Int j=0;j<2;j++)
+							for (tw::Int k=0;k<2;k++)
+							{
+								if (directives.TestKey(corner_str(i,j,k)))
+								{
+									corners_given++;
+									if (corners_given>1)
+										throw tw::FatalError("Grid geometry is overspecified.");
+									globalCorner.x = corner[i][j][k].x - globalCells[1]*spacing.x*i;
+									globalCorner.y = corner[i][j][k].y - globalCells[2]*spacing.y*j;
+									globalCorner.z = corner[i][j][k].z - globalCells[3]*spacing.z*k;
+								}
+							}
 				}
 				else
-					tw::input::ExitInputFileBlock(inputString);
+					tw::input::ExitInputFileBlock(inputString,true);
+			}
+
+			if (com1=="timestep") // eg, timestep = 1.0
+			{
+				inputString >> word;
+				inputString >> dt0;
+				UpdateTimestep(dt0);
 			}
 
 			if (com1=="generate")
-				tw::input::ExitInputFileBlock(inputString);
+				tw::input::ExitInputFileBlock(inputString,false);
 
 			if (com1=="open")
 			{
@@ -1120,7 +1162,6 @@ std::string Simulation::InputFileFirstPass()
 			if (localCells[i]%2!=0 && globalCells[i]>1)
 				throw tw::FatalError("local number of cells is not even along non-ignorable axis");
 		}
-		Resize(localCells[1],localCells[2],localCells[3],tw::vec3(0.0,0.0,0.0),tw::vec3(1.0,1.0,1.0),2);
 
 		// Random numbers
 		uniformDeviate = new UniformDeviate(1 + strip[0].Get_rank()*(MaxSeed()/numRanksProvided));
@@ -1152,112 +1193,14 @@ std::string Simulation::InputFileFirstPass()
 	}
 }
 
-void Simulation::GridFromInputFile()
+void Simulation::SetupLocalGrid()
 {
-	Lock();
-
-	tw::Int i;
-	std::string com1,com2,word;
-
-	// adaptive grid variables
-	tw::Int i1,i2;
-	tw::Float length;
-
-	corner = globalCorner = size = globalSize = tw::vec3(0.0,0.0,0.0);
-
-	(*tw_out) << "Extract Grid from Input File..." << std::endl << std::endl;
-
-	std::ifstream inFile;
-	std::stringstream inputString;
-	OpenInputFile(inFile);
-	tw::input::PreprocessInputFile(inFile,inputString);
-	inFile.close();
-
-	inputString.seekg(0);
-
-	do
-	{
-		com1.clear();
-		inputString >> com1;
-
-		if (com1=="new")
-		{
-			std::vector<std::string> preamble = tw::input::EnterInputFileBlock(inputString,"{");
-
-			if (preamble[0]=="grid")
-			{
-				if (preamble.size()!=1)
-					throw tw::FatalError("Ill-formed grid block.");
-				do
-				{
-					inputString >> com2;
-					if (com2=="corner") // eg, corner = 0.0 0.0 0.0
-					{
-						inputString >> word;
-						inputString >> globalCorner.x >> globalCorner.y >> globalCorner.z;
-					}
-					if (com2=="cell") // eg, cell size = 0.5 0.5 0.5
-					{
-						inputString >> word >> word;
-						inputString >> spacing.x >> spacing.y >> spacing.z;
-					}
-					if (com2=="geometry") // eg, geometry = cylindrical
-					{
-						gridGeometry = cartesian;
-						inputString >> com2 >> com2;
-						if (com2=="cylindrical")
-							gridGeometry = cylindrical;
-						if (com2=="spherical")
-							gridGeometry = spherical;
-					}
-					if (com2=="radial") // eg, radial progression factor = 1.03
-					{
-						inputString >> com2 >> com2 >> com2 >> radialProgressionFactor;
-					}
-					if (com2=="region") // eg, region : start = 1 , end = 100 , length = 1e4
-					{
-						inputString >> com2 >> com2 >> com2 >> i1 >> com2 >> com2 >> i2 >> com2 >> com2 >> length;
-						region.push_back(new NonUniformRegion(i1,i2,length,spacing.z));
-					}
-
-					if (com2=="adaptive") // eg, adaptive timestep = yes
-					{
-						inputString >> com2;
-						if (com2=="timestep")
-						{
-							inputString >> com2 >> com2;
-							adaptiveTimestep = (com2=="yes" || com2=="true" || com2=="on");
-							(*tw_out) << "Adaptive timestep = " << adaptiveTimestep << std::endl;
-						}
-						if (com2=="grid")
-						{
-							inputString >> com2 >> com2;
-							adaptiveGrid = (com2=="yes" || com2=="true" || com2=="on");
-						}
-					}
-				} while (com2!="}");
-
-				com2 = "grid";
-			}
-		}
-
-		if (com1=="timestep") // eg, timestep = 1.0
-		{
-			inputString >> word;
-			inputString >> dt0;
-			UpdateTimestep(dt0);
-			(*tw_out) << "Timestep = " << dt << std::endl;
-		}
-
-	} while (!inputString.eof());
-
-	Unlock();
-
-	(*tw_out) << "Allocate " << dim[1] << "x" << dim[2] << "x" << dim[3] << " Grid" << std::endl;
-	size = spacing * tw::vec3(dim[1],dim[2],dim[3]);
+	tw::Int Nx = localCells[1], Ny = localCells[2], Nz = localCells[3];
+	(*tw_out) << "Allocate " << Nx << "x" << Ny << "x" << Nz << " Grid" << std::endl;
+	size = spacing * tw::vec3(Nx,Ny,Nz);
 	globalSize = spacing * tw::vec3(globalCells[1],globalCells[2],globalCells[3]);
 	corner = globalCorner + tw::vec3(domainIndex[1],domainIndex[2],domainIndex[3]) * size;
-	Resize(dim[1],dim[2],dim[3],corner,size,2);
+	Resize(Nx,Ny,Nz,corner,size,2);
 	SetCellWidthsAndLocalSize();
 	SetGlobalSizeAndLocalCorner();
 	SetupGeometry();

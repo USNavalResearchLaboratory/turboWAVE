@@ -135,8 +135,6 @@ void EigenmodePropagator::Advance(ComplexField& a0,ComplexField& a1,ComplexField
 	const tw::Int yDim = space->Dim(2);
 	const tw::Int zDim = space->Dim(3);
 
-	tw::Float lambda;
-	std::valarray<tw::Complex> T2z(zDim),source(zDim),ans(zDim);
 	std::valarray<tw::Float> localEig(xDim+2),chi_ref(zDim+2);
 
 	const tw::Complex T1 = -(1+causality)/(2*dz(*space)*dt);
@@ -177,31 +175,36 @@ void EigenmodePropagator::Advance(ComplexField& a0,ComplexField& a1,ComplexField
 	}
 
 	// NOTE: VectorStripRange does not work for complex fields
-	StripRange range(*space,3,strongbool::no);
-	for (auto it=range.begin();it!=range.end();++it)
+	#pragma omp parallel
 	{
-		tw::strip s = *it;
-		if (space->car==1.0)
-			lambda = a0.CyclicEigenvalue(s.dcd1(0),s.dcd2(0));
-		else
-			lambda = localEig[s.dcd1(0)];
-		for (tw::Int k=1;k<=zDim;k++)
+		tw::Float lambda;
+		std::valarray<tw::Complex> T2z(zDim),source(zDim),ans(zDim);
+		StripRange range(*space,3,strongbool::no);
+		for (auto it=range.begin();it!=range.end();++it)
 		{
-			T2z[k-1] = T2 - tw::Float(0.5)*(lambda + chi_ref[k]);
-			source[k-1] = T1*a0(s,k-1) + T2z[k-1]*a0(s,k) + T3*a0(s,k+1) - chi(s,k);
-			T2z[k-1] = T2 + tw::Float(0.5)*(lambda + chi_ref[k]);
+			tw::strip s = *it;
+			if (space->car==1.0)
+				lambda = a0.CyclicEigenvalue(s.dcd1(0),s.dcd2(0));
+			else
+				lambda = localEig[s.dcd1(0)];
+			for (tw::Int k=1;k<=zDim;k++)
+			{
+				T2z[k-1] = T2 - tw::Float(0.5)*(lambda + chi_ref[k]);
+				source[k-1] = T1*a0(s,k-1) + T2z[k-1]*a0(s,k) + T3*a0(s,k+1) - chi(s,k);
+				T2z[k-1] = T2 + tw::Float(0.5)*(lambda + chi_ref[k]);
+			}
+
+			TriDiagonal(ans,source,T1,T2z,T3);
+
+			for (tw::Int k=1;k<=zDim;k++)
+			{
+				a0(s,k) = a1(s,k);
+				a1(s,k) = ans[k-1];
+			}
+
+			globalIntegrator->SetMatrix(it.global_count(),T1,T2z,T3,T1,T3);
+			globalIntegrator->SetData(it.global_count(),&a1(s,0),a1.Stride(3)/2); // need complex stride and stride[0]=1
 		}
-
-		TriDiagonal(ans,source,T1,T2z,T3);
-
-		for (tw::Int k=1;k<=zDim;k++)
-		{
-			a0(s,k) = a1(s,k);
-			a1(s,k) = ans[k-1];
-		}
-
-		globalIntegrator->SetMatrix(it.global_count(),T1,T2z,T3,T1,T3);
-		globalIntegrator->SetData(it.global_count(),&a1(s,0),a1.Stride(3)/2); // need complex stride and stride[0]=1
 	}
 	CopyGhostCellData(a0,All(a0),a1,All(a1));
 

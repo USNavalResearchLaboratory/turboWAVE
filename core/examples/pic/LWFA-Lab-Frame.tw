@@ -59,6 +59,7 @@ new conductor
 {
 	clipping region = antenna_rect
 	current type = electric // required, or no emission
+	enable electromagnetic = false // make the antenna invisible to EM waves
 	// a=eA/mc^2 can be estimated as 0.5 * px * dz * Nz , where Nz = cells along z within clipping region
 	// Here, dz = 0.05 , Nz = 1 , so px=40 would give a=1
 	px = { 100.0 } // polarization density
