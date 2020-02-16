@@ -129,8 +129,8 @@ void Electromagnetic::Update()
 	sources.ApplyFoldingCondition(); // only apply before conversion to density
 	conserved_current_to_dens<0,1,2,3>(sources,*owner);
 	sources.ApplyBoundaryCondition(); // only apply after conversion to density
-	if (owner->smoothing>0)
-		sources.Smooth(*owner,owner->smoothing,owner->compensation);
+	if (smoothing>0)
+		sources.Smooth(*owner,smoothing,compensation);
 }
 #endif
 

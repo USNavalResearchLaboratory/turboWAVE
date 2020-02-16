@@ -23,6 +23,7 @@ Module::Module(const std::string& name,Simulation* sim)
 	programFilename = "";
 	buildLog = "";
 	updateSequencePriority = 1;
+	smoothing = compensation = 0;
 	typeCode = tw::module_type::nullModule;
 	suppressNextUpdate = false;
 	DiscreteSpace::operator=(*sim);
@@ -89,8 +90,10 @@ void Module::Initialize()
 void Module::ReadData(std::ifstream& inFile)
 {
 	DiscreteSpace::ReadData(inFile);
-	inFile.read((char *)&dt,sizeof(tw::Float));
-	inFile.read((char *)&dth,sizeof(tw::Float));
+	inFile.read((char *)&dt,sizeof(dt));
+	inFile.read((char *)&dth,sizeof(dth));
+	inFile.read((char *)&smoothing,sizeof(smoothing));
+	inFile.read((char *)&compensation,sizeof(compensation));
 	dti = 1.0/dt;
 
 	tw::Int i,num;
@@ -111,8 +114,10 @@ void Module::WriteData(std::ofstream& outFile)
 	outFile.write((char *)&typeCode,sizeof(typeCode));
 	outFile << name << " ";
 	DiscreteSpace::WriteData(outFile);
-	outFile.write((char *)&dt,sizeof(tw::Float));
-	outFile.write((char *)&dth,sizeof(tw::Float));
+	outFile.write((char *)&dt,sizeof(dt));
+	outFile.write((char *)&dth,sizeof(dth));
+	outFile.write((char *)&smoothing,sizeof(smoothing));
+	outFile.write((char *)&compensation,sizeof(compensation));
 
 	tw::Int i = profile.size();
 	outFile.write((char *)&i,sizeof(tw::Int));
@@ -162,6 +167,12 @@ void Module::ReadInputFileDirective(std::stringstream& inputString,const std::st
 	// Read in submodules that are explicitly enclosed in this module's block
 	if (command=="new")
 		owner->ReadSubmoduleBlock(inputString,this);
+
+	std::string word;
+	if (command=="smoothing")
+		inputString >> word >> smoothing;
+	if (command=="compensation")
+		inputString >> word >> compensation;
 }
 
 void Module::StartDiagnostics()

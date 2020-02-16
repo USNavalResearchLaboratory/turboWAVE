@@ -313,8 +313,8 @@ void PGCSolver::Update()
 	chi.ApplyFoldingCondition();
 	chi.DivideCellVolume(*owner);
 	chi.ApplyBoundaryCondition();
-	if (owner->smoothing>0)
-		chi.Smooth(*owner,owner->smoothing,owner->compensation);
+	if (smoothing>0)
+		chi.Smooth(*owner,smoothing,compensation);
 	#pragma omp parallel
 	{
 		for (auto s : StripRange(*this,3,strongbool::yes))

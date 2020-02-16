@@ -46,7 +46,6 @@ struct Simulation:Task,MetricSpace
 	tw::Float antiSignalPosition,antiWindowPosition;
 	tw::Float unitDensityCGS;
 
-	tw::Int smoothing,compensation;
 	bool neutralize,movingWindow,adaptiveTimestep,adaptiveGrid;
 	bool restarted,appendMode,fullOutput,completed;
 

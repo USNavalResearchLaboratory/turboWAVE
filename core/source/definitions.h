@@ -179,9 +179,10 @@ namespace tw
 	{
 		return "typedef struct { tw_Int axis,di,dj,dk; tw_Int stride,dim; } tw_Strip;";
 	}
-	inline std::string CLLocalProtocol()
+	inline std::map<std::string,std::string> CLProtocols()
 	{
-		return "#define LOCAL_PROTOCOL_MACRO const tw_Int ig = get_global_id(0); \
+		return {
+			{"LOCAL_PROTOCOL_MACRO","const tw_Int ig = get_global_id(0); \
 			const tw_Int jg = get_global_id(1); \
 			const tw_Int kg = get_global_id(2); \
 			const tw_Int nx = get_global_size(0) + 2*get_global_offset(0); \
@@ -194,11 +195,9 @@ namespace tw
 			const tw_Int n = ig*xs + jg*ys + kg*zs; \
 			tw_cell_id cell = (tw_cell_id)(0,ig,jg,kg); \
 			tw_Metrics met; \
-			GetMetrics((tw_Float*)&met,met_g);";
-	}
-	inline std::string CLPointProtocol()
-	{
-		return "#define POINT_PROTOCOL_MACRO const tw_Int ig = get_global_id(0); \
+			GetMetrics((tw_Float*)&met,met_g);"},
+
+			{"POINT_PROTOCOL_MACRO","const tw_Int ig = get_global_id(0); \
 			const tw_Int jg = get_global_id(1); \
 			const tw_Int kg = get_global_id(2); \
 			const tw_Int nx = get_global_size(0); \
@@ -209,11 +208,9 @@ namespace tw
 			const tw_Int zs = nx*ny; \
 			const tw_Int cs = nx*ny*nz; \
 			const tw_Int n = ig*xs + jg*ys + kg*zs; \
-			tw_cell_id cell = (tw_cell_id)(0,ig,jg,kg);";
-	}
-	inline std::string CLPointProtocolMetric()
-	{
-		return "#define POINT_PROTOCOL_METRIC_MACRO const tw_Int ig = get_global_id(0); \
+			tw_cell_id cell = (tw_cell_id)(0,ig,jg,kg);"},
+
+			{"POINT_PROTOCOL_METRIC_MACRO","const tw_Int ig = get_global_id(0); \
 			const tw_Int jg = get_global_id(1); \
 			const tw_Int kg = get_global_id(2); \
 			const tw_Int nx = get_global_size(0); \
@@ -226,7 +223,8 @@ namespace tw
 			const tw_Int n = ig*xs + jg*ys + kg*zs; \
 			tw_cell_id cell = (tw_cell_id)(0,ig,jg,kg); \
 			tw_Metrics met; \
-			GetMetrics((tw_Float*)&met,met_g);";
+			GetMetrics((tw_Float*)&met,met_g);"}
+		};
 	}
 	inline std::string CLDefinitions(cl_device_id theDevice)
 	{
@@ -236,9 +234,6 @@ namespace tw
 		definitions_string += CLDiscreteSpace() + '\n';
 		definitions_string += CLMetrics() + '\n';
 		definitions_string += CLStrip() + '\n';
-		definitions_string += CLLocalProtocol() + '\n';
-		definitions_string += CLPointProtocol() + '\n';
-		definitions_string += CLPointProtocolMetric() + '\n';
 		return definitions_string;
 	}
 

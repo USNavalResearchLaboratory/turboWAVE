@@ -248,6 +248,18 @@ void Task::InitializeCLProgram(cl_program& program,const std::string& fileName,s
 	std::ifstream theFile ( fileName.c_str() );
 	std::string	sourceString ( std::istreambuf_iterator<char>(theFile),( std::istreambuf_iterator<char>() ) );
 	theFile.close();
+	// Substitute in turboWAVE-OpenCL protocols.  These are string pairs that match a key to a
+	// frequently recurring code fragment.
+	std::map<std::string,std::string> protocols = CLProtocols();
+	for (auto p : protocols)
+	{
+		std::string::size_type f;
+		do {
+			f = sourceString.find(p.first);
+			if (f!=std::string::npos)
+				sourceString.replace(f,p.first.size(),p.second);
+		} while(f!=std::string::npos);
+	}
 	std::string header_and_source = CLDefinitions(gpu) + sourceString;
 	sourceText.resize(header_and_source.size()+1);
 	strcpy(&sourceText[0],header_and_source.c_str());

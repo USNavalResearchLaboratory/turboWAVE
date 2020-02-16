@@ -1,6 +1,23 @@
 Input File: PIC
 ===============
 
+Smoothing
+---------
+
+Any field solver or particle species module can accept the following smoothing directives.  The original WAVE smoother used ``smoothing=4`` and ``compensation=1``.
+
+.. py:function:: smoothing = sm
+
+	Used to perform smoothing passes (0.25, 0.5, 0.25) on the source functions.
+
+	:param int sm: number of smoothing passes.
+
+.. py:function:: compensation = cn
+
+	Apply compensation passes (-1.25 , 3.5 , -1.25) after smoother.
+
+	:param int cn: passes of compensation after smoother
+
 Field Solvers
 -------------
 

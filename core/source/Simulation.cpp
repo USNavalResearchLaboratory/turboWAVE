@@ -158,8 +158,6 @@ Simulation::Simulation(const std::string& file_name)
 	appendMode = true;
 	fullOutput = false;
 	neutralize = true;
-	smoothing = 0;
-	compensation = 0;
 	movingWindow = false;
 	restarted = false;
 	completed = false;
@@ -729,8 +727,6 @@ void Simulation::ReadData(std::ifstream& inFile)
 	inFile.read((char *)&appendMode,sizeof(bool));
 	inFile.read((char *)&fullOutput,sizeof(bool));
 	inFile.read((char *)&neutralize,sizeof(bool));
-	inFile.read((char *)&smoothing,sizeof(tw::Int));
-	inFile.read((char *)&compensation,sizeof(tw::Int));
 	inFile.read((char *)&stepsToTake,sizeof(tw::Int));
 	inFile.read((char *)&dumpPeriod,sizeof(tw::Int));
 	inFile.read((char *)&binaryFormat,sizeof(tw::Int));
@@ -867,8 +863,6 @@ void Simulation::WriteData(std::ofstream& outFile)
 	outFile.write((char *)&appendMode,sizeof(bool));
 	outFile.write((char *)&fullOutput,sizeof(bool));
 	outFile.write((char *)&neutralize,sizeof(bool));
-	outFile.write((char *)&smoothing,sizeof(tw::Int));
-	outFile.write((char *)&compensation,sizeof(tw::Int));
 	outFile.write((char *)&stepsToTake,sizeof(tw::Int));
 	outFile.write((char *)&dumpPeriod,sizeof(tw::Int));
 	outFile.write((char *)&binaryFormat,sizeof(tw::Int));
@@ -1507,23 +1501,6 @@ void Simulation::ReadInputFile()
 			(*tw_out) << "Moving Window = " << movingWindow << std::endl;
 		}
 
-		if (com1=="smoothing" || com1=="smoother") // eg, smoothing = on, or smoothing = 2 (smooth twice)
-		{
-			inputString >> word >> word;
-			char *endptr;
-			if (word=="yes" || word=="on" || word=="true")
-				smoothing = 4;
-			else
-				smoothing = strtol(word.c_str(),&endptr,10);
-			if (smoothing>0)
-				compensation = 1;
-		}
-
-		if (com1=="compensation") // eg, compensation = 1
-		{
-			inputString >> word >> compensation;
-		}
-
 		if (com1=="binary")
 		{
 			inputString >> word >> word >> word;
@@ -1540,11 +1517,6 @@ void Simulation::ReadInputFile()
 		}
 
 	} while (!inputString.eof());
-
-	if (smoothing==0)
-		(*tw_out) << "No Smoothing" << std::endl;
-	else
-		(*tw_out) << "Smoothing passes = " << smoothing << " , Compensation passes = " << compensation << std::endl;
 
 	Unlock();
 }

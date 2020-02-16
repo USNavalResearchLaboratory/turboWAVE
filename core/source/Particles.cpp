@@ -1295,8 +1295,8 @@ void Species::CalculateDensity(ScalarField& dens)
 	dens.ApplyFoldingCondition();
 	dens.DivideCellVolume(*owner);
 	dens.ApplyBoundaryCondition();
-	if (owner->smoothing>0)
-		dens.Smooth(*owner,owner->smoothing,owner->compensation);
+	if (smoothing>0)
+		dens.Smooth(*owner,smoothing,compensation);
 }
 
 void Species::EnergyHeadings(std::ofstream& outFile)

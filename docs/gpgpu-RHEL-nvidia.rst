@@ -1,6 +1,10 @@
 NVIDIA GPGPU on RHEL/CentOS 8
 =============================
 
+.. Warning::
+
+	The following is tested only for CentOS.
+
 .. caution::
 
 	We assume core turboWAVE **and** tools have already been installed according to the documentation, with no steps omitted.
@@ -8,7 +12,21 @@ NVIDIA GPGPU on RHEL/CentOS 8
 Driver
 ------
 
-Waiting for ELRepo 8 ``kmod-nvidia``.
+#. Prepare for EPEL:
+
+	* For CentOS, type ``sudo dnf config-manager --set-enabled PowerTools``
+	* For RHEL, type ``ARCH=$( /bin/arch )`` followed by ``sudo subscription-manager repos --enable "codeready-builder-for-rhel-8-${ARCH}-rpms"``
+
+#. Go to `EPEL <https://fedoraproject.org/wiki/EPEL>`_ and install.  As of this writing there is a link, ``epel-release-latest-8``, that allows you to use a GUI installer.
+#. Go to `RPM Fusion <https://rpmfusion.org/Configuration>`_ and install the ``nonfree`` repository for RHEL 8 or compatible (there is no charge, ``nonfree`` refers to license restrictions).  The link should allow you to install via GUI.
+#. Type ``sudo dnf install akmod-nvidia``
+
+	* This automatic kernel module recompiles automatically when a new Linux kernel is installed (e.g. during a system update).  After restarting you must allow extra time for the kernel module to compile.  There could be a long delay before the login screen appears.
+
+#. Restart the system, allow extra time for this restart.
+#. ``sudo dnf install xorg-x11-drv-nvidia-cuda``
+#. ``sudo dnf install opencl-headers``
+
 
 Compile with OpenCL
 --------------------

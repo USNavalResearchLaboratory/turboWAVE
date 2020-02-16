@@ -8,27 +8,9 @@ NVIDIA GPGPU on Ubuntu 18.04
 Driver
 ------
 
-It is possible to install all the necessary packages using ``apt`` (no need to visit NVIDIA website).
-
 	#. :samp:`sudo apt update`
-	#. :samp:`sudo add-apt-repository ppa:graphics-drivers/ppa`
-	#. :samp:`sudo apt install nvidia-driver-{XXX}`
-
-		* Replace :samp:`{XXX}` with the version of your choice.  As of this writing the latest is 396.  Get a current list using :samp:`apt search nvidia-driver`.
-		* As an alternative :samp:`sudo ubuntu-drivers autoinstall` is supposed to automatically select a suitable version.
-
+	#. :samp:`sudo apt install nvidia-opencl-icd nvidia-opencl-dev`
 	#. :samp:`sudo apt update`
-
-Display Recovery
-------------------
-
-Installing graphics drivers in Linux can sometimes cause you to lose your display.  If this happens, try to switch to console mode by pressing :samp:`Ctrl-Alt-F2` (you may have to try different function keys).  If this succeeds you can issue the following commands to rollback the graphics driver:
-
-	#. :samp:`sudo apt install ppa-purge`
-	#. :samp:`ppa-purge ppa:graphics-drivers/ppa`
-	#. Reboot using :samp:`sudo reboot`
-
-Of course upon doing this GPU support may be lost.
 
 Compile with OpenCL
 -------------------

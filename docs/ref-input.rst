@@ -165,18 +165,6 @@ Top level directives tend to come first in an input file.  They are not containe
 
 	:param bool mv: Whether or not to move the lab frame quantities backward at the window speed. If no, light frame quantities are moved forward at the window speed.
 
-.. py:function:: smoothing = sm
-
-	Used to perform smoothing passes (0.25, 0.5, 0.25) on the source functions.
-
-	:param bool/int sm: Whether to apply WAVE smoother to the source fields (4 smoothing passes, 1 compensation pass). If set to an integer, determines the number of smoothing passes.
-
-.. py:function:: compensation = cn
-
-	Apply compensation passes (-1.25 , 3.5 , -1.25) after smoother.  When smoothing parameter set to boolean true, automatically gets set to 1.  Put after smoothing to override.
-
-	:param int cn: passes of compensation after smoother
-
 .. py:function:: dump period = dp
 
 	:param int dp: steps before dumping restart file

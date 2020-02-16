@@ -24,7 +24,7 @@ Hardware
 
 At the time of this writing, the choice of CPU and memory capacity are the two major
 factors affecting turboWAVE performance, while choice of GPU is not very important.
-TurboWAVE is designed to effectively untilize multi-core processors.  The number of
+TurboWAVE is designed to effectively utilize multi-core processors.  The number of
 cores is the most important performance hardware characteristic for turboWAVE. The more cores the better.
 The memory requirements depend most critically on the dimensions of the problem.
 A rule of thumb is to allow 1000 bytes of RAM for each grid cell.  For a serious 2D problem

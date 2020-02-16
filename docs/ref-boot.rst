@@ -54,6 +54,9 @@ If there is a keystroke interruption, UEFI may offer the user a menu to choose f
 	centos (M.2_1 : TS512GMTS600)
 	windows (M.2_1 : TS512GMTS600)
 
+.. tip::
+	This list is maintained in NVRAM and can become polluted or corrupted after frequent OS installations.  The linux command ``efibootmgr`` can be used to repair it.
+
 The menu may also list physical drives.  Here we have a scenario where there is an ESP on an M.2 solid state drive,
 containing bootloaders associated with 3 operating systems.  When one of the menu items is selected,
 the associated bootloader is executed.

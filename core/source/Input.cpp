@@ -7,6 +7,8 @@ tw::input::DirectiveReader::DirectiveReader()
 
 tw::input::DirectiveReader::~DirectiveReader()
 {
+	for (auto it=dmap.begin();it!=dmap.end();++it)
+		delete it->second;
 }
 
 void tw::input::DirectiveReader::Add(const std::string& key,tw::input::Directive *dir)

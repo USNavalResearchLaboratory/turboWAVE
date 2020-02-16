@@ -8,23 +8,13 @@ AMD GPGPU on Ubuntu 18.04
 Driver
 ------
 
-It is possible to install all the necessary packages using ``apt`` (no need to visit AMD website).
+The MESA driver is available from default repositories:
 
 	#. :samp:`sudo apt update`
-	#. :samp:`sudo add-apt-repository ppa:oibaf/graphics-drivers`
-	#. :samp:`sudo apt install mesa-opencl-icd`
+	#. :samp:`sudo apt install mesa-opencl-icd ocl-icd-opencl-dev`
 	#. :samp:`sudo apt update`
 
-Display Recovery
-------------------
-
-Installing graphics drivers in Linux can sometimes cause you to lose your display.  If this happens, try to switch to console mode by pressing :samp:`Ctrl-Alt-F2` (you may have to try different function keys).  If this succeeds you can issue the following commands to rollback the graphics driver:
-
-	#. :samp:`sudo apt install ppa-purge`
-	#. :samp:`ppa-purge ppa:oibaf/graphics-drivers`
-	#. Reboot using :samp:`sudo reboot`
-
-Of course upon doing this GPU support may be lost.
+Alternatively you can try to install AMD ROCm.
 
 Compile with OpenCL
 -------------------

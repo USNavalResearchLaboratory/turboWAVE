@@ -18,6 +18,7 @@ struct Module:DiscreteSpace
 	std::vector<ComputeTool*> moduleTool;
 
 	tw::Int updateSequencePriority;
+	tw::Int smoothing,compensation;
 	tw::module_type typeCode;
 	bool suppressNextUpdate;
 
