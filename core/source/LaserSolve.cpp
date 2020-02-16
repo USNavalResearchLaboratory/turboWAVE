@@ -21,7 +21,9 @@ LaserSolver::LaserSolver(const std::string& name,Simulation* sim):Module(name,si
 	a1.Initialize(*this,owner);
 	chi.Initialize(*this,owner);
 
-	// set boundary conditions in propagators and child classes
+	directives.Add("carrier frequency",new tw::input::Float(&laserFreq));
+	std::map<std::string,tw_polarization_type> pol = {{"linear",linearPolarization},{"circular",circularPolarization},{"radial",radialPolarization}};
+	directives.Add("polarization",new tw::input::Enums<tw_polarization_type>(pol,&polarizationType));
 }
 
 LaserSolver::~LaserSolver()
@@ -89,29 +91,6 @@ void LaserSolver::VerifyInput()
 	}
 	if (propagator==NULL)
 		propagator = (LaserPropagator*)owner->CreateTool("default_adi",tw::tool_type::adiPropagator);
-}
-
-void LaserSolver::ReadInputFileDirective(std::stringstream& inputString,const std::string& command)
-{
-	std::string word;
-	Module::ReadInputFileDirective(inputString,command);
-	if (command=="carrier") // eg, carrier frequency = 30.0
-	{
-		inputString >> word >> word;
-		inputString >> laserFreq;
-	}
-	if (command=="polarization") // eg, polarization = linear
-	{
-		inputString >> word >> word;
-		if (word=="linear")
-			polarizationType = linearPolarization;
-		if (word=="circular")
-			polarizationType = circularPolarization;
-		if (word=="radial")
-			polarizationType = radialPolarization;
-		if (word!="linear" && word!="circular" && word!="radial")
-			throw tw::FatalError("Invalid polarization.");
-	}
 }
 
 void LaserSolver::ReadData(std::ifstream& inFile)
@@ -313,8 +292,7 @@ void PGCSolver::Update()
 	chi.ApplyFoldingCondition();
 	chi.DivideCellVolume(*owner);
 	chi.ApplyBoundaryCondition();
-	if (smoothing>0)
-		chi.Smooth(*owner,smoothing,compensation);
+	chi.Smooth(*owner,smoothing,compensation);
 	#pragma omp parallel
 	{
 		for (auto s : StripRange(*this,3,strongbool::yes))

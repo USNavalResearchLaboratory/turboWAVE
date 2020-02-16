@@ -76,6 +76,9 @@ Electromagnetic::Electromagnetic(const std::string& name,Simulation* sim):FieldS
 	F.InitializeComputeBuffer();
 	sources.InitializeComputeBuffer();
 	#endif
+
+	directives.Add("dipole center",new tw::input::Vec3(&dipoleCenter));
+	directives.Add("gamma beam",new tw::input::Float(&gammaBeam));
 }
 
 void Electromagnetic::ExchangeResources()
@@ -129,8 +132,7 @@ void Electromagnetic::Update()
 	sources.ApplyFoldingCondition(); // only apply before conversion to density
 	conserved_current_to_dens<0,1,2,3>(sources,*owner);
 	sources.ApplyBoundaryCondition(); // only apply after conversion to density
-	if (smoothing>0)
-		sources.Smooth(*owner,smoothing,compensation);
+	sources.Smooth(*owner,smoothing,compensation);
 }
 #endif
 
@@ -246,24 +248,14 @@ void Electromagnetic::ForceQuasistaticVectorPotential(Field& A4,ScalarField& DtP
 
 void Electromagnetic::ReadInputFileDirective(std::stringstream& inputString,const std::string& command)
 {
-	std::string word;
-
 	FieldSolver::ReadInputFileDirective(inputString,command);
 
-	if (command=="dipole") // eg, dipole center = 0 0 0
-	{
-		inputString >> word >> word >> dipoleCenter.x >> dipoleCenter.y >> dipoleCenter.z;
-	}
-	if (command=="gamma") // eg, gamma beam = 10.0
-	{
-		inputString >> word >> word >> gammaBeam;
-	}
-	if (command=="far-field") // eg, new far-field diagnostic { ... }
-	{
-		inputString >> word	>> word;
-		farFieldDetector.push_back(new FarFieldDetectorDescriptor(owner,owner,owner->clippingRegion));
-		farFieldDetector.back()->ReadInputFile(inputString);
-	}
+	// if (command=="far-field") // eg, new far-field diagnostic { ... }
+	// {
+	// 	inputString >> word	>> word;
+	// 	farFieldDetector.push_back(new FarFieldDetectorDescriptor(owner,owner,owner->clippingRegion));
+	// 	farFieldDetector.back()->ReadInputFile(inputString);
+	// }
 }
 
 void Electromagnetic::ReadData(std::ifstream& inFile)
@@ -826,13 +818,8 @@ DirectSolver::DirectSolver(const std::string& name,Simulation* sim):Electromagne
 	typeCode = tw::module_type::directSolver;
 	yeeTool = (YeePropagatorPML*)owner->CreateTool("yee",tw::tool_type::yeePropagatorPML);
 	enforceChargeConservation = true;
-	layerThicknessX0 = 0;
-	layerThicknessX1 = 0;
-	layerThicknessY0 = 0;
-	layerThicknessY1 = 0;
-	layerThicknessZ0 = 0;
-	layerThicknessZ1 = 0;
-	reflectionCoefficient = 0.01;
+	for (tw::Int i=0;i<6;i++) layerThickness[i] = 0;
+	for (tw::Int i=0;i<6;i++) reflectionCoefficient[i] = 0.01;
 	A.Initialize(12,*this,owner);
 	DiscreteSpace pml_layout;
 	pml_layout.Resize(dim[1],1,1,corner,size);
@@ -849,6 +836,10 @@ DirectSolver::DirectSolver(const std::string& name,Simulation* sim):Electromagne
 	PMLz.InitializeComputeBuffer();
 	yeeTool->SetupComputeKernels(F,A,PMLx,PMLy,PMLz,sources);
 	#endif
+
+	directives.Add("enforce charge conservation",new tw::input::Bool(&enforceChargeConservation));
+	directives.Add("layers",new tw::input::Numbers<tw::Int>(layerThickness,6));
+	directives.Add("reflection coefficient",new tw::input::Numbers<tw::Float>(reflectionCoefficient,6));
 }
 
 DirectSolver::~DirectSolver()
@@ -856,7 +847,7 @@ DirectSolver::~DirectSolver()
 	owner->RemoveTool(yeeTool);
 }
 
-void DirectSolver::SetupPML(Field& pml,tw::Int g0,tw::Int gN,tw::Int L0,tw::Int L1,tw::Float R,tw::Float ds)
+void DirectSolver::SetupPML(Field& pml,tw::Int g0,tw::Int gN,tw::Int L0,tw::Int L1,tw::Float R0,tw::Float R1,tw::Float ds)
 {
 	// works for uniform grid only
 	// Each PML straddles a cell wall, occupying half of each adjacent cell.  Half of a ghost cell is occupied.
@@ -889,7 +880,7 @@ void DirectSolver::SetupPML(Field& pml,tw::Int g0,tw::Int gN,tw::Int L0,tw::Int 
 	{
 		L = L0;
 		delta = L * ds;
-		maxConductivity = -1.5*log(reflectionCoefficient)/delta;
+		maxConductivity = -1.5*log(R0)/delta;
 		p0 = delta - 0.5*ds;
 		for (i=pml.LFG(1);i<=pml.UFG(1);i++)
 		{
@@ -923,7 +914,7 @@ void DirectSolver::SetupPML(Field& pml,tw::Int g0,tw::Int gN,tw::Int L0,tw::Int 
 	{
 		L = L1;
 		delta = L * ds;
-		maxConductivity = -1.5*log(reflectionCoefficient)/delta;
+		maxConductivity = -1.5*log(R1)/delta;
 		p0 = ds*N1 - delta - 0.5*ds;
 		for (i=pml.LFG(1);i<=pml.UFG(1);i++)
 		{
@@ -969,9 +960,9 @@ void DirectSolver::Initialize()
 
 	// Setup PML media
 
-	SetupPML(PMLx,owner->GlobalCellIndex(0,1),owner->globalCells[1],layerThicknessX0,layerThicknessX1,reflectionCoefficient,spacing.x);
-	SetupPML(PMLy,owner->GlobalCellIndex(0,2),owner->globalCells[2],layerThicknessY0,layerThicknessY1,reflectionCoefficient,spacing.y);
-	SetupPML(PMLz,owner->GlobalCellIndex(0,3),owner->globalCells[3],layerThicknessZ0,layerThicknessZ1,reflectionCoefficient,spacing.z);
+	SetupPML(PMLx,owner->GlobalCellIndex(0,1),owner->globalCells[1],layerThickness[0],layerThickness[1],reflectionCoefficient[0],reflectionCoefficient[1],spacing.x);
+	SetupPML(PMLy,owner->GlobalCellIndex(0,2),owner->globalCells[2],layerThickness[2],layerThickness[3],reflectionCoefficient[2],reflectionCoefficient[3],spacing.y);
+	SetupPML(PMLz,owner->GlobalCellIndex(0,3),owner->globalCells[3],layerThickness[4],layerThickness[5],reflectionCoefficient[4],reflectionCoefficient[5],spacing.z);
 
 	#ifdef USE_OPENCL
 	A.SendToComputeBuffer();
@@ -1061,35 +1052,6 @@ void DirectSolver::MoveWindow()
 	A.DownwardCopy(zAxis,1);
 }
 
-void DirectSolver::ReadInputFileDirective(std::stringstream& inputString,const std::string& command)
-{
-	std::string word;
-
-	Electromagnetic::ReadInputFileDirective(inputString,command);
-	if (command=="enforce") // eg, enforce charge conservation = yes
-	{
-		inputString >> word >> word >> word >> word;
-		enforceChargeConservation = (word=="yes" || word=="true" || word=="on");
-	}
-	if (command=="layer") // eg, layer thickness = 8
-	{
-		inputString >> word >> word >> layerThicknessX0;
-		layerThicknessX1 = layerThicknessY0 = layerThicknessY1 = layerThicknessZ0 = layerThicknessZ1 = layerThicknessX0;
-		if (owner->movingWindow)
-			layerThicknessZ0 = layerThicknessZ1 = 0;
-	}
-	if (command=="layers") // eg, layers = ( 4 , 4 , 4 , 4 , 8 , 8 )
-	{
-		inputString >> word >> layerThicknessX0 >> layerThicknessX1;
-		inputString >> layerThicknessY0 >> layerThicknessY1;
-		inputString >> layerThicknessZ0 >> layerThicknessZ1;
-	}
-	if (command=="reflection") // eg, reflection coefficient = 0.01
-	{
-		inputString >> word >> word >> reflectionCoefficient;
-	}
-}
-
 void DirectSolver::ReadData(std::ifstream& inFile)
 {
 	Electromagnetic::ReadData(inFile);
@@ -1098,13 +1060,8 @@ void DirectSolver::ReadData(std::ifstream& inFile)
 	PMLy.ReadData(inFile);
 	PMLz.ReadData(inFile);
 	inFile.read((char *)&enforceChargeConservation,sizeof(bool));
-	inFile.read((char *)&layerThicknessX0,sizeof(tw::Int));
-	inFile.read((char *)&layerThicknessX1,sizeof(tw::Int));
-	inFile.read((char *)&layerThicknessY0,sizeof(tw::Int));
-	inFile.read((char *)&layerThicknessY1,sizeof(tw::Int));
-	inFile.read((char *)&layerThicknessZ0,sizeof(tw::Int));
-	inFile.read((char *)&layerThicknessZ1,sizeof(tw::Int));
-	inFile.read((char *)&reflectionCoefficient,sizeof(tw::Float));
+	inFile.read((char *)&layerThickness[0],sizeof(layerThickness));
+	inFile.read((char *)&reflectionCoefficient[0],sizeof(reflectionCoefficient));
 }
 
 void DirectSolver::WriteData(std::ofstream& outFile)
@@ -1115,13 +1072,8 @@ void DirectSolver::WriteData(std::ofstream& outFile)
 	PMLy.WriteData(outFile);
 	PMLz.WriteData(outFile);
 	outFile.write((char *)&enforceChargeConservation,sizeof(bool));
-	outFile.write((char *)&layerThicknessX0,sizeof(tw::Int));
-	outFile.write((char *)&layerThicknessX1,sizeof(tw::Int));
-	outFile.write((char *)&layerThicknessY0,sizeof(tw::Int));
-	outFile.write((char *)&layerThicknessY1,sizeof(tw::Int));
-	outFile.write((char *)&layerThicknessZ0,sizeof(tw::Int));
-	outFile.write((char *)&layerThicknessZ1,sizeof(tw::Int));
-	outFile.write((char *)&reflectionCoefficient,sizeof(tw::Float));
+	outFile.write((char *)&layerThickness[0],sizeof(layerThickness));
+	outFile.write((char *)&reflectionCoefficient[0],sizeof(reflectionCoefficient));
 }
 
 void DirectSolver::Update()

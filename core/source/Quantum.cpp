@@ -542,6 +542,15 @@ AtomicPhysics::AtomicPhysics(const std::string& name,Simulation* sim):Module(nam
 	Ao4.InitializeComputeBuffer();
 	J4.InitializeComputeBuffer();
 	#endif
+
+	directives.Add("orbiting charge",new tw::input::Float(&q0));
+	directives.Add("orbiting mass",new tw::input::Float(&m0));
+	directives.Add("B0",new tw::input::Vec3(&B0));
+	directives.Add("keep a2 term",new tw::input::Bool(&keepA2Term));
+	directives.Add("dipole approximation",new tw::input::Bool(&dipoleApproximation));
+	directives.Add("relaxation time",new tw::input::Float(&timeRelaxingToGround));
+	directives.Add("soft core potential charge",new tw::input::Custom);
+	directives.Add("bachelet potential",new tw::input::Custom);
 }
 
 AtomicPhysics::~AtomicPhysics()
@@ -704,6 +713,9 @@ tw::vec4 AtomicPhysics::GetA4AtOrigin()
 void AtomicPhysics::VerifyInput()
 {
 	Module::VerifyInput();
+	if (owner->gridGeometry!=cartesian)
+		if (B0.x!=0.0 || B0.y!=0.0 || B0.z!=0.0)
+			throw tw::FatalError("Static B field assumes Cartesian geometry.");
 	for (auto tool : moduleTool)
 	{
 		photonPropagator = dynamic_cast<LorentzPropagator*>(tool);
@@ -738,51 +750,19 @@ void AtomicPhysics::ReadInputFileDirective(std::stringstream& inputString,const 
 	// note: examples of charge are geared toward atomic units
 	// if using natural units, unit of charge is sqrt(alpha) ~ 0.085
 	// at present unit conversions are not performed in quantum modules---you have to enter it as it will be used
-	if (command=="residual" || command=="nuclear")
-		throw tw::FatalError("deprecated potential specification");
-	if (command=="orbiting")
-	{
-
-		inputString >> word;
-		if (word=="charge") // eg, orbiting charge = -1.0
-			inputString >> word >> q0;
-		if (word=="mass") // eg, orbiting mass = 1.0
-			inputString >> word >> m0;
-	}
-	if (command=="drop") // eg, drop a2 term
-	{
-		inputString >> word >> word;
-		keepA2Term = false;
-	}
-	if (command=="dipole") // eg, dipole approximation = true
-	{
-		inputString >> word >> word >> word;
-		dipoleApproximation = (word=="true" || word=="on" || word=="yes") ? true : false;
-	}
-	if (command=="relaxation") // eg, relaxation time = 10.0
-	{
-		inputString >> word >> word >> timeRelaxingToGround;
-	}
-	if (command=="soft") // eg, soft core potential , charge = 1.0 , radius = 0.01
+	if (command=="soft core potential charge") // eg, soft core potential , charge = 1.0 , radius = 0.01
 	{
 		potentialTypeSpec = qo::softCore;
-		inputString >> word >> word >> word >> word >> residualCharge >> word >> word >> nuclearRadius;
+		inputString >> word >> residualCharge >> word >> word >> nuclearRadius;
 	}
-	if (command=="bachelet") // eg, bachelet potential = ...
+	if (command=="bachelet potential") // eg, bachelet potential = ...
 	{
 		potentialTypeSpec = qo::bachelet;
-		inputString >> word >> word;
+		inputString >> word;
 		inputString >> residualCharge;
 		inputString >> c1 >> c2 >> a1 >> a2;
 		inputString >> Asr[0] >> Asr[1] >> Asr[2] >> Asr[3] >> Asr[4] >> Asr[5];
 		inputString >> asr[0] >> asr[1] >> asr[2];
-	}
-	if (command=="B0")
-	{
-		inputString >> word >> B0.x >> B0.y >> B0.z;
-		if (owner->gridGeometry!=cartesian)
-			if (B0.x!=0.0 || B0.y!=0.0 || B0.z!=0.0)
-				throw tw::FatalError("Static B field assumes Cartesian geometry.");
 	}
 }
 

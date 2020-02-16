@@ -13,12 +13,12 @@
 #include "fft.h"
 #include "functions.h"
 #include "injection.h"
-#include "physics.h"
-#include "chemistry.h"
 
 struct Simulation;
 
 #include "input.h"
+#include "physics.h"
+#include "chemistry.h"
 #include "diagnostics.h"
 #include "module.h"
 

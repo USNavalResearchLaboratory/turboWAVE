@@ -1032,42 +1032,40 @@ void Field::Transpose(const Element& e,const axisSpec& axis1,const axisSpec& axi
 /////////////////
 
 
-void Field::SmoothingPass(const Element& e,const MetricSpace& ds,const tw::Float& X0,const tw::Float& X1,const tw::Float& X2)
+void Field::SmoothingPass(tw::Int ax,const Element& e,const MetricSpace& ds,const tw::Float& X0,const tw::Float& X1,const tw::Float& X2)
 {
-	tw::Int ax,i,c;
+	tw::Int i,c;
 	tw::Float ansNow,temp;
 	axisSpec axs[4] = { tAxis, xAxis, yAxis, zAxis };
 
 	for (c=e.low;c<=e.high;c++)
-		for (ax=1;ax<=3;ax++)
-			if (dim[ax]>1)
-				for (auto s : StripRange(*this,ax,strongbool::yes))
+		if (dim[ax]>1)
+			for (auto s : StripRange(*this,ax,strongbool::yes))
+			{
+				temp = (*this)(s,0,c);
+				for (i=1;i<=dim[ax];i++)
 				{
-					temp = (*this)(s,0,c);
-					for (i=1;i<=dim[ax];i++)
-					{
-						ansNow = X0*temp + X1*(*this)(s,i,c) + X2*(*this)(s,i+1,c);
-						temp = (*this)(s,i,c);
-						(*this)(s,i,c) = ansNow;
-					}
-					bc0(ax,c).ForcingOperation(&(*this)(s,lfg[ax],c),stride[ax],0.0);
-					bc1(ax,c).ForcingOperation(&(*this)(s,ufg[ax],c),stride[ax],0.0);
+					ansNow = X0*temp + X1*(*this)(s,i,c) + X2*(*this)(s,i+1,c);
+					temp = (*this)(s,i,c);
+					(*this)(s,i,c) = ansNow;
 				}
+				bc0(ax,c).ForcingOperation(&(*this)(s,lfg[ax],c),stride[ax],0.0);
+				bc1(ax,c).ForcingOperation(&(*this)(s,ufg[ax],c),stride[ax],0.0);
+			}
 
-	for (ax=1;ax<=3;ax++)
-	{
-		UpwardCopy(axs[ax],e,1);
-		DownwardCopy(axs[ax],e,1);
-	}
+	UpwardCopy(axs[ax],e,1);
+	DownwardCopy(axs[ax],e,1);
 }
 
-void Field::Smooth(const Element& e,const MetricSpace& ds,tw::Int smoothPasses,tw::Int compPasses)
+void Field::Smooth(const Element& e,const MetricSpace& ds,tw::Int smoothPasses[4],tw::Int compPasses[4])
 {
-	tw::Int ipass;
-	for (ipass=0;ipass<smoothPasses;ipass++)
-		SmoothingPass(e,ds,0.25,0.5,0.25);
-	for (ipass=0;ipass<compPasses;ipass++)
-		SmoothingPass(e,ds,-1.25,3.5,-1.25);
+	for (tw::Int ax=1;ax<=3;ax++)
+	{
+		for (tw::Int ipass=0;ipass<smoothPasses[ax];ipass++)
+			SmoothingPass(ax,e,ds,0.25,0.5,0.25);
+		for (tw::Int ipass=0;ipass<compPasses[ax];ipass++)
+			SmoothingPass(ax,e,ds,-1.25,3.5,-1.25);
+	}
 }
 
 void Field::ReadData(std::ifstream& inFile)

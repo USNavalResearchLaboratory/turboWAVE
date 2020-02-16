@@ -1,189 +1,18 @@
 #include "simulation.h"
 
-// Normalization Functions
-
-UnitConverter::UnitConverter(tw::Float unitDensityCGS)
+// DFG - Populating the input hash is partly delegated to this low level material object.
+// We are now requiring the user to specify units, otherwise normalized units are assumed.
+// *This breaks old input files*, but is necessary for the sake of consistency.
+void sparc::material::AddDirectives(tw::input::DirectiveReader& directives)
 {
-	n1 = unitDensityCGS*1e6;
-	wp = sqrt(n1*sqr(mks::qe)/(mks::eps0*mks::me));
-	c = mks::c;
-	qe = mks::qe;
-	me = mks::me;
-	eps0 = mks::eps0;
-	kB = mks::kB;
-	hbar = mks::hbar;
-}
-
-tw::Float UnitConverter::MKSValue(tw_dimensions dim) const
-{
-	switch (dim)
-	{
-		case time_dim:
-			return 1.0/wp;
-		case length_dim:
-			return c/wp;
-		case number_dim:
-			return n1*cub(c/wp);
-		case mass_dim:
-			return me;
-		case energy_dim:
-			return me*c*c;
-		case momentum_dim:
-			return me*c;
-		case angular_momentum_dim:
-			return me*c*c/wp;
-		case density_dim:
-			return n1;
-		case power_dim:
-			return me*c*c*wp;
-		case fluence_dim:
-			return sqr(me*c*wp/qe)*c*eps0/wp; // E^2/eta0/wp
-		case intensity_dim:
-			return sqr(me*c*wp/qe)*c*eps0; // E^2/eta0
-		case energy_density_dim:
-			return me*c*c*n1;
-		case power_density_dim:
-			return me*c*c*n1*wp;
-		case charge_dim:
-			return qe;
-		case current_dim:
-			return n1*qe*c*sqr(c/wp);
-		case current_density_dim:
-			return n1*qe*c;
-		case charge_density_dim:
-			return n1*qe;
-		case electric_field_dim:
-			return me*c*wp/qe;
-		case magnetic_field_dim:
-			return me*wp/qe;
-		case scalar_potential_dim:
-			return me*c*c/qe;
-		case conductivity_dim:
-			return (n1*qe*c)/(me*c*wp/qe); // j/E
-		case rate_coefficient_2_dim:
-			return wp/n1;
-		case rate_coefficient_3_dim:
-			return wp/(n1*n1);
-		case mobility_dim:
-			return c/(me*c*wp/qe); // c/E
-		case temperature_dim:
-			return me*c*c/kB;
-		case cross_section_dim:
-			return wp/(n1*c);
-		case susceptibility_dim:
-			return 1.0;
-		case susceptibility_2_dim:
-			return 1.0/(me*c*wp/qe); // 1/E
-		case susceptibility_3_dim:
-			return 1.0/sqr(me*c*wp/qe); // 1/E^2
-		default:
-			return 0.0;
-	}
-}
-
-tw::Float UnitConverter::CGSValue(tw_dimensions dim) const
-{
-	switch (dim)
-	{
-		case time_dim:
-			return 1.0/wp;
-		case length_dim:
-			return 1e2*c/wp;
-		case number_dim:
-			return n1*cub(c/wp);
-		case mass_dim:
-			return 1e3*me;
-		case energy_dim:
-			return 1e7*me*c*c;
-		case momentum_dim:
-			return 1e5*me*c;
-		case angular_momentum_dim:
-			return 1e7*me*c*c/wp;
-		case density_dim:
-			return 1e-6*n1;
-		case power_dim:
-			return 1e7*me*c*c*wp;
-		case fluence_dim:
-			return 1e3*sqr(me*c*wp/qe)*c*eps0/wp; // E^2/eta0/wp
-		case intensity_dim:
-			return 1e3*sqr(me*c*wp/qe)*c*eps0; // E^2/eta0
-		case energy_density_dim:
-			return 1e1*me*c*c*n1;
-		case power_density_dim:
-			return 1e1*me*c*c*n1*wp;
-		case charge_dim:
-			return 3e9*qe;
-		case current_dim:
-			return 3e9*n1*qe*c*sqr(c/wp);
-		case current_density_dim:
-			return 3e5*n1*qe*c;
-		case charge_density_dim:
-			return 3e3*n1*qe;
-		case electric_field_dim:
-			return 0.333333e-4*me*c*wp/qe;
-		case magnetic_field_dim:
-			return 1e4*me*wp/qe;
-		case scalar_potential_dim:
-			return 0.333333e-2*me*c*c/qe;
-		case conductivity_dim:
-			return 9e9*(n1*qe*c)/(me*c*wp/qe); // j/E
-		case rate_coefficient_2_dim:
-			return 1e6*wp/n1;
-		case rate_coefficient_3_dim:
-			return 1e12*wp/(n1*n1);
-		case mobility_dim:
-			return 1e2*c/(0.333333e-4*me*c*wp/qe); // c/E
-		case temperature_dim:
-			return me*c*c/kB;
-		case cross_section_dim:
-			return 1e4*wp/(n1*c);
-		case susceptibility_dim:
-			return 1.0/(4.0*pi);
-		case susceptibility_2_dim:
-			return 1.0/(4.0*pi*0.333333e-4*me*c*wp/qe); // 1/4*pi*E
-		case susceptibility_3_dim:
-			return 1.0/sqr(4.0*pi*0.333333e-4*me*c*wp/qe); // 1/4*pi*E^2
-		default:
-			return 0.0;
-	}
-}
-
-// DFG - encapsulated material parameters can now read their own input file directives
-// The CGS units in the input file should really be handled with conversion macros; that would break input files however.
-// To keep doing it the usual way we need the unit converter as an argument.
-void sparc::material::ReadInputFileDirective(std::stringstream& inputString,const std::string& command,const UnitConverter& uc)
-{
-	std::string word;
-	if (command=="mass") // eg, mass = 1800.0
-		inputString >> word >> mass;
-	if (command=="charge") // eg, charge = 1.0
-		inputString >> word >> charge;
-	if (command=="rotational") // eg, rotational degrees of freedom = 2
-	{
-		inputString >> word >> word >> word >> word >> cvm;
-		cvm = 0.5*(3.0 + cvm);
-	}
-	if (command=="cv") // eg, cv = 2.5 (this is really m*cv, or m*cv/kB)
-	{
-		inputString >> word >> cvm;
-	}
-	if (command=="vibrational" || command=="vibration" || command=="excitation") // eg, vibrational energy = 0.3
-	{
-		inputString >> word >> word >> excitationEnergy;
-		excitationEnergy = uc.eV_to_sim(excitationEnergy);
-	}
-	if (command=="thermometric") // eg, thermometric conductivity = 1.0 // cm^2/s
-	{
-		inputString >> word >> word >> thermometricConductivity;
-		thermometricConductivity *= uc.CGSValue(time_dim)/sqr(uc.CGSValue(length_dim));
-	}
-	if (command=="kinematic") // eg, kinematic viscosity = 1.0 // cm^2/s
-	{
-		inputString >> word >> word >> kinematicViscosity;
-		kinematicViscosity *= uc.CGSValue(time_dim)/sqr(uc.CGSValue(length_dim));
-	}
-	if (command=="permittivity") // eg, permittivity = 5.0 , 0.0
-		inputString >> word >> eps_r >> eps_i;
+	directives.Add("mass",new tw::input::Float(&mass));
+	directives.Add("charge",new tw::input::Float(&charge));
+	directives.Add("cv",new tw::input::Float(&cvm));
+	directives.Add("cv",new tw::input::Float(&cvm));
+	directives.Add("vibrational energy",new tw::input::Float(&excitationEnergy));
+	directives.Add("thermometric conductivity",new tw::input::Float(&thermometricConductivity));
+	directives.Add("kinematic viscosity",new tw::input::Float(&kinematicViscosity));
+	directives.Add("permittivity",new tw::input::Numbers<tw::Float>(&eps[0],2));
 }
 
 tw::Float sparc::CoulombCrossSection(const UnitConverter& uc,tw::Float q1,tw::Float q2,tw::Float m12,tw::Float v12,tw::Float N1,tw::Float N2,tw::Float T1,tw::Float T2)
@@ -354,49 +183,23 @@ tw::Float IonizationData::Rate(tw::Float instant,tw::Float peak)
 	return 0.0;
 }
 
-void IonizationData::ReadInputFileDirective(std::stringstream& inputString,const std::string& command)
+void IonizationData::AddDirectives(tw::input::DirectiveReader& directives)
 {
 	// read ionspecies and electronspecies indices in Species::Initialize
 	// setup hydro indexing during Chemical::Initialize
-
-	std::string word;
-
-	if (command=="ionization") // eg, ionization potential = 1.0
-	{
-		inputString >> word;
-		if (word=="potential")
-			inputString >> word >> ionizationPotential;
-		else
-		{
-			inputString >> word >> word;
-			if (word=="none")
-				ionizationModel = tw::ionization_model::none;
-			if (word=="adk")
-				ionizationModel = tw::ionization_model::ADK;
-			if (word=="ppt")
-				ionizationModel = tw::ionization_model::PPT;
-			if (word=="mpi")
-				ionizationModel = tw::ionization_model::MPI;
-		}
-	}
-	if (command=="mpi") // eg, mpi reference field = 1.0
-		inputString >> word >> word >> word >> E_MPI;
-	if (command=="terms")
-		inputString >> word >> terms;
-	if (command=="protons")
-		inputString >> word >> protons;
-	if (command=="electrons")
-		inputString >> word >> electrons;
-	if (command=="adk")
-		inputString >> word >> word >> adkMultiplier;
-	if (command=="ppt")
-		inputString >> word >> word >> pptMultiplier;
-	if (command=="saturated") // eg, saturated rate = 0.01
-		inputString >> word >> word >> max_rate;
-	if (command=="ion") // eg, ion species = N3
-		inputString >> word >> word >> ion_name;
-	if (command=="electron") // eg, electron species = electrons
-		inputString >> word >> word >> electron_name;
+	directives.Add("ionization potential",new tw::input::Float(&ionizationPotential));
+	std::map<std::string,tw::ionization_model> imod = {{"none",tw::ionization_model::none},
+		{"adk",tw::ionization_model::ADK},{"ppt",tw::ionization_model::PPT},{"mpi",tw::ionization_model::MPI}};
+	directives.Add("ionization model",new tw::input::Enums<tw::ionization_model>(imod,&ionizationModel));
+	directives.Add("mpi reference field",new tw::input::Float(&E_MPI));
+	directives.Add("terms",new tw::input::Int(&terms));
+	directives.Add("protons",new tw::input::Float(&protons));
+	directives.Add("electrons",new tw::input::Float(&electrons));
+	directives.Add("adk multiplier",new tw::input::Float(&adkMultiplier));
+	directives.Add("ppt multiplier",new tw::input::Float(&pptMultiplier));
+	directives.Add("saturated rate",new tw::input::Float(&max_rate));
+	directives.Add("ion species",new tw::input::String(&ion_name));
+	directives.Add("electron species",new tw::input::String(&electron_name));
 }
 
 void IonizationData::ReadData(std::ifstream& inFile)

@@ -83,100 +83,40 @@ void ComputeTool::SaveToolReference(std::ofstream& outFile)
 	outFile << name << " ";
 }
 
-tw::tool_type ComputeTool::CreateTypeFromInput(const std::vector<std::string>& preamble)
+std::map<std::string,tw::tool_type> ComputeTool::Map()
 {
-	// For creating a named tool at the root level
-	std::string key2(tw::input::GetPhrase(preamble,2));
-	std::string key4(tw::input::GetPhrase(preamble,4));
-
-	if (key2=="eigenmode propagator")
-		return tw::tool_type::eigenmodePropagator;
-	if (key2=="adi propagator")
-		return tw::tool_type::adiPropagator;
-	if (key2=="isotropic propagator")
-		return tw::tool_type::isotropicPropagator;
-	if (key2=="parabolic propagator")
-		return tw::tool_type::generalParabolicPropagator;
-	if (key2=="schroedinger propagator")
-		return tw::tool_type::schroedingerPropagator;
-	if (key2=="iterative elliptic")
-		return tw::tool_type::iterativePoissonSolver;
-	if (key2=="1d elliptic")
-		return tw::tool_type::ellipticSolver1D;
-	if (key2=="facr elliptic")
-		return tw::tool_type::facrPoissonSolver;
-	if (key2=="eigenmode elliptic")
-		return tw::tool_type::eigenmodePoissonSolver;
-	if (key2=="yee propagator")
-		return tw::tool_type::yeePropagatorPML;
-	if (key2=="lorentz propagator")
-		return tw::tool_type::lorentzPropagator;
-	if (key4=="eos ideal gas tool")
-		return tw::tool_type::eosIdealGas;
-	if (key2=="eos hot")
-		return tw::tool_type::eosHotElectrons;
-	if (key2=="eos mix")
-		return tw::tool_type::eosMixture;
-	if (key4=="eos ideal gas mix")
-		return tw::tool_type::eosIdealGasMix;
-	if (key4=="eos simple mie gruneisen")
-		return tw::tool_type::eosSimpleMieGruneisen;
-	if (key4=="eos linear mie gruneisen")
-		return tw::tool_type::eosLinearMieGruneisen;
-	return tw::tool_type::nullTool;
+	return
+	{
+		{"eigenmode propagator",tw::tool_type::eigenmodePropagator},
+		{"adi propagator",tw::tool_type::adiPropagator},
+		{"isotropic propagator",tw::tool_type::isotropicPropagator},
+		{"parabolic propagator",tw::tool_type::generalParabolicPropagator},
+		{"schroedinger propagator",tw::tool_type::schroedingerPropagator},
+		{"iterative elliptic",tw::tool_type::iterativePoissonSolver},
+		{"1d elliptic",tw::tool_type::ellipticSolver1D},
+		{"facr elliptic",tw::tool_type::facrPoissonSolver},
+		{"eigenmode elliptic",tw::tool_type::eigenmodePoissonSolver},
+		{"yee propagator",tw::tool_type::yeePropagatorPML},
+		{"lorentz propagator",tw::tool_type::lorentzPropagator},
+		{"eos ideal gas tool",tw::tool_type::eosIdealGas},
+		{"eos hot",tw::tool_type::eosHotElectrons},
+		{"eos mix",tw::tool_type::eosMixture},
+		{"eos ideal gas mix",tw::tool_type::eosIdealGasMix},
+		{"eos simple mie gruneisen",tw::tool_type::eosSimpleMieGruneisen},
+		{"eos linear mie gruneisen",tw::tool_type::eosLinearMieGruneisen}
+	};
 }
 
-tw::tool_type ComputeTool::CreateTypeFromDirective(std::stringstream& inputString,const std::string& command)
+tw::tool_type ComputeTool::CreateTypeFromInput(const std::vector<std::string>& preamble)
 {
-	// For creating tools on the fly inside a module block
-	// The call chain starts in Module::ReadInputFileDirective, goes to Simulation::ToolFromDirective, and may end up here.
-	std::string word;
-	if (command=="elliptic" || command=="elliptical")
-	{
-		inputString >> word >> word >> word;
-		if (word=="1d")
-			return tw::tool_type::ellipticSolver1D;
-		if (word=="iterative")
-			return tw::tool_type::iterativePoissonSolver;
-		if (word=="facr")
-			return tw::tool_type::facrPoissonSolver;
-		if (word=="eigenmode")
-			return tw::tool_type::eigenmodePoissonSolver;
-	}
-	if (command=="propagator")
-	{
-		inputString >> word >> word;
-		if (word=="eigenmode")
-			return tw::tool_type::eigenmodePropagator;
-		if (word=="adi")
-			return tw::tool_type::adiPropagator;
-		if (word=="isotropic")
-			return tw::tool_type::isotropicPropagator;
-		if (word=="parabolic")
-			return tw::tool_type::generalParabolicPropagator;
-		if (word=="schroedinger")
-			return tw::tool_type::schroedingerPropagator;
-		if (word=="yee")
-			return tw::tool_type::yeePropagatorPML;
-		if (word=="lorentz")
-			return tw::tool_type::lorentzPropagator;
-	}
-	if (command=="eos")
-	{
-		inputString >> word >> word;
-		if (word=="ideal-gas")
-			return tw::tool_type::eosIdealGas;
-		if (word=="hot-electron")
-			return tw::tool_type::eosHotElectrons;
-		if (word=="mix")
-			return tw::tool_type::eosMixture;
-		if (word=="ideal-gas-mix")
-			return tw::tool_type::eosIdealGasMix;
-		if (word=="simple-mie-gruneisen")
-			return tw::tool_type::eosSimpleMieGruneisen;
-		if (word=="linear-mie-gruneisen")
-			return tw::tool_type::eosLinearMieGruneisen;
-	}
+	// Look for a ComputeTool key on a preamble (words between new and opening brace) and return the type of tool.
+	std::map<std::string,tw::tool_type> tool_map = ComputeTool::Map();
+	std::string key2(tw::input::GetPhrase(preamble,2));
+	std::string key4(tw::input::GetPhrase(preamble,4));
+	if (tool_map.find(key2)!=tool_map.end())
+		return tool_map[key2];
+	if (tool_map.find(key4)!=tool_map.end())
+		return tool_map[key4];
 	return tw::tool_type::nullTool;
 }
 

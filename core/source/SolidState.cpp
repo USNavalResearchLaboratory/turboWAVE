@@ -44,6 +44,20 @@ BoundElectrons::BoundElectrons(const std::string& name,Simulation* sim) : Module
 	// setting kernel arguments has to wait until all modules create compute buffers
 	// hence, do it in Initialize() below
 	#endif
+
+	directives.Add("charge",new tw::input::Float(&q0));
+	directives.Add("mass",new tw::input::Float(&m0));
+	directives.Add("resonance",new tw::input::Vec3(&resFreq));
+	directives.Add("damping",new tw::input::Vec3(&dampFreq));
+	directives.Add("strength",new tw::input::Vec3(&oscStrength));
+	directives.Add("a1",new tw::input::Numbers<tw::Float>(&a1[1],6));
+	directives.Add("a2",new tw::input::Numbers<tw::Float>(&a2[1],6));
+	directives.Add("a3",new tw::input::Numbers<tw::Float>(&a3[1],6));
+	directives.Add("b",new tw::input::Float(&b));
+	directives.Add("d",new tw::input::Float(&d));
+	directives.Add("theta",new tw::input::Custom);
+	directives.Add("phi",new tw::input::Custom);
+	directives.Add("basis",new tw::input::Custom);
 }
 
 BoundElectrons::~BoundElectrons()
@@ -293,52 +307,12 @@ void BoundElectrons::ReadInputFileDirective(std::stringstream& inputString,const
 
 	Module::ReadInputFileDirective(inputString,command);
 
-	if (command=="charge")
-	{
-		inputString >> word >> q0;
-	}
-	if (command=="mass")
-	{
-		inputString >> word >> m0;
-	}
 	if (command=="basis")
 	{
 		inputString >> word;
 		inputString >> crystalBasis.u.x >> crystalBasis.u.y >> crystalBasis.u.z;
 		inputString >> crystalBasis.v.x >> crystalBasis.v.y >> crystalBasis.v.z;
 		inputString >> crystalBasis.w.x >> crystalBasis.w.y >> crystalBasis.w.z;
-	}
-	if (command=="resonance")
-	{
-		inputString >> word >> resFreq.x >> resFreq.y >> resFreq.z;
-	}
-	if (command=="damping")
-	{
-		inputString >> word >> dampFreq.x >> dampFreq.y >> dampFreq.z;
-	}
-	if (command=="strength")
-	{
-		inputString >> word >> oscStrength.x >> oscStrength.y >> oscStrength.z;
-	}
-	if (command=="a1") // eg, a1 = ( 0 , 0 , 0 , 1 , 0 , 0 )
-	{
-		inputString >> word >> a1[1] >> a1[2] >> a1[3] >> a1[4] >> a1[5] >> a1[6];
-	}
-	if (command=="a2") // eg, a2 = ( 0 , 0 , 0 , 0 , 1 , 0 )
-	{
-		inputString >> word >> a2[1] >> a2[2] >> a2[3] >> a2[4] >> a2[5] >> a2[6];
-	}
-	if (command=="a3") // eg, a3 = ( 0 , 0 , 0 , 0 , 0 , 1 )
-	{
-		inputString >> word >> a3[1] >> a3[2] >> a3[3] >> a3[4] >> a3[5] >> a3[6];
-	}
-	if (command=="b") // eg, b = 1
-	{
-		inputString >> word >> b;
-	}
-	if (command=="d") // eg, d = 1
-	{
-		inputString >> word >> d;
 	}
 	if (command=="theta")
 	{

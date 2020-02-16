@@ -71,9 +71,8 @@ struct DirectSolver:Electromagnetic
 {
 	Field A;
 	Field PMLx,PMLy,PMLz;
-	tw::Int layerThicknessX0,layerThicknessY0,layerThicknessZ0;
-	tw::Int layerThicknessX1,layerThicknessY1,layerThicknessZ1;
-	tw::Float reflectionCoefficient;
+	tw::Int layerThickness[6];
+	tw::Float reflectionCoefficient[6];
 	bool enforceChargeConservation;
 
 	YeePropagatorPML *yeeTool;
@@ -83,11 +82,10 @@ struct DirectSolver:Electromagnetic
 	virtual void Initialize();
 	virtual void Update();
 	virtual void MoveWindow();
-	virtual void ReadInputFileDirective(std::stringstream& inputString,const std::string& command);
 	virtual void ReadData(std::ifstream& inFile);
 	virtual void WriteData(std::ofstream& outFile);
 
-	void SetupPML(Field& pml,tw::Int g0,tw::Int gN,tw::Int L0,tw::Int L1,tw::Float R,tw::Float ds);
+	void SetupPML(Field& pml,tw::Int g0,tw::Int gN,tw::Int L0,tw::Int L1,tw::Float R0,tw::Float R1,tw::Float ds);
 };
 
 struct CurvilinearDirectSolver:DirectSolver

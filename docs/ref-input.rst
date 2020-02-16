@@ -76,6 +76,10 @@ There are several pre-defined macros for unit conversion.  These are triggered b
 	* Joules per cubit meter = Jm3
 	* electron volts = eV
 	* Kelvin = K
+	* CGS cross section = cm2
+	* MKS cross section = m2
+	* CGS diffusivity = cm2s
+	* MKS diffusivity = m2s
 
 Preprocessor Order
 ,,,,,,,,,,,,,,,,,,

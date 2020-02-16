@@ -23,10 +23,17 @@ Module::Module(const std::string& name,Simulation* sim)
 	programFilename = "";
 	buildLog = "";
 	updateSequencePriority = 1;
-	smoothing = compensation = 0;
+	for (tw::Int i=0;i<4;i++)
+		smoothing[i] = compensation[i] = 0;
 	typeCode = tw::module_type::nullModule;
 	suppressNextUpdate = false;
 	DiscreteSpace::operator=(*sim);
+	// Any Module will recognize any on-the-fly ComputeTool key
+	// for (auto tool_key : ComputeTool::Map())
+	// 	directives.Add(tool_key.first,new tw::input::Custom);
+	// Any Module recognizes smoothing keys
+	directives.Add("smoothing",new tw::input::Numbers<tw::Int>(&smoothing[1],3));
+	directives.Add("compensation",new tw::input::Numbers<tw::Int>(&compensation[1],3));
 }
 
 Module::~Module()
@@ -92,8 +99,8 @@ void Module::ReadData(std::ifstream& inFile)
 	DiscreteSpace::ReadData(inFile);
 	inFile.read((char *)&dt,sizeof(dt));
 	inFile.read((char *)&dth,sizeof(dth));
-	inFile.read((char *)&smoothing,sizeof(smoothing));
-	inFile.read((char *)&compensation,sizeof(compensation));
+	inFile.read((char *)&smoothing[0],sizeof(smoothing));
+	inFile.read((char *)&compensation[0],sizeof(compensation));
 	dti = 1.0/dt;
 
 	tw::Int i,num;
@@ -116,8 +123,8 @@ void Module::WriteData(std::ofstream& outFile)
 	DiscreteSpace::WriteData(outFile);
 	outFile.write((char *)&dt,sizeof(dt));
 	outFile.write((char *)&dth,sizeof(dth));
-	outFile.write((char *)&smoothing,sizeof(smoothing));
-	outFile.write((char *)&compensation,sizeof(compensation));
+	outFile.write((char *)&smoothing[0],sizeof(smoothing));
+	outFile.write((char *)&compensation[0],sizeof(compensation));
 
 	tw::Int i = profile.size();
 	outFile.write((char *)&i,sizeof(tw::Int));
@@ -143,7 +150,7 @@ void Module::ReadInputFileBlock(std::stringstream& inputString)
 	std::string com;
 	do
 	{
-		inputString >> com;
+		com = directives.ReadNext(inputString);
 		ReadInputFileDirective(inputString,com);
 	} while (com!="}");
 	VerifyInput();
@@ -156,23 +163,16 @@ bool Module::ReadQuasitoolBlock(const std::vector<std::string>& preamble,std::st
 
 void Module::ReadInputFileDirective(std::stringstream& inputString,const std::string& command)
 {
-	// Deal with ComputeTool list.
-	// Simulation::ToolFromDirective takes care of 3 things:
-	// 1. Get an existing tool by searching for a name -- ``get tool with name = [name]``
-	// 2. Create a tool on the fly based on a type -- ``[key] = [type]``
-	// 3. Process directives associated with the last tool from (1) or (2)
-	// In the second case a unique name is assigned to the tool internally.
-	owner->ToolFromDirective(moduleTool,inputString,command);
+	// Handle whatever the DirectiveReader object did not.
+	// This includes keywords "get" and "new"
+
+	// Get an existing tool by searching for a name -- ``get tool with name = <name>``
+	if (command=="get")
+		owner->ToolFromDirective(moduleTool,inputString,command);
 
 	// Read in submodules that are explicitly enclosed in this module's block
 	if (command=="new")
 		owner->ReadSubmoduleBlock(inputString,this);
-
-	std::string word;
-	if (command=="smoothing")
-		inputString >> word >> smoothing;
-	if (command=="compensation")
-		inputString >> word >> compensation;
 }
 
 void Module::StartDiagnostics()

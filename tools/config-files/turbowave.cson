@@ -27,7 +27,7 @@
 		'name': 'keyword.control.directive.define.tw'
 	},
 	{
-		'match': '\\b(new|generate)\\b'
+		'match': '\\b(new|generate|get)\\b'
 		'name': 'keyword.operator.tw'
 	},
 	{

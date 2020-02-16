@@ -29,7 +29,7 @@ The following object generates a module that computes the motion of a cold, rela
 
 		.. py:function:: neutral cross section = sigma
 
-		 	:param float sigma: electron-neutral collision cross section in :math:`cm^2`
+		 	:param float sigma: electron-neutral collision cross section, to put in physical units use unit conversion macros
 
 		.. py:function:: coulomb collisions = cc
 
@@ -109,7 +109,7 @@ SPARC Hydro Modules
 
 		.. py:function:: vibrational energy = epsv
 
-		 	:param float epsv: energy (eV) between vibrational levels, default = 0 = no vibrations
+		 	:param float epsv: energy between vibrational levels, default = 0 = no vibrations (use unit conversion macros to specify units)
 
 		.. py:function:: implicit = tst
 
@@ -117,11 +117,11 @@ SPARC Hydro Modules
 
 		.. py:function:: thermometric conductivity = k
 
-		 	:param float k: Thermometric conductivity in units of cm^2/s. Thermometric conductivity is :math:`K/\rho c_p`, where K = heat conductivity.  For air, k = 2e-5 m^2/s = 0.2 cm^2/s, and K = 2.5e-4 W/(cm*K). SPARC solves the heat equation :math:`\rho c_v dT/dt - \nabla\cdot (K \nabla T) = 0`.  For electrons the Braginskii conductivity is used.
+		 	:param float k: Thermometric conductivity (use diffusivity macro to specify units). Thermometric conductivity is :math:`K/\rho c_p`, where K = heat conductivity.  For air, k = 2e-5 m^2/s = 0.2 cm^2/s, and K = 2.5e-4 W/(cm*K). SPARC solves the heat equation :math:`\rho c_v dT/dt - \nabla\cdot (K \nabla T) = 0`.  For electrons the Braginskii conductivity is used.
 
 		.. py:function:: kinematic viscosity = x
 
-		 	:param float x: Kinematic viscosity in units of cm^2/s. Kinematic viscosity is :math:`X/\rho`, where X = dynamic viscosity. For air, kinematic viscosity is about 0.15 cm^2/s. SPARC solves the momentum diffusion equation :math:`\rho dv/dt - \nabla\cdot (X \nabla v) = 0`.
+		 	:param float x: Kinematic viscosity (use diffusivity macro to specify units). Kinematic viscosity is :math:`X/\rho`, where X = dynamic viscosity. For air, kinematic viscosity is about 0.15 cm^2/s. SPARC solves the momentum diffusion equation :math:`\rho dv/dt - \nabla\cdot (X \nabla v) = 0`.
 
 		.. py:function:: effective mass = meff
 

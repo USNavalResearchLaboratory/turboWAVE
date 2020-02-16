@@ -424,6 +424,21 @@ Species::Species(const std::string& name,Simulation* sim) : Module(name,sim)
 	rho00 = NULL;
 	ESField = NULL;
 	qo_j4 = NULL;
+
+	ionization.AddDirectives(directives);
+	directives.Add("sort period",new tw::input::Int(&sortPeriod));
+	directives.Add("mobile",new tw::input::Bool(&mobile));
+	directives.Add("radiation damping",new tw::input::Bool(&radiationDamping));
+	directives.Add("mean free path",new tw::input::Float(&meanFreePath));
+	directives.Add("mass",new tw::input::Float(&restMass));
+	directives.Add("charge",new tw::input::Float(&charge));
+	directives.Add("minimum density",new tw::input::Float(&minimumDensity));
+	directives.Add("emission temperature",new tw::input::Vec3(&emissionTemp));
+	directives.Add("accelerate to",new tw::input::Custom);
+	directives.Add("particles per cell",new tw::input::Custom);
+	directives.Add("xboundary",new tw::input::Custom);
+	directives.Add("yboundary",new tw::input::Custom);
+	directives.Add("zboundary",new tw::input::Custom);
 }
 
 Species::~Species()
@@ -1099,45 +1114,18 @@ void Species::FinishMoveWindow()
 
 void Species::ReadInputFileDirective(std::stringstream& inputString,const std::string& command)
 {
-	tw::Int i;
 	std::string word;
-
-	ionization.ReadInputFileDirective(inputString,command);
-
-	if (command=="sort") // eg, sort period = 100
+	Module::ReadInputFileDirective(inputString,command);
+	if (command=="particles per cell") // eg, particles per cell = 3 3 1 when density = 1.0
 	{
-		inputString >> word >> word >> sortPeriod;
-	}
-	if (command=="mobile") // eg, mobile = true
-	{
-		inputString >> word >> word;
-		mobile = (word=="true" || word=="yes" || word=="on");
-	}
-	if (command=="radiation") // eg, radiation damping = true
-	{
-		inputString >> word >> word >> word;
-		radiationDamping = (word=="true" || word=="yes" || word=="on");
-	}
-	if (command=="mean") // eg, mean free path = 1.0
-		inputString >> word >> word >> word >> meanFreePath;
-	if (command=="mass") // eg, mass = 1.0
-		inputString >> word >> restMass;
-	if (command=="charge") // eg, charge = 1.0
-		inputString >> word >> charge;
-	if (command=="particles") // eg, particles per cell = 3 3 1 when density = 1.0
-	{
-		inputString >> word >> word >> word;
+		inputString >> word;
 		inputString >> distributionInCell.x >> distributionInCell.y >> distributionInCell.z;
 		inputString >> word >> word >> word;
 		inputString >> targetDensity;
 		targetDensity /= distributionInCell.x*distributionInCell.y*distributionInCell.z;
 	}
-	if (command=="minimum") // eg, minimum density = 1e-4
-		inputString >> word >> word >> minimumDensity;
-	if (command=="emission") // eg, emission temperature = 0.1 0.1 0.1
-		inputString >> word >> word >> emissionTemp.x >> emissionTemp.y >> emissionTemp.z;
-	if (command=="accelerate") // eg, accelerate to 100.0 in 10.0
-		inputString >> word >> accelerationImpulse >> word >> accelerationTime;
+	if (command=="accelerate to") // eg, accelerate to 100.0 in 10.0
+		inputString >> accelerationImpulse >> word >> accelerationTime;
 	if (command=="xboundary" || command=="yboundary" || command=="zboundary" ) // eg, xboundary = emitting emitting
 		tw::input::ReadBoundaryTerm(bc0,bc1,inputString,command);
 }
@@ -1295,8 +1283,7 @@ void Species::CalculateDensity(ScalarField& dens)
 	dens.ApplyFoldingCondition();
 	dens.DivideCellVolume(*owner);
 	dens.ApplyBoundaryCondition();
-	if (smoothing>0)
-		dens.Smooth(*owner,smoothing,compensation);
+	dens.Smooth(*owner,smoothing,compensation);
 }
 
 void Species::EnergyHeadings(std::ofstream& outFile)

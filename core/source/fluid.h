@@ -29,7 +29,6 @@ struct Fluid:Module
 	virtual void MoveWindow();
 	virtual void AddDensity(tw::Float densityToAdd,tw::Int i,tw::Int j,tw::Int k);
 
-	virtual void ReadInputFileDirective(std::stringstream& inputString,const std::string& command);
 	virtual void ReadData(std::ifstream& inFile);
 	virtual void WriteData(std::ofstream& outFile);
 
@@ -56,7 +55,6 @@ struct Chemical:Module
 	bool GenerateFluid(Field& hydro,Field& eos);
 
 	virtual void VerifyInput();
-	virtual void ReadInputFileDirective(std::stringstream& inputString,const std::string& command);
 	virtual void ReadData(std::ifstream& inFile);
 	virtual void WriteData(std::ofstream& outFile);
 };
@@ -65,6 +63,7 @@ struct EquilibriumGroup:Module
 {
 	std::vector<Chemical*> chemical; // explicitly typed submodule list
 	EOSMixture *eosMixData;
+	bool mobile;
 
 	// The hydro set contains indices into the state vector for this group.
 	// The mass density index corresponds to the first chemical in the group.
@@ -125,7 +124,6 @@ struct EquilibriumGroup:Module
 	virtual void Initialize();
 
 	virtual void VerifyInput();
-	virtual void ReadInputFileDirective(std::stringstream& inputString,const std::string& command);
 	virtual void ReadData(std::ifstream& inFile);
 	virtual void WriteData(std::ofstream& outFile);
 };
@@ -218,7 +216,6 @@ struct HydroManager:Module
 
 	virtual void VerifyInput();
 	virtual bool ReadQuasitoolBlock(const std::vector<std::string>& preamble,std::stringstream& inputString);
-	virtual void ReadInputFileDirective(std::stringstream& inputString,const std::string& command);
 	virtual void ReadData(std::ifstream& inFile);
 	virtual void WriteData(std::ofstream& outFile);
 	void ParseReaction(std::stringstream& inputString);

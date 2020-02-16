@@ -29,6 +29,13 @@ Fluid::Fluid(const std::string& name,Simulation* sim):Module(name,sim)
 	laser = NULL;
 	chi = NULL;
 	carrierFrequency = NULL;
+
+	directives.Add("charge",new tw::input::Float(&charge));
+	directives.Add("mass",new tw::input::Float(&mass));
+	directives.Add("neutral cross section",new tw::input::Float(&enCrossSection));
+	directives.Add("initial ionization fraction",new tw::input::Float(&initialIonizationFraction));
+	directives.Add("coulomb collisions",new tw::input::Bool(&coulombCollisions));
+	ionization.AddDirectives(directives);
 }
 
 bool Fluid::InspectResource(void* resource,const std::string& description)
@@ -486,45 +493,6 @@ void Fluid::Update()
 	}
 }
 
-void Fluid::ReadInputFileDirective(std::stringstream& inputString,const std::string& command)
-{
-	std::string word;
-	UnitConverter uc(owner->unitDensityCGS);
-
-	Module::ReadInputFileDirective(inputString,command);
-	ionization.ReadInputFileDirective(inputString,command);
-	if (command=="charge") // eg, charge = 1.0
-	{
-		inputString >> word;
-		inputString >> charge;
-	}
-	if (command=="mass") // eg, mass = 1800.0
-	{
-		inputString >> word;
-		inputString >> mass;
-	}
-	if (command=="collision")
-	{
-		throw tw::FatalError("collision frequency variable no longer supported.");
-	}
-	if (command=="initial") // eg, initial ionization fraction = 1e-3
-	{
-		inputString >> word >> word >> word;
-		inputString >> initialIonizationFraction;
-	}
-	if (command=="neutral") // eg, neutral cross section = 1e-15 // cm^2
-	{
-		inputString >> word >> word >> word;
-		inputString >> enCrossSection;
-		enCrossSection = uc.CGSToSim(cross_section_dim,enCrossSection);
-	}
-	if (command=="coulomb") // eg, coulomb collisions = true
-	{
-		inputString >> word >> word >> word;
-		coulombCollisions = (word=="true" || word=="on" || word=="yes");
-	}
-}
-
 void Fluid::ReadData(std::ifstream& inFile)
 {
 	Module::ReadData(inFile);
@@ -600,9 +568,11 @@ Chemical::Chemical(const std::string& name,Simulation* sim):Module(name,sim)
 	mat.excitationEnergy = 0.0;
 	mat.thermometricConductivity = 0.0;
 	mat.kinematicViscosity = 0.0;
-	mat.eps_r = 1.0;
-	mat.eps_i = 0.0;
+	mat.eps[0] = 1.0;
+	mat.eps[1] = 0.0;
 	eosData = NULL;
+	ionization.AddDirectives(directives);
+	mat.AddDirectives(directives);
 }
 
 // ASHER_MOD -- Chemical now needs a destructor because of the eosData
@@ -767,14 +737,6 @@ void Chemical::VerifyInput()
 	}
 }
 
-void Chemical::ReadInputFileDirective(std::stringstream& inputString,const std::string& command)
-{
-	UnitConverter uc(owner->unitDensityCGS);
-	Module::ReadInputFileDirective(inputString,command);
-	ionization.ReadInputFileDirective(inputString,command);
-	mat.ReadInputFileDirective(inputString,command,uc);
-}
-
 void Chemical::ReadData(std::ifstream& inFile)
 {
 	Module::ReadData(inFile);
@@ -804,11 +766,14 @@ void Chemical::WriteData(std::ofstream& outFile)
 EquilibriumGroup::EquilibriumGroup(const std::string& name,Simulation* sim):Module(name,sim)
 {
 	typeCode = tw::module_type::equilibriumGroup;
+	mobile = true;
 	forceFilter = 1.0;
 
 	// DFG - Start with NULL tool.
 	// User can select one by name, or let it be created automatically in Initialize()
 	eosMixData = NULL;
+
+	directives.Add("mobile",new tw::input::Bool(&mobile));
 }
 
 // ASHER_MOD -- EquilibriumGroup now needs a destructor because of eosMixData
@@ -835,20 +800,10 @@ void EquilibriumGroup::VerifyInput()
 		eosMixData = (EOSMixture *)owner->CreateTool("default_eos_mix",tw::tool_type::eosMixture);
 }
 
-void EquilibriumGroup::ReadInputFileDirective(std::stringstream& inputString,const std::string& command)
-{
-	std::string word;
-	Module::ReadInputFileDirective(inputString,command);
-	if (command=="mobile")
-	{
-		inputString >> word >> word;
-		forceFilter = (word=="yes" || word=="on" || word=="true") ? 1.0 : 0.0;
-	}
-}
-
 void EquilibriumGroup::Initialize()
 {
 	Module::Initialize();
+	forceFilter = mobile ? 1.0 : 0.0;
 
 	// DFG - Containment is automatic, but explicit typing is not.
 	// So we simply copy the submodule list and typecast it.
@@ -869,6 +824,7 @@ void EquilibriumGroup::ReadData(std::ifstream& inFile)
 {
 	Module::ReadData(inFile);
 	eosMixData = (EOSMixture*)owner->GetRestartedTool(inFile);
+	inFile.read((char *)&mobile,sizeof(mobile));
 	inFile.read((char *)&forceFilter,sizeof(tw::Float));
 	inFile.read((char *)&hidx,sizeof(hidx));
 	inFile.read((char *)&eidx,sizeof(eidx));
@@ -879,6 +835,7 @@ void EquilibriumGroup::WriteData(std::ofstream& outFile)
 {
 	Module::WriteData(outFile);
 	eosMixData->SaveToolReference(outFile);
+	outFile.write((char *)&mobile,sizeof(mobile));
 	outFile.write((char *)&forceFilter,sizeof(tw::Float));
 	outFile.write((char *)&hidx,sizeof(hidx));
 	outFile.write((char *)&eidx,sizeof(eidx));
@@ -922,6 +879,15 @@ sparc::HydroManager::HydroManager(const std::string& name,Simulation* sim):Modul
 	lasModel = sparc::vacuum;
 	plasModel = sparc::neutral;
 	electrons = NULL;
+
+	directives.Add("epsilon factor",new tw::input::Float(&epsilonFactor));
+	std::map<std::string,sparc::radiationModel> rad = {{"thin",sparc::thin},{"thick",sparc::thick}};
+	directives.Add("radiation model",new tw::input::Enums<sparc::radiationModel>(rad,&radModel));
+	std::map<std::string,sparc::laserModel> las = {{"vacuum",sparc::vacuum},{"isotropic",sparc::isotropic}};
+	directives.Add("laser propagator",new tw::input::Enums<sparc::laserModel>(las,&lasModel));
+	std::map<std::string,sparc::plasmaModel> plas = {{"neutral",sparc::neutral},{"quasineutral",sparc::quasineutral}};
+	directives.Add("plasma model",new tw::input::Enums<sparc::plasmaModel>(plas,&plasModel));
+	directives.Add("dipole center",new tw::input::Vec3(&dipoleCenter));
 }
 
 sparc::HydroManager::~HydroManager()
@@ -1729,7 +1695,7 @@ void sparc::HydroManager::LaserAdvance(tw::Float dt)
 					for (auto grp : group)
 						for (auto chem : grp->chemical)
 						{
-							tw::Complex susceptibility(chem->mat.eps_r - 1.0,chem->mat.eps_i);
+							tw::Complex susceptibility(chem->mat.eps[0] - 1.0,chem->mat.eps[1]);
 							refractiveIndex(strip,k) += state1(strip,k,chem->indexInState) * susceptibility;
 						}
 					// Add plasma contribution to susceptibility
@@ -2119,41 +2085,6 @@ bool sparc::HydroManager::ReadQuasitoolBlock(const std::vector<std::string>& pre
 		return true;
 	}
 	return false;
-}
-
-void sparc::HydroManager::ReadInputFileDirective(std::stringstream& inputString,const std::string& command)
-{
-	std::string word;
-	Module::ReadInputFileDirective(inputString,command);
-
-	if (command=="epsilon") // eg epsilon factor = 0.1
-		inputString >> word >> word >> epsilonFactor;
-	if (command=="radiation") // eg radiation model = thin
-	{
-		inputString >> word >> word >> word;
-		if (word=="thin")
-			radModel = sparc::thin;
-		if (word=="thick")
-			radModel = sparc::thick;
-	}
-	if (command=="laser") // eg laser propagator = vacuum
-	{
-		inputString >> word >> word >> word;
-		if (word=="vacuum")
-			lasModel = sparc::vacuum;
-		if (word=="isotropic")
-			lasModel = sparc::isotropic;
-	}
-	if (command=="plasma") // eg plasma model = neutral
-	{
-		inputString >> word >> word >> word;
-		if (word=="neutral")
-			plasModel = sparc::neutral;
-		if (word=="quasineutral")
-			plasModel = sparc::quasineutral;
-	}
-	if (command=="dipole") // eg, dipole center = 0 0 0
-		inputString >> word >> word >> dipoleCenter.x >> dipoleCenter.y >> dipoleCenter.z;
 }
 
 void sparc::HydroManager::ReadData(std::ifstream& inFile)

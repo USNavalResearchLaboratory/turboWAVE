@@ -421,8 +421,8 @@ struct Field:DiscreteSpace
 	friend void CopyGhostCellData(Field& dst,const Element& e_dst,Field& src,const Element& e_src);
 	friend void AddFieldData(Field& dst,const Element& e_dst,Field& src,const Element& e_src);
 	friend void AddMulFieldData(Field& dst,const Element& e_dst,Field& src,const Element& e_src,tw::Float mul);
-	void SmoothingPass(const Element& e,const MetricSpace& ds,const tw::Float& X0,const tw::Float& X1,const tw::Float& X2);
-	void Smooth(const Element& e,const MetricSpace& ds,tw::Int smoothPasses,tw::Int compPasses);
+	void SmoothingPass(tw::Int ax,const Element& e,const MetricSpace& ds,const tw::Float& X0,const tw::Float& X1,const tw::Float& X2);
+	void Smooth(const Element& e,const MetricSpace& ds,tw::Int smoothPasses[4],tw::Int compPasses[4]);
 	void Shift(const Element& e,const tw::strip& s,tw::Int cells,const tw::Float* incoming);
 	void Shift(const Element& e,const tw::strip& s,tw::Int cells,const tw::Float& incoming);
 	void Hankel(const Element& e,tw::Int modes,std::valarray<tw::Float>& matrix);
@@ -541,7 +541,7 @@ struct Field:DiscreteSpace
 	{
 		ZeroGhostCells(All(*this));
 	}
-	void Smooth(const MetricSpace& ds,tw::Int smoothPasses,tw::Int compPasses)
+	void Smooth(const MetricSpace& ds,tw::Int smoothPasses[4],tw::Int compPasses[4])
 	{
 		Smooth(All(*this),ds,smoothPasses,compPasses);
 	}

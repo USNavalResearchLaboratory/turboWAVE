@@ -644,16 +644,16 @@ void Simulation::ToolFromDirective(std::vector<ComputeTool*>& tool,std::stringst
 	}
 
 	// Handle creation of new tools on the fly
-	type = ComputeTool::CreateTypeFromDirective(inputString,command);
-	if (type!=tw::tool_type::nullTool)
-	{
-		tool.push_back(CreateTool(command,type)); // use command as the name
-		return;
-	}
+	// type = ComputeTool::CreateTypeFromDirective(inputString,command);
+	// if (type!=tw::tool_type::nullTool)
+	// {
+	// 	tool.push_back(CreateTool(command,type)); // use command as the name
+	// 	return;
+	// }
 
 	// Allow the most recent tool associated with the caller to process directives
-	if (tool.size()>0)
-		tool.back()->ReadInputFileDirective(inputString,command);
+	// if (tool.size()>0)
+	// 	tool.back()->ReadInputFileDirective(inputString,command);
 }
 
 bool Simulation::RemoveTool(ComputeTool *theTool)

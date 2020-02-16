@@ -111,9 +111,9 @@ Quantum Propagation Modules
 
 		Shared directives: see :ref:`quantum-shared`
 
-		.. py:function:: drop a2 term
+		.. py:function:: keep a2 term = tst
 
-			if present, drop A^2 from Hamiltonian
+			:param bool tst: whether to keep the second order term from the Hamiltonian
 
 		.. py:function:: dipole approximation = tst
 

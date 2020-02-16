@@ -16,9 +16,10 @@ struct Module:DiscreteSpace
 	Module* super;
 	std::vector<Module*> submodule;
 	std::vector<ComputeTool*> moduleTool;
+	tw::input::DirectiveReader directives;
 
 	tw::Int updateSequencePriority;
-	tw::Int smoothing,compensation;
+	tw::Int smoothing[4],compensation[4];
 	tw::module_type typeCode;
 	bool suppressNextUpdate;
 

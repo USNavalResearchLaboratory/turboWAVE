@@ -75,6 +75,10 @@ In order to allow the use of conventional units in the input file, there is a si
 	"Joules per Cubic Centimeter", :samp:`Jcm3`
 	"Electron Volts", :samp:`eV`
 	"Kelvin", :samp:`K`
+	"CGS Cross Section", :samp:`cm2`
+	"MKS Cross Section", :samp:`m2`
+	"CGS Diffusivity", :samp:`cm2s`
+	"MKS Diffusivity", :samp:`m2s`
 
 TurboWAVE Example Files
 -----------------------

@@ -14,7 +14,7 @@ endif
 
 syn match twDefine "#define"
 syn match twInclude "#include"
-syn keyword	twStatement	new generate
+syn keyword	twStatement	new generate get
 
 syn match twUnit  "\v(\s|\(|\{|\,|\=)\%[0-9]+\.=[0-9]*[eE]=[\+\-]=[0-9]*(um|mm|cm|m|fs|ps|ns|us|s|m\-3|cm\-3|Jm3|Jcm3|eV|K)(\s|\)|\}|\,|\n)"hs=s+1,he=e-1
 syn match twUnit2 "\v(\s|\(|\{|\,|\=)\%\.[0-9]+[eE]=[\+\-][0-9]*(um|mm|cm|m|fs|ps|ns|us|s|m\-3|cm\-3|Jm3|Jcm3|eV|K)(\s|\)|\}|\,|\n)"hs=s+1,he=e-1
