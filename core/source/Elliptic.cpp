@@ -1,11 +1,4 @@
-#include "definitions.h"
-#include "tasks.h"
-#include "ctools.h"
-#include "3dmath.h"
-#include "metricSpace.h"
-#include "3dfields.h"
-#include "region.h"
-#include "numerics.h"
+#include "meta_base.h"
 #include "computeTool.h"
 #include "elliptic.h"
 
@@ -22,6 +15,10 @@ EllipticSolver::EllipticSolver(const std::string& name,MetricSpace *m,Task *tsk)
 	coeff = NULL;
 	x0 = x1 = y0 = y1 = z0 = z1 = none;
 	gammaBeam = 1.0;
+	std::map<std::string,boundarySpec> bcs = {{"none",none},{"open",natural},{"dirichlet",dirichletCell},{"neumann",neumannWall}};
+	directives.Add("poisson boundary condition x",new tw::input::Enums<boundarySpec>(bcs,&x0,&x1));
+	directives.Add("poisson boundary condition y",new tw::input::Enums<boundarySpec>(bcs,&y0,&y1));
+	directives.Add("poisson boundary condition z",new tw::input::Enums<boundarySpec>(bcs,&z0,&z1));
 }
 
 void EllipticSolver::FormOperatorStencil(std::valarray<tw::Float>& D,tw::Int i,tw::Int j,tw::Int k)
@@ -134,46 +131,6 @@ void EllipticSolver::ZeroModeGhostCellValues(tw::Float *phi0,tw::Float *phiN1,Sc
 	{
 		*phi0 -= *phiN1;
 		*phiN1 = 0.0;
-	}
-}
-
-void EllipticSolver::ReadInputFileDirective(std::stringstream& inputString,const std::string& command)
-{
-	std::string word;
-	ComputeTool::ReadInputFileDirective(inputString,command);
-	if (command=="poisson") // eg, poisson boundary condition z = (open,open)
-	{
-		boundarySpec lowBC,highBC;
-		std::string whichAxis,theBC;
-		inputString >> word >> word >> whichAxis;
-		if (whichAxis=="=")
-			whichAxis = "z";
-		else
-			inputString >> word;
-
-		inputString >> word;
-		if (word=="none")
-			lowBC = none;
-		if (word=="open")
-			lowBC = natural;
-		if (word=="dirichlet")
-			lowBC = dirichletCell;
-		if (word=="neumann")
-			lowBC = neumannWall;
-
-		inputString >> word;
-		if (word=="none")
-			highBC = none;
-		if (word=="open")
-			highBC = natural;
-		if (word=="dirichlet")
-			highBC = dirichletCell;
-		if (word=="neumann")
-			highBC = neumannWall;
-
-		if (whichAxis=="x") { x0 = lowBC; x1 = highBC; }
-		if (whichAxis=="y") { y0 = lowBC; y1 = highBC; }
-		if (whichAxis=="z") { z0 = lowBC; z1 = highBC; }
 	}
 }
 
@@ -340,6 +297,8 @@ IterativePoissonSolver::IterativePoissonSolver(const std::string& name,MetricSpa
 		if (zDim>1)
 			redSquare = !redSquare;
 	}
+	directives.Add("tolerance",new tw::input::Float(&tolerance));
+	directives.Add("overrelaxation",new tw::input::Float(&overrelaxation));
 }
 
 IterativePoissonSolver::~IterativePoissonSolver()
@@ -502,20 +461,6 @@ void IterativePoissonSolver::StatusMessage(std::ostream *theStream)
 	*theStream << "   Overrelaxation = " << overrelaxation << std::endl;
 	*theStream << "   Norm[source] = " << normSource << std::endl;
 	*theStream << "   Norm[residual] = " << normResidualAchieved << std::endl;
-}
-
-void IterativePoissonSolver::ReadInputFileDirective(std::stringstream& inputString,const std::string& command)
-{
-	std::string word;
-	EllipticSolver::ReadInputFileDirective(inputString,command);
-	if (command=="tolerance")
-	{
-		inputString >> word >> tolerance;
-	}
-	if (command=="overrelaxation")
-	{
-		inputString >> word >> overrelaxation;
-	}
 }
 
 void IterativePoissonSolver::ReadData(std::ifstream& inFile)

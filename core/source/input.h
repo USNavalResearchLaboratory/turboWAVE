@@ -82,7 +82,7 @@ namespace tw
 				std::string word;
 				in >> word;
 				if (word!="=")
-					throw tw::FatalError("Expected equals sign after key: "+key);
+					throw tw::FatalError("Expected equals sign after key <"+key+">");
 			}
 		};
 		struct Custom : Directive
@@ -112,7 +112,8 @@ namespace tw
 			{
 				Directive::Read(in,key);
 				for (tw::Int i=0;i<num;i++)
-					in >> dat[i];
+					if (!(in >> dat[i]))
+						throw tw::FatalError("Invalid number while reading data for key <"+key+">");
 			}
 		};
 		struct Int : Numbers<tw::Int>
@@ -167,7 +168,7 @@ namespace tw
 					{
 						in >> word;
 						if (emap.find(word)==emap.end())
-							throw tw::FatalError("Invalid value: "+word);
+							throw tw::FatalError("Invalid type <"+word+"> while reading key <"+key+">");
 						*d = emap[word];
 					}
 				};
@@ -188,7 +189,7 @@ namespace tw
 				in >> word;
 				auto p = m.find(word);
 				if (p==m.end())
-					throw tw::FatalError("Invalid boolean value: "+word);
+					throw tw::FatalError("Invalid boolean value <"+word+"> while reading key <"+key+">");
 				*dat = p->second;
 			}
 		};
@@ -218,8 +219,6 @@ namespace tw
 		void PythonRange(std::string& source,tw::Float *v0,tw::Float *v1);
 
 		void ReadRect(Region *ans,std::stringstream& source);
-
-		Profile* GetProfile(Simulation* sim,const std::string& name,const std::string& profileType);
 
 		template <class T>
 		void ReadArray(std::valarray<T>& data,std::stringstream& inputString);

@@ -1,25 +1,8 @@
-#include "definitions.h"
-#include "tasks.h"
-#include "ctools.h"
-#include "3dmath.h"
-#include "metricSpace.h"
-#include "3dfields.h"
-#include "region.h"
-#include "numerics.h"
-#include "computeTool.h"
-#include "parabolic.h"
-#include "elliptic.h"
-#include "hyperbolic.h"
-#include "fft.h"
-#include "functions.h"
-#include "injection.h"
+#include "meta_base.h"
+#include "meta_tools.h"
 
 struct Simulation;
 
-#include "input.h"
-#include "physics.h"
-#include "chemistry.h"
-#include "diagnostics.h"
 #include "module.h"
 
 struct NonUniformRegion
@@ -105,6 +88,8 @@ struct Simulation:Task,MetricSpace
 	//void ToolFromDirective(ComputeTool** tool,const std::vector<tw::tool_type>& whiteList,std::stringstream& inputString,const std::string& command);
 	void ToolFromDirective(std::vector<ComputeTool*>& tool,std::stringstream& inputString,const std::string& command);
 	bool RemoveTool(ComputeTool *theTool);
+
+	Profile* GetProfile(const std::string& name,const std::string& profileType);
 
 	void SetCellWidthsAndLocalSize();
 	void SetGlobalSizeAndLocalCorner();

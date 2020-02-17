@@ -1,4 +1,5 @@
-#include "simulation.h"
+#include "meta_base.h"
+#include "meta_tools.h"
 
 //////////////////////////
 //                      //
@@ -9,7 +10,7 @@
 
 ComputeTool::ComputeTool(const std::string& name,MetricSpace *ms,Task *tsk)
 {
-	// Do not create ComputeTools directly.
+	// Do not create ComputeTools directly (unless you are Simulation).
 	// Instances are created through Simulation::CreateTool
 	this->name = name;
 	space = ms;
@@ -45,6 +46,7 @@ void ComputeTool::InitializeCLProgram(const std::string& filename)
 
 void ComputeTool::ReadInputFileDirective(std::stringstream& inputString,const std::string& command)
 {
+	// Handle any directives that cannot be handled by DirectiveReader
 }
 
 void ComputeTool::ReadInputFileBlock(std::stringstream& inputString)
@@ -52,7 +54,7 @@ void ComputeTool::ReadInputFileBlock(std::stringstream& inputString)
 	std::string com;
 	do
 	{
-		inputString >> com;
+		com = directives.ReadNext(inputString);
 		ReadInputFileDirective(inputString,com);
 	} while (com!="}");
 }

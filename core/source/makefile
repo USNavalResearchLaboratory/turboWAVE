@@ -309,10 +309,11 @@ tw3d_debug: tw3d
 tw3d_profile: CCFLAGS = $(PROFILE_FLAGS)
 tw3d_profile: tw3d
 
-BASE_HEADERS = definitions.h tasks.h ctools.h 3dmath.h metricSpace.h 3dfields.h region.h tw_iterator.h
-SIM_HEADERS = $(BASE_HEADERS) functions.h physics.h chemistry.h numerics.h computeTool.h elliptic.h parabolic.h hyperbolic.h fft.h injection.h input.h diagnostics.h module.h simulation.h
+BASE_HEADERS = definitions.h tasks.h ctools.h 3dmath.h tw_iterator.h discreteSpace.h metricSpace.h functions.h fft.h numerics.h 3dfields.h region.h input.h
+TOOL_HEADERS = computeTool.h parabolic.h elliptic.h hyperbolic.h injection.h physics.h chemistry.h diagnostics.h
+SIM_HEADERS = $(BASE_HEADERS) $(TOOL_HEADERS) module.h simulation.h
 MODULE_HEADERS = fieldSolve.h electrostatic.h laserSolve.h fluid.h quantum.h particles.h solidState.h
-OBJ_LIST = Main.o Tasks.o MetricSpace.o 3DFields.o Region.o FFT.o Physics.o Chemistry.o Numerics.o ComputeTool.o Parabolic.o Elliptic.o Hyperbolic.o Functions.o Simulation.o Module.o FieldSolve.o Electrostatic.o LaserSolve.o Fluid.o Quantum.o SolidState.o Particles.o Pusher.o Diagnostics.o Injection.o Input.o
+OBJ_LIST = 3DFields.o Chemistry.o ComputeTool.o Diagnostics.o DiscreteSpace.o Electrostatic.o Elliptic.o FFT.o FieldSolve.o Fluid.o Functions.o Hyperbolic.o Injection.o Input.o LaserSolve.o Main.o MetricSpace.o Module.o Numerics.o Parabolic.o Particles.o Physics.o Pusher.o Quantum.o Region.o Simulation.o SolidState.o Tasks.o
 ifdef TW_MPI
 	BASE_HEADERS += tw_mpi.h
 	OBJ_LIST += TW_MPI.o
@@ -346,88 +347,91 @@ else
 	rm -f tw3d
 endif
 
-Main.o: Main.cpp $(SIM_HEADERS)
-	$(TW_Compiler) $(CCFLAGS) Main.cpp
-
-ifdef TW_MPI
-TW_MPI.o: TW_MPI.cpp definitions.h tw_mpi.h
-	$(TW_Compiler) $(CCFLAGS) TW_MPI.cpp
-endif
-
-Tasks.o: Tasks.cpp definitions.h tasks.h
-	$(TW_Compiler) $(CCFLAGS) Tasks.cpp
-
-MetricSpace.o: MetricSpace.cpp $(BASE_HEADERS)
-	$(TW_Compiler) $(CCFLAGS) MetricSpace.cpp
-
-3DFields.o: 3DFields.cpp $(BASE_HEADERS) fft.h
+3DFields.o: 3DFields.cpp $(BASE_HEADERS)
 	$(TW_Compiler) $(CCFLAGS) 3DFields.cpp
 
-Region.o: Region.cpp $(BASE_HEADERS)
-	$(TW_Compiler) $(CCFLAGS) Region.cpp
-
-FFT.o: FFT.cpp definitions.h fft.h
-	$(TW_Compiler) $(CCFLAGS) FFT.cpp
-
-Physics.o: Physics.cpp $(SIM_HEADERS)
-	$(TW_Compiler) $(CCFLAGS) Physics.cpp
-
-Chemistry.o: Chemistry.cpp $(SIM_HEADERS)
+Chemistry.o: Chemistry.cpp $(BASE_HEADERS) computeTool.h physics.h chemistry.h
 	$(TW_Compiler) $(CCFLAGS) Chemistry.cpp
-
-Numerics.o: Numerics.cpp $(BASE_HEADERS) numerics.h
-	$(TW_Compiler) $(CCFLAGS) Numerics.cpp
 
 ComputeTool.o: ComputeTool.cpp $(SIM_HEADERS)
 	$(TW_Compiler) $(CCFLAGS) ComputeTool.cpp
 
-Elliptic.o: Elliptic.cpp $(BASE_HEADERS) numerics.h computeTool.h elliptic.h
-	$(TW_Compiler) $(CCFLAGS) Elliptic.cpp
+Diagnostics.o: Diagnostics.cpp $(SIM_HEADERS)
+	$(TW_Compiler) $(CCFLAGS) Diagnostics.cpp
 
-Parabolic.o: Parabolic.cpp $(BASE_HEADERS) numerics.h computeTool.h parabolic.h
-	$(TW_Compiler) $(CCFLAGS) Parabolic.cpp
-
-Hyperbolic.o: Hyperbolic.cpp $(BASE_HEADERS) numerics.h computeTool.h hyperbolic.h
-	$(TW_Compiler) $(CCFLAGS) Hyperbolic.cpp
-
-Functions.o: Functions.cpp definitions.h ctools.h functions.h
-	$(TW_Compiler) $(CCFLAGS) Functions.cpp
-
-Simulation.o: Simulation.cpp $(SIM_HEADERS) $(MODULE_HEADERS)
-	$(TW_Compiler) $(CCFLAGS) Simulation.cpp
-
-Module.o: Module.cpp $(SIM_HEADERS) $(MODULE_HEADERS)
-	$(TW_Compiler) $(CCFLAGS) Module.cpp
-
-FieldSolve.o: FieldSolve.cpp $(SIM_HEADERS) fieldSolve.h
-	$(TW_Compiler) $(CCFLAGS) FieldSolve.cpp
+DiscreteSpace.o: DiscreteSpace.cpp $(BASE_HEADERS)
+	$(TW_Compiler) $(CCFLAGS) DiscreteSpace.cpp
 
 Electrostatic.o: Electrostatic.cpp $(SIM_HEADERS) fieldSolve.h electrostatic.h
 	$(TW_Compiler) $(CCFLAGS) Electrostatic.cpp
 
-LaserSolve.o: LaserSolve.cpp $(SIM_HEADERS) fieldSolve.h laserSolve.h
-	$(TW_Compiler) $(CCFLAGS) LaserSolve.cpp
+Elliptic.o: Elliptic.cpp $(BASE_HEADERS) computeTool.h elliptic.h
+	$(TW_Compiler) $(CCFLAGS) Elliptic.cpp
+
+FFT.o: FFT.cpp $(BASE_HEADERS)
+	$(TW_Compiler) $(CCFLAGS) FFT.cpp
+
+FieldSolve.o: FieldSolve.cpp $(SIM_HEADERS) fieldSolve.h
+	$(TW_Compiler) $(CCFLAGS) FieldSolve.cpp
 
 Fluid.o: Fluid.cpp $(SIM_HEADERS) fieldSolve.h fluid.h
 	$(TW_Compiler) $(CCFLAGS) Fluid.cpp
 
-Quantum.o: Quantum.cpp $(SIM_HEADERS) fieldSolve.h quantum.h
-	$(TW_Compiler) $(CCFLAGS) Quantum.cpp
+Functions.o: Functions.cpp $(BASE_HEADERS)
+	$(TW_Compiler) $(CCFLAGS) Functions.cpp
 
-SolidState.o: SolidState.cpp $(SIM_HEADERS) solidState.h
-	$(TW_Compiler) $(CCFLAGS) SolidState.cpp
+Hyperbolic.o: Hyperbolic.cpp $(BASE_HEADERS) computeTool.h hyperbolic.h
+	$(TW_Compiler) $(CCFLAGS) Hyperbolic.cpp
+
+Injection.o: Injection.cpp $(BASE_HEADERS) computeTool.h injection.h
+	$(TW_Compiler) $(CCFLAGS) Injection.cpp
+
+Input.o: Input.cpp $(BASE_HEADERS)
+	$(TW_Compiler) $(CCFLAGS) Input.cpp
+
+LaserSolve.o: LaserSolve.cpp $(SIM_HEADERS) fieldSolve.h laserSolve.h
+	$(TW_Compiler) $(CCFLAGS) LaserSolve.cpp
+
+Main.o: Main.cpp $(SIM_HEADERS)
+	$(TW_Compiler) $(CCFLAGS) Main.cpp
+
+MetricSpace.o: MetricSpace.cpp $(BASE_HEADERS)
+	$(TW_Compiler) $(CCFLAGS) MetricSpace.cpp
+
+Module.o: Module.cpp $(SIM_HEADERS) $(MODULE_HEADERS)
+	$(TW_Compiler) $(CCFLAGS) Module.cpp
+
+Numerics.o: Numerics.cpp $(BASE_HEADERS)
+	$(TW_Compiler) $(CCFLAGS) Numerics.cpp
+
+Parabolic.o: Parabolic.cpp $(BASE_HEADERS) computeTool.h parabolic.h
+	$(TW_Compiler) $(CCFLAGS) Parabolic.cpp
 
 Particles.o: Particles.cpp $(SIM_HEADERS) particles.h fieldSolve.h laserSolve.h
 	$(TW_Compiler) $(CCFLAGS) Particles.cpp
 
+Physics.o: Physics.cpp $(BASE_HEADERS) computeTool.h physics.h
+	$(TW_Compiler) $(CCFLAGS) Physics.cpp
+
 Pusher.o: Pusher.cpp $(SIM_HEADERS) particles.h fieldSolve.h laserSolve.h
 	$(TW_Compiler) $(CCFLAGS) Pusher.cpp
 
-Diagnostics.o: Diagnostics.cpp $(SIM_HEADERS)
-	$(TW_Compiler) $(CCFLAGS) Diagnostics.cpp
+Quantum.o: Quantum.cpp $(SIM_HEADERS) fieldSolve.h quantum.h
+	$(TW_Compiler) $(CCFLAGS) Quantum.cpp
 
-Injection.o: Injection.cpp $(SIM_HEADERS)
-	$(TW_Compiler) $(CCFLAGS) Injection.cpp
+Region.o: Region.cpp $(BASE_HEADERS)
+	$(TW_Compiler) $(CCFLAGS) Region.cpp
 
-Input.o: Input.cpp $(SIM_HEADERS)
-	$(TW_Compiler) $(CCFLAGS) Input.cpp
+Simulation.o: Simulation.cpp $(SIM_HEADERS) $(MODULE_HEADERS)
+	$(TW_Compiler) $(CCFLAGS) Simulation.cpp
+
+SolidState.o: SolidState.cpp $(SIM_HEADERS) solidState.h
+	$(TW_Compiler) $(CCFLAGS) SolidState.cpp
+
+Tasks.o: Tasks.cpp $(BASE_HEADERS)
+	$(TW_Compiler) $(CCFLAGS) Tasks.cpp
+
+ifdef TW_MPI
+TW_MPI.o: TW_MPI.cpp $(BASE_HEADERS)
+	$(TW_Compiler) $(CCFLAGS) TW_MPI.cpp
+endif

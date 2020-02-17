@@ -1,9 +1,4 @@
-#include "definitions.h"
-#include "tasks.h"
-#include "ctools.h"
-#include "3dmath.h"
-#include "metricSpace.h"
-#include "region.h"
+#include "meta_base.h"
 
 void Region::Initialize(const MetricSpace& ds,Task *task)
 {

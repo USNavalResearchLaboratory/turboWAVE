@@ -1,4 +1,6 @@
-#include "simulation.h"
+#include "meta_base.h"
+#include "computeTool.h"
+#include "physics.h"
 
 // DFG - Populating the input hash is partly delegated to this low level material object.
 // We are now requiring the user to specify units, otherwise normalized units are assumed.
@@ -7,7 +9,6 @@ void sparc::material::AddDirectives(tw::input::DirectiveReader& directives)
 {
 	directives.Add("mass",new tw::input::Float(&mass));
 	directives.Add("charge",new tw::input::Float(&charge));
-	directives.Add("cv",new tw::input::Float(&cvm));
 	directives.Add("cv",new tw::input::Float(&cvm));
 	directives.Add("vibrational energy",new tw::input::Float(&excitationEnergy));
 	directives.Add("thermometric conductivity",new tw::input::Float(&thermometricConductivity));

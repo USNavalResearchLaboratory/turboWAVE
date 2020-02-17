@@ -1,6 +1,10 @@
-#include "simulation.h"
+#include "meta_base.h"
 
-// Normalization Functions
+/////////////////////////////
+//                         //
+//  Unit Conversion Tools  //
+//                         //
+/////////////////////////////
 
 UnitConverter::UnitConverter(tw::Float unitDensityCGS)
 {
@@ -153,6 +157,12 @@ tw::Float UnitConverter::CGSValue(tw_dimensions dim) const
 }
 
 
+////////////////////////
+//                    //
+//  Directive Reader  //
+//                    //
+////////////////////////
+
 tw::input::DirectiveReader::DirectiveReader()
 {
 	maxKeyWords = 0;
@@ -170,7 +180,7 @@ void tw::input::DirectiveReader::Add(const std::string& key,tw::input::Directive
 	// count number of words in this key
 	std::string word;
 	std::stringstream s(key);
-	tw::Int words = 0;
+	tw::Int words = 1;
 	while (!s.eof())
 	{
 		s >> word;
@@ -221,6 +231,13 @@ bool tw::input::DirectiveReader::TestKey(const std::string& test)
 {
 	return (keysFound.find(test)!=keysFound.end());
 }
+
+
+///////////////////////////////////////
+//                                   //
+//  Stream Processing of Input File  //
+//                                   //
+///////////////////////////////////////
 
 tw::Float tw::input::GetUnitDensityCGS(std::stringstream& in)
 {
@@ -505,36 +522,6 @@ void tw::input::PythonRange(std::string& source,tw::Float *v0,tw::Float *v1)
 	}
 	else
 		*v1 = tw::big_pos;
-}
-
-// Find species or source with "name" and add a new profile to its list.  Return the profile.
-
-Profile* tw::input::GetProfile(Simulation* sim,const std::string& name,const std::string& profileType)
-{
-	tw::Int i;
-	Profile* theProfile;
-
-	theProfile = NULL;
-
-	for (i=0;i<sim->module.size();i++)
-		if (sim->module[i]->name==name)
-		{
-			if (profileType=="uniform")
-				sim->module[i]->profile.push_back(new UniformProfile(sim->clippingRegion));
-			if (profileType=="piecewise")
-				sim->module[i]->profile.push_back(new PiecewiseProfile(sim->clippingRegion));
-			if (profileType=="channel")
-				sim->module[i]->profile.push_back(new ChannelProfile(sim->clippingRegion));
-			if (profileType=="column")
-				sim->module[i]->profile.push_back(new ColumnProfile(sim->clippingRegion));
-			if (profileType=="beam" || profileType=="gaussian")
-				sim->module[i]->profile.push_back(new GaussianProfile(sim->clippingRegion));
-			if (profileType=="corrugated")
-				sim->module[i]->profile.push_back(new CorrugatedProfile(sim->clippingRegion));
-			theProfile = sim->module[i]->profile.back();
-		}
-
-	return theProfile;
 }
 
 // Read boundary conditions

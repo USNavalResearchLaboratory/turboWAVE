@@ -30,7 +30,6 @@ struct EllipticSolver:ComputeTool
 	virtual void ZeroModeGhostCellValues(tw::Float *phi0,tw::Float *phiN1,ScalarField& rho,tw::Float mul);
 	virtual void Solve(ScalarField& phi,ScalarField& source,tw::Float mul) = 0;
 	void FormOperatorStencil(std::valarray<tw::Float>& D,tw::Int i,tw::Int j,tw::Int k);
-	virtual void ReadInputFileDirective(std::stringstream& inputString,const std::string& command);
 	virtual void ReadData(std::ifstream& inFile);
 	virtual void WriteData(std::ofstream& outFile);
 };
@@ -48,7 +47,6 @@ struct IterativePoissonSolver:EllipticSolver
 	virtual void FixPotential(ScalarField& phi,Region* theRegion,const tw::Float& thePotential);
 	virtual void Solve(ScalarField& phi,ScalarField& source,tw::Float mul);
 	virtual void StatusMessage(std::ostream *theStream);
-	virtual void ReadInputFileDirective(std::stringstream& inputString,const std::string& command);
 	virtual void ReadData(std::ifstream& inFile);
 	virtual void WriteData(std::ofstream& outFile);
 };

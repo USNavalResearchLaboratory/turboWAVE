@@ -1,4 +1,7 @@
-#include "simulation.h"
+#include "meta_base.h"
+#include "computeTool.h"
+#include "physics.h"
+#include "chemistry.h"
 
 // Subreaction class serves as an element of the Reaction quasitool
 // No need to write chemical names into restart file.  We have the indices into the state array.

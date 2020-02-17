@@ -1,10 +1,4 @@
-#include "definitions.h"
-#include "tasks.h"
-#include "ctools.h"
-#include "3dmath.h"
-#include "metricSpace.h"
-#include "3dfields.h"
-#include "numerics.h"
+#include "meta_base.h"
 
 void Transform(tw::Float *array,tw::Int pts,tw::Int modes,tw::Int interval,std::valarray<tw::Float>& transform)
 {

@@ -28,6 +28,7 @@ struct ComputeTool
 	tw::tool_type typeCode;
 	std::string name;
 	int refCount; // how many modules currently using
+	tw::input::DirectiveReader directives;
 
 	// OpenCL Support
 	private:

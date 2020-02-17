@@ -97,6 +97,8 @@ void Electromagnetic::Initialize()
 
 	sources.SetBoundaryConditions(xAxis,dirichletCell,dirichletCell);
 	sources.SetBoundaryConditions(Element(1),xAxis,normalFluxFixed,normalFluxFixed);
+	if (owner->gridGeometry==cylindrical)
+		sources.SetBoundaryConditions(Element(0),xAxis,neumannWall,dirichletCell);
 
 	sources.SetBoundaryConditions(yAxis,dirichletCell,dirichletCell);
 	sources.SetBoundaryConditions(Element(2),yAxis,normalFluxFixed,normalFluxFixed);

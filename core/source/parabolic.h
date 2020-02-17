@@ -29,7 +29,6 @@ struct EigenmodePropagator:LaserPropagator
 	EigenmodePropagator(const std::string& name,MetricSpace *m,Task *tsk);
 	virtual ~EigenmodePropagator();
 	virtual void Initialize();
-	virtual void ReadInputFileDirective(std::stringstream& inputString,const std::string& command);
 	virtual void SetData(tw::Float w0,tw::Float dt,tw_polarization_type pol,bool mov);
 	virtual void Advance(ComplexField& a0,ComplexField& a1,ComplexField& chi);
 	virtual void ReadData(std::ifstream& inFile);

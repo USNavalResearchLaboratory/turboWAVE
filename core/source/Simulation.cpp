@@ -555,7 +555,7 @@ Module* Simulation::GetModule(const std::string& name)
 	for (tw::Int i=0;i<module.size();i++)
 		if (module[i]->name==name)
 			return module[i];
-	throw tw::FatalError("Could not find module: " + name);
+	throw tw::FatalError("Could not find module: <" + name+">");
 	return NULL;
 }
 
@@ -564,7 +564,7 @@ tw::Int Simulation::FindModule(const std::string& name)
 	for (tw::Int i=0;i<module.size();i++)
 		if (module[i]->name==name)
 			return i;
-	throw tw::FatalError("Could not find module: " + name);
+	throw tw::FatalError("Could not find module: <" + name+">");
 	return 0;
 }
 
@@ -669,6 +669,33 @@ bool Simulation::RemoveTool(ComputeTool *theTool)
 		return true;
 	}
 	return false;
+}
+
+Profile* Simulation::GetProfile(const std::string& name,const std::string& profileType)
+{
+	// Respond to generate keyword; create a profile for the named module.
+	// Put the new profile on the Module's list and return the pointer to the profile.
+	// Should Profiles be ComputeTools?
+	Profile* theProfile = NULL;
+	Module* theModule = GetModule(name);
+
+	if (profileType=="uniform")
+		theProfile = new UniformProfile(clippingRegion);
+	if (profileType=="piecewise")
+		theProfile = new PiecewiseProfile(clippingRegion);
+	if (profileType=="channel")
+		theProfile = new ChannelProfile(clippingRegion);
+	if (profileType=="column")
+		theProfile = new ColumnProfile(clippingRegion);
+	if (profileType=="beam" || profileType=="gaussian")
+		theProfile = new GaussianProfile(clippingRegion);
+	if (profileType=="corrugated")
+		theProfile = new CorrugatedProfile(clippingRegion);
+
+	if (theProfile==NULL)
+		throw tw::FatalError("Invalid profile type <"+profileType+">");
+	theModule->profile.push_back(theProfile);
+	return theProfile;
 }
 
 void Simulation::MoveWindow()
@@ -1406,16 +1433,12 @@ void Simulation::ReadInputFile()
 		{
 			std::string key,name;
 			inputString >> key >> name >> word;
-			theProfile = tw::input::GetProfile(this,name,key);
-
-			if (theProfile!=NULL)
-			{
-				(*tw_out) << "Create " << key << " " << name << std::endl;
-				theProfile->ReadInputFileBlock(inputString,neutralize);
-				(*tw_out) << "   Clipping region = " << theProfile->theRgn->name << std::endl;
-			}
-			else
-				(*tw_out) << "WARNING: Couldn't find " << name << std::endl;
+			if (word!="{")
+				throw tw::FatalError("Expected opening brace after <generate "+key+" "+name+">");
+			theProfile = GetProfile(name,key);
+			(*tw_out) << "Create " << key << " " << name << std::endl;
+			theProfile->ReadInputFileBlock(inputString,neutralize);
+			(*tw_out) << "   Clipping region = " << theProfile->theRgn->name << std::endl;
 		}
 
 		// Outside declarations: must come after the above

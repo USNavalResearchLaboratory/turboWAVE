@@ -1,11 +1,4 @@
-#include "definitions.h"
-#include "tasks.h"
-#include "ctools.h"
-#include "3dmath.h"
-#include "metricSpace.h"
-#include "3dfields.h"
-#include "region.h"
-#include "numerics.h"
+#include "meta_base.h"
 #include "computeTool.h"
 #include "parabolic.h"
 
@@ -51,7 +44,9 @@ void LaserPropagator::SetBoundaryConditions(ComplexField& a0,ComplexField& a1,Co
 	a0.SetBoundaryConditions(yAxis,yl,yh);
 	a1.SetBoundaryConditions(yAxis,yl,yh);
 
-	chi.SetBoundaryConditions(xAxis,dirichletCell,dirichletCell);
+	xl = space->cyl==1.0 ? neumannWall : dirichletWall;
+
+	chi.SetBoundaryConditions(xAxis,xl,dirichletCell);
 	chi.SetBoundaryConditions(yAxis,dirichletCell,dirichletCell);
 	chi.SetBoundaryConditions(zAxis,dirichletCell,dirichletCell);
 }
@@ -81,6 +76,11 @@ EigenmodePropagator::EigenmodePropagator(const std::string& name,MetricSpace *m,
 	dampingTime = 1e10;
 	layers = 8;
 	globalIntegrator = new GlobalIntegrator<tw::Complex>(&task->strip[3],xDim*yDim,zDim);
+
+	directives.Add("modes",new tw::input::Int(&modes));
+	directives.Add("damping time",new tw::input::Float(&dampingTime));
+	directives.Add("absorbing layers",new tw::input::Int(&layers));
+	directives.Add("causality",new tw::input::Float(&causality));
 }
 
 EigenmodePropagator::~EigenmodePropagator()
@@ -93,28 +93,6 @@ void EigenmodePropagator::Initialize()
 	// Computing the matrices requires message passing, cannot go in constructor.
 	if (space->car!=1.0)
 		ComputeTransformMatrices(dirichletWall,eigenvalue,hankel,inverseHankel,space,task);
-}
-
-void EigenmodePropagator::ReadInputFileDirective(std::stringstream& inputString,const std::string& command)
-{
-	std::string word;
-	ComputeTool::ReadInputFileDirective(inputString,command);
-	if (command=="modes") // eg, modes = 32
-	{
-		inputString >> word >> modes;
-	}
-	if (command=="causality") // eg, causality = 1
-	{
-		inputString >> word >> causality;
-	}
-	if (command=="damping") // eg, damping time = 10.0
-	{
-		inputString >> word >> word >> dampingTime;
-	}
-	if (command=="absorbing") // eg, absorbing layers = 8
-	{
-		inputString >> word >> word >> layers;
-	}
 }
 
 void EigenmodePropagator::SetData(tw::Float w0,tw::Float dt,tw_polarization_type pol,bool mov)

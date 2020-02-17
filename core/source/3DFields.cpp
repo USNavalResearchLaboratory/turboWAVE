@@ -1,11 +1,4 @@
-#include "definitions.h"
-#include "tasks.h"
-#include "ctools.h"
-#include "3dmath.h"
-#include "metricSpace.h"
-#include "3dfields.h"
-#include "fft.h"
-#include "numerics.h"
+#include "meta_base.h"
 
 
 /////////////////////////
