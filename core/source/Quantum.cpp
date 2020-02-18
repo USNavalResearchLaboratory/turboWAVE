@@ -771,7 +771,6 @@ void AtomicPhysics::ReadData(std::ifstream& inFile)
 	tw::Int num;
 
 	Module::ReadData(inFile);
-	photonPropagator = (LorentzPropagator*)owner->GetRestartedTool(inFile);
 	inFile.read((char *)&potentialTypeSpec,sizeof(qo::potentialType));
 	inFile.read((char *)&residualCharge,sizeof(tw::Float));
 	inFile.read((char *)&nuclearRadius,sizeof(tw::Float));
@@ -819,7 +818,6 @@ void AtomicPhysics::WriteData(std::ofstream& outFile)
 	tw::Int num;
 
 	Module::WriteData(outFile);
-	photonPropagator->SaveToolReference(outFile);
 	outFile.write((char *)&potentialTypeSpec,sizeof(qo::potentialType));
 	outFile.write((char *)&residualCharge,sizeof(tw::Float));
 	outFile.write((char *)&nuclearRadius,sizeof(tw::Float));

@@ -55,8 +55,8 @@ BoundElectrons::BoundElectrons(const std::string& name,Simulation* sim) : Module
 	directives.Add("a3",new tw::input::Numbers<tw::Float>(&a3[1],6));
 	directives.Add("b",new tw::input::Float(&b));
 	directives.Add("d",new tw::input::Float(&d));
-	directives.Add("theta",new tw::input::Custom);
-	directives.Add("phi",new tw::input::Custom);
+	directives.Add("theta",new tw::input::Float(&theta));
+	directives.Add("phi",new tw::input::Float(&phi));
 	directives.Add("basis",new tw::input::Custom);
 }
 
@@ -313,16 +313,6 @@ void BoundElectrons::ReadInputFileDirective(std::stringstream& inputString,const
 		inputString >> crystalBasis.u.x >> crystalBasis.u.y >> crystalBasis.u.z;
 		inputString >> crystalBasis.v.x >> crystalBasis.v.y >> crystalBasis.v.z;
 		inputString >> crystalBasis.w.x >> crystalBasis.w.y >> crystalBasis.w.z;
-	}
-	if (command=="theta")
-	{
-		inputString >> word >> theta;
-		theta *= pi/180.0;
-	}
-	if (command=="phi")
-	{
-		inputString >> word >> phi;
-		phi *= pi/180.0;
 	}
 }
 

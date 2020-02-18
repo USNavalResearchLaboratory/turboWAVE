@@ -1,11 +1,12 @@
-enum tw_profile_quantity { densityProfile, energyProfile, pxProfile, pyProfile, pzProfile };
-enum tw_profile_spec { nullProfile, uniformProfile, channelProfile, gaussianProfile, columnProfile, piecewiseProfile, corrugatedProfile};
-enum tw_profile_timing { triggeredProfile, maintainedProfile };
-enum tw_load_method {statistical,deterministic};
-
-namespace loading
+namespace tw
 {
-	enum ramp_shape { triangle , sin2 , quartic , quintic , sech };
+	namespace profile
+	{
+		enum class quantity { density,energy,px,py,pz };
+		enum class timing { triggered,maintained };
+		enum class loading { statistical,deterministic };
+		enum class shape { triangle,sin2,quartic,quintic,sech };
+	}
 }
 
 namespace EM
@@ -18,41 +19,36 @@ namespace EM
 	};
 }
 
-struct Profile
+struct Profile : ComputeTool
 {
-	tw_profile_spec profileSpec;
-	loading::ramp_shape segmentShape;
+	tw::profile::shape segmentShape;
 	tw_geometry symmetry;
 	tw::vec3 centerPt;
 	tw::vec3 modeNumber;
 	tw::Float modeAmplitude;
 	tw::basis orientation;
 	tw::Float gamma_boost;
-	Region *theRgn;
-	std::vector<Region*>& rgnList;
 
 	// items needed for particle/fluid loading
 private:
 	tw::vec3 driftMomentum;
 public:
-	tw_profile_quantity whichQuantity;
+	tw::profile::quantity whichQuantity;
 	tw::vec3 thermalMomentum;
 	tw::Float temperature;
 	bool neutralize,variableCharge;
-	tw_load_method loadingMethod;
-	tw_profile_timing timingMethod;
+	tw::profile::loading loadingMethod;
+	tw::profile::timing timingMethod;
 	tw::Float t0,t1;
 	bool wasTriggered;
 
-	Profile(std::vector<Region*>& rgnList);
-	virtual void Initialize(MetricSpace *ds) {;}
+	Profile(const std::string& name,MetricSpace *m,Task *tsk);
+	virtual void Initialize();
 	tw::vec3 DriftMomentum(const tw::Float& mass);
 	tw::vec3 Boost(const tw::vec3& pos);
 	tw::vec3 Translate_Rotate(const tw::vec3& pos);
 	virtual tw::Float GetValue(const tw::vec3& pos,const MetricSpace& ds);
-	virtual void ReadInputFileBlock(std::stringstream& inputString,bool neutralize);
 	virtual void ReadInputFileDirective(std::stringstream& inputString,const std::string& command);
-	static Profile* CreateObjectFromFile(std::vector<Region*>& rgnList,std::ifstream& inFile);
 	virtual void ReadData(std::ifstream& inFile);
 	virtual void WriteData(std::ofstream& outFile);
 };
@@ -61,9 +57,8 @@ struct UniformProfile:Profile
 {
 	tw::Float density;
 
-	UniformProfile(std::vector<Region*>& rgnList):Profile(rgnList) { profileSpec = uniformProfile; }
+	UniformProfile(const std::string& name,MetricSpace *m,Task *tsk);
 	virtual tw::Float GetValue(const tw::vec3& pos,const MetricSpace& ds);
-	virtual void ReadInputFileDirective(std::stringstream& inputString,const std::string& command);
 	virtual void ReadData(std::ifstream& inFile);
 	virtual void WriteData(std::ofstream& outFile);
 };
@@ -73,9 +68,8 @@ struct GaussianProfile:Profile
 	tw::Float density;
 	tw::vec3 beamSize;
 
-	GaussianProfile(std::vector<Region*>& rgnList):Profile(rgnList) { profileSpec = gaussianProfile; }
+	GaussianProfile(const std::string& name,MetricSpace *m,Task *tsk);
 	virtual tw::Float GetValue(const tw::vec3& pos,const MetricSpace& ds);
-	virtual void ReadInputFileDirective(std::stringstream& inputString,const std::string& command);
 	virtual void ReadData(std::ifstream& inFile);
 	virtual void WriteData(std::ofstream& outFile);
 };
@@ -83,11 +77,10 @@ struct GaussianProfile:Profile
 struct ChannelProfile:Profile
 {
 	std::valarray<tw::Float> z,fz;
-	tw::Float n0,n2,n4,n6;
+	tw::Float coeff[4];
 
-	ChannelProfile(std::vector<Region*>& rgnList):Profile(rgnList) { profileSpec = channelProfile; }
+	ChannelProfile(const std::string& name,MetricSpace *m,Task *tsk);
 	virtual tw::Float GetValue(const tw::vec3& pos,const MetricSpace& ds);
-	virtual void ReadInputFileDirective(std::stringstream& inputString,const std::string& command);
 	virtual void ReadData(std::ifstream& inFile);
 	virtual void WriteData(std::ofstream& outFile);
 };
@@ -97,9 +90,8 @@ struct ColumnProfile:Profile
 	std::valarray<tw::Float> z,fz;
 	tw::vec3 beamSize;
 
-	ColumnProfile(std::vector<Region*>& rgnList):Profile(rgnList) { profileSpec = columnProfile; }
+	ColumnProfile(const std::string& name,MetricSpace *m,Task *tsk);
 	virtual tw::Float GetValue(const tw::vec3& pos,const MetricSpace& ds);
-	virtual void ReadInputFileDirective(std::stringstream& inputString,const std::string& command);
 	virtual void ReadData(std::ifstream& inFile);
 	virtual void WriteData(std::ofstream& outFile);
 };
@@ -108,10 +100,9 @@ struct PiecewiseProfile:Profile
 {
 	std::valarray<tw::Float> x,fx,y,fy,z,fz;
 
-	PiecewiseProfile(std::vector<Region*>& rgnList):Profile(rgnList) { profileSpec = piecewiseProfile; }
-	virtual void Initialize(MetricSpace *ds);
+	PiecewiseProfile(const std::string& name,MetricSpace *m,Task *tsk);
+	virtual void Initialize();
 	virtual tw::Float GetValue(const tw::vec3& pos,const MetricSpace& ds);
-	virtual void ReadInputFileDirective(std::stringstream& inputString,const std::string& command);
 	virtual void ReadData(std::ifstream& inFile);
 	virtual void WriteData(std::ofstream& outFile);
 };
@@ -120,9 +111,8 @@ struct CorrugatedProfile:Profile
 {
 	tw::Float a0,gamma0,w0,wp0,km,delta,rchannel;
 
-	CorrugatedProfile(std::vector<Region*>& rgnList):Profile(rgnList) { profileSpec = corrugatedProfile; }
+	CorrugatedProfile(const std::string& name,MetricSpace *m,Task *tsk);
 	virtual tw::Float GetValue(const tw::vec3& pos,const MetricSpace& ds);
-	virtual void ReadInputFileDirective(std::stringstream& inputString,const std::string& command);
 	virtual void ReadData(std::ifstream& inFile);
 	virtual void WriteData(std::ofstream& outFile);
 };
@@ -131,7 +121,7 @@ struct PulseShape
 {
 	tw::Float delay,risetime,holdtime,falltime;
 	tw::Float t1,t2,t3,t4;
-	loading::ramp_shape whichProfile;
+	tw::profile::shape whichProfile;
 
 	PulseShape();
 	void Initialize(const tw::Float time_origin);

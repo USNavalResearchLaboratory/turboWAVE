@@ -17,6 +17,8 @@ ComputeTool::ComputeTool(const std::string& name,MetricSpace *ms,Task *tsk)
 	task = tsk;
 	typeCode = tw::tool_type::nullTool;
 	refCount = 0;
+	region_name = "tw::entire";
+	theRgn = NULL;
 	programFilename = "";
 	buildLog = "";
 }
@@ -71,12 +73,17 @@ void ComputeTool::WarningMessage(std::ostream *theStream)
 
 void ComputeTool::ReadData(std::ifstream& inFile)
 {
+	// Get the region name.  Finding the Region object is deferred to owning Module.
+	inFile >> region_name;
+	inFile.ignore();
 }
 
 void ComputeTool::WriteData(std::ofstream& outFile)
 {
 	outFile.write((char *)&typeCode,sizeof(tw::tool_type));
 	outFile << name << " ";
+	// Save the region name.  The Region itself is managed (and saved) by Simulation.
+	outFile << region_name << " ";
 }
 
 void ComputeTool::SaveToolReference(std::ofstream& outFile)
@@ -89,6 +96,12 @@ std::map<std::string,tw::tool_type> ComputeTool::Map()
 {
 	return
 	{
+		{"uniform",tw::tool_type::uniformProfile},
+		{"piecewise",tw::tool_type::piecewiseProfile},
+		{"channel",tw::tool_type::channelProfile},
+		{"column",tw::tool_type::columnProfile},
+		{"gaussian",tw::tool_type::gaussianProfile},
+		{"corrugated",tw::tool_type::corrugatedProfile},
 		{"eigenmode propagator",tw::tool_type::eigenmodePropagator},
 		{"adi propagator",tw::tool_type::adiPropagator},
 		{"isotropic propagator",tw::tool_type::isotropicPropagator},
@@ -112,13 +125,14 @@ std::map<std::string,tw::tool_type> ComputeTool::Map()
 tw::tool_type ComputeTool::CreateTypeFromInput(const std::vector<std::string>& preamble)
 {
 	// Look for a ComputeTool key on a preamble (words between new and opening brace) and return the type of tool.
+	const tw::Int max_words = preamble.size();
 	std::map<std::string,tw::tool_type> tool_map = ComputeTool::Map();
-	std::string key2(tw::input::GetPhrase(preamble,2));
-	std::string key4(tw::input::GetPhrase(preamble,4));
-	if (tool_map.find(key2)!=tool_map.end())
-		return tool_map[key2];
-	if (tool_map.find(key4)!=tool_map.end())
-		return tool_map[key4];
+	for (tw::Int i=1;i<=max_words;i++)
+	{
+		std::string key(tw::input::GetPhrase(preamble,i));
+		if (tool_map.find(key)!=tool_map.end())
+			return tool_map[key];
+	}
 	return tw::tool_type::nullTool;
 }
 
@@ -129,6 +143,24 @@ ComputeTool* ComputeTool::CreateObjectFromType(const std::string& name,tw::tool_
 	{
 		case tw::tool_type::nullTool:
 			ans = NULL;
+			break;
+		case tw::tool_type::uniformProfile:
+			ans = new UniformProfile(name,ms,tsk);
+			break;
+		case tw::tool_type::piecewiseProfile:
+			ans = new PiecewiseProfile(name,ms,tsk);
+			break;
+		case tw::tool_type::channelProfile:
+			ans = new ChannelProfile(name,ms,tsk);
+			break;
+		case tw::tool_type::columnProfile:
+			ans = new ColumnProfile(name,ms,tsk);
+			break;
+		case tw::tool_type::gaussianProfile:
+			ans = new GaussianProfile(name,ms,tsk);
+			break;
+		case tw::tool_type::corrugatedProfile:
+			ans = new CorrugatedProfile(name,ms,tsk);
 			break;
 		case tw::tool_type::eigenmodePropagator:
 			ans = new EigenmodePropagator(name,ms,tsk);

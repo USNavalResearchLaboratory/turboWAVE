@@ -51,16 +51,10 @@ Carry out the following for any ``Module`` that wants to use the tool.
 Input File Support
 ,,,,,,,,,,,,,,,,,,
 
-There are two ways to create tools from the input file.
-
-	1. Tools may be created at the root level and given an explicit name.  Modules then access the tool by name.
-	2. Tools may be created on the fly from within a module block using a directive.  A unique name is assigned automatically.
-
 If you want the tool to be accessible from the input file, carry out the following steps.
 
-	#. Implement the ``ReadInputFileDirective`` method for the tool.
-	#. If you want to create named tools, add a case to ``CreateTypeFromInput`` in ``ComputeTool.cpp``.
-	#. If you want to create tools on the fly, add a case to ``CreateTypeFromDirective`` in ``ComputeTool.cpp``.
+	#. In the tool's constructor define the input file directives. For each directive make one call to ``directives.Add(std::string&,tw::input::Directive*)``.
+	#. Add an entry to the hash table returned by ``Map`` in ``ComputeTool.cpp``.  This connects the directive key with the ``tw::tool_type``.
 	#. In the ``VerifyInput`` method of each ``Module`` that wants to use the tool:
 
 		* Search the ``moduleTool`` vector for a compatible tool, and copy the dynamically typecast compatible pointer to your pointer.
@@ -79,14 +73,9 @@ Restart File Support
 
 To support restarting a tool, carry out the following steps.
 
-	#. Override the ``ReadData`` method.  Call the inherited ``ReadData`` method first.  Then read any necessary data from the restart file.
-	#. Override the ``WriteData`` method.  Call the inherited ``WriteData`` method first.  Then write any necessary data to the restart file.
+	#. Override the tool's ``ReadData`` method.  Call the inherited ``ReadData`` method first.  Then read any necessary data from the restart file.
+	#. Override the tool's ``WriteData`` method.  Call the inherited ``WriteData`` method first.  Then write any necessary data to the restart file.
 	#. Verify that ``ReadData`` and ``WriteData`` access the data in the same order.
-	#. For any Module that uses the tool:
-
-		* In the module's ``ReadData`` function, call ``owner->GetRestartedTool`` and save the returned pointer to a member of the module.
-		* In the module's ``WriteData`` function, call ``SaveToolReference``, accessing through the pointer to the tool.
-		* The two above calls must occur at the same point in the restart file.
 
 Best Practices
 --------------

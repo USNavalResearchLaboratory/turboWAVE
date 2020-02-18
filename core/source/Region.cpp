@@ -258,7 +258,6 @@ void Region::ReadInputFileDirective(std::stringstream& inputString,const std::st
 		if (word=="x")
 		{
 			inputString >> word >> theta;
-			theta *= pi/180.0;
 			orientation.u.RotateX(theta);
 			orientation.v.RotateX(theta);
 			orientation.w.RotateX(theta);
@@ -267,7 +266,6 @@ void Region::ReadInputFileDirective(std::stringstream& inputString,const std::st
 		if (word=="y")
 		{
 			inputString >> word >> theta;
-			theta *= pi/180.0;
 			orientation.u.RotateY(theta);
 			orientation.v.RotateY(theta);
 			orientation.w.RotateY(theta);
@@ -276,7 +274,6 @@ void Region::ReadInputFileDirective(std::stringstream& inputString,const std::st
 		if (word=="z")
 		{
 			inputString >> word >> theta;
-			theta *= pi/180.0;
 			orientation.u.RotateZ(theta);
 			orientation.v.RotateZ(theta);
 			orientation.w.RotateZ(theta);

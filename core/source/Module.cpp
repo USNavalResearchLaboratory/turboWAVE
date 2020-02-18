@@ -88,10 +88,9 @@ bool Module::InspectResource(void* resource,const std::string& description)
 
 void Module::Initialize()
 {
-	tw::Int i;
 	if (!owner->restarted)
-		for (i=0;i<profile.size();i++)
-			profile[i]->Initialize(owner);
+		for (auto p : profile)
+			p->Initialize();
 }
 
 void Module::ReadData(std::ifstream& inFile)
@@ -103,10 +102,12 @@ void Module::ReadData(std::ifstream& inFile)
 	inFile.read((char *)&compensation[0],sizeof(compensation));
 	dti = 1.0/dt;
 
-	tw::Int i,num;
-	inFile.read((char *)&num,sizeof(tw::Int));
-	for (i=0;i<num;i++)
-		profile.push_back(Profile::CreateObjectFromFile(owner->clippingRegion,inFile));
+	// Populate the ComputeTool list
+	// This relies on all ComputeTools being loaded first.
+	tw::Int num;
+	inFile.read((char *)&num,sizeof(num));
+	for (tw::Int i=0;i<num;i++)
+		moduleTool.push_back(owner->GetRestartedTool(inFile));
 
 	// Find supermodule and setup containment
 	std::string super_name;
@@ -126,10 +127,11 @@ void Module::WriteData(std::ofstream& outFile)
 	outFile.write((char *)&smoothing[0],sizeof(smoothing));
 	outFile.write((char *)&compensation[0],sizeof(compensation));
 
-	tw::Int i = profile.size();
-	outFile.write((char *)&i,sizeof(tw::Int));
-	for (i=0;i<profile.size();i++)
-		profile[i]->WriteData(outFile);
+	// Save the ComputeTool list
+	tw::Int num = moduleTool.size();
+	outFile.write((char *)&num,sizeof(num));
+	for (tw::Int i=0;i<num;i++)
+		moduleTool[i]->SaveToolReference(outFile);
 
 	// Write the name of the supermodule
 	// This can be used to reconstruct the whole hierarchy, assuming modules are sorted correctly
@@ -142,7 +144,25 @@ void Module::WriteData(std::ofstream& outFile)
 
 void Module::VerifyInput()
 {
-	// carry out checks that are appropriate after the whole input file block has been read in
+	// Carry out checks that are appropriate after the whole input file block has been read in.
+	// This includes searching the list of ComputTool pointers for what we need.
+
+	// Profiles are an automatically managed ComputeTool.  There are two aspects of this:
+	// 1. The profile list has to be constructed.
+	// 2. The named region has to be found.  This is mostly for Profile, but we do it for all ComputeTools while we're at it.
+
+	for (auto tool : moduleTool)
+	{
+		Profile *theProfile;
+		theProfile = dynamic_cast<Profile*>(tool);
+		if (theProfile!=NULL)
+			profile.push_back(theProfile);
+
+		if (tool->region_name=="tw::entire")
+			tool->theRgn = owner->clippingRegion[0];
+		else
+			tool->theRgn = Region::FindRegion(owner->clippingRegion,tool->region_name);
+	}
 }
 
 void Module::ReadInputFileBlock(std::stringstream& inputString)

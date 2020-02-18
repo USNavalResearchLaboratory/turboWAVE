@@ -37,12 +37,12 @@ The following directives may be used with any type of region.
 	:param float y: translation in the y direction
 	:param float z: translation in the z direction
 
-.. py:function:: rotation about axis = degrees
+.. py:function:: rotation about axis = angle
 
 	Rotate about the given global axis. This directive can be repeated to create a sequence of operations. Rotations about a shifted axis can be carried out by performing the sequence :math:`TRT^{-1}` with :math:`T` a translation and :math:`R` a rotation.
 
 	:param enum axis: can be ``x``, ``y``, or ``z``
-	:param float degrees: the rotation angle in degrees
+	:param float angle: the rotation angle in radians.  You can use degrees by adding a macro, e.g., ``rotation about axis = %45deg``.
 
 .. py:function:: complement = tst
 

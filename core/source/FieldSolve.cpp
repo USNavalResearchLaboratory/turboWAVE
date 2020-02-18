@@ -35,21 +35,6 @@ void FieldSolver::VerifyInput()
 		ellipticSolver = (EllipticSolver*)owner->CreateTool("default_facr_poisson_solver",tw::tool_type::facrPoissonSolver);
 }
 
-void FieldSolver::ReadData(std::ifstream& inFile)
-{
-	Module::ReadData(inFile);
-	// The following grabs an existing pointer to a tool by reading its name and searching.
-	// By this time the Simulation class already created and loaded the tool.
-	ellipticSolver = (EllipticSolver*)owner->GetRestartedTool(inFile);
-}
-
-void FieldSolver::WriteData(std::ofstream& outFile)
-{
-	Module::WriteData(outFile);
-	// Saves the name of the tool in the restart file.
-	ellipticSolver->SaveToolReference(outFile);
-}
-
 
 ////////////////////////////////
 // ELECTROMAGNETIC BASE CLASS //

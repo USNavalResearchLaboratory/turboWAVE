@@ -784,15 +784,15 @@ void Species::GenerateParticles(bool init)
 
 	for (s=0;s<profile.size();s++)
 	{
-		if (profile[s]->timingMethod==triggeredProfile)
+		if (profile[s]->timingMethod==tw::profile::timing::triggered)
 			timeGate = owner->elapsedTime>=profile[s]->t0 && !profile[s]->wasTriggered;
-		if (profile[s]->timingMethod==maintainedProfile)
+		if (profile[s]->timingMethod==tw::profile::timing::maintained)
 			timeGate = owner->elapsedTime>=profile[s]->t0 && owner->elapsedTime<=profile[s]->t1;
 		if ( timeGate )
 		{
 			profile[s]->wasTriggered = true;
 			loadingData.driftMomentum = profile[s]->DriftMomentum(restMass);
-			loadingData.neutralize = profile[s]->neutralize;
+			loadingData.neutralize = owner->neutralize;
 			loadingData.thermalMomentum = profile[s]->thermalMomentum;
 			for (i=1;i<=owner->Dim(1);i++)
 				for (j=1;j<=owner->Dim(2);j++)
@@ -805,17 +805,17 @@ void Species::GenerateParticles(bool init)
 
 						if (loadingData.densToAdd>0.0)
 						{
-							if (profile[s]->timingMethod==maintainedProfile && !init)
+							if (profile[s]->timingMethod==tw::profile::timing::maintained && !init)
 							{
 								// Hold a constant charge
 								// (comment out for constant current)
-								if (profile[s]->neutralize) // don't test loadingData.neutralize
+								if (owner->neutralize) // don't test loadingData.neutralize
 									loadingData.densToAdd = -(*sources)(i,j,k,0)/charge; // hold this region neutral
 								else
 									loadingData.densToAdd -= (*sources)(i,j,k,0)/charge; // hold at target density (assumes no other species)
 								loadingData.neutralize = false;
 							}
-							if (qo_j4!=NULL && profile[s]->loadingMethod==statistical && !profile[s]->variableCharge)
+							if (qo_j4!=NULL && profile[s]->loadingMethod==tw::profile::loading::statistical && !profile[s]->variableCharge)
 							{
 								loadingData.densToAdd = fabs((*qo_j4)(i,j,k,0));
 							}
@@ -829,7 +829,7 @@ void Species::GenerateParticles(bool init)
 								loadingData.particleDensity = loadingData.densToAdd/(distributionInCell.x*distributionInCell.y*distributionInCell.z);
 							else
 								loadingData.particleDensity = targetDensity;
-							if (profile[s]->loadingMethod==deterministic)
+							if (profile[s]->loadingMethod==tw::profile::loading::deterministic)
 								AddDensity(loadingData);
 							else
 								AddDensityRandom(loadingData);
@@ -1089,7 +1089,7 @@ void Species::FinishMoveWindow()
 		LoadingData loadingData(distributionInCell);
 		for (s=0;s<profile.size();s++)
 		{
-			loadingData.neutralize = profile[s]->neutralize;
+			loadingData.neutralize = owner->neutralize;
 			loadingData.thermalMomentum = profile[s]->thermalMomentum;
 			loadingData.driftMomentum = profile[s]->DriftMomentum(restMass);
 			for (j=1;j<=dim[2];j++)
@@ -1103,7 +1103,7 @@ void Species::FinishMoveWindow()
 						loadingData.particleDensity = loadingData.densToAdd/(distributionInCell.x*distributionInCell.y*distributionInCell.z);
 					else
 						loadingData.particleDensity = targetDensity;
-					if (profile[s]->loadingMethod==deterministic)
+					if (profile[s]->loadingMethod==tw::profile::loading::deterministic)
 						AddDensity(loadingData);
 					else
 						AddDensityRandom(loadingData);

@@ -36,7 +36,6 @@ struct Simulation:Task,MetricSpace
 	tw::Int lastTime;
 
 	tw::Int dumpPeriod;
-	tw::Int binaryFormat;
 
 	tw_boundary_spec bc0[4],bc1[4];
 
@@ -85,11 +84,8 @@ struct Simulation:Task,MetricSpace
 	ComputeTool* CreateTool(const std::string& basename,tw::tool_type theType);
 	ComputeTool* GetTool(const std::string& name);
 	ComputeTool* GetRestartedTool(std::ifstream& inFile);
-	//void ToolFromDirective(ComputeTool** tool,const std::vector<tw::tool_type>& whiteList,std::stringstream& inputString,const std::string& command);
 	void ToolFromDirective(std::vector<ComputeTool*>& tool,std::stringstream& inputString,const std::string& command);
 	bool RemoveTool(ComputeTool *theTool);
-
-	Profile* GetProfile(const std::string& name,const std::string& profileType);
 
 	void SetCellWidthsAndLocalSize();
 	void SetGlobalSizeAndLocalCorner();

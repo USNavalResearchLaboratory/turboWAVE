@@ -14,6 +14,7 @@
 namespace tw
 {
 	enum class tool_type {		nullTool,
+		uniformProfile,channelProfile,gaussianProfile,columnProfile,piecewiseProfile,corrugatedProfile,
 		eigenmodePropagator, adiPropagator, isotropicPropagator,
 		iterativePoissonSolver, facrPoissonSolver, eigenmodePoissonSolver, ellipticSolver1D,
 		generalParabolicPropagator, schroedingerPropagator,
@@ -29,6 +30,10 @@ struct ComputeTool
 	std::string name;
 	int refCount; // how many modules currently using
 	tw::input::DirectiveReader directives;
+
+	// Allow for a region
+	std::string region_name;
+	Region *theRgn;
 
 	// OpenCL Support
 	private:

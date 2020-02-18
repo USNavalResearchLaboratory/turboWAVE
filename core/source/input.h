@@ -128,13 +128,16 @@ namespace tw
 		{
 			Vec3(tw::vec3 *v) : Numbers<tw::Float>(&v->x,3) { ; }
 		};
-		template <class T> // any type with push_back method
+		template <class T>
 		struct List : Directive
 		{
+			// This is designed to work only for T being a container of tw::Float types.
+			// The container has to support the resize method, and be subscriptable.
 			T *dat;
 			List(T *d) { dat=d; }
 			virtual void Read(std::stringstream& in,const std::string& key)
 			{
+				std::vector<tw::Float> temp;
 				Directive::Read(in,key);
 				std::string word;
 				in >> word;
@@ -144,8 +147,11 @@ namespace tw
 				{
 					in >> word;
 					if (word!="}")
-						dat->push_back(std::stod(word));
+						temp.push_back(std::stod(word));
 				} while (word!="}");
+				dat->resize(temp.size());
+				for (tw::Int i=0;i<temp.size();i++)
+					(*dat)[i] = temp[i];
 			}
 		};
 		template <class T>

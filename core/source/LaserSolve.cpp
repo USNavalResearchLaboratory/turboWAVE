@@ -96,7 +96,6 @@ void LaserSolver::VerifyInput()
 void LaserSolver::ReadData(std::ifstream& inFile)
 {
 	Module::ReadData(inFile);
-	propagator = (LaserPropagator*)owner->GetRestartedTool(inFile);
 	inFile.read((char *)&laserFreq,sizeof(tw::Float));
 	inFile.read((char *)&polarizationType,sizeof(tw_polarization_type));
 	a0.ReadData(inFile);
@@ -106,7 +105,6 @@ void LaserSolver::ReadData(std::ifstream& inFile)
 void LaserSolver::WriteData(std::ofstream& outFile)
 {
 	Module::WriteData(outFile);
-	propagator->SaveToolReference(outFile);
 	outFile.write((char *)&laserFreq,sizeof(tw::Float));
 	outFile.write((char *)&polarizationType,sizeof(tw_polarization_type));
 	a0.WriteData(outFile);

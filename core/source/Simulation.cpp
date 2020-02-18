@@ -167,7 +167,6 @@ Simulation::Simulation(const std::string& file_name)
 	stepNow = 1;
 	stepsToTake = 32;
 	lastTime = 0;
-	binaryFormat = 3;
 
 	dumpPeriod = 0;
 
@@ -671,33 +670,6 @@ bool Simulation::RemoveTool(ComputeTool *theTool)
 	return false;
 }
 
-Profile* Simulation::GetProfile(const std::string& name,const std::string& profileType)
-{
-	// Respond to generate keyword; create a profile for the named module.
-	// Put the new profile on the Module's list and return the pointer to the profile.
-	// Should Profiles be ComputeTools?
-	Profile* theProfile = NULL;
-	Module* theModule = GetModule(name);
-
-	if (profileType=="uniform")
-		theProfile = new UniformProfile(clippingRegion);
-	if (profileType=="piecewise")
-		theProfile = new PiecewiseProfile(clippingRegion);
-	if (profileType=="channel")
-		theProfile = new ChannelProfile(clippingRegion);
-	if (profileType=="column")
-		theProfile = new ColumnProfile(clippingRegion);
-	if (profileType=="beam" || profileType=="gaussian")
-		theProfile = new GaussianProfile(clippingRegion);
-	if (profileType=="corrugated")
-		theProfile = new CorrugatedProfile(clippingRegion);
-
-	if (theProfile==NULL)
-		throw tw::FatalError("Invalid profile type <"+profileType+">");
-	theModule->profile.push_back(theProfile);
-	return theProfile;
-}
-
 void Simulation::MoveWindow()
 {
 	tw::Int i;
@@ -756,7 +728,6 @@ void Simulation::ReadData(std::ifstream& inFile)
 	inFile.read((char *)&neutralize,sizeof(bool));
 	inFile.read((char *)&stepsToTake,sizeof(tw::Int));
 	inFile.read((char *)&dumpPeriod,sizeof(tw::Int));
-	inFile.read((char *)&binaryFormat,sizeof(tw::Int));
 	inFile.read((char *)bc0,sizeof(tw_boundary_spec)*4);
 	inFile.read((char *)bc1,sizeof(tw_boundary_spec)*4);
 	inFile.read((char *)&radialProgressionFactor,sizeof(tw::Float));
@@ -804,8 +775,11 @@ void Simulation::ReadData(std::ifstream& inFile)
 	inFile.read((char *)&num,sizeof(tw::Int));
 	for (i=0;i<num;i++)
 	{
+		// Following calls Module::ReadData, the base takes care of module containment, and populating the ComputeTool list.
 		module.push_back(Module::CreateObjectFromFile(inFile,this));
-		// above calls Module::ReadData, the base takes care of module containment, derived methods must restore tool pointers.
+		// Following is a virtual method, which importantly, is where derived classes can process ComputeTool list.
+		// The base method must always be invoked in order to handle Profiles and retrieval of a tool's region.
+		module.back()->VerifyInput();
 		(*tw_out) << "Installed Module " << module.back()->name << std::endl;
 	}
 
@@ -892,7 +866,6 @@ void Simulation::WriteData(std::ofstream& outFile)
 	outFile.write((char *)&neutralize,sizeof(bool));
 	outFile.write((char *)&stepsToTake,sizeof(tw::Int));
 	outFile.write((char *)&dumpPeriod,sizeof(tw::Int));
-	outFile.write((char *)&binaryFormat,sizeof(tw::Int));
 	outFile.write((char *)bc0,sizeof(tw_boundary_spec)*4);
 	outFile.write((char *)bc1,sizeof(tw_boundary_spec)*4);
  	outFile.write((char *)&radialProgressionFactor,sizeof(tw::Float));
@@ -905,7 +878,7 @@ void Simulation::WriteData(std::ofstream& outFile)
 	i = clippingRegion.size();
 	outFile.write((char *)&i,sizeof(tw::Int));
 	for (i=1;i<clippingRegion.size();i++) // don't write index 0, it is created by constructor
-	clippingRegion[i]->WriteData(outFile);
+		clippingRegion[i]->WriteData(outFile);
 
 	uniformDeviate->WriteData(outFile);
 	gaussianDeviate->WriteData(outFile);
@@ -1425,20 +1398,34 @@ void Simulation::ReadInputFile()
 				boxDiagnostic.back()->ReadInputFile(inputString);
 			}
 
-			if (!processed && preamble[0]!="grid")
-				throw tw::FatalError("'new' block with key '"+preamble[0]+"' was not understood.");
+			if (preamble[0]=="grid") // drop out of grid block, it was already processed during first pass.
+			{
+				processed = true;
+				tw::input::ExitInputFileBlock(inputString,true);
+			}
+
+			if (!processed)
+				throw tw::FatalError("<new> block with key <"+preamble[0]+"> was not understood.");
 		}
 
+		// Creation of a tool using the generate keyword
 		if (com1=="generate")
 		{
-			std::string key,name;
-			inputString >> key >> name >> word;
-			if (word!="{")
-				throw tw::FatalError("Expected opening brace after <generate "+key+" "+name+">");
-			theProfile = GetProfile(name,key);
-			(*tw_out) << "Create " << key << " " << name << std::endl;
-			theProfile->ReadInputFileBlock(inputString,neutralize);
-			(*tw_out) << "   Clipping region = " << theProfile->theRgn->name << std::endl;
+			bool processed = false;
+			// Get the preamble = words that come between "generate" and the opening token
+			std::vector<std::string> preamble = tw::input::EnterInputFileBlock(inputString,"{");
+			tw::tool_type whichTool = ComputeTool::CreateTypeFromInput(preamble);
+			std::string module_name(preamble.back());
+			std::string tool_name(preamble[0]);
+			if (whichTool!=tw::tool_type::nullTool)
+			{
+				processed = true;
+				ComputeTool *tool = CreateTool(tool_name,whichTool);
+				tool->ReadInputFileBlock(inputString);
+				GetModule(module_name)->moduleTool.push_back(tool);
+			}
+			if (!processed)
+				throw tw::FatalError("<generate> block with key <"+preamble[0]+"> was not understood.");
 		}
 
 		// Outside declarations: must come after the above
@@ -1522,15 +1509,6 @@ void Simulation::ReadInputFile()
 			inputString >> word >> word >> word;
 			movingWindow = (word=="yes" || word=="on" || word=="true");
 			(*tw_out) << "Moving Window = " << movingWindow << std::endl;
-		}
-
-		if (com1=="binary")
-		{
-			inputString >> word >> word >> word;
-			if (word=="2d")
-				binaryFormat = 2;
-			if (word=="3d")
-				binaryFormat = 3;
 		}
 
 		if (com1=="append")

@@ -1,5 +1,52 @@
 enum tw_geometry {cartesian,cylindrical,spherical};
 enum tw_boundary_spec {cyclic,reflecting,absorbing,emitting,axisymmetric};
+enum boundarySpec
+{
+	normalFluxFixed,
+	dirichletWall,
+	neumannWall,
+	dirichletCell,
+	natural,
+	periodic,
+	none
+};
+
+enum axisSpec { tAxis , xAxis , yAxis , zAxis };
+enum sideSpec { lowSide , highSide };
+
+inline tw::Int naxis(const axisSpec& axis)
+{
+	switch (axis)
+	{
+		case tAxis:
+			return 0;
+		case xAxis:
+			return 1;
+		case yAxis:
+			return 2;
+		case zAxis:
+			return 3;
+		default:
+			return 0;
+	}
+}
+
+inline axisSpec enumaxis(tw::Int ax)
+{
+	switch (ax)
+	{
+		case 0:
+			return tAxis;
+		case 1:
+			return xAxis;
+		case 2:
+			return yAxis;
+		case 3:
+			return zAxis;
+		default:
+			return tAxis;
+	}
+}
 
 struct Primitive
 {

@@ -8,21 +8,18 @@
 //               //
 ///////////////////
 
-
-Profile::Profile(std::vector<Region*>& rlist) : rgnList(rlist)
+Profile::Profile(const std::string& name,MetricSpace *m,Task *tsk) : ComputeTool(name,m,tsk)
 {
-	profileSpec = nullProfile;
 	symmetry = cartesian;
-	segmentShape = loading::triangle;
+	segmentShape = tw::profile::shape::triangle;
 	neutralize = true;
-	timingMethod = triggeredProfile;
+	timingMethod = tw::profile::timing::triggered;
 	variableCharge = false;
-	loadingMethod = deterministic;
-	whichQuantity = densityProfile;
+	loadingMethod = tw::profile::loading::deterministic;
+	whichQuantity = tw::profile::quantity::density;
 	modeAmplitude = 0.0;
 	modeNumber = 0.0;
 	temperature = 0.0;
-	theRgn = rgnList[0];
 	wasTriggered = false;
 	t0 = 0.0;
 	t1 = tw::big_pos;
@@ -30,165 +27,87 @@ Profile::Profile(std::vector<Region*>& rlist) : rgnList(rlist)
 	orientation.v = tw::vec3(0,1,0);
 	orientation.w = tw::vec3(0,0,1);
 	gamma_boost = 1.0;
+
+	// Lots of enumerated-type hash tables involved in Profile directives.
+	// Do them first, then setup directives.
+
+	std::map<std::string,tw::profile::quantity> qty = {
+		{ "density",tw::profile::quantity::density },
+		{ "energy",tw::profile::quantity::energy },
+		{ "px",tw::profile::quantity::px },
+		{ "py",tw::profile::quantity::py },
+		{ "pz",tw::profile::quantity::pz }};
+
+	std::map<std::string,tw::profile::shape> shp = {
+		{ "triangle",tw::profile::shape::triangle },
+		{ "quartic",tw::profile::shape::quartic },
+		{ "quintic",tw::profile::shape::quintic }};
+
+	std::map<std::string,tw::profile::timing> tm = {
+		{ "triggered",tw::profile::timing::triggered },
+		{ "maintained",tw::profile::timing::maintained }};
+
+	std::map<std::string,tw::profile::loading> ld = {
+		{ "deterministic",tw::profile::loading::deterministic },
+		{ "statistical",tw::profile::loading::statistical }};
+
+	std::map<std::string,tw_geometry> geo = {{"cylindrical",cylindrical},{"spherical",spherical}};
+
+	directives.Add("clipping region",new tw::input::String(&region_name));
+	directives.Add("neutralize",new tw::input::Bool(&neutralize)); // not used
+	directives.Add("position",new tw::input::Vec3(&centerPt));
+	directives.Add("type",new tw::input::Enums<tw::profile::quantity>(qty,&whichQuantity));
+	directives.Add("drift momentum",new tw::input::Vec3(&driftMomentum));
+	directives.Add("thermal momentum",new tw::input::Vec3(&thermalMomentum));
+	directives.Add("temperature",new tw::input::Float(&temperature));
+	directives.Add("shape",new tw::input::Enums<tw::profile::shape>(shp,&segmentShape));
+	directives.Add("timing",new tw::input::Enums<tw::profile::timing>(tm,&timingMethod));
+	directives.Add("t0",new tw::input::Float(&t0));
+	directives.Add("t1",new tw::input::Float(&t1));
+	directives.Add("loading method",new tw::input::Enums<tw::profile::loading>(ld,&loadingMethod));
+	directives.Add("symmetry",new tw::input::Enums<tw_geometry>(geo,&symmetry));
+	directives.Add("mode amplitude",new tw::input::Float(&modeAmplitude));
+	directives.Add("mode number",new tw::input::Vec3(&modeNumber));
+	directives.Add("boosted frame gamma",new tw::input::Float(&gamma_boost));
+	directives.Add("particle weight",new tw::input::Custom);
+	directives.Add("euler angles",new tw::input::Custom);
 }
 
-Profile* Profile::CreateObjectFromFile(std::vector<Region*>& rgnList,std::ifstream& inFile)
+void Profile::Initialize()
 {
-	Profile *ans;
-	tw_profile_spec theSpec;
-	inFile.read((char *)&theSpec,sizeof(tw_profile_spec));
-	switch (theSpec)
-	{
-		case nullProfile:
-			break;
-		case uniformProfile:
-			ans = new UniformProfile(rgnList);
-			break;
-		case gaussianProfile:
-			ans = new GaussianProfile(rgnList);
-			break;
-		case channelProfile:
-			ans = new ChannelProfile(rgnList);
-			break;
-		case columnProfile:
-			ans = new ColumnProfile(rgnList);
-			break;
-		case piecewiseProfile:
-			ans = new PiecewiseProfile(rgnList);
-			break;
-		case corrugatedProfile:
-			ans = new CorrugatedProfile(rgnList);
-			break;
-	}
-	ans->ReadData(inFile);
-	return ans;
-}
-
-void Profile::ReadInputFileBlock(std::stringstream& inputString,bool neutralize)
-{
-	this->neutralize = neutralize;
-	std::string com;
-	do
-	{
-		inputString >> com;
-		ReadInputFileDirective(inputString,com);
-	} while (com!="}");
 }
 
 void Profile::ReadInputFileDirective(std::stringstream& inputString,const std::string& com)
 {
-    std::string word;
-
-	if (com=="use")
-		throw tw::FatalError("'use' directives not supported.  See docs for alternative.");
-
-	theRgn = Region::ReadRegion(rgnList,theRgn,inputString,com);
-
-	if (com=="position")
-		inputString >> word >> centerPt.x >> centerPt.y >> centerPt.z;
-	if (com=="type") // eg, type = energy
-	{
-		inputString >> word >> word;
-		if (word=="density")
-			whichQuantity = densityProfile;
-		if (word=="energy")
-			whichQuantity = energyProfile;
-		if (word=="px")
-			whichQuantity = pxProfile;
-		if (word=="py")
-			whichQuantity = pyProfile;
-		if (word=="pz")
-			whichQuantity = pzProfile;
-	}
-	if (com=="drift")
-		inputString >> word >> word >> driftMomentum.x >> driftMomentum.y >> driftMomentum.z;
-	if (com=="thermal")
-		inputString >> word >> word >> thermalMomentum.x >> thermalMomentum.y >> thermalMomentum.z;
-	if (com=="temperature_eV" || com=="temperature_ev")
-		throw tw::FatalError("Outdated temperature input.  Use unit conversion macros, e.g., temperature = %1.0eV or temperature = %11600K");
-	if (com=="temperature")
-		inputString >> word >> temperature;
-	if (com=="shape") // eg, shape = triangle
-	{
-		inputString >> word >> word;
-		if (word=="triangle")
-			segmentShape = loading::triangle;
-		if (word=="quartic")
-			segmentShape = loading::quartic;
-		if (word=="quintic")
-			segmentShape = loading::quintic;
-	}
-	if (com=="timing")
-	{
-		inputString >> word >> word;
-		if (word=="trigger" || word=="triggered")
-			timingMethod = triggeredProfile;
-		else
-			timingMethod = maintainedProfile;
-	}
-    if (com=="t0")
-        inputString >> word >> t0;
-    if (com=="t1")
-        inputString >> word >> t1;
-	if (com=="loading")
-	{
-		inputString >> word >> word;
-		if (word=="deterministic")
-			loadingMethod = deterministic;
-		else
-			loadingMethod = statistical;
-	}
-	if (com=="symmetry")
-	{
-		inputString >> word >> word;
-		if (word=="axisymmetric" || word=="cylindrical")
-			symmetry = cylindrical;
-		if (word=="spherical")
-			symmetry = spherical;
-	}
-	if (com=="particle")
-	{
-		inputString >> word >> word >> word;
-		if (word=="variable")
-			variableCharge = true;
-		else
-			variableCharge = false;
-	}
-	if (com=="mode")
+	std::string word;
+	if (com=="particle weight")
 	{
 		inputString >> word;
-		if (word=="amplitude") // eg, mode amplitude = 0.1
-			inputString >> word >> modeAmplitude;
-		if (word=="number") // eg, mode number = ( 0 1 1 )
-			inputString >> word >> modeNumber.x >> modeNumber.y >> modeNumber.z;
+		if (word!="variable" && word!="fixed")
+			throw tw::FatalError("Invalid type <"+word+"> while processing key <particle weight>.");
+		variableCharge = (word=="variable" ? true : false);
 	}
-	if (com=="euler") // eg, euler angles = ( 45 90 30 )
+	if (com=="euler angles") // eg, euler angles = ( %45deg %90deg %30deg )
 	{
 		tw::Float alpha,beta,gamma;
-		inputString >> word >> word >> alpha >> beta >> gamma;
-		orientation.SetWithEulerAngles(alpha*pi/180.0,beta*pi/180.0,gamma*pi/180.0);
-	}
-	if (com=="boosted") // e.g., boosted frame gamma = 1
-	{
-		inputString >> word >> word >> word >> gamma_boost;
+		inputString >> alpha >> beta >> gamma;
+		orientation.SetWithEulerAngles(alpha,beta,gamma);
 	}
 }
 
 void Profile::ReadData(std::ifstream& inFile)
 {
-    tw::Int rgnIndex;
-    inFile.read((char *)&rgnIndex,sizeof(tw::Int));
-    theRgn = rgnList[rgnIndex];
+	ComputeTool::ReadData(inFile);
 	inFile.read((char *)&centerPt,sizeof(tw::vec3));
-	inFile.read((char *)&symmetry,sizeof(tw_geometry));
+	inFile.read((char *)&symmetry,sizeof(symmetry));
 	inFile.read((char *)&segmentShape,sizeof(segmentShape));
-	inFile.read((char *)&timingMethod,sizeof(tw_profile_timing));
+	inFile.read((char *)&timingMethod,sizeof(timingMethod));
 	inFile.read((char *)&thermalMomentum,sizeof(tw::vec3));
 	inFile.read((char *)&driftMomentum,sizeof(tw::vec3));
 	inFile.read((char *)&neutralize,sizeof(bool));
 	inFile.read((char *)&variableCharge,sizeof(bool));
-	inFile.read((char *)&loadingMethod,sizeof(tw_load_method));
-	inFile.read((char *)&whichQuantity,sizeof(tw_profile_quantity));
+	inFile.read((char *)&loadingMethod,sizeof(loadingMethod));
+	inFile.read((char *)&whichQuantity,sizeof(whichQuantity));
 	inFile.read((char *)&modeNumber,sizeof(tw::vec3));
 	inFile.read((char *)&modeAmplitude,sizeof(tw::Float));
 	inFile.read((char *)&temperature,sizeof(tw::Float));
@@ -201,19 +120,17 @@ void Profile::ReadData(std::ifstream& inFile)
 
 void Profile::WriteData(std::ofstream& outFile)
 {
-	outFile.write((char *)&profileSpec,sizeof(tw_profile_spec)); // must be first
-    tw::Int rgnIndex = std::find(rgnList.begin(),rgnList.end(),theRgn) - rgnList.begin();
-	outFile.write((char *)&rgnIndex,sizeof(tw::Int));
+	ComputeTool::WriteData(outFile);
 	outFile.write((char *)&centerPt,sizeof(tw::vec3));
-	outFile.write((char *)&symmetry,sizeof(tw_geometry));
+	outFile.write((char *)&symmetry,sizeof(symmetry));
 	outFile.write((char *)&segmentShape,sizeof(segmentShape));
-	outFile.write((char *)&timingMethod,sizeof(tw_profile_timing));
+	outFile.write((char *)&timingMethod,sizeof(timingMethod));
 	outFile.write((char *)&thermalMomentum,sizeof(tw::vec3));
 	outFile.write((char *)&driftMomentum,sizeof(tw::vec3));
 	outFile.write((char *)&neutralize,sizeof(bool));
 	outFile.write((char *)&variableCharge,sizeof(bool));
-	outFile.write((char *)&loadingMethod,sizeof(tw_load_method));
-	outFile.write((char *)&whichQuantity,sizeof(tw_profile_quantity));
+	outFile.write((char *)&loadingMethod,sizeof(loadingMethod));
+	outFile.write((char *)&whichQuantity,sizeof(whichQuantity));
 	outFile.write((char *)&modeNumber,sizeof(tw::vec3));
 	outFile.write((char *)&modeAmplitude,sizeof(tw::Float));
 	outFile.write((char *)&temperature,sizeof(tw::Float));
@@ -258,12 +175,10 @@ tw::Float Profile::GetValue(const tw::vec3& pos,const MetricSpace& ds)
 	return theRgn->Inside(Boost(pos),ds) ? 1.0 : 0.0;
 }
 
-void UniformProfile::ReadInputFileDirective(std::stringstream& inputString,const std::string& com)
+UniformProfile::UniformProfile(const std::string& name,MetricSpace *m,Task *tsk):Profile(name,m,tsk)
 {
-    std::string word;
-	Profile::ReadInputFileDirective(inputString,com);
-	if (com=="density")
-		inputString >> word >> density;
+	typeCode = tw::tool_type::uniformProfile;
+	directives.Add("density",new tw::input::Float(&density));
 }
 
 void UniformProfile::ReadData(std::ifstream& inFile)
@@ -283,14 +198,11 @@ tw::Float UniformProfile::GetValue(const tw::vec3& pos,const MetricSpace& ds)
 	return theRgn->Inside(Boost(pos),ds) ? gamma_boost*density : 0.0;
 }
 
-void GaussianProfile::ReadInputFileDirective(std::stringstream& inputString,const std::string& com)
+GaussianProfile::GaussianProfile(const std::string& name,MetricSpace *m,Task *tsk):Profile(name,m,tsk)
 {
-    std::string word;
-	Profile::ReadInputFileDirective(inputString,com);
-	if (com=="density")
-		inputString >> word >> density;
-	if (com=="size")
-		inputString >> word >> beamSize.x >> beamSize.y >> beamSize.z;
+	typeCode = tw::tool_type::gaussianProfile;
+	directives.Add("density",new tw::input::Float(&density));
+	directives.Add("size",new tw::input::Vec3(&beamSize));
 }
 
 void GaussianProfile::ReadData(std::ifstream& inFile)
@@ -318,27 +230,18 @@ tw::Float GaussianProfile::GetValue(const tw::vec3& pos,const MetricSpace& ds)
 	return theRgn->Inside(b,ds) ? gamma_boost*dens : 0.0;
 }
 
-void ChannelProfile::ReadInputFileDirective(std::stringstream& inputString,const std::string& com)
+ChannelProfile::ChannelProfile(const std::string& name,MetricSpace *m,Task *tsk):Profile(name,m,tsk)
 {
-    std::string word;
-	Profile::ReadInputFileDirective(inputString,com);
-	if (com=="radius")
-		throw tw::FatalError("Channel radius no longer supported.  Use polynomial coefficients.");
-	if (com=="coefficients")
-		inputString >> word >> n0 >> n2 >> n4 >> n6;
-	if (com=="zpoints") // eg, zpoints = { 0 1 2 3 }
-		tw::input::ReadArray(z,inputString);
-	if (com=="zdensity") // eg, zdensity = { 0 1 1 0 }
-		tw::input::ReadArray(fz,inputString);
+	typeCode = tw::tool_type::channelProfile;
+	directives.Add("coefficients",new tw::input::Numbers<tw::Float>(&coeff[0],4));
+	directives.Add("zpoints",new tw::input::List<std::valarray<tw::Float>>(&z));
+	directives.Add("zdensity",new tw::input::List<std::valarray<tw::Float>>(&fz));
 }
 
 void ChannelProfile::ReadData(std::ifstream& inFile)
 {
 	Profile::ReadData(inFile);
-	inFile.read((char *)&n0,sizeof(tw::Float));
-	inFile.read((char *)&n2,sizeof(tw::Float));
-	inFile.read((char *)&n4,sizeof(tw::Float));
-	inFile.read((char *)&n6,sizeof(tw::Float));
+	inFile.read((char *)&coeff[0],sizeof(coeff));
 
 	tw::Int zDim;
 	inFile.read((char *)&zDim,sizeof(tw::Int));
@@ -351,10 +254,7 @@ void ChannelProfile::ReadData(std::ifstream& inFile)
 void ChannelProfile::WriteData(std::ofstream& outFile)
 {
 	Profile::WriteData(outFile);
-	outFile.write((char *)&n0,sizeof(tw::Float));
-	outFile.write((char *)&n2,sizeof(tw::Float));
-	outFile.write((char *)&n4,sizeof(tw::Float));
-	outFile.write((char *)&n6,sizeof(tw::Float));
+	outFile.write((char *)&coeff[0],sizeof(coeff));
 
 	tw::Int zDim = z.size();
 	outFile.write((char *)&zDim,sizeof(tw::Int));
@@ -373,28 +273,24 @@ tw::Float ChannelProfile::GetValue(const tw::vec3& pos,const MetricSpace& ds)
 		if (p.z>=z[i] && p.z<=z[i+1])
 		{
 			w = (z[i+1]-p.z)/(z[i+1]-z[i]);
-			if (segmentShape==loading::quartic)
+			if (segmentShape==tw::profile::shape::quartic)
 				w = QuarticPulse(0.5*w);
-			if (segmentShape==loading::quintic)
+			if (segmentShape==tw::profile::shape::quintic)
 				w = QuinticRise(w);
 			dens = fz[i]*w + fz[i+1]*(1.0-w);
 		}
 	}
 	r2 = sqr(p.x) + sqr(p.y);
-	dens *= n0 + n2*r2 + n4*r2*r2 + n6*r2*r2*r2;
+	dens *= coeff[0] + coeff[1]*r2 + coeff[2]*r2*r2 + coeff[3]*r2*r2*r2;
 	return theRgn->Inside(b,ds) ? gamma_boost*dens : 0.0;
 }
 
-void ColumnProfile::ReadInputFileDirective(std::stringstream& inputString,const std::string& com)
+ColumnProfile::ColumnProfile(const std::string& name,MetricSpace *m,Task *tsk):Profile(name,m,tsk)
 {
-    std::string word;
-	Profile::ReadInputFileDirective(inputString,com);
-	if (com=="size")
-		inputString >> word >> beamSize.x >> beamSize.y >> beamSize.z;
-	if (com=="zpoints") // eg, zpoints = { 0 1 2 3 }
-		tw::input::ReadArray(z,inputString);
-	if (com=="zdensity") // eg, zdensity = { 0 1 1 0 }
-		tw::input::ReadArray(fz,inputString);
+	typeCode = tw::tool_type::columnProfile;
+	directives.Add("size",new tw::input::Vec3(&beamSize));
+	directives.Add("zpoints",new tw::input::List<std::valarray<tw::Float>>(&z));
+	directives.Add("zdensity",new tw::input::List<std::valarray<tw::Float>>(&fz));
 }
 
 void ColumnProfile::ReadData(std::ifstream& inFile)
@@ -432,9 +328,9 @@ tw::Float ColumnProfile::GetValue(const tw::vec3& pos,const MetricSpace& ds)
 		if (p.z>=z[i] && p.z<=z[i+1])
 		{
 			w = (z[i+1]-p.z)/(z[i+1]-z[i]);
-			if (segmentShape==loading::quartic)
+			if (segmentShape==tw::profile::shape::quartic)
 				w = QuarticPulse(0.5*w);
-			if (segmentShape==loading::quintic)
+			if (segmentShape==tw::profile::shape::quintic)
 				w = QuinticRise(w);
 			dens = fz[i]*w + fz[i+1]*(1.0-w);
 		}
@@ -444,9 +340,20 @@ tw::Float ColumnProfile::GetValue(const tw::vec3& pos,const MetricSpace& ds)
 	return theRgn->Inside(b,ds) ? gamma_boost*dens : 0.0;
 }
 
-void PiecewiseProfile::Initialize(MetricSpace *ds)
+PiecewiseProfile::PiecewiseProfile(const std::string& name,MetricSpace *m,Task *tsk) : Profile(name,m,tsk)
 {
-	Profile::Initialize(ds);
+	typeCode = tw::tool_type::piecewiseProfile;
+	directives.Add("xpoints",new tw::input::List<std::valarray<tw::Float>>(&x));
+	directives.Add("ypoints",new tw::input::List<std::valarray<tw::Float>>(&y));
+	directives.Add("zpoints",new tw::input::List<std::valarray<tw::Float>>(&z));
+	directives.Add("xdensity",new tw::input::List<std::valarray<tw::Float>>(&fx));
+	directives.Add("ydensity",new tw::input::List<std::valarray<tw::Float>>(&fy));
+	directives.Add("zdensity",new tw::input::List<std::valarray<tw::Float>>(&fz));
+}
+
+void PiecewiseProfile::Initialize()
+{
+	Profile::Initialize();
 	if (x.size()<2)
 	{
 		x.resize(2);
@@ -468,23 +375,6 @@ void PiecewiseProfile::Initialize(MetricSpace *ds)
 		theRgn->GetBoxLim(&z[0],&z[1],3);
 		fz = 1.0;
 	}
-}
-
-void PiecewiseProfile::ReadInputFileDirective(std::stringstream& inputString,const std::string& com)
-{
-	Profile::ReadInputFileDirective(inputString,com);
-	if (com=="xpoints") // eg, xpoints = { 0 1 2 3 }
-		tw::input::ReadArray(x,inputString);
-	if (com=="ypoints") // eg, ypoints = { 0 1 2 3 }
-		tw::input::ReadArray(y,inputString);
-	if (com=="zpoints") // eg, zpoints = { 0 1 2 3 }
-		tw::input::ReadArray(z,inputString);
-	if (com=="xdensity") // eg, xdensity = { 0 1 1 0 }
-		tw::input::ReadArray(fx,inputString);
-	if (com=="ydensity") // eg, ydensity = { 0 1 1 0 }
-		tw::input::ReadArray(fy,inputString);
-	if (com=="zdensity") // eg, zdensity = { 0 1 1 0 }
-		tw::input::ReadArray(fz,inputString);
 }
 
 void PiecewiseProfile::ReadData(std::ifstream& inFile)
@@ -563,9 +453,9 @@ tw::Float PiecewiseProfile::GetValue(const tw::vec3& pos,const MetricSpace& ds)
 				if (x0>=x[i] && x0<=x[i+1])
 				{
 					w = (x[i+1]-x0)/(x[i+1]-x[i]);
-					if (segmentShape==loading::quartic)
+					if (segmentShape==tw::profile::shape::quartic)
 						w = QuarticPulse(0.5*w);
-					if (segmentShape==loading::quintic)
+					if (segmentShape==tw::profile::shape::quintic)
 						w = QuinticRise(w);
 					ansX = fx[i]*w + fx[i+1]*(1.0-w);
 				}
@@ -577,9 +467,9 @@ tw::Float PiecewiseProfile::GetValue(const tw::vec3& pos,const MetricSpace& ds)
 				if (y0>=y[i] && y0<=y[i+1])
 				{
 					w = (y[i+1]-y0)/(y[i+1]-y[i]);
-					if (segmentShape==loading::quartic)
+					if (segmentShape==tw::profile::shape::quartic)
 						w = QuarticPulse(0.5*w);
-					if (segmentShape==loading::quintic)
+					if (segmentShape==tw::profile::shape::quintic)
 						w = QuinticRise(w);
 					ansY = fy[i]*w + fy[i+1]*(1.0-w);
 				}
@@ -591,9 +481,9 @@ tw::Float PiecewiseProfile::GetValue(const tw::vec3& pos,const MetricSpace& ds)
 				if (z0>=z[i] && z0<=z[i+1])
 				{
 					w = (z[i+1]-z0)/(z[i+1]-z[i]);
-					if (segmentShape==loading::quartic)
+					if (segmentShape==tw::profile::shape::quartic)
 						w = QuarticPulse(0.5*w);
-					if (segmentShape==loading::quintic)
+					if (segmentShape==tw::profile::shape::quintic)
 						w = QuinticRise(w);
 					ansZ = fz[i]*w + fz[i+1]*(1.0-w);
 				}
@@ -608,9 +498,9 @@ tw::Float PiecewiseProfile::GetValue(const tw::vec3& pos,const MetricSpace& ds)
 				if (r>=x[i] && r<=x[i+1])
 				{
 					w = (x[i+1]-r)/(x[i+1]-x[i]);
-					if (segmentShape==loading::quartic)
+					if (segmentShape==tw::profile::shape::quartic)
 						w = QuarticPulse(0.5*w);
-					if (segmentShape==loading::quintic)
+					if (segmentShape==tw::profile::shape::quintic)
 						w = QuinticRise(w);
 					ansX = fx[i]*w + fx[i+1]*(1.0-w);
 				}
@@ -622,9 +512,9 @@ tw::Float PiecewiseProfile::GetValue(const tw::vec3& pos,const MetricSpace& ds)
 				if (z0>=z[i] && z0<=z[i+1])
 				{
 					w = (z[i+1]-z0)/(z[i+1]-z[i]);
-					if (segmentShape==loading::quartic)
+					if (segmentShape==tw::profile::shape::quartic)
 						w = QuarticPulse(0.5*w);
-					if (segmentShape==loading::quintic)
+					if (segmentShape==tw::profile::shape::quintic)
 						w = QuinticRise(w);
 					ansZ = fz[i]*w + fz[i+1]*(1.0-w);
 				}
@@ -641,9 +531,9 @@ tw::Float PiecewiseProfile::GetValue(const tw::vec3& pos,const MetricSpace& ds)
 				if (r>=x[i] && r<=x[i+1])
 				{
 					w = (x[i+1]-r)/(x[i+1]-x[i]);
-					if (segmentShape==loading::quartic)
+					if (segmentShape==tw::profile::shape::quartic)
 						w = QuarticPulse(0.5*w);
-					if (segmentShape==loading::quintic)
+					if (segmentShape==tw::profile::shape::quintic)
 						w = QuinticRise(w);
 					ansX = fx[i]*w + fx[i+1]*(1.0-w);
 				}
@@ -658,24 +548,16 @@ tw::Float PiecewiseProfile::GetValue(const tw::vec3& pos,const MetricSpace& ds)
 	return theRgn->Inside(b,ds) ? gamma_boost*dens : 0.0;
 }
 
-void CorrugatedProfile::ReadInputFileDirective(std::stringstream& inputString,const std::string& com)
+CorrugatedProfile::CorrugatedProfile(const std::string& name,MetricSpace *m,Task *tsk) : Profile(name,m,tsk)
 {
-    std::string word;
-	Profile::ReadInputFileDirective(inputString,com);
-	if (com=="a0")
-		inputString >> word >> a0;
-	if (com=="gamma0")
-		inputString >> word >> gamma0;
-	if (com=="w0")
-		inputString >> word >> w0;
-	if (com=="wp0")
-		inputString >> word >> wp0;
-	if (com=="km")
-		inputString >> word >> km;
-	if (com=="delta")
-		inputString >> word >> delta;
-	if (com=="rchannel")
-		inputString >> word >> rchannel;
+	typeCode = tw::tool_type::corrugatedProfile;
+	directives.Add("a0",new tw::input::Float(&a0));
+	directives.Add("gamma0",new tw::input::Float(&gamma0));
+	directives.Add("w0",new tw::input::Float(&w0));
+	directives.Add("wp0",new tw::input::Float(&wp0));
+	directives.Add("km",new tw::input::Float(&km));
+	directives.Add("delta",new tw::input::Float(&delta));
+	directives.Add("rchannel",new tw::input::Float(&rchannel));
 }
 
 void CorrugatedProfile::ReadData(std::ifstream& inFile)
@@ -729,7 +611,7 @@ tw::Float CorrugatedProfile::GetValue(const tw::vec3& pos,const MetricSpace& ds)
 
 PulseShape::PulseShape()
 {
-	whichProfile = loading::quintic;
+	whichProfile = tw::profile::shape::quintic;
 	delay = 0.0;
 	risetime = 1.0;
 	holdtime = 0.0;
@@ -757,15 +639,15 @@ tw::Float PulseShape::PulseShapeFactor(const tw::Float t) const
 
 	switch (whichProfile)
 	{
-		case loading::triangle:
+		case tw::profile::shape::triangle:
 			return tau;
-		case loading::sech:
+		case tw::profile::shape::sech:
 			return SechRise(tau);
-		case loading::quartic:
+		case tw::profile::shape::quartic:
 			return QuarticRise(tau);
-		case loading::quintic:
+		case tw::profile::shape::quintic:
 			return QuinticRise(tau);
-		case loading::sin2:
+		case tw::profile::shape::sin2:
 			return Sin2Rise(tau);
 	}
 	return 0.0;
@@ -782,15 +664,15 @@ tw::Float PulseShape::D1Amplitude(const tw::Float t) const
 
 	switch (whichProfile)
 	{
-		case loading::triangle:
+		case tw::profile::shape::triangle:
 			return 0.0;
-		case loading::sech:
+		case tw::profile::shape::sech:
 			return w*D1SechRise(tau);
-		case loading::quartic:
+		case tw::profile::shape::quartic:
 			return w*D1QuarticRise(tau);
-		case loading::quintic:
+		case tw::profile::shape::quintic:
 			return w*D1QuinticRise(tau);
-		case loading::sin2:
+		case tw::profile::shape::sin2:
       return w*D1Sin2Rise(tau);
 	}
 	return 0.0;
@@ -993,13 +875,11 @@ void Wave::ReadInputFile(std::stringstream& inputString,std::string& command)
 		{
 			inputString >> word;
 			inputString >> phase;
-			phase *= pi/180.0;
 		}
 		if (word=="random") // eg, random phase = 10
 		{
 			inputString >> word >> word;
 			inputString >> randomPhase;
-			randomPhase *= pi/180.0;
 		}
 		if (word=="delay") // eg, delay = 10
 		{
@@ -1059,11 +939,11 @@ void Wave::ReadInputFile(std::stringstream& inputString,std::string& command)
 		{
 			inputString >> word >> word;
 			if (word=="quintic")
-				pulseShape.whichProfile = loading::quintic;
+				pulseShape.whichProfile = tw::profile::shape::quintic;
 			if (word=="sin2")
-				pulseShape.whichProfile = loading::sin2;
+				pulseShape.whichProfile = tw::profile::shape::sin2;
 			if (word=="sech")
-				pulseShape.whichProfile = loading::sech;
+				pulseShape.whichProfile = tw::profile::shape::sech;
 		}
 		if (word=="boosted") // e.g., boosted frame gamma = 1
 		{
@@ -1281,11 +1161,8 @@ void Conductor::ReadInputFile(std::stringstream& inputString,std::string& comman
 			tw::input::ReadArray(potential,inputString);
 		if (word=="w") // eg, w = { 0 , 1 , 2 }
 			tw::input::ReadArray(angFreq,inputString);
-		if (word=="phase") // eg, phase = { 0 , 0 , 90 }
-		{
+		if (word=="phase") // eg, phase = { 0 , 0 , %90deg }
 			tw::input::ReadArray(phase,inputString);
-			phase *= pi/180.0;
-		}
 		if (word=="delay") // eg, delay = 10
 		{
 			inputString >> word;
@@ -1316,11 +1193,11 @@ void Conductor::ReadInputFile(std::stringstream& inputString,std::string& comman
 		{
 			inputString >> word >> word;
 			if (word=="quintic")
-				pulseShape.whichProfile = loading::quintic;
+				pulseShape.whichProfile = tw::profile::shape::quintic;
 			if (word=="sin2")
-				pulseShape.whichProfile = loading::sin2;
+				pulseShape.whichProfile = tw::profile::shape::sin2;
 			if (word=="sech")
-				pulseShape.whichProfile = loading::sech;
+				pulseShape.whichProfile = tw::profile::shape::sech;
 		}
 		if (word=="enable")
 		{

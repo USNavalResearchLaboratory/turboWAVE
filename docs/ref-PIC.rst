@@ -251,8 +251,8 @@ Bound particles treated as anharmonic oscillators can be used in the electromagn
 
 		.. py:function:: phi = q1
 
-			:param float q1: Rotation about z in degrees.  Initial orientation has principal axes aligned with standard basis.  This rotation happens before the theta rotation.
+			:param float q1: Rotation about z in radians.  Initial orientation has principal axes aligned with standard basis.  This rotation happens before the theta rotation.
 
 		.. py:function:: theta = q2
 
-			:param float q2: Rotation about y in degrees.  Initial orientation has principal axes aligned with standard basis.  This rotation happens after the phi rotation.
+			:param float q2: Rotation about y in radians.  Initial orientation has principal axes aligned with standard basis.  This rotation happens after the phi rotation.

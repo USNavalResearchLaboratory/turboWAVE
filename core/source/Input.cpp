@@ -573,6 +573,16 @@ void tw::input::NormalizeInput(const UnitConverter& uc,std::string& in_out)
 		catch (std::invalid_argument) { throw tw::FatalError("Invalid unit conversion macro : " + in_out); }
 		units = in_out.substr(1+endpos);
 
+		// Angle Conversions
+		if (units=="rad")
+			nqty = qty;
+		if (units=="mrad")
+			nqty = 1e-3*qty;
+		if (units=="urad")
+			nqty = 1e-6*qty;
+		if (units=="deg")
+			nqty = qty*pi/180.0;
+
 		// Length Conversions
 		if (units=="um")
 			nqty = uc.MKSToSim(length_dim,1e-6*qty);
@@ -657,7 +667,9 @@ std::vector<std::string> tw::input::EnterInputFileBlock(std::stringstream& input
 		inputString >> word;
 		if (end_tokens.find(word)==std::string::npos)
 			preamble.push_back(std::string(word));
-	} while (end_tokens.find(word)==std::string::npos);
+	} while (end_tokens.find(word)==std::string::npos && !inputString.eof());
+	if (inputString.eof())
+		throw tw::FatalError("Encountered EOF while processing key <"+preamble[0]+">");
 	return preamble;
 }
 

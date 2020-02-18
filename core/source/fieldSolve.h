@@ -5,8 +5,6 @@ struct FieldSolver:Module
 	FieldSolver(const std::string& name,Simulation* sim);
 	virtual ~FieldSolver();
 	virtual void VerifyInput();
-	virtual void ReadData(std::ifstream& inFile);
-	virtual void WriteData(std::ofstream& outFile);
 };
 
 struct Electromagnetic:FieldSolver

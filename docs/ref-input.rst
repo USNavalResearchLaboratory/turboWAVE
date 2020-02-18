@@ -70,6 +70,10 @@ There are several pre-defined macros for unit conversion.  These are triggered b
 	* nanoseconds = ns
 	* microseconds = us
 	* seconds = s
+	* degrees = deg
+	* radians = rad
+	* milliradians = mrad
+	* microradians = urad
 	* Particles per cubic meter = m-3
 	* Particles per cubic centimeter = cm-3
 	* Joules per cubic centimeter = Jcm3
@@ -342,7 +346,7 @@ Laser radiation, which in this context is a label for radiation in the paraxial 
 
 		.. py:function:: phase = p0
 
-			:param float p0: phase shift in degrees
+			:param float p0: phase shift in radians
 
 		.. py:function:: delay = t0
 
@@ -537,7 +541,7 @@ The following directives may be used with any profile type
 
 .. py:function:: drift momentum = (px,py,pz)
 
-.. py:function:: loading = lmethod
+.. py:function:: loading method = lmethod
 
  	:param enum lmethod: loading method.  takes values ``deterministic``, ``statistical``
 

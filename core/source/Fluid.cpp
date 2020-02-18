@@ -648,11 +648,11 @@ bool Chemical::GenerateFluid(Field& hydro,Field& eos)
 	{
 		switch (profile[s]->timingMethod)
 		{
-			case triggeredProfile:
+			case tw::profile::timing::triggered:
 				timeGate = owner->elapsedTime>=profile[s]->t0 && !profile[s]->wasTriggered;
 				add = 1.0;
 				break;
-			case maintainedProfile:
+			case tw::profile::timing::maintained:
 				timeGate = owner->elapsedTime>=profile[s]->t0 && owner->elapsedTime<=profile[s]->t1;
 				add = 0.0;
 				break;
@@ -672,7 +672,7 @@ bool Chemical::GenerateFluid(Field& hydro,Field& eos)
 			for (auto cell : EntireCellRange(*this))
 			{
 				dens = profile[s]->GetValue(owner->Pos(cell),*owner);
-				if (profile[s]->whichQuantity==densityProfile && dens>0.0)
+				if (profile[s]->whichQuantity==tw::profile::quantity::density && dens>0.0)
 				{
 					kinetic = 0.5*Norm(dens*p0)/(tw::small_pos + mat.mass*dens);
 					vibrational = dens*mat.excitationEnergy/(fabs(exp(mat.excitationEnergy/kT) - 1.0) + tw::small_pos);
@@ -684,19 +684,19 @@ bool Chemical::GenerateFluid(Field& hydro,Field& eos)
 					hydro(cell,Xi) = add*hydro(cell,Xi) + vibrational;
 					master->scratch(cell) = dens*mat.mass; // save nm for use below
 				}
-				if (profile[s]->whichQuantity==energyProfile)
+				if (profile[s]->whichQuantity==tw::profile::quantity::energy)
 				{
 					hydro(cell,U) = add*hydro(cell,U) + dens;
 				}
-				if (profile[s]->whichQuantity==pxProfile)
+				if (profile[s]->whichQuantity==tw::profile::quantity::px)
 				{
 					hydro(cell,npx) = add*hydro(cell,npx) + dens;
 				}
-				if (profile[s]->whichQuantity==pyProfile)
+				if (profile[s]->whichQuantity==tw::profile::quantity::py)
 				{
 					hydro(cell,npy) = add*hydro(cell,npy) + dens;
 				}
-				if (profile[s]->whichQuantity==pzProfile)
+				if (profile[s]->whichQuantity==tw::profile::quantity::pz)
 				{
 					hydro(cell,npz) = add*hydro(cell,npz) + dens;
 				}
@@ -740,7 +740,6 @@ void Chemical::VerifyInput()
 void Chemical::ReadData(std::ifstream& inFile)
 {
 	Module::ReadData(inFile);
-	eosData = (EOSComponent*)owner->GetRestartedTool(inFile);
 	ionization.ReadData(inFile);
 	inFile.read((char *)&mat,sizeof(mat));
 	inFile.read((char *)&indexInState,sizeof(indexInState));
@@ -749,7 +748,6 @@ void Chemical::ReadData(std::ifstream& inFile)
 void Chemical::WriteData(std::ofstream& outFile)
 {
 	Module::WriteData(outFile);
-	eosData->SaveToolReference(outFile);
 	ionization.WriteData(outFile);
 	outFile.write((char *)&mat,sizeof(mat));
 	outFile.write((char *)&indexInState,sizeof(indexInState));
@@ -818,12 +816,9 @@ void EquilibriumGroup::Initialize()
 	eosMixData->SetupIndexing(hidx,eidx,matset);
 }
 
-// DFG - below are the restart file interactions including EOS data
-
 void EquilibriumGroup::ReadData(std::ifstream& inFile)
 {
 	Module::ReadData(inFile);
-	eosMixData = (EOSMixture*)owner->GetRestartedTool(inFile);
 	inFile.read((char *)&mobile,sizeof(mobile));
 	inFile.read((char *)&forceFilter,sizeof(tw::Float));
 	inFile.read((char *)&hidx,sizeof(hidx));
@@ -834,7 +829,6 @@ void EquilibriumGroup::ReadData(std::ifstream& inFile)
 void EquilibriumGroup::WriteData(std::ofstream& outFile)
 {
 	Module::WriteData(outFile);
-	eosMixData->SaveToolReference(outFile);
 	outFile.write((char *)&mobile,sizeof(mobile));
 	outFile.write((char *)&forceFilter,sizeof(tw::Float));
 	outFile.write((char *)&hidx,sizeof(hidx));
@@ -2091,10 +2085,6 @@ void sparc::HydroManager::ReadData(std::ifstream& inFile)
 {
 	tw::Int i,num,hydro_size,eos_size;
 	Module::ReadData(inFile);
-
-	ellipticSolver = (EllipticSolver*)owner->GetRestartedTool(inFile);
-	parabolicSolver = (ParabolicSolver*)owner->GetRestartedTool(inFile);
-	laserPropagator = (IsotropicPropagator*)owner->GetRestartedTool(inFile);
 
 	inFile.read((char *)&radModel,sizeof(sparc::radiationModel));
 	inFile.read((char *)&lasModel,sizeof(sparc::laserModel));

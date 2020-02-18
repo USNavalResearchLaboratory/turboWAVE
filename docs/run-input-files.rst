@@ -69,6 +69,10 @@ In order to allow the use of conventional units in the input file, there is a si
 	"Millimeters", :samp:`mm`
 	"Centimeters", :samp:`cm`
 	"Meters", :samp:`m`
+	"Degrees", :samp:`deg`
+	"Radians", :samp:`rad`
+	"Milliradians", :samp:`mrad`
+	"Microradians", :samp:`urad`
 	"Particles per Cubic Meter", :samp:`m-3`
 	"Particles per Cubic Centimeter", :samp:`cm-3`
 	"Joules per Cubic Meter", :samp:`Jm3`
