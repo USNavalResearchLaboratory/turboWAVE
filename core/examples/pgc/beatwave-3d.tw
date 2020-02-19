@@ -26,15 +26,19 @@ new grid
 	decomposition = ( 4 , 4 , 16 )
 }
 
+new facr elliptic solver 'facr'
+{
+	poisson boundary condition z = ( open , open )
+}
+
 new coulomb electromagnetic module
 {
-	poisson boundary condition = ( open , open )
+	get tool with name = 'facr'
 }
 
 new pgc laser module
 {
 	carrier frequency = 31.0
-	propagator = adi
 }
 
 new pulse
@@ -75,7 +79,7 @@ new species electrons
 generate uniform electrons
 {
 	loading = deterministic
-	particle density = fixed
+	particle weight = fixed
 	density = 1
 	thermal momentum = ( 0.1 , 0.1 , 0.1 )
 }

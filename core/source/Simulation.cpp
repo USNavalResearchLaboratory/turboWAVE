@@ -343,6 +343,11 @@ void Simulation::PrepareSimulation()
 
 	ReadInputFile();
 
+	// The following is where Modules process the ComputeTool instances attached by the user.
+	// The base class automatically processes Profiles and searches for named Regions.
+	for (auto m : module)
+		m->VerifyInput();
+
 	// The Task and MetricSpace inherited members are initialized during input file reading,
 	// because Module constructors are allowed to assume the grid is fully specified.
 
@@ -776,10 +781,8 @@ void Simulation::ReadData(std::ifstream& inFile)
 	for (i=0;i<num;i++)
 	{
 		// Following calls Module::ReadData, the base takes care of module containment, and populating the ComputeTool list.
+		// Setup of ComputeTools is not completed until after input file processing, when Module::VerifyInput() is called.
 		module.push_back(Module::CreateObjectFromFile(inFile,this));
-		// Following is a virtual method, which importantly, is where derived classes can process ComputeTool list.
-		// The base method must always be invoked in order to handle Profiles and retrieval of a tool's region.
-		module.back()->VerifyInput();
 		(*tw_out) << "Installed Module " << module.back()->name << std::endl;
 	}
 
@@ -1313,7 +1316,6 @@ void Simulation::ReadInputFile()
 					MangleModuleName(super_module_name);
 					(*tw_out) << "Installing Automatic Supermodule: trigger=" << preamble[0] << ", name=" << super_module_name << "..." << std::endl;
 					module.push_back(Module::CreateObjectFromType(super_module_name,super_type,this));
-					module.back()->VerifyInput();
 					find_super(module.back());
 				}
 

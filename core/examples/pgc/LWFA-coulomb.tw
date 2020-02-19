@@ -25,16 +25,19 @@ new grid
 	decomposition = ( 1 , 1 , 1 )
 }
 
+new facr elliptic solver 'facr'
+{
+	poisson boundary condition z = open open
+}
+
 new coulomb electromagnetic module
 {
-	poisson boundary condition = open open
+	get tool with name = 'facr'
 }
 
 new pgc laser module
 {
 	carrier frequency = 50
-	propagator = adi
-	//propagator = spectral
 }
 
 new pulse

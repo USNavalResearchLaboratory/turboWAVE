@@ -228,6 +228,21 @@ Sometimes low level objects use ordered directives.  Then the form is typically
 
 There is usually only one key and no name given.  In this case the directives are all required and must be in the right order. However, an individual directive could itself be a variable length list.
 
+Associating Objects
+-------------------
+
+Another type of block creates an object and associates it with another object:
+
+.. py:function:: generate key1 [key2] .. [keyN] name { directives }
+
+In this case the start of the block is signaled by the word ``generate``.  Unlike a ``new`` block, the ``name`` is not optional, and refers to a previously created object.  The quintessential example is creating particles of a certain type, e.g., ``generate uniform electrons`` creates a ``ComputeTool`` object that generates a uniform particle distribution, and attaches this to a previously created ``Module`` object describing a particle species with the name ``electrons``.
+
+The ``generate`` block is typically used only for matter loading purposes.  For other types of tools, one uses a directive in the block of the object that needs the tool.  The directive takes the form
+
+.. py:function:: get tool with name = nm
+
+	:param str nm: the name of the tool to attach to the object that needs the tool
+
 Numerical Grid
 --------------
 
@@ -541,7 +556,7 @@ The following directives may be used with any profile type
 
 .. py:function:: drift momentum = (px,py,pz)
 
-.. py:function:: loading method = lmethod
+.. py:function:: loading = lmethod
 
  	:param enum lmethod: loading method.  takes values ``deterministic``, ``statistical``
 

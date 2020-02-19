@@ -27,13 +27,13 @@ new grid
 
 new coulomb electromagnetic module
 {
-	poisson boundary condition = ( dirichlet , neumann )
+	// Use the default elliptic solver
 }
 
 new pgc laser module
 {
 	carrier frequency = 4.5
-	propagator = adi
+	// Use the default laser propagator
 }
 
 new pulse
@@ -76,7 +76,7 @@ new species electrons
 generate uniform electrons
 {
 	loading = deterministic
-	particle density = fixed
+	particle weight = fixed
 	density = 1
 	thermal momentum = ( 0.1 , 0.1 , 0.1 )
 }

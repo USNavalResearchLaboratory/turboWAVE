@@ -38,9 +38,6 @@ Module::Module(const std::string& name,Simulation* sim)
 
 Module::~Module()
 {
-	for (tw::Int i=0;i<profile.size();i++)
-		delete profile[i];
-
 	#ifdef USE_OPENCL
 
 	if (programFilename!="")
@@ -173,7 +170,6 @@ void Module::ReadInputFileBlock(std::stringstream& inputString)
 		com = directives.ReadNext(inputString);
 		ReadInputFileDirective(inputString,com);
 	} while (com!="}");
-	VerifyInput();
 }
 
 bool Module::ReadQuasitoolBlock(const std::vector<std::string>& preamble,std::stringstream& inputString)

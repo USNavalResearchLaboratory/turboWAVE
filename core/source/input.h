@@ -159,10 +159,10 @@ namespace tw
 		{
 			T *dat1,*dat2,*dat3;
 			std::map<std::string,T> emap;
-			Enums(std::map<std::string,T>& m,T* d1,T* d2=NULL,T* d3=NULL)
+			Enums(std::map<std::string,T>& m,T* d1,T* d2=NULL,T* d3=NULL) : emap(m)
 			{
 				// must specify at least 1 data element, may specify up to 3.
-				emap=m; dat1=d1; dat2=d2; dat3=d3;
+				dat1=d1; dat2=d2; dat3=d3;
 			}
 			virtual void Read(std::stringstream& in,const std::string& key)
 			{

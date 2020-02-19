@@ -31,18 +31,28 @@ new grid
 	geometry = cylindrical
 }
 
+new eigenmode elliptic solver 'es'
+{
+	poisson boundary condition x = neumann dirichlet
+	poisson boundary condition z = open open
+}
+
 new curvilinear direct solver
 {
-	elliptic solver = eigenmode
+	get tool with name = 'es'
+}
+
+new eigenmode propagator 'prop'
+{
+	modes = 50
+	damping time = 1.0
+	absorbing layers = 40
 }
 
 new pgc laser module
 {
 	carrier frequency = 80
-	propagator = eigenmode
-	modes = 50
-	damping time = 1.0
-	absorbing layers = 40
+	get tool with name = 'prop'
 }
 
 new pulse

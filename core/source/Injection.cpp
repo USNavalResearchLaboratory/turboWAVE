@@ -64,7 +64,7 @@ Profile::Profile(const std::string& name,MetricSpace *m,Task *tsk) : ComputeTool
 	directives.Add("timing",new tw::input::Enums<tw::profile::timing>(tm,&timingMethod));
 	directives.Add("t0",new tw::input::Float(&t0));
 	directives.Add("t1",new tw::input::Float(&t1));
-	directives.Add("loading method",new tw::input::Enums<tw::profile::loading>(ld,&loadingMethod));
+	directives.Add("loading",new tw::input::Enums<tw::profile::loading>(ld,&loadingMethod));
 	directives.Add("symmetry",new tw::input::Enums<tw_geometry>(geo,&symmetry));
 	directives.Add("mode amplitude",new tw::input::Float(&modeAmplitude));
 	directives.Add("mode number",new tw::input::Vec3(&modeNumber));
@@ -82,7 +82,7 @@ void Profile::ReadInputFileDirective(std::stringstream& inputString,const std::s
 	std::string word;
 	if (com=="particle weight")
 	{
-		inputString >> word;
+		inputString >> word >> word;
 		if (word!="variable" && word!="fixed")
 			throw tw::FatalError("Invalid type <"+word+"> while processing key <particle weight>.");
 		variableCharge = (word=="variable" ? true : false);

@@ -29,10 +29,14 @@ new direct electromagnetic module
 {
 }
 
+new eigenmode propagator 'prop'
+{
+}
+
 new pgc laser module
 {
 	carrier frequency = 50
-	propagator = eigenmode
+	get tool with name = 'prop'
 }
 
 new pulse
@@ -58,7 +62,7 @@ generate piecewise electrons
 	zdensity = { 0.0 1.0 1.0 }
 	zpoints = { 0.0 10.0 10000.0 }
 	loading = deterministic
-	particle density = variable
+	particle weight = variable
 	shape = quintic
 }
 
