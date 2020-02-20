@@ -2,7 +2,7 @@ void Transform(tw::Float * array,tw::Int pts,tw::Int modes,tw::Int interval,std:
 void ReverseTransform(tw::Float * array,tw::Int pts,tw::Int modes,tw::Int interval,std::valarray<tw::Float>& rev_transform);
 tw::Float GetSphericalGroundState(std::valarray<tw::Float>& vec,std::valarray<tw::Float>& phi,tw::Float dr);
 tw::Float GetCylindricalGroundState(std::valarray<tw::Float>& vec,std::valarray<tw::Float>& phi,tw::Float dr);
-void ComputeTransformMatrices(boundarySpec radial_bc,std::valarray<tw::Float>& eigenvalue,std::valarray<tw::Float>& fwd,std::valarray<tw::Float>& rev,MetricSpace *space,Task *tsk);
+void ComputeTransformMatrices(tw::bc::fld radial_bc,std::valarray<tw::Float>& eigenvalue,std::valarray<tw::Float>& fwd,std::valarray<tw::Float>& rev,MetricSpace *space,Task *tsk);
 
 template <class T,class U>
 void TriDiagonal(std::valarray<T>& phi,std::valarray<T>& rho,U a,U b,U c);
@@ -80,7 +80,7 @@ struct FCT_Driver
 	~FCT_Driver();
 	void SetDensityElements(const Element& e) { en = e; }
 	void SetVelocityElement(tw::Int v) { vi = v; }
-	void Convect(const axisSpec& axis,boundarySpec low,boundarySpec high,tw::Float dt);
+	void Convect(const tw::dom::axis& axis,tw::bc::fld low,tw::bc::fld high,tw::Float dt);
 	void GetTrueFlux(Field& flux,const Element& dst,const Element& src)
 	{
 		CopyFieldData(flux,dst,*net_flux,src);

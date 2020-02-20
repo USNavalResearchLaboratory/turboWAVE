@@ -1,6 +1,7 @@
 #include "simulation.h"
 #include "fieldSolve.h"
 #include "electrostatic.h"
+using namespace tw::bc;
 
 
 ///////////////////////////////
@@ -19,23 +20,23 @@ Electrostatic::Electrostatic(const std::string& name,Simulation* sim):FieldSolve
 	Ef.Initialize(*this,owner);
 	J4.Initialize(4,*this,owner);
 
-	Ef.SetBoundaryConditions(xAxis,neumannWall,neumannWall);
-	Ef.SetBoundaryConditions(Element(0),xAxis,none,normalFluxFixed);
+	Ef.SetBoundaryConditions(tw::dom::xAxis,fld::neumannWall,fld::neumannWall);
+	Ef.SetBoundaryConditions(Element(0),tw::dom::xAxis,fld::none,fld::normalFluxFixed);
 
-	Ef.SetBoundaryConditions(yAxis,neumannWall,neumannWall);
-	Ef.SetBoundaryConditions(Element(1),yAxis,none,normalFluxFixed);
+	Ef.SetBoundaryConditions(tw::dom::yAxis,fld::neumannWall,fld::neumannWall);
+	Ef.SetBoundaryConditions(Element(1),tw::dom::yAxis,fld::none,fld::normalFluxFixed);
 
-	Ef.SetBoundaryConditions(zAxis,neumannWall,neumannWall);
-	Ef.SetBoundaryConditions(Element(2),zAxis,none,normalFluxFixed);
+	Ef.SetBoundaryConditions(tw::dom::zAxis,fld::neumannWall,fld::neumannWall);
+	Ef.SetBoundaryConditions(Element(2),tw::dom::zAxis,fld::none,fld::normalFluxFixed);
 
-	J4.SetBoundaryConditions(xAxis,dirichletCell,dirichletCell);
-	J4.SetBoundaryConditions(Element(1),xAxis,normalFluxFixed,normalFluxFixed);
+	J4.SetBoundaryConditions(tw::dom::xAxis,fld::dirichletCell,fld::dirichletCell);
+	J4.SetBoundaryConditions(Element(1),tw::dom::xAxis,fld::normalFluxFixed,fld::normalFluxFixed);
 
-	J4.SetBoundaryConditions(yAxis,dirichletCell,dirichletCell);
-	J4.SetBoundaryConditions(Element(2),yAxis,normalFluxFixed,normalFluxFixed);
+	J4.SetBoundaryConditions(tw::dom::yAxis,fld::dirichletCell,fld::dirichletCell);
+	J4.SetBoundaryConditions(Element(2),tw::dom::yAxis,fld::normalFluxFixed,fld::normalFluxFixed);
 
-	J4.SetBoundaryConditions(zAxis,dirichletCell,dirichletCell);
-	J4.SetBoundaryConditions(Element(3),zAxis,normalFluxFixed,normalFluxFixed);
+	J4.SetBoundaryConditions(tw::dom::zAxis,fld::dirichletCell,fld::dirichletCell);
+	J4.SetBoundaryConditions(Element(3),tw::dom::zAxis,fld::normalFluxFixed,fld::normalFluxFixed);
 }
 
 void Electrostatic::Initialize()

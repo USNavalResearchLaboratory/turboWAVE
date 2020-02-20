@@ -205,7 +205,7 @@ struct HydroManager:Module
 	void ComputeSources();
 	tw::Float EstimateTimeStep();
 
-	void HydroAdvance(const axisSpec& axis,tw::Float dt);
+	void HydroAdvance(const tw::dom::axis& axis,tw::Float dt);
 	void LaserAdvance(tw::Float dt);
 	void ChemAdvance(tw::Float dt);
 	void DiffusionAdvance(tw::Float dt);

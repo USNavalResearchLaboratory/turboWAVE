@@ -1,6 +1,7 @@
 #include "meta_base.h"
 #include "computeTool.h"
 #include "injection.h"
+using namespace tw::bc;
 
 ///////////////////
 //               //
@@ -10,7 +11,7 @@
 
 Profile::Profile(const std::string& name,MetricSpace *m,Task *tsk) : ComputeTool(name,m,tsk)
 {
-	symmetry = cartesian;
+	symmetry = tw::dom::cartesian;
 	segmentShape = tw::profile::shape::triangle;
 	neutralize = true;
 	timingMethod = tw::profile::timing::triggered;
@@ -51,7 +52,7 @@ Profile::Profile(const std::string& name,MetricSpace *m,Task *tsk) : ComputeTool
 		{ "deterministic",tw::profile::loading::deterministic },
 		{ "statistical",tw::profile::loading::statistical }};
 
-	std::map<std::string,tw_geometry> geo = {{"cylindrical",cylindrical},{"spherical",spherical}};
+	std::map<std::string,tw::dom::geometry> geo = {{"cylindrical",tw::dom::cylindrical},{"spherical",tw::dom::spherical}};
 
 	directives.Add("clipping region",new tw::input::String(&region_name));
 	directives.Add("neutralize",new tw::input::Bool(&neutralize)); // not used
@@ -65,7 +66,7 @@ Profile::Profile(const std::string& name,MetricSpace *m,Task *tsk) : ComputeTool
 	directives.Add("t0",new tw::input::Float(&t0));
 	directives.Add("t1",new tw::input::Float(&t1));
 	directives.Add("loading",new tw::input::Enums<tw::profile::loading>(ld,&loadingMethod));
-	directives.Add("symmetry",new tw::input::Enums<tw_geometry>(geo,&symmetry));
+	directives.Add("symmetry",new tw::input::Enums<tw::dom::geometry>(geo,&symmetry));
 	directives.Add("mode amplitude",new tw::input::Float(&modeAmplitude));
 	directives.Add("mode number",new tw::input::Vec3(&modeNumber));
 	directives.Add("boosted frame gamma",new tw::input::Float(&gamma_boost));
@@ -446,7 +447,7 @@ tw::Float PiecewiseProfile::GetValue(const tw::vec3& pos,const MetricSpace& ds)
 
 	switch (symmetry)
 	{
-		case cartesian:
+		case tw::dom::cartesian:
 			ansX = 0.0;
 			for (i=0;i<xDim-1;i++)
 			{
@@ -489,7 +490,7 @@ tw::Float PiecewiseProfile::GetValue(const tw::vec3& pos,const MetricSpace& ds)
 				}
 			}
 			break;
-		case cylindrical:
+		case tw::dom::cylindrical:
 			r = sqrt(sqr(x0 - x[0]) + sqr(y0 - 0.5*(y[0] + y[yDim-1])));
 			r += x[0];
 			ansX = 0.0;
@@ -522,7 +523,7 @@ tw::Float PiecewiseProfile::GetValue(const tw::vec3& pos,const MetricSpace& ds)
 
 			ansY = 1.0;
 			break;
-		case spherical:
+		case tw::dom::spherical:
 			r = sqrt(sqr(x0 - x[0]) + sqr(y0 - 0.5*(y[0] + y[yDim-1])) + sqr(z0 - 0.5*(z[0] + z[zDim-1])));
 			r += x[0];
 			ansX = 0.0;
@@ -1295,7 +1296,7 @@ void Conductor::WriteData(std::ofstream& outFile)
 //////////////////////
 
 
-void LindmanBoundary::Initialize(Task *task,MetricSpace *ms,std::vector<Wave*> *wave,const axisSpec& axis,const sideSpec& side,tw::Int c0,tw::Int c1)
+void LindmanBoundary::Initialize(Task *task,MetricSpace *ms,std::vector<Wave*> *wave,const tw::dom::axis& axis,const tw::dom::side& side,tw::Int c0,tw::Int c1)
 {
 	this->ms = ms;
 	this->wave = wave;
@@ -1307,34 +1308,34 @@ void LindmanBoundary::Initialize(Task *task,MetricSpace *ms,std::vector<Wave*> *
 
 	DiscreteSpace bm_layout;
 
-	if (axis==xAxis && ms->Dim(1)==1)
+	if (axis==tw::dom::xAxis && ms->Dim(1)==1)
 		throw tw::FatalError("Lindman boundary geometry is not consistent");
 
-	if (axis==yAxis && ms->Dim(2)==1)
+	if (axis==tw::dom::yAxis && ms->Dim(2)==1)
 		throw tw::FatalError("Lindman boundary geometry is not consistent");
 
-	if (axis==zAxis && ms->Dim(3)==1)
+	if (axis==tw::dom::zAxis && ms->Dim(3)==1)
 		throw tw::FatalError("Lindman boundary geometry is not consistent");
 
 	switch (axis)
 	{
-		case tAxis:
+		case tw::dom::tAxis:
 			break;
-		case xAxis:
+		case tw::dom::xAxis:
 			bm_layout.Resize(1,ms->Dim(2),ms->Dim(3),Corner(*ms),PhysicalSize(*ms));
 			break;
-		case yAxis:
+		case tw::dom::yAxis:
 			bm_layout.Resize(ms->Dim(1),1,ms->Dim(3),Corner(*ms),PhysicalSize(*ms));
 			break;
-		case zAxis:
+		case tw::dom::zAxis:
 			bm_layout.Resize(ms->Dim(1),ms->Dim(2),1,Corner(*ms),PhysicalSize(*ms));
 			break;
 	}
 
 	boundaryMemory.Initialize( 9 , bm_layout , task );
-	boundaryMemory.SetBoundaryConditions(xAxis,none,none);
-	boundaryMemory.SetBoundaryConditions(yAxis,none,none);
-	boundaryMemory.SetBoundaryConditions(zAxis,none,none);
+	boundaryMemory.SetBoundaryConditions(tw::dom::xAxis,fld::none,fld::none);
+	boundaryMemory.SetBoundaryConditions(tw::dom::yAxis,fld::none,fld::none);
+	boundaryMemory.SetBoundaryConditions(tw::dom::zAxis,fld::none,fld::none);
 }
 
 void LindmanBoundary::UpdateBoundaryMemory(Field& A,tw::Float dt)
@@ -1342,12 +1343,12 @@ void LindmanBoundary::UpdateBoundaryMemory(Field& A,tw::Float dt)
 	tw::Float alpha[3] = {0.3264,0.1272,0.0309};
 	tw::Float beta[3] = {0.7375,0.98384,0.9996472};
 
-	tw::Int ax = naxis(axis);
+	tw::Int ax = tw::dom::naxis(axis);
 	tw::Float source,dtt;
 	tw::Int i,j,k,s,s0,s1;
 
-	s0 = side==lowSide ? 0 : A.Dim(ax);
-	s1 = side==lowSide ? 1 : A.Dim(ax)+1;
+	s0 = side==tw::dom::low ? 0 : A.Dim(ax);
+	s1 = side==tw::dom::low ? 1 : A.Dim(ax)+1;
 
 	for (auto strip : StripRange(A,ax,strongbool::no))
 	{
@@ -1375,7 +1376,7 @@ void LindmanBoundary::UpdateBoundaryMemory(Field& A,tw::Float dt)
 
 void LindmanBoundary::Set(Field& A,tw::Float t0,tw::Float dt)
 {
-	tw::Int ax = naxis(axis);
+	tw::Int ax = tw::dom::naxis(axis);
 	tw::Float sgn,correction,ds[4] = {dt,dx(A),dy(A),dz(A)};
 	tw::Int i,j,k,s,s0,s1;
 	tw::vec3 pos,Ain;
@@ -1385,10 +1386,10 @@ void LindmanBoundary::Set(Field& A,tw::Float t0,tw::Float dt)
 
 	tw::vec3 direction(tw::Int(ax==1),tw::Int(ax==2),tw::Int(ax==3));
 	tw::vec3 offset = 0.5 * direction * ds[ax];
-	sgn = side==highSide ? -1.0 : 1.0;
+	sgn = side==tw::dom::high ? -1.0 : 1.0;
 
-	s0 = side==lowSide ? 0 : A.Dim(ax)+1;
-	s1 = side==lowSide ? 1 : A.Dim(ax);
+	s0 = side==tw::dom::low ? 0 : A.Dim(ax)+1;
+	s1 = side==tw::dom::low ? 1 : A.Dim(ax);
 	for (auto strip : StripRange(A,ax,strongbool::no))
 	{
 		strip.Decode(s0,&i,&j,&k);

@@ -1,6 +1,7 @@
 #include "simulation.h"
 #include "fieldSolve.h"
 #include "fluid.h"
+using namespace tw::bc;
 
 /////////////////////////////
 //                         //
@@ -81,52 +82,52 @@ void Fluid::Initialize()
 	if (owner->restarted)
 		return;
 
-	boundarySpec xNormal,xParallel,other;
-	xNormal = owner->bc0[1]==axisymmetric || owner->bc0[1]==reflecting ? dirichletWall : neumannWall;
-	xParallel = neumannWall;
-	other = neumannWall;
+	tw::bc::fld xNormal,xParallel,other;
+	xNormal = owner->bc0[1]==par::axisymmetric || owner->bc0[1]==par::reflecting ? fld::dirichletWall : fld::neumannWall;
+	xParallel = fld::neumannWall;
+	other = fld::neumannWall;
 
 	if (owner->movingWindow)
 	{
-		state0.SetBoundaryConditions(xAxis,xParallel,other);
-		state0.SetBoundaryConditions(yAxis,other,other);
-		state0.SetBoundaryConditions(zAxis,other,none);
-		state0.SetBoundaryConditions(Element(1),xAxis,xNormal,other);
+		state0.SetBoundaryConditions(tw::dom::xAxis,xParallel,other);
+		state0.SetBoundaryConditions(tw::dom::yAxis,other,other);
+		state0.SetBoundaryConditions(tw::dom::zAxis,other,fld::none);
+		state0.SetBoundaryConditions(Element(1),tw::dom::xAxis,xNormal,other);
 
-		state1.SetBoundaryConditions(xAxis,xParallel,other);
-		state1.SetBoundaryConditions(yAxis,other,other);
-		state1.SetBoundaryConditions(zAxis,other,none);
-		state1.SetBoundaryConditions(Element(1),xAxis,xNormal,other);
+		state1.SetBoundaryConditions(tw::dom::xAxis,xParallel,other);
+		state1.SetBoundaryConditions(tw::dom::yAxis,other,other);
+		state1.SetBoundaryConditions(tw::dom::zAxis,other,fld::none);
+		state1.SetBoundaryConditions(Element(1),tw::dom::xAxis,xNormal,other);
 
-		gas.SetBoundaryConditions(xAxis,xParallel,other);
-		gas.SetBoundaryConditions(yAxis,other,other);
-		gas.SetBoundaryConditions(zAxis,other,none);
+		gas.SetBoundaryConditions(tw::dom::xAxis,xParallel,other);
+		gas.SetBoundaryConditions(tw::dom::yAxis,other,other);
+		gas.SetBoundaryConditions(tw::dom::zAxis,other,fld::none);
 
-		vel.SetBoundaryConditions(xAxis,xParallel,other);
-		vel.SetBoundaryConditions(yAxis,other,other);
-		vel.SetBoundaryConditions(zAxis,other,other);
+		vel.SetBoundaryConditions(tw::dom::xAxis,xParallel,other);
+		vel.SetBoundaryConditions(tw::dom::yAxis,other,other);
+		vel.SetBoundaryConditions(tw::dom::zAxis,other,other);
 	}
 	else
 	{
-		state0.SetBoundaryConditions(xAxis,neumannWall,neumannWall);
-		state0.SetBoundaryConditions(yAxis,neumannWall,neumannWall);
-		state0.SetBoundaryConditions(zAxis,neumannWall,neumannWall);
-		state0.SetBoundaryConditions(Element(1),xAxis,xNormal,neumannWall);
-		state0.SetBoundaryConditions(Element(3),zAxis,dirichletWall,dirichletWall);
+		state0.SetBoundaryConditions(tw::dom::xAxis,fld::neumannWall,fld::neumannWall);
+		state0.SetBoundaryConditions(tw::dom::yAxis,fld::neumannWall,fld::neumannWall);
+		state0.SetBoundaryConditions(tw::dom::zAxis,fld::neumannWall,fld::neumannWall);
+		state0.SetBoundaryConditions(Element(1),tw::dom::xAxis,xNormal,fld::neumannWall);
+		state0.SetBoundaryConditions(Element(3),tw::dom::zAxis,fld::dirichletWall,fld::dirichletWall);
 
-		state1.SetBoundaryConditions(xAxis,neumannWall,neumannWall);
-		state1.SetBoundaryConditions(yAxis,neumannWall,neumannWall);
-		state1.SetBoundaryConditions(zAxis,neumannWall,neumannWall);
-		state1.SetBoundaryConditions(Element(1),xAxis,xNormal,neumannWall);
-		state1.SetBoundaryConditions(Element(3),zAxis,dirichletWall,dirichletWall);
+		state1.SetBoundaryConditions(tw::dom::xAxis,fld::neumannWall,fld::neumannWall);
+		state1.SetBoundaryConditions(tw::dom::yAxis,fld::neumannWall,fld::neumannWall);
+		state1.SetBoundaryConditions(tw::dom::zAxis,fld::neumannWall,fld::neumannWall);
+		state1.SetBoundaryConditions(Element(1),tw::dom::xAxis,xNormal,fld::neumannWall);
+		state1.SetBoundaryConditions(Element(3),tw::dom::zAxis,fld::dirichletWall,fld::dirichletWall);
 
-		gas.SetBoundaryConditions(xAxis,neumannWall,neumannWall);
-		gas.SetBoundaryConditions(yAxis,neumannWall,neumannWall);
-		gas.SetBoundaryConditions(zAxis,neumannWall,neumannWall);
+		gas.SetBoundaryConditions(tw::dom::xAxis,fld::neumannWall,fld::neumannWall);
+		gas.SetBoundaryConditions(tw::dom::yAxis,fld::neumannWall,fld::neumannWall);
+		gas.SetBoundaryConditions(tw::dom::zAxis,fld::neumannWall,fld::neumannWall);
 
-		vel.SetBoundaryConditions(xAxis,neumannWall,neumannWall);
-		vel.SetBoundaryConditions(yAxis,neumannWall,neumannWall);
-		vel.SetBoundaryConditions(zAxis,neumannWall,neumannWall);
+		vel.SetBoundaryConditions(tw::dom::xAxis,fld::neumannWall,fld::neumannWall);
+		vel.SetBoundaryConditions(tw::dom::yAxis,fld::neumannWall,fld::neumannWall);
+		vel.SetBoundaryConditions(tw::dom::zAxis,fld::neumannWall,fld::neumannWall);
 	}
 
 	#pragma omp parallel
@@ -234,10 +235,10 @@ void Fluid::MoveWindow()
 		}
 	}
 
-	state0.DownwardCopy(zAxis,1);
-	state1.DownwardCopy(zAxis,1);
-	fixed.DownwardCopy(zAxis,1);
-	gas.DownwardCopy(zAxis,1);
+	state0.DownwardCopy(tw::dom::zAxis,1);
+	state1.DownwardCopy(tw::dom::zAxis,1);
+	fixed.DownwardCopy(tw::dom::zAxis,1);
+	gas.DownwardCopy(tw::dom::zAxis,1);
 }
 
 void Fluid::AddDensity(tw::Float densToAdd,tw::Int i,tw::Int j,tw::Int k)
@@ -256,7 +257,7 @@ void Fluid::AddDensity(tw::Float densToAdd,tw::Int i,tw::Int j,tw::Int k)
 
 void Fluid::Update()
 {
-	boundarySpec bc;
+	tw::bc::fld bc;
 	tw::Float field,ionizedDensity;
 	UnitConverter uc(owner->unitDensityCGS);
 
@@ -378,18 +379,18 @@ void Fluid::Update()
 	if (dim[1]>1)
 	{
 		convector.SetVelocityElement(1);
-		convector.Convect(xAxis,dirichletCell,dirichletCell,dth);
+		convector.Convect(tw::dom::xAxis, tw::bc::fld::dirichletCell, tw::bc::fld::dirichletCell, dth);
 	}
 	if (dim[2]>1)
 	{
 		convector.SetVelocityElement(2);
-		convector.Convect(yAxis,dirichletCell,dirichletCell,dth);
+		convector.Convect(tw::dom::yAxis, tw::bc::fld::dirichletCell, tw::bc::fld::dirichletCell, dth);
 	}
 	if (dim[3]>1)
 	{
-		bc = owner->movingWindow ? neumannWall : dirichletCell;
+		bc = owner->movingWindow ? tw::bc::fld::neumannWall : tw::bc::fld::dirichletCell;
 		convector.SetVelocityElement(3);
-		convector.Convect(zAxis,bc,bc,dth);
+		convector.Convect(tw::dom::zAxis,bc,bc,dth);
 	}
 
 	// FCT Update of density - full step
@@ -398,20 +399,20 @@ void Fluid::Update()
 	if (dim[1]>1)
 	{
 		convector.SetVelocityElement(1);
-		convector.Convect(xAxis,dirichletCell,dirichletCell,dt);
+		convector.Convect(tw::dom::xAxis, tw::bc::fld::dirichletCell, tw::bc::fld::dirichletCell, dt);
 		convector.GetTrueFlux(vel,Element(1),Element(0));
 	}
 	if (dim[2]>1)
 	{
 		convector.SetVelocityElement(2);
-		convector.Convect(yAxis,dirichletCell,dirichletCell,dt);
+		convector.Convect(tw::dom::yAxis, tw::bc::fld::dirichletCell, tw::bc::fld::dirichletCell, dt);
 		convector.GetTrueFlux(vel,Element(2),Element(0));
 	}
 	if (dim[3]>1)
 	{
-		bc = owner->movingWindow ? neumannWall : dirichletCell;
+		bc = owner->movingWindow ? tw::bc::fld::neumannWall : tw::bc::fld::dirichletCell;
 		convector.SetVelocityElement(3);
-		convector.Convect(zAxis,bc,bc,dt);
+		convector.Convect(tw::dom::zAxis,bc,bc,dt);
 		convector.GetTrueFlux(vel,Element(3),Element(0));
 	}
 	Swap(state0,state1); // dens0(t=1/2) , dens1(t=1)
@@ -1053,14 +1054,14 @@ void sparc::HydroManager::Initialize()
 	refractiveIndex = tw::Complex(1.0,0.0);
 
 	// Electrostatic boundary conditions - override the tool (should we still?)
-	ellipticSolver->SetBoundaryConditions(owner->bc0[1]==axisymmetric ? neumannWall : dirichletCell,dirichletCell,dirichletCell,dirichletCell,dirichletCell,neumannWall);
+	ellipticSolver->SetBoundaryConditions(owner->bc0[1]==par::axisymmetric ? fld::neumannWall : fld::dirichletCell,fld::dirichletCell,fld::dirichletCell,fld::dirichletCell,fld::dirichletCell,fld::neumannWall);
 	ellipticSolver->SetBoundaryConditions(phi);
-	rho.SetBoundaryConditions(xAxis,neumannWall,neumannWall);
-	rho.SetBoundaryConditions(yAxis,neumannWall,neumannWall);
-	rho.SetBoundaryConditions(zAxis,neumannWall,neumannWall);
-	scratch.SetBoundaryConditions(xAxis,neumannWall,neumannWall);
-	scratch.SetBoundaryConditions(yAxis,neumannWall,neumannWall);
-	scratch.SetBoundaryConditions(zAxis,neumannWall,neumannWall);
+	rho.SetBoundaryConditions(tw::dom::xAxis,fld::neumannWall,fld::neumannWall);
+	rho.SetBoundaryConditions(tw::dom::yAxis,fld::neumannWall,fld::neumannWall);
+	rho.SetBoundaryConditions(tw::dom::zAxis,fld::neumannWall,fld::neumannWall);
+	scratch.SetBoundaryConditions(tw::dom::xAxis,fld::neumannWall,fld::neumannWall);
+	scratch.SetBoundaryConditions(tw::dom::yAxis,fld::neumannWall,fld::neumannWall);
+	scratch.SetBoundaryConditions(tw::dom::zAxis,fld::neumannWall,fld::neumannWall);
 
 	// Find number of state variables characterizing the whole system
 	// DFG - now we have a static variable to help keep count of these more reliably
@@ -1080,11 +1081,11 @@ void sparc::HydroManager::Initialize()
 	}
 
 	// variables defining normal component boundary conditions
-	boundarySpec bc0[4],bc1[4];
+	tw::bc::fld bc0[4],bc1[4];
 	for (tw::Int ax=1;ax<=3;ax++)
 	{
-		bc0[ax] = (owner->bc0[ax] == reflecting || owner->bc0[ax] == axisymmetric) ? dirichletWall : neumannWall;
-		bc1[ax] = (owner->bc1[ax] == reflecting || owner->bc1[ax] == axisymmetric) ? dirichletWall : neumannWall;
+		bc0[ax] = (owner->bc0[ax] == par::reflecting || owner->bc0[ax] == par::axisymmetric) ? fld::dirichletWall : fld::neumannWall;
+		bc1[ax] = (owner->bc1[ax] == par::reflecting || owner->bc1[ax] == par::axisymmetric) ? fld::dirichletWall : fld::neumannWall;
 	}
 
 	// setup the flux mask used to make conductors impermeable
@@ -1097,34 +1098,34 @@ void sparc::HydroManager::Initialize()
 	for (tw::Int ax=1;ax<=3;ax++)
 		for (auto strip : StripRange(*this,ax,strongbool::yes))
 		{
-			if (bc0[ax]==dirichletWall && owner->n0[ax]==MPI_PROC_NULL && dim[ax]>1)
+			if (bc0[ax]==fld::dirichletWall && owner->n0[ax]==MPI_PROC_NULL && dim[ax]>1)
 				fluxMask(strip,lfg[ax]) = fluxMask(strip,lng[ax]) = 0.0;
-			if (bc1[ax]==dirichletWall && owner->n1[ax]==MPI_PROC_NULL && dim[ax]>1)
+			if (bc1[ax]==fld::dirichletWall && owner->n1[ax]==MPI_PROC_NULL && dim[ax]>1)
 				fluxMask(strip,ufg[ax]) = fluxMask(strip,ung[ax]) = 0.0;
 		}
 
 	// Non-vector boundary conditions; vector elements are modified after setting up indexing.
-	state0.SetBoundaryConditions(xAxis,neumannWall,neumannWall);
-	state0.SetBoundaryConditions(yAxis,neumannWall,neumannWall);
-	state0.SetBoundaryConditions(zAxis,neumannWall,neumannWall);
-	state1.SetBoundaryConditions(xAxis,neumannWall,neumannWall);
-	state1.SetBoundaryConditions(yAxis,neumannWall,neumannWall);
-	state1.SetBoundaryConditions(zAxis,neumannWall,neumannWall);
-	eos0.SetBoundaryConditions(xAxis,neumannWall,neumannWall);
-	eos0.SetBoundaryConditions(yAxis,neumannWall,neumannWall);
-	eos0.SetBoundaryConditions(zAxis,neumannWall,neumannWall);
-	eos1.SetBoundaryConditions(xAxis,neumannWall,neumannWall);
-	eos1.SetBoundaryConditions(yAxis,neumannWall,neumannWall);
-	eos1.SetBoundaryConditions(zAxis,neumannWall,neumannWall);
-	creationRate.SetBoundaryConditions(xAxis,neumannWall,neumannWall);
-	creationRate.SetBoundaryConditions(yAxis,neumannWall,neumannWall);
-	creationRate.SetBoundaryConditions(zAxis,neumannWall,neumannWall);
-	destructionRate.SetBoundaryConditions(xAxis,neumannWall,neumannWall);
-	destructionRate.SetBoundaryConditions(yAxis,neumannWall,neumannWall);
-	destructionRate.SetBoundaryConditions(zAxis,neumannWall,neumannWall);
-	nu_e.SetBoundaryConditions(xAxis,neumannWall,neumannWall);
-	nu_e.SetBoundaryConditions(yAxis,neumannWall,neumannWall);
-	nu_e.SetBoundaryConditions(zAxis,neumannWall,neumannWall);
+	state0.SetBoundaryConditions(tw::dom::xAxis,fld::neumannWall,fld::neumannWall);
+	state0.SetBoundaryConditions(tw::dom::yAxis,fld::neumannWall,fld::neumannWall);
+	state0.SetBoundaryConditions(tw::dom::zAxis,fld::neumannWall,fld::neumannWall);
+	state1.SetBoundaryConditions(tw::dom::xAxis,fld::neumannWall,fld::neumannWall);
+	state1.SetBoundaryConditions(tw::dom::yAxis,fld::neumannWall,fld::neumannWall);
+	state1.SetBoundaryConditions(tw::dom::zAxis,fld::neumannWall,fld::neumannWall);
+	eos0.SetBoundaryConditions(tw::dom::xAxis,fld::neumannWall,fld::neumannWall);
+	eos0.SetBoundaryConditions(tw::dom::yAxis,fld::neumannWall,fld::neumannWall);
+	eos0.SetBoundaryConditions(tw::dom::zAxis,fld::neumannWall,fld::neumannWall);
+	eos1.SetBoundaryConditions(tw::dom::xAxis,fld::neumannWall,fld::neumannWall);
+	eos1.SetBoundaryConditions(tw::dom::yAxis,fld::neumannWall,fld::neumannWall);
+	eos1.SetBoundaryConditions(tw::dom::zAxis,fld::neumannWall,fld::neumannWall);
+	creationRate.SetBoundaryConditions(tw::dom::xAxis,fld::neumannWall,fld::neumannWall);
+	creationRate.SetBoundaryConditions(tw::dom::yAxis,fld::neumannWall,fld::neumannWall);
+	creationRate.SetBoundaryConditions(tw::dom::zAxis,fld::neumannWall,fld::neumannWall);
+	destructionRate.SetBoundaryConditions(tw::dom::xAxis,fld::neumannWall,fld::neumannWall);
+	destructionRate.SetBoundaryConditions(tw::dom::yAxis,fld::neumannWall,fld::neumannWall);
+	destructionRate.SetBoundaryConditions(tw::dom::zAxis,fld::neumannWall,fld::neumannWall);
+	nu_e.SetBoundaryConditions(tw::dom::xAxis,fld::neumannWall,fld::neumannWall);
+	nu_e.SetBoundaryConditions(tw::dom::yAxis,fld::neumannWall,fld::neumannWall);
+	nu_e.SetBoundaryConditions(tw::dom::zAxis,fld::neumannWall,fld::neumannWall);
 
 	if (!owner->restarted)
 		SetupIndexing();
@@ -1135,22 +1136,22 @@ void sparc::HydroManager::Initialize()
 		Element np;
 		// X-Component
 		np = Element(grp->hidx.npx);
-		state0.SetBoundaryConditions(np,xAxis,bc0[1],bc1[1]);
-		state1.SetBoundaryConditions(np,xAxis,bc0[1],bc1[1]);
-		creationRate.SetBoundaryConditions(np,xAxis,bc0[1],bc1[1]);
-		destructionRate.SetBoundaryConditions(np,xAxis,bc0[1],bc1[1]);
+		state0.SetBoundaryConditions(np,tw::dom::xAxis,bc0[1],bc1[1]);
+		state1.SetBoundaryConditions(np,tw::dom::xAxis,bc0[1],bc1[1]);
+		creationRate.SetBoundaryConditions(np,tw::dom::xAxis,bc0[1],bc1[1]);
+		destructionRate.SetBoundaryConditions(np,tw::dom::xAxis,bc0[1],bc1[1]);
 		// Y-Component
 		np = Element(grp->hidx.npy);
-		state0.SetBoundaryConditions(np,yAxis,bc0[2],bc1[2]);
-		state1.SetBoundaryConditions(np,yAxis,bc0[2],bc1[2]);
-		creationRate.SetBoundaryConditions(np,yAxis,bc0[2],bc1[2]);
-		destructionRate.SetBoundaryConditions(np,yAxis,bc0[2],bc1[2]);
+		state0.SetBoundaryConditions(np,tw::dom::yAxis,bc0[2],bc1[2]);
+		state1.SetBoundaryConditions(np,tw::dom::yAxis,bc0[2],bc1[2]);
+		creationRate.SetBoundaryConditions(np,tw::dom::yAxis,bc0[2],bc1[2]);
+		destructionRate.SetBoundaryConditions(np,tw::dom::yAxis,bc0[2],bc1[2]);
 		// Z-Component
 		np = Element(grp->hidx.npz);
-		state0.SetBoundaryConditions(np,zAxis,bc0[3],bc1[3]);
-		state1.SetBoundaryConditions(np,zAxis,bc0[3],bc1[3]);
-		creationRate.SetBoundaryConditions(np,zAxis,bc0[3],bc1[3]);
-		destructionRate.SetBoundaryConditions(np,zAxis,bc0[3],bc1[3]);
+		state0.SetBoundaryConditions(np,tw::dom::zAxis,bc0[3],bc1[3]);
+		state1.SetBoundaryConditions(np,tw::dom::zAxis,bc0[3],bc1[3]);
+		creationRate.SetBoundaryConditions(np,tw::dom::zAxis,bc0[3],bc1[3]);
+		destructionRate.SetBoundaryConditions(np,tw::dom::zAxis,bc0[3],bc1[3]);
 	}
 
 	// DFG - no longer find electrons here.
@@ -1573,7 +1574,7 @@ void sparc::HydroManager::ComputeHydroSources()
 
 				// Undifferentiated tensor divergence terms
 				//#pragma omp barrier
-				if (owner->gridGeometry==cylindrical)
+				if (owner->gridGeometry==tw::dom::cylindrical)
 					for (auto cell : InteriorCellRange(*this))
 					{
 						const tw::Float nm = g->DensityWeightedSum(state1,g->matset.mass,cell);
@@ -1583,7 +1584,7 @@ void sparc::HydroManager::ComputeHydroSources()
 						CreateMomentum(cell,1,fluxMask(cell)*(nm*sqr(vc.y) + Pc)/pos.x,g->hidx);
 						DestroyMomentum(cell,2,fluxMask(cell)*nm*vc.x*vc.y/pos.x,g->hidx);
 					}
-				if (owner->gridGeometry==spherical)
+				if (owner->gridGeometry==tw::dom::spherical)
 					for (auto cell : InteriorCellRange(*this))
 					{
 						const tw::Float nm = g->DensityWeightedSum(state1,g->matset.mass,cell);
@@ -1883,17 +1884,17 @@ void sparc::HydroManager::FieldAdvance(tw::Float dt)
 	rho.ApplyBoundaryCondition();
 }
 
-void sparc::HydroManager::HydroAdvance(const axisSpec& axis,tw::Float dt)
+void sparc::HydroManager::HydroAdvance(const tw::dom::axis& axis,tw::Float dt)
 {
 	// Convect the fluid
 
-	tw::Int ax = naxis(axis);
+	tw::Int ax = tw::dom::naxis(axis);
 
 	if (dim[ax] > 1)
 	{
 		FCT_Driver convector(&state0,&state1,&scratch,&fluxMask,owner);
-		boundarySpec bc0 = (owner->bc0[ax] == reflecting || owner->bc0[ax] == axisymmetric) ? dirichletCell : neumannWall;
-		boundarySpec bc1 = owner->bc1[ax] == reflecting ? dirichletCell : neumannWall;
+		tw::bc::fld bc0 = (owner->bc0[ax] == par::reflecting || owner->bc0[ax] == par::axisymmetric) ? fld::dirichletCell : fld::neumannWall;
+		tw::bc::fld bc1 = owner->bc1[ax] == par::reflecting ? fld::dirichletCell : fld::neumannWall;
 
 		for (auto g : group)
 		{
@@ -2022,9 +2023,9 @@ void sparc::HydroManager::FirstOrderAdvance(tw::Float dt,bool computeSources)
 		ComputeElectronCollisionFrequency();
 		ComputeSources();
 	}
-	HydroAdvance(xAxis,dt);
-	HydroAdvance(yAxis,dt);
-	HydroAdvance(zAxis,dt);
+	HydroAdvance(tw::dom::xAxis,dt);
+	HydroAdvance(tw::dom::yAxis,dt);
+	HydroAdvance(tw::dom::zAxis,dt);
 	ChemAdvance(dt);
 	Swap(state0,state1);
 

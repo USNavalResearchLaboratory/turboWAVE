@@ -72,9 +72,9 @@ void YeePropagatorPML::AdvanceB(Field& A,Field& PMLx,Field& PMLy,Field& PMLz)
 	clFinish(task->commandQueue);
 
 	A.ReceiveBoundaryCellsFromComputeBuffer();
-	A.UpwardCopy(xAxis,Element(6,11),1);
-	A.UpwardCopy(yAxis,Element(6,11),1);
-	A.UpwardCopy(zAxis,Element(6,11),1);
+	A.UpwardCopy(tw::dom::xAxis,Element(6,11),1);
+	A.UpwardCopy(tw::dom::yAxis,Element(6,11),1);
+	A.UpwardCopy(tw::dom::zAxis,Element(6,11),1);
 	A.SendBoundaryCellsToComputeBuffer();
 }
 
@@ -94,9 +94,9 @@ void YeePropagatorPML::CenteredFields(Field& F,Field& A)
 	clFinish(task->commandQueue);
 
 	F.ReceiveBoundaryCellsFromComputeBuffer();
-	F.DownwardCopy(xAxis,1);
-	F.DownwardCopy(yAxis,1);
-	F.DownwardCopy(zAxis,1);
+	F.DownwardCopy(tw::dom::xAxis,1);
+	F.DownwardCopy(tw::dom::yAxis,1);
+	F.DownwardCopy(tw::dom::zAxis,1);
 	F.ApplyBoundaryCondition();
 	F.SendBoundaryCellsToComputeBuffer();
 }
@@ -184,9 +184,9 @@ void YeePropagatorPML::AdvanceB(Field& A,Field& PMLx,Field& PMLy,Field& PMLz)
 			for (tw::Int k=1;k<=zN1;k++)
 				A(v,k,11) = sy*A(v,k,11) + ty*(A.dbak(v,k,0,2) + A.dbak(v,k,1,2));
 		}
-	A.UpwardCopy(xAxis,Element(6,11),1);
-	A.UpwardCopy(yAxis,Element(6,11),1);
-	A.UpwardCopy(zAxis,Element(6,11),1);
+	A.UpwardCopy(tw::dom::xAxis,Element(6,11),1);
+	A.UpwardCopy(tw::dom::yAxis,Element(6,11),1);
+	A.UpwardCopy(tw::dom::zAxis,Element(6,11),1);
 }
 
 void YeePropagatorPML::PrepCenteredFields(Field& F,Field& A)

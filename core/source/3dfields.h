@@ -77,7 +77,7 @@ struct BoundaryCondition
 
 	BoundaryCondition();
 	void Reset();
-	void Set(boundarySpec theBoundaryCondition,sideSpec whichSide);
+	void Set(tw::bc::fld theBoundaryCondition,tw::dom::side whichSide);
 	void FoldingOperation(tw::Float* strip,tw::Int stride)
 	{
 		// strip should point at the outermost ghost cell involved
@@ -148,7 +148,7 @@ struct Slice
 	{
 		return sizeof(T)*e.Components()*(ub[1]-lb[1]+1)*(ub[2]-lb[2]+1)*(ub[3]-lb[3]+1);
 	}
-	void Translate(const axisSpec& axis,tw::Int displ);
+	void Translate(const tw::dom::axis& axis,tw::Int displ);
 	void Translate(tw::Int x,tw::Int y,tw::Int z);
 	T& operator () (const tw::Int& x,const tw::Int& y,const tw::Int& z,const tw::Int& c)
 	{
@@ -202,8 +202,8 @@ struct Field:DiscreteSpace
 
 	Field();
 	virtual ~Field();
-	void Initialize(tw::Int components,const DiscreteSpace& ds,Task *task,const axisSpec& axis = zAxis);
-	void SetBoundaryConditions(const Element& e,const axisSpec& axis,boundarySpec low,boundarySpec high);
+	void Initialize(tw::Int components,const DiscreteSpace& ds,Task *task,const tw::dom::axis& axis = tw::dom::zAxis);
+	void SetBoundaryConditions(const Element& e,const tw::dom::axis& axis,tw::bc::fld low,tw::bc::fld high);
 	friend void CopyBoundaryConditions(Field& dst,const Element& dstElement,Field& src,const Element& srcElement);
 
 	// ACCESSORS
@@ -420,20 +420,20 @@ struct Field:DiscreteSpace
 	void ApplyFoldingCondition(const Element& e);
 	void ApplyBoundaryCondition(const Element& e,bool homogeneous = true);
 	template <class T>
-	void AdjustTridiagonalForBoundaries(const Element& e,const axisSpec& axis,const sideSpec& side,std::valarray<T>& T1,std::valarray<T>& T2,std::valarray<T>& T3,std::valarray<T>& source,T val);
+	void AdjustTridiagonalForBoundaries(const Element& e,const tw::dom::axis& axis,const tw::dom::side& side,std::valarray<T>& T1,std::valarray<T>& T2,std::valarray<T>& T3,std::valarray<T>& source,T val);
 	void ZeroGhostCells(const Element& e);
 
 	void StripCopyProtocol(tw::Int axis,tw::Int shift,Slice<tw::Float> *planeIn,Slice<tw::Float> *planeOut,bool add);
-	void DownwardCopy(const axisSpec& axis,const Element& e,tw::Int cells);
-	void UpwardCopy(const axisSpec& axis,const Element& e,tw::Int cells);
-	void DownwardDeposit(const axisSpec& axis,const Element& e,tw::Int cells);
-	void UpwardDeposit(const axisSpec& axis,const Element& e,tw::Int cells);
+	void DownwardCopy(const tw::dom::axis& axis,const Element& e,tw::Int cells);
+	void UpwardCopy(const tw::dom::axis& axis,const Element& e,tw::Int cells);
+	void DownwardDeposit(const tw::dom::axis& axis,const Element& e,tw::Int cells);
+	void UpwardDeposit(const tw::dom::axis& axis,const Element& e,tw::Int cells);
 
 	void CopyFromNeighbors(const Element& e);
 	void DepositFromNeighbors(const Element& e);
 
-	Slice<tw::Float>* FormTransposeBlock(const Element& e,const axisSpec& axis1,const axisSpec& axis2,tw::Int start1,tw::Int end1,tw::Int start2,tw::Int end2);
-	void Transpose(const Element& e,const axisSpec& axis1,const axisSpec& axis2,Field *target,tw::Int inversion);
+	Slice<tw::Float>* FormTransposeBlock(const Element& e,const tw::dom::axis& axis1,const tw::dom::axis& axis2,tw::Int start1,tw::Int end1,tw::Int start2,tw::Int end2);
+	void Transpose(const Element& e,const tw::dom::axis& axis1,const tw::dom::axis& axis2,Field *target,tw::Int inversion);
 
 
 	// All-element convenience functions
@@ -444,23 +444,23 @@ struct Field:DiscreteSpace
 		UpdateGhostCellsInComputeBuffer(All(*this));
 	}
 	#endif
-	void SetBoundaryConditions(const axisSpec& axis,boundarySpec low,boundarySpec high)
+	void SetBoundaryConditions(const tw::dom::axis& axis,tw::bc::fld low,tw::bc::fld high)
 	{
 		SetBoundaryConditions(All(*this),axis,low,high);
 	}
-	void DownwardCopy(const axisSpec& axis,tw::Int cells)
+	void DownwardCopy(const tw::dom::axis& axis,tw::Int cells)
 	{
 		DownwardCopy(axis,All(*this),cells);
 	}
-	void UpwardCopy(const axisSpec& axis,tw::Int cells)
+	void UpwardCopy(const tw::dom::axis& axis,tw::Int cells)
 	{
 		UpwardCopy(axis,All(*this),cells);
 	}
-	void DownwardDeposit(const axisSpec& axis,tw::Int cells)
+	void DownwardDeposit(const tw::dom::axis& axis,tw::Int cells)
 	{
 		DownwardDeposit(axis,All(*this),cells);
 	}
-	void UpwardDeposit(const axisSpec& axis,tw::Int cells)
+	void UpwardDeposit(const tw::dom::axis& axis,tw::Int cells)
 	{
 		UpwardDeposit(axis,All(*this),cells);
 	}
@@ -472,7 +472,7 @@ struct Field:DiscreteSpace
 	{
 		DepositFromNeighbors(All(*this));
 	}
-	void Transpose(const axisSpec& axis1,const axisSpec& axis2,Field *target,tw::Int inversion)
+	void Transpose(const tw::dom::axis& axis1,const tw::dom::axis& axis2,Field *target,tw::Int inversion)
 	{
 		Transpose(All(*this),axis1,axis2,target,inversion);
 	}
@@ -485,7 +485,7 @@ struct Field:DiscreteSpace
 		ApplyBoundaryCondition(All(*this),homogeneous);
 	}
 	template <class T>
-	void AdjustTridiagonalForBoundaries(const axisSpec& axis,const sideSpec& side,std::valarray<T>& T1,std::valarray<T>& T2,std::valarray<T>& T3,std::valarray<T>& source,T val)
+	void AdjustTridiagonalForBoundaries(const tw::dom::axis& axis,const tw::dom::side& side,std::valarray<T>& T1,std::valarray<T>& T2,std::valarray<T>& T3,std::valarray<T>& source,T val)
 	{
 		AdjustTridiagonalForBoundaries<T>(Element(0),axis,side,T1,T2,T3,source,val);
 	}
@@ -606,19 +606,19 @@ struct Field:DiscreteSpace
 };
 
 template<class T>
-void Field::AdjustTridiagonalForBoundaries(const Element& e,const axisSpec& axis,const sideSpec& side,std::valarray<T>& T1,std::valarray<T>& T2,std::valarray<T>& T3,std::valarray<T>& source,T val)
+void Field::AdjustTridiagonalForBoundaries(const Element& e,const tw::dom::axis& axis,const tw::dom::side& side,std::valarray<T>& T1,std::valarray<T>& T2,std::valarray<T>& T3,std::valarray<T>& source,T val)
 {
 	// Modify the tridiagonal matrix to respect the boundary condition cell_1 = force_1j * cell_j + coeff_1 * val
 	// force_ij and coeff_i are defined by the boundary condition object.
 	// Since val may be passed in based on values in the outermost ghost cell, we assume force_10 = 0.
-	// N.b. indexing of force_ij and coeff_i starts with outermost ghost cell = 0 and works inward, regardless of sideSpec.
+	// N.b. indexing of force_ij and coeff_i starts with outermost ghost cell = 0 and works inward, regardless of tw::dom::side.
 	// The element is only used to define the boundary conditions, no field data is used.
-	const tw::Int ax = naxis(axis);
+	const tw::Int ax = tw::dom::naxis(axis);
 	const tw::Int N = Dim(ax)-1;
 	const tw::Int c = e.low; // component determining the BC
 	assert(e.low==e.high); // asking for more than one BC is not defined
 	assert(T1.size()==Dim(ax));
-	if (side==lowSide)
+	if (side==tw::dom::low)
 	{
 		auto F = bc0(ax,c).force;
 		auto C = bc0(ax,c).coeff;
@@ -629,7 +629,7 @@ void Field::AdjustTridiagonalForBoundaries(const Element& e,const axisSpec& axis
 			source[0] -= T1[0] * C[1] * val / (1.0 - F[1][1]);
 		}
 	}
-	if (side==highSide)
+	if (side==tw::dom::high)
 	{
 		auto F = bc1(ax,c).force;
 		auto C = bc1(ax,c).coeff;
@@ -890,7 +890,7 @@ struct AutoField : Field
 	}
 	void Initialize(const DiscreteSpace& ds,Task *task)
 	{
-		Field::Initialize(num[0],ds,task,tAxis);
+		Field::Initialize(num[0],ds,task,tw::dom::tAxis);
 	}
 
 	// Interface to superclass accessors
@@ -1168,9 +1168,9 @@ void Slice<T>::Resize(const Element& e,tw::Int low[4],tw::Int high[4],tw::Int ig
 }
 
 template <class T>
-void Slice<T>::Translate(const axisSpec& axis,tw::Int displ)
+void Slice<T>::Translate(const tw::dom::axis& axis,tw::Int displ)
 {
-	tw::Int ax = naxis(axis);
+	tw::Int ax = tw::dom::naxis(axis);
 	lb[ax] += displ;
 	ub[ax] += displ;
 }

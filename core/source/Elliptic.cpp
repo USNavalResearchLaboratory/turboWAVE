@@ -13,12 +13,12 @@
 EllipticSolver::EllipticSolver(const std::string& name,MetricSpace *m,Task *tsk) : ComputeTool(name,m,tsk)
 {
 	coeff = NULL;
-	x0 = x1 = y0 = y1 = z0 = z1 = none;
+	x0 = x1 = y0 = y1 = z0 = z1 = tw::bc::fld::natural;
 	gammaBeam = 1.0;
-	std::map<std::string,boundarySpec> bcs = {{"none",none},{"open",natural},{"dirichlet",dirichletCell},{"neumann",neumannWall}};
-	directives.Add("poisson boundary condition x",new tw::input::Enums<boundarySpec>(bcs,&x0,&x1));
-	directives.Add("poisson boundary condition y",new tw::input::Enums<boundarySpec>(bcs,&y0,&y1));
-	directives.Add("poisson boundary condition z",new tw::input::Enums<boundarySpec>(bcs,&z0,&z1));
+	std::map<std::string,tw::bc::fld> bcs = {{"none",tw::bc::fld::natural},{"open",tw::bc::fld::natural},{"dirichlet",tw::bc::fld::dirichletCell},{"neumann",tw::bc::fld::neumannWall}};
+	directives.Add("poisson boundary condition x",new tw::input::Enums<tw::bc::fld>(bcs,&x0,&x1));
+	directives.Add("poisson boundary condition y",new tw::input::Enums<tw::bc::fld>(bcs,&y0,&y1));
+	directives.Add("poisson boundary condition z",new tw::input::Enums<tw::bc::fld>(bcs,&z0,&z1));
 }
 
 void EllipticSolver::FormOperatorStencil(std::valarray<tw::Float>& D,tw::Int i,tw::Int j,tw::Int k)
@@ -62,12 +62,12 @@ void EllipticSolver::SetCoefficients(ScalarField *coefficients)
 
 void EllipticSolver::SetBoundaryConditions(ScalarField& phi)
 {
-	phi.SetBoundaryConditions(xAxis,x0,x1);
-	phi.SetBoundaryConditions(yAxis,y0,y1);
-	phi.SetBoundaryConditions(zAxis,z0,z1);
+	phi.SetBoundaryConditions(tw::dom::xAxis,x0,x1);
+	phi.SetBoundaryConditions(tw::dom::yAxis,y0,y1);
+	phi.SetBoundaryConditions(tw::dom::zAxis,z0,z1);
 }
 
-void EllipticSolver::SetBoundaryConditions(boundarySpec x0,boundarySpec x1,boundarySpec y0,boundarySpec y1,boundarySpec z0,boundarySpec z1)
+void EllipticSolver::SetBoundaryConditions(tw::bc::fld x0,tw::bc::fld x1,tw::bc::fld y0,tw::bc::fld y1,tw::bc::fld z0,tw::bc::fld z1)
 {
 	this->x0 = x0;
 	this->y0 = y0;
@@ -121,13 +121,13 @@ void EllipticSolver::ZeroModeGhostCellValues(tw::Float *phi0,tw::Float *phiN1,Sc
 	task->strip[3].AllSum(phi0,phi0,sizeof(tw::Float),0);
 	task->strip[3].AllSum(phiN1,phiN1,sizeof(tw::Float),0);
 
-	if (z0==dirichletCell)
+	if (z0==tw::bc::fld::dirichletCell)
 	{
 		*phiN1 -= *phi0;
 		*phi0 = 0.0;
 	}
 
-	if (z1==dirichletCell)
+	if (z1==tw::bc::fld::dirichletCell)
 	{
 		*phi0 -= *phiN1;
 		*phiN1 = 0.0;
@@ -193,7 +193,7 @@ void EllipticSolver1D::Solve(ScalarField& phi,ScalarField& source,tw::Float mul)
 	// solve div(coeff*grad(phi)) = mul*source
 	// requires 1D grid
 
-	axisSpec axis;
+	tw::dom::axis axis;
 	tw::Int s,sDim,ax,di,dj,dk;
 	std::valarray<tw::Float> D(7);
 	const tw::Int xDim = space->Dim(1);
@@ -203,23 +203,23 @@ void EllipticSolver1D::Solve(ScalarField& phi,ScalarField& source,tw::Float mul)
 	di = dj = dk = 0;
 	if (task->globalCells[1]>1)
 	{
-		axis = xAxis;
+		axis = tw::dom::xAxis;
 		sDim = xDim;
 		di = 1;
 	}
 	if (task->globalCells[2]>1)
 	{
-		axis = yAxis;
+		axis = tw::dom::yAxis;
 		sDim = yDim;
 		dj = 1;
 	}
 	if (task->globalCells[3]>1)
 	{
-		axis = zAxis;
+		axis = tw::dom::zAxis;
 		sDim = zDim;
 		dk = 1;
 	}
-	ax = naxis(axis);
+	ax = tw::dom::naxis(axis);
 	tw::strip strip(ax,*space,0,0,0);
 
 	std::valarray<tw::Float> T1(sDim),T2(sDim),T3(sDim),src(sDim),ans(sDim);
@@ -233,9 +233,9 @@ void EllipticSolver1D::Solve(ScalarField& phi,ScalarField& source,tw::Float mul)
 		src[s-1] = mul*source(s*di,s*dj,s*dk);
 	}
 	if (task->n0[ax]==MPI_PROC_NULL)
-		phi.AdjustTridiagonalForBoundaries(axis,lowSide,T1,T2,T3,src,phi(strip,-1));
+		phi.AdjustTridiagonalForBoundaries(axis,tw::dom::low,T1,T2,T3,src,phi(strip,-1));
 	if (task->n1[ax]==MPI_PROC_NULL)
-		phi.AdjustTridiagonalForBoundaries(axis,highSide,T1,T2,T3,src,phi(strip,sDim+2));
+		phi.AdjustTridiagonalForBoundaries(axis,tw::dom::high,T1,T2,T3,src,phi(strip,sDim+2));
 	TriDiagonal<tw::Float,tw::Float>(ans,src,T1,T2,T3);
 	for (s=1;s<=sDim;s++)
 		phi(strip,s) = ans[s-1];
@@ -489,9 +489,9 @@ PoissonSolver::PoissonSolver(const std::string& name,MetricSpace *m,Task *tsk) :
 {
 	typeCode = tw::tool_type::facrPoissonSolver;
 	globalIntegrator = NULL;
-	z0 = dirichletWall;
-	z1 = neumannWall;
-	x0 = x1 = y0 = y1 = periodic;
+	z0 = tw::bc::fld::dirichletWall;
+	z1 = tw::bc::fld::neumannWall;
+	x0 = x1 = y0 = y1 = tw::bc::fld::periodic;
 	if (!space->TransversePowersOfTwo())
 		throw tw::FatalError("FACR elliptical solver requires all transverse dimensions be powers of two.");
 	globalIntegrator = new GlobalIntegrator<tw::Float>(&task->strip[3],space->Dim(1)*space->Dim(2),space->Dim(3));
@@ -521,20 +521,20 @@ void PoissonSolver::Solve(ScalarField& phi,ScalarField& source,tw::Float mul)
 
 	switch (x0)
 	{
-    	case none:
-    	case natural:
-		case normalFluxFixed:
+  	case tw::bc::fld::none:
+  	case tw::bc::fld::natural:
+		case tw::bc::fld::normalFluxFixed:
         	break;
-		case periodic:
+		case tw::bc::fld::periodic:
 			source.TransverseFFT();
 			break;
-		case neumannWall:
+		case tw::bc::fld::neumannWall:
 			source.TransverseCosineTransform();
 			break;
-		case dirichletWall:
+		case tw::bc::fld::dirichletWall:
 			source.TransverseSineTransform();
 			break;
-		case dirichletCell:
+		case tw::bc::fld::dirichletCell:
 			source.TransverseSineTransform();
 			break;
 	}
@@ -555,7 +555,7 @@ void PoissonSolver::Solve(ScalarField& phi,ScalarField& source,tw::Float mul)
 	b = -2.0/dz2;
 	c = 1.0/dz2;
 
-	if (z0==natural || z1==natural)
+	if (z0==tw::bc::fld::natural || z1==tw::bc::fld::natural)
 		ZeroModeGhostCellValues(&phi0,&phiN1,source,mul);
 
 	#pragma omp parallel for private(i,j,k,eigenvalue,temp) collapse(2) schedule(static)
@@ -563,7 +563,7 @@ void PoissonSolver::Solve(ScalarField& phi,ScalarField& source,tw::Float mul)
 		for (i=1;i<=xDim;i++)
 		{
 			std::valarray<tw::Float> s(zDim),u(zDim),T1(zDim),T2(zDim),T3(zDim);
-			if (x0==periodic)
+			if (x0==tw::bc::fld::periodic)
 				eigenvalue = phi.CyclicEigenvalue(i,j);
 			else
 				eigenvalue = phi.Eigenvalue(i,j);
@@ -576,7 +576,7 @@ void PoissonSolver::Solve(ScalarField& phi,ScalarField& source,tw::Float mul)
 			}
 			if (task->n0[3]==MPI_PROC_NULL)
 			{
-				if (z0==natural)
+				if (z0==tw::bc::fld::natural)
 				{
 					if (eigenvalue==0.0)
 						s[0] -= T1[0]*phi0;
@@ -589,11 +589,11 @@ void PoissonSolver::Solve(ScalarField& phi,ScalarField& source,tw::Float mul)
 					}
 				}
 				else
-					phi.AdjustTridiagonalForBoundaries(zAxis,lowSide,T1,T2,T3,s,phi(i,j,space->LFG(3)));
+					phi.AdjustTridiagonalForBoundaries(tw::dom::zAxis,tw::dom::low,T1,T2,T3,s,phi(i,j,space->LFG(3)));
 			}
 			if (task->n1[3]==MPI_PROC_NULL)
 			{
-				if (z1==natural)
+				if (z1==tw::bc::fld::natural)
 				{
 					if (eigenvalue==0.0)
 						s[zDim-1] -= T3[zDim-1]*phiN1;
@@ -606,7 +606,7 @@ void PoissonSolver::Solve(ScalarField& phi,ScalarField& source,tw::Float mul)
 					}
 				}
 				else
-					phi.AdjustTridiagonalForBoundaries(zAxis,highSide,T1,T2,T3,s,phi(i,j,space->UFG(3)));
+					phi.AdjustTridiagonalForBoundaries(tw::dom::zAxis,tw::dom::high,T1,T2,T3,s,phi(i,j,space->UFG(3)));
 			}
 			TriDiagonal<tw::Float,tw::Float>(u,s,T1,T2,T3);
 			for (k=1;k<=zDim;k++)
@@ -622,12 +622,12 @@ void PoissonSolver::Solve(ScalarField& phi,ScalarField& source,tw::Float mul)
 
 	// Open boundaries must be done in transformed space
 
-	if (task->n0[3]==MPI_PROC_NULL && z0==natural)
+	if (task->n0[3]==MPI_PROC_NULL && z0==tw::bc::fld::natural)
 	{
 		for (j=1;j<=yDim;j++)
 			for (i=1;i<=xDim;i++)
 			{
-				if (x0==periodic)
+				if (x0==tw::bc::fld::periodic)
 					eigenvalue = phi.CyclicEigenvalue(i,j);
 				else
 					eigenvalue = phi.Eigenvalue(i,j);
@@ -643,12 +643,12 @@ void PoissonSolver::Solve(ScalarField& phi,ScalarField& source,tw::Float mul)
 			}
 	}
 
-	if (task->n1[3]==MPI_PROC_NULL && z1==natural)
+	if (task->n1[3]==MPI_PROC_NULL && z1==tw::bc::fld::natural)
 	{
 		for (j=1;j<=yDim;j++)
 			for (i=1;i<=xDim;i++)
 			{
-				if (x0==periodic)
+				if (x0==tw::bc::fld::periodic)
 					eigenvalue = phi.CyclicEigenvalue(i,j);
 				else
 					eigenvalue = phi.Eigenvalue(i,j);
@@ -668,23 +668,23 @@ void PoissonSolver::Solve(ScalarField& phi,ScalarField& source,tw::Float mul)
 
 	switch (x0)
 	{
-		case none:
-    	case natural:
-		case normalFluxFixed:
+		case tw::bc::fld::none:
+		case tw::bc::fld::natural:
+		case tw::bc::fld::normalFluxFixed:
 			break;
-		case periodic:
+		case tw::bc::fld::periodic:
 			phi.InverseTransverseFFT();
 			//source.InverseTransverseFFT();
 			break;
-		case neumannWall:
+		case tw::bc::fld::neumannWall:
 			phi.InverseTransverseCosineTransform();
 			//source.InverseTransverseCosineTransform();
 			break;
-		case dirichletWall:
+		case tw::bc::fld::dirichletWall:
 			phi.InverseTransverseSineTransform();
 			//source.InverseTransverseSineTransform();
 			break;
-		case dirichletCell:
+		case tw::bc::fld::dirichletCell:
 			phi.InverseTransverseSineTransform();
 			//source.InverseTransverseSineTransform();
 			break;
@@ -707,12 +707,12 @@ void PoissonSolver::Solve(ScalarField& phi,ScalarField& source,tw::Float mul)
 EigenmodePoissonSolver::EigenmodePoissonSolver(const std::string& name,MetricSpace *m,Task *tsk) : EllipticSolver(name,m,tsk)
 {
 	typeCode = tw::tool_type::eigenmodePoissonSolver;
-	x0 = neumannWall;
-	x1 = dirichletCell;
-	y0 = periodic;
-	y1 = periodic;
-	z0 = dirichletCell;
-	z1 = dirichletCell;
+	x0 = tw::bc::fld::neumannWall;
+	x1 = tw::bc::fld::dirichletCell;
+	y0 = tw::bc::fld::periodic;
+	y1 = tw::bc::fld::periodic;
+	z0 = tw::bc::fld::dirichletCell;
+	z1 = tw::bc::fld::dirichletCell;
 
 	const tw::Int rDim = space->Dim(1);
 	const tw::Int zDim = space->Dim(3);
@@ -772,7 +772,7 @@ void EigenmodePoissonSolver::Solve(ScalarField& phi,ScalarField& source,tw::Floa
 
 	// Solve on single node
 
-	if (z0==natural || z1==natural)
+	if (z0==tw::bc::fld::natural || z1==tw::bc::fld::natural)
 		ZeroModeGhostCellValues(&phi0,&phiN1,source,mul);
 
 	#pragma omp parallel for private(i,k,temp) schedule(static)
@@ -791,7 +791,7 @@ void EigenmodePoissonSolver::Solve(ScalarField& phi,ScalarField& source,tw::Floa
 		}
 		if (task->n0[3]==MPI_PROC_NULL)
 		{
-			if (z0==natural)
+			if (z0==tw::bc::fld::natural)
 			{
 				if (localEig[i]==0.0)
 					s[0] -= T1[0]*phi0;
@@ -804,11 +804,11 @@ void EigenmodePoissonSolver::Solve(ScalarField& phi,ScalarField& source,tw::Floa
 				}
 			}
 			else
-				phi.AdjustTridiagonalForBoundaries(zAxis,lowSide,T1,T2,T3,s,phi(i,0,space->LFG(3)));
+				phi.AdjustTridiagonalForBoundaries(tw::dom::zAxis,tw::dom::low,T1,T2,T3,s,phi(i,0,space->LFG(3)));
 		}
 		if (task->n1[3]==MPI_PROC_NULL)
 		{
-			if (z1==natural)
+			if (z1==tw::bc::fld::natural)
 			{
 				if (localEig[i]==0.0)
 					s[zDim-1] -= T3[zDim-1]*phiN1;
@@ -821,7 +821,7 @@ void EigenmodePoissonSolver::Solve(ScalarField& phi,ScalarField& source,tw::Floa
 				}
 			}
 			else
-				phi.AdjustTridiagonalForBoundaries(zAxis,highSide,T1,T2,T3,s,phi(i,0,space->UFG(3)));
+				phi.AdjustTridiagonalForBoundaries(tw::dom::zAxis,tw::dom::high,T1,T2,T3,s,phi(i,0,space->UFG(3)));
 		}
 
 		TriDiagonal<tw::Float,tw::Float>(u,s,T1,T2,T3);
@@ -838,7 +838,7 @@ void EigenmodePoissonSolver::Solve(ScalarField& phi,ScalarField& source,tw::Floa
 
 	// Open boundaries have to be done in transformed space
 
-	if (task->n0[3]==MPI_PROC_NULL && z0==natural)
+	if (task->n0[3]==MPI_PROC_NULL && z0==tw::bc::fld::natural)
 	{
 		for (i=1;i<=rDim;i++)
 		{
@@ -854,7 +854,7 @@ void EigenmodePoissonSolver::Solve(ScalarField& phi,ScalarField& source,tw::Floa
 		}
 	}
 
-	if (task->n1[3]==MPI_PROC_NULL && z1==natural)
+	if (task->n1[3]==MPI_PROC_NULL && z1==tw::bc::fld::natural)
 	{
 		for (i=1;i<=rDim;i++)
 		{

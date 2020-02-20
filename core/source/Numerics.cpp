@@ -436,7 +436,7 @@ tw::Float GetCylindricalGroundState(std::valarray<tw::Float>& vec,std::valarray<
 	return eigenvalue;
 }
 
-void ComputeTransformMatrices(boundarySpec radial_bc,std::valarray<tw::Float>& eigenvalue,std::valarray<tw::Float>& fwd,std::valarray<tw::Float>& rev,MetricSpace *space,Task *task)
+void ComputeTransformMatrices(tw::bc::fld radial_bc,std::valarray<tw::Float>& eigenvalue,std::valarray<tw::Float>& fwd,std::valarray<tw::Float>& rev,MetricSpace *space,Task *task)
 {
 	tw::Int i,j,dim;
 	tw::Float dr1,dr2;
@@ -497,12 +497,12 @@ void ComputeTransformMatrices(boundarySpec radial_bc,std::valarray<tw::Float>& e
 	// set boundary condition at r = R
 	switch (radial_bc)
 	{
-		case dirichletCell:
+		case tw::bc::fld::dirichletCell:
 			break;
-		case dirichletWall:
+		case tw::bc::fld::dirichletWall:
 			T2[dim-1] -= T3[dim-1];
 			break;
-		case neumannWall:
+		case tw::bc::fld::neumannWall:
 			T2[dim-1] += T3[dim-1];
 			break;
 		default:
@@ -739,9 +739,9 @@ FCT_Driver::~FCT_Driver()
 		delete net_flux;
 }
 
-void FCT_Driver::Convect(const axisSpec& axis,boundarySpec low,boundarySpec high,tw::Float dt)
+void FCT_Driver::Convect(const tw::dom::axis& axis,tw::bc::fld low,tw::bc::fld high,tw::Float dt)
 {
-	const tw::Int ax = naxis(axis);
+	const tw::Int ax = tw::dom::naxis(axis);
 	const tw::Int N = ms->Dim(ax);
 
 	if (diff!=NULL)

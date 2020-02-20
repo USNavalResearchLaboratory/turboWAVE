@@ -1,7 +1,7 @@
 #include "simulation.h"
 #include "fieldSolve.h"
 #include "quantum.h"
-
+using namespace tw::bc;
 
 qo::State::State(MetricSpace *m,UniformDeviate *u)
 {
@@ -530,9 +530,9 @@ AtomicPhysics::AtomicPhysics(const std::string& name,Simulation* sim):Module(nam
 	m0 = 1.0;
 	q0 = -1.0;
 
-	A4.Initialize(4,*this,owner,xAxis);
-	Ao4.Initialize(4,*this,owner,xAxis);
-	J4.Initialize(4,*this,owner,xAxis);
+	A4.Initialize(4,*this,owner,tw::dom::xAxis);
+	Ao4.Initialize(4,*this,owner,tw::dom::xAxis);
+	J4.Initialize(4,*this,owner,tw::dom::xAxis);
 
 	photonPropagator = NULL;
 
@@ -585,37 +585,37 @@ void AtomicPhysics::Initialize()
 	// Boundary conditions should preserve hermiticity
 	// One way is to have A = 0 and grad(psi)=0 for components normal to boundary
 
-	boundarySpec psiDefaultBC,A4DefaultBC;
-	psiDefaultBC = neumannWall;
-	A4DefaultBC = dirichletWall;
-	psi_r.SetBoundaryConditions(xAxis,psiDefaultBC,psiDefaultBC);
-	psi_r.SetBoundaryConditions(yAxis,psiDefaultBC,psiDefaultBC);
-	psi_r.SetBoundaryConditions(zAxis,psiDefaultBC,psiDefaultBC);
-	psi_i.SetBoundaryConditions(xAxis,psiDefaultBC,psiDefaultBC);
-	psi_i.SetBoundaryConditions(yAxis,psiDefaultBC,psiDefaultBC);
-	psi_i.SetBoundaryConditions(zAxis,psiDefaultBC,psiDefaultBC);
-	A4.SetBoundaryConditions(xAxis,A4DefaultBC,A4DefaultBC);
-	A4.SetBoundaryConditions(yAxis,A4DefaultBC,A4DefaultBC);
-	A4.SetBoundaryConditions(zAxis,A4DefaultBC,A4DefaultBC);
-	J4.SetBoundaryConditions(xAxis,A4DefaultBC,A4DefaultBC);
-	J4.SetBoundaryConditions(yAxis,A4DefaultBC,A4DefaultBC);
-	J4.SetBoundaryConditions(zAxis,A4DefaultBC,A4DefaultBC);
+	tw::bc::fld psiDefaultBC,A4DefaultBC;
+	psiDefaultBC = fld::neumannWall;
+	A4DefaultBC = fld::dirichletWall;
+	psi_r.SetBoundaryConditions(tw::dom::xAxis,psiDefaultBC,psiDefaultBC);
+	psi_r.SetBoundaryConditions(tw::dom::yAxis,psiDefaultBC,psiDefaultBC);
+	psi_r.SetBoundaryConditions(tw::dom::zAxis,psiDefaultBC,psiDefaultBC);
+	psi_i.SetBoundaryConditions(tw::dom::xAxis,psiDefaultBC,psiDefaultBC);
+	psi_i.SetBoundaryConditions(tw::dom::yAxis,psiDefaultBC,psiDefaultBC);
+	psi_i.SetBoundaryConditions(tw::dom::zAxis,psiDefaultBC,psiDefaultBC);
+	A4.SetBoundaryConditions(tw::dom::xAxis,A4DefaultBC,A4DefaultBC);
+	A4.SetBoundaryConditions(tw::dom::yAxis,A4DefaultBC,A4DefaultBC);
+	A4.SetBoundaryConditions(tw::dom::zAxis,A4DefaultBC,A4DefaultBC);
+	J4.SetBoundaryConditions(tw::dom::xAxis,A4DefaultBC,A4DefaultBC);
+	J4.SetBoundaryConditions(tw::dom::yAxis,A4DefaultBC,A4DefaultBC);
+	J4.SetBoundaryConditions(tw::dom::zAxis,A4DefaultBC,A4DefaultBC);
 
 	switch (owner->gridGeometry)
 	{
-		case cartesian:
+		case tw::dom::cartesian:
 			break;
-		case cylindrical:
-			A4.SetBoundaryConditions(Element(0),xAxis,neumannWall,dirichletWall);
-			A4.SetBoundaryConditions(Element(3),xAxis,neumannWall,dirichletWall);
-			J4.SetBoundaryConditions(Element(0),xAxis,neumannWall,dirichletWall);
-			J4.SetBoundaryConditions(Element(3),xAxis,neumannWall,dirichletWall);
+		case tw::dom::cylindrical:
+			A4.SetBoundaryConditions(Element(0),tw::dom::xAxis,fld::neumannWall,fld::dirichletWall);
+			A4.SetBoundaryConditions(Element(3),tw::dom::xAxis,fld::neumannWall,fld::dirichletWall);
+			J4.SetBoundaryConditions(Element(0),tw::dom::xAxis,fld::neumannWall,fld::dirichletWall);
+			J4.SetBoundaryConditions(Element(3),tw::dom::xAxis,fld::neumannWall,fld::dirichletWall);
 			break;
-		case spherical:
-			A4.SetBoundaryConditions(Element(0),yAxis,neumannWall,neumannWall);
-			A4.SetBoundaryConditions(Element(1),yAxis,neumannWall,neumannWall);
-			J4.SetBoundaryConditions(Element(0),yAxis,neumannWall,neumannWall);
-			J4.SetBoundaryConditions(Element(1),yAxis,neumannWall,neumannWall);
+		case tw::dom::spherical:
+			A4.SetBoundaryConditions(Element(0),tw::dom::yAxis,fld::neumannWall,fld::neumannWall);
+			A4.SetBoundaryConditions(Element(1),tw::dom::yAxis,fld::neumannWall,fld::neumannWall);
+			J4.SetBoundaryConditions(Element(0),tw::dom::yAxis,fld::neumannWall,fld::neumannWall);
+			J4.SetBoundaryConditions(Element(1),tw::dom::yAxis,fld::neumannWall,fld::neumannWall);
 			break;
 	}
 
@@ -713,7 +713,7 @@ tw::vec4 AtomicPhysics::GetA4AtOrigin()
 void AtomicPhysics::VerifyInput()
 {
 	Module::VerifyInput();
-	if (owner->gridGeometry!=cartesian)
+	if (owner->gridGeometry!=tw::dom::cartesian)
 		if (B0.x!=0.0 || B0.y!=0.0 || B0.z!=0.0)
 			throw tw::FatalError("Static B field assumes Cartesian geometry.");
 	for (auto tool : moduleTool)
@@ -944,13 +944,13 @@ void Schroedinger::Initialize()
 {
 	AtomicPhysics::Initialize();
 
-	const boundarySpec psiDefaultBC = neumannWall;
-	psi0.SetBoundaryConditions(xAxis,psiDefaultBC,psiDefaultBC);
-	psi0.SetBoundaryConditions(yAxis,psiDefaultBC,psiDefaultBC);
-	psi0.SetBoundaryConditions(zAxis,psiDefaultBC,psiDefaultBC);
-	psi1.SetBoundaryConditions(xAxis,psiDefaultBC,psiDefaultBC);
-	psi1.SetBoundaryConditions(yAxis,psiDefaultBC,psiDefaultBC);
-	psi1.SetBoundaryConditions(zAxis,psiDefaultBC,psiDefaultBC);
+	const tw::bc::fld psiDefaultBC = fld::neumannWall;
+	psi0.SetBoundaryConditions(tw::dom::xAxis,psiDefaultBC,psiDefaultBC);
+	psi0.SetBoundaryConditions(tw::dom::yAxis,psiDefaultBC,psiDefaultBC);
+	psi0.SetBoundaryConditions(tw::dom::zAxis,psiDefaultBC,psiDefaultBC);
+	psi1.SetBoundaryConditions(tw::dom::xAxis,psiDefaultBC,psiDefaultBC);
+	psi1.SetBoundaryConditions(tw::dom::yAxis,psiDefaultBC,psiDefaultBC);
+	psi1.SetBoundaryConditions(tw::dom::zAxis,psiDefaultBC,psiDefaultBC);
 
 	if (!owner->restarted)
 	{
@@ -1082,24 +1082,24 @@ void Schroedinger::Update()
 	FormPotentials(owner->elapsedTime);
 	J4 = 0.0;
 
-	propagator->DepositCurrent(tAxis,psi0,psi1,A4,J4,dtc);
+	propagator->DepositCurrent(tw::dom::tAxis,psi0,psi1,A4,J4,dtc);
 
 	psi0 = psi1;
-	propagator->ApplyNumerator(xAxis,psi1,A4,keepA2Term,dtc);
-	propagator->ApplyDenominator(xAxis,psi1,A4,keepA2Term,dtc);
-	propagator->DepositCurrent(xAxis,psi0,psi1,A4,J4,dtc);
+	propagator->ApplyNumerator(tw::dom::xAxis,psi1,A4,keepA2Term,dtc);
+	propagator->ApplyDenominator(tw::dom::xAxis,psi1,A4,keepA2Term,dtc);
+	propagator->DepositCurrent(tw::dom::xAxis,psi0,psi1,A4,J4,dtc);
 
 	psi0 = psi1;
-	propagator->ApplyNumerator(yAxis,psi1,A4,keepA2Term,dtc);
-	propagator->ApplyDenominator(yAxis,psi1,A4,keepA2Term,dtc);
-	propagator->DepositCurrent(yAxis,psi0,psi1,A4,J4,dtc);
+	propagator->ApplyNumerator(tw::dom::yAxis,psi1,A4,keepA2Term,dtc);
+	propagator->ApplyDenominator(tw::dom::yAxis,psi1,A4,keepA2Term,dtc);
+	propagator->DepositCurrent(tw::dom::yAxis,psi0,psi1,A4,J4,dtc);
 
 	psi0 = psi1;
-	propagator->ApplyNumerator(zAxis,psi1,A4,keepA2Term,dtc);
-	propagator->ApplyDenominator(zAxis,psi1,A4,keepA2Term,dtc);
-	propagator->DepositCurrent(zAxis,psi0,psi1,A4,J4,dtc);
+	propagator->ApplyNumerator(tw::dom::zAxis,psi1,A4,keepA2Term,dtc);
+	propagator->ApplyDenominator(tw::dom::zAxis,psi1,A4,keepA2Term,dtc);
+	propagator->DepositCurrent(tw::dom::zAxis,psi0,psi1,A4,J4,dtc);
 
-	propagator->DepositCurrent(tAxis,psi0,psi1,A4,J4,dtc);
+	propagator->DepositCurrent(tw::dom::tAxis,psi0,psi1,A4,J4,dtc);
 
 	J4.CopyFromNeighbors();
 	J4.ApplyBoundaryCondition();
@@ -1114,12 +1114,12 @@ void Schroedinger::Update()
 // 	FormPotentials(owner->elapsedTime);
 //
 // 	psi0 = psi1;
-// 	propagator->ApplyNumerator(xAxis,psi1,A4,keepA2Term,dtc);
-// 	propagator->ApplyDenominator(xAxis,psi1,A4,keepA2Term,dtc);
-// 	propagator->ApplyNumerator(yAxis,psi1,A4,keepA2Term,dtc);
-// 	propagator->ApplyDenominator(yAxis,psi1,A4,keepA2Term,dtc);
-// 	propagator->ApplyNumerator(zAxis,psi1,A4,keepA2Term,dtc);
-// 	propagator->ApplyDenominator(zAxis,psi1,A4,keepA2Term,dtc);
+// 	propagator->ApplyNumerator(tw::dom::xAxis,psi1,A4,keepA2Term,dtc);
+// 	propagator->ApplyDenominator(tw::dom::xAxis,psi1,A4,keepA2Term,dtc);
+// 	propagator->ApplyNumerator(tw::dom::yAxis,psi1,A4,keepA2Term,dtc);
+// 	propagator->ApplyDenominator(tw::dom::yAxis,psi1,A4,keepA2Term,dtc);
+// 	propagator->ApplyNumerator(tw::dom::zAxis,psi1,A4,keepA2Term,dtc);
+// 	propagator->ApplyDenominator(tw::dom::zAxis,psi1,A4,keepA2Term,dtc);
 // 	if (owner->elapsedTime < timeRelaxingToGround)
 // 		Normalize();
 // 	else
@@ -1377,38 +1377,38 @@ void Pauli::Update()
 	FormPotentials(owner->elapsedTime);
 	J4 = 0.0;
 
-	propagator->DepositCurrent(tAxis,psi0,psi1,A4,J4,dtc);
-	propagator->DepositCurrent(tAxis,chi0,chi1,A4,J4,dtc);
+	propagator->DepositCurrent(tw::dom::tAxis,psi0,psi1,A4,J4,dtc);
+	propagator->DepositCurrent(tw::dom::tAxis,chi0,chi1,A4,J4,dtc);
 
 	psi0 = psi1;
 	chi0 = chi1;
-	propagator->ApplyNumerator(xAxis,psi1,A4,keepA2Term,dtc);
-	propagator->ApplyDenominator(xAxis,psi1,A4,keepA2Term,dtc);
-	propagator->DepositCurrent(xAxis,psi0,psi1,A4,J4,dtc);
-	propagator->ApplyNumerator(xAxis,chi1,A4,keepA2Term,dtc);
-	propagator->ApplyDenominator(xAxis,chi1,A4,keepA2Term,dtc);
-	propagator->DepositCurrent(xAxis,chi0,chi1,A4,J4,dtc);
+	propagator->ApplyNumerator(tw::dom::xAxis,psi1,A4,keepA2Term,dtc);
+	propagator->ApplyDenominator(tw::dom::xAxis,psi1,A4,keepA2Term,dtc);
+	propagator->DepositCurrent(tw::dom::xAxis,psi0,psi1,A4,J4,dtc);
+	propagator->ApplyNumerator(tw::dom::xAxis,chi1,A4,keepA2Term,dtc);
+	propagator->ApplyDenominator(tw::dom::xAxis,chi1,A4,keepA2Term,dtc);
+	propagator->DepositCurrent(tw::dom::xAxis,chi0,chi1,A4,J4,dtc);
 
 	psi0 = psi1;
 	chi0 = chi1;
-	propagator->ApplyNumerator(yAxis,psi1,A4,keepA2Term,dtc);
-	propagator->ApplyDenominator(yAxis,psi1,A4,keepA2Term,dtc);
-	propagator->DepositCurrent(yAxis,psi0,psi1,A4,J4,dtc);
-	propagator->ApplyNumerator(yAxis,chi1,A4,keepA2Term,dtc);
-	propagator->ApplyDenominator(yAxis,chi1,A4,keepA2Term,dtc);
-	propagator->DepositCurrent(yAxis,chi0,chi1,A4,J4,dtc);
+	propagator->ApplyNumerator(tw::dom::yAxis,psi1,A4,keepA2Term,dtc);
+	propagator->ApplyDenominator(tw::dom::yAxis,psi1,A4,keepA2Term,dtc);
+	propagator->DepositCurrent(tw::dom::yAxis,psi0,psi1,A4,J4,dtc);
+	propagator->ApplyNumerator(tw::dom::yAxis,chi1,A4,keepA2Term,dtc);
+	propagator->ApplyDenominator(tw::dom::yAxis,chi1,A4,keepA2Term,dtc);
+	propagator->DepositCurrent(tw::dom::yAxis,chi0,chi1,A4,J4,dtc);
 
 	psi0 = psi1;
 	chi0 = chi1;
-	propagator->ApplyNumerator(zAxis,psi1,A4,keepA2Term,dtc);
-	propagator->ApplyDenominator(zAxis,psi1,A4,keepA2Term,dtc);
-	propagator->DepositCurrent(zAxis,psi0,psi1,A4,J4,dtc);
-	propagator->ApplyNumerator(zAxis,chi1,A4,keepA2Term,dtc);
-	propagator->ApplyDenominator(zAxis,chi1,A4,keepA2Term,dtc);
-	propagator->DepositCurrent(zAxis,chi0,chi1,A4,J4,dtc);
+	propagator->ApplyNumerator(tw::dom::zAxis,psi1,A4,keepA2Term,dtc);
+	propagator->ApplyDenominator(tw::dom::zAxis,psi1,A4,keepA2Term,dtc);
+	propagator->DepositCurrent(tw::dom::zAxis,psi0,psi1,A4,J4,dtc);
+	propagator->ApplyNumerator(tw::dom::zAxis,chi1,A4,keepA2Term,dtc);
+	propagator->ApplyDenominator(tw::dom::zAxis,chi1,A4,keepA2Term,dtc);
+	propagator->DepositCurrent(tw::dom::zAxis,chi0,chi1,A4,J4,dtc);
 
-	propagator->DepositCurrent(tAxis,psi0,psi1,A4,J4,dtc);
-	propagator->DepositCurrent(tAxis,chi0,chi1,A4,J4,dtc);
+	propagator->DepositCurrent(tw::dom::tAxis,psi0,psi1,A4,J4,dtc);
+	propagator->DepositCurrent(tw::dom::tAxis,chi0,chi1,A4,J4,dtc);
 
    	propagator->UpdateSpin(psi1,chi1,A4,alpha*dt);
 
@@ -1570,8 +1570,8 @@ KleinGordon::KleinGordon(const std::string& name,Simulation* sim) : AtomicPhysic
 	q0 = -sqrt(alpha);
 	residualCharge = sqrt(alpha);
 	dipoleApproximation = false;
-	psi_r.Initialize(2,*this,owner,xAxis);
-	psi_i.Initialize(2,*this,owner,xAxis);
+	psi_r.Initialize(2,*this,owner,tw::dom::xAxis);
+	psi_i.Initialize(2,*this,owner,tw::dom::xAxis);
 
 	#ifdef USE_OPENCL
 	cl_int err;
@@ -1954,8 +1954,8 @@ Dirac::Dirac(const std::string& name,Simulation* sim) : AtomicPhysics(name,sim)
 	q0 = -sqrt(alpha);
 	residualCharge = sqrt(alpha);
 	dipoleApproximation = false;
-	psi_r.Initialize(4,*this,owner,xAxis);
-	psi_i.Initialize(4,*this,owner,xAxis);
+	psi_r.Initialize(4,*this,owner,tw::dom::xAxis);
+	psi_i.Initialize(4,*this,owner,tw::dom::xAxis);
 
 	#ifdef USE_OPENCL
 	cl_int err;
@@ -1977,8 +1977,8 @@ Dirac::~Dirac()
 void Dirac::Initialize()
 {
 	AtomicPhysics::Initialize();
-	psi_r.SetBoundaryConditions(xAxis,neumannWall,none);
-	psi_i.SetBoundaryConditions(xAxis,neumannWall,none);
+	psi_r.SetBoundaryConditions(tw::dom::xAxis,fld::neumannWall,fld::none);
+	psi_i.SetBoundaryConditions(tw::dom::xAxis,fld::neumannWall,fld::none);
 
 	if (!owner->restarted)
 	{

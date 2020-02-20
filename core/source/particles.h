@@ -204,7 +204,7 @@ struct Species:Module
 	tw::Float targetDensity;
 	tw::Float minimumDensity;
 	tw::Float accelerationTime,accelerationImpulse,accelerationForceNow;
-	tw_boundary_spec bc0[4],bc1[4];
+	tw::bc::par bc0[4],bc1[4];
 	IonizationData ionization;
 	bool mobile,radiationDamping;
 	tw::Float meanFreePath;

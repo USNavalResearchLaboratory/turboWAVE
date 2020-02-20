@@ -32,7 +32,7 @@ void BoundaryCondition::Reset()
 	}
 }
 
-void BoundaryCondition::Set(boundarySpec theBoundaryCondition,sideSpec whichSide)
+void BoundaryCondition::Set(tw::bc::fld theBoundaryCondition,tw::dom::side whichSide)
 {
 	// In this routine, indexing is offset from DiscreteSpace indexing convention.
 	// Namely, 0 is the outer ghost cell layer, 1 is the inner, 2 is the edge cell, etc.
@@ -41,18 +41,18 @@ void BoundaryCondition::Set(boundarySpec theBoundaryCondition,sideSpec whichSide
 	Reset();
 	switch (whichSide)
 	{
-		case lowSide:
+		case tw::dom::low:
 			sgn = 1;
 			break;
-		case highSide:
+		case tw::dom::high:
 			sgn = -1;
 			break;
 	}
 	switch (theBoundaryCondition)
 	{
-		case normalFluxFixed:
+		case tw::bc::fld::normalFluxFixed:
 			// quantities known on cell walls that are fixed on the wall
-			if (whichSide==lowSide)
+			if (whichSide==tw::dom::low)
 			{
 				// If we are using 0 to store BC we can't force it
 				//force[0][0] = 0.0;
@@ -70,7 +70,7 @@ void BoundaryCondition::Set(boundarySpec theBoundaryCondition,sideSpec whichSide
 				coeff[1] = 1.0;
 			}
 			break;
-		case neumannWall:
+		case tw::bc::fld::neumannWall:
 			// quantities known at cell centers that are continued outside domain
 			// strip_1 = strip_2 - BC <--> strip_2 - strip_1 = BC
 			// If we are using 0 to store BC we can't force it
@@ -81,7 +81,7 @@ void BoundaryCondition::Set(boundarySpec theBoundaryCondition,sideSpec whichSide
 			force[1][2] = 1.0;
 			coeff[1] = -1.0;
 			break;
-		case dirichletWall:
+		case tw::bc::fld::dirichletWall:
 			// quantities known at cell centers which are fixed on cell walls
 			// (e.g., a no-slip boundary condition for tangential fluid velocity)
 			// strip_1 = 2*BC - strip_2 <--> (strip_1+strip_2)/2 = BC
@@ -93,7 +93,7 @@ void BoundaryCondition::Set(boundarySpec theBoundaryCondition,sideSpec whichSide
 			force[1][2] = -1.0;
 			coeff[1] = 2.0;
 			break;
-		case dirichletCell:
+		case tw::bc::fld::dirichletCell:
 			// quantities known at cell centers which are fixed outside domain
 			// If we are using 0 to store BC we can't force it
 			//force[0][0] = 0.0;
@@ -103,9 +103,9 @@ void BoundaryCondition::Set(boundarySpec theBoundaryCondition,sideSpec whichSide
 			force[1][1] = 0.0;
 			coeff[1] = 1.0;
 			break;
-		case none:
-		case periodic:
-		case natural:
+		case tw::bc::fld::none:
+		case tw::bc::fld::periodic:
+		case tw::bc::fld::natural:
 			// leave as the identity
 			break;
 	}
@@ -184,11 +184,11 @@ Field::~Field()
 	#endif
 }
 
-void Field::Initialize(tw::Int components,const DiscreteSpace& ds,Task *task,const axisSpec& axis)
+void Field::Initialize(tw::Int components,const DiscreteSpace& ds,Task *task,const tw::dom::axis& axis)
 {
 	DiscreteSpace::operator=(ds);
 	this->task = task;
-	packedAxis = naxis(axis);
+	packedAxis = tw::dom::naxis(axis);
 	totalCells = num[1]*num[2]*num[3];
 	num[0] = components;
 	bc0.resize(4,components);
@@ -196,8 +196,8 @@ void Field::Initialize(tw::Int components,const DiscreteSpace& ds,Task *task,con
 	for (tw::Int i=0;i<4;i++)
 		for (tw::Int c=0;c<components;c++)
 		{
-			bc0(i,c).Set(none,lowSide);
-			bc1(i,c).Set(none,highSide);
+			bc0(i,c).Set(tw::bc::fld::none,tw::dom::low);
+			bc1(i,c).Set(tw::bc::fld::none,tw::dom::high);
 		}
 	if (packedAxis==0)
 	{
@@ -352,17 +352,17 @@ void Field::Shift(const Element& e,const tw::strip& s,tw::Int cells,const tw::Fl
 //////////////////////////////////
 
 
-void Field::SetBoundaryConditions(const Element& e,const axisSpec& axis,boundarySpec low,boundarySpec high)
+void Field::SetBoundaryConditions(const Element& e,const tw::dom::axis& axis,tw::bc::fld low,tw::bc::fld high)
 {
 	tw::Int i;
-	tw::Int ax = naxis(axis);
+	tw::Int ax = tw::dom::naxis(axis);
 
 	for (i=e.low;i<=e.high;i++)
 	{
 		if (task->n0[ax]==MPI_PROC_NULL && dim[ax]>1)
-			bc0(ax,i).Set(low,lowSide);
+			bc0(ax,i).Set(low,tw::dom::low);
 		if (task->n1[ax]==MPI_PROC_NULL && dim[ax]>1)
-			bc1(ax,i).Set(high,highSide);
+			bc1(ax,i).Set(high,tw::dom::high);
 	}
 }
 
@@ -668,10 +668,10 @@ void Field::StripCopyProtocol(tw::Int axis,tw::Int shift,Slice<tw::Float> *plane
 	}
 }
 
-void Field::DownwardCopy(const axisSpec& axis,const Element& e,tw::Int cells)
+void Field::DownwardCopy(const tw::dom::axis& axis,const Element& e,tw::Int cells)
 {
 	Slice<tw::Float> *planeIn,*planeOut;
-	const tw::Int ax = naxis(axis);
+	const tw::Int ax = tw::dom::naxis(axis);
 	tw::Int b[6];
 
 	if (dim[ax]==1) return;
@@ -684,16 +684,16 @@ void Field::DownwardCopy(const axisSpec& axis,const Element& e,tw::Int cells)
 	planeOut = new Slice<tw::Float>(e,b[0],b[1],b[2],b[3],b[4],b[5]);
 	planeOut->Translate(axis,lng[ax] + 1 - ung[ax]);
 
-	StripCopyProtocol(naxis(axis),-1,planeIn,planeOut,false);
+	StripCopyProtocol(tw::dom::naxis(axis),-1,planeIn,planeOut,false);
 
 	delete planeOut;
 	delete planeIn;
 }
 
-void Field::UpwardCopy(const axisSpec& axis,const Element& e,tw::Int cells)
+void Field::UpwardCopy(const tw::dom::axis& axis,const Element& e,tw::Int cells)
 {
 	Slice<tw::Float> *planeIn,*planeOut;
-	const tw::Int ax = naxis(axis);
+	const tw::Int ax = tw::dom::naxis(axis);
 	tw::Int b[6];
 
 	if (dim[ax]==1) return;
@@ -706,19 +706,19 @@ void Field::UpwardCopy(const axisSpec& axis,const Element& e,tw::Int cells)
 	planeOut = new Slice<tw::Float>(e,b[0],b[1],b[2],b[3],b[4],b[5]);
 	planeOut->Translate(axis,ung[ax] - lng[ax] - 1);
 
-	StripCopyProtocol(naxis(axis),1,planeIn,planeOut,false);
+	StripCopyProtocol(tw::dom::naxis(axis),1,planeIn,planeOut,false);
 
 	delete planeOut;
 	delete planeIn;
 }
 
-void Field::DownwardDeposit(const axisSpec& axis,const Element& e,tw::Int cells)
+void Field::DownwardDeposit(const tw::dom::axis& axis,const Element& e,tw::Int cells)
 {
 	// deposits work by sending both ghost cells and edge cells one way and adding.
 	// Before accepting the return message these cells are zeroed.
 	// The return message then effectively overwrites them with the correct data.
 	Slice<tw::Float> *planeIn,*planeOut;
-	const tw::Int ax = naxis(axis);
+	const tw::Int ax = tw::dom::naxis(axis);
 	tw::Int b[6];
 
 	if (dim[ax]==1) return;
@@ -731,19 +731,19 @@ void Field::DownwardDeposit(const axisSpec& axis,const Element& e,tw::Int cells)
 	planeOut = new Slice<tw::Float>(e,b[0],b[1],b[2],b[3],b[4],b[5]);
 	planeOut->Translate(axis,lng[ax] + 1 - ung[ax]);
 
-	StripCopyProtocol(naxis(axis),-1,planeIn,planeOut,true);
+	StripCopyProtocol(tw::dom::naxis(axis),-1,planeIn,planeOut,true);
 
 	delete planeOut;
 	delete planeIn;
 }
 
-void Field::UpwardDeposit(const axisSpec& axis,const Element& e,tw::Int cells)
+void Field::UpwardDeposit(const tw::dom::axis& axis,const Element& e,tw::Int cells)
 {
 	// deposits work by sending both ghost cells and edge cells one way and adding.
 	// Before accepting the return message these cells are zeroed.
 	// The return message then effectively overwrites them with the correct data.
 	Slice<tw::Float> *planeIn,*planeOut;
-	const tw::Int ax = naxis(axis);
+	const tw::Int ax = tw::dom::naxis(axis);
 	tw::Int b[6];
 
 	if (dim[ax]==1) return;
@@ -756,7 +756,7 @@ void Field::UpwardDeposit(const axisSpec& axis,const Element& e,tw::Int cells)
 	planeOut = new Slice<tw::Float>(e,b[0],b[1],b[2],b[3],b[4],b[5]);
 	planeOut->Translate(axis,ung[ax] - lng[ax] - 1);
 
-	StripCopyProtocol(naxis(axis),1,planeIn,planeOut,true);
+	StripCopyProtocol(tw::dom::naxis(axis),1,planeIn,planeOut,true);
 
 	delete planeOut;
 	delete planeIn;
@@ -764,14 +764,14 @@ void Field::UpwardDeposit(const axisSpec& axis,const Element& e,tw::Int cells)
 
 void Field::CopyFromNeighbors(const Element& e)
 {
-	DownwardCopy(xAxis,e,1);
-	UpwardCopy(xAxis,e,1);
+	DownwardCopy(tw::dom::xAxis,e,1);
+	UpwardCopy(tw::dom::xAxis,e,1);
 
-	DownwardCopy(yAxis,e,1);
-	UpwardCopy(yAxis,e,1);
+	DownwardCopy(tw::dom::yAxis,e,1);
+	UpwardCopy(tw::dom::yAxis,e,1);
 
-	DownwardCopy(zAxis,e,1);
-	UpwardCopy(zAxis,e,1);
+	DownwardCopy(tw::dom::zAxis,e,1);
+	UpwardCopy(tw::dom::zAxis,e,1);
 }
 
 void Field::DepositFromNeighbors(const Element& e)
@@ -779,7 +779,7 @@ void Field::DepositFromNeighbors(const Element& e)
 	for (tw::Int ax=1;ax<=3;ax++)
 		if (dim[ax]>1)
 		{
-			DownwardDeposit(enumaxis(ax),e,layers[ax]);
+			DownwardDeposit(tw::dom::enumaxis(ax),e,layers[ax]);
 			if (task->n0[ax]!=MPI_PROC_NULL)
 			{
 				tw::Int ub = lfg[ax] + 2*layers[ax] - 1;
@@ -790,30 +790,30 @@ void Field::DepositFromNeighbors(const Element& e)
 				ZeroDataInField<tw::Float>(plane);
 				delete plane;
 			}
-			UpwardDeposit(enumaxis(ax),e,layers[ax]);
+			UpwardDeposit(tw::dom::enumaxis(ax),e,layers[ax]);
 		}
 }
 
-Slice<tw::Float>* Field::FormTransposeBlock(const Element& e,const axisSpec& axis1,const axisSpec& axis2,tw::Int start1,tw::Int end1,tw::Int start2,tw::Int end2)
+Slice<tw::Float>* Field::FormTransposeBlock(const Element& e,const tw::dom::axis& axis1,const tw::dom::axis& axis2,tw::Int start1,tw::Int end1,tw::Int start2,tw::Int end2)
 {
 	Slice<tw::Float> *ans;
-	if (axis1==xAxis)
+	if (axis1==tw::dom::xAxis)
 	{
-		if (axis2==yAxis)
+		if (axis2==tw::dom::yAxis)
 			ans = new Slice<tw::Float>(e,start1,end1,start2,end2,lfg[3],ufg[3]);
 		else
 			ans = new Slice<tw::Float>(e,start1,end1,lfg[2],ufg[2],start2,end2);
 	}
-	if (axis1==yAxis)
+	if (axis1==tw::dom::yAxis)
 	{
-		if (axis2==xAxis)
+		if (axis2==tw::dom::xAxis)
 			ans = new Slice<tw::Float>(e,start2,end2,start1,end1,lfg[3],ufg[3]);
 		else
 			ans = new Slice<tw::Float>(e,lfg[1],ufg[1],start1,end1,start2,end2);
 	}
-	if (axis1==zAxis)
+	if (axis1==tw::dom::zAxis)
 	{
-		if (axis2==xAxis)
+		if (axis2==tw::dom::xAxis)
 			ans = new Slice<tw::Float>(e,start2,end2,lfg[2],ufg[2],start1,end1);
 		else
 			ans = new Slice<tw::Float>(e,lfg[1],ufg[1],start2,end2,start1,end1);
@@ -821,7 +821,7 @@ Slice<tw::Float>* Field::FormTransposeBlock(const Element& e,const axisSpec& axi
 	return ans;
 }
 
-void Field::Transpose(const Element& e,const axisSpec& axis1,const axisSpec& axis2,Field *target,tw::Int inversion)
+void Field::Transpose(const Element& e,const tw::dom::axis& axis1,const tw::dom::axis& axis2,Field *target,tw::Int inversion)
 {
 	// We have in mind a matrix whose rows are the NODES arranged along axis1,
 	// and whose columns are BLOCKS arranged along axis2.
@@ -842,8 +842,8 @@ void Field::Transpose(const Element& e,const axisSpec& axis1,const axisSpec& axi
 	Slice<tw::Float>* block;
 	DiscreteSpace transposedSpace;
 
-	const tw::Int ax1 = naxis(axis1);
-	const tw::Int ax2 = naxis(axis2);
+	const tw::Int ax1 = tw::dom::naxis(axis1);
+	const tw::Int ax2 = tw::dom::naxis(axis2);
 	const tw::Int nodes = task->domains[ax1];
 	const tw::Int thisNode = task->strip[ax1].Get_rank(); // assumes rank=coord
 	const tw::Int cellsPerBlock = num[ax2]/nodes + 1;
@@ -878,23 +878,23 @@ void Field::Transpose(const Element& e,const axisSpec& axis1,const axisSpec& axi
 
 	if (inversion==1)
 	{
-		if (axis1==xAxis)
+		if (axis1==tw::dom::xAxis)
 		{
-			if (axis2==yAxis)
+			if (axis2==tw::dom::yAxis)
 				transposedSpace.Resize(dim[ax1]*nodes,interiorCellsPerBlock,dim[3],corner,size);
 			else
 				transposedSpace.Resize(dim[ax1]*nodes,dim[2],interiorCellsPerBlock,corner,size);
 		}
-		if (axis1==yAxis)
+		if (axis1==tw::dom::yAxis)
 		{
-			if (axis2==xAxis)
+			if (axis2==tw::dom::xAxis)
 				transposedSpace.Resize(interiorCellsPerBlock,dim[ax1]*nodes,dim[3],corner,size);
 			else
 				transposedSpace.Resize(dim[1],dim[ax1]*nodes,interiorCellsPerBlock,corner,size);
 		}
-		if (axis1==zAxis)
+		if (axis1==tw::dom::zAxis)
 		{
-			if (axis2==xAxis)
+			if (axis2==tw::dom::xAxis)
 				transposedSpace.Resize(interiorCellsPerBlock,dim[2],dim[ax1]*nodes,corner,size);
 			else
 				transposedSpace.Resize(dim[1],interiorCellsPerBlock,dim[ax1]*nodes,corner,size);
@@ -1029,7 +1029,7 @@ void Field::SmoothingPass(tw::Int ax,const Element& e,const MetricSpace& ds,cons
 {
 	tw::Int i,c;
 	tw::Float ansNow,temp;
-	axisSpec axs[4] = { tAxis, xAxis, yAxis, zAxis };
+	tw::dom::axis axs[4] = { tw::dom::tAxis, tw::dom::xAxis, tw::dom::yAxis, tw::dom::zAxis };
 
 	for (c=e.low;c<=e.high;c++)
 		if (dim[ax]>1)
@@ -1066,7 +1066,7 @@ void Field::ReadData(std::ifstream& inFile)
 	DiscreteSpace ds;
 	ds.ReadData(inFile);
 	inFile.read((char*)&packedAxis,sizeof(tw::Int));
-	Initialize(num[0],ds,task,enumaxis(packedAxis));
+	Initialize(num[0],ds,task,tw::dom::enumaxis(packedAxis));
 	inFile.read((char*)&bc0(0,0),sizeof(BoundaryCondition)*num[0]*4);
 	inFile.read((char*)&bc1(0,0),sizeof(BoundaryCondition)*num[0]*4);
 	inFile.read((char *)&array[0],sizeof(tw::Float)*totalCells*num[0]);
@@ -1217,13 +1217,13 @@ void ScalarField::AxialSineTransform()
 	Field T;
 	if (task->globalCells[3]>1)
 	{
-		Transpose(zAxis,xAxis,&T,1);
+		Transpose(tw::dom::zAxis,tw::dom::xAxis,&T,1);
 		#pragma omp parallel
 		{
 			for (auto strip : StripRange(T,3,strongbool::yes))
 				SineTransform( &T(strip,1,0), T.Dim(3), T.Stride(3), 1 );
 		}
-		Transpose(zAxis,xAxis,&T,-1);
+		Transpose(tw::dom::zAxis,tw::dom::xAxis,&T,-1);
 	}
 }
 
@@ -1232,7 +1232,7 @@ void ScalarField::InverseAxialSineTransform()
 	Field T;
 	if (task->globalCells[3]>1)
 	{
-		Transpose(zAxis,xAxis,&T,1);
+		Transpose(tw::dom::zAxis,tw::dom::xAxis,&T,1);
 		#pragma omp parallel
 		{
 			for (auto strip : StripRange(T,3,strongbool::yes))
@@ -1242,18 +1242,18 @@ void ScalarField::InverseAxialSineTransform()
 				T(strip,T.UNG(3),0) = 0.0;
 			}
 		}
-		Transpose(zAxis,xAxis,&T,-1);
+		Transpose(tw::dom::zAxis,tw::dom::xAxis,&T,-1);
 	}
 }
 
 void ScalarField::TransverseCosineTransform()
 {
 	Field T;
-	axisSpec axis1,axis2;
+	tw::dom::axis axis1,axis2;
 	for (tw::Int ax=1;ax<=2;ax++)
 	{
-		axis1 = enumaxis(ax);
-		axis2 = zAxis;
+		axis1 = tw::dom::enumaxis(ax);
+		axis2 = tw::dom::zAxis;
 		if (task->globalCells[ax]>1)
 		{
 			Transpose(axis1,axis2,&T,1);
@@ -1270,11 +1270,11 @@ void ScalarField::TransverseCosineTransform()
 void ScalarField::InverseTransverseCosineTransform()
 {
 	Field T;
-	axisSpec axis1,axis2;
+	tw::dom::axis axis1,axis2;
 	for (tw::Int ax=2;ax>=1;ax--)
 	{
-		axis1 = enumaxis(ax);
-		axis2 = zAxis;
+		axis1 = tw::dom::enumaxis(ax);
+		axis2 = tw::dom::zAxis;
 		if (task->globalCells[ax]>1)
 		{
 			Transpose(axis1,axis2,&T,1);
@@ -1295,11 +1295,11 @@ void ScalarField::InverseTransverseCosineTransform()
 void ScalarField::TransverseSineTransform()
 {
 	Field T;
-	axisSpec axis1,axis2;
+	tw::dom::axis axis1,axis2;
 	for (tw::Int ax=1;ax<=2;ax++)
 	{
-		axis1 = enumaxis(ax);
-		axis2 = zAxis;
+		axis1 = tw::dom::enumaxis(ax);
+		axis2 = tw::dom::zAxis;
 		if (task->globalCells[ax]>1)
 		{
 			Transpose(axis1,axis2,&T,1);
@@ -1316,11 +1316,11 @@ void ScalarField::TransverseSineTransform()
 void ScalarField::InverseTransverseSineTransform()
 {
 	Field T;
-	axisSpec axis1,axis2;
+	tw::dom::axis axis1,axis2;
 	for (tw::Int ax=2;ax>=1;ax--)
 	{
-		axis1 = enumaxis(ax);
-		axis2 = zAxis;
+		axis1 = tw::dom::enumaxis(ax);
+		axis2 = tw::dom::zAxis;
 		if (task->globalCells[ax]>1)
 		{
 			Transpose(axis1,axis2,&T,1);
@@ -1344,18 +1344,18 @@ void ScalarField::TransverseFFT()
 
 	if (task->globalCells[1]>1)
 	{
-		Transpose(xAxis,zAxis,&T,1);
+		Transpose(tw::dom::xAxis,tw::dom::zAxis,&T,1);
 		#pragma omp parallel
 		{
 			for (auto strip : StripRange(T,1,strongbool::yes))
 				RealFFT( &T(strip,1,0), T.Dim(1), T.Stride(1), 1);
 		}
-		Transpose(xAxis,zAxis,&T,-1);
+		Transpose(tw::dom::xAxis,tw::dom::zAxis,&T,-1);
 	}
 
 	if (task->globalCells[2]>1)
 	{
-		Transpose(yAxis,zAxis,&T,1);
+		Transpose(tw::dom::yAxis,tw::dom::zAxis,&T,1);
 		const tw::Int xDim=T.Dim(1),zN0=T.LFG(3),zN1=T.UFG(3);
 		#pragma omp parallel for collapse(2) schedule(static)
 		for (tw::Int i=1;i<=xDim;i+=2) // can't include ghost cells due to complex numbers; instead do copy ops below
@@ -1369,9 +1369,9 @@ void ScalarField::TransverseFFT()
 				else
 					ComplexFFT( &T(i,1,k,0), &T(i+1,1,k,0), T.Dim(2), T.Stride(2), 1.0);
 			}
-		T.UpwardCopy(xAxis,1);
-		T.DownwardCopy(xAxis,1);
-		Transpose(yAxis,zAxis,&T,-1);
+		T.UpwardCopy(tw::dom::xAxis,1);
+		T.DownwardCopy(tw::dom::xAxis,1);
+		Transpose(tw::dom::yAxis,tw::dom::zAxis,&T,-1);
 	}
 }
 
@@ -1381,7 +1381,7 @@ void ScalarField::InverseTransverseFFT()
 
 	if (task->globalCells[2]>1)
 	{
-		Transpose(yAxis,zAxis,&T,1);
+		Transpose(tw::dom::yAxis,tw::dom::zAxis,&T,1);
 		const tw::Int xDim=T.Dim(1),zN0=T.LFG(3),zN1=T.UFG(3);
 		#pragma omp parallel for collapse(2) schedule(static)
 		for (tw::Int i=1;i<=xDim;i+=2) // can't include ghost cells due to complex numbers; instead do copy ops below
@@ -1405,14 +1405,14 @@ void ScalarField::InverseTransverseFFT()
 					T(i+1,T.UNG(2),k,0) = T(i+1,1,k,0);
 				}
 			}
-		T.UpwardCopy(xAxis,1);
-		T.DownwardCopy(xAxis,1);
-		Transpose(yAxis,zAxis,&T,-1);
+		T.UpwardCopy(tw::dom::xAxis,1);
+		T.DownwardCopy(tw::dom::xAxis,1);
+		Transpose(tw::dom::yAxis,tw::dom::zAxis,&T,-1);
 	}
 
 	if (task->globalCells[1]>1)
 	{
-		Transpose(xAxis,zAxis,&T,1);
+		Transpose(tw::dom::xAxis,tw::dom::zAxis,&T,1);
 		#pragma omp parallel
 		{
 			for (auto strip : StripRange(T,1,strongbool::yes))
@@ -1422,7 +1422,7 @@ void ScalarField::InverseTransverseFFT()
 				T(strip,T.UNG(1),0) = T(strip,1,0);
 			}
 		}
-		Transpose(xAxis,zAxis,&T,-1);
+		Transpose(tw::dom::xAxis,tw::dom::zAxis,&T,-1);
 	}
 }
 
@@ -1452,11 +1452,11 @@ tw::Float ComplexField::CyclicEigenvalue(tw::Int x,tw::Int y,tw::Int z)
 void ComplexField::TransverseFFT()
 {
 	Field T;
-	axisSpec axis1,axis2;
+	tw::dom::axis axis1,axis2;
 	for (tw::Int ax=1;ax<=2;ax++)
 	{
-		axis1 = enumaxis(ax);
-		axis2 = zAxis;
+		axis1 = tw::dom::enumaxis(ax);
+		axis2 = tw::dom::zAxis;
 		if (task->globalCells[ax]>1)
 		{
 			Transpose(axis1,axis2,&T,1);
@@ -1473,11 +1473,11 @@ void ComplexField::TransverseFFT()
 void ComplexField::InverseTransverseFFT()
 {
 	Field T;
-	axisSpec axis1,axis2;
+	tw::dom::axis axis1,axis2;
 	for (tw::Int ax=2;ax>=1;ax--)
 	{
-		axis1 = enumaxis(ax);
-		axis2 = zAxis;
+		axis1 = tw::dom::enumaxis(ax);
+		axis2 = tw::dom::zAxis;
 		if (task->globalCells[ax]>1)
 		{
 			Transpose(axis1,axis2,&T,1);
@@ -1500,11 +1500,11 @@ void ComplexField::InverseTransverseFFT()
 void ComplexField::FFT()
 {
 	Field T;
-	axisSpec axis1,axis2;
+	tw::dom::axis axis1,axis2;
 	for (tw::Int ax=1;ax<=3;ax++)
 	{
-		axis1 = enumaxis(ax);
-		axis2 = enumaxis(ax==3 ? 1 : ax+1);
+		axis1 = tw::dom::enumaxis(ax);
+		axis2 = tw::dom::enumaxis(ax==3 ? 1 : ax+1);
 		if (task->globalCells[ax]>1)
 		{
 			Transpose(axis1,axis2,&T,1);
@@ -1521,11 +1521,11 @@ void ComplexField::FFT()
 void ComplexField::InverseFFT()
 {
 	Field T;
-	axisSpec axis1,axis2;
+	tw::dom::axis axis1,axis2;
 	for (tw::Int ax=3;ax>=1;ax--)
 	{
-		axis1 = enumaxis(ax);
-		axis2 = enumaxis(ax==3 ? 1 : ax+1);
+		axis1 = tw::dom::enumaxis(ax);
+		axis2 = tw::dom::enumaxis(ax==3 ? 1 : ax+1);
 		if (task->globalCells[ax]>1)
 		{
 			Transpose(axis1,axis2,&T,1);
@@ -1548,25 +1548,25 @@ void ComplexField::InverseFFT()
 void Field::Hankel(const Element& e,tw::Int modes,std::valarray<tw::Float>& matrix)
 {
 	Field T;
-	Transpose(e,xAxis,zAxis,&T,1);
+	Transpose(e,tw::dom::xAxis,tw::dom::zAxis,&T,1);
 	#pragma omp parallel
 	{
 		for (auto strip : StripRange(T,1,strongbool::yes))
 			for (tw::Int c=e.low;c<=e.high;c++)
 				Transform(&T(strip,1,c),T.Dim(1),modes,T.Stride(1),matrix);
 	}
-	Transpose(e,xAxis,zAxis,&T,-1);
+	Transpose(e,tw::dom::xAxis,tw::dom::zAxis,&T,-1);
 }
 
 void Field::InverseHankel(const Element& e,tw::Int modes,std::valarray<tw::Float>& matrix)
 {
 	Field T;
-	Transpose(e,xAxis,zAxis,&T,1);
+	Transpose(e,tw::dom::xAxis,tw::dom::zAxis,&T,1);
 	#pragma omp parallel
 	{
 		for (auto strip : StripRange(T,1,strongbool::yes))
 			for (tw::Int c=e.low;c<=e.high;c++)
 				ReverseTransform(&T(strip,1,c),T.Dim(1),modes,T.Stride(1),matrix);
 	}
-	Transpose(e,xAxis,zAxis,&T,-1);
+	Transpose(e,tw::dom::xAxis,tw::dom::zAxis,&T,-1);
 }

@@ -2,6 +2,7 @@
 #include "particles.h"
 #include "fieldSolve.h"
 #include "laserSolve.h"
+using namespace tw::bc;
 
 ////////////////////
 // KINETICS CLASS //
@@ -59,7 +60,7 @@ void Kinetics::MoveWindow()
 	// rho00 array is always left in an unrefined post-deposition state
 	// i.e., charge from a given particle should be on only one node
 	// therefore charge has to be zeroed on one node after being sent to another
-	rho00.DownwardDeposit(zAxis,1);
+	rho00.DownwardDeposit(tw::dom::zAxis,1);
 	for (auto s : StripRange(*this,3,strongbool::yes))
 	{
 		rho00(s,0) = 0.0;
@@ -474,9 +475,9 @@ void Species::Initialize()
 void Species::WarningMessage(std::ostream *theStream)
 {
 	Module::WarningMessage(theStream);
-	if (bc0[1]==absorbing || bc1[1]==absorbing ||
-		bc0[2]==absorbing || bc1[2]==absorbing ||
-		bc0[3]==absorbing || bc1[3]==absorbing)
+	if (bc0[1]==par::absorbing || bc1[1]==par::absorbing ||
+		bc0[2]==par::absorbing || bc1[2]==par::absorbing ||
+		bc0[3]==par::absorbing || bc1[3]==par::absorbing)
 		(*theStream) << "WARNING: " << name << " will be absorbed." << std::endl;
 }
 
@@ -622,7 +623,7 @@ void Species::ApplyGlobalBoundaryConditions()
 	// If absorption is desired leave particle out of global domain (destination calculation will send to MPI_PROC_NULL).
 	tw::Float extremum;
 	tw::Int ax,i,displ,src,dst;
-	tw_boundary_spec boundaryCondition;
+	tw::bc::par boundaryCondition;
 
 	for (displ=-1;displ<=1;displ+=2)
 		for (ax=1;ax<=3;ax++)
@@ -638,14 +639,14 @@ void Species::ApplyGlobalBoundaryConditions()
 					{
 						switch (boundaryCondition)
 						{
-							case cyclic:
+							case par::periodic:
 								// must delay particle wrap-around
 								// typically this case will never be encountered since dst!=MPI_PROC_NULL
 								break;
-							case absorbing:
+							case par::absorbing:
 								// do nothing; let it leave
 								break;
-							case emitting:
+							case par::emitting:
 								transfer[i].dst[ax] = 0;
 								transfer[i].x[ax] = extremum - tw::Float(displ)*0.5*spacing[ax-1];
 								transfer[i].p[1] = emissionTemp.x*owner->gaussianDeviate->Next();
@@ -653,11 +654,14 @@ void Species::ApplyGlobalBoundaryConditions()
 								transfer[i].p[3] = emissionTemp.z*owner->gaussianDeviate->Next();
 								transfer[i].p[ax] = -tw::Float(displ)*fabs(transfer[i].p[ax]);
 								break;
-							case reflecting:
-							case axisymmetric:
+							case par::reflecting:
+							case par::axisymmetric:
 								transfer[i].dst[ax] = 0;
 								transfer[i].x[ax] += 2.0*(extremum - transfer[i].x[ax]);
 								transfer[i].p[ax] *= -1.0;
+								break;
+							case par::none:
+								// do nothing, same effect as absorbing
 								break;
 						}
 					}
@@ -906,7 +910,7 @@ tw::Float Species::AddDensity(const LoadingData& theData)
 	initialMomenta -= p - driftMomentum;
 
 	Nr2 = sqr(distributionInCell.x);
-	if (owner->gridGeometry==cylindrical)
+	if (owner->gridGeometry==tw::dom::cylindrical)
 	{
 		C0 = 0.0;
 		C1 = 1.0;
@@ -988,7 +992,7 @@ tw::Float Species::AddDensityRandom(const LoadingData& theData)
 	if (numToAdd<1) return 0.0;
 
 	Nr2 = sqr(distributionInCell.x);
-	if (owner->gridGeometry==cylindrical)
+	if (owner->gridGeometry==tw::dom::cylindrical)
 	{
 		C0 = 0.0;
 		C1 = 1.0;
@@ -1172,8 +1176,8 @@ void Species::ReadData(std::ifstream& inFile)
 	inFile.read((char *)&count,sizeof(tw::Int));
 	inFile.read((char *)&sortPeriod,sizeof(tw::Int));
 	inFile.read((char *)&distributionInCell,sizeof(tw::vec3));
-	inFile.read((char *)bc0,sizeof(tw_boundary_spec)*4);
-	inFile.read((char *)bc1,sizeof(tw_boundary_spec)*4);
+	inFile.read((char *)bc0,sizeof(tw::bc::par)*4);
+	inFile.read((char *)bc1,sizeof(tw::bc::par)*4);
 	inFile.read((char *)&mobile,sizeof(bool));
 	inFile.read((char *)&radiationDamping,sizeof(bool));
 	inFile.read((char *)&meanFreePath,sizeof(tw::Float));
@@ -1228,8 +1232,8 @@ void Species::WriteData(std::ofstream& outFile)
 	outFile.write((char *)&count,sizeof(tw::Int));
 	outFile.write((char *)&sortPeriod,sizeof(tw::Int));
 	outFile.write((char *)&distributionInCell,sizeof(tw::vec3));
-	outFile.write((char *)bc0,sizeof(tw_boundary_spec)*4);
-	outFile.write((char *)bc1,sizeof(tw_boundary_spec)*4);
+	outFile.write((char *)bc0,sizeof(tw::bc::par)*4);
+	outFile.write((char *)bc1,sizeof(tw::bc::par)*4);
 	outFile.write((char *)&mobile,sizeof(bool));
 	outFile.write((char *)&radiationDamping,sizeof(bool));
 	outFile.write((char *)&meanFreePath,sizeof(tw::Float));
@@ -1276,9 +1280,9 @@ void Species::CalculateDensity(ScalarField& dens)
 		}
 	}
 	transfer.clear();
-	dens.SetBoundaryConditions(xAxis,dirichletCell,dirichletCell);
-	dens.SetBoundaryConditions(yAxis,dirichletCell,dirichletCell);
-	dens.SetBoundaryConditions(zAxis,dirichletCell,dirichletCell);
+	dens.SetBoundaryConditions(tw::dom::xAxis,fld::dirichletCell,fld::dirichletCell);
+	dens.SetBoundaryConditions(tw::dom::yAxis,fld::dirichletCell,fld::dirichletCell);
+	dens.SetBoundaryConditions(tw::dom::zAxis,fld::dirichletCell,fld::dirichletCell);
 	dens.DepositFromNeighbors();
 	dens.ApplyFoldingCondition();
 	dens.DivideCellVolume(*owner);
@@ -1417,8 +1421,8 @@ void Species::CustomDiagnose()
 			phaseSpaceSize = phaseSpacePlot[s]->max - phaseSpacePlot[s]->min;
 			DiscreteSpace plot_layout(dt,phaseSpacePlot[s]->hDim,phaseSpacePlot[s]->vDim,1,phaseSpacePlot[s]->min,phaseSpaceSize,1);
 			field.Initialize(plot_layout,owner);
-			field.SetBoundaryConditions(xAxis,dirichletCell,dirichletCell);
-			field.SetBoundaryConditions(yAxis,dirichletCell,dirichletCell);
+			field.SetBoundaryConditions(tw::dom::xAxis,fld::dirichletCell,fld::dirichletCell);
+			field.SetBoundaryConditions(tw::dom::yAxis,fld::dirichletCell,fld::dirichletCell);
 			for (i=0;i<particle.size();i++)
 			{
 				position = owner->PositionFromPrimitive(particle[i].q);

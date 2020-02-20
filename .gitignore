@@ -1,9 +1,11 @@
 .DS_Store
 *.o
+*.obj
 *.pyc
 *.dvdat
 *.egg-info
 tw3d
+tw3d.exe
 docs/_build/
 tools/twutils/dist/
 tools/twutils/build/

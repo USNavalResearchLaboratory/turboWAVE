@@ -16,14 +16,14 @@
 struct EllipticSolver:ComputeTool
 {
 	ScalarField *coeff;
-	boundarySpec x0,x1,y0,y1,z0,z1;
-	boundarySpec x0s,x1s,y0s,y1s,z0s,z1s; // saved BC's
+	tw::bc::fld x0,x1,y0,y1,z0,z1;
+	tw::bc::fld x0s,x1s,y0s,y1s,z0s,z1s; // saved BC's
 	tw::Float gammaBeam;
 
 	EllipticSolver(const std::string& name,MetricSpace *m,Task *tsk);
 	virtual void SetCoefficients(ScalarField *coefficients);
 	virtual void SetBoundaryConditions(ScalarField& phi);
-	virtual void SetBoundaryConditions(boundarySpec x0,boundarySpec x1,boundarySpec y0,boundarySpec y1,boundarySpec z0,boundarySpec z1);
+	virtual void SetBoundaryConditions(tw::bc::fld x0,tw::bc::fld x1,tw::bc::fld y0,tw::bc::fld y1,tw::bc::fld z0,tw::bc::fld z1);
 	virtual void SaveBoundaryConditions();
 	virtual void RestoreBoundaryConditions();
 	virtual void FixPotential(ScalarField& phi,Region* theRegion,const tw::Float& thePotential);

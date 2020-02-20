@@ -22,7 +22,7 @@ namespace EM
 struct Profile : ComputeTool
 {
 	tw::profile::shape segmentShape;
-	tw_geometry symmetry;
+	tw::dom::geometry symmetry;
 	tw::vec3 centerPt;
 	tw::vec3 modeNumber;
 	tw::Float modeAmplitude;
@@ -287,13 +287,13 @@ struct Conductor
 struct LindmanBoundary
 {
 	MetricSpace *ms;
-	axisSpec axis;
-	sideSpec side;
+	tw::dom::axis axis;
+	tw::dom::side side;
 	Field boundaryMemory;
 	tw::Int c0,c1;
 	std::vector<Wave*> *wave;
 
-	void Initialize(Task *task,MetricSpace *ms,std::vector<Wave*> *waves,const axisSpec& axis,const sideSpec& side,tw::Int c0,tw::Int c1);
+	void Initialize(Task *task,MetricSpace *ms,std::vector<Wave*> *waves,const tw::dom::axis& axis,const tw::dom::side& side,tw::Int c0,tw::Int c1);
 	void UpdateBoundaryMemory(Field& A,tw::Float dt);
 	void Set(Field& A,tw::Float t0,tw::Float dt);
 	void ReadData(std::ifstream& inFile);

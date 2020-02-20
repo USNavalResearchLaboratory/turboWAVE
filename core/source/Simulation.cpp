@@ -138,7 +138,7 @@ Simulation::Simulation(const std::string& file_name)
 	inputFileName = file_name;
 	clippingRegion.push_back(new EntireRegion(clippingRegion));
 
-	gridGeometry = cartesian;
+	gridGeometry = tw::dom::cartesian;
 
 	dt0 = 0.1;
 	SetupTimeInfo(dt0);
@@ -170,12 +170,12 @@ Simulation::Simulation(const std::string& file_name)
 
 	dumpPeriod = 0;
 
-	bc0[1] = cyclic;
-	bc1[1] = cyclic;
-	bc0[2] = cyclic;
-	bc1[2] = cyclic;
-	bc0[3] = absorbing;
-	bc1[3] = absorbing;
+	bc0[1] = tw::bc::par::periodic;
+	bc1[1] = tw::bc::par::periodic;
+	bc0[2] = tw::bc::par::periodic;
+	bc1[2] = tw::bc::par::periodic;
+	bc0[3] = tw::bc::par::absorbing;
+	bc1[3] = tw::bc::par::absorbing;
 
 	#ifdef USE_OPENCL
 	waveBuffer = NULL;
@@ -311,17 +311,17 @@ void Simulation::SetupGeometry()
 	// This routine assumes that MetricSpace::width, and MetricSpace::corner are valid
 	switch (gridGeometry)
 	{
-		case cartesian:
+		case tw::dom::cartesian:
 			if (stepNow==1)
 				(*tw_out) << "Using CARTESIAN Grid" << std::endl;
 			SetCartesianGeometry();
 			break;
-		case cylindrical:
+		case tw::dom::cylindrical:
 			if (stepNow==1)
 				(*tw_out) << "Using CYLINDRICAL Grid" << std::endl;
 			SetCylindricalGeometry();
 			break;
-		case spherical:
+		case tw::dom::spherical:
 			if (stepNow==1)
 				(*tw_out) << "Using SPHERICAL Grid" << std::endl;
 			SetSphericalGeometry();
@@ -710,7 +710,7 @@ void Simulation::ReadData(std::ifstream& inFile)
 
 	Task::ReadData(inFile);
 	MetricSpace::ReadData(inFile);
-	inFile.read((char *)&gridGeometry,sizeof(tw_geometry));
+	inFile.read((char *)&gridGeometry,sizeof(tw::dom::geometry));
 	inFile.read((char *)&unitDensityCGS,sizeof(tw::Float));
 	inFile.read((char *)&dt0,sizeof(tw::Float));
 	inFile.read((char *)&dt,sizeof(tw::Float));
@@ -733,8 +733,8 @@ void Simulation::ReadData(std::ifstream& inFile)
 	inFile.read((char *)&neutralize,sizeof(bool));
 	inFile.read((char *)&stepsToTake,sizeof(tw::Int));
 	inFile.read((char *)&dumpPeriod,sizeof(tw::Int));
-	inFile.read((char *)bc0,sizeof(tw_boundary_spec)*4);
-	inFile.read((char *)bc1,sizeof(tw_boundary_spec)*4);
+	inFile.read((char *)bc0,sizeof(tw::bc::par)*4);
+	inFile.read((char *)bc1,sizeof(tw::bc::par)*4);
 	inFile.read((char *)&radialProgressionFactor,sizeof(tw::Float));
 
 	(*tw_out) << "Local Grid = " << dim[1] << "x" << dim[2] << "x" << dim[3] << std::endl;
@@ -846,7 +846,7 @@ void Simulation::WriteData(std::ofstream& outFile)
 
 	Task::WriteData(outFile);
 	MetricSpace::WriteData(outFile);
-	outFile.write((char *)&gridGeometry,sizeof(tw_geometry));
+	outFile.write((char *)&gridGeometry,sizeof(tw::dom::geometry));
 	outFile.write((char *)&unitDensityCGS,sizeof(tw::Float));
 	outFile.write((char *)&dt0,sizeof(tw::Float));
 	outFile.write((char *)&dt,sizeof(tw::Float));
@@ -869,8 +869,8 @@ void Simulation::WriteData(std::ofstream& outFile)
 	outFile.write((char *)&neutralize,sizeof(bool));
 	outFile.write((char *)&stepsToTake,sizeof(tw::Int));
 	outFile.write((char *)&dumpPeriod,sizeof(tw::Int));
-	outFile.write((char *)bc0,sizeof(tw_boundary_spec)*4);
-	outFile.write((char *)bc1,sizeof(tw_boundary_spec)*4);
+	outFile.write((char *)bc0,sizeof(tw::bc::par)*4);
+	outFile.write((char *)bc1,sizeof(tw::bc::par)*4);
  	outFile.write((char *)&radialProgressionFactor,sizeof(tw::Float));
 
 	i = region.size();
@@ -1031,8 +1031,8 @@ std::string Simulation::InputFileFirstPass()
 					directives.Add("adaptive grid",new tw::input::Bool(&adaptiveGrid));
 					directives.Add("dimensions",new tw::input::Numbers<tw::Int>(&globalCells[1],3));
 					directives.Add("decomposition",new tw::input::Numbers<tw::Int>(&domains[1],3));
-					std::map<std::string,tw_geometry> geo = {{"cartesian",cartesian},{"cylindrical",cylindrical},{"spherical",spherical}};
-					directives.Add("geometry",new tw::input::Enums<tw_geometry>(geo,&gridGeometry));
+					std::map<std::string,tw::dom::geometry> geo = {{"cartesian",tw::dom::cartesian},{"cylindrical",tw::dom::cylindrical},{"spherical",tw::dom::spherical}};
+					directives.Add("geometry",new tw::input::Enums<tw::dom::geometry>(geo,&gridGeometry));
 					directives.Add("region",new tw::input::Custom);
 					do
 					{
@@ -1103,9 +1103,9 @@ std::string Simulation::InputFileFirstPass()
 			if (com1=="xboundary" || com1=="yboundary" || com1=="zboundary" ) // eg, xboundary = absorbing absorbing
 			{
 				tw::input::ReadBoundaryTerm(bc0,bc1,inputString,com1);
-				periodic[1] = bc0[1]==cyclic ? 1 : 0;
-				periodic[2] = bc0[2]==cyclic ? 1 : 0;
-				periodic[3] = bc0[3]==cyclic ? 1 : 0;
+				periodic[1] = bc0[1]==tw::bc::par::periodic ? 1 : 0;
+				periodic[2] = bc0[2]==tw::bc::par::periodic ? 1 : 0;
+				periodic[3] = bc0[3]==tw::bc::par::periodic ? 1 : 0;
 			}
 
 		} while (!inputString.eof());

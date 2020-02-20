@@ -229,9 +229,9 @@ namespace tw
 		template <class T>
 		void ReadArray(std::valarray<T>& data,std::stringstream& inputString);
 
-		tw_boundary_spec ConvertBoundaryString(std::string& theString);
+		tw::bc::par ConvertBoundaryString(std::string& theString);
 
-		void ReadBoundaryTerm(tw_boundary_spec *low,tw_boundary_spec *high,std::stringstream& theString,const std::string& command);
+		void ReadBoundaryTerm(tw::bc::par *low,tw::bc::par *high,std::stringstream& theString,const std::string& command);
 
 		void NormalizeInput(const UnitConverter& uc,std::string& in_out);
 

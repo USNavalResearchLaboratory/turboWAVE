@@ -134,19 +134,19 @@ void Electromagnetic::LoadVectorPotential(Field& A,tw::Float t)
 template <tw::Int X,tw::Int Y,tw::Int Z>
 void Electromagnetic::CleanDivergence(Field& A,tw::Float charge_multiplier)
 {
-	tw::Int i,j,k;
+	using namespace tw::bc;
 
-	#pragma omp parallel for private(i,j,k) collapse(3) schedule(static)
-	for (i=1;i<=dim[1];i++)
-		for (j=1;j<=dim[2];j++)
-			for (k=1;k<=dim[3];k++)
+	#pragma omp parallel for collapse(3) schedule(static)
+	for (tw::Int i=1;i<=dim[1];i++)
+		for (tw::Int j=1;j<=dim[2];j++)
+			for (tw::Int k=1;k<=dim[3];k++)
 			{
 				scratch1(i,j,k) = charge_multiplier * sources(i,j,k,0);
 				scratch1(i,j,k) -= divE<X,Y,Z>(A,i,j,k,*owner);
 			}
 
 	ellipticSolver->SaveBoundaryConditions();
-	ellipticSolver->SetBoundaryConditions(neumannWall,neumannWall,neumannWall,neumannWall,natural,natural);
+	ellipticSolver->SetBoundaryConditions(fld::neumannWall,fld::neumannWall,fld::neumannWall,fld::neumannWall,fld::natural,fld::natural);
 	ellipticSolver->SetBoundaryConditions(scratch2);
 	ellipticSolver->Solve(scratch2,scratch1,1.0);
 	scratch2.ApplyBoundaryCondition();

@@ -526,23 +526,23 @@ void tw::input::PythonRange(std::string& source,tw::Float *v0,tw::Float *v1)
 
 // Read boundary conditions
 
-tw_boundary_spec tw::input::ConvertBoundaryString(std::string& theString)
+tw::bc::par tw::input::ConvertBoundaryString(std::string& theString)
 {
 	if (theString=="periodic" || theString=="cyclic")
-		return cyclic;
+		return tw::bc::par::periodic;
 	if (theString=="reflective" || theString=="reflecting")
-		return reflecting;
+		return tw::bc::par::reflecting;
 	if (theString=="absorbing" || theString=="open")
-		return absorbing;
+		return tw::bc::par::absorbing;
 	if (theString=="emitting" || theString=="emissive")
-		return emitting;
+		return tw::bc::par::emitting;
 	if (theString=="axisymmetric" || theString=="axisymmetry")
-		return axisymmetric;
+		return tw::bc::par::axisymmetric;
 
-	return cyclic;
+	return tw::bc::par::periodic;
 }
 
-void tw::input::ReadBoundaryTerm(tw_boundary_spec *low,tw_boundary_spec *high,std::stringstream& theString,const std::string& command)
+void tw::input::ReadBoundaryTerm(tw::bc::par *low,tw::bc::par *high,std::stringstream& theString,const std::string& command)
 {
 	std::string word;
 	tw::Int axis = 0;

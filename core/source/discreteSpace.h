@@ -1,50 +1,28 @@
-enum tw_geometry {cartesian,cylindrical,spherical};
-enum tw_boundary_spec {cyclic,reflecting,absorbing,emitting,axisymmetric};
-enum boundarySpec
+namespace tw
 {
-	normalFluxFixed,
-	dirichletWall,
-	neumannWall,
-	dirichletCell,
-	natural,
-	periodic,
-	none
-};
-
-enum axisSpec { tAxis , xAxis , yAxis , zAxis };
-enum sideSpec { lowSide , highSide };
-
-inline tw::Int naxis(const axisSpec& axis)
-{
-	switch (axis)
+	namespace bc
 	{
-		case tAxis:
-			return 0;
-		case xAxis:
-			return 1;
-		case yAxis:
-			return 2;
-		case zAxis:
-			return 3;
-		default:
-			return 0;
+		// boundary conditions for particles
+		enum class par {none,periodic,reflecting,absorbing,emitting,axisymmetric};
+		// boundary conditions for fields
+		enum class fld	{none,periodic,normalFluxFixed,dirichletWall,neumannWall,dirichletCell,natural};
 	}
-}
-
-inline axisSpec enumaxis(tw::Int ax)
-{
-	switch (ax)
+	namespace dom
 	{
-		case 0:
-			return tAxis;
-		case 1:
-			return xAxis;
-		case 2:
-			return yAxis;
-		case 3:
-			return zAxis;
-		default:
-			return tAxis;
+		enum geometry {cartesian,cylindrical,spherical};
+		enum axis { tAxis , xAxis , yAxis , zAxis }; // (x,y,z) map to (r,phi,z) or (r,phi,theta) in cases of curvilinear geometry
+		enum side { low , high };
+		inline tw::Int naxis(const tw::dom::axis& axis)
+		{
+			std::map<tw::dom::axis,tw::Int> M = {{tAxis,0},{xAxis,1},{yAxis,2},{zAxis,3}};
+			return M[axis];
+		}
+
+		inline axis enumaxis(tw::Int ax)
+		{
+			std::map<tw::Int,axis> M = {{0,tAxis},{1,xAxis},{2,yAxis},{3,zAxis}};
+			return M[ax];
+		}
 	}
 }
 

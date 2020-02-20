@@ -23,7 +23,7 @@ struct Simulation:Task,MetricSpace
 	std::vector<NonUniformRegion*> region;
 	tw::Float radialProgressionFactor;
 
-	tw_geometry gridGeometry;
+	tw::dom::geometry gridGeometry;
 	tw::Float dt0,dtMin,dtMax,dtCritical,elapsedTime,elapsedTimeMax;
 	tw::Float signalPosition,windowPosition,signalSpeed;
 	tw::Float antiSignalPosition,antiWindowPosition;
@@ -37,7 +37,7 @@ struct Simulation:Task,MetricSpace
 
 	tw::Int dumpPeriod;
 
-	tw_boundary_spec bc0[4],bc1[4];
+	tw::bc::par bc0[4],bc1[4];
 
 	std::vector<ComputeTool*> computeTool;
 	std::vector<Module*> module;
