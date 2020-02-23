@@ -28,16 +28,15 @@ new region rect antenna_rect
 	bounds = ( -1.0 , 1.0 , -1e5 , 1e5 , -1.0 , 1.0 )
 }
 
-new direct EM module
+new direct solver 'em'
 {
-	elliptical solver = facr
 	layers = 16 16 0 0 16 16
-	reflection coefficient = 1e-4
+	reflection coefficient = 1e-4 1e-4 1e-4 1e-4 1e-4 1e-4
 }
 
 // Conductor object serves as antenna
 // Conducting regions must not overlap PML regions
-new conductor
+generate conductor for 'em'
 {
 	clipping region = antenna_rect
 	current type = electric
@@ -71,7 +70,7 @@ new region intersection full_structure
 {
 	elements = { walls , cavity , tunnel }
 }
-new conductor
+generate conductor for 'em'
 {
 	clipping region = full_structure
 }

@@ -60,7 +60,7 @@ void LaserSolver::Initialize()
 		polarizationFactor = 1.0;
 
 	for (auto cell : EntireCellRange(*this))
-		for (auto pulse : owner->pulse)
+		for (auto pulse : wave)
 		{
 			pos = owner->Pos(cell);
 			pos.z = owner->ToLab(pos.z,-dth);
@@ -230,14 +230,14 @@ void PGCSolver::AntiMoveWindow()
 		tw::Float polarizationFactor = polarizationType==circularPolarization ? 1.414 : 1.0;
 		tw::Complex incoming0(0,0);
 		tw::Complex incoming1(0,0);
-		for (tw::Int p=0;p<owner->pulse.size();p++)
+		for (auto pulse : wave)
 		{
 			tw::vec3 pos = owner->Pos(s,0);
 			pos.z = owner->ToLab(pos.z,-dth);
-			incoming0 += polarizationFactor*owner->pulse[p]->VectorPotentialEnvelope(owner->elapsedTime-dth,pos,laserFreq);
+			incoming0 += polarizationFactor*pulse->VectorPotentialEnvelope(owner->elapsedTime-dth,pos,laserFreq);
 			pos = owner->Pos(s,0);
 			pos.z = owner->ToLab(pos.z,dth);
-			incoming1 += polarizationFactor*owner->pulse[p]->VectorPotentialEnvelope(owner->elapsedTime+dth,pos,laserFreq);
+			incoming1 += polarizationFactor*pulse->VectorPotentialEnvelope(owner->elapsedTime+dth,pos,laserFreq);
 		}
 		a0.Shift(s,1,incoming0);
 		a1.Shift(s,1,incoming1);

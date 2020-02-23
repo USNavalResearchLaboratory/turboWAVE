@@ -176,28 +176,18 @@ Simulation::Simulation(const std::string& file_name)
 	bc1[2] = tw::bc::par::periodic;
 	bc0[3] = tw::bc::par::absorbing;
 	bc1[3] = tw::bc::par::absorbing;
-
-	#ifdef USE_OPENCL
-	waveBuffer = NULL;
-	#endif
 }
 
 Simulation::~Simulation()
 {
 	tw::Int i;
 
-	for (i=0;i<wave.size();i++)
-		delete wave[i];
-	for (i=0;i<pulse.size();i++)
-		delete pulse[i];
 	for (i=0;i<energyDiagnostic.size();i++)
 		delete energyDiagnostic[i];
 	for (i=0;i<pointDiagnostic.size();i++)
 		delete pointDiagnostic[i];
 	for (i=0;i<boxDiagnostic.size();i++)
 		delete boxDiagnostic[i];
-	for (i=0;i<conductor.size();i++)
-		delete conductor[i];
 	for (i=0;i<clippingRegion.size();i++)
 		delete clippingRegion[i];
 	for (i=0;i<region.size();i++)
@@ -218,11 +208,6 @@ Simulation::~Simulation()
 		((std::ofstream*)tw_out)->close();
 	if (dynamic_cast<std::stringstream*>(tw_out))
 		delete tw_out;
-
-	#ifdef USE_OPENCL
-	if (waveBuffer!=NULL)
-		clReleaseMemObject(waveBuffer);
-	#endif
 }
 
 void Simulation::Run()
@@ -343,8 +328,16 @@ void Simulation::PrepareSimulation()
 
 	ReadInputFile();
 
+	// Attach clipping regions to tools
+	for (auto tool : computeTool)
+	{
+		if (tool->region_name=="tw::entire")
+			tool->theRgn = clippingRegion[0];
+		else
+			tool->theRgn = Region::FindRegion(clippingRegion,tool->region_name);
+	}
+
 	// The following is where Modules process the ComputeTool instances attached by the user.
-	// The base class automatically processes Profiles and searches for named Regions.
 	for (auto m : module)
 		m->VerifyInput();
 
@@ -358,38 +351,6 @@ void Simulation::PrepareSimulation()
 			clippingRegion[i]->Initialize(*this,this);
 	// region 0 is not saved in restart file
 	clippingRegion[0]->Initialize(*this,this);
-
-	// Initialize Injection Objects
-
-	if (!restarted)
-	{
-		for (i=0;i<wave.size();i++)
-			wave[i]->Initialize();
-		for (i=0;i<pulse.size();i++)
-			pulse[i]->Initialize();
-		for (i=0;i<conductor.size();i++)
-			conductor[i]->Initialize(*this);
-	}
-	#ifdef USE_OPENCL
-	cl_int err;
-	std::valarray<tw::Float> packed_waves(15*wave.size());
-	for (i=0;i<wave.size();i++)
-	{
-		packed_waves[15*i] = wave[i]->a0;
-		packed_waves[15*i+1] = wave[i]->w;
-		for (tw::Int c=0;c<3;c++)
-		{
-			packed_waves[15*i+2+c] = wave[i]->laserFrame.u[c];
-			packed_waves[15*i+5+c] = wave[i]->laserFrame.w[c];
-			packed_waves[15*i+8+c] = wave[i]->focusPosition[c];
-		}
-		packed_waves[15*i+11] = wave[i]->pulseShape.t1;
-		packed_waves[15*i+12] = wave[i]->pulseShape.t2;
-		packed_waves[15*i+13] = wave[i]->pulseShape.t3;
-		packed_waves[15*i+14] = wave[i]->pulseShape.t4;
-	}
-	waveBuffer = clCreateBuffer(context,CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,sizeof(tw::Float)*packed_waves.size(),&packed_waves[0],&err);
-	#endif
 
 	// Sort Modules
 
@@ -649,7 +610,7 @@ void Simulation::ToolFromDirective(std::vector<ComputeTool*>& tool,std::stringst
 
 	// Handle creation of new tools on the fly
 	// type = ComputeTool::CreateTypeFromDirective(inputString,command);
-	// if (type!=tw::tool_type::nullTool)
+	// if (type!=tw::tool_type::none)
 	// {
 	// 	tool.push_back(CreateTool(command,type)); // use command as the name
 	// 	return;
@@ -786,34 +747,7 @@ void Simulation::ReadData(std::ifstream& inFile)
 		(*tw_out) << "Installed Module " << module.back()->name << std::endl;
 	}
 
-	// Read Simulation managed objects
-	// Probably most of them should be tools.
-
-	inFile.read((char *)&num,sizeof(tw::Int));
-	for (i=0;i<num;i++)
-	{
-		(*tw_out) << "Add Explicit Wave" << std::endl;
-		wave.push_back(new Wave(gaussianDeviate));
-		wave.back()->ReadData(inFile);
-	}
-
-	inFile.read((char *)&num,sizeof(tw::Int));
-	for (i=0;i<num;i++)
-	{
-		(*tw_out) << "Add PGC Pulse" << std::endl;
-		pulse.push_back(new Pulse(gaussianDeviate));
-		pulse.back()->ReadData(inFile);
-	}
-
-	inFile.read((char *)&num,sizeof(tw::Int));
-	for (i=0;i<num;i++)
-	{
-		(*tw_out) << "Add Conductor" << std::endl;
-		conductor.push_back(new Conductor(clippingRegion));
-		conductor.back()->ReadData(inFile);
-	}
-
-	// Read Simulation managed diagnostics
+	// Read Diagnostics
 
 	inFile.read((char *)&num,sizeof(tw::Int));
 	for (i=0;i<num;i++)
@@ -895,21 +829,6 @@ void Simulation::WriteData(std::ofstream& outFile)
 	outFile.write((char *)&i,sizeof(tw::Int));
 	for (i=0;i<module.size();i++)
 		module[i]->WriteData(outFile);
-
-	i = wave.size();
-	outFile.write((char *)&i,sizeof(tw::Int));
-	for (i=0;i<wave.size();i++)
-		wave[i]->WriteData(outFile);
-
-	i = pulse.size();
-	outFile.write((char *)&i,sizeof(tw::Int));
-	for (i=0;i<pulse.size();i++)
-		pulse[i]->WriteData(outFile);
-
-	i = conductor.size();
-	outFile.write((char *)&i,sizeof(tw::Int));
-	for (i=0;i<conductor.size();i++)
-		conductor[i]->WriteData(outFile);
 
 	i = energyDiagnostic.size();
 	outFile.write((char *)&i,sizeof(tw::Int));
@@ -1222,7 +1141,7 @@ void Simulation::ReadSubmoduleBlock(std::stringstream& inputString,Module *sup)
 	};
 
 	tw::module_type whichModule = Module::CreateTypeFromInput(preamble);
-	if (whichModule!=tw::module_type::nullModule)
+	if (whichModule!=tw::module_type::none)
 	{
 		if (Module::SingularType(whichModule))
 			if (module_type_exists(whichModule))
@@ -1294,7 +1213,7 @@ void Simulation::ReadInputFile()
 
 			// Straight installation of a named tool
 			tw::tool_type whichTool = ComputeTool::CreateTypeFromInput(preamble);
-			if (whichTool!=tw::tool_type::nullTool)
+			if (whichTool!=tw::tool_type::none)
 			{
 				processed = true;
 				(*tw_out) << "Installing Tool: key=" << preamble[0] << ", name=" << object_name << "..." << std::endl;
@@ -1308,7 +1227,7 @@ void Simulation::ReadInputFile()
 			// Handle modules whose creation is automatically triggered by another module
 			// Must do this before reading in the submodule
 			tw::module_type super_type = Module::CreateSupermoduleTypeFromSubmoduleKey(preamble[0]);
-			if (super_type!=tw::module_type::nullModule)
+			if (super_type!=tw::module_type::none)
 				if (!module_type_exists(super_type) || !Module::SingularType(super_type))
 				{
 					createdModuleTypes.push_back(super_type);
@@ -1321,7 +1240,7 @@ void Simulation::ReadInputFile()
 
 			// Straight module installation
 			tw::module_type whichModule = Module::CreateTypeFromInput(preamble);
-			if (whichModule!=tw::module_type::nullModule)
+			if (whichModule!=tw::module_type::none)
 			{
 				processed = true;
 				if (Module::SingularType(whichModule))
@@ -1349,34 +1268,12 @@ void Simulation::ReadInputFile()
 			// The remaining objects are explicitly managed by Simulation
 			// Perhaps they should be repackaged as ComputeTool objects
 
-			if (preamble[0]=="wave")
-			{
-				processed = true;
-				wave.push_back(new Wave(gaussianDeviate));
-				wave.back()->ReadInputFile(inputString,preamble[0]);
-				wave.back()->pulseShape.delay += dth;
-			}
-
-			if (preamble[0]=="pulse")
-			{
-				processed = true;
-				pulse.push_back(new Pulse(gaussianDeviate));
-				pulse.back()->ReadInputFile(inputString,preamble[0]);
-			}
-
 			if (preamble[0]=="region")
 			{
 				processed = true;
 				clippingRegion.push_back(Region::CreateObjectFromString(clippingRegion,preamble[1]));
 				clippingRegion.back()->name = preamble[2];
 				clippingRegion.back()->ReadInputFileBlock(inputString);
-			}
-
-			if (preamble[0]=="conductor")
-			{
-				processed = true;
-				conductor.push_back(new Conductor(clippingRegion));
-				conductor.back()->ReadInputFile(inputString,preamble[0]);
 			}
 
 			if (preamble[0]=="energy") // eg, new energy series { ... }
@@ -1419,7 +1316,7 @@ void Simulation::ReadInputFile()
 			tw::tool_type whichTool = ComputeTool::CreateTypeFromInput(preamble);
 			std::string module_name(preamble.back());
 			std::string tool_name(preamble[0]);
-			if (whichTool!=tw::tool_type::nullTool)
+			if (whichTool!=tw::tool_type::none)
 			{
 				processed = true;
 				ComputeTool *tool = CreateTool(tool_name,whichTool);

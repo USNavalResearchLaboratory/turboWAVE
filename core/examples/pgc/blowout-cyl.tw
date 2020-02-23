@@ -4,7 +4,7 @@
 
 // The following illustrates unit conversions and user variables.
 // Note a length can be used as a time between diagnostics.
-#define $diag_step %20um
+#define $diag_step %100um
 
 steps = 1000
 timestep = 0.05
@@ -31,31 +31,29 @@ new grid
 	geometry = cylindrical
 }
 
-new eigenmode elliptic solver 'es'
+new curvilinear direct solver 'em'
+{
+}
+
+new pgc laser module 'pgc'
+{
+	carrier frequency = 80
+}
+
+generate eigenmode elliptic solver for 'em'
 {
 	poisson boundary condition x = neumann dirichlet
 	poisson boundary condition z = open open
 }
 
-new curvilinear direct solver
-{
-	get tool with name = 'es'
-}
-
-new eigenmode propagator 'prop'
+generate eigenmode propagator for 'pgc'
 {
 	modes = 50
 	damping time = 1.0
 	absorbing layers = 40
 }
 
-new pgc laser module
-{
-	carrier frequency = 80
-	get tool with name = 'prop'
-}
-
-new pulse
+generate hermite gauss pulse for 'pgc'
 {
 	a = 5.0 0.0 0.0
 	w = 80

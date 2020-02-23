@@ -444,68 +444,6 @@ namespace tw
 		}
 	};
 
-	struct basis
-	{
-		vec3 u,v,w;
-
-		basis()
-		{
-		}
-
-		void SetWithEulerAngles(tw::Float alpha,tw::Float beta,tw::Float gamma)
-		{
-			u = vec3(1,0,0); v = vec3(0,1,0); w = vec3(0,0,1);
-			u.RotateZ(gamma); v.RotateZ(gamma); w.RotateZ(gamma);
-			u.RotateX(beta); v.RotateX(beta); w.RotateX(beta);
-			u.RotateZ(alpha); v.RotateZ(alpha); w.RotateZ(alpha);
-		}
-
-		void ExpressInBasis(vec3* r) const
-		{
-			// we assume it's orthogonal
-			vec3 ans;
-			ans.x = u.x*r->x + u.y*r->y + u.z*r->z;
-			ans.y = v.x*r->x + v.y*r->y + v.z*r->z;
-			ans.z = w.x*r->x + w.y*r->y + w.z*r->z;
-			*r = ans;
-		}
-
-		void ExpressInBasis(cvec3* r) const
-		{
-			// we assume it's orthogonal
-			cvec3 ans;
-			ans.x = u.x*r->x + u.y*r->y + u.z*r->z;
-			ans.y = v.x*r->x + v.y*r->y + v.z*r->z;
-			ans.z = w.x*r->x + w.y*r->y + w.z*r->z;
-			*r = ans;
-		}
-
-		void ExpressInStdBasis(vec3* r) const
-		{
-			vec3 ans;
-			ans.x = u.x*r->x + v.x*r->y + w.x*r->z;
-			ans.y = u.y*r->x + v.y*r->y + w.y*r->z;
-			ans.z = u.z*r->x + v.z*r->y + w.z*r->z;
-			*r = ans;
-		}
-
-		void ExpressInStdBasis(cvec3* r) const
-		{
-			cvec3 ans;
-			ans.x = u.x*r->x + v.x*r->y + w.x*r->z;
-			ans.y = u.y*r->x + v.y*r->y + w.y*r->z;
-			ans.z = u.z*r->x + v.z*r->y + w.z*r->z;
-			*r = ans;
-		}
-
-		friend void Normalize(basis& b)
-		{
-			Normalize(b.u);
-			Normalize(b.v);
-			Normalize(b.w);
-		}
-	};
-
 	struct vec4
 	{
 		// relativistic 4-vector
@@ -1102,4 +1040,81 @@ namespace tw
 
 	};
 
+	struct basis
+	{
+		vec3 u,v,w;
+
+		basis()
+		{
+		}
+
+		void SetWithEulerAngles(tw::Float alpha,tw::Float beta,tw::Float gamma)
+		{
+			u = vec3(1,0,0); v = vec3(0,1,0); w = vec3(0,0,1);
+			u.RotateZ(gamma); v.RotateZ(gamma); w.RotateZ(gamma);
+			u.RotateX(beta); v.RotateX(beta); w.RotateX(beta);
+			u.RotateZ(alpha); v.RotateZ(alpha); w.RotateZ(alpha);
+		}
+
+		void ExpressInBasis(vec3* r) const
+		{
+			// we assume it's orthogonal
+			vec3 ans;
+			ans.x = u.x*r->x + u.y*r->y + u.z*r->z;
+			ans.y = v.x*r->x + v.y*r->y + v.z*r->z;
+			ans.z = w.x*r->x + w.y*r->y + w.z*r->z;
+			*r = ans;
+		}
+
+		void ExpressInBasis(cvec3* r) const
+		{
+			// we assume it's orthogonal
+			cvec3 ans;
+			ans.x = u.x*r->x + u.y*r->y + u.z*r->z;
+			ans.y = v.x*r->x + v.y*r->y + v.z*r->z;
+			ans.z = w.x*r->x + w.y*r->y + w.z*r->z;
+			*r = ans;
+		}
+
+		void ExpressInBasis(vec4* x4) const
+		{
+			Float t = (*x4)[0];
+			vec3 r = x4->spatial();
+			ExpressInBasis(&r);
+			*x4 = tw::vec4(t,r);
+		}
+
+		void ExpressInStdBasis(vec3* r) const
+		{
+			vec3 ans;
+			ans.x = u.x*r->x + v.x*r->y + w.x*r->z;
+			ans.y = u.y*r->x + v.y*r->y + w.y*r->z;
+			ans.z = u.z*r->x + v.z*r->y + w.z*r->z;
+			*r = ans;
+		}
+
+		void ExpressInStdBasis(cvec3* r) const
+		{
+			cvec3 ans;
+			ans.x = u.x*r->x + v.x*r->y + w.x*r->z;
+			ans.y = u.y*r->x + v.y*r->y + w.y*r->z;
+			ans.z = u.z*r->x + v.z*r->y + w.z*r->z;
+			*r = ans;
+		}
+
+		void ExpressInStdBasis(vec4* x4) const
+		{
+			Float t = (*x4)[0];
+			vec3 r = x4->spatial();
+			ExpressInStdBasis(&r);
+			*x4 = tw::vec4(t,r);
+		}
+
+		friend void Normalize(basis& b)
+		{
+			Normalize(b.u);
+			Normalize(b.v);
+			Normalize(b.w);
+		}
+	};
 }

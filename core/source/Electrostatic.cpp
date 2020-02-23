@@ -43,8 +43,8 @@ void Electrostatic::Initialize()
 {
 	FieldSolver::Initialize();
 	ellipticSolver->SetBoundaryConditions(phi);
-	for (auto conductor : owner->conductor)
-		ellipticSolver->FixPotential(phi,conductor->theRgn,conductor->Voltage(owner->elapsedTime));
+	for (auto c : conductor)
+		ellipticSolver->FixPotential(phi,c->theRgn,c->Voltage(owner->elapsedTime));
 	SetupInitialPotential();
 
 	if (!owner->restarted)
@@ -121,8 +121,8 @@ void Electrostatic::Update()
 	conserved_current_to_dens<0,1,2,3>(J4,*owner);
 	J4.ApplyBoundaryCondition();
 
-	for (auto conductor : owner->conductor)
-		ellipticSolver->FixPotential(phi,conductor->theRgn,conductor->Voltage(owner->elapsedTime));
+	for (auto c : conductor)
+		ellipticSolver->FixPotential(phi,c->theRgn,c->Voltage(owner->elapsedTime));
 
 	CopyFieldData(source,Element(0),J4,Element(0));
 	ellipticSolver->Solve(phi,source,-1.0);

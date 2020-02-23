@@ -13,13 +13,24 @@
 
 namespace tw
 {
-	enum class tool_type {		nullTool,
+	enum class tool_type
+	{
+		none,
+		// Profiles
 		uniformProfile,channelProfile,gaussianProfile,columnProfile,piecewiseProfile,corrugatedProfile,
-		eigenmodePropagator, adiPropagator, isotropicPropagator,
+		// Wave launchers
+		conductor, planeWave, besselBeam, airyDisc, hermiteGauss, laguerreGauss, multipole,
+		// Laser propagators
+		eigenmodePropagator, adiPropagator, isotropicPropagator, schroedingerPropagator,
+		// Elliptic solvers
 		iterativePoissonSolver, facrPoissonSolver, eigenmodePoissonSolver, ellipticSolver1D,
-		generalParabolicPropagator, schroedingerPropagator,
-		yeePropagatorPML, lorentzPropagator, eosData, eosIdealGas, eosHotElectrons, // ASHER_MOD
-		eosMixture, eosIdealGasMix, eosSimpleMieGruneisen, eosLinearMieGruneisen  };
+		// Diffusion
+		generalParabolicPropagator,
+		// Hyperbolic solvers
+		yeePropagatorPML, lorentzPropagator,
+		// Equation of state
+		eosData, eosIdealGas, eosHotElectrons, eosMixture, eosIdealGasMix, eosSimpleMieGruneisen, eosLinearMieGruneisen
+	};
 }
 
 struct ComputeTool

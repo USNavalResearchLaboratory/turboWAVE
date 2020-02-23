@@ -29,17 +29,16 @@ new direct electromagnetic module
 {
 }
 
-new eigenmode propagator 'prop'
-{
-}
-
-new pgc laser module
+new pgc laser module 'pgc'
 {
 	carrier frequency = 50
-	get tool with name = 'prop'
 }
 
-new pulse
+generate eigenmode propagator for 'pgc'
+{
+}
+
+generate hermite gauss pulse for 'pgc'
 {
 	a = 0.5 0.0 0.0
 	r0 = ( 5 , 1e5 )

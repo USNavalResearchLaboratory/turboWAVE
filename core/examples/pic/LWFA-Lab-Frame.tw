@@ -34,19 +34,18 @@ new region rect antenna_rect
 	bounds = -40 , 40 , -1e5 , 1e5 , 5.01 , 5.04
 }
 
-new direct electromagnetic module
+new direct electromagnetic module 'em'
 {
-	elliptical solver = facr
-	layer thickness = 8
-	reflection coefficient = 1e-4
+	layers = 8 8 0 0 8 8
+	reflection coefficient = 1e-4 1e-4 1e-4 1e-4 1e-4 1e-4
 }
 
-new species electrons
+new species 'electrons'
 {
 	particles per cell = 4 1 4 when density = 1
 }
 
-generate uniform electrons
+generate uniform 'electrons'
 {
 	clipping region = r1
 	density = 1.0
@@ -55,7 +54,7 @@ generate uniform electrons
 
 // conductor object serves as antenna
 // conducting region must not overlap PML regions
-new conductor
+generate conductor for 'em'
 {
 	clipping region = antenna_rect
 	current type = electric // required, or no emission
@@ -76,7 +75,7 @@ new box diagnostic
 	period = 100
 }
 
-new phase space plot for electrons
+new phase space plot for 'electrons'
 {
 	filename = zpz
 	abcissa = z

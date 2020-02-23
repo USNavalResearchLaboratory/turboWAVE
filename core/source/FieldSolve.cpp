@@ -142,8 +142,8 @@ void Electromagnetic::InitializeConductors()
 	{
 		conductorMask(cell) = 1.0;
 		shiftedCenter = owner->Pos(cell) - 0.5*owner->dPos(cell);
-		for (tw::Int s=0;s<owner->conductor.size();s++)
-			if (owner->conductor[s]->affectsA && owner->conductor[s]->theRgn->Inside(shiftedCenter,*owner))
+		for (auto c : conductor)
+			if (c->affectsA && c->theRgn->Inside(shiftedCenter,*owner))
 				conductorMask(cell) = 0.0;
 	}
 }
@@ -546,10 +546,10 @@ CoulombSolver::CoulombSolver(const std::string& name,Simulation* sim):Electromag
 	typeCode = tw::module_type::coulombSolver;
 	A4.Initialize(8,*this,owner);
 
-	L1.Initialize(sim,sim,&sim->wave,tw::dom::zAxis,tw::dom::low,1,5);
-	L2.Initialize(sim,sim,&sim->wave,tw::dom::zAxis,tw::dom::low,2,6);
-	R1.Initialize(sim,sim,&sim->wave,tw::dom::zAxis,tw::dom::high,1,5);
-	R2.Initialize(sim,sim,&sim->wave,tw::dom::zAxis,tw::dom::high,2,6);
+	L1.Initialize(sim,sim,&wave,tw::dom::zAxis,tw::dom::low,1,5);
+	L2.Initialize(sim,sim,&wave,tw::dom::zAxis,tw::dom::low,2,6);
+	R1.Initialize(sim,sim,&wave,tw::dom::zAxis,tw::dom::high,1,5);
+	R2.Initialize(sim,sim,&wave,tw::dom::zAxis,tw::dom::high,2,6);
 }
 
 void CoulombSolver::ExchangeResources()
@@ -1066,18 +1066,16 @@ void DirectSolver::WriteData(std::ofstream& outFile)
 
 void DirectSolver::Update()
 {
-	tw::Int r;
-
 	// Add electric antenna currents
 
-	if (owner->conductor.size())
+	if (conductor.size())
 	{
 		#ifdef USE_OPENCL
 		sources.ReceiveFromComputeBuffer();
 		#endif
-		for (r=0;r<owner->conductor.size();r++)
-			if (owner->conductor[r]->electricCurrent)
-				owner->conductor[r]->DepositSources(sources, *owner, owner->elapsedTime, dt);
+		for (auto c : conductor)
+			if (c->currentType==EM::current::electric)
+				c->DepositSources(sources, owner->elapsedTime, dt);
 		#ifdef USE_OPENCL
 		sources.SendToComputeBuffer();
 		#endif
@@ -1088,7 +1086,7 @@ void DirectSolver::Update()
 	// Advance the electric field
 
 	yeeTool->AdvanceE(A,PMLx,PMLy,PMLz,sources);
-	if (owner->conductor.size())
+	if (conductor.size())
 		yeeTool->UpdateInteriorBoundaryE(A,conductorMask);
 
 	// Save the old magnetic field so final fields can be centered
@@ -1098,7 +1096,7 @@ void DirectSolver::Update()
 	// Advance the magnetic field
 
 	yeeTool->AdvanceB(A,PMLx,PMLy,PMLz);
-	if (owner->conductor.size())
+	if (conductor.size())
 		yeeTool->UpdateInteriorBoundaryB(A,conductorMask);
 
 	// Setup the final field for the particle push
@@ -1281,14 +1279,14 @@ void CurvilinearDirectSolver::Update()
 
 	// Add electric antenna currents
 
-	if (owner->conductor.size())
+	if (conductor.size())
 	{
 		#ifdef USE_OPENCL
 		sources.ReceiveFromComputeBuffer();
 		#endif
-		for (r=0;r<owner->conductor.size();r++)
-			if (owner->conductor[r]->electricCurrent)
-				owner->conductor[r]->DepositSources(sources, *owner, owner->elapsedTime, dt);
+		for (auto c : conductor)
+			if (c->currentType==EM::current::electric)
+				c->DepositSources(sources, owner->elapsedTime, dt);
 		#ifdef USE_OPENCL
 		sources.SendToComputeBuffer();
 		#endif

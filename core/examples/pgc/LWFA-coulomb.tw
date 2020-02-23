@@ -25,22 +25,21 @@ new grid
 	decomposition = ( 1 , 1 , 1 )
 }
 
-new facr elliptic solver 'facr'
+new coulomb electromagnetic module 'em'
+{
+}
+
+generate facr elliptic solver for 'em'
 {
 	poisson boundary condition z = open open
 }
 
-new coulomb electromagnetic module
-{
-	get tool with name = 'facr'
-}
-
-new pgc laser module
+new pgc laser module 'pgc'
 {
 	carrier frequency = 50
 }
 
-new pulse
+generate hermite gauss pulse for 'pgc'
 {
 	a = 0.5 0.0 0.0
 	r0 = ( 5 , 1e5 )

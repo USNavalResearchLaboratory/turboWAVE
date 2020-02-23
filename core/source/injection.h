@@ -11,11 +11,11 @@ namespace tw
 
 namespace EM
 {
-	enum mode { plane , hermite , laguerre , airy_disc , bessel , multipole };
+	enum class current { none,electric,magnetic };
 	struct mode_data
 	{
-		tw::Int order,exponent;
-		tw::Float scale;
+		tw::Int order[2],exponent[2];
+		tw::Float scale[2];
 	};
 }
 
@@ -27,7 +27,7 @@ struct Profile : ComputeTool
 	tw::vec3 modeNumber;
 	tw::Float modeAmplitude;
 	tw::basis orientation;
-	tw::Float gamma_boost;
+	tw::Float gammaBoost;
 
 	// items needed for particle/fluid loading
 private:
@@ -126,162 +126,129 @@ struct PulseShape
 	PulseShape();
 	void Initialize(const tw::Float time_origin);
 	tw::Float PulseShapeFactor(const tw::Float t) const;
-	tw::Float FastPulseShapeFactor(const tw::Float t) const
-	{
-		const tw::Float hold = tw::Float(t > t2 && t <= t3);
-		const tw::Float tau_rise = tw::Float(t > t1 && t <= t2) * (t-t1) / (t2-t1);
-		const tw::Float tau_fall = tw::Float(t > t3 && t <= t4) * (1.0 - (t-t3) / (t4-t3));
-		return QuinticRise(tau_rise + tau_fall + hold);
-	}
-
 	tw::Float D1Intensity(const tw::Float t) const;
 	tw::Float D1Amplitude(const tw::Float t) const;
 };
 
-struct Wave
+struct Wave : ComputeTool
 {
-	// Eventually break this out into polymorphic ComputeTool
 	tw::vec3 direction;
 	tw::vec3 focusPosition;
 	tw::vec3 a;
-	tw::Float a0,w,nrefr,phase,vg,chirp,randomPhase,gamma_boost;
+	tw::Float a0,w,nrefr,phase,vg,chirp,randomPhase,gammaBoost;
 	PulseShape pulseShape;
-	EM::mode modeType;
-	EM::mode_data modeData[2];
+	EM::mode_data modeData;
 	tw::basis laserFrame;
 
 	GaussianDeviate *deviate;
 
-	Wave(GaussianDeviate *deviate);
-	void Initialize();
-
-	tw::Complex PlanePrimitive(tw::Float t,const tw::vec3& pos) const;
-	tw::Complex BesselPrimitive(tw::Float t,const tw::vec3& pos) const;
-	tw::Complex AiryDiscPrimitive(tw::Float t,const tw::vec3& pos) const;
-	tw::Complex MultipolePrimitive(tw::Float t,const tw::vec3& pos) const;
-	tw::Complex HermitePrimitive(tw::Float t,const tw::vec3& pos) const;
-	tw::Complex LaguerrePrimitive(tw::Float t,const tw::vec3& pos) const;
-
-	// Dispatch function for all mode types
-	tw::vec3 VectorPotential(tw::Float time,const tw::vec3& pos) const
+	Wave(const std::string& name,MetricSpace *ms,Task *tsk);
+	virtual void Initialize();
+	virtual tw::Complex PrimitivePhasor(const tw::vec4& x4) const = 0;
+	virtual tw::vec3 PrimitiveVector(const tw::vec4& x4) const
 	{
-		tw::vec3 ans;
-		tw::Complex Ax;
-		tw::vec4 x4(time,pos);
-		// N.b. at present boost only works if polarization is orthogonal to z.
-		// Otherwise we would have to bring in the scalar potential.
+		// Estimate from kz*Az = i*dAx/dx
+		// This is refined later by field solvers
+		tw::Float kz = w*nrefr;
+		tw::Float dx = 0.01*modeData.scale[0];
+		tw::vec4 dxh(0.0,0.5*dx,0.0,0.0);
+		tw::Complex Ax1 = PrimitivePhasor(x4-dxh);
+		tw::Complex Ax2 = PrimitivePhasor(x4+dxh);
+		tw::Complex Az = ii*(Ax2-Ax1)/(dx*kz);
+		return tw::vec3(std::real(0.5*(Ax1+Ax2)),0.0,std::real(Az));
+	}
+	void ToLaserFrame(tw::vec4 *x4) const
+	{
 		// The function's caller is giving us boosted frame coordinates.
-		// The user is giving us lab frame coordinates.
-		// Therefore first transform arguments to lab frame, then proceed as usual.
-		x4.zBoost(gamma_boost,1.0);
-		tw::vec3 r = x4.spatial() - focusPosition;
-		laserFrame.ExpressInBasis(&r);
-
-		const tw::Float rho = tw::small_pos + sqrt(r.x*r.x+r.y*r.y);
-		const tw::Float t = x4[0] - pulseShape.delay - pulseShape.risetime;
-		switch (modeType)
-		{
-			case EM::plane:
-				Ax = PlanePrimitive(t,r);
-				break;
-			case EM::bessel:
-				Ax = BesselPrimitive(t,r);
-				break;
-			case EM::airy_disc:
-				Ax = AiryDiscPrimitive(t,r);
-				break;
-			case EM::multipole:
-				Ax = MultipolePrimitive(t,r);
-				break;
-			case EM::hermite:
-				Ax = HermitePrimitive(t,r);
-				break;
-			case EM::laguerre:
-				Ax = LaguerrePrimitive(t,r);
-				break;
-		}
-		// is this thread safe?
-		// Ax *= std::exp(ii*randomPhase*deviate->Next());
-		switch (modeType)
-		{
-			case EM::multipole:
-				ans = tw::vec3( -std::real(Ax)*r.y/rho , std::real(Ax)*r.x/rho ,0.0 );
-				break;
-			default:
-				ans = tw::vec3( std::real(Ax) , 0.0 ,0.0 );
-				break;
-		}
-		laserFrame.ExpressInStdBasis(&ans);
-		return ans;
+		// The user is describing the laser in the lab frame.
+		// To get to laser's frame: boost, then translate, then rotate.
+		x4->zBoost(gammaBoost,1.0);
+		tw::vec4 displ(pulseShape.delay+pulseShape.risetime,focusPosition);
+		*x4 -= displ;
+		laserFrame.ExpressInBasis(x4);
 	}
-
-	void ReadInputFile(std::stringstream& inputString,std::string& command);
-	void ReadData(std::ifstream& inFile);
-	void WriteData(std::ofstream& outFile);
-};
-
-struct Pulse:Wave
-{
-	Pulse(GaussianDeviate *deviate) : Wave(deviate)
+	void ToBoostedFrame(tw::vec4 *A4) const
 	{
+		laserFrame.ExpressInStdBasis(A4);
+		A4->zBoost(gammaBoost,-1.0);
 	}
-	// Dispatch function for all mode types
 	tw::Complex VectorPotentialEnvelope(tw::Float time,const tw::vec3& pos,tw::Float w0) const
 	{
-		tw::Complex Ax;
-		tw::vec3 r = pos - focusPosition;
-		laserFrame.ExpressInBasis(&r);
-
-		const tw::Float t = time - pulseShape.delay - pulseShape.risetime;
-		switch (modeType)
-		{
-			case EM::plane:
-				Ax = PlanePrimitive(t,r);
-				break;
-			case EM::bessel:
-				Ax = BesselPrimitive(t,r);
-				break;
-			case EM::airy_disc:
-				Ax = AiryDiscPrimitive(t,r);
-				break;
-			case EM::multipole:
-				Ax = MultipolePrimitive(t,r);
-				break;
-			case EM::hermite:
-				Ax = HermitePrimitive(t,r);
-				break;
-			case EM::laguerre:
-				Ax = LaguerrePrimitive(t,r);
-				break;
-		}
-		// is this thread safe?
-		// Ax *= std::exp(ii*randomPhase*deviate->Next());
-		Ax *= std::exp(-ii*(w0*nrefr*r.z - w0*t));
-		return Ax;
+		tw::vec4 x4(time,pos);
+		ToLaserFrame(&x4);
+		return PrimitivePhasor(x4)*std::exp(-ii*(w0*nrefr*x4[3] - w0*x4[0]));
 	}
+	tw::vec3 VectorPotential(tw::Float time,const tw::vec3& pos) const
+	{
+		tw::vec4 x4(time,pos);
+		ToLaserFrame(&x4);
+		tw::vec4 A4(0.0,PrimitiveVector(x4));
+		ToBoostedFrame(&A4);
+		return A4.spatial(); // For certain boost geometries we will need to keep scalar potential
+	}
+
+	virtual void ReadData(std::ifstream& inFile);
+	virtual void WriteData(std::ofstream& outFile);
 };
 
-struct Conductor
+struct PlaneWave : Wave
 {
-	std::vector<Region*>& rgnList;
-	Region *theRgn;
+	PlaneWave(const std::string& name,MetricSpace *m,Task *tsk);
+	virtual tw::Complex PrimitivePhasor(const tw::vec4& x4) const;
+};
+
+struct BesselBeam : Wave
+{
+	BesselBeam(const std::string& name,MetricSpace *m,Task *tsk);
+	virtual tw::Complex PrimitivePhasor(const tw::vec4& x4) const;
+};
+
+struct AiryDisc : Wave
+{
+	AiryDisc(const std::string& name,MetricSpace *m,Task *tsk);
+	virtual tw::Complex PrimitivePhasor(const tw::vec4& x4) const;
+};
+
+struct Multipole : Wave
+{
+	Multipole(const std::string& name,MetricSpace *m,Task *tsk);
+	virtual void Initialize();
+	virtual tw::Complex PrimitivePhasor(const tw::vec4& x4) const;
+	virtual tw::vec3 PrimitiveVector(const tw::vec4& x4) const;
+};
+
+struct HermiteGauss : Wave
+{
+	HermiteGauss(const std::string& name,MetricSpace *m,Task *tsk);
+	virtual void Initialize();
+	virtual tw::Complex PrimitivePhasor(const tw::vec4& x4) const;
+};
+
+struct LaguerreGauss : Wave
+{
+	LaguerreGauss(const std::string& name,MetricSpace *m,Task *tsk);
+	virtual void Initialize();
+	virtual tw::Complex PrimitivePhasor(const tw::vec4& x4) const;
+};
+
+struct Conductor : ComputeTool
+{
 	PulseShape pulseShape;
 	std::valarray<tw::Float> Px,Py,Pz,potential,angFreq,phase;
-	bool affectsPhi,affectsA,electricCurrent,magneticCurrent;
+	bool affectsPhi,affectsA;
+	EM::current currentType;
 	tw::vec3 gaussianRadius,ks;
 	tw::Float f;
 
-	Conductor(std::vector<Region*>& rgnList);
-	void Initialize(const MetricSpace& ds);
+	Conductor(const std::string& name,MetricSpace *m,Task *tsk);
+	virtual void Initialize();
 	tw::Float Voltage(tw::Float t);
 	tw::Float VoltageRate(tw::Float t);
 	tw::vec3 PolarizationDensity(const tw::vec3& pos,tw::Float t);
+	void DepositSources(Field& j4,tw::Float t,tw::Float dt);
 
-	void DepositSources(Field& j4,const MetricSpace& ds,tw::Float t,tw::Float dt);
-
-	void ReadInputFile(std::stringstream& inputString,std::string& command);
-	void ReadData(std::ifstream& inFile);
-	void WriteData(std::ofstream& outFile);
+	virtual void ReadData(std::ifstream& inFile);
+	virtual void WriteData(std::ofstream& outFile);
 };
 
 struct LindmanBoundary

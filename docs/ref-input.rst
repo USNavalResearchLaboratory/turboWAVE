@@ -235,9 +235,9 @@ Another type of block creates an object and associates it with another object:
 
 .. py:function:: generate key1 [key2] .. [keyN] name { directives }
 
-In this case the start of the block is signaled by the word ``generate``.  Unlike a ``new`` block, the ``name`` is not optional, and refers to a previously created object.  The quintessential example is creating particles of a certain type, e.g., ``generate uniform electrons`` creates a ``ComputeTool`` object that generates a uniform particle distribution, and attaches this to a previously created ``Module`` object describing a particle species with the name ``electrons``.
+In this case the start of the block is signaled by the word ``generate``.  Unlike a ``new`` block, the ``name`` is not optional, and refers to a previously created object.
 
-The ``generate`` block is typically used only for matter loading purposes.  For other types of tools, one uses a directive in the block of the object that needs the tool.  The directive takes the form
+You can also retrieve a named object from within the ``new`` block of another object.  This is done using the directive
 
 .. py:function:: get tool with name = nm
 
@@ -311,19 +311,13 @@ Numerical Grid
 Radiation Injection
 -------------------
 
-Electromagnetic (EM) radiation is injected using :ref:`Wave Objects <wave-obj>`.  This is for explicitly resolved waves.
-You can create any number of them. EM radiation can also be created by antennas (see :ref:`conductor`).
-Laser radiation, which in this context is a label for radiation in the paraxial approximation, is injected using :ref:`Pulse Objects <pulse-obj>`.
+To inject radiation, you specify a type of electromagnetic mode, directives defining its particular parameters, and attach it to a field solver.  For an in depth description of the available radiation modes see :doc:`bak-em-modes`. If the wave starts inside the box, an elliptical solver may be used to refine the initial divergence. If the wave starts outside the box, it will be coupled in, provided the field solver supports this. Each wave object has its own basis vectors :math:`({\bf u},{\bf v},{\bf w})`, with :math:`{\bf u}` the electric field polarization direction and :math:`{\bf w}` the propagation direction. All the available modes respond to the same set of directives. These are as follows:
 
 .. _wave-obj:
-.. py:function:: new wave { directives }
+.. py:function:: generate <key> for <field_solver_name> { directives }
 
-	Set up injection of an EM wave, which may start inside or outside the simulation box.
-	The available radiation modes are detailed in :doc:`bak-em-modes`.
-	If the wave starts inside the box, an elliptical solver may be used to refine the initial divergence.
-	If the wave starts outside the box, it will be coupled in, provided the field solver supports this.
-	Each wave object has its own basis vectors :math:`({\bf u},{\bf v},{\bf w})`, with :math:`{\bf u}` the electric field polarization direction and :math:`{\bf w}` the propagation direction.
-
+	:param str key: The key determines the type of mode.  Valid keys are ``plane wave``, ``hermite gauss``, ``laguerre gauss``, ``bessel beam``, ``airy disc``, and ``multipole``.
+	:param str field_solver_name: Name given to a previously defined field solver module.
 	:param block directives: The following directives are supported:
 
 		.. py:function:: direction = ( nx , ny, nz )
@@ -378,12 +372,6 @@ Laser radiation, which in this context is a label for radiation in the paraxial 
 			:param float u0: spot size in the :math:`{\bf u}` direction.  Note this is **not necessarily** the spot size in the first coordinate of the standard basis. Spot size is measured at :math:`1/e` point of the field amplitude.
 			:param float v0: spot size in the :math:`{\bf v}` direction.
 
-		.. py:function:: type = mode_type
-
-			For description of the radiation modes see :doc:`bak-em-modes`.
-
-			:param enum mode_type: determines the spatial mode structure, can be ``plane``, ``hermite``, ``laguerre``, ``bessel``, or ``multipole``.
-
 		.. py:function:: mode = ( mu , mv )
 
 			Transverse mode numbers, different meanings depending on the mode type.
@@ -406,10 +394,9 @@ Laser radiation, which in this context is a label for radiation in the paraxial 
 
 			:param float g: relativistic Lorentz factor of the boosted frame (default=1).  If g>1, turboWAVE will transform the wave into the boosted frame.  The parameters describing the wave should all be given in lab frame coordinates.  The grid coordinates are taken as the boosted frame.  At present this feature should only be used for paraxial modes propagating along the z-axis.
 
-.. _pulse-obj:
-.. py:function:: new pulse { directives }
+.. note::
 
-	This object is the same as the :ref:`wave object <wave-obj>` in all respects except that it is for use with enveloped field solvers.
+	In the past there was a distinction between carrier resolved and enveloped radiation injection objects.  This distinction has been retired.  Envelope treatment is triggered automatically by attaching any radiation injection object to a enveloped field solver.
 
 .. _eos:
 
@@ -744,7 +731,7 @@ Conducting regions serve the following purposes:
 	3. Impermeable objects filling arbitrary cells in hydrodynamic simulations
 	4. Fixed potential objects filling arbitrary cells in electrostatic simulations
 
-.. py:function:: new conductor { directives }
+.. py:function:: new conductor <name> { directives }
 
 	The electrostatic potential can be fixed within the conductor as
 
@@ -756,10 +743,11 @@ Conducting regions serve the following purposes:
 
 		:math:`T(t,x,y) = t + \frac{x^2+y^2}{2f}`
 
+	:param str name: Name given to the conductor
 	:param block directives: The following directives are supported:
 
 		Shared directives:
-			Temporal envelope :math:`S(t)` is dervied from pulse shape parameters per :ref:`wave object <wave-obj>`
+			Temporal envelope :math:`S(t)` is derived from pulse shape parameters per :ref:`wave object <wave-obj>`
 
 		.. py:function:: clipping region = name
 

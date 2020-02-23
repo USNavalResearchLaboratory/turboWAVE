@@ -517,7 +517,7 @@ void qo::State::WriteData(std::ofstream& outFile)
 
 AtomicPhysics::AtomicPhysics(const std::string& name,Simulation* sim):Module(name,sim)
 {
-	typeCode = tw::module_type::nullModule;
+	typeCode = tw::module_type::none;
 	keepA2Term = true;
 	dipoleApproximation = true;
 	alpha = 0.0072973525664;
@@ -643,10 +643,10 @@ void AtomicPhysics::FormPotentials(tw::Float t)
 			r_cart = dipoleApproximation ? tw::vec3(0,0,0) : owner->Pos(cell);
 			owner->CurvilinearToCartesian(&r_cart);
 			A0 = A1 = tw::vec3(-0.5*r_cart.y*B0.z,0.5*r_cart.x*B0.z,0.0);
-			for (tw::Int s=0;s<owner->wave.size();s++)
+			for (tw::Int s=0;s<wave.size();s++)
 			{
-				A0 += owner->wave[s]->VectorPotential(t-dt,r_cart);
-				A1 += owner->wave[s]->VectorPotential(t,r_cart);
+				A0 += wave[s]->VectorPotential(t-dt,r_cart);
+				A1 += wave[s]->VectorPotential(t,r_cart);
 			}
 			r_curv = owner->Pos(cell);
 			owner->TangentVectorToCurvilinear(&A0,r_curv);
@@ -681,8 +681,8 @@ void AtomicPhysics::FormGhostCellPotentials(tw::Float t)
 					{
 						tw::vec3 pos(owner->Pos(s,ghostCell));
 						tw::vec3 A3(-0.5*pos.y*B0.z,0.5*pos.x*B0.z,0.0);
-						for (tw::Int wv=0;wv<owner->wave.size();wv++)
-							A3 += owner->wave[wv]->VectorPotential(t,pos);
+						for (tw::Int wv=0;wv<wave.size();wv++)
+							A3 += wave[wv]->VectorPotential(t,pos);
 						if ((ghostCell==0 && owner->n0[ax]==MPI_PROC_NULL) || (ghostCell!=0 && owner->n1[ax]==MPI_PROC_NULL))
 						{
 							A4(s,ghostCell,1) = A3.x;
@@ -702,8 +702,8 @@ tw::vec4 AtomicPhysics::GetA4AtOrigin()
 	aNow = 0.0;
 	r_cart = tw::vec3(0,0,0);
 	A[0] = GetSphericalPotential(0.0);
-	for (s=0;s<owner->wave.size();s++)
-		aNow += owner->wave[s]->VectorPotential(owner->elapsedTime,r_cart);
+	for (s=0;s<wave.size();s++)
+		aNow += wave[s]->VectorPotential(owner->elapsedTime,r_cart);
 	A[1] = aNow.x;
 	A[2] = aNow.y;
 	A[3] = aNow.z;
@@ -1188,11 +1188,11 @@ void Schroedinger::EnergyColumns(std::vector<tw::Float>& cols,std::vector<bool>&
 	ANow = 0.0;
 	overlap = tw::Complex(0,0);
 
-	for (s=0;s<owner->wave.size();s++)
+	for (s=0;s<wave.size();s++)
 	{
-		ANow += owner->wave[s]->VectorPotential(owner->elapsedTime,tw::vec3(0,0,0));
-		ENow -= dti*owner->wave[s]->VectorPotential(owner->elapsedTime+0.5*dt,tw::vec3(0,0,0));
-		ENow += dti*owner->wave[s]->VectorPotential(owner->elapsedTime-0.5*dt,tw::vec3(0,0,0));
+		ANow += wave[s]->VectorPotential(owner->elapsedTime,tw::vec3(0,0,0));
+		ENow -= dti*wave[s]->VectorPotential(owner->elapsedTime+0.5*dt,tw::vec3(0,0,0));
+		ENow += dti*wave[s]->VectorPotential(owner->elapsedTime-0.5*dt,tw::vec3(0,0,0));
 	}
 
 	theRgn.GetLocalCellBounds(&x0,&x1,&y0,&y1,&z0,&z1);
@@ -1283,8 +1283,8 @@ void Schroedinger::PointDiagnose(std::ofstream& outFile,const weights_3D& w)
 	tw::vec3 ANow = 0.0;
 	tw::Complex psiNow;
 	psi1.Interpolate(&psiNow,w);
-	for (s=0;s<owner->wave.size();s++)
-		ANow += owner->wave[s]->VectorPotential(owner->elapsedTime,tw::vec3(0,0,0));
+	for (s=0;s<wave.size();s++)
+		ANow += wave[s]->VectorPotential(owner->elapsedTime,tw::vec3(0,0,0));
 	outFile << real(psiNow) << " " << imag(psiNow) << " " << ANow.x << " " << ANow.y << " " << ANow.z << " ";
 }
 
@@ -1471,11 +1471,11 @@ void Pauli::EnergyColumns(std::vector<tw::Float>& cols,std::vector<bool>& avg,co
 				}
 			}
 
-	for (s=0;s<owner->wave.size();s++)
+	for (s=0;s<wave.size();s++)
 	{
-		ANow += owner->wave[s]->VectorPotential(owner->elapsedTime,tw::vec3(0,0,0));
-		ENow -= dti*owner->wave[s]->VectorPotential(owner->elapsedTime+0.5*dt,tw::vec3(0,0,0));
-		ENow += dti*owner->wave[s]->VectorPotential(owner->elapsedTime-0.5*dt,tw::vec3(0,0,0));
+		ANow += wave[s]->VectorPotential(owner->elapsedTime,tw::vec3(0,0,0));
+		ENow -= dti*wave[s]->VectorPotential(owner->elapsedTime+0.5*dt,tw::vec3(0,0,0));
+		ENow += dti*wave[s]->VectorPotential(owner->elapsedTime-0.5*dt,tw::vec3(0,0,0));
 	}
 
 	cols.push_back(totalProb); avg.push_back(false);
@@ -1845,11 +1845,11 @@ void KleinGordon::EnergyColumns(std::vector<tw::Float>& cols,std::vector<bool>& 
 	dipoleMoment = 0.0;
 	overlap = tw::Complex(0,0);
 
-	for (s=0;s<owner->wave.size();s++)
+	for (s=0;s<wave.size();s++)
 	{
-		ANow += owner->wave[s]->VectorPotential(owner->elapsedTime,tw::vec3(0,0,0));
-		ENow -= dti*owner->wave[s]->VectorPotential(owner->elapsedTime+0.5*dt,tw::vec3(0,0,0));
-		ENow += dti*owner->wave[s]->VectorPotential(owner->elapsedTime-0.5*dt,tw::vec3(0,0,0));
+		ANow += wave[s]->VectorPotential(owner->elapsedTime,tw::vec3(0,0,0));
+		ENow -= dti*wave[s]->VectorPotential(owner->elapsedTime+0.5*dt,tw::vec3(0,0,0));
+		ENow += dti*wave[s]->VectorPotential(owner->elapsedTime-0.5*dt,tw::vec3(0,0,0));
 	}
 
 	theRgn.GetLocalCellBounds(&x0,&x1,&y0,&y1,&z0,&z1);
@@ -2179,11 +2179,11 @@ void Dirac::EnergyColumns(std::vector<tw::Float>& cols,std::vector<bool>& avg,co
 	dipoleMoment = 0.0;
 	overlap = tw::Complex(0,0);
 
-	for (s=0;s<owner->wave.size();s++)
+	for (s=0;s<wave.size();s++)
 	{
-		ANow += owner->wave[s]->VectorPotential(owner->elapsedTime,tw::vec3(0,0,0));
-		ENow -= dti*owner->wave[s]->VectorPotential(owner->elapsedTime+0.5*dt,tw::vec3(0,0,0));
-		ENow += dti*owner->wave[s]->VectorPotential(owner->elapsedTime-0.5*dt,tw::vec3(0,0,0));
+		ANow += wave[s]->VectorPotential(owner->elapsedTime,tw::vec3(0,0,0));
+		ENow -= dti*wave[s]->VectorPotential(owner->elapsedTime+0.5*dt,tw::vec3(0,0,0));
+		ENow += dti*wave[s]->VectorPotential(owner->elapsedTime-0.5*dt,tw::vec3(0,0,0));
 	}
 
 	theRgn.GetLocalCellBounds(&x0,&x1,&y0,&y1,&z0,&z1);

@@ -30,13 +30,14 @@ new coulomb electromagnetic module
 	// Use the default elliptic solver
 }
 
-new pgc laser module
+new pgc laser module 'pgc'
 {
 	carrier frequency = 4.5
 	// Use the default laser propagator
 }
 
-new pulse
+// We can put as little as the key and the module name here...
+generate hermite gauss 'pgc'
 {
 	a = ( 0.56 , 0 , 0 )
 	direction = ( 0 , 0 , 1 )
@@ -50,7 +51,8 @@ new pulse
 	exponent = ( 1 , 1 ) // odd value induces cos^(exponent+1)
 }
 
-new pulse
+// ...or we can add extra words in between as desired.
+generate hermite gauss pulse, and a nice one indeed, for the module 'pgc'
 {
 	a = ( 0.56 , 0 , 0 )
 	direction = ( 0 , 0 , 1 )

@@ -39,14 +39,10 @@ struct Simulation:Task,MetricSpace
 
 	tw::bc::par bc0[4],bc1[4];
 
+	std::vector<Region*> clippingRegion;
 	std::vector<ComputeTool*> computeTool;
 	std::vector<Module*> module;
 	std::vector<tw::module_type> createdModuleTypes;
-
-	std::vector<Region*> clippingRegion;
-	std::vector<Wave*> wave;
-	std::vector<Pulse*> pulse;
-	std::vector<Conductor*> conductor;
 
 	std::vector<EnergySeriesDescriptor*> energyDiagnostic;
 	std::vector<PointSeriesDescriptor*> pointDiagnostic;
@@ -54,10 +50,6 @@ struct Simulation:Task,MetricSpace
 
 	UniformDeviate *uniformDeviate;
 	GaussianDeviate *gaussianDeviate;
-
-	#ifdef USE_OPENCL
-	cl_mem waveBuffer;
-	#endif
 
 	Simulation(const std::string& inputFileName);
 	virtual ~Simulation();

@@ -25,7 +25,7 @@ Module::Module(const std::string& name,Simulation* sim)
 	updateSequencePriority = 1;
 	for (tw::Int i=0;i<4;i++)
 		smoothing[i] = compensation[i] = 0;
-	typeCode = tw::module_type::nullModule;
+	typeCode = tw::module_type::none;
 	suppressNextUpdate = false;
 	DiscreteSpace::operator=(*sim);
 	// Any Module will recognize any on-the-fly ComputeTool key
@@ -144,9 +144,9 @@ void Module::VerifyInput()
 	// Carry out checks that are appropriate after the whole input file block has been read in.
 	// This includes searching the list of ComputTool pointers for what we need.
 
-	// Profiles are an automatically managed ComputeTool.  There are two aspects of this:
-	// 1. The profile list has to be constructed.
-	// 2. The named region has to be found.  This is mostly for Profile, but we do it for all ComputeTools while we're at it.
+	// The following captures tools that are handled automatically.
+	// N.b. this does not mean they are automatically attached to all modules, only that
+	// we automatically populate a strongly typed list.
 
 	for (auto tool : moduleTool)
 	{
@@ -155,10 +155,15 @@ void Module::VerifyInput()
 		if (theProfile!=NULL)
 			profile.push_back(theProfile);
 
-		if (tool->region_name=="tw::entire")
-			tool->theRgn = owner->clippingRegion[0];
-		else
-			tool->theRgn = Region::FindRegion(owner->clippingRegion,tool->region_name);
+		Wave *theWave;
+		theWave = dynamic_cast<Wave*>(tool);
+		if (theWave!=NULL)
+			wave.push_back(theWave);
+
+		Conductor *theConductor;
+		theConductor = dynamic_cast<Conductor*>(tool);
+		if (theConductor!=NULL)
+			conductor.push_back(theConductor);
 	}
 }
 
@@ -223,7 +228,7 @@ tw::module_type Module::CreateSupermoduleTypeFromSubmoduleKey(const std::string&
 		return tw::module_type::equilibriumGroup;
 	if (key=="group")
 		return tw::module_type::sparcHydroManager;
-	return tw::module_type::nullModule;
+	return tw::module_type::none;
 }
 
 bool Module::QuasitoolNeedsModule(const std::vector<std::string>& preamble)
@@ -274,7 +279,7 @@ tw::module_type Module::CreateTypeFromInput(const std::vector<std::string>& prea
 		return tw::module_type::species;
 	if (preamble[0]=="kinetics")
 		return tw::module_type::kinetics;
-	return tw::module_type::nullModule;
+	return tw::module_type::none;
 }
 
 Module* Module::CreateObjectFromType(const std::string& name,tw::module_type theType,Simulation* sim)
@@ -282,7 +287,7 @@ Module* Module::CreateObjectFromType(const std::string& name,tw::module_type the
 	Module *ans;
 	switch (theType)
 	{
-		case tw::module_type::nullModule:
+		case tw::module_type::none:
 			ans = NULL;
 			break;
 		case tw::module_type::curvilinearDirectSolver:

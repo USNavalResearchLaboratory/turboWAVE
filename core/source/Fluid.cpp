@@ -156,10 +156,10 @@ void Fluid::Initialize()
 			}
 
 			A0 = A1 = tw::vec3(0,0,0);
-			for (tw::Int s=0;s<owner->wave.size();s++)
+			for (tw::Int s=0;s<wave.size();s++)
 			{
-				A0 += owner->wave[s]->VectorPotential(-dth,pos);
-				A1 += owner->wave[s]->VectorPotential(0.0,pos);
+				A0 += wave[s]->VectorPotential(-dth,pos);
+				A1 += wave[s]->VectorPotential(0.0,pos);
 			}
 			state0(cell,1) += A0.x;
 			state0(cell,2) += A0.y;
@@ -167,10 +167,10 @@ void Fluid::Initialize()
 			state1(cell,1) += A1.x;
 			state1(cell,2) += A1.y;
 			state1(cell,3) += 0.5*(A1.x*A1.x + A1.y*A1.y);
-			for (tw::Int s=0;s<owner->pulse.size();s++)
+			for (auto pulse : wave)
 			{
-				state0(cell,3) += 0.25*norm(owner->pulse[s]->VectorPotentialEnvelope(-dth,pos,*carrierFrequency));
-				state1(cell,3) += 0.25*norm(owner->pulse[s]->VectorPotentialEnvelope(0.0,pos,*carrierFrequency));
+				state0(cell,3) += 0.25*norm(pulse->VectorPotentialEnvelope(-dth,pos,*carrierFrequency));
+				state1(cell,3) += 0.25*norm(pulse->VectorPotentialEnvelope(0.0,pos,*carrierFrequency));
 			}
 		}
 	}
@@ -221,10 +221,10 @@ void Fluid::MoveWindow()
 				fixed(s,k) += incomingPlasma[0];
 
 			A0 = A1 = tw::vec3(0,0,0);
-			for (tw::Int w=0;w<owner->wave.size();w++)
+			for (tw::Int w=0;w<wave.size();w++)
 			{
-				A0 += owner->wave[w]->VectorPotential(owner->elapsedTime-dth,pos);
-				A1 += owner->wave[w]->VectorPotential(owner->elapsedTime,pos);
+				A0 += wave[w]->VectorPotential(owner->elapsedTime-dth,pos);
+				A1 += wave[w]->VectorPotential(owner->elapsedTime,pos);
 			}
 			state0(s,k,1) += A0.x;
 			state0(s,k,2) += A0.y;
@@ -1040,16 +1040,16 @@ void sparc::HydroManager::Initialize()
 	for (auto sub : submodule)
 		group.push_back((EquilibriumGroup*)sub);
 
-	for (auto c : owner->conductor)
+	for (auto c : conductor)
 		ellipticSolver->FixPotential(phi,c->theRgn,0.0);
 
 	// Initialize laser frequency and refractive index
-	if (owner->pulse.size())
+	if (wave.size())
 	{
 		laserFrequency = 0.0;
-		for (auto pulse : owner->pulse)
+		for (auto pulse : wave)
 			laserFrequency += pulse->w;
-		laserFrequency /= tw::Float(owner->pulse.size());
+		laserFrequency /= tw::Float(wave.size());
 	}
 	refractiveIndex = tw::Complex(1.0,0.0);
 
@@ -1092,7 +1092,7 @@ void sparc::HydroManager::Initialize()
 	// also used for reflecting boundary conditions at simulation walls
 	fluxMask = 1.0;
 	for (auto cell : EntireCellRange(*this))
-		for (auto c : owner->conductor)
+		for (auto c : conductor)
 			if (c->theRgn->Inside(owner->Pos(cell),*owner))
 				fluxMask(cell) = 0.0;
 	for (tw::Int ax=1;ax<=3;ax++)
@@ -1630,7 +1630,7 @@ void sparc::HydroManager::LaserAdvance(tw::Float dt)
 		return std::exp(ii*k*z)*ii*std::fabs(k)*A;
 	};
 
-	if (owner->pulse.size() && lasModel==sparc::vacuum) // use a prescribed field
+	if (wave.size() && lasModel==sparc::vacuum) // use a prescribed field
 	{
 		#pragma omp parallel
 		{
@@ -1639,7 +1639,7 @@ void sparc::HydroManager::LaserAdvance(tw::Float dt)
 				tw::Complex fwd = 0.0;
 				tw::Complex bak = 0.0;
 				const tw::vec3 pos = owner->Pos(cell);
-				for (auto pulse : owner->pulse)
+				for (auto pulse : wave)
 				{
 					if (pulse->direction.z > 0.0)
 						fwd += pulse->VectorPotentialEnvelope(owner->elapsedTime,pos,laserFrequency);
@@ -1652,7 +1652,7 @@ void sparc::HydroManager::LaserAdvance(tw::Float dt)
 		}
 	}
 
-	if (electrons && owner->pulse.size() && lasModel==sparc::isotropic && dim[3]>1)
+	if (electrons && wave.size() && lasModel==sparc::isotropic && dim[3]>1)
 	{
 		#pragma omp parallel
 		{
@@ -1665,17 +1665,17 @@ void sparc::HydroManager::LaserAdvance(tw::Float dt)
 				const tw::Float z1 = owner->Pos(strip,1).z;
 				const tw::Float zN = owner->Pos(strip,dim[3]).z;
 				const tw::Float zN1 = owner->Pos(strip,dim[3]+1).z;
-				for (tw::Int s=0;s<owner->pulse.size();s++)
+				for (auto pulse : wave)
 				{
-					if (owner->pulse[s]->direction.z > 0.0)
+					if (pulse->direction.z > 0.0)
 					{
-						a0 += owner->pulse[s]->VectorPotentialEnvelope(owner->elapsedTime,z0,laserFrequency);
-						a1 += owner->pulse[s]->VectorPotentialEnvelope(owner->elapsedTime,z1,laserFrequency);
+						a0 += pulse->VectorPotentialEnvelope(owner->elapsedTime,z0,laserFrequency);
+						a1 += pulse->VectorPotentialEnvelope(owner->elapsedTime,z1,laserFrequency);
 					}
 					else
 					{
-						aN += owner->pulse[s]->VectorPotentialEnvelope(owner->elapsedTime,zN,laserFrequency);
-						aN1 += owner->pulse[s]->VectorPotentialEnvelope(owner->elapsedTime,zN1,laserFrequency);
+						aN += pulse->VectorPotentialEnvelope(owner->elapsedTime,zN,laserFrequency);
+						aN1 += pulse->VectorPotentialEnvelope(owner->elapsedTime,zN1,laserFrequency);
 					}
 				}
 				a0 = vacuumE(a0,laserFrequency,z0); a1 = vacuumE(a1,laserFrequency,z1);

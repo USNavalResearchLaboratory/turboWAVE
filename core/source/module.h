@@ -1,6 +1,6 @@
 namespace tw
 {
-	enum class module_type {	nullModule,
+	enum class module_type {	none,
 					electrostatic,
 					coulombSolver,directSolver,curvilinearDirectSolver,
 					qsLaser,pgcLaser,
@@ -11,7 +11,6 @@ namespace tw
 struct Module:DiscreteSpace
 {
 	std::string name;
-	std::vector<Profile*> profile;
 	Simulation* owner;
 	Module* super;
 	std::vector<Module*> submodule;
@@ -22,6 +21,11 @@ struct Module:DiscreteSpace
 	tw::Int smoothing[4],compensation[4];
 	tw::module_type typeCode;
 	bool suppressNextUpdate;
+
+	// Strongly typed ComputeTool lists that are provided for free
+	std::vector<Profile*> profile;
+	std::vector<Wave*> wave;
+	std::vector<Conductor*> conductor;
 
 	// OpenCL Support
 	private:

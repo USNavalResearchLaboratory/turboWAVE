@@ -120,11 +120,11 @@ void Electromagnetic::LoadVectorPotential(Field& A,tw::Float t)
 			A(i,j,k,X) = 0.0;
 			A(i,j,k,Y) = 0.0;
 			A(i,j,k,Z) = 0.0;
-			for (s=0;s<owner->wave.size();s++)
+			for (s=0;s<wave.size();s++)
 			{
-				A(i,j,k,X) += owner->wave[s]->VectorPotential(t,r1).x;
-				A(i,j,k,Y) += owner->wave[s]->VectorPotential(t,r2).y;
-				A(i,j,k,Z) += owner->wave[s]->VectorPotential(t,r3).z;
+				A(i,j,k,X) += wave[s]->VectorPotential(t,r1).x;
+				A(i,j,k,Y) += wave[s]->VectorPotential(t,r2).y;
+				A(i,j,k,Z) += wave[s]->VectorPotential(t,r3).z;
 			}
 		}
 	}

@@ -16,8 +16,8 @@ syn match twDefine "#define"
 syn match twInclude "#include"
 syn keyword	twStatement	new generate get
 
-syn match twUnit  "\v(\s|\(|\{|\,|\=)\%[0-9]+\.=[0-9]*[eE]=[\+\-]=[0-9]*(um|mm|cm|m|fs|ps|ns|us|s|m\-3|cm\-3|Jm3|Jcm3|eV|K)(\s|\)|\}|\,|\n)"hs=s+1,he=e-1
-syn match twUnit2 "\v(\s|\(|\{|\,|\=)\%\.[0-9]+[eE]=[\+\-][0-9]*(um|mm|cm|m|fs|ps|ns|us|s|m\-3|cm\-3|Jm3|Jcm3|eV|K)(\s|\)|\}|\,|\n)"hs=s+1,he=e-1
+syn match twUnit  "\v(\s|\(|\{|\,|\=)\%[0-9]+\.=[0-9]*[eE]=[\+\-]=[0-9]*(deg|rad|mrad|urad|cm2|m2|cm2s|m2s|um|mm|cm|m|fs|ps|ns|us|s|m\-3|cm\-3|Jm3|Jcm3|eV|K)(\s|\)|\}|\,|\n)"hs=s+1,he=e-1
+syn match twUnit2 "\v(\s|\(|\{|\,|\=)\%\.[0-9]+[eE]=[\+\-][0-9]*(deg|rad|mrad|urad|cm2|m2|cm2s|m2s|um|mm|cm|m|fs|ps|ns|us|s|m\-3|cm\-3|Jm3|Jcm3|eV|K)(\s|\)|\}|\,|\n)"hs=s+1,he=e-1
 syn region twUserMacro display start="\$" end="\s\|$"he=s-1
 syn region twComment start="/\*" end="\*/"
 syn region twCommentL start="//" end="$" keepend
@@ -26,7 +26,12 @@ syn keyword twconst none full
 syn keyword twload deterministic statistical variable fixed triggered maintained
 syn keyword twbool true false on off yes no
 syn keyword twboundary absorbing emitting reflecting axisymmetric periodic
-syn keyword twmode airy_disc hermite laguerre bessel plane multipole
+syn match twmode "hermite gauss"
+syn match twmode "laguerre gauss"
+syn match twmode "plane wave"
+syn match twmode "airy disc"
+syn match twmode "bessel beam"
+syn match twmode "multipole"
 syn keyword twioniz adk ppt mpi
 syn keyword twshape quintic sin2 sech
 

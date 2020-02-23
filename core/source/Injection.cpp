@@ -27,7 +27,7 @@ Profile::Profile(const std::string& name,MetricSpace *m,Task *tsk) : ComputeTool
 	orientation.u = tw::vec3(1,0,0);
 	orientation.v = tw::vec3(0,1,0);
 	orientation.w = tw::vec3(0,0,1);
-	gamma_boost = 1.0;
+	gammaBoost = 1.0;
 
 	// Lots of enumerated-type hash tables involved in Profile directives.
 	// Do them first, then setup directives.
@@ -69,7 +69,7 @@ Profile::Profile(const std::string& name,MetricSpace *m,Task *tsk) : ComputeTool
 	directives.Add("symmetry",new tw::input::Enums<tw::dom::geometry>(geo,&symmetry));
 	directives.Add("mode amplitude",new tw::input::Float(&modeAmplitude));
 	directives.Add("mode number",new tw::input::Vec3(&modeNumber));
-	directives.Add("boosted frame gamma",new tw::input::Float(&gamma_boost));
+	directives.Add("boosted frame gamma",new tw::input::Float(&gammaBoost));
 	directives.Add("particle weight",new tw::input::Custom);
 	directives.Add("euler angles",new tw::input::Custom);
 }
@@ -116,7 +116,7 @@ void Profile::ReadData(std::ifstream& inFile)
 	inFile.read((char *)&wasTriggered,sizeof(bool));
 	inFile.read((char *)&t0,sizeof(tw::Float));
 	inFile.read((char *)&t1,sizeof(tw::Float));
-	inFile.read((char *)&gamma_boost,sizeof(tw::Float));
+	inFile.read((char *)&gammaBoost,sizeof(tw::Float));
 }
 
 void Profile::WriteData(std::ofstream& outFile)
@@ -139,7 +139,7 @@ void Profile::WriteData(std::ofstream& outFile)
 	outFile.write((char *)&wasTriggered,sizeof(bool));
 	outFile.write((char *)&t0,sizeof(tw::Float));
 	outFile.write((char *)&t1,sizeof(tw::Float));
-	outFile.write((char *)&gamma_boost,sizeof(tw::Float));
+	outFile.write((char *)&gammaBoost,sizeof(tw::Float));
 }
 
 tw::vec3 Profile::DriftMomentum(const tw::Float& mass)
@@ -147,7 +147,7 @@ tw::vec3 Profile::DriftMomentum(const tw::Float& mass)
 	tw::vec4 v4(0.0,driftMomentum/mass);
 	tw::Float gb2 = v4 ^ v4;
 	v4[0] = sqrt(1.0 + gb2);
-	v4.zBoost(gamma_boost,-1.0);
+	v4.zBoost(gammaBoost,-1.0);
 	return mass*v4.spatial();
 }
 
@@ -158,7 +158,7 @@ tw::vec3 Profile::Boost(const tw::vec3& pos)
 	// The user is giving us lab frame coordinates.
 	// Therefore first transform arguments to lab frame, then proceed as usual.
 	tw::vec4 x4(0.0,pos);
-	x4.zBoost(gamma_boost,1.0);
+	x4.zBoost(gammaBoost,1.0);
 	return x4.spatial();
 }
 
@@ -196,7 +196,7 @@ void UniformProfile::WriteData(std::ofstream& outFile)
 
 tw::Float UniformProfile::GetValue(const tw::vec3& pos,const MetricSpace& ds)
 {
-	return theRgn->Inside(Boost(pos),ds) ? gamma_boost*density : 0.0;
+	return theRgn->Inside(Boost(pos),ds) ? gammaBoost*density : 0.0;
 }
 
 GaussianProfile::GaussianProfile(const std::string& name,MetricSpace *m,Task *tsk):Profile(name,m,tsk)
@@ -228,7 +228,7 @@ tw::Float GaussianProfile::GetValue(const tw::vec3& pos,const MetricSpace& ds)
 	dens *= exp(-sqr(p.x/beamSize.x));
 	dens *= exp(-sqr(p.y/beamSize.y));
 	dens *= exp(-sqr(p.z/beamSize.z));
-	return theRgn->Inside(b,ds) ? gamma_boost*dens : 0.0;
+	return theRgn->Inside(b,ds) ? gammaBoost*dens : 0.0;
 }
 
 ChannelProfile::ChannelProfile(const std::string& name,MetricSpace *m,Task *tsk):Profile(name,m,tsk)
@@ -283,7 +283,7 @@ tw::Float ChannelProfile::GetValue(const tw::vec3& pos,const MetricSpace& ds)
 	}
 	r2 = sqr(p.x) + sqr(p.y);
 	dens *= coeff[0] + coeff[1]*r2 + coeff[2]*r2*r2 + coeff[3]*r2*r2*r2;
-	return theRgn->Inside(b,ds) ? gamma_boost*dens : 0.0;
+	return theRgn->Inside(b,ds) ? gammaBoost*dens : 0.0;
 }
 
 ColumnProfile::ColumnProfile(const std::string& name,MetricSpace *m,Task *tsk):Profile(name,m,tsk)
@@ -338,7 +338,7 @@ tw::Float ColumnProfile::GetValue(const tw::vec3& pos,const MetricSpace& ds)
 	}
 	dens *= exp(-sqr(p.x/beamSize.x));
 	dens *= exp(-sqr(p.y/beamSize.y));
-	return theRgn->Inside(b,ds) ? gamma_boost*dens : 0.0;
+	return theRgn->Inside(b,ds) ? gammaBoost*dens : 0.0;
 }
 
 PiecewiseProfile::PiecewiseProfile(const std::string& name,MetricSpace *m,Task *tsk) : Profile(name,m,tsk)
@@ -546,7 +546,7 @@ tw::Float PiecewiseProfile::GetValue(const tw::vec3& pos,const MetricSpace& ds)
 	}
 
 	tw::Float dens = ansX*ansY*ansZ*sqr(cos(0.5*modeNumber.x*p.x)*cos(0.5*modeNumber.y*p.y)*cos(0.5*modeNumber.z*p.z));
-	return theRgn->Inside(b,ds) ? gamma_boost*dens : 0.0;
+	return theRgn->Inside(b,ds) ? gammaBoost*dens : 0.0;
 }
 
 CorrugatedProfile::CorrugatedProfile(const std::string& name,MetricSpace *m,Task *tsk) : Profile(name,m,tsk)
@@ -599,7 +599,7 @@ tw::Float CorrugatedProfile::GetValue(const tw::vec3& pos,const MetricSpace& ds)
 	kHat = w0 + km - 0.5*w0*(sqr(wp0/w0) + 8.0/sqr(w0*rchannel));
 	wp1s = 2.0*w0*kHat - 2.0*sqrt(sqr(gamma0+a0Hat*w0*z)/(sqr(gamma0+a0Hat*w0*z)-1.0))*w0*w0;
 	dens = wp0*wp0*(1.0 + delta*sin(km*z)) + wp1s + 4.0*r2/pow(rchannel,tw::Float(4.0));
-	return theRgn->Inside(b,ds) ? gamma_boost*dens : 0.0;
+	return theRgn->Inside(b,ds) ? gammaBoost*dens : 0.0;
 }
 
 
@@ -685,15 +685,16 @@ tw::Float PulseShape::D1Intensity(const tw::Float t) const
 }
 
 
-////////////////////
-//                //
-// EXPLICIT WAVES //
-//                //
-////////////////////
+/////////////////////////
+//                     //
+// Radiation Injection //
+//                     //
+/////////////////////////
 
 
-Wave::Wave(GaussianDeviate *gd)
+Wave::Wave(const std::string& name,MetricSpace *m,Task *tsk) : ComputeTool(name,m,tsk)
 {
+	typeCode = tw::tool_type::none;
 	direction = tw::vec3(0.0,0.0,1.0);
 	focusPosition = tw::vec3(0.0,0.0,0.0);
 	a = tw::vec3(0.1,0.0,0.0);
@@ -702,19 +703,41 @@ Wave::Wave(GaussianDeviate *gd)
 	chirp = 0.0;
 	phase = 0.0;
 	randomPhase = 0.0;
-	gamma_boost = 1.0;
-	modeType = EM::hermite;
-	modeData[0].order = 0;
-	modeData[1].order = 0;
-	modeData[0].scale = 1.0;
-	modeData[1].scale = 1.0;
-	modeData[0].exponent = 2;
-	modeData[1].exponent = 2;
-	deviate = gd;
+	gammaBoost = 1.0;
+	modeData.order[0] = 0;
+	modeData.order[1] = 0;
+	modeData.scale[0] = 1.0;
+	modeData.scale[1] = 1.0;
+	modeData.exponent[0] = 2;
+	modeData.exponent[1] = 2;
+	directives.Add("direction",new tw::input::Vec3(&direction));
+	directives.Add("focus position",new tw::input::Vec3(&focusPosition));
+	directives.Add("a",new tw::input::Vec3(&a));
+	directives.Add("w",new tw::input::Float(&w));
+	directives.Add("refractive index",new tw::input::Float(&nrefr));
+	directives.Add("chirp",new tw::input::Float(&chirp));
+	directives.Add("phase",new tw::input::Float(&phase));
+	directives.Add("random phase",new tw::input::Float(&randomPhase));
+	directives.Add("delay",new tw::input::Float(&pulseShape.delay));
+	directives.Add("risetime",new tw::input::Float(&pulseShape.risetime));
+	directives.Add("holdtime",new tw::input::Float(&pulseShape.holdtime));
+	directives.Add("falltime",new tw::input::Float(&pulseShape.falltime));
+	directives.Add("boosted frame gamma",new tw::input::Float(&gammaBoost));
+	directives.Add("r0",new tw::input::Numbers<tw::Float>(&modeData.scale[0],2));
+	directives.Add("exponent",new tw::input::Numbers<tw::Int>(&modeData.exponent[0],2));
+	directives.Add("mode",new tw::input::Numbers<tw::Int>(&modeData.order[0],2));
+	std::map<std::string,tw::profile::shape> shape = {{"quintic",tw::profile::shape::quintic},{"sech",tw::profile::shape::sech},{"sin2",tw::profile::shape::sin2}};
+	directives.Add("shape",new tw::input::Enums<tw::profile::shape>(shape,&pulseShape.whichProfile));
 }
 
 void Wave::Initialize()
 {
+	if (pulseShape.risetime<=0.0)
+		throw tw::FatalError("Pulse rise time must be positive and non-zero.");
+	if (pulseShape.holdtime<0.0)
+		throw tw::FatalError("Pulse hold time must be positive.");
+	if (pulseShape.falltime<=0.0)
+		throw tw::FatalError("Pulse fall time must be positive and non-zero.");
 	// set up a transformation so we can work in a coordinate system
 	// where the polarization direction is x and the propagation direction is z
 	vg = nrefr>1.0 ? 1.0/nrefr : nrefr;
@@ -726,238 +749,9 @@ void Wave::Initialize()
 	pulseShape.Initialize(pulseShape.delay + pulseShape.risetime);
 }
 
-tw::Complex Wave::PlanePrimitive(tw::Float t,const tw::vec3& r) const
-{
-	// t,r are expected to be in the Cartesian laser basis for all primitive functions
-	const tw::Float tau = t - nrefr*r.z;
-	const tw::Float psi = phase - w*tau - chirp*tau*tau;
-	return a0 * pulseShape.PulseShapeFactor(tau) * std::exp(ii*psi);
-}
-
-tw::Complex Wave::BesselPrimitive(tw::Float t,const tw::vec3& r) const
-{
-	const tw::Float rbar = sqrt(sqr(r.x) + sqr(r.y))/modeData[0].scale;
-	const tw::Float tau = t - nrefr*r.z;
-	const tw::Float psi = phase - w*tau - chirp*tau*tau;
-	return a0 * tw::cyl_bessel_j(0,rbar) * pulseShape.PulseShapeFactor(tau) * std::exp(ii*psi);
-}
-
-tw::Complex Wave::AiryDiscPrimitive(tw::Float t,const tw::vec3& r) const
-{
-	// User input is the radius of the first zero.
-	// This is convenient because then the energy corresponds to a Gaussian with the same radius.
-	const tw::Float rbar = sqrt(sqr(r.x) + sqr(r.y))*3.83171/modeData[0].scale;
-	const tw::Float tau = t - nrefr*r.z;
-	const tw::Float psi = phase - w*tau - chirp*tau*tau;
-	return 2*a0 * (tw::cyl_bessel_j(1,rbar)/rbar) * pulseShape.PulseShapeFactor(tau) * std::exp(ii*psi);
-}
-
-tw::Complex Wave::LaguerrePrimitive(tw::Float t,const tw::vec3& r) const
-{
-	const tw::Float r0 = modeData[0].scale;
-	const tw::Int nexp = modeData[0].exponent;
-	const tw::Int mu = modeData[0].order;
-	const tw::Int mv = modeData[1].order;
-
-	tw::Float Ax=a0, tau=t-nrefr*r.z, guoy_shift=0.0;
-	tw::Float zR,rm,rho,phi;
-
-	// setup for Laguerre-Gaussian mode
-	rho = sqrt(r.x*r.x + r.y*r.y);
-	phi = atan2(r.y,r.x);
-	zR = 0.5*nrefr*w*r0*r0;
-	rm = r0*sqrt(one + r.z*r.z/(zR*zR));
-	guoy_shift = -(one + two*mu + mv)*atan(r.z/zR);
-
-	// compute factors for r-phi profile
-	Ax *= r0/rm;
-	Ax *= tw::assoc_laguerre(mu,mv,two*sqr(rho/rm));
-	Ax *= nexp%2==0 ? exp(-pow(rho/rm,nexp)) : pow(cos(0.5*pi*rho/rm),nexp+1)*tw::Float(rho<rm);
-	Ax *= pow(sqrt(two)*rho/rm,tw::Float(mv)); // put appropriate hole on axis
-	Ax *= sqrt(Factorial(mu)/Factorial(mu+mv)); // Laguerre normalization
-	tau += guoy_shift/w - 0.5*nrefr*rho*rho*r.z/(r.z*r.z + zR*zR);
-	tw::Float psi = phase + 2.0*guoy_shift - mv*phi - w*tau - chirp*tau*tau;
-
-	return Ax * pulseShape.PulseShapeFactor(tau) * std::exp(ii*psi);
-}
-
-tw::Complex Wave::HermitePrimitive(tw::Float t,const tw::vec3& r) const
-{
-	const tw::Float r0[2] = { modeData[0].scale , modeData[1].scale };
-	const tw::Int nexp[2] = { modeData[0].exponent , modeData[1].exponent };
-	const tw::Int order[2] = { modeData[0].order , modeData[1].order };
-
-	tw::Float Ax=a0, tau=t-nrefr*r.z, guoy_shift=0.0;
-
-	// lambda function to compute Hermite amplitude and phase per axis
-	auto herm = [&] (tw::Float x,tw::Int ax)
-	{
-		const tw::Float m = order[ax-1];
-		const tw::Float r00 = r0[ax-1];
-		const tw::Float zR = 0.5*nrefr*w*r00*r00;
-		const tw::Float rm = r00*sqrt(1.0 + r.z*r.z/(zR*zR));
-		guoy_shift -= (0.5 + m)*atan(r.z/zR);
-		Ax *= sqrt(r00/rm);
-		Ax *= tw::hermite(m,1.41421356*x/rm);
-		Ax *= nexp[ax-1]%2==0 ? exp(-pow(x/rm,nexp[ax-1])) : pow(cos(0.5*pi*x/rm),nexp[ax-1]+1)*tw::Float(x*x<rm*rm);
-		Ax /= sqrt(pow(two,tw::Float(m))*Factorial(m)); // Hermite normalization
-		tau += guoy_shift/w - 0.5*nrefr*x*x*r.z/(r.z*r.z + zR*zR);
-	};
-
-	herm(r.x,1);
-	herm(r.y,2);
-	tw::Float psi = phase + 2.0*guoy_shift - w*tau - chirp*tau*tau;
-
-	return Ax * pulseShape.PulseShapeFactor(tau) * std::exp(ii*psi);
-}
-
-tw::Complex Wave::MultipolePrimitive(tw::Float t, const tw::vec3& r) const
-{
-	// For now hard code in magnetic dipole radiation
-	const tw::Float j1max = 0.436182;
-	const tw::Float rho = sqrt(r.x*r.x + r.y*r.y);
-	const tw::Float R = sqrt(rho*rho + r.z*r.z);
-	const tw::Float stheta = rho/R;
-	const tw::Float wR = w*R;
-	//auto spherical_bessel = [&] (tw::Float x) { return sin(x)/sqr(x+tw::small_pos) - cos(x)/(x+tw::small_pos); };
-
-	tw::Complex Aphi;
-	tw::Float tau_in,tau_out;
-	tau_out = t - nrefr*R;
-	tau_in = t + nrefr*R;
-	Aphi = (-one/wR + one/(ii*wR*wR)) * pulseShape.PulseShapeFactor(tau_out) * std::exp(-ii*w*tau_out);
-	Aphi += (-one/wR - one/(ii*wR*wR)) * pulseShape.PulseShapeFactor(tau_in) * std::exp(-ii*w*tau_in);
-	Aphi *= 0.5 * a0 * (stheta/j1max);
-	return Aphi;
-}
-
-void Wave::ReadInputFile(std::stringstream& inputString,std::string& command)
-{
-	std::string word;
-
-	do
-	{
-		inputString >> word;
-
-		if (word=="use")
-			throw tw::FatalError("'use' directives not supported.  See docs for alternative.");
-
-		if (word=="direction") // eg, direction = (1.0,1.0,0.0)
-		{
-			inputString >> word;
-			inputString >> direction.x >> direction.y >> direction.z;
-		}
-		if (word=="focus") // eg, focus position = (0.0,0.0,0.0)
-		{
-			inputString >> word >> word;
-			inputString >> focusPosition.x >> focusPosition.y >> focusPosition.z;
-		}
-		if (word=="a") // eg, a = 0.0 0.0 0.1
-		{
-			inputString >> word;
-			inputString >> a.x >> a.y >> a.z;
-		}
-		if (word=="w") // eg, w = 2.0
-		{
-			inputString >> word;
-			inputString >> w;
-		}
-		if (word=="refractiveindex") // eg, refractiveindex = 1.5
-		{
-			inputString >> word;
-			inputString >> nrefr;
-		}
-		if (word=="chirp") // eg, chirp = 0.01
-		{
-			inputString >> word;
-			inputString >> chirp;
-		}
-		if (word=="phase") // eg, phase = 90
-		{
-			inputString >> word;
-			inputString >> phase;
-		}
-		if (word=="random") // eg, random phase = 10
-		{
-			inputString >> word >> word;
-			inputString >> randomPhase;
-		}
-		if (word=="delay") // eg, delay = 10
-		{
-			inputString >> word;
-			inputString >> pulseShape.delay;
-		}
-		if (word=="risetime") // eg, risetime = 1.0
-		{
-			inputString >> word;
-			inputString >> pulseShape.risetime;
-			if (pulseShape.risetime<=0.0)
-				throw tw::FatalError("Pulse rise time must be positive and non-zero.");
-		}
-		if (word=="holdtime") // eg, holdtime = 10
-		{
-			inputString >> word;
-			inputString >> pulseShape.holdtime;
-			if (pulseShape.holdtime<0.0)
-				throw tw::FatalError("Pulse hold time must be positive.");
-		}
-		if (word=="falltime") // eg, falltime = 10
-		{
-			inputString >> word;
-			inputString >> pulseShape.falltime;
-			if (pulseShape.falltime<=0.0)
-				throw tw::FatalError("Pulse fall time must be positive and non-zero.");
-		}
-		if (word=="r0") // eg, r0 = 1.0 1.0
-		{
-			inputString >> word >> modeData[0].scale >> modeData[1].scale;
-		}
-		if (word=="exponent") // eg, exponent = 2 2
-		{
-			inputString >> word >> modeData[0].exponent >> modeData[1].exponent;
-		}
-		if (word=="mode")
-		{
-			inputString >> word >> modeData[0].order >> modeData[1].order;
-		}
-		if (word=="type")
-		{
-			inputString >> word >> word;
-			if (word=="plane")
-				modeType = EM::plane;
-			if (word=="multipole")
-				modeType = EM::multipole;
-			if (word=="hermite")
-				modeType = EM::hermite;
-			if (word=="laguerre")
-				modeType = EM::laguerre;
-			if (word=="bessel")
-				modeType = EM::bessel;
-			if (word=="airy_disc")
-				modeType = EM::airy_disc;
-		}
-		if (word=="shape")
-		{
-			inputString >> word >> word;
-			if (word=="quintic")
-				pulseShape.whichProfile = tw::profile::shape::quintic;
-			if (word=="sin2")
-				pulseShape.whichProfile = tw::profile::shape::sin2;
-			if (word=="sech")
-				pulseShape.whichProfile = tw::profile::shape::sech;
-		}
-		if (word=="boosted") // e.g., boosted frame gamma = 1
-		{
-			inputString >> word >> word >> word >> gamma_boost;
-		}
-	} while (word!="}");
-
-	if (w==0.0 && (modeType==EM::hermite || modeType==EM::laguerre || modeType==EM::multipole))
-		throw tw::FatalError("Zero frequency requested for an EM mode that does not support it.");
-}
-
 void Wave::ReadData(std::ifstream& inFile)
 {
+	ComputeTool::ReadData(inFile);
 	inFile.read((char *)&direction,sizeof(tw::vec3));
 	inFile.read((char *)&focusPosition,sizeof(tw::vec3));
 	inFile.read((char *)&a,sizeof(tw::vec3));
@@ -968,15 +762,15 @@ void Wave::ReadData(std::ifstream& inFile)
 	inFile.read((char *)&vg,sizeof(tw::Float));
 	inFile.read((char *)&chirp,sizeof(tw::Float));
 	inFile.read((char *)&randomPhase,sizeof(tw::Float));
-	inFile.read((char *)&gamma_boost,sizeof(tw::Float));
+	inFile.read((char *)&gammaBoost,sizeof(tw::Float));
 	inFile.read((char *)&pulseShape,sizeof(PulseShape));
-	inFile.read((char *)&modeType,sizeof(modeType));
-	inFile.read((char *)modeData,sizeof(modeData));
+	inFile.read((char *)&modeData,sizeof(modeData));
 	inFile.read((char *)&laserFrame,sizeof(laserFrame));
 }
 
 void Wave::WriteData(std::ofstream& outFile)
 {
+	ComputeTool::WriteData(outFile);
 	outFile.write((char *)&direction,sizeof(tw::vec3));
 	outFile.write((char *)&focusPosition,sizeof(tw::vec3));
 	outFile.write((char *)&a,sizeof(tw::vec3));
@@ -987,11 +781,173 @@ void Wave::WriteData(std::ofstream& outFile)
 	outFile.write((char *)&vg,sizeof(tw::Float));
 	outFile.write((char *)&chirp,sizeof(tw::Float));
 	outFile.write((char *)&randomPhase,sizeof(tw::Float));
-	outFile.write((char *)&gamma_boost,sizeof(tw::Float));
+	outFile.write((char *)&gammaBoost,sizeof(tw::Float));
 	outFile.write((char *)&pulseShape,sizeof(PulseShape));
-	outFile.write((char *)&modeType,sizeof(modeType));
-	outFile.write((char *)modeData,sizeof(modeData));
+	outFile.write((char *)&modeData,sizeof(modeData));
 	outFile.write((char *)&laserFrame,sizeof(laserFrame));
+}
+
+PlaneWave::PlaneWave(const std::string& name,MetricSpace *m,Task *tsk) : Wave(name,m,tsk)
+{
+	typeCode = tw::tool_type::planeWave;
+}
+
+tw::Complex PlaneWave::PrimitivePhasor(const tw::vec4& x) const
+{
+	// t,r are expected to be in the Cartesian laser basis for all primitive functions
+	const tw::Float tau = x[0] - nrefr*x[3];
+	const tw::Float psi = phase - w*tau - chirp*tau*tau;
+	return a0 * pulseShape.PulseShapeFactor(tau) * std::exp(ii*psi);
+}
+
+BesselBeam::BesselBeam(const std::string& name,MetricSpace *m,Task *tsk) : Wave(name,m,tsk)
+{
+	typeCode = tw::tool_type::besselBeam;
+}
+
+tw::Complex BesselBeam::PrimitivePhasor(const tw::vec4& x) const
+{
+	const tw::Float rbar = sqrt(sqr(x[1]) + sqr(x[2]))/modeData.scale[0];
+	const tw::Float tau = x[0] - nrefr*x[3];
+	const tw::Float psi = phase - w*tau - chirp*tau*tau;
+	return a0 * tw::cyl_bessel_j(0,rbar) * pulseShape.PulseShapeFactor(tau) * std::exp(ii*psi);
+}
+
+AiryDisc::AiryDisc(const std::string& name,MetricSpace *m,Task *tsk) : Wave(name,m,tsk)
+{
+	typeCode = tw::tool_type::airyDisc;
+}
+
+tw::Complex AiryDisc::PrimitivePhasor(const tw::vec4& x) const
+{
+	// User input is the radius of the first zero.
+	// This is convenient because then the energy corresponds to a Gaussian with the same radius.
+	const tw::Float rbar = sqrt(sqr(x[1]) + sqr(x[2]))*3.83171/modeData.scale[0];
+	const tw::Float tau = x[0] - nrefr*x[3];
+	const tw::Float psi = phase - w*tau - chirp*tau*tau;
+	return 2*a0 * (tw::cyl_bessel_j(1,rbar)/rbar) * pulseShape.PulseShapeFactor(tau) * std::exp(ii*psi);
+}
+
+LaguerreGauss::LaguerreGauss(const std::string& name,MetricSpace *m,Task *tsk) : Wave(name,m,tsk)
+{
+	typeCode = tw::tool_type::laguerreGauss;
+}
+
+void LaguerreGauss::Initialize()
+{
+	Wave::Initialize();
+	if (w==0.0)
+		throw tw::FatalError("Zero frequency not allowed for Laguerre-Gauss mode.");
+}
+
+tw::Complex LaguerreGauss::PrimitivePhasor(const tw::vec4& x) const
+{
+	const tw::Float r0 = modeData.scale[0];
+	const tw::Int nexp = modeData.exponent[0];
+	const tw::Int mu = modeData.order[1];
+	const tw::Int mv = modeData.order[1];
+
+	tw::Float Ax=a0, tau=x[0]-nrefr*x[3], guoy_shift=0.0;
+	tw::Float zR,rm,rho,phi;
+
+	// setup for Laguerre-Gaussian mode
+	rho = sqrt(x[1]*x[1] + x[2]*x[2]);
+	phi = atan2(x[2],x[1]);
+	zR = 0.5*nrefr*w*r0*r0;
+	rm = r0*sqrt(one + x[3]*x[3]/(zR*zR));
+	guoy_shift = -(one + two*mu + mv)*atan(x[3]/zR);
+
+	// compute factors for r-phi profile
+	Ax *= r0/rm;
+	Ax *= tw::assoc_laguerre(mu,mv,two*sqr(rho/rm));
+	Ax *= nexp%2==0 ? exp(-pow(rho/rm,nexp)) : pow(cos(0.5*pi*rho/rm),nexp+1)*tw::Float(rho<rm);
+	Ax *= pow(sqrt(two)*rho/rm,tw::Float(mv)); // put appropriate hole on axis
+	Ax *= sqrt(Factorial(mu)/Factorial(mu+mv)); // Laguerre normalization
+	tau += guoy_shift/w - 0.5*nrefr*rho*rho*x[3]/(x[3]*x[3] + zR*zR);
+	tw::Float psi = phase + 2.0*guoy_shift - mv*phi - w*tau - chirp*tau*tau;
+
+	return Ax * pulseShape.PulseShapeFactor(tau) * std::exp(ii*psi);
+}
+
+HermiteGauss::HermiteGauss(const std::string& name,MetricSpace *m,Task *tsk) : Wave(name,m,tsk)
+{
+	typeCode = tw::tool_type::hermiteGauss;
+}
+
+void HermiteGauss::Initialize()
+{
+	Wave::Initialize();
+	if (w==0.0)
+		throw tw::FatalError("Zero frequency not allowed for Hermite-Gauss mode.");
+}
+
+tw::Complex HermiteGauss::PrimitivePhasor(const tw::vec4& x) const
+{
+	const tw::Float r0[2] = { modeData.scale[0] , modeData.scale[1] };
+	const tw::Int nexp[2] = { modeData.exponent[0] , modeData.exponent[1] };
+	const tw::Int order[2] = { modeData.order[0] , modeData.order[1] };
+
+	tw::Float Ax=a0, tau=x[0]-nrefr*x[3], guoy_shift=0.0;
+
+	// lambda function to compute Hermite amplitude and phase per axis
+	auto herm = [&] (tw::Float q,tw::Int ax)
+	{
+		const tw::Float m = order[ax-1];
+		const tw::Float r00 = r0[ax-1];
+		const tw::Float zR = 0.5*nrefr*w*r00*r00;
+		const tw::Float rm = r00*sqrt(1.0 + x[3]*x[3]/(zR*zR));
+		guoy_shift -= (0.5 + m)*atan(x[3]/zR);
+		Ax *= sqrt(r00/rm);
+		Ax *= tw::hermite(m,1.41421356*q/rm);
+		Ax *= nexp[ax-1]%2==0 ? exp(-pow(q/rm,nexp[ax-1])) : pow(cos(0.5*pi*q/rm),nexp[ax-1]+1)*tw::Float(q*q<rm*rm);
+		Ax /= sqrt(pow(two,tw::Float(m))*Factorial(m)); // Hermite normalization
+		tau += guoy_shift/w - 0.5*nrefr*q*q*x[3]/(x[3]*x[3] + zR*zR);
+	};
+
+	herm(x[1],1);
+	herm(x[2],2);
+	tw::Float psi = phase + 2.0*guoy_shift - w*tau - chirp*tau*tau;
+
+	return Ax * pulseShape.PulseShapeFactor(tau) * std::exp(ii*psi);
+}
+
+Multipole::Multipole(const std::string& name,MetricSpace *m,Task *tsk) : Wave(name,m,tsk)
+{
+	typeCode = tw::tool_type::multipole;
+}
+
+void Multipole::Initialize()
+{
+	Wave::Initialize();
+	if (w==0.0)
+		throw tw::FatalError("Zero frequency not allowed for multipole mode.");
+}
+
+tw::Complex Multipole::PrimitivePhasor(const tw::vec4& x) const
+{
+	// For now hard code in magnetic dipole radiation
+	const tw::Float j1max = 0.436182;
+	const tw::Float rho = sqrt(x[1]*x[1] + x[2]*x[2]);
+	const tw::Float R = sqrt(rho*rho + x[3]*x[3]);
+	const tw::Float stheta = rho/R;
+	const tw::Float wR = w*R;
+	//auto spherical_bessel = [&] (tw::Float x) { return sin(x)/sqr(x+tw::small_pos) - cos(x)/(x+tw::small_pos); };
+
+	tw::Complex Aphi;
+	tw::Float tau_in,tau_out;
+	tau_out = x[0] - nrefr*R;
+	tau_in = x[0] + nrefr*R;
+	Aphi = (-one/wR + one/(ii*wR*wR)) * pulseShape.PulseShapeFactor(tau_out) * std::exp(-ii*w*tau_out);
+	Aphi += (-one/wR - one/(ii*wR*wR)) * pulseShape.PulseShapeFactor(tau_in) * std::exp(-ii*w*tau_in);
+	Aphi *= 0.5 * a0 * (stheta/j1max);
+	return Aphi;
+}
+
+tw::vec3 Multipole::PrimitiveVector(const tw::vec4& x) const
+{
+	tw::Complex Ax = PrimitivePhasor(x);
+	const tw::Float rho = tw::small_pos + sqrt(x[1]*x[1] + x[2]*x[2]);
+	return tw::vec3( -std::real(Ax)*x[2]/rho , std::real(Ax)*x[1]/rho ,0.0 );
 }
 
 
@@ -1002,12 +958,11 @@ void Wave::WriteData(std::ofstream& outFile)
 ////////////////////
 
 
-Conductor::Conductor(std::vector<Region*>& rlist) : rgnList(rlist)
+Conductor::Conductor(const std::string& name,MetricSpace *m,Task *tsk) : ComputeTool(name,m,tsk)
 {
 	affectsPhi = true;
 	affectsA = true;
-	magneticCurrent = false;
-	electricCurrent = false;
+	currentType = EM::current::electric;
 	pulseShape.delay = 0.0;
 	pulseShape.risetime = tw::small_pos;
 	pulseShape.holdtime = tw::big_pos;
@@ -1015,11 +970,39 @@ Conductor::Conductor(std::vector<Region*>& rlist) : rgnList(rlist)
 	gaussianRadius = tw::big_pos;
 	f = tw::big_pos;
 	ks = 0.0;
-	theRgn = rgnList[0];
+	directives.Add("clipping region",new tw::input::String(&region_name));
+	directives.Add("px",new tw::input::List<std::valarray<tw::Float>>(&Px));
+	directives.Add("py",new tw::input::List<std::valarray<tw::Float>>(&Py));
+	directives.Add("pz",new tw::input::List<std::valarray<tw::Float>>(&Pz));
+	directives.Add("potential",new tw::input::List<std::valarray<tw::Float>>(&potential));
+	directives.Add("w",new tw::input::List<std::valarray<tw::Float>>(&angFreq));
+	directives.Add("phase",new tw::input::List<std::valarray<tw::Float>>(&phase));
+	directives.Add("delay",new tw::input::Float(&pulseShape.delay));
+	directives.Add("risetime",new tw::input::Float(&pulseShape.risetime));
+	directives.Add("holdtime",new tw::input::Float(&pulseShape.holdtime));
+	directives.Add("falltime",new tw::input::Float(&pulseShape.falltime));
+	std::map<std::string,tw::profile::shape> shapeMap = {{"quintic",tw::profile::shape::quintic},{"sech",tw::profile::shape::sech},{"sin2",tw::profile::shape::sin2}};
+	directives.Add("shape",new tw::input::Enums<tw::profile::shape>(shapeMap,&pulseShape.whichProfile));
+	directives.Add("enable electrostatic",new tw::input::Bool(&affectsPhi));
+	directives.Add("enable electromagnetic",new tw::input::Bool(&affectsA));
+	std::map<std::string,EM::current> currentMap = {{"none",EM::current::none},{"electric",EM::current::electric},{"magnetic",EM::current::magnetic}};
+	directives.Add("current type",new tw::input::Enums<EM::current>(currentMap,&currentType));
+	directives.Add("gaussian size",new tw::input::Vec3(&gaussianRadius));
+	directives.Add("f",new tw::input::Float(&f));
+	directives.Add("ks",new tw::input::Vec3(&ks));
 }
 
-void Conductor::Initialize(const MetricSpace& ds)
+void Conductor::Initialize()
 {
+	if (currentType!=EM::current::electric)
+		throw tw::FatalError("Current type must be electric in this version.");
+	if (pulseShape.risetime<=0.0)
+		throw tw::FatalError("Pulse rise time must be positive and non-zero.");
+	if (pulseShape.holdtime<0.0)
+		throw tw::FatalError("Pulse hold time must be positive.");
+	if (pulseShape.falltime<=0.0)
+		throw tw::FatalError("Pulse fall time must be positive and non-zero.");
+
 	tw::Int maxArraySize;
 	pulseShape.Initialize(0.0);
 
@@ -1102,9 +1085,10 @@ tw::vec3 Conductor::PolarizationDensity(const tw::vec3& pos,tw::Float t)
 	return ans;
 }
 
-void Conductor::DepositSources(Field& sources,const MetricSpace& m,tw::Float t,tw::Float dt)
+void Conductor::DepositSources(Field& sources,tw::Float t,tw::Float dt)
 {
 	tw::Int x0,x1,y0,y1,z0,z1;
+	const MetricSpace& m = *space;
 	theRgn->GetLocalCellBounds(&x0,&x1,&y0,&y1,&z0,&z1);
 	for (tw::Int i=x0;i<=x1;i++)
 		for (tw::Int j=y0;j<=y1;j++)
@@ -1139,112 +1123,10 @@ void Conductor::DepositSources(Field& sources,const MetricSpace& m,tw::Float t,t
 			}
 }
 
-void Conductor::ReadInputFile(std::stringstream& inputString,std::string& command)
-{
-	std::string word;
-
-	do
-	{
-		inputString >> word;
-
-		if (word=="use")
-			throw tw::FatalError("'use' directives not supported.  See docs for alternative.");
-
-		theRgn = Region::ReadRegion(rgnList,theRgn,inputString,word);
-
-		if (word=="px") // eg, px = { 1 , 2 , 3 }
-			tw::input::ReadArray(Px,inputString);
-		if (word=="py") // eg, py = { 1 , 2 , 3 }
-			tw::input::ReadArray(Py,inputString);
-		if (word=="pz") // eg, pz = { 1 , 2 , 3 }
-			tw::input::ReadArray(Pz,inputString);
-		if (word=="potential") // eg, potential = { 1 , 2 , 3 }
-			tw::input::ReadArray(potential,inputString);
-		if (word=="w") // eg, w = { 0 , 1 , 2 }
-			tw::input::ReadArray(angFreq,inputString);
-		if (word=="phase") // eg, phase = { 0 , 0 , %90deg }
-			tw::input::ReadArray(phase,inputString);
-		if (word=="delay") // eg, delay = 10
-		{
-			inputString >> word;
-			inputString >> pulseShape.delay;
-		}
-		if (word=="risetime") // eg, risetime = 1.0
-		{
-			inputString >> word;
-			inputString >> pulseShape.risetime;
-			if (pulseShape.risetime<=0.0)
-				throw tw::FatalError("Pulse rise time must be positive and non-zero.");
-		}
-		if (word=="holdtime") // eg, holdtime = 10
-		{
-			inputString >> word;
-			inputString >> pulseShape.holdtime;
-			if (pulseShape.holdtime<0.0)
-				throw tw::FatalError("Pulse hold time must be positive.");
-		}
-		if (word=="falltime") // eg, falltime = 10
-		{
-			inputString >> word;
-			inputString >> pulseShape.falltime;
-			if (pulseShape.falltime<=0.0)
-				throw tw::FatalError("Pulse fall time must be positive and non-zero.");
-		}
-		if (word=="shape")
-		{
-			inputString >> word >> word;
-			if (word=="quintic")
-				pulseShape.whichProfile = tw::profile::shape::quintic;
-			if (word=="sin2")
-				pulseShape.whichProfile = tw::profile::shape::sin2;
-			if (word=="sech")
-				pulseShape.whichProfile = tw::profile::shape::sech;
-		}
-		if (word=="enable")
-		{
-			inputString >> word;
-			if (word=="electrostatic") // eg, enable electrostatic = true
-			{
-				inputString >> word >> word;
-				affectsPhi = (word=="yes" || word=="true" || word=="on");
-			}
-			if (word=="electromagnetic") // eg, enable electromagnetic = true
-			{
-				inputString >> word >> word;
-				affectsA = (word=="yes" || word=="true" || word=="on");
-			}
-		}
-		if (word=="current") // eg, current type = electric
-		{
-			inputString >> word >> word >> word;
-			if (word=="none")
-				electricCurrent = magneticCurrent = false;
-			if (word=="magnetic")
-				throw tw::FatalError("Magnetic currents not supported this version.");
-			if (word=="electric")
-				electricCurrent = true;
-		}
-		if (word=="gaussian") // eg, gaussian size = 1 1 1
-		{
-			inputString >> word >> word >> gaussianRadius.x >> gaussianRadius.y >> gaussianRadius.z;
-		}
-		if (word=="f") // eg, f = 100.0
-		{
-			inputString >> word >> f;
-		}
-		if (word=="ks") // eg, ks = 1.0 0.0 0.0
-		{
-			inputString >> word >> ks.x >> ks.y >> ks.z;
-		}
-	} while (word!="}");
-}
-
 void Conductor::ReadData(std::ifstream& inFile)
 {
-	tw::Int num,rgnIndex;
-    inFile.read((char *)&rgnIndex,sizeof(tw::Int));
-    theRgn = rgnList[rgnIndex];
-	inFile.read((char *)&pulseShape,sizeof(PulseShape));
+	tw::Int num;
+	ComputeTool::ReadData(inFile);
 	inFile.read((char *)&num,sizeof(tw::Int));
 	Px.resize(num);
 	Py.resize(num);
@@ -1260,19 +1142,17 @@ void Conductor::ReadData(std::ifstream& inFile)
 	inFile.read((char *)&phase[0],sizeof(tw::Float)*num);
 	inFile.read((char *)&affectsPhi,sizeof(bool));
 	inFile.read((char *)&affectsA,sizeof(bool));
-	inFile.read((char *)&electricCurrent,sizeof(bool));
-	inFile.read((char *)&magneticCurrent,sizeof(bool));
+	inFile.read((char *)&currentType,sizeof(currentType));
 	inFile.read((char *)&gaussianRadius,sizeof(tw::vec3));
 	inFile.read((char *)&f,sizeof(tw::Float));
 	inFile.read((char *)&ks,sizeof(tw::vec3));
+	inFile.read((char *)&pulseShape,sizeof(PulseShape));
 }
 
 void Conductor::WriteData(std::ofstream& outFile)
 {
-    tw::Int rgnIndex = std::find(rgnList.begin(),rgnList.end(),theRgn) - rgnList.begin();
-    outFile.write((char *)&rgnIndex,sizeof(tw::Int));
 	tw::Int num = Px.size();
-	outFile.write((char *)&pulseShape,sizeof(PulseShape));
+	ComputeTool::WriteData(outFile);
 	outFile.write((char *)&num,sizeof(tw::Int));
 	outFile.write((char *)&Px[0],sizeof(tw::Float)*num);
 	outFile.write((char *)&Py[0],sizeof(tw::Float)*num);
@@ -1282,11 +1162,11 @@ void Conductor::WriteData(std::ofstream& outFile)
 	outFile.write((char *)&phase[0],sizeof(tw::Float)*num);
 	outFile.write((char *)&affectsPhi,sizeof(bool));
 	outFile.write((char *)&affectsA,sizeof(bool));
-	outFile.write((char *)&electricCurrent,sizeof(bool));
-	outFile.write((char *)&magneticCurrent,sizeof(bool));
+	outFile.write((char *)&currentType,sizeof(currentType));
 	outFile.write((char *)&gaussianRadius,sizeof(tw::vec3));
 	outFile.write((char *)&f,sizeof(tw::Float));
 	outFile.write((char *)&ks,sizeof(tw::vec3));
+	outFile.write((char *)&pulseShape,sizeof(PulseShape));
 }
 
 //////////////////////

@@ -15,7 +15,7 @@ ComputeTool::ComputeTool(const std::string& name,MetricSpace *ms,Task *tsk)
 	this->name = name;
 	space = ms;
 	task = tsk;
-	typeCode = tw::tool_type::nullTool;
+	typeCode = tw::tool_type::none;
 	refCount = 0;
 	region_name = "tw::entire";
 	theRgn = NULL;
@@ -96,6 +96,13 @@ std::map<std::string,tw::tool_type> ComputeTool::Map()
 {
 	return
 	{
+		{"conductor",tw::tool_type::conductor},
+		{"plane wave",tw::tool_type::planeWave},
+		{"hermite gauss",tw::tool_type::hermiteGauss},
+		{"laguerre gauss",tw::tool_type::laguerreGauss},
+		{"bessel beam",tw::tool_type::besselBeam},
+		{"airy disc",tw::tool_type::airyDisc},
+		{"multipole",tw::tool_type::multipole},
 		{"uniform",tw::tool_type::uniformProfile},
 		{"piecewise",tw::tool_type::piecewiseProfile},
 		{"channel",tw::tool_type::channelProfile},
@@ -133,7 +140,7 @@ tw::tool_type ComputeTool::CreateTypeFromInput(const std::vector<std::string>& p
 		if (tool_map.find(key)!=tool_map.end())
 			return tool_map[key];
 	}
-	return tw::tool_type::nullTool;
+	return tw::tool_type::none;
 }
 
 ComputeTool* ComputeTool::CreateObjectFromType(const std::string& name,tw::tool_type theType,MetricSpace *ms,Task *tsk)
@@ -141,8 +148,29 @@ ComputeTool* ComputeTool::CreateObjectFromType(const std::string& name,tw::tool_
 	ComputeTool *ans;
 	switch (theType)
 	{
-		case tw::tool_type::nullTool:
+		case tw::tool_type::none:
 			ans = NULL;
+			break;
+		case tw::tool_type::conductor:
+			ans = new Conductor(name,ms,tsk);
+			break;
+		case tw::tool_type::planeWave:
+			ans = new PlaneWave(name,ms,tsk);
+			break;
+		case tw::tool_type::hermiteGauss:
+			ans = new HermiteGauss(name,ms,tsk);
+			break;
+		case tw::tool_type::laguerreGauss:
+			ans = new LaguerreGauss(name,ms,tsk);
+			break;
+		case tw::tool_type::besselBeam:
+			ans = new BesselBeam(name,ms,tsk);
+			break;
+		case tw::tool_type::airyDisc:
+			ans = new AiryDisc(name,ms,tsk);
+			break;
+		case tw::tool_type::multipole:
+			ans = new Multipole(name,ms,tsk);
 			break;
 		case tw::tool_type::uniformProfile:
 			ans = new UniformProfile(name,ms,tsk);
