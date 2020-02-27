@@ -165,13 +165,16 @@ Region* Region::CreateObjectFromFile(std::vector<Region*>& ml,std::ifstream& inF
 
 Region* Region::ReadRegion(std::vector<Region*>& ml,Region *curr,std::stringstream& source,const std::string& com)
 {
+	// This should go in favor of standard directive reader
 	std::string word;
 	if (com=="clipping") // eg, clipping region = region1
 	{
 		source >> word >> word >> word;
+		std::cout << word << std::endl;
+		tw::input::StripQuotes(word);
 		curr = FindRegion(ml,word);
 		if (curr==NULL)
-			throw tw::FatalError("Could not find clipping region " + word);
+			throw tw::FatalError("Could not read region <"+word+">.");
 	}
 	return curr;
 }
@@ -183,7 +186,7 @@ Region* Region::FindRegion(std::vector<Region*>& ml,const std::string& name)
 	for (i=0;i<ml.size();i++)
 		if (ml[i]->name==name)
 			return ml[i];
-
+	throw tw::FatalError("Could not find region <"+name+">.");
 	return NULL;
 }
 
@@ -233,11 +236,20 @@ void Region::ReadInputFileDirective(std::stringstream& inputString,const std::st
 	if (com=="elements")
 	{
 		Region *curr;
+		inputString >> word;
+		if (word!="=")
+			throw tw::FatalError("Expected <=> after <elements>.");
+		inputString >> word;
+		if (word!="{")
+			throw tw::FatalError("Expected <{> at start of list.");
 		do {
 			inputString >> word;
-			curr = FindRegion(masterList,word);
-			if (curr!=NULL)
+			if (word!="}")
+			{
+				tw::input::StripQuotes(word);
+				curr = FindRegion(masterList,word);
 				composite.push_back(curr);
+			}
 		} while (word!="}");
 	}
 

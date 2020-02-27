@@ -15,7 +15,7 @@
 		'name': 'constant.numeric.tw'
 	},
 	{
-		'match': '\\b(true|false|on|off|yes|no|periodic|absorbing|emitting|reflecting|dirichlet|neumann|open)\\b'
+		'match': '\\b(true|false|on|off|yes|no|axisymmetric|periodic|absorbing|emitting|reflecting|dirichlet|neumann|open)\\b'
 		'name': 'constant.language.tw'
 	},
 	{
@@ -27,7 +27,7 @@
 		'name': 'keyword.control.directive.define.tw'
 	},
 	{
-		'match': '\\b(new|generate|get)\\b'
+		'match': '\\b(new|generate|get|open|for)\\b'
 		'name': 'keyword.control.tw'
 	},
 	{
@@ -52,7 +52,7 @@
 	},
 	{
 		# Unit conversion matching type 1
-		'match': '(\\b|\\s|\\(|\\=|\\{|\\,)(%)([0-9]+\\.?[0-9]*[eE]?(\\+|\\-)?[0-9]*)(deg|rad|mrad|urad|cm2|m2|cm2s|m2s|um|mm|cm|m|fs|ps|ns|us|s|m\\-3|cm\\-3|Jm3|Jcm3|eV|K)(\\s|\\)|\\}|\\,)'
+		'match': '(\\b|\\s|\\(|\\=|\\{|\\,|\\-)(%)([0-9]+\\.?[0-9]*[eE]?(\\+|\\-)?[0-9]*)(deg|rad|mrad|urad|cm2|m2|cm2s|m2s|um|mm|cm|m|fs|ps|ns|us|s|m\\-3|cm\\-3|Jm3|Jcm3|eV|K)(\\s|\\)|\\}|\\,)'
 		captures:
 			2: name: 'constant.other.tw'
 			3: name: 'constant.other.tw'
@@ -61,7 +61,7 @@
 	},
 	{
 		# Unit conversion matching type 2
-		'match': '(\\b|\\s|\\(|\\=|\\{|\\,)(%)(\\.[0-9]+[eE]?(\\+|\\-)?[0-9]*)(deg|rad|mrad|urad|cm2|m2|cm2s|m2s|um|mm|cm|m|fs|ps|ns|us|s|m\\-3|cm\\-3|Jm3|Jcm3|eV|K)(\\s|\\)|\\}|\\,)'
+		'match': '(\\b|\\s|\\(|\\=|\\{|\\,|\\-)(%)(\\.[0-9]+[eE]?(\\+|\\-)?[0-9]*)(deg|rad|mrad|urad|cm2|m2|cm2s|m2s|um|mm|cm|m|fs|ps|ns|us|s|m\\-3|cm\\-3|Jm3|Jcm3|eV|K)(\\s|\\)|\\}|\\,)'
 		captures:
 			2: name: 'constant.other.tw'
 			3: name: 'constant.other.tw'

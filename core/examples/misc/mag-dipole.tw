@@ -22,7 +22,7 @@ new grid
 	decomposition = ( 2 , 2 , 2 )
 }
 
-new dirac equation module
+new dirac equation module 'dirac'
 {
 	soft core potential , charge = 1.0 , radius = 1.0
 	new wavefunction
@@ -32,9 +32,8 @@ new dirac equation module
 	}
 }
 
-new wave
+new multipole for 'dirac'
 {
-	type = multipole
 	mode = 1 0
 	a = 0.0 1.0 0.0
 	w = 1.0

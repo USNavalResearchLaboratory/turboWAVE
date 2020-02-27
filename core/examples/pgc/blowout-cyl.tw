@@ -33,27 +33,25 @@ new grid
 
 new curvilinear direct solver 'em'
 {
+	new eigenmode elliptic solver 'eig-poisson'
+	{
+		poisson boundary condition x = neumann dirichlet
+		poisson boundary condition z = open open
+	}
 }
 
 new pgc laser module 'pgc'
 {
 	carrier frequency = 80
+	new eigenmode propagator 'eig-propagator'
+	{
+		modes = 50
+		damping time = 1.0
+		absorbing layers = 40
+	}
 }
 
-generate eigenmode elliptic solver for 'em'
-{
-	poisson boundary condition x = neumann dirichlet
-	poisson boundary condition z = open open
-}
-
-generate eigenmode propagator for 'pgc'
-{
-	modes = 50
-	damping time = 1.0
-	absorbing layers = 40
-}
-
-generate hermite gauss pulse for 'pgc'
+new hermite gauss pulse for 'pgc'
 {
 	a = 5.0 0.0 0.0
 	w = 80
@@ -64,13 +62,13 @@ generate hermite gauss pulse for 'pgc'
 	falltime = 5
 }
 
-new species e
+new species 'e'
 {
 	particles per cell = 4 1 4 when density = 1.0
 	xboundary = ( reflecting , reflecting )
 }
 
-generate piecewise e
+generate piecewise 'e'
 {
 	zdensity = { 1 , 1 }
 	zpoints = { 0.0 , 1e10 }

@@ -29,7 +29,7 @@ new coulomb electromagnetic module 'em'
 {
 }
 
-generate facr elliptic solver for 'em'
+new facr elliptic solver for 'em'
 {
 	poisson boundary condition z = open open
 }
@@ -39,7 +39,7 @@ new pgc laser module 'pgc'
 	carrier frequency = 50
 }
 
-generate hermite gauss pulse for 'pgc'
+new hermite gauss pulse for 'pgc'
 {
 	a = 0.5 0.0 0.0
 	r0 = ( 5 , 1e5 )
@@ -52,14 +52,14 @@ generate hermite gauss pulse for 'pgc'
 	direction = ( 0 , 0 , 1 )
 }
 
-new species electrons
+new species 'e'
 {
 	particles per cell = 4 1 4 when density = 1
 	emission temperature = .01 .01 .01
 	zboundary = emitting emitting
 }
 
-generate uniform electrons
+generate uniform 'e'
 {
 	density = 1.0
 	loading = statistical

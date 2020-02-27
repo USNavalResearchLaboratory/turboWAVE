@@ -31,7 +31,7 @@ new grid
 	adaptive timestep = on
 }
 
-new chemistry
+new hydrodynamics
 {
 	epsilon factor = 0.001
 	radiation model = none
@@ -42,9 +42,8 @@ new chemical air
 	charge = 0.0
 	mass = 51078.5
 	cv = 2.5
-	mobile = true
-	thermometric conductivity = 0.2
-	kinematic viscosity = 0.15
+	thermometric conductivity = %0.2cm2s
+	kinematic viscosity = %0.15cm2s
 }
 
 generate uniform air

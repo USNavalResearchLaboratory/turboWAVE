@@ -36,8 +36,8 @@ new pgc laser module 'pgc'
 	// Use the default laser propagator
 }
 
-// We can put as little as the key and the module name here...
-generate hermite gauss 'pgc'
+// We can put as little as the key and the for keyword here...
+new hermite gauss for 'pgc'
 {
 	a = ( 0.56 , 0 , 0 )
 	direction = ( 0 , 0 , 1 )
@@ -52,7 +52,7 @@ generate hermite gauss 'pgc'
 }
 
 // ...or we can add extra words in between as desired.
-generate hermite gauss pulse, and a nice one indeed, for the module 'pgc'
+generate hermite gauss pulse, and a nice one indeed, for 'pgc'
 {
 	a = ( 0.56 , 0 , 0 )
 	direction = ( 0 , 0 , 1 )
@@ -66,7 +66,7 @@ generate hermite gauss pulse, and a nice one indeed, for the module 'pgc'
 	exponent = ( 1 , 1 ) // odd value induces cos^(exponent+1)
 }
 
-new species electrons
+new species 'e'
 {
 	charge = -1
 	mass = 1
@@ -75,7 +75,7 @@ new species electrons
 	zboundary = emitting emitting
 }
 
-generate uniform electrons
+generate uniform 'e'
 {
 	loading = deterministic
 	particle weight = fixed

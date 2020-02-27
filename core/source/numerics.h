@@ -80,7 +80,7 @@ struct FCT_Driver
 	~FCT_Driver();
 	void SetDensityElements(const Element& e) { en = e; }
 	void SetVelocityElement(tw::Int v) { vi = v; }
-	void Convect(const tw::dom::axis& axis,tw::bc::fld low,tw::bc::fld high,tw::Float dt);
+	void Convect(const tw::grid::axis& axis,tw::bc::fld low,tw::bc::fld high,tw::Float dt);
 	void GetTrueFlux(Field& flux,const Element& dst,const Element& src)
 	{
 		CopyFieldData(flux,dst,*net_flux,src);

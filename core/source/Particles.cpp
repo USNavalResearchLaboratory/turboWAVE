@@ -60,7 +60,7 @@ void Kinetics::MoveWindow()
 	// rho00 array is always left in an unrefined post-deposition state
 	// i.e., charge from a given particle should be on only one node
 	// therefore charge has to be zeroed on one node after being sent to another
-	rho00.DownwardDeposit(tw::dom::zAxis,1);
+	rho00.DownwardDeposit(tw::grid::zAxis,1);
 	for (auto s : StripRange(*this,3,strongbool::yes))
 	{
 		rho00(s,0) = 0.0;
@@ -427,6 +427,9 @@ Species::Species(const std::string& name,Simulation* sim) : Module(name,sim)
 	qo_j4 = NULL;
 
 	ionization.AddDirectives(directives);
+	directives.Add("xboundary",new tw::input::Enums<tw::bc::par>(tw::bc::par_map(),&bc0[1],&bc1[1]));
+	directives.Add("yboundary",new tw::input::Enums<tw::bc::par>(tw::bc::par_map(),&bc0[2],&bc1[2]));
+	directives.Add("zboundary",new tw::input::Enums<tw::bc::par>(tw::bc::par_map(),&bc0[3],&bc1[3]));
 	directives.Add("sort period",new tw::input::Int(&sortPeriod));
 	directives.Add("mobile",new tw::input::Bool(&mobile));
 	directives.Add("radiation damping",new tw::input::Bool(&radiationDamping));
@@ -437,9 +440,6 @@ Species::Species(const std::string& name,Simulation* sim) : Module(name,sim)
 	directives.Add("emission temperature",new tw::input::Vec3(&emissionTemp));
 	directives.Add("accelerate to",new tw::input::Custom);
 	directives.Add("particles per cell",new tw::input::Custom);
-	directives.Add("xboundary",new tw::input::Custom);
-	directives.Add("yboundary",new tw::input::Custom);
-	directives.Add("zboundary",new tw::input::Custom);
 }
 
 Species::~Species()
@@ -910,7 +910,7 @@ tw::Float Species::AddDensity(const LoadingData& theData)
 	initialMomenta -= p - driftMomentum;
 
 	Nr2 = sqr(distributionInCell.x);
-	if (owner->gridGeometry==tw::dom::cylindrical)
+	if (owner->gridGeometry==tw::grid::cylindrical)
 	{
 		C0 = 0.0;
 		C1 = 1.0;
@@ -992,7 +992,7 @@ tw::Float Species::AddDensityRandom(const LoadingData& theData)
 	if (numToAdd<1) return 0.0;
 
 	Nr2 = sqr(distributionInCell.x);
-	if (owner->gridGeometry==tw::dom::cylindrical)
+	if (owner->gridGeometry==tw::grid::cylindrical)
 	{
 		C0 = 0.0;
 		C1 = 1.0;
@@ -1130,14 +1130,13 @@ void Species::ReadInputFileDirective(std::stringstream& inputString,const std::s
 	}
 	if (command=="accelerate to") // eg, accelerate to 100.0 in 10.0
 		inputString >> accelerationImpulse >> word >> accelerationTime;
-	if (command=="xboundary" || command=="yboundary" || command=="zboundary" ) // eg, xboundary = emitting emitting
-		tw::input::ReadBoundaryTerm(bc0,bc1,inputString,command);
 }
 
-bool Species::ReadQuasitoolBlock(const std::vector<std::string>& preamble,std::stringstream& inputString)
+bool Species::ReadQuasitoolBlock(const tw::input::Preamble& preamble,std::stringstream& inputString)
 {
-	std::string key(preamble[0]);
-	std::string requested_name(preamble.back());
+	std::string key(preamble.words[0]);
+	std::string requested_name(preamble.words.back());
+	tw::input::StripQuotes(requested_name);
 	if (key=="phase" && requested_name==name) // eg, new phase space plot for electrons { ... }
 	{
 		phaseSpacePlot.push_back(new PhaseSpaceDescriptor(owner->clippingRegion));
@@ -1280,9 +1279,9 @@ void Species::CalculateDensity(ScalarField& dens)
 		}
 	}
 	transfer.clear();
-	dens.SetBoundaryConditions(tw::dom::xAxis,fld::dirichletCell,fld::dirichletCell);
-	dens.SetBoundaryConditions(tw::dom::yAxis,fld::dirichletCell,fld::dirichletCell);
-	dens.SetBoundaryConditions(tw::dom::zAxis,fld::dirichletCell,fld::dirichletCell);
+	dens.SetBoundaryConditions(tw::grid::xAxis,fld::dirichletCell,fld::dirichletCell);
+	dens.SetBoundaryConditions(tw::grid::yAxis,fld::dirichletCell,fld::dirichletCell);
+	dens.SetBoundaryConditions(tw::grid::zAxis,fld::dirichletCell,fld::dirichletCell);
 	dens.DepositFromNeighbors();
 	dens.ApplyFoldingCondition();
 	dens.DivideCellVolume(*owner);
@@ -1421,8 +1420,8 @@ void Species::CustomDiagnose()
 			phaseSpaceSize = phaseSpacePlot[s]->max - phaseSpacePlot[s]->min;
 			DiscreteSpace plot_layout(dt,phaseSpacePlot[s]->hDim,phaseSpacePlot[s]->vDim,1,phaseSpacePlot[s]->min,phaseSpaceSize,1);
 			field.Initialize(plot_layout,owner);
-			field.SetBoundaryConditions(tw::dom::xAxis,fld::dirichletCell,fld::dirichletCell);
-			field.SetBoundaryConditions(tw::dom::yAxis,fld::dirichletCell,fld::dirichletCell);
+			field.SetBoundaryConditions(tw::grid::xAxis,fld::dirichletCell,fld::dirichletCell);
+			field.SetBoundaryConditions(tw::grid::yAxis,fld::dirichletCell,fld::dirichletCell);
 			for (i=0;i<particle.size();i++)
 			{
 				position = owner->PositionFromPrimitive(particle[i].q);

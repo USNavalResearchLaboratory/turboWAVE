@@ -19,18 +19,20 @@ struct Simulation:Task,MetricSpace
 {
 	std::string inputFileName;
 	std::ostream *tw_out;
+	tw::input::DirectiveReader outerDirectives,gridDirectives;
 
 	std::vector<NonUniformRegion*> region;
 	tw::Float radialProgressionFactor;
 
-	tw::dom::geometry gridGeometry;
+	tw::grid::geometry gridGeometry;
 	tw::Float dt0,dtMin,dtMax,dtCritical,elapsedTime,elapsedTimeMax;
 	tw::Float signalPosition,windowPosition,signalSpeed;
 	tw::Float antiSignalPosition,antiWindowPosition;
 	tw::Float unitDensityCGS;
 
 	bool neutralize,movingWindow,adaptiveTimestep,adaptiveGrid;
-	bool restarted,appendMode,fullOutput,completed;
+	bool restarted,appendMode,completed;
+	tw::Int outputLevel;
 
 	tw::Int stepsToTake,stepNow;
 	tw::Int lastTime;
@@ -69,6 +71,7 @@ struct Simulation:Task,MetricSpace
 	void WriteCellData(GridDataDescriptor* theBox);
 
 	bool MangleModuleName(std::string& name);
+	bool CheckModule(const std::string& name);
 	Module* GetModule(const std::string& name);
 	tw::Int FindModule(const std::string& name);
 
@@ -92,7 +95,7 @@ struct Simulation:Task,MetricSpace
 	void OpenInputFile(std::ifstream& inFile);
 	std::string InputFileFirstPass();
 	void SetupLocalGrid();
-	void ReadSubmoduleBlock(std::stringstream& inputString,Module *sup);
+	void NestedDeclaration(const std::string& com,std::stringstream& inputString,Module *sup);
 	void ReadInputFile();
 	void ReadData(std::ifstream& inFile);
 	void WriteData(std::ofstream& outFile);

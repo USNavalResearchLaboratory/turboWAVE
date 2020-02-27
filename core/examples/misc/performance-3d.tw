@@ -25,16 +25,16 @@ new grid
 	decomposition = ( 4 , 4 , 4 )
 }
 
-new direct electromagnetic module
+new direct electromagnetic module 'em'
 {
 }
 
-new species e
+new species 'e'
 {
 	particles per cell = 4 4 4 when density = 1
 }
 
-generate uniform e
+generate uniform 'e'
 {
 	density = 1
 }

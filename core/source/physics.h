@@ -1,3 +1,8 @@
+namespace tw
+{
+	enum class ionization_model {none,ADK,PPT,MPI};
+}
+
 namespace sparc
 {
 	struct hydro_set
@@ -83,11 +88,6 @@ namespace sparc
 
 	tw::Float CoulombCrossSection(const UnitConverter& uc,tw::Float q1,tw::Float q2,tw::Float m12,tw::Float v12,tw::Float N1,tw::Float N2,tw::Float T1,tw::Float T2);
 	tw::Float ElectronPhononRateCoeff(const UnitConverter& uc,tw::Float Ti,tw::Float EFermi,tw::Float ks,tw::Float nref);
-}
-
-namespace tw
-{
-	enum class ionization_model {none,ADK,PPT,MPI};
 }
 
 struct IonizationData
@@ -176,7 +176,6 @@ struct EOSSimpleMieGruneisen:EOSComponent
 
 	EOSSimpleMieGruneisen(const std::string& name,MetricSpace *m,Task *tsk);
 	virtual void AddPKV(ScalarField& IE,ScalarField& nm,ScalarField& nu_e,Field& hydro,Field& eos);
-	virtual void ReadInputFileDirective(std::stringstream& inputString,const std::string& command);
 	virtual void ReadData(std::ifstream& inFile);
 	virtual void WriteData(std::ofstream& outFile);
 };
@@ -195,7 +194,6 @@ struct EOSLinearMieGruneisen:EOSComponent
 
 	EOSLinearMieGruneisen(const std::string& name,MetricSpace *m,Task *tsk);
 	virtual void AddPKV(ScalarField& IE,ScalarField& nm,ScalarField& nu_e,Field& hydro,Field& eos);
-	virtual void ReadInputFileDirective(std::stringstream& inputString,const std::string& command);
 	virtual void ReadData(std::ifstream& inFile);
 	virtual void WriteData(std::ofstream& outFile);
 };

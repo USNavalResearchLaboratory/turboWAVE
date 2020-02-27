@@ -58,9 +58,9 @@ struct SchroedingerPropagator:ComputeTool
 
 	SchroedingerPropagator(const std::string& name,MetricSpace *m,Task *tsk);
 	virtual ~SchroedingerPropagator();
-	virtual void DepositCurrent(const tw::dom::axis& axis,ComplexField& psi0,ComplexField& psi1,Field& A4,Field& J4,tw::Complex dt);
-	virtual void ApplyNumerator(const tw::dom::axis& axis,ComplexField& psi,Field& A4,bool keepA2Term,tw::Complex dt);
-	virtual void ApplyDenominator(const tw::dom::axis& axis,ComplexField& psi,Field& A4,bool keepA2Term,tw::Complex dt);
+	virtual void DepositCurrent(const tw::grid::axis& axis,ComplexField& psi0,ComplexField& psi1,Field& A4,Field& J4,tw::Complex dt);
+	virtual void ApplyNumerator(const tw::grid::axis& axis,ComplexField& psi,Field& A4,bool keepA2Term,tw::Complex dt);
+	virtual void ApplyDenominator(const tw::grid::axis& axis,ComplexField& psi,Field& A4,bool keepA2Term,tw::Complex dt);
 	virtual void UpdateSpin(ComplexField& psi,ComplexField& chi,Field& A4,tw::Float adt);
 };
 
@@ -72,9 +72,9 @@ struct ParabolicSolver:ComputeTool
 	virtual ~ParabolicSolver();
 
 	void FormOperatorStencil(tw::Float *D1,tw::Float *D2,const ScalarField& fluxMask,Field *coeff,tw::Int c,const tw::strip& s,tw::Int i);
-	virtual void Advance(const tw::dom::axis& axis,ScalarField& psi,ScalarField& fluxMask,tw::Float coeff,tw::Float dt);
+	virtual void Advance(const tw::grid::axis& axis,ScalarField& psi,ScalarField& fluxMask,tw::Float coeff,tw::Float dt);
 	virtual void Advance(ScalarField& psi,ScalarField& fluxMask,tw::Float coeff,tw::Float dt);
-	virtual void Advance(	const tw::dom::axis& axis,
+	virtual void Advance(	const tw::grid::axis& axis,
 							Field& psi,
 							tw::Int psi_idx,
 							ScalarField& fluxMask,

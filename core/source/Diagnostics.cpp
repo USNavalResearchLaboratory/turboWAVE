@@ -336,7 +336,7 @@ PhaseSpaceDescriptor::PhaseSpaceDescriptor(std::vector<Region*>& rlist) : Diagno
 	hDim = vDim = 100;
 }
 
-void PhaseSpaceDescriptor::SetupGeometry(tw::dom::geometry theGeometry)
+void PhaseSpaceDescriptor::SetupGeometry(tw::grid::geometry theGeometry)
 {
 	// This is called in Species::Initialize.  The Volume factors don't need to be saved in restart file.
 	tw::Float dh,dv;

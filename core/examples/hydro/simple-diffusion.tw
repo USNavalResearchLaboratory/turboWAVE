@@ -33,7 +33,7 @@ new grid
 	adaptive timestep = off
 }
 
-new chemistry
+new hydrodynamics
 {
 	epsilon factor = 1e-4
 	radiation model = none
@@ -44,8 +44,8 @@ new chemical M
 	charge = 0.0
 	mass = 50000
 	cv = 2.5
-	thermometric conductivity = 10.0
-	kinematic viscosity = 1.0
+	thermometric conductivity = %10.0cm2s
+	kinematic viscosity = %1.0cm2s
 }
 
 generate piecewise M

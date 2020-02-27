@@ -23,7 +23,7 @@ new grid
 	decomposition = ( 1  1  1 )
 }
 
-new region rect antenna_rect
+new region rect 'antenna_rect'
 {
 	bounds = ( -1.0 , 1.0 , -1e5 , 1e5 , -1.0 , 1.0 )
 }
@@ -38,7 +38,7 @@ new direct solver 'em'
 // Conducting regions must not overlap PML regions
 generate conductor for 'em'
 {
-	clipping region = antenna_rect
+	clipping region = 'antenna_rect'
 	current type = electric
 	enable electromagnetic = false // make the antenna invisible to EM waves
 	py = { 1.0 } // polarization density
@@ -52,27 +52,27 @@ generate conductor for 'em'
 }
 
 // Build a cavity around the source with a small hole
-new region circ walls
+new region circ 'walls'
 {
 	radius = 100
 }
-new region circ cavity
+new region circ 'cavity'
 {
 	radius = 90
 	complement = true
 }
-new region rect tunnel
+new region rect 'tunnel'
 {
 	bounds = ( 85 , 105 , -5 , 5 , -8 , 8 )
 	complement = true
 }
-new region intersection full_structure
+new region intersection 'full_structure'
 {
-	elements = { walls , cavity , tunnel }
+	elements = { 'walls' , 'cavity' , 'tunnel' }
 }
 generate conductor for 'em'
 {
-	clipping region = full_structure
+	clipping region = 'full_structure'
 }
 
 new box diagnostic

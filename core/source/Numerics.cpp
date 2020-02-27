@@ -739,9 +739,9 @@ FCT_Driver::~FCT_Driver()
 		delete net_flux;
 }
 
-void FCT_Driver::Convect(const tw::dom::axis& axis,tw::bc::fld low,tw::bc::fld high,tw::Float dt)
+void FCT_Driver::Convect(const tw::grid::axis& axis,tw::bc::fld low,tw::bc::fld high,tw::Float dt)
 {
-	const tw::Int ax = tw::dom::naxis(axis);
+	const tw::Int ax = tw::grid::naxis(axis);
 	const tw::Int N = ms->Dim(ax);
 
 	if (diff!=NULL)

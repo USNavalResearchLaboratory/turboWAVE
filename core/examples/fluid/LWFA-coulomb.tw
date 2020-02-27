@@ -25,12 +25,16 @@ new grid
 	decomposition = ( 1 , 1 , 1 )
 }
 
-new coulomb electromagnetic module
+new coulomb electromagnetic module 'coul'
 {
-	poisson boundary condition = open open
 }
 
-new wave
+new facr elliptic solver for 'coul'
+{
+	poisson boundary condition z = ( open , open )
+}
+
+new hermite gauss for 'coul'
 {
 	a = 0.0 0.5 0.0
 	r0 = ( 1e5 , 10 )
@@ -43,11 +47,11 @@ new wave
 	direction = ( 0 , 0 , 1 )
 }
 
-new fluid electrons
+new fluid 'e'
 {
 }
 
-generate piecewise electrons
+generate piecewise 'e'
 {
 	zdensity = { 0.0 1.0 1.0 0.0 }
 	zpoints = { 0.0 5.0 20.6 25.6 }

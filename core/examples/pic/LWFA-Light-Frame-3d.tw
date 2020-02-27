@@ -23,20 +23,19 @@ new grid
 	decomposition = ( 16 , 16 , 1 )
 }
 
-new region rect r1
+new region rect 'r1'
 {
 	bounds = -40 40 -40 40 10 40
 	move with window = false
 }
 
-new direct electromagnetic module
+new direct electromagnetic module 'em'
 {
-	elliptical solver = facr
-	layer thickness = 8
-	reflection coefficient = 1e-4
+	layers = 8 8 8 8 0 0
+	reflection coefficient = 1e-4 1e-4 1e-4 1e-4 1e-4 1e-4
 }
 
-new wave
+new hermite gauss for 'em'
 {
 	a = 2.5 0.0 0.0
 	w = 5.0
@@ -47,13 +46,13 @@ new wave
 	falltime = 3
 }
 
-new species electrons
+new species 'e'
 {
 	particles per cell = 2 2 4 when density = 1
 	sort period = 4
 }
 
-generate uniform electrons
+generate uniform 'e'
 {
 	clipping region = r1
 	density = 1.0
@@ -66,7 +65,7 @@ new box diagnostic
 	skip = 2 2 2
 }
 
-new phase space plot for electrons
+new phase space plot for 'e'
 {
 	filename = zpz
 	abcissa = z

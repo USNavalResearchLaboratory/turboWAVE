@@ -25,12 +25,16 @@ new grid
 	decomposition = ( 1 , 1 , 1 )
 }
 
-new coulomb electromagnetic module
+new coulomb electromagnetic module 'coul'
 {
-	poisson boundary condition = ( dirichlet , neumann )
 }
 
-new wave
+new facr elliptic solver for 'coul'
+{
+	poisson boundary condition z = ( dirichlet , neumann )
+}
+
+new hermite gauss for 'coul'
 {
 	a = ( 0 , 0.56 , 0 )
 	direction = ( 0 , 0 , 1 )
@@ -44,7 +48,7 @@ new wave
 	exponent = ( 1 , 1 ) // odd induces cos^(exponent+1)
 }
 
-new wave
+new hermite gauss for 'coul'
 {
 	a = ( 0 , 0.56 , 0 )
 	direction = ( 0 , 0 , 1 )
@@ -58,7 +62,7 @@ new wave
 	exponent = ( 1 , 1 ) // odd induces cos^(exponent+1)
 }
 
-new species electrons
+new species 'e'
 {
 	charge = -1
 	mass = 1
@@ -67,10 +71,10 @@ new species electrons
 	zboundary = emitting emitting
 }
 
-generate uniform electrons
+generate uniform 'e'
 {
 	loading = deterministic
-	particle density = fixed
+	particle weight = fixed
 	density = 1
 	thermal momentum = ( 0.1 , 0.1 , 0.1 )
 }

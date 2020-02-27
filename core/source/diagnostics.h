@@ -55,7 +55,7 @@ struct PhaseSpaceDescriptor : DiagnosticDescriptor
 	std::ofstream outFile;
 
 	PhaseSpaceDescriptor(std::vector<Region*>& rgnList);
-	void SetupGeometry(tw::dom::geometry theGeometry);
+	void SetupGeometry(tw::grid::geometry theGeometry);
 	void ReadInputFile(std::stringstream& inputString);
 	void ReadData(std::ifstream& inFile);
 	void WriteData(std::ofstream& outFile);

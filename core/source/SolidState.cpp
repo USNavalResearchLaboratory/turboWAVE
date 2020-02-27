@@ -194,9 +194,9 @@ bool BoundElectrons::InspectResource(void* resource,const std::string& descripti
 void BoundElectrons::MoveWindow()
 {
 	// must prepare before shift
-	dens.DownwardCopy(tw::dom::zAxis,1);
-	R0.DownwardCopy(tw::dom::zAxis,1);
-	R1.DownwardCopy(tw::dom::zAxis,1);
+	dens.DownwardCopy(tw::grid::zAxis,1);
+	R0.DownwardCopy(tw::grid::zAxis,1);
+	R1.DownwardCopy(tw::grid::zAxis,1);
 
 	// carry out shift
 	for (auto s : StripRange(*this,3,strongbool::yes))

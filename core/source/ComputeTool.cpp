@@ -129,14 +129,14 @@ std::map<std::string,tw::tool_type> ComputeTool::Map()
 	};
 }
 
-tw::tool_type ComputeTool::CreateTypeFromInput(const std::vector<std::string>& preamble)
+tw::tool_type ComputeTool::CreateTypeFromInput(const tw::input::Preamble& preamble)
 {
 	// Look for a ComputeTool key on a preamble (words between new and opening brace) and return the type of tool.
-	const tw::Int max_words = preamble.size();
+	const tw::Int max_words = preamble.words.size();
 	std::map<std::string,tw::tool_type> tool_map = ComputeTool::Map();
 	for (tw::Int i=1;i<=max_words;i++)
 	{
-		std::string key(tw::input::GetPhrase(preamble,i));
+		std::string key(tw::input::GetPhrase(preamble.words,i));
 		if (tool_map.find(key)!=tool_map.end())
 			return tool_map[key];
 	}

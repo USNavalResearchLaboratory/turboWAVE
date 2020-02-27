@@ -6,6 +6,7 @@ General Rules
 
 #.	Comments may be in C or C++ style
 #.	Case matters
+#.	Keywords are ``new``, ``generate``, ``get``, ``for``, and ``open``.
 #.	Names assigned to objects must not contain white space, or any of the characters :samp:`/={}()`
 #.  Any word starting with the :samp:`%` character triggers a macro substitution (see :ref:`preprocessor`)
 #.	Any uninterrupted sequence of white space is equivalent to any other (same as in C)
@@ -18,7 +19,7 @@ General Rules
 
  	* :samp:`x=1` is the same as :samp:`x = 1`
 
-#.	All boolean variables can be set to an affirmative value using either :samp:`true`, :samp:`yes`, or :samp:`on`, any other input resolves to a negative value (in future specific negative values :samp:`false`, :samp:`no`, or :samp:`off` will be required).
+#.	All boolean variables can be set to an affirmative value using either :samp:`true`, :samp:`yes`, or :samp:`on`, or a negative value using :samp:`false`, :samp:`no`, or :samp:`off`.
 #.	Variable length lists are enclosed by curly braces
 
 	* ``{ 0 , 1 , 2 , 3 }`` is a list that can have any number of elements
@@ -59,7 +60,7 @@ User macros can be defined at any point in an input file, except where they woul
 Unit Conversion
 ,,,,,,,,,,,,,,,
 
-There are several pre-defined macros for unit conversion.  These are triggered by the ``%`` character. The format is :samp:`%{n}{u}`, where :samp:`{n}` is a number and :samp:`{u}` is a string identifying the units.  An example is :samp:`%10ps`, which means 10 picoseconds. No spaces may appear in the macro.  Supported units and identifier string are:
+Almost all input parameters are in normalized units.  However, there are several pre-defined macros that make it simple to use physical units.  These are triggered by the ``%`` character. The format is :samp:`%{n}{u}`, where :samp:`{n}` is a number and :samp:`{u}` is a string identifying the units.  An example is :samp:`%10ps`, which means 10 picoseconds. No spaces may appear in the macro.  Supported units and identifier string are:
 
 	* micrometers = um
 	* millimeters = mm
@@ -183,10 +184,9 @@ Top level directives tend to come first in an input file.  They are not containe
 
 	:param bool am: Use append mode if true.  Default is false.
 
-.. py:function:: stdout = full
+.. py:function:: output level = lvl
 
-	Include this line if you want to see a stdout file for every MPI rank or thread.
-	If this line is absent, you still get messages printed by rank/thread 0 to the "true" stdout.
+	:param int lvl: If 0 then only MPI rank 0 writes an output file (to stdout).  If lvl > 0 than every MPI process produces an output file.
 
 .. _boundaries:
 .. py:function:: xboundary = ( b1 , b2 )
@@ -210,38 +210,73 @@ Object Creation
 There is a general form for creating objects:
 
 .. _block-create:
-.. py:function:: new key1 [key2] ... [keyN] [name] { directives }
+.. py:function:: new <key1> [<key2> <key3> ...] [<name>] { <directives> }
+.. py:function:: new <key1> [<key2> <key3> ...] for <name> { <directives> }
+.. py:function:: generate <key1> [<key2> <key3> ...] [for] <name> { <directives> }
 
-This entire construct is called a block.  The start of the block is signaled by the word ``new``.  The next several words are ordered keys.  The keys are used to identify the type of object requested, and generally form an intelligible description.  The last word is a name, which can be anything selected by the user, within the general rules.  Providing a name is optional, but if no name is given, then the last key will be the name of the object.  If the name is already in use it will be automatically adjusted for uniqueness.  Finally, there is a set of directives enclosed by curly braces.  The directives can usually appear in any order, and many are optional.
-
-.. Note::
-
-	The parser is only required to check as many keys as are needed to guarantee uniqueness. Sometimes trailing keys can be altered or omitted without affecting the results.
+This entire construct is called a block.  The start of the block is signaled by a keyword, either ``new`` or ``generate``.  The next several words are ordered keys.  The keys are used to identify the type of object requested.  The user is free to add any number of trailing keys.  In the first form, the last word is the user-defined name of the new object.  The second form allows the new object to be associated with a parent object.  In this case the given name refers to the parent object, while the name of the new object is assigned automatically based on the keys. The third form is merely an alternative syntax for the second form, in which the ``for`` keyword is not required. Finally, there is a set of directives enclosed by curly braces.
 
 .. Tip::
 
 	Enclosing the name in quotes is not required, but can be helpful in distinguishing your own names from internal names.  If you use quotes remember they must be used everywhere the name is referenced.  Using quotes does not change the naming rules, e.g., you still may not use spaces.
 
-Sometimes low level objects use ordered directives.  Then the form is typically
+Some low level objects use ordered directives.  Then the form is typically
 
-.. py:function:: new key1 [key2] .. [keyN] = directives
+.. py:function:: new <key1> [<key2> <key3> ...] = <directives>
 
-There is usually only one key and no name given.  In this case the directives are all required and must be in the right order. However, an individual directive could itself be a variable length list.
+In this case the directives are all required and must be in the right order.
 
 Associating Objects
 -------------------
 
-Another type of block creates an object and associates it with another object:
+Objects may be related by a containment hierarchy.  There are three ways to express this.
 
-.. py:function:: generate key1 [key2] .. [keyN] name { directives }
+Nested Declarations
+,,,,,,,,,,,,,,,,,,,
 
-In this case the start of the block is signaled by the word ``generate``.  Unlike a ``new`` block, the ``name`` is not optional, and refers to a previously created object.
+To use nested declarations, simply create the new object using the ``new`` command from within the directives block of the higher level object:
 
-You can also retrieve a named object from within the ``new`` block of another object.  This is done using the directive
+.. code-block:: none
 
-.. py:function:: get tool with name = nm
+	new direct field solver 'em'
+	{
+		new hermite gauss 'HG00'
+		{
+			// fill in directives defining the mode
+		}
+	}
 
-	:param str nm: the name of the tool to attach to the object that needs the tool
+Pre-declaration
+,,,,,,,,,,,,,,,
+
+To use a predeclaration, create a named low level object.  Then add it to a higher level object with a directive:
+
+.. code-block:: none
+
+	new hermite gauss 'HG00'
+	{
+		// fill in directives defining the mode
+	}
+	new direct field solver 'em'
+	{
+		get 'HG00'
+	}
+
+Post-declaration
+,,,,,,,,,,,,,,,,
+
+To use a post-declaration use one of the two associative forms of object creation:
+
+.. code-block:: none
+
+	new species 'ions'
+	{
+		// fill in directives defining the species
+	}
+	generate uniform 'ions'
+	{
+		// fill in directives defining the profile
+	}
 
 Numerical Grid
 --------------
@@ -314,7 +349,7 @@ Radiation Injection
 To inject radiation, you specify a type of electromagnetic mode, directives defining its particular parameters, and attach it to a field solver.  For an in depth description of the available radiation modes see :doc:`bak-em-modes`. If the wave starts inside the box, an elliptical solver may be used to refine the initial divergence. If the wave starts outside the box, it will be coupled in, provided the field solver supports this. Each wave object has its own basis vectors :math:`({\bf u},{\bf v},{\bf w})`, with :math:`{\bf u}` the electric field polarization direction and :math:`{\bf w}` the propagation direction. All the available modes respond to the same set of directives. These are as follows:
 
 .. _wave-obj:
-.. py:function:: generate <key> for <field_solver_name> { directives }
+.. py:function:: new <key> for <field_solver_name> { directives }
 
 	:param str key: The key determines the type of mode.  Valid keys are ``plane wave``, ``hermite gauss``, ``laguerre gauss``, ``bessel beam``, ``airy disc``, and ``multipole``.
 	:param str field_solver_name: Name given to a previously defined field solver module.

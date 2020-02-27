@@ -81,16 +81,16 @@ void Electromagnetic::Initialize()
 	SetExteriorBoundaryConditionsE(F,Element(0),Element(1),Element(2));
 	SetExteriorBoundaryConditionsB(F,Element(3),Element(4),Element(5));
 
-	sources.SetBoundaryConditions(tw::dom::xAxis,fld::dirichletCell,fld::dirichletCell);
-	sources.SetBoundaryConditions(Element(1),tw::dom::xAxis,fld::normalFluxFixed,fld::normalFluxFixed);
-	if (owner->gridGeometry==tw::dom::cylindrical)
-		sources.SetBoundaryConditions(Element(0),tw::dom::xAxis,fld::neumannWall,fld::dirichletCell);
+	sources.SetBoundaryConditions(tw::grid::xAxis,fld::dirichletCell,fld::dirichletCell);
+	sources.SetBoundaryConditions(Element(1),tw::grid::xAxis,fld::normalFluxFixed,fld::normalFluxFixed);
+	if (owner->gridGeometry==tw::grid::cylindrical)
+		sources.SetBoundaryConditions(Element(0),tw::grid::xAxis,fld::neumannWall,fld::dirichletCell);
 
-	sources.SetBoundaryConditions(tw::dom::yAxis,fld::dirichletCell,fld::dirichletCell);
-	sources.SetBoundaryConditions(Element(2),tw::dom::yAxis,fld::normalFluxFixed,fld::normalFluxFixed);
+	sources.SetBoundaryConditions(tw::grid::yAxis,fld::dirichletCell,fld::dirichletCell);
+	sources.SetBoundaryConditions(Element(2),tw::grid::yAxis,fld::normalFluxFixed,fld::normalFluxFixed);
 
-	sources.SetBoundaryConditions(tw::dom::zAxis,fld::dirichletCell,fld::dirichletCell);
-	sources.SetBoundaryConditions(Element(3),tw::dom::zAxis,fld::normalFluxFixed,fld::normalFluxFixed);
+	sources.SetBoundaryConditions(tw::grid::zAxis,fld::dirichletCell,fld::dirichletCell);
+	sources.SetBoundaryConditions(Element(3),tw::grid::zAxis,fld::normalFluxFixed,fld::normalFluxFixed);
 
 	Electromagnetic::Update(); // globalize charge density (local deposition in source modules)
 }
@@ -128,7 +128,7 @@ void Electromagnetic::MoveWindow()
 {
 	for (auto s : StripRange(*this,3,strongbool::yes))
 		F.Shift(s,-1,0.0);
-	F.DownwardCopy(tw::dom::zAxis,1);
+	F.DownwardCopy(tw::grid::zAxis,1);
 }
 
 void Electromagnetic::InitializeConductors()
@@ -151,33 +151,33 @@ void Electromagnetic::InitializeConductors()
 void Electromagnetic::SetExteriorBoundaryConditionsE(Field& A,const Element& ex,const Element& ey,const Element& ez)
 {
 	// in the following, it doesn't hurt to zero out low-side cell walls in low-side ghost cells
-	A.SetBoundaryConditions(ex,tw::dom::xAxis,fld::dirichletCell,fld::none);
-	A.SetBoundaryConditions(ex,tw::dom::yAxis,fld::dirichletCell,fld::dirichletCell);
-	A.SetBoundaryConditions(ex,tw::dom::zAxis,fld::dirichletCell,fld::dirichletCell);
+	A.SetBoundaryConditions(ex,tw::grid::xAxis,fld::dirichletCell,fld::none);
+	A.SetBoundaryConditions(ex,tw::grid::yAxis,fld::dirichletCell,fld::dirichletCell);
+	A.SetBoundaryConditions(ex,tw::grid::zAxis,fld::dirichletCell,fld::dirichletCell);
 
-	A.SetBoundaryConditions(ey,tw::dom::xAxis,fld::dirichletCell,fld::dirichletCell);
-	A.SetBoundaryConditions(ey,tw::dom::yAxis,fld::dirichletCell,fld::none);
-	A.SetBoundaryConditions(ey,tw::dom::zAxis,fld::dirichletCell,fld::dirichletCell);
+	A.SetBoundaryConditions(ey,tw::grid::xAxis,fld::dirichletCell,fld::dirichletCell);
+	A.SetBoundaryConditions(ey,tw::grid::yAxis,fld::dirichletCell,fld::none);
+	A.SetBoundaryConditions(ey,tw::grid::zAxis,fld::dirichletCell,fld::dirichletCell);
 
-	A.SetBoundaryConditions(ez,tw::dom::xAxis,fld::dirichletCell,fld::dirichletCell);
-	A.SetBoundaryConditions(ez,tw::dom::yAxis,fld::dirichletCell,fld::dirichletCell);
-	A.SetBoundaryConditions(ez,tw::dom::zAxis,fld::dirichletCell,fld::none);
+	A.SetBoundaryConditions(ez,tw::grid::xAxis,fld::dirichletCell,fld::dirichletCell);
+	A.SetBoundaryConditions(ez,tw::grid::yAxis,fld::dirichletCell,fld::dirichletCell);
+	A.SetBoundaryConditions(ez,tw::grid::zAxis,fld::dirichletCell,fld::none);
 }
 
 void Electromagnetic::SetExteriorBoundaryConditionsB(Field& A,const Element& bx,const Element& by,const Element& bz)
 {
 	// in the following, it doesn't hurt to zero out low-side cell walls in low-side ghost cells
-	A.SetBoundaryConditions(bx,tw::dom::xAxis,fld::dirichletCell,fld::dirichletCell);
-	A.SetBoundaryConditions(bx,tw::dom::yAxis,fld::dirichletCell,fld::none);
-	A.SetBoundaryConditions(bx,tw::dom::zAxis,fld::dirichletCell,fld::none);
+	A.SetBoundaryConditions(bx,tw::grid::xAxis,fld::dirichletCell,fld::dirichletCell);
+	A.SetBoundaryConditions(bx,tw::grid::yAxis,fld::dirichletCell,fld::none);
+	A.SetBoundaryConditions(bx,tw::grid::zAxis,fld::dirichletCell,fld::none);
 
-	A.SetBoundaryConditions(by,tw::dom::xAxis,fld::dirichletCell,fld::none);
-	A.SetBoundaryConditions(by,tw::dom::yAxis,fld::dirichletCell,fld::dirichletCell);
-	A.SetBoundaryConditions(by,tw::dom::zAxis,fld::dirichletCell,fld::none);
+	A.SetBoundaryConditions(by,tw::grid::xAxis,fld::dirichletCell,fld::none);
+	A.SetBoundaryConditions(by,tw::grid::yAxis,fld::dirichletCell,fld::dirichletCell);
+	A.SetBoundaryConditions(by,tw::grid::zAxis,fld::dirichletCell,fld::none);
 
-	A.SetBoundaryConditions(bz,tw::dom::xAxis,fld::dirichletCell,fld::none);
-	A.SetBoundaryConditions(bz,tw::dom::yAxis,fld::dirichletCell,fld::none);
-	A.SetBoundaryConditions(bz,tw::dom::zAxis,fld::dirichletCell,fld::dirichletCell);
+	A.SetBoundaryConditions(bz,tw::grid::xAxis,fld::dirichletCell,fld::none);
+	A.SetBoundaryConditions(bz,tw::grid::yAxis,fld::dirichletCell,fld::none);
+	A.SetBoundaryConditions(bz,tw::grid::zAxis,fld::dirichletCell,fld::dirichletCell);
 }
 
 void Electromagnetic::ForceQuasistaticVectorPotential(Field& A4,ScalarField& DtPhi)
@@ -224,7 +224,7 @@ void Electromagnetic::ForceQuasistaticVectorPotential(Field& A4,ScalarField& DtP
 			for (j=lfg[2];j<=ufg[2];j++)
 				for (i=lfg[1];i<=ufg[1];i++)
 					rhs(i,j,k) = (1.0 - w)*rhs(i,j,k) + w*rhs(i,j,k+1);
-		rhs.DownwardCopy(tw::dom::zAxis,1);
+		rhs.DownwardCopy(tw::grid::zAxis,1);
 
 		ellipticSolver->Solve(ans,rhs,1.0);
 		for (auto cell : EntireCellRange(*this))
@@ -546,10 +546,10 @@ CoulombSolver::CoulombSolver(const std::string& name,Simulation* sim):Electromag
 	typeCode = tw::module_type::coulombSolver;
 	A4.Initialize(8,*this,owner);
 
-	L1.Initialize(sim,sim,&wave,tw::dom::zAxis,tw::dom::low,1,5);
-	L2.Initialize(sim,sim,&wave,tw::dom::zAxis,tw::dom::low,2,6);
-	R1.Initialize(sim,sim,&wave,tw::dom::zAxis,tw::dom::high,1,5);
-	R2.Initialize(sim,sim,&wave,tw::dom::zAxis,tw::dom::high,2,6);
+	L1.Initialize(sim,sim,&wave,tw::grid::zAxis,tw::grid::low,1,5);
+	L2.Initialize(sim,sim,&wave,tw::grid::zAxis,tw::grid::low,2,6);
+	R1.Initialize(sim,sim,&wave,tw::grid::zAxis,tw::grid::high,1,5);
+	R2.Initialize(sim,sim,&wave,tw::grid::zAxis,tw::grid::high,2,6);
 }
 
 void CoulombSolver::ExchangeResources()
@@ -679,10 +679,10 @@ void CoulombSolver::Update()
 			A4(strip,dim[3]+1,3) = A4(strip,dim[3],3) - spacing.z*(A4.dfwd(strip,dim[3],1,1) + A4.dfwd(strip,dim[3],2,2));
 	}
 
-	A4.DownwardCopy(tw::dom::xAxis,Element(1,3),1);
-	A4.UpwardCopy(tw::dom::xAxis,Element(1,3),1);
-	A4.DownwardCopy(tw::dom::yAxis,Element(1,3),1);
-	A4.UpwardCopy(tw::dom::yAxis,Element(1,3),1);
+	A4.DownwardCopy(tw::grid::xAxis,Element(1,3),1);
+	A4.UpwardCopy(tw::grid::xAxis,Element(1,3),1);
+	A4.DownwardCopy(tw::grid::yAxis,Element(1,3),1);
+	A4.UpwardCopy(tw::grid::yAxis,Element(1,3),1);
 
 	// Swap A0 and A1 so A1 has most recent data
 
@@ -1037,7 +1037,7 @@ void DirectSolver::MoveWindow()
 	Electromagnetic::MoveWindow();
 	for (auto s : StripRange(*this,3,strongbool::yes))
 		A.Shift(s,-1,0.0);
-	A.DownwardCopy(tw::dom::zAxis,1);
+	A.DownwardCopy(tw::grid::zAxis,1);
 }
 
 void DirectSolver::ReadData(std::ifstream& inFile)
@@ -1127,13 +1127,13 @@ void CurvilinearDirectSolver::Initialize()
 	SetExteriorBoundaryConditionsE(A,Element(0),Element(1),Element(2));
 	SetExteriorBoundaryConditionsE(A,Element(3),Element(4),Element(5));
 
-	if (owner->gridGeometry==tw::dom::cylindrical)
+	if (owner->gridGeometry==tw::grid::cylindrical)
 	{
-		A.SetBoundaryConditions(Element(0),tw::dom::xAxis,fld::none,fld::none);
-		A.SetBoundaryConditions(Element(1),tw::dom::xAxis,fld::dirichletWall,fld::dirichletCell);
-		A.SetBoundaryConditions(Element(2),tw::dom::xAxis,fld::neumannWall,fld::dirichletCell);
-		A.SetBoundaryConditions(Element(3),tw::dom::xAxis,fld::dirichletWall,fld::dirichletCell);
-		A.SetBoundaryConditions(Element(4,5),tw::dom::xAxis,fld::none,fld::none);
+		A.SetBoundaryConditions(Element(0),tw::grid::xAxis,fld::none,fld::none);
+		A.SetBoundaryConditions(Element(1),tw::grid::xAxis,fld::dirichletWall,fld::dirichletCell);
+		A.SetBoundaryConditions(Element(2),tw::grid::xAxis,fld::neumannWall,fld::dirichletCell);
+		A.SetBoundaryConditions(Element(3),tw::grid::xAxis,fld::dirichletWall,fld::dirichletCell);
+		A.SetBoundaryConditions(Element(4,5),tw::grid::xAxis,fld::none,fld::none);
 	}
 
 	if (owner->restarted)
@@ -1212,25 +1212,25 @@ void CurvilinearDirectSolver::Initialize()
 void CurvilinearDirectSolver::SetSingularPointsE()
 {
 	tw::Int i,j,k;
-	if (owner->gridGeometry==tw::dom::cylindrical && owner->X(0,1)<0.0)
+	if (owner->gridGeometry==tw::grid::cylindrical && owner->X(0,1)<0.0)
 	{
 		for (k=lfg[3];k<=ufg[3];k++)
 			for (j=lfg[2];j<=ufg[2];j++)
 				A(1,j,k,0) = 0.0;
 	}
-	if (owner->gridGeometry==tw::dom::spherical && owner->X(0,1)<0.0)
+	if (owner->gridGeometry==tw::grid::spherical && owner->X(0,1)<0.0)
 	{
 		for (k=lfg[3];k<=ufg[3];k++)
 			for (j=lfg[2];j<=ufg[2];j++)
 				A(1,j,k,0) = 0.0;
 	}
-	if (owner->gridGeometry==tw::dom::spherical && owner->X(0,2)<0.0)
+	if (owner->gridGeometry==tw::grid::spherical && owner->X(0,2)<0.0)
 	{
 		for (k=lfg[3];k<=ufg[3];k++)
 			for (i=lfg[1];i<=ufg[1];i++)
 				A(i,1,k,1) = 0.0;
 	}
-	if (owner->gridGeometry==tw::dom::spherical && owner->X(ufg[2],2)>pi)
+	if (owner->gridGeometry==tw::grid::spherical && owner->X(ufg[2],2)>pi)
 	{
 		for (k=lfg[3];k<=ufg[3];k++)
 			for (i=lfg[1];i<=ufg[1];i++)
@@ -1243,7 +1243,7 @@ void CurvilinearDirectSolver::SetSingularPointsB()
 	// Assume that F holds the old staggered B-field at this point
 	// Then use curlE = -dB/dt to update B
 	tw::Int i,j,k;
-	if (owner->gridGeometry==tw::dom::cylindrical && owner->X(0,1)<0.0)
+	if (owner->gridGeometry==tw::grid::cylindrical && owner->X(0,1)<0.0)
 	{
 		for (k=lfg[3];k<=ufg[3];k++)
 			for (j=lfg[2];j<=ufg[2];j++)
@@ -1252,7 +1252,7 @@ void CurvilinearDirectSolver::SetSingularPointsB()
 				A(1,j,k,5) = F(1,j,k,5) - 2.0*dt*A(1,j,k,1)/owner->X(1,1);
 			}
 	}
-	if (owner->gridGeometry==tw::dom::spherical && owner->X(0,2)<0.0)
+	if (owner->gridGeometry==tw::grid::spherical && owner->X(0,2)<0.0)
 	{
 		for (k=lfg[3];k<=ufg[3];k++)
 			for (i=lfg[1];i<=ufg[1];i++)
@@ -1261,7 +1261,7 @@ void CurvilinearDirectSolver::SetSingularPointsB()
 				A(i,1,k,3) = F(i,1,k,3) - 2.0*dt*A(i,1,k,2)/(owner->X(i,1)*sin(owner->X(1,2)));
 			}
 	}
-	if (owner->gridGeometry==tw::dom::spherical && owner->X(ufg[2],2)>pi)
+	if (owner->gridGeometry==tw::grid::spherical && owner->X(ufg[2],2)>pi)
 	{
 		for (k=lfg[3];k<=ufg[3];k++)
 			for (i=lfg[1];i<=ufg[1];i++)
@@ -1309,9 +1309,9 @@ void CurvilinearDirectSolver::Update()
 
 	add_curlE<0,1,2,3,4,5>(A,A,*owner,-dt);
 	SetSingularPointsB();
-	A.UpwardCopy(tw::dom::xAxis,Element(3,5),1);
-	A.UpwardCopy(tw::dom::yAxis,Element(3,5),1);
-	A.UpwardCopy(tw::dom::zAxis,Element(3,5),1);
+	A.UpwardCopy(tw::grid::xAxis,Element(3,5),1);
+	A.UpwardCopy(tw::grid::yAxis,Element(3,5),1);
+	A.UpwardCopy(tw::grid::zAxis,Element(3,5),1);
 
 	// Setup the final field for the particle push
 

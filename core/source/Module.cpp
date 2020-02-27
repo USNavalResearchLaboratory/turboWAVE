@@ -177,7 +177,7 @@ void Module::ReadInputFileBlock(std::stringstream& inputString)
 	} while (com!="}");
 }
 
-bool Module::ReadQuasitoolBlock(const std::vector<std::string>& preamble,std::stringstream& inputString)
+bool Module::ReadQuasitoolBlock(const tw::input::Preamble& preamble,std::stringstream& inputString)
 {
 	return false;
 }
@@ -187,13 +187,13 @@ void Module::ReadInputFileDirective(std::stringstream& inputString,const std::st
 	// Handle whatever the DirectiveReader object did not.
 	// This includes keywords "get" and "new"
 
-	// Get an existing tool by searching for a name -- ``get tool with name = <name>``
+	// Get an existing tool by searching for a name -- ``get = <name>``
 	if (command=="get")
 		owner->ToolFromDirective(moduleTool,inputString,command);
 
-	// Read in submodules that are explicitly enclosed in this module's block
-	if (command=="new")
-		owner->ReadSubmoduleBlock(inputString,this);
+	// Take care of nested declarations
+	if (command=="new" || command=="generate")
+		owner->NestedDeclaration(command,inputString,this);
 }
 
 void Module::StartDiagnostics()
@@ -231,53 +231,53 @@ tw::module_type Module::CreateSupermoduleTypeFromSubmoduleKey(const std::string&
 	return tw::module_type::none;
 }
 
-bool Module::QuasitoolNeedsModule(const std::vector<std::string>& preamble)
+bool Module::QuasitoolNeedsModule(const tw::input::Preamble& preamble)
 {
 	bool ans = false;
-	ans = ans || (preamble[0]=="phase");
-	ans = ans || (preamble[0]=="orbit");
-	ans = ans || (preamble[0]=="detector");
-	ans = ans || (preamble[0]=="reaction");
-	ans = ans || (preamble[0]=="collision");
-	ans = ans || (preamble[0]=="excitation");
+	ans = ans || (preamble.words[0]=="phase");
+	ans = ans || (preamble.words[0]=="orbit");
+	ans = ans || (preamble.words[0]=="detector");
+	ans = ans || (preamble.words[0]=="reaction");
+	ans = ans || (preamble.words[0]=="collision");
+	ans = ans || (preamble.words[0]=="excitation");
 	return ans;
 }
 
-tw::module_type Module::CreateTypeFromInput(const std::vector<std::string>& preamble)
+tw::module_type Module::CreateTypeFromInput(const tw::input::Preamble& preamble)
 {
-	if (preamble[0]=="curvilinear" && preamble[1]=="direct")
+	if (preamble.words[0]=="curvilinear" && preamble.words[1]=="direct")
 		return tw::module_type::curvilinearDirectSolver;
-	if (preamble[0]=="coulomb")
+	if (preamble.words[0]=="coulomb")
 		return tw::module_type::coulombSolver;
-	if (preamble[0]=="electrostatic")
+	if (preamble.words[0]=="electrostatic")
 		return tw::module_type::electrostatic;
-	if (preamble[0]=="direct")
+	if (preamble.words[0]=="direct")
 		return tw::module_type::directSolver;
-	if (preamble[0]=="quasistatic")
+	if (preamble.words[0]=="quasistatic")
 		return tw::module_type::qsLaser;
-	if (preamble[0]=="pgc" || preamble[0]=="PGC")
+	if (preamble.words[0]=="pgc" || preamble.words[0]=="PGC")
 		return tw::module_type::pgcLaser;
-	if (preamble[0]=="bound")
+	if (preamble.words[0]=="bound")
 		return tw::module_type::boundElectrons;
-	if (preamble[0]=="schroedinger" || preamble[0]=="atomic")
+	if (preamble.words[0]=="schroedinger" || preamble.words[0]=="atomic")
 		return tw::module_type::schroedinger;
-	if (preamble[0]=="pauli")
+	if (preamble.words[0]=="pauli")
 		return tw::module_type::pauli;
-	if (preamble[0]=="klein")
+	if (preamble.words[0]=="klein")
 		return tw::module_type::kleinGordon;
-	if (preamble[0]=="dirac")
+	if (preamble.words[0]=="dirac")
 		return tw::module_type::dirac;
-	if (preamble[0]=="fluid")
+	if (preamble.words[0]=="fluid")
 		return tw::module_type::fluidFields;
-	if (preamble[0]=="chemistry" || preamble[0]=="hydro" || preamble[0]=="hydrodynamics")
+	if (preamble.words[0]=="chemistry" || preamble.words[0]=="hydro" || preamble.words[0]=="hydrodynamics")
 		return tw::module_type::sparcHydroManager;
-	if (preamble[0]=="group")
+	if (preamble.words[0]=="group")
 		return tw::module_type::equilibriumGroup;
-	if (preamble[0]=="chemical")
+	if (preamble.words[0]=="chemical")
 		return tw::module_type::chemical;
-	if (preamble[0]=="species")
+	if (preamble.words[0]=="species")
 		return tw::module_type::species;
-	if (preamble[0]=="kinetics")
+	if (preamble.words[0]=="kinetics")
 		return tw::module_type::kinetics;
 	return tw::module_type::none;
 }

@@ -68,7 +68,7 @@ struct ComputeTool
 	virtual void SaveToolReference(std::ofstream& outFile);
 
 	static std::map<std::string,tw::tool_type> Map();
-	static tw::tool_type CreateTypeFromInput(const std::vector<std::string>& preamble);
+	static tw::tool_type CreateTypeFromInput(const tw::input::Preamble& preamble);
 	static ComputeTool* CreateObjectFromType(const std::string& name,tw::tool_type theType,MetricSpace *ms,Task *tsk);
 	static ComputeTool* CreateObjectFromFile(std::ifstream& inFile,MetricSpace *ms,Task *tsk);
 };

@@ -205,7 +205,7 @@ struct HydroManager:Module
 	void ComputeSources();
 	tw::Float EstimateTimeStep();
 
-	void HydroAdvance(const tw::dom::axis& axis,tw::Float dt);
+	void HydroAdvance(const tw::grid::axis& axis,tw::Float dt);
 	void LaserAdvance(tw::Float dt);
 	void ChemAdvance(tw::Float dt);
 	void DiffusionAdvance(tw::Float dt);
@@ -215,7 +215,7 @@ struct HydroManager:Module
 	virtual void Update();
 
 	virtual void VerifyInput();
-	virtual bool ReadQuasitoolBlock(const std::vector<std::string>& preamble,std::stringstream& inputString);
+	virtual bool ReadQuasitoolBlock(const tw::input::Preamble& preamble,std::stringstream& inputString);
 	virtual void ReadData(std::ifstream& inFile);
 	virtual void WriteData(std::ofstream& outFile);
 	void ParseReaction(std::stringstream& inputString);

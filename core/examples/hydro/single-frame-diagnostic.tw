@@ -10,9 +10,9 @@ moving window = no
 neutralize = yes
 unit density = 2.8e+19
 
-xboundary = ( axisymmetric  open )
+xboundary = ( axisymmetric  absorbing )
 yboundary = ( periodic  periodic )
-zboundary = ( open  open )
+zboundary = ( absorbing  absorbing )
 
 // wp^-1 = 3.350 fs
 // c/wp = 1.004 um
@@ -28,7 +28,7 @@ new grid
 	adaptive timestep = on
 }
 
-new chemistry
+new hydrodynamics
 {
 	epsilon factor = 1e-4
 	radiation model = none

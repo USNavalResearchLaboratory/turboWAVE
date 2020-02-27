@@ -342,6 +342,7 @@ EOSSimpleMieGruneisen::EOSSimpleMieGruneisen(const std::string& name,MetricSpace
 	typeCode = tw::tool_type::eosSimpleMieGruneisen;
 	GRUN = 2.0; // value for Cu on p. 257 of "Shock Wave Physics and Equation of State Modeling"
 	// GRUN = 0.1; // value for water in the above book.
+	directives.Add("gruneisen parameter",new tw::input::Float(&GRUN));
 }
 
 void EOSSimpleMieGruneisen::AddPKV(ScalarField& IE, ScalarField& nm, ScalarField& nu_e, Field& hydro, Field& eos)
@@ -357,17 +358,6 @@ void EOSSimpleMieGruneisen::AddPKV(ScalarField& IE, ScalarField& nm, ScalarField
 			eos(cell,eidx.visc) += mat.kinematicViscosity * mat.mass * nion;
 		}
 	}
-}
-
-void EOSSimpleMieGruneisen::ReadInputFileDirective(std::stringstream& inputString,const std::string& command)
-{
-	// DFG - this is how the tool gets data from the input file.
-	// This supports both named tools and creating on the fly as before.
-	std::string word;
-	EOSComponent::ReadInputFileDirective(inputString,command);
-	// expected form is : gruneisen parameter = 2.0
-	if (command=="gruneisen")
-		inputString >> word >> word >> GRUN;
 }
 
 void EOSSimpleMieGruneisen::ReadData(std::ifstream& inFile)
@@ -405,6 +395,11 @@ EOSLinearMieGruneisen::EOSLinearMieGruneisen(const std::string& name,MetricSpace
 
 	GRUN = 2.0; // value for Cu on p. 257 of "Shock Wave Physics and Equation of State Modeling"
 	// GRUN = 0.1; // value for water in the above book.
+
+	directives.Add("gruneisen parameter",new tw::input::Float(&GRUN));
+	directives.Add("reference density",new tw::input::Float(&n0));
+	directives.Add("hugoniot intercept",new tw::input::Float(&c0));
+	directives.Add("hugoniot slope", new tw::input::Float(&S1));
 }
 
 void EOSLinearMieGruneisen::AddPKV(ScalarField& IE, ScalarField& nm, ScalarField& nu_e, Field& hydro, Field& eos)
@@ -424,24 +419,6 @@ void EOSLinearMieGruneisen::AddPKV(ScalarField& IE, ScalarField& nm, ScalarField
 			eos(cell,eidx.K) += mat.thermometricConductivity * mat.cvm * nion;
 			eos(cell,eidx.visc) += mat.kinematicViscosity * mat.mass * nion;
 		}
-	}
-}
-
-void EOSLinearMieGruneisen::ReadInputFileDirective(std::stringstream& inputString,const std::string& command)
-{
-	std::string word;
-	EOSComponent::ReadInputFileDirective(inputString,command);
-	if (command=="gruneisen") // eg, gruneisen parameter = 2.0
-		inputString >> word >> word >> GRUN;
-	if (command=="reference") // eg, reference density = 1.0
-		inputString >> word >> word >> n0;
-	if (command=="hugoniot")
-	{
-		inputString >> word;
-		if (word=="intercept")
-			inputString >> word >> c0;
-		if (word=="slope")
-			inputString >> word >> S1;
 	}
 }
 

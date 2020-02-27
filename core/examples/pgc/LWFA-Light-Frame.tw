@@ -34,11 +34,11 @@ new pgc laser module 'pgc'
 	carrier frequency = 50
 }
 
-generate eigenmode propagator for 'pgc'
+new eigenmode propagator for 'pgc'
 {
 }
 
-generate hermite gauss pulse for 'pgc'
+new hermite gauss pulse for 'pgc'
 {
 	a = 0.5 0.0 0.0
 	r0 = ( 5 , 1e5 )
@@ -51,12 +51,12 @@ generate hermite gauss pulse for 'pgc'
 	direction = ( 0 , 0 , 1 )
 }
 
-new species electrons
+new species 'e'
 {
 	particles per cell = 4 1 4 when density = 1
 }
 
-generate piecewise electrons
+generate piecewise 'e'
 {
 	zdensity = { 0.0 1.0 1.0 }
 	zpoints = { 0.0 10.0 10000.0 }

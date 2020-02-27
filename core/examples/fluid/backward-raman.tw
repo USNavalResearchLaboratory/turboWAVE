@@ -25,14 +25,17 @@ new grid
 	decomposition = ( 1 , 1 , 1 )
 }
 
-new coulomb electromagnetic module
+new coulomb electromagnetic module 'coul'
 {
-	poisson boundary condition = dirichlet neumann
 }
 
-new wave // probe
+new facr elliptic solver for 'coul'
 {
-	type = plane
+	poisson boundary condition z = dirichlet neumann
+}
+
+new plane wave for 'coul' // probe
+{
 	a = 1e-3 0.0 0.0
 	w = 9.96
 	risetime = 100
@@ -43,9 +46,8 @@ new wave // probe
 	direction = ( 0 , 0 , 1 )
 }
 
-new wave // pump
+new plane wave for 'coul' // pump
 {
-	type = plane
 	a = 0.02 0.0 0.0
 	w = 10.96
 	risetime = 1500
@@ -56,7 +58,7 @@ new wave // pump
 	direction = ( 0 , 0 , -1 )
 }
 
-new fluid gas
+new fluid 'gas'
 {
 	initial ionization fraction = .01
 	neutral cross section = 1e-15
@@ -68,7 +70,7 @@ new fluid gas
 	electrons = 1
 }
 
-generate piecewise gas
+generate piecewise 'gas'
 {
 	loading = deterministic
 	zpoints = { 0 100 1100 1200 }

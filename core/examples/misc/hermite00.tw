@@ -24,16 +24,14 @@ new grid
 	decomposition = ( 4 , 1 , 2 )
 }
 
-new direct electromagnetic module
+new direct electromagnetic module 'em'
 {
-	elliptical solver = facr
-	layer thickness = 8
-	reflection coefficient = 1e-4
+	layer thickness = 8 8 0 0 0 0
+	reflection coefficient = 1e-4 1e-4 1e-4 1e-4 1e-4 1e-4
 }
 
-new wave
+new hermite gauss for 'em'
 {
-	type = hermite
 	mode = 0 0
 	a = 1.0 0.0 0.0
 	w = 5.0

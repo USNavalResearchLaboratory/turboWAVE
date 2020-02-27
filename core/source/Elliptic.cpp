@@ -15,10 +15,9 @@ EllipticSolver::EllipticSolver(const std::string& name,MetricSpace *m,Task *tsk)
 	coeff = NULL;
 	x0 = x1 = y0 = y1 = z0 = z1 = tw::bc::fld::natural;
 	gammaBeam = 1.0;
-	std::map<std::string,tw::bc::fld> bcs = {{"none",tw::bc::fld::natural},{"open",tw::bc::fld::natural},{"dirichlet",tw::bc::fld::dirichletCell},{"neumann",tw::bc::fld::neumannWall}};
-	directives.Add("poisson boundary condition x",new tw::input::Enums<tw::bc::fld>(bcs,&x0,&x1));
-	directives.Add("poisson boundary condition y",new tw::input::Enums<tw::bc::fld>(bcs,&y0,&y1));
-	directives.Add("poisson boundary condition z",new tw::input::Enums<tw::bc::fld>(bcs,&z0,&z1));
+	directives.Add("poisson boundary condition x",new tw::input::Enums<tw::bc::fld>(tw::bc::fld_map(),&x0,&x1));
+	directives.Add("poisson boundary condition y",new tw::input::Enums<tw::bc::fld>(tw::bc::fld_map(),&y0,&y1));
+	directives.Add("poisson boundary condition z",new tw::input::Enums<tw::bc::fld>(tw::bc::fld_map(),&z0,&z1));
 }
 
 void EllipticSolver::FormOperatorStencil(std::valarray<tw::Float>& D,tw::Int i,tw::Int j,tw::Int k)
@@ -62,9 +61,9 @@ void EllipticSolver::SetCoefficients(ScalarField *coefficients)
 
 void EllipticSolver::SetBoundaryConditions(ScalarField& phi)
 {
-	phi.SetBoundaryConditions(tw::dom::xAxis,x0,x1);
-	phi.SetBoundaryConditions(tw::dom::yAxis,y0,y1);
-	phi.SetBoundaryConditions(tw::dom::zAxis,z0,z1);
+	phi.SetBoundaryConditions(tw::grid::xAxis,x0,x1);
+	phi.SetBoundaryConditions(tw::grid::yAxis,y0,y1);
+	phi.SetBoundaryConditions(tw::grid::zAxis,z0,z1);
 }
 
 void EllipticSolver::SetBoundaryConditions(tw::bc::fld x0,tw::bc::fld x1,tw::bc::fld y0,tw::bc::fld y1,tw::bc::fld z0,tw::bc::fld z1)
@@ -193,7 +192,7 @@ void EllipticSolver1D::Solve(ScalarField& phi,ScalarField& source,tw::Float mul)
 	// solve div(coeff*grad(phi)) = mul*source
 	// requires 1D grid
 
-	tw::dom::axis axis;
+	tw::grid::axis axis;
 	tw::Int s,sDim,ax,di,dj,dk;
 	std::valarray<tw::Float> D(7);
 	const tw::Int xDim = space->Dim(1);
@@ -203,23 +202,23 @@ void EllipticSolver1D::Solve(ScalarField& phi,ScalarField& source,tw::Float mul)
 	di = dj = dk = 0;
 	if (task->globalCells[1]>1)
 	{
-		axis = tw::dom::xAxis;
+		axis = tw::grid::xAxis;
 		sDim = xDim;
 		di = 1;
 	}
 	if (task->globalCells[2]>1)
 	{
-		axis = tw::dom::yAxis;
+		axis = tw::grid::yAxis;
 		sDim = yDim;
 		dj = 1;
 	}
 	if (task->globalCells[3]>1)
 	{
-		axis = tw::dom::zAxis;
+		axis = tw::grid::zAxis;
 		sDim = zDim;
 		dk = 1;
 	}
-	ax = tw::dom::naxis(axis);
+	ax = tw::grid::naxis(axis);
 	tw::strip strip(ax,*space,0,0,0);
 
 	std::valarray<tw::Float> T1(sDim),T2(sDim),T3(sDim),src(sDim),ans(sDim);
@@ -233,9 +232,9 @@ void EllipticSolver1D::Solve(ScalarField& phi,ScalarField& source,tw::Float mul)
 		src[s-1] = mul*source(s*di,s*dj,s*dk);
 	}
 	if (task->n0[ax]==MPI_PROC_NULL)
-		phi.AdjustTridiagonalForBoundaries(axis,tw::dom::low,T1,T2,T3,src,phi(strip,-1));
+		phi.AdjustTridiagonalForBoundaries(axis,tw::grid::low,T1,T2,T3,src,phi(strip,-1));
 	if (task->n1[ax]==MPI_PROC_NULL)
-		phi.AdjustTridiagonalForBoundaries(axis,tw::dom::high,T1,T2,T3,src,phi(strip,sDim+2));
+		phi.AdjustTridiagonalForBoundaries(axis,tw::grid::high,T1,T2,T3,src,phi(strip,sDim+2));
 	TriDiagonal<tw::Float,tw::Float>(ans,src,T1,T2,T3);
 	for (s=1;s<=sDim;s++)
 		phi(strip,s) = ans[s-1];
@@ -589,7 +588,7 @@ void PoissonSolver::Solve(ScalarField& phi,ScalarField& source,tw::Float mul)
 					}
 				}
 				else
-					phi.AdjustTridiagonalForBoundaries(tw::dom::zAxis,tw::dom::low,T1,T2,T3,s,phi(i,j,space->LFG(3)));
+					phi.AdjustTridiagonalForBoundaries(tw::grid::zAxis,tw::grid::low,T1,T2,T3,s,phi(i,j,space->LFG(3)));
 			}
 			if (task->n1[3]==MPI_PROC_NULL)
 			{
@@ -606,7 +605,7 @@ void PoissonSolver::Solve(ScalarField& phi,ScalarField& source,tw::Float mul)
 					}
 				}
 				else
-					phi.AdjustTridiagonalForBoundaries(tw::dom::zAxis,tw::dom::high,T1,T2,T3,s,phi(i,j,space->UFG(3)));
+					phi.AdjustTridiagonalForBoundaries(tw::grid::zAxis,tw::grid::high,T1,T2,T3,s,phi(i,j,space->UFG(3)));
 			}
 			TriDiagonal<tw::Float,tw::Float>(u,s,T1,T2,T3);
 			for (k=1;k<=zDim;k++)
@@ -804,7 +803,7 @@ void EigenmodePoissonSolver::Solve(ScalarField& phi,ScalarField& source,tw::Floa
 				}
 			}
 			else
-				phi.AdjustTridiagonalForBoundaries(tw::dom::zAxis,tw::dom::low,T1,T2,T3,s,phi(i,0,space->LFG(3)));
+				phi.AdjustTridiagonalForBoundaries(tw::grid::zAxis,tw::grid::low,T1,T2,T3,s,phi(i,0,space->LFG(3)));
 		}
 		if (task->n1[3]==MPI_PROC_NULL)
 		{
@@ -821,7 +820,7 @@ void EigenmodePoissonSolver::Solve(ScalarField& phi,ScalarField& source,tw::Floa
 				}
 			}
 			else
-				phi.AdjustTridiagonalForBoundaries(tw::dom::zAxis,tw::dom::high,T1,T2,T3,s,phi(i,0,space->UFG(3)));
+				phi.AdjustTridiagonalForBoundaries(tw::grid::zAxis,tw::grid::high,T1,T2,T3,s,phi(i,0,space->UFG(3)));
 		}
 
 		TriDiagonal<tw::Float,tw::Float>(u,s,T1,T2,T3);

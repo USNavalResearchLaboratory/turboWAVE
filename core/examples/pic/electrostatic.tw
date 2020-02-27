@@ -20,13 +20,16 @@ new grid
 	decomposition = ( 2 , 1 , 2 )
 }
 
-new electrostatic field solver
+new electrostatic field solver 'es'
 {
-	elliptical solver = facr
-	poisson boundary condition = ( dirichlet , dirichlet )
 }
 
-new species electrons
+new facr elliptic solver for 'es'
+{
+	poisson boundary condition z = ( dirichlet , dirichlet )
+}
+
+new species 'e'
 {
 	charge = -1
 	mass = 1
@@ -48,7 +51,7 @@ new region rect 'electrode2'
 	bounds = ( -1e5,1e5, -1e5,1e5, 12.8,1e5 )
 }
 
-new conductor
+new conductor for 'es'
 {
 	clipping region = 'electrode1'
 	potential = { 0.5 }
@@ -59,7 +62,7 @@ new conductor
 	falltime = .01
 }
 
-new conductor
+new conductor for 'es'
 {
 	clipping region = 'electrode2'
 	potential = { -0.5 }
@@ -70,11 +73,11 @@ new conductor
 	falltime = .01
 }
 
-generate uniform electrons
+generate uniform 'e'
 {
 	clipping region = 'c1'
 	loading = deterministic
-	particle density = fixed
+	particle weight = fixed
 	density = 1
 	thermal momentum = ( 0.1 , 0.1 , 0.1 )
 }

@@ -25,17 +25,16 @@ new grid
 	decomposition = ( 1 , 1 , 1 )
 }
 
-new direct electromagnetic module
+new direct electromagnetic module 'em'
 {
 }
 
-new pgc laser module
+new pgc laser module 'pgc'
 {
 	carrier frequency = 50
-	propagator = adi
 }
 
-new pulse
+new hermite gauss for 'pgc'
 {
 	a = ( 0.5 , 0.0 , 0.0 )
 	r0 = ( 5 , 1e5 )
@@ -48,13 +47,13 @@ new pulse
 	direction = ( 0 , 0 , 1 )
 }
 
-new fluid electrons
+new fluid 'e'
 {
 	mass = 1.0
 	charge = -1.0
 }
 
-generate piecewise electrons
+generate piecewise 'e'
 {
 	zdensity = { 0.0 1.0 1.0 }
 	zpoints = { 0.0 10.0 10000.0 }

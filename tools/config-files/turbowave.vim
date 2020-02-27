@@ -14,10 +14,10 @@ endif
 
 syn match twDefine "#define"
 syn match twInclude "#include"
-syn keyword	twStatement	new generate get
+syn keyword	twStatement	new generate get open for
 
-syn match twUnit  "\v(\s|\(|\{|\,|\=)\%[0-9]+\.=[0-9]*[eE]=[\+\-]=[0-9]*(deg|rad|mrad|urad|cm2|m2|cm2s|m2s|um|mm|cm|m|fs|ps|ns|us|s|m\-3|cm\-3|Jm3|Jcm3|eV|K)(\s|\)|\}|\,|\n)"hs=s+1,he=e-1
-syn match twUnit2 "\v(\s|\(|\{|\,|\=)\%\.[0-9]+[eE]=[\+\-][0-9]*(deg|rad|mrad|urad|cm2|m2|cm2s|m2s|um|mm|cm|m|fs|ps|ns|us|s|m\-3|cm\-3|Jm3|Jcm3|eV|K)(\s|\)|\}|\,|\n)"hs=s+1,he=e-1
+syn match twUnit  "\v(\s|\(|\{|\,|\=|\-)\%[0-9]+\.=[0-9]*[eE]=[\+\-]=[0-9]*(deg|rad|mrad|urad|cm2|m2|cm2s|m2s|um|mm|cm|m|fs|ps|ns|us|s|m\-3|cm\-3|Jm3|Jcm3|eV|K)(\s|\)|\}|\,|\n)"hs=s+1,he=e-1
+syn match twUnit2 "\v(\s|\(|\{|\,|\=|\-)\%\.[0-9]+[eE]=[\+\-][0-9]*(deg|rad|mrad|urad|cm2|m2|cm2s|m2s|um|mm|cm|m|fs|ps|ns|us|s|m\-3|cm\-3|Jm3|Jcm3|eV|K)(\s|\)|\}|\,|\n)"hs=s+1,he=e-1
 syn region twUserMacro display start="\$" end="\s\|$"he=s-1
 syn region twComment start="/\*" end="\*/"
 syn region twCommentL start="//" end="$" keepend

@@ -15,9 +15,9 @@ moving window = no
 neutralize = yes
 unit density = 2.8e+19
 
-xboundary = ( axisymmetric  open )
+xboundary = ( axisymmetric  absorbing )
 yboundary = ( periodic  periodic )
-zboundary = ( open  open )
+zboundary = ( absorbing  absorbing )
 
 // wp^-1 = 3.350 fs
 // c/wp = 1.004 um
@@ -33,18 +33,21 @@ new grid
 	adaptive timestep = off
 }
 
-new chemistry
+new hydrodynamics 'hydro'
 {
 	epsilon factor = 1e-4
 	radiation model = none
 	laser model = vacuum
 	plasma model = neutral
-	// following affects accuracy of electrostatic field
-	// (quasineutral model only)
+}
+
+new iterative elliptic solver for 'hydro'
+{
+	// this is only important if the plasma model is set to quasineutral
 	tolerance = 1e-3
 }
 
-new pulse
+new hermite gauss for 'hydro'
 {
 	a = .002 0 0
 	w = 10

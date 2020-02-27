@@ -58,7 +58,7 @@ new region union u1
 new region intersection i1
 {
 	elements = { u1 , !c2 }
-	rotation about y = 20
+	rotation about y = %20deg
 }
 
 // the named region "i1" can now be included in any "generate" block
@@ -66,17 +66,16 @@ new region intersection i1
 
 new direct electromagnetic module
 {
-	elliptical solver = facr
-	layer thickness = 8
-	reflection coefficient = 1e-4
+	layer thickness = 8 8 8 8 8 8
+	reflection coefficient = 1e-4 1e-4 1e-4 1e-4 1e-4 1e-4
 }
 
-new species electrons
+new species 'e'
 {
 	particles per cell = 1 1 1 when density = 1
 }
 
-generate uniform electrons
+generate uniform 'e'
 {
 	clipping region = i1
 	density = 1.0

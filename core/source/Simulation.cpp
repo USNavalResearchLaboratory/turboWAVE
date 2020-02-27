@@ -138,7 +138,7 @@ Simulation::Simulation(const std::string& file_name)
 	inputFileName = file_name;
 	clippingRegion.push_back(new EntireRegion(clippingRegion));
 
-	gridGeometry = tw::dom::cartesian;
+	gridGeometry = tw::grid::cartesian;
 
 	dt0 = 0.1;
 	SetupTimeInfo(dt0);
@@ -156,7 +156,6 @@ Simulation::Simulation(const std::string& file_name)
 	radialProgressionFactor = 1.0;
 
 	appendMode = true;
-	fullOutput = false;
 	neutralize = true;
 	movingWindow = false;
 	restarted = false;
@@ -167,7 +166,7 @@ Simulation::Simulation(const std::string& file_name)
 	stepNow = 1;
 	stepsToTake = 32;
 	lastTime = 0;
-
+	outputLevel = 0;
 	dumpPeriod = 0;
 
 	bc0[1] = tw::bc::par::periodic;
@@ -176,6 +175,48 @@ Simulation::Simulation(const std::string& file_name)
 	bc1[2] = tw::bc::par::periodic;
 	bc0[3] = tw::bc::par::absorbing;
 	bc1[3] = tw::bc::par::absorbing;
+
+	outerDirectives.Add("affinity",new tw::input::List<std::valarray<tw::Int>,tw::Int>(&affinityMask));
+	outerDirectives.Add("hardware acceleration device string",new tw::input::String(&deviceSearchString));
+	outerDirectives.Add("hardware acceleration device numbers",new tw::input::List<std::valarray<tw::Int>,tw::Int>(&deviceIDList));
+	outerDirectives.Add("hardware acceleration platform string",new tw::input::String(&platformSearchString));
+	outerDirectives.Add("timestep",new tw::input::Float(&dt0));
+	outerDirectives.Add("output level",new tw::input::Int(&outputLevel));
+	outerDirectives.Add("xboundary",new tw::input::Enums<tw::bc::par>(tw::bc::par_map(),&bc0[1],&bc1[1]));
+	outerDirectives.Add("yboundary",new tw::input::Enums<tw::bc::par>(tw::bc::par_map(),&bc0[2],&bc1[2]));
+	outerDirectives.Add("zboundary",new tw::input::Enums<tw::bc::par>(tw::bc::par_map(),&bc0[3],&bc1[3]));
+	outerDirectives.Add("unit density",new tw::input::Float(&unitDensityCGS));
+	outerDirectives.Add("dtmin",new tw::input::Float(&dtMin));
+	outerDirectives.Add("dtmax",new tw::input::Float(&dtMax));
+	outerDirectives.Add("dtcrit",new tw::input::Float(&dtCritical));
+	outerDirectives.Add("maxtime",new tw::input::Float(&elapsedTimeMax));
+	outerDirectives.Add("steps",new tw::input::Int(&stepsToTake));
+	outerDirectives.Add("dump period",new tw::input::Int(&dumpPeriod));
+	outerDirectives.Add("neutralize",new tw::input::Bool(&neutralize));
+	outerDirectives.Add("window speed",new tw::input::Float(&signalSpeed));
+	outerDirectives.Add("moving window",new tw::input::Bool(&movingWindow));
+	outerDirectives.Add("append mode",new tw::input::Bool(&appendMode));
+
+	// allow user to choose any of 8 corners with strings like corner001, corner010, etc.
+	tw::vec3 corner[2][2][2];
+	auto corner_str = [&] (tw::Int i,tw::Int j,tw::Int k)
+	{
+		return "corner" + std::to_string(i) + std::to_string(j) + std::to_string(k);
+	};
+	for (tw::Int i=0;i<2;i++)
+		for (tw::Int j=0;j<2;j++)
+			for (tw::Int k=0;k<2;k++)
+				gridDirectives.Add(corner_str(i,j,k),new tw::input::Numbers<tw::Float>(&corner[i][j][k][0],3));
+	gridDirectives.Add("corner",new tw::input::Numbers<tw::Float>(&globalCorner[0],3));
+	gridDirectives.Add("cell size",new tw::input::Numbers<tw::Float>(&spacing[0],3));
+	gridDirectives.Add("radial progression factor",new tw::input::Numbers<tw::Float>(&radialProgressionFactor,1));
+	gridDirectives.Add("adaptive timestep",new tw::input::Bool(&adaptiveTimestep));
+	gridDirectives.Add("adaptive grid",new tw::input::Bool(&adaptiveGrid));
+	gridDirectives.Add("dimensions",new tw::input::Numbers<tw::Int>(&globalCells[1],3));
+	gridDirectives.Add("decomposition",new tw::input::Numbers<tw::Int>(&domains[1],3));
+	std::map<std::string,tw::grid::geometry> geo = {{"cartesian",tw::grid::cartesian},{"cylindrical",tw::grid::cylindrical},{"spherical",tw::grid::spherical}};
+	gridDirectives.Add("geometry",new tw::input::Enums<tw::grid::geometry>(geo,&gridGeometry));
+	gridDirectives.Add("region",new tw::input::Custom);
 }
 
 Simulation::~Simulation()
@@ -296,17 +337,17 @@ void Simulation::SetupGeometry()
 	// This routine assumes that MetricSpace::width, and MetricSpace::corner are valid
 	switch (gridGeometry)
 	{
-		case tw::dom::cartesian:
+		case tw::grid::cartesian:
 			if (stepNow==1)
 				(*tw_out) << "Using CARTESIAN Grid" << std::endl;
 			SetCartesianGeometry();
 			break;
-		case tw::dom::cylindrical:
+		case tw::grid::cylindrical:
 			if (stepNow==1)
 				(*tw_out) << "Using CYLINDRICAL Grid" << std::endl;
 			SetCylindricalGeometry();
 			break;
-		case tw::dom::spherical:
+		case tw::grid::spherical:
 			if (stepNow==1)
 				(*tw_out) << "Using SPHERICAL Grid" << std::endl;
 			SetSphericalGeometry();
@@ -515,12 +556,20 @@ bool Simulation::MangleModuleName(std::string& name)
 	return did_mangle;
 }
 
+bool Simulation::CheckModule(const std::string& name)
+{
+	for (tw::Int i=0;i<module.size();i++)
+		if (module[i]->name==name)
+			return true;
+	return false;
+}
+
 Module* Simulation::GetModule(const std::string& name)
 {
 	for (tw::Int i=0;i<module.size();i++)
 		if (module[i]->name==name)
 			return module[i];
-	throw tw::FatalError("Could not find module: <" + name+">");
+	throw tw::FatalError("Could not get module: <" + name+">");
 	return NULL;
 }
 
@@ -557,7 +606,7 @@ ComputeTool* Simulation::CreateTool(const std::string& basename,tw::tool_type th
 {
 	std::string name(basename);
 	MangleToolName(name);
-	(*tw_out) << "   Creating Tool " << name << "..." << std::endl;
+	(*tw_out) << "   Creating Tool <" << name << ">..." << std::endl;
 	computeTool.push_back(ComputeTool::CreateObjectFromType(name,theType,this,this));
 	computeTool.back()->refCount++;
 	return computeTool.back();
@@ -593,32 +642,19 @@ void Simulation::ToolFromDirective(std::vector<ComputeTool*>& tool,std::stringst
 	// Instead it is the list owned by a module.
 
 	std::string word;
-	tw::tool_type type;
 
 	// Handle retrieval of named tools
 	if (command=="get")
 	{
 		inputString >> word;
-		if (word=="tool")
-		{
-		 	inputString >> word >> word >> word >> word; // with name = [name]
-			tool.push_back(GetTool(word));
-			return;
-		}
-		// if we ever have other types of get directives, need something here to restore inputString.
+		if (word=="=")
+			throw tw::FatalError("Expected a name after <get>, not the <=> separator.");
+		tw::input::StripQuotes(word);
+		if (CheckModule(word))
+			throw tw::FatalError("Tried to <get> module "+word+", but <get> can only be used for tools.");
+		tool.push_back(GetTool(word));
+		return;
 	}
-
-	// Handle creation of new tools on the fly
-	// type = ComputeTool::CreateTypeFromDirective(inputString,command);
-	// if (type!=tw::tool_type::none)
-	// {
-	// 	tool.push_back(CreateTool(command,type)); // use command as the name
-	// 	return;
-	// }
-
-	// Allow the most recent tool associated with the caller to process directives
-	// if (tool.size()>0)
-	// 	tool.back()->ReadInputFileDirective(inputString,command);
 }
 
 bool Simulation::RemoveTool(ComputeTool *theTool)
@@ -671,7 +707,7 @@ void Simulation::ReadData(std::ifstream& inFile)
 
 	Task::ReadData(inFile);
 	MetricSpace::ReadData(inFile);
-	inFile.read((char *)&gridGeometry,sizeof(tw::dom::geometry));
+	inFile.read((char *)&gridGeometry,sizeof(tw::grid::geometry));
 	inFile.read((char *)&unitDensityCGS,sizeof(tw::Float));
 	inFile.read((char *)&dt0,sizeof(tw::Float));
 	inFile.read((char *)&dt,sizeof(tw::Float));
@@ -690,7 +726,7 @@ void Simulation::ReadData(std::ifstream& inFile)
 	inFile.read((char *)&adaptiveTimestep,sizeof(bool));
 	inFile.read((char *)&adaptiveGrid,sizeof(bool));
 	inFile.read((char *)&appendMode,sizeof(bool));
-	inFile.read((char *)&fullOutput,sizeof(bool));
+	inFile.read((char *)&outputLevel,sizeof(outputLevel));
 	inFile.read((char *)&neutralize,sizeof(bool));
 	inFile.read((char *)&stepsToTake,sizeof(tw::Int));
 	inFile.read((char *)&dumpPeriod,sizeof(tw::Int));
@@ -780,7 +816,7 @@ void Simulation::WriteData(std::ofstream& outFile)
 
 	Task::WriteData(outFile);
 	MetricSpace::WriteData(outFile);
-	outFile.write((char *)&gridGeometry,sizeof(tw::dom::geometry));
+	outFile.write((char *)&gridGeometry,sizeof(tw::grid::geometry));
 	outFile.write((char *)&unitDensityCGS,sizeof(tw::Float));
 	outFile.write((char *)&dt0,sizeof(tw::Float));
 	outFile.write((char *)&dt,sizeof(tw::Float));
@@ -799,7 +835,7 @@ void Simulation::WriteData(std::ofstream& outFile)
 	outFile.write((char *)&adaptiveTimestep,sizeof(bool));
 	outFile.write((char *)&adaptiveGrid,sizeof(bool));
 	outFile.write((char *)&appendMode,sizeof(bool));
-	outFile.write((char *)&fullOutput,sizeof(bool));
+	outFile.write((char *)&outputLevel,sizeof(outputLevel));
 	outFile.write((char *)&neutralize,sizeof(bool));
 	outFile.write((char *)&stepsToTake,sizeof(tw::Int));
 	outFile.write((char *)&dumpPeriod,sizeof(tw::Int));
@@ -887,108 +923,74 @@ std::string Simulation::InputFileFirstPass()
 		inFile.close();
 
 		inputString.seekg(0);
+		outerDirectives.Reset();
+		gridDirectives.Reset();
 
 		std::string com1,com2,word;
 
 		do
 		{
-			com1.clear();
-			inputString >> com1;
-
-			if (com1=="threads")
-			{
-				messageOut << "WARNING: threads directive no longer supported.  Use command line arguments instead." << std::endl;
-			}
-
-			if (com1=="affinity")
-			{
-				tw::input::ReadArray(affinityMask,inputString); // eg, affinity = { 0 2 4 6 }
-			}
-
-			if (com1=="hardware")
-			{
-				inputString >> word >> com1;
-				if (com1=="device")
-				{
-					inputString >> com2;
-					if (com2=="string")
-						inputString >> word >> deviceSearchString; // eg, hardware acceleration device string = nvidia
-					if (com2=="numbers")
-						tw::input::ReadArray(deviceIDList,inputString); // eg, hardware acceleration device numbers = { 0 , 1 }
-				}
-				if (com1=="platform") // eg, hardware acceleration platform string = cuda
-				{
-					inputString >> word >> word >> platformSearchString;
-				}
-			}
+			com1 = outerDirectives.ReadNext(inputString);
 
 			if (com1=="new")
 			{
-				std::vector<std::string> preamble = tw::input::EnterInputFileBlock(inputString,"{");
-
-				if (preamble[0]=="grid")
+				tw::input::Preamble preamble = tw::input::EnterInputFileBlock(com1,inputString,"{=");
+				if (preamble.end_token=="=")
 				{
-					if (preamble.size()!=1)
-						throw tw::FatalError("Ill-formed grid block.");
-					foundGrid = true;
-					corner = globalCorner = size = globalSize = tw::vec3(0.0,0.0,0.0);
-					tw::input::DirectiveReader directives;
-					// allow user to choose any of 8 corners with strings like corner001, corner010, etc.
-					tw::vec3 corner[2][2][2];
-					auto corner_str = [&] (tw::Int i,tw::Int j,tw::Int k)
-					{
-						return "corner" + std::to_string(i) + std::to_string(j) + std::to_string(k);
-					};
-					for (tw::Int i=0;i<2;i++)
-						for (tw::Int j=0;j<2;j++)
-							for (tw::Int k=0;k<2;k++)
-								directives.Add(corner_str(i,j,k),new tw::input::Numbers<tw::Float>(&corner[i][j][k][0],3));
-					directives.Add("corner",new tw::input::Numbers<tw::Float>(&globalCorner[0],3));
-					directives.Add("cell size",new tw::input::Numbers<tw::Float>(&spacing[0],3));
-					directives.Add("radial progression factor",new tw::input::Numbers<tw::Float>(&radialProgressionFactor,1));
-					directives.Add("adaptive timestep",new tw::input::Bool(&adaptiveTimestep));
-					directives.Add("adaptive grid",new tw::input::Bool(&adaptiveGrid));
-					directives.Add("dimensions",new tw::input::Numbers<tw::Int>(&globalCells[1],3));
-					directives.Add("decomposition",new tw::input::Numbers<tw::Int>(&domains[1],3));
-					std::map<std::string,tw::dom::geometry> geo = {{"cartesian",tw::dom::cartesian},{"cylindrical",tw::dom::cylindrical},{"spherical",tw::dom::spherical}};
-					directives.Add("geometry",new tw::input::Enums<tw::dom::geometry>(geo,&gridGeometry));
-					directives.Add("region",new tw::input::Custom);
+					// Pass through quasitools by searching for the next keyword.
+					std::stringstream temp(inputString.str());
+					temp.seekg(inputString.tellg());
 					do
 					{
-						com2 = directives.ReadNext(inputString);
-						if (com2=="region") // eg, region : start = 1 , end = 100 , length = 1e4
-						{
-							tw::Int i1,i2;
-							tw::Float length;
-							inputString >> word >> word >> word >> i1 >> word >> word >> i2 >> word >> word >> length;
-							region.push_back(new NonUniformRegion(i1,i2,length,spacing.z));
-						}
-					} while (com2!="}");
-					tw::Int corners_given = directives.TestKey("corner") ? 1 : 0;
-					for (tw::Int i=0;i<2;i++)
-						for (tw::Int j=0;j<2;j++)
-							for (tw::Int k=0;k<2;k++)
-							{
-								if (directives.TestKey(corner_str(i,j,k)))
-								{
-									corners_given++;
-									if (corners_given>1)
-										throw tw::FatalError("Grid geometry is overspecified.");
-									globalCorner.x = corner[i][j][k].x - globalCells[1]*spacing.x*i;
-									globalCorner.y = corner[i][j][k].y - globalCells[2]*spacing.y*j;
-									globalCorner.z = corner[i][j][k].z - globalCells[3]*spacing.z*k;
-								}
-							}
+						temp >> word;
+						if (word!="new" && word!="generate" && word!="open")
+							inputString >> word;
+					} while (word!="new" && word!="generate" && word!="open");
 				}
 				else
-					tw::input::ExitInputFileBlock(inputString,true);
-			}
-
-			if (com1=="timestep") // eg, timestep = 1.0
-			{
-				inputString >> word;
-				inputString >> dt0;
-				UpdateTimestep(dt0);
+				{
+					if (preamble.words[0]=="grid")
+					{
+						if (preamble.words.size()!=1)
+							throw tw::FatalError("Ill-formed grid block.");
+						foundGrid = true;
+						corner = globalCorner = size = globalSize = tw::vec3(0.0,0.0,0.0);
+						// allow user to choose any of 8 corners with strings like corner001, corner010, etc.
+						tw::vec3 corner[2][2][2];
+						auto corner_str = [&] (tw::Int i,tw::Int j,tw::Int k)
+						{
+							return "corner" + std::to_string(i) + std::to_string(j) + std::to_string(k);
+						};
+						do
+						{
+							com2 = gridDirectives.ReadNext(inputString);
+							if (com2=="region") // eg, region : start = 1 , end = 100 , length = 1e4
+							{
+								tw::Int i1,i2;
+								tw::Float length;
+								inputString >> word >> word >> word >> i1 >> word >> word >> i2 >> word >> word >> length;
+								region.push_back(new NonUniformRegion(i1,i2,length,spacing.z));
+							}
+						} while (com2!="}");
+						tw::Int corners_given = gridDirectives.TestKey("corner") ? 1 : 0;
+						for (tw::Int i=0;i<2;i++)
+							for (tw::Int j=0;j<2;j++)
+								for (tw::Int k=0;k<2;k++)
+								{
+									if (gridDirectives.TestKey(corner_str(i,j,k)))
+									{
+										corners_given++;
+										if (corners_given>1)
+											throw tw::FatalError("Grid geometry is overspecified.");
+										globalCorner.x = corner[i][j][k].x - globalCells[1]*spacing.x*i;
+										globalCorner.y = corner[i][j][k].y - globalCells[2]*spacing.y*j;
+										globalCorner.z = corner[i][j][k].z - globalCells[3]*spacing.z*k;
+									}
+								}
+					}
+					else
+						tw::input::ExitInputFileBlock(inputString,true);
+				}
 			}
 
 			if (com1=="generate")
@@ -1011,23 +1013,15 @@ std::string Simulation::InputFileFirstPass()
 					inFile.close();
 				}
 			}
-
-			if (com1=="stdout") // eg, stdout = full
-			{
-				inputString >> com2 >> com2;
-				if (com2=="full")
-					fullOutput = true;
-			}
-
-			if (com1=="xboundary" || com1=="yboundary" || com1=="zboundary" ) // eg, xboundary = absorbing absorbing
-			{
-				tw::input::ReadBoundaryTerm(bc0,bc1,inputString,com1);
-				periodic[1] = bc0[1]==tw::bc::par::periodic ? 1 : 0;
-				periodic[2] = bc0[2]==tw::bc::par::periodic ? 1 : 0;
-				periodic[3] = bc0[3]==tw::bc::par::periodic ? 1 : 0;
-			}
-
 		} while (!inputString.eof());
+
+		if (outerDirectives.TestKey("timestep"))
+			UpdateTimestep(dt0);
+		else
+			throw tw::FatalError("Could not find timestep directive.");
+		periodic[1] = bc0[1]==tw::bc::par::periodic ? 1 : 0;
+		periodic[2] = bc0[2]==tw::bc::par::periodic ? 1 : 0;
+		periodic[3] = bc0[3]==tw::bc::par::periodic ? 1 : 0;
 
 		if (!foundGrid && !foundRestart)
 			throw tw::FatalError("neither a grid directive nor a restart file was found");
@@ -1090,7 +1084,7 @@ std::string Simulation::InputFileFirstPass()
 			tw_out = &std::cout;
 		else
 		{
-			if (fullOutput)
+			if (outputLevel>0)
 				tw_out = new std::ofstream(stdoutString.str().c_str());
 			else
 				tw_out = new std::stringstream; // put output into a throw away string
@@ -1125,15 +1119,15 @@ void Simulation::SetupLocalGrid()
 	#endif
 }
 
-void Simulation::ReadSubmoduleBlock(std::stringstream& inputString,Module *sup)
+void Simulation::NestedDeclaration(const std::string& com,std::stringstream& inputString,Module *sup)
 {
-	// To be called by supermodules that want to add submodules while
+	// To be called by supermodules that want to add submodules or tools while
 	// reading their own input file block.
 
 	// Get the preamble = words that come between "new" and the opening brace
-	std::vector<std::string> preamble = tw::input::EnterInputFileBlock(inputString,"{");
-	// if an object has a name, it is expected to be the last string in the preamble
-	std::string object_name(preamble.back());
+	tw::input::Preamble preamble = tw::input::EnterInputFileBlock(com,inputString,"{=");
+	if (preamble.attaching)
+		throw tw::FatalError(preamble.err_prefix+"keyword <for> is not allowed in a nested declaration.");
 
 	auto module_type_exists = [&] (tw::module_type whichType)
 	{
@@ -1141,23 +1135,34 @@ void Simulation::ReadSubmoduleBlock(std::stringstream& inputString,Module *sup)
 	};
 
 	tw::module_type whichModule = Module::CreateTypeFromInput(preamble);
+	tw::tool_type whichTool = ComputeTool::CreateTypeFromInput(preamble);
+	if (whichModule==tw::module_type::none && whichTool==tw::tool_type::none)
+		throw tw::FatalError(preamble.err_prefix+"key was not recognized.");
+	if (whichModule!=tw::module_type::none && whichTool!=tw::tool_type::none)
+		throw tw::FatalError(preamble.err_prefix+"key claimed by both Module and Tool, this is a bug in the code.");
+
 	if (whichModule!=tw::module_type::none)
 	{
 		if (Module::SingularType(whichModule))
 			if (module_type_exists(whichModule))
-				throw tw::FatalError("Singular module type was created twice.  Check order of input file.");
+				throw tw::FatalError(preamble.err_prefix+"Singular module type was created twice.  Check order of input file.");
 		createdModuleTypes.push_back(whichModule);
-		MangleModuleName(object_name);
-		(*tw_out) << "   Installing Submodule " << object_name << "..." << std::endl;
-		module.push_back(Module::CreateObjectFromType(object_name,whichModule,this));
+		MangleModuleName(preamble.obj_name);
+		(*tw_out) << "   Installing submodule <" << preamble.obj_name << ">..." << std::endl;
+		module.push_back(Module::CreateObjectFromType(preamble.obj_name,whichModule,this));
 		module.back()->ReadInputFileBlock(inputString);
+		bool added = sup->AddSubmodule(module.back());
+		if (!added)
+			throw tw::FatalError(preamble.err_prefix+"parent module rejected the child.");
 	}
-	else
-		throw tw::FatalError("Module type not recognized: " + preamble[0]);
 
-	bool added = sup->AddSubmodule(module.back());
-	if (!added)
-		throw tw::FatalError("Unhandled " + preamble[0] + ". Check order of input file.");
+	if (whichTool!=tw::tool_type::none)
+	{
+		ComputeTool *tool = CreateTool(preamble.obj_name,whichTool);
+		(*tw_out) << "   Installing tool <" << tool->name << ">..." << std::endl;
+		tool->ReadInputFileBlock(inputString);
+		sup->moduleTool.push_back(tool);
+	}
 }
 
 void Simulation::ReadInputFile()
@@ -1176,6 +1181,8 @@ void Simulation::ReadInputFile()
 	inFile.close();
 
 	inputString.seekg(0);
+	outerDirectives.Reset();
+	gridDirectives.Reset();
 
 	auto module_type_exists = [&] (tw::module_type whichType)
 	{
@@ -1200,40 +1207,50 @@ void Simulation::ReadInputFile()
 
 	do
 	{
-		com1.clear();
-		inputString >> com1;
+		// Process outer directives again, after first pass.
+		// This is redundant, but helps minimize keyword collisions with object names.
+		com1 = outerDirectives.ReadNext(inputString);
 
-		if (com1=="new")
+		if (com1=="new" || com1=="generate")
 		{
 			bool processed = false;
-			// Get the preamble = words that come between "new" and the opening token
-			std::vector<std::string> preamble = tw::input::EnterInputFileBlock(inputString,"{=");
-			// if an object has a name, it is expected to be the last string in the preamble
-			std::string object_name(preamble.back());
 
-			// Straight installation of a named tool
+			// Get the preamble = words that come between "new" and the opening token, and derived information
+			tw::input::Preamble preamble = tw::input::EnterInputFileBlock(com1,inputString,"{=");
+
+			// Install a pre or post declared tool
 			tw::tool_type whichTool = ComputeTool::CreateTypeFromInput(preamble);
 			if (whichTool!=tw::tool_type::none)
 			{
 				processed = true;
-				(*tw_out) << "Installing Tool: key=" << preamble[0] << ", name=" << object_name << "..." << std::endl;
-				if (MangleToolName(object_name))
-					throw tw::FatalError("Encountered duplicate tool name.");
-				// Do not use CreateTool, do not want to increase refCount
-				computeTool.push_back(ComputeTool::CreateObjectFromType(object_name,whichTool,this,this));
-				computeTool.back()->ReadInputFileBlock(inputString);
+				if (preamble.attaching)
+				{
+					ComputeTool *tool = CreateTool(preamble.obj_name,whichTool);
+					(*tw_out) << "   Attaching <" << tool->name << "> to <" << preamble.owner_name << ">..." << std::endl;
+					tool->ReadInputFileBlock(inputString);
+					GetModule(preamble.owner_name)->moduleTool.push_back(tool);
+				}
+				else
+				{
+					(*tw_out) << "   Installing tool <" << preamble.obj_name << ">..." << std::endl;
+					if (MangleToolName(preamble.obj_name))
+						throw tw::FatalError(preamble.err_prefix+"duplicate tool name.");
+					// Do not use CreateTool, do not want to increase refCount
+					computeTool.push_back(ComputeTool::CreateObjectFromType(preamble.obj_name,whichTool,this,this));
+					computeTool.back()->ReadInputFileBlock(inputString);
+				}
 			}
 
 			// Handle modules whose creation is automatically triggered by another module
 			// Must do this before reading in the submodule
-			tw::module_type super_type = Module::CreateSupermoduleTypeFromSubmoduleKey(preamble[0]);
+			tw::module_type super_type = Module::CreateSupermoduleTypeFromSubmoduleKey(preamble.words[0]);
 			if (super_type!=tw::module_type::none)
 				if (!module_type_exists(super_type) || !Module::SingularType(super_type))
 				{
 					createdModuleTypes.push_back(super_type);
-					std::string super_module_name = object_name + "_sup";
+					std::string super_module_name = preamble.obj_name + "_sup";
 					MangleModuleName(super_module_name);
-					(*tw_out) << "Installing Automatic Supermodule: trigger=" << preamble[0] << ", name=" << super_module_name << "..." << std::endl;
+					(*tw_out) << "Installing supermodule triggered by <" << preamble.obj_name << ">..." << std::endl;
 					module.push_back(Module::CreateObjectFromType(super_module_name,super_type,this));
 					find_super(module.back());
 				}
@@ -1245,11 +1262,11 @@ void Simulation::ReadInputFile()
 				processed = true;
 				if (Module::SingularType(whichModule))
 					if (module_type_exists(whichModule))
-						throw tw::FatalError("Singular module type was created twice.  Check order of input file.");
+						throw tw::FatalError(preamble.err_prefix + "singular module type was created twice.  Check order of input file.");
 				createdModuleTypes.push_back(whichModule);
-				MangleModuleName(object_name);
-				(*tw_out) << "Installing Module: key=" << preamble[0] << ", name=" << object_name << "..." << std::endl;
-				module.push_back(Module::CreateObjectFromType(object_name,whichModule,this));
+				MangleModuleName(preamble.obj_name);
+				(*tw_out) << "Installing module <" << preamble.obj_name << ">..." << std::endl;
+				module.push_back(Module::CreateObjectFromType(preamble.obj_name,whichModule,this));
 				find_super(module.back()); // note next line might change module.back()
 				module.back()->ReadInputFileBlock(inputString);
 			}
@@ -1258,81 +1275,53 @@ void Simulation::ReadInputFile()
 			// The module must know how to read the block, or delegate it to the quasitool
 			if (Module::QuasitoolNeedsModule(preamble))
 			{
-				(*tw_out) << "Processing quasitool " << preamble[0] << std::endl;
+				(*tw_out) << "Processing quasitool <" << preamble.obj_name << ">..." << std::endl;
 				for (tw::Int i=0;i<module.size();i++)
 					processed = processed || module[i]->ReadQuasitoolBlock(preamble,inputString);
 				if (!processed)
-					throw tw::FatalError("Unhandled " + preamble[0] + ". Check order of input file.");
+					throw tw::FatalError("Unhandled key <" + preamble.words[0] + ">. Check order of input file.");
 			}
 
 			// The remaining objects are explicitly managed by Simulation
 			// Perhaps they should be repackaged as ComputeTool objects
 
-			if (preamble[0]=="region")
+			if (preamble.words[0]=="region")
 			{
 				processed = true;
-				clippingRegion.push_back(Region::CreateObjectFromString(clippingRegion,preamble[1]));
-				clippingRegion.back()->name = preamble[2];
+				clippingRegion.push_back(Region::CreateObjectFromString(clippingRegion,preamble.words[1]));
+				clippingRegion.back()->name = preamble.obj_name;
 				clippingRegion.back()->ReadInputFileBlock(inputString);
 			}
 
-			if (preamble[0]=="energy") // eg, new energy series { ... }
+			if (preamble.words[0]=="energy") // eg, new energy series { ... }
 			{
 				processed = true;
 				energyDiagnostic.push_back(new EnergySeriesDescriptor(clippingRegion));
 				energyDiagnostic.back()->ReadInputFile(inputString);
 			}
 
-			if (preamble[0]=="point") // eg, new point series { ... }
+			if (preamble.words[0]=="point") // eg, new point series { ... }
 			{
 				processed = true;
 				pointDiagnostic.push_back(new PointSeriesDescriptor(clippingRegion));
 				pointDiagnostic.back()->ReadInputFile(inputString);
 			}
 
-			if (preamble[0]=="box") // eg, new box series { ... }
+			if (preamble.words[0]=="box") // eg, new box series { ... }
 			{
 				processed = true;
 				boxDiagnostic.push_back(new GridDataDescriptor(clippingRegion));
 				boxDiagnostic.back()->ReadInputFile(inputString);
 			}
 
-			if (preamble[0]=="grid") // drop out of grid block, it was already processed during first pass.
+			if (preamble.words[0]=="grid") // drop out of grid block, it was already processed during first pass.
 			{
 				processed = true;
 				tw::input::ExitInputFileBlock(inputString,true);
 			}
 
 			if (!processed)
-				throw tw::FatalError("<new> block with key <"+preamble[0]+"> was not understood.");
-		}
-
-		// Creation of a tool using the generate keyword
-		if (com1=="generate")
-		{
-			bool processed = false;
-			// Get the preamble = words that come between "generate" and the opening token
-			std::vector<std::string> preamble = tw::input::EnterInputFileBlock(inputString,"{");
-			tw::tool_type whichTool = ComputeTool::CreateTypeFromInput(preamble);
-			std::string module_name(preamble.back());
-			std::string tool_name(preamble[0]);
-			if (whichTool!=tw::tool_type::none)
-			{
-				processed = true;
-				ComputeTool *tool = CreateTool(tool_name,whichTool);
-				tool->ReadInputFileBlock(inputString);
-				GetModule(module_name)->moduleTool.push_back(tool);
-			}
-			if (!processed)
-				throw tw::FatalError("<generate> block with key <"+preamble[0]+"> was not understood.");
-		}
-
-		// Outside declarations: must come after the above
-
-		if (com1=="xboundary" || com1=="yboundary" || com1=="zboundary" ) // eg, xboundary = absorbing absorbing
-		{
-			// already done in first pass, but must take block off string again
-			tw::input::ReadBoundaryTerm(bc0,bc1,inputString,com1);
+				throw tw::FatalError(preamble.err_prefix+"keys were not understood.");
 		}
 
 		if (com1=="open") // eg, open restart file dump1
@@ -1345,75 +1334,6 @@ void Simulation::ReadInputFile()
 			restartFile.open(fileName.str().c_str());
 			ReadData(restartFile);
 			restartFile.close();
-		}
-
-		if (com1=="normalize" || com1=="unit") // eg, normalize density to 1e16, or unit density = 1e16
-		{
-			inputString >> word >> word;
-			inputString >> unitDensityCGS;
-			(*tw_out) << "Unit of density = " << unitDensityCGS << " cm^-3" << std::endl;
-		}
-
-		if (com1=="dtmax") // eg, dtmax = 100.0
-		{
-			inputString >> word >> dtMax;
-			(*tw_out) << "Set Maximum Timestep = " << dtMax << std::endl;
-		}
-
-		if (com1=="dtcrit") // eg, dtcrit = 1.0
-		{
-			inputString >> word >> dtCritical;
-			(*tw_out) << "Set Critical Timestep = " << dtCritical << std::endl;
-		}
-
-		if (com1=="dtmin") // eg, dtmin = 1.0
-		{
-			inputString >> word >> dtMin;
-			(*tw_out) << "Set Minimum Timestep = " << dtMin << std::endl;
-		}
-
-		if (com1=="maxtime") // eg, maxtime = 1e4
-		{
-			inputString >> word >> elapsedTimeMax;
-			(*tw_out) << "Set Maximum Elapsed Time = " << elapsedTimeMax << std::endl;
-		}
-
-		if (com1=="steps") // eg, steps = 10
-		{
-			inputString >> word >> stepsToTake;
-			(*tw_out) << "Steps to Take = " << stepsToTake << std::endl;
-		}
-
-		if (com1=="dump") // eg, dump period = 1024
-		{
-			inputString >> word >> word >> dumpPeriod;
-			(*tw_out) << "Dump Period = " << dumpPeriod << std::endl;
-		}
-
-		if (com1=="neutralize") // eg, neutralize = yes
-		{
-			inputString >> word >> word;
-			neutralize = (word=="yes" || word=="true" || word=="on");
-			(*tw_out) << "Full neutralization = " << neutralize << std::endl;
-		}
-
-		if (com1=="window") // eg, window speed = 1
-		{
-			inputString >> word >> word >> signalSpeed;
-			(*tw_out) << "Window Speed = " << signalSpeed << std::endl;
-		}
-
-		if (com1=="moving") // eg, moving window = yes
-		{
-			inputString >> word >> word >> word;
-			movingWindow = (word=="yes" || word=="on" || word=="true");
-			(*tw_out) << "Moving Window = " << movingWindow << std::endl;
-		}
-
-		if (com1=="append")
-		{
-			inputString >> word >> word >> word;
-			appendMode = (word=="on" || word=="true" || word=="yes");
 		}
 
 	} while (!inputString.eof());

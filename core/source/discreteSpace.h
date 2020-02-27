@@ -4,17 +4,27 @@ namespace tw
 	{
 		// boundary conditions for particles
 		enum class par {none,periodic,reflecting,absorbing,emitting,axisymmetric};
+		inline std::map<std::string,par> par_map()
+		{
+			std::map<std::string,par> ans = {{"periodic",par::periodic},{"reflecting",par::reflecting},{"absorbing",par::absorbing},{"open",par::absorbing},{"emitting",par::emitting},{"axisymmetric",par::axisymmetric}};
+			return ans;
+		}
 		// boundary conditions for fields
 		enum class fld	{none,periodic,normalFluxFixed,dirichletWall,neumannWall,dirichletCell,natural};
+		inline std::map<std::string,fld> fld_map()
+		{
+			std::map<std::string,fld> ans = {{"periodic",fld::periodic},{"neumann",fld::neumannWall},{"dirichlet",fld::dirichletCell},{"open",fld::natural}};
+			return ans;
+		}
 	}
-	namespace dom
+	namespace grid
 	{
 		enum geometry {cartesian,cylindrical,spherical};
 		enum axis { tAxis , xAxis , yAxis , zAxis }; // (x,y,z) map to (r,phi,z) or (r,phi,theta) in cases of curvilinear geometry
 		enum side { low , high };
-		inline tw::Int naxis(const tw::dom::axis& axis)
+		inline tw::Int naxis(const tw::grid::axis& axis)
 		{
-			std::map<tw::dom::axis,tw::Int> M = {{tAxis,0},{xAxis,1},{yAxis,2},{zAxis,3}};
+			std::map<tw::grid::axis,tw::Int> M = {{tAxis,0},{xAxis,1},{yAxis,2},{zAxis,3}};
 			return M[axis];
 		}
 

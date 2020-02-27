@@ -32,40 +32,20 @@ Field solver modules have priority 3 in the update sequence.
 	Installs a general electrostatic field solver.  Inhomogeneous boundary conditions are imposed using
 	:ref:`Conductor <conductor>` objects.  Conductor objects may fill either ghost cells or interior cells.
 	The topology of conductor objects is unrestricted.  However, elliptical solvers have varying restrictions
-	on the complexity of the topology.
+	on the complexity of the topology.  An elliptic solver tool is required.
 
 	:param block directives: The following directives are supported:
 
-		.. py:function:: poisson boundary condition coord = ( bc1 , bc2 )
+		.. py:function:: get = name
 
-			:param enum coord: can be ``x``, ``y``, ``z``
-			:param enum bc1: boundary condition on lower side, can be ``open``, ``dirichlet``, ``neumann``.
-			:param enum bc2: boundary condition on lower side, can be ``open``, ``dirichlet``, ``neumann``.
-
-		.. py:function:: elliptical solver = slv
-
-		 	:param enum slv: can be one of the following:
-
-				* 1d - Allows variations along any single coordinate axis. Coordinate axis can be curvilinear. Exterior boundary conditions only.  Does not support ``open`` boundaries.
-				* iterative - Supports arbitrary coordinates in any dimension.  No restrictions on topology of boundary conditions.  Does not support ``open`` boundaries.
-				* facr - Cartesian coordinates, 2D or 3D.  Supports ``open`` boundaries along z-direction only.  Conductors affect only the z-boundaries.
-				* eigenmode - Cartesian or cylindrical coordinates, 2D only.  Supports ``open`` boundaries along z-direction only. Conductors affect only the z-boundaries.
+			:param str name: name of a previously defined elliptic solver
 
 .. _coulomb-solver:
 .. py:function:: new coulomb electromagnetic module { directives }
 
- 	Installs a Coulomb gauge electromagnetic field solver.  Similar to WAVE field solver, but assumes continuity of sources (no divergence cleaning structure).  Cartesian coordinates only.
+	Installs a Coulomb gauge electromagnetic field solver.  Similar to WAVE field solver, but assumes continuity of sources (no divergence cleaning structure).  Cartesian coordinates only.  An elliptic solver tool is required.  At present only the ``facr`` elliptic solver is recommended.
 
 	:param block directives: The following directives are supported:
-
-		.. py:function:: elliptical solver = slv
-
-			:param enum slv: At present only ``facr`` solver is recommended.
-
-		.. py:function:: poisson boundary condition z = ( bc1 , bc2 )
-
-			:param enum bc1: boundary condition on lower side, can be ``open``, ``dirichlet``, ``neumann``.
-			:param enum bc2: boundary condition on lower side, can be ``open``, ``dirichlet``, ``neumann``.
 
 		.. py:function::	dipole center = (x,y,z)
 
@@ -76,38 +56,26 @@ Field solver modules have priority 3 in the update sequence.
 		 	Reference gamma for initializing beam potentials
 
 
-.. py:function:: new curvilinear coulomb module { directives }
-
-	Disabled in all public versions up to present.
-
 .. _direct-solver:
 .. py:function:: new direct electromagnetic module { directives }
 
-	Create an EM module that advances Maxwell's curl equations directly, relying on continuity of sources to preserve divergence conditions.  The elliptical solver is only used for initialization.  Cartesian only.
+	Create an EM module that advances Maxwell's curl equations directly, relying on continuity of sources to preserve divergence conditions.  An elliptical solver is used for initialization.  Cartesian only.
 
 	:param block directives: The following directives are supported:
-
-		.. py:function:: elliptical solver = slv
-
-			:param enum slv: can be ``facr``, ``iterative``, or ``eigenmode``
 
 		.. py:function::	dipole center = (x,y,z)
 
 			Reference point for dipole moment diagnostic
 
-		.. py:function:: layer thickness = L
-
-			:param int L: number of cells (in a single strip) occupied by absorbing layers.  If moving window is in use, layers are not added to the z boundaries.
-
 		.. py:function:: layers = ( x0,x1,y0,y1,z0,z1 )
 
-			Allows for control of layers at each individual boundary wall.
+			thickness of absorbing layers.
 
 			:param int x0: number of cells in a single strip occupied by absorbing layers adjacent to the lower boundary in the x direction.  If 0 there are no PML media at this boundary.  Other 5 parameters are analogous.
 
-		.. py:function:: reflection coefficient = R
+		.. py:function:: reflection coefficient = Rx0 Rx1 Ry0 Ry1 Rz0 Rz1
 
-		 	:param float R: Desired fraction of AMPLITUDE reflected.  If actual reflection is larger than requested, try increasing the number of layers.
+		 	:param float Rx0: Desired fraction of AMPLITUDE reflected from lower x boundary.  If actual reflection is larger than requested, try increasing the number of layers. Other 5 parameters are analogous.
 
 .. py:function:: new curvilinear direct module { directives }
 
@@ -115,7 +83,7 @@ Field solver modules have priority 3 in the update sequence.
 
 .. py:function:: new pgc laser module { directives }
 
-	Create an enveloped field solver suitable for use with ponderomotive guiding center simulations.
+	Create an enveloped field solver suitable for use with ponderomotive guiding center simulations.  Requires a laser propagator tool.
 
 	:param block directives: The following directives are supported:
 
@@ -126,22 +94,6 @@ Field solver modules have priority 3 in the update sequence.
 		.. py:function::	polarization = p
 
 			:param enum p: can be ``linear``, ``circular``, or ``radial``
-
-		.. py:function:: propagator = prop
-
-			:param enum prop: can be ``eigenmode`` or ``adi``.  In cases of significant pump depletion ``eigenmode`` is highly recommended.
-
-		.. py:function:: modes = n
-
-			:param int n: maximum number of radial modes to keep (eigenmode propagator only)
-
-		.. py:function:: damping time = t
-
-			:param float t: e-folding time in the absorbing layers
-
-		.. py:function:: absorbing layers = l
-
-			:param int l: number of absorbing layers
 
 
 Particle Species

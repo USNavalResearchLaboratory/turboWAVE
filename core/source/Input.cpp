@@ -174,6 +174,11 @@ tw::input::DirectiveReader::~DirectiveReader()
 		delete pair.second;
 }
 
+void tw::input::DirectiveReader::Reset()
+{
+	keysFound.clear();
+}
+
 void tw::input::DirectiveReader::Add(const std::string& key,tw::input::Directive *dir)
 {
 	dmap[key] = dir;
@@ -196,7 +201,9 @@ std::string tw::input::DirectiveReader::ReadNext(std::stringstream& in)
 {
 	std::string word,key;
 	in >> key;
-	if (key=="}" || key=="new" || key=="get")
+	if (in.eof())
+		return "tw::EOF";
+	if (key=="}" || key=="new" || key=="get" || key=="generate" || key=="open")
 		return key;
 	tw::Int word_count = 0;
 	do
@@ -524,40 +531,6 @@ void tw::input::PythonRange(std::string& source,tw::Float *v0,tw::Float *v1)
 		*v1 = tw::big_pos;
 }
 
-// Read boundary conditions
-
-tw::bc::par tw::input::ConvertBoundaryString(std::string& theString)
-{
-	if (theString=="periodic" || theString=="cyclic")
-		return tw::bc::par::periodic;
-	if (theString=="reflective" || theString=="reflecting")
-		return tw::bc::par::reflecting;
-	if (theString=="absorbing" || theString=="open")
-		return tw::bc::par::absorbing;
-	if (theString=="emitting" || theString=="emissive")
-		return tw::bc::par::emitting;
-	if (theString=="axisymmetric" || theString=="axisymmetry")
-		return tw::bc::par::axisymmetric;
-
-	return tw::bc::par::periodic;
-}
-
-void tw::input::ReadBoundaryTerm(tw::bc::par *low,tw::bc::par *high,std::stringstream& theString,const std::string& command)
-{
-	std::string word;
-	tw::Int axis = 0;
-	if (command=="xboundary") axis = 1;
-	if (command=="yboundary") axis = 2;
-	if (command=="zboundary") axis = 3;
-	if (axis>0)
-	{
-		theString >> word >> word;
-		low[axis] = ConvertBoundaryString(word);
-		theString >> word;
-		high[axis] = ConvertBoundaryString(word);
-	}
-}
-
 void tw::input::NormalizeInput(const UnitConverter& uc,std::string& in_out)
 {
 	// To be used in preprocessing input file
@@ -645,32 +618,72 @@ void tw::input::NormalizeInput(const UnitConverter& uc,std::string& in_out)
 	}
 }
 
-bool tw::input::GetQuotedString(std::string& str)
+void tw::input::StripQuotes(std::string& str)
 {
-	bool isLeftQuote = str.front()=='\'' || str.front()=='\"';
-	bool isRightQuote = str.back()=='\'' || str.back()=='\"';
-	if (isLeftQuote && isRightQuote)
+	bool needed = false;
+	if (str.front()=='\'' && str.back()=='\'')
+		needed = true;
+	if (str.front()=='\"' && str.back()=='\"')
+		needed = true;
+	if (needed)
 	{
 		str.pop_back();
 		str = str.substr(1);
-		return true;
 	}
-	return false;
 }
 
-std::vector<std::string> tw::input::EnterInputFileBlock(std::stringstream& inputString,const std::string& end_tokens)
+tw::input::Preamble tw::input::EnterInputFileBlock(const std::string& com,std::stringstream& inputString,const std::string& end_tokens)
 {
+	tw::input::Preamble ans;
 	std::string word;
-	std::vector<std::string> preamble;
+	// Get the word list
 	do
 	{
 		inputString >> word;
 		if (end_tokens.find(word)==std::string::npos)
-			preamble.push_back(std::string(word));
+			ans.words.push_back(std::string(word));
 	} while (end_tokens.find(word)==std::string::npos && !inputString.eof());
+	ans.end_token = std::string(word);
+	// Form the contiguous string representation
+	ans.str = "";
+	for (auto s : ans.words)
+	{
+		if (ans.str!="")
+			ans.str = ans.str + " " + s;
+		else
+			ans.str = s;
+	}
+	ans.err_prefix = "While processing <"+ans.str+">: ";
 	if (inputString.eof())
-		throw tw::FatalError("Encountered EOF while processing key <"+preamble[0]+">");
-	return preamble;
+		throw tw::FatalError(ans.err_prefix+"encountered EOF.");
+	// Check to see if the for keyword is present and in the right position
+	if (ans.words.size()>2)
+		ans.attaching = (ans.words[ans.words.size()-2]=="for" ? true : false);
+	else
+		ans.attaching = false;
+	bool keywordFound = false;
+	for (auto s : ans.words)
+		if (s=="for")
+			keywordFound = true;
+	if (keywordFound && !ans.attaching)
+		throw tw::FatalError(ans.err_prefix+"misplaced keyword <for>.");
+	// Apply modifiers based on the command type
+	if (com=="generate")
+		ans.attaching = true;
+	// Get the object names
+	if (ans.attaching)
+	{
+		ans.obj_name = std::string(ans.words.front());
+		ans.owner_name = std::string(ans.words.back());
+	}
+	else
+	{
+		ans.obj_name = std::string(ans.words.back());
+		ans.owner_name = "";
+	}
+	tw::input::StripQuotes(ans.obj_name);
+	tw::input::StripQuotes(ans.owner_name);
+	return ans;
 }
 
 std::string tw::input::GetPhrase(const std::vector<std::string>& words,tw::Int num_words)

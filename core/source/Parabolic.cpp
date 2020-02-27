@@ -39,16 +39,16 @@ void LaserPropagator::SetBoundaryConditions(ComplexField& a0,ComplexField& a1,Co
 	yl = fld::neumannWall;
 	yh = fld::neumannWall;
 
-	a0.SetBoundaryConditions(tw::dom::xAxis,xl,xh);
-	a1.SetBoundaryConditions(tw::dom::xAxis,xl,xh);
-	a0.SetBoundaryConditions(tw::dom::yAxis,yl,yh);
-	a1.SetBoundaryConditions(tw::dom::yAxis,yl,yh);
+	a0.SetBoundaryConditions(tw::grid::xAxis,xl,xh);
+	a1.SetBoundaryConditions(tw::grid::xAxis,xl,xh);
+	a0.SetBoundaryConditions(tw::grid::yAxis,yl,yh);
+	a1.SetBoundaryConditions(tw::grid::yAxis,yl,yh);
 
 	xl = space->cyl==1.0 ? fld::neumannWall : fld::dirichletWall;
 
-	chi.SetBoundaryConditions(tw::dom::xAxis,xl,fld::dirichletCell);
-	chi.SetBoundaryConditions(tw::dom::yAxis,fld::dirichletCell,fld::dirichletCell);
-	chi.SetBoundaryConditions(tw::dom::zAxis,fld::dirichletCell,fld::dirichletCell);
+	chi.SetBoundaryConditions(tw::grid::xAxis,xl,fld::dirichletCell);
+	chi.SetBoundaryConditions(tw::grid::yAxis,fld::dirichletCell,fld::dirichletCell);
+	chi.SetBoundaryConditions(tw::grid::zAxis,fld::dirichletCell,fld::dirichletCell);
 }
 
 
@@ -349,9 +349,9 @@ void ADIPropagator::Advance(ComplexField& a0,ComplexField& a1,ComplexField& chi)
 				}
 
 				if (task->n0[1]==MPI_PROC_NULL)
-					a1.AdjustTridiagonalForBoundaries(tw::dom::xAxis,tw::dom::low,X1,X2,X3,src,tw::Complex(0.0));
+					a1.AdjustTridiagonalForBoundaries(tw::grid::xAxis,tw::grid::low,X1,X2,X3,src,tw::Complex(0.0));
 				if (task->n1[1]==MPI_PROC_NULL)
-					a1.AdjustTridiagonalForBoundaries(tw::dom::xAxis,tw::dom::high,X1,X2,X3,src,tw::Complex(0.0));
+					a1.AdjustTridiagonalForBoundaries(tw::grid::xAxis,tw::grid::high,X1,X2,X3,src,tw::Complex(0.0));
 
 				TriDiagonal(ans,src,X1,X2,X3);
 				for (i=1;i<=xDim;i++)
@@ -362,10 +362,10 @@ void ADIPropagator::Advance(ComplexField& a0,ComplexField& a1,ComplexField& chi)
 			}
 
 		xGlobalIntegrator->Parallelize();
-		a1.DownwardCopy(tw::dom::yAxis,1);
-		a1.UpwardCopy(tw::dom::yAxis,1);
-		a1.DownwardCopy(tw::dom::zAxis,1);
-		a1.UpwardCopy(tw::dom::zAxis,1);
+		a1.DownwardCopy(tw::grid::yAxis,1);
+		a1.UpwardCopy(tw::grid::yAxis,1);
+		a1.DownwardCopy(tw::grid::zAxis,1);
+		a1.UpwardCopy(tw::grid::zAxis,1);
 		a1.ApplyBoundaryCondition();
 	}
 
@@ -402,9 +402,9 @@ void ADIPropagator::Advance(ComplexField& a0,ComplexField& a1,ComplexField& chi)
 				}
 
 				if (task->n0[2]==MPI_PROC_NULL)
-					a1.AdjustTridiagonalForBoundaries(tw::dom::yAxis,tw::dom::low,Y1,Y2,Y3,src,tw::Complex(0.0));
+					a1.AdjustTridiagonalForBoundaries(tw::grid::yAxis,tw::grid::low,Y1,Y2,Y3,src,tw::Complex(0.0));
 				if (task->n1[2]==MPI_PROC_NULL)
-					a1.AdjustTridiagonalForBoundaries(tw::dom::yAxis,tw::dom::high,Y1,Y2,Y3,src,tw::Complex(0.0));
+					a1.AdjustTridiagonalForBoundaries(tw::grid::yAxis,tw::grid::high,Y1,Y2,Y3,src,tw::Complex(0.0));
 
 				TriDiagonal(ans,src,Y1,Y2,Y3);
 				for (j=1;j<=yDim;j++)
@@ -415,10 +415,10 @@ void ADIPropagator::Advance(ComplexField& a0,ComplexField& a1,ComplexField& chi)
 			}
 
 		yGlobalIntegrator->Parallelize();
-		a1.DownwardCopy(tw::dom::xAxis,1);
-		a1.UpwardCopy(tw::dom::xAxis,1);
-		a1.DownwardCopy(tw::dom::zAxis,1);
-		a1.UpwardCopy(tw::dom::zAxis,1);
+		a1.DownwardCopy(tw::grid::xAxis,1);
+		a1.UpwardCopy(tw::grid::xAxis,1);
+		a1.DownwardCopy(tw::grid::zAxis,1);
+		a1.UpwardCopy(tw::grid::zAxis,1);
 		a1.ApplyBoundaryCondition();
 	}
 
@@ -471,18 +471,18 @@ SchroedingerPropagator::~SchroedingerPropagator()
 			delete g;
 }
 
-void SchroedingerPropagator::DepositCurrent(const tw::dom::axis& axis,ComplexField& psi0,ComplexField& psi1,Field& A4,Field& J4,tw::Complex dt)
+void SchroedingerPropagator::DepositCurrent(const tw::grid::axis& axis,ComplexField& psi0,ComplexField& psi1,Field& A4,Field& J4,tw::Complex dt)
 {
 	// for J1,J2,J3, psi0 and psi1 should be the wavefunction before and after the corresponding one dimensional sweep, respectively
 	// for J0, this has to be called twice, with psi1 containing the wavefunction at the beginning of the time step on the first call, and at the end on the second call
 	// this is the conservative current evaluation from J. Comp. Phys. 280, 457 (2015)
 
-	const tw::Int ax=tw::dom::naxis(axis);
+	const tw::Int ax=tw::grid::naxis(axis);
 
 	if (imag(dt)!=0.0)
 		return;
 
-	if (axis==tw::dom::tAxis)
+	if (axis==tw::grid::tAxis)
 	{
 		#pragma omp parallel
 		{
@@ -514,9 +514,9 @@ void SchroedingerPropagator::DepositCurrent(const tw::dom::axis& axis,ComplexFie
 	}
 }
 
-void SchroedingerPropagator::ApplyNumerator(const tw::dom::axis& axis,ComplexField& psi,Field& A4,bool keepA2Term,tw::Complex dt)
+void SchroedingerPropagator::ApplyNumerator(const tw::grid::axis& axis,ComplexField& psi,Field& A4,bool keepA2Term,tw::Complex dt)
 {
-	const tw::Int ax = tw::dom::naxis(axis);
+	const tw::Int ax = tw::grid::naxis(axis);
 	const tw::Float partitionFactor = 1.0 / ((space->Dim(1)>1 ? 1.0 : 0.0) + (space->Dim(2)>1 ? 1.0 : 0.0) + (space->Dim(3)>1 ? 1.0 : 0.0));
 	const tw::Float A2Factor = keepA2Term ? 0.5 : 0.0;
 
@@ -555,9 +555,9 @@ void SchroedingerPropagator::ApplyNumerator(const tw::dom::axis& axis,ComplexFie
 	}
 }
 
-void SchroedingerPropagator::ApplyDenominator(const tw::dom::axis& axis,ComplexField& psi,Field& A4,bool keepA2Term,tw::Complex dt)
+void SchroedingerPropagator::ApplyDenominator(const tw::grid::axis& axis,ComplexField& psi,Field& A4,bool keepA2Term,tw::Complex dt)
 {
-	const tw::Int ax = tw::dom::naxis(axis);
+	const tw::Int ax = tw::grid::naxis(axis);
 	const tw::Int sDim = space->Dim(ax);
 	const tw::Float partitionFactor = 1.0 / ((space->Dim(1)>1 ? 1.0 : 0.0) + (space->Dim(2)>1 ? 1.0 : 0.0) + (space->Dim(3)>1 ? 1.0 : 0.0));
 	const tw::Float A2Factor = keepA2Term ? 0.5 : 0.0;
@@ -592,9 +592,9 @@ void SchroedingerPropagator::ApplyDenominator(const tw::dom::axis& axis,ComplexF
 				}
 
 				if (task->n0[1]==MPI_PROC_NULL)
-					psi.AdjustTridiagonalForBoundaries(axis,tw::dom::low,T1,T2,T3,src,tw::Complex(0.0));
+					psi.AdjustTridiagonalForBoundaries(axis,tw::grid::low,T1,T2,T3,src,tw::Complex(0.0));
 				if (task->n1[1]==MPI_PROC_NULL)
-					psi.AdjustTridiagonalForBoundaries(axis,tw::dom::high,T1,T2,T3,src,tw::Complex(0.0));
+					psi.AdjustTridiagonalForBoundaries(axis,tw::grid::high,T1,T2,T3,src,tw::Complex(0.0));
 
 				TriDiagonal(ans,src,T1,T2,T3);
 				for (tw::Int i=1;i<=sDim;i++)
@@ -688,12 +688,12 @@ inline void ParabolicSolver::FormOperatorStencil(tw::Float *D1,tw::Float *D2,con
 	*D2 *= fluxMask(s,i,0)*fluxMask(s,i+1,0);
 }
 
-void ParabolicSolver::Advance(const tw::dom::axis& axis,ScalarField& psi,ScalarField& fluxMask,tw::Float coeff,tw::Float dt)
+void ParabolicSolver::Advance(const tw::grid::axis& axis,ScalarField& psi,ScalarField& fluxMask,tw::Float coeff,tw::Float dt)
 {
 	// solve d(psi)/dt - coeff*div(grad(psi)) = 0
 	// solve on strips running parallel to axis
 
-	const tw::Int ax=tw::dom::naxis(axis);
+	const tw::Int ax=tw::grid::naxis(axis);
 	const tw::Int sDim=space->Dim(ax);
 
 	#pragma omp parallel
@@ -720,9 +720,9 @@ void ParabolicSolver::Advance(const tw::dom::axis& axis,ScalarField& psi,ScalarF
 			}
 
 			if (task->n0[ax]==MPI_PROC_NULL)
-				psi.AdjustTridiagonalForBoundaries(axis,tw::dom::low,T1,T2,T3,src,0.0);
+				psi.AdjustTridiagonalForBoundaries(axis,tw::grid::low,T1,T2,T3,src,0.0);
 			if (task->n1[ax]==MPI_PROC_NULL)
-				psi.AdjustTridiagonalForBoundaries(axis,tw::dom::high,T1,T2,T3,src,0.0);
+				psi.AdjustTridiagonalForBoundaries(axis,tw::grid::high,T1,T2,T3,src,0.0);
 
 			TriDiagonal(ans,src,T1,T2,T3);
 			for (tw::Int i=1;i<=sDim;i++)
@@ -744,16 +744,16 @@ void ParabolicSolver::Advance(ScalarField& psi,ScalarField& fluxMask,tw::Float c
 	// solve d(psi)/dt - coeff*div(grad(psi)) = 0
 
 	if (space->Dim(1)>1)
-		Advance(tw::dom::xAxis,psi,fluxMask,coeff,dt);
+		Advance(tw::grid::xAxis,psi,fluxMask,coeff,dt);
 
 	if (space->Dim(2)>1)
-		Advance(tw::dom::yAxis,psi,fluxMask,coeff,dt);
+		Advance(tw::grid::yAxis,psi,fluxMask,coeff,dt);
 
 	if (space->Dim(3)>1)
-		Advance(tw::dom::zAxis,psi,fluxMask,coeff,dt);
+		Advance(tw::grid::zAxis,psi,fluxMask,coeff,dt);
 }
 
-void ParabolicSolver::Advance(	const tw::dom::axis& axis,
+void ParabolicSolver::Advance(	const tw::grid::axis& axis,
 								Field& psi,
 								tw::Int psi_idx,
 								ScalarField& fluxMask,
@@ -767,7 +767,7 @@ void ParabolicSolver::Advance(	const tw::dom::axis& axis,
 	// solve on strips running parallel to axis
 	// in hydro operator splitting context, putting coeff1 inside time derivative would be incorrect
 
-	const tw::Int ax=tw::dom::naxis(axis);
+	const tw::Int ax=tw::grid::naxis(axis);
 	const tw::Int sDim=space->Dim(ax);
 
 	#pragma omp parallel
@@ -794,9 +794,9 @@ void ParabolicSolver::Advance(	const tw::dom::axis& axis,
 			}
 
 			if (task->n0[ax]==MPI_PROC_NULL)
-				psi.AdjustTridiagonalForBoundaries(Element(psi_idx),axis,tw::dom::low,T1,T2,T3,src,0.0);
+				psi.AdjustTridiagonalForBoundaries(Element(psi_idx),axis,tw::grid::low,T1,T2,T3,src,0.0);
 			if (task->n1[ax]==MPI_PROC_NULL)
-				psi.AdjustTridiagonalForBoundaries(Element(psi_idx),axis,tw::dom::high,T1,T2,T3,src,0.0);
+				psi.AdjustTridiagonalForBoundaries(Element(psi_idx),axis,tw::grid::high,T1,T2,T3,src,0.0);
 
 			TriDiagonal(ans,src,T1,T2,T3);
 			for (tw::Int i=1;i<=sDim;i++)
@@ -825,13 +825,13 @@ void ParabolicSolver::Advance(	Field& psi,
 	// solve coeff1*d(psi)/dt - div(coeff2*grad(psi)) = 0
 
 	if (space->Dim(1)>1)
-		Advance(tw::dom::xAxis,psi,psi_idx,fluxMask,coeff1,c1_idx,coeff2,c2_idx,dt);
+		Advance(tw::grid::xAxis,psi,psi_idx,fluxMask,coeff1,c1_idx,coeff2,c2_idx,dt);
 
 	if (space->Dim(2)>1)
-		Advance(tw::dom::yAxis,psi,psi_idx,fluxMask,coeff1,c1_idx,coeff2,c2_idx,dt);
+		Advance(tw::grid::yAxis,psi,psi_idx,fluxMask,coeff1,c1_idx,coeff2,c2_idx,dt);
 
 	if (space->Dim(3)>1)
-		Advance(tw::dom::zAxis,psi,psi_idx,fluxMask,coeff1,c1_idx,coeff2,c2_idx,dt);
+		Advance(tw::grid::zAxis,psi,psi_idx,fluxMask,coeff1,c1_idx,coeff2,c2_idx,dt);
 }
 
 

@@ -25,12 +25,11 @@ new grid
 	decomposition = ( 1 , 1 , 1 )
 }
 
-new coulomb electromagnetic module
+new coulomb electromagnetic module 'coul'
 {
-	poisson boundary condition = dirichlet neumann
 }
 
-new wave // probe
+new hermite gauss for 'coul' // probe
 {
 	a = 1e-3 0.0 0.0
 	r0 = ( 1e5 , 1e5 )
@@ -43,7 +42,7 @@ new wave // probe
 	direction = ( 0 , 0 , 1 )
 }
 
-new wave // pump
+new hermite gauss for 'coul' // pump
 {
 	a = 0.02 0.0 0.0
 	r0 = ( 1e5 , 1e5 )
@@ -56,12 +55,12 @@ new wave // pump
 	direction = ( 0 , 0 , -1 )
 }
 
-new species e
+new species 'e'
 {
 	mean free path = 0.06
 }
 
-generate piecewise e
+generate piecewise 'e'
 {
 	loading = deterministic
 	zpoints = { 0 100 1100 1200 }

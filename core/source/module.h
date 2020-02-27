@@ -55,7 +55,7 @@ struct Module:DiscreteSpace
 
 	virtual void VerifyInput();
 	virtual void ReadInputFileBlock(std::stringstream& inputString);
-	virtual bool ReadQuasitoolBlock(const std::vector<std::string>& preamble,std::stringstream& inputString);
+	virtual bool ReadQuasitoolBlock(const tw::input::Preamble& preamble,std::stringstream& inputString);
 	virtual void ReadInputFileDirective(std::stringstream& inputString,const std::string& command);
 	virtual void ReadData(std::ifstream& inFile);
 	virtual void WriteData(std::ofstream& outFile);
@@ -73,8 +73,8 @@ struct Module:DiscreteSpace
 
 	static bool SingularType(tw::module_type theType);
 	static tw::module_type CreateSupermoduleTypeFromSubmoduleKey(const std::string& key);
-	static bool QuasitoolNeedsModule(const std::vector<std::string>& preamble);
-	static tw::module_type CreateTypeFromInput(const std::vector<std::string>& preamble);
+	static bool QuasitoolNeedsModule(const tw::input::Preamble& preamble);
+	static tw::module_type CreateTypeFromInput(const tw::input::Preamble& preamble);
 	static Module* CreateObjectFromType(const std::string& name,tw::module_type theType,Simulation* sim);
 	static Module* CreateObjectFromFile(std::ifstream& inFile,Simulation* sim);
 };

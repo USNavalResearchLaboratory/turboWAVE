@@ -75,6 +75,7 @@ namespace tw
 		// Directive and its derivatives provide mainly the virtual function Read(...).
 		// Read(...) is invoked by the DirectiveReader class, which maintains a hash table of string-keys and pointers to Directive instances.
 		// This hash table is the basis for reading data from the input file.
+		void StripQuotes(std::string& str);
 		struct Directive
 		{
 			virtual void Read(std::stringstream& in,const std::string& key)
@@ -100,6 +101,7 @@ namespace tw
 			{
 				Directive::Read(in,key);
 				in >> *str;
+				StripQuotes(*str);
 			}
 		};
 		template <class T> // any type supported by input streams
@@ -128,16 +130,16 @@ namespace tw
 		{
 			Vec3(tw::vec3 *v) : Numbers<tw::Float>(&v->x,3) { ; }
 		};
-		template <class T>
+		template <class T,class N>
 		struct List : Directive
 		{
-			// This is designed to work only for T being a container of tw::Float types.
+			// T is a container type and N is a number type.
 			// The container has to support the resize method, and be subscriptable.
 			T *dat;
 			List(T *d) { dat=d; }
 			virtual void Read(std::stringstream& in,const std::string& key)
 			{
-				std::vector<tw::Float> temp;
+				std::vector<N> temp;
 				Directive::Read(in,key);
 				std::string word;
 				in >> word;
@@ -159,7 +161,7 @@ namespace tw
 		{
 			T *dat1,*dat2,*dat3;
 			std::map<std::string,T> emap;
-			Enums(std::map<std::string,T>& m,T* d1,T* d2=NULL,T* d3=NULL) : emap(m)
+			Enums(const std::map<std::string,T>& m,T* d1,T* d2=NULL,T* d3=NULL) : emap(m)
 			{
 				// must specify at least 1 data element, may specify up to 3.
 				dat1=d1; dat2=d2; dat3=d3;
@@ -207,10 +209,17 @@ namespace tw
 		public:
 			DirectiveReader();
 			~DirectiveReader();
+			void Reset();
 			void Add(const std::string& key,tw::input::Directive *dir);
 			std::string ReadNext(std::stringstream& in);
 			void ReadAll(std::stringstream& in);
 			bool TestKey(const std::string& test);
+		};
+		struct Preamble
+		{
+			bool attaching;
+			std::string str,obj_name,owner_name,end_token,err_prefix;
+			std::vector<std::string> words;
 		};
 
 		tw::Float GetUnitDensityCGS(std::stringstream& in);
@@ -226,42 +235,12 @@ namespace tw
 
 		void ReadRect(Region *ans,std::stringstream& source);
 
-		template <class T>
-		void ReadArray(std::valarray<T>& data,std::stringstream& inputString);
-
-		tw::bc::par ConvertBoundaryString(std::string& theString);
-
-		void ReadBoundaryTerm(tw::bc::par *low,tw::bc::par *high,std::stringstream& theString,const std::string& command);
-
 		void NormalizeInput(const UnitConverter& uc,std::string& in_out);
 
-		bool GetQuotedString(std::string& str);
-
-		std::vector<std::string> EnterInputFileBlock(std::stringstream& inputString,const std::string& end_tokens);
+		Preamble EnterInputFileBlock(const std::string& com,std::stringstream& inputString,const std::string& end_tokens);
 
 		void ExitInputFileBlock(std::stringstream& inputString,bool alreadyEntered);
 
 		std::string GetPhrase(const std::vector<std::string>& words,tw::Int num_words);
 	}
-}
-
-// Read curly braced sequence of numbers into "theArray"
-// Expects equals sign and opening brace still on the input stringstream
-
-template <class T>
-void tw::input::ReadArray(std::valarray<T>& theArray,std::stringstream& inputString)
-{
-	std::vector<T> temp;
-	std::string word;
-	inputString >> word >> word;
-	do
-	{
-		inputString >> word;
-		if (word!="}")
-			temp.push_back(std::stod(word,NULL));
-	} while (word!="}");
-
-	theArray.resize(temp.size());
-	for (tw::Int i=0;i<temp.size();i++)
-		theArray[i] = temp[i];
 }

@@ -255,7 +255,7 @@ struct Species:Module
 	void CalculateDensity(ScalarField& dens);
 
 	virtual void ReadInputFileDirective(std::stringstream& inputString,const std::string& command);
-	virtual bool ReadQuasitoolBlock(const std::vector<std::string>& preamble,std::stringstream& inputString);
+	virtual bool ReadQuasitoolBlock(const tw::input::Preamble& preamble,std::stringstream& inputString);
 	virtual void ReadData(std::ifstream& inFile);
 	virtual void WriteData(std::ofstream& outFile);
 	virtual void EnergyHeadings(std::ofstream& outFile);
