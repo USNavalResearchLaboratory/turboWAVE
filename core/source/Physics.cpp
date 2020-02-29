@@ -20,13 +20,13 @@ tw::Float sparc::CoulombCrossSection(const UnitConverter& uc,tw::Float q1,tw::Fl
 {
 	tw::Float rmin,rmax,rmin_alt,coulombLog,hbar;
 	hbar = uc.hbar / (uc.MKSValue(time_dim) * uc.MKSValue(energy_dim));
-	rmin = fabs(q1*q2)/(tw::small_pos + 4.0*pi*m12*v12*v12*uc.MKSValue(number_dim));
-	rmin_alt = hbar/(tw::small_pos + 2.0*m12*v12);
+	rmin = fabs(q1*q2)/(tw::small_pos + 4*pi*m12*v12*v12*uc.MKSValue(number_dim));
+	rmin_alt = hbar/(tw::small_pos + 2*m12*v12);
 	if (rmin_alt<rmin) rmin = rmin_alt;
-	rmax = 1.0/sqrt(tw::small_pos + N1*q1*q1/T1 + N2*q2*q2/T2);
+	rmax = 1/sqrt(tw::small_pos + N1*q1*q1/T1 + N2*q2*q2/T2);
 	coulombLog = log(rmax/rmin);
 	if (coulombLog<1.0) coulombLog = 1.0;
-	return (32.0/pi)*pow(v12,tw::Float(-4.0))*sqr(q1*q2/(4*pi*m12))*coulombLog/uc.MKSValue(number_dim);
+	return (32/pi)*pow(v12,-4)*sqr(q1*q2/(4*pi*m12))*coulombLog/uc.MKSValue(number_dim);
 }
 
 tw::Float sparc::ElectronPhononRateCoeff(const UnitConverter& uc,tw::Float Ti,tw::Float EFermi,tw::Float ks,tw::Float nref)
@@ -34,188 +34,61 @@ tw::Float sparc::ElectronPhononRateCoeff(const UnitConverter& uc,tw::Float Ti,tw
 	// here, the rate coefficient is collision frequency divided by a reference density
 	// this allows us to multiply away the collisions in regions where the metallic density is at "background level"
 	// get quantities into cgs
-	tw::Float vF = uc.c*100.0*sqrt(2.0*EFermi);
-	tw::Float qe = uc.SimToCGS(charge_dim,1.0);
+	tw::Float vF = uc.c*100*sqrt(2*EFermi);
+	tw::Float qe = uc.SimToCGS(charge_dim,1);
 	tw::Float kB_Ti = uc.SimToCGS(energy_dim,Ti);
 	tw::Float hbar = 1e7 * uc.hbar;
 	// collision frequency in real units
-	tw::Float nu = 2.0*ks*qe*qe*kB_Ti/(sqr(hbar)*vF);
+	tw::Float nu = 2*ks*qe*qe*kB_Ti/(sqr(hbar)*vF);
 	// return normalized rate coefficient
 	return (uc.CGSValue(time_dim)/nref) * nu;
 }
 
 //////////////////////////
 //                      //
-// Ionization Quasitool //
+//   Photoionization    //
 //                      //
 //////////////////////////
 
 
-IonizationData::IonizationData()
+Ionizer::Ionizer(const std::string& name,MetricSpace *m,Task *tsk) : ComputeTool(name,m,tsk)
 {
-	ionizationPotential = 1.0; // normalized to hydrogen
+	ionizationPotential = 1e-5; // in simulation units
 	electrons = 0;
 	protons = 0;
-	ionizationModel = tw::ionization_model::none;
-	adkMultiplier = 1.0;
-	pptMultiplier = 1.0;
-	C_ADK = C_ADK_AVG = C_PPT = nstar = 0.0;
-	terms = 3;
-	t_atomic = 1.0/4.13404e16;
-	E_atomic = 5.14203e11; // V/m
-	photons = 1;
-	w0 = 1.0;
-	E_MPI = 1.0;
+	multiplier = 1.0;
+	I1 = I2 = I3 = A1 = A2 = A3 = 0.0;
 	max_rate = tw::big_pos;
 	ionSpecies = 0;
 	electronSpecies = 0;
-}
-
-void IonizationData::Initialize(tw::Float unitDensity,tw::Float* carrierFrequency)
-{
-	tw::vec3 pos;
-	UnitConverter uc(unitDensity);
-
-	f_atomic_to_sim = uc.MKSValue(time_dim)/t_atomic;
-	E_sim_to_atomic = uc.MKSValue(electric_field_dim)/E_atomic;
-	tw::Float Z = protons - electrons + 1.0;
-	tw::Float Uion = 0.5*ionizationPotential; // put in a.u. for consistency of notation
-	nstar = Z / sqrt(2.0*Uion);
-	lstar = nstar - 1.0;
-
-	// Number of photons for simple MPI model
-
-	if (carrierFrequency)
-	{
-		w0 = (*carrierFrequency) / f_atomic_to_sim; // laser freq. in a.u.
-		photons = MyFloor(Uion/w0 + 1.0);
-	}
-
-	// ADK tunneling constants
-
-	C_ADK = pow(two*two*exp(one)*pow(Z,tw::Float(3.0))/pow(nstar,tw::Float(4.0)),two*nstar)/(tw::Float(8.0)*pi*Z);
-	C_ADK *= adkMultiplier;
-
-	C_ADK_AVG = C_ADK * sqrt(3.0*cub(nstar)/(pi*cub(Z)));
-
-	// PPT ionization constants
-
-	tw::Float C2 = pow(two,two*nstar) / (nstar*tgamma(nstar+lstar+one)*tgamma(nstar-lstar));
-	C_PPT = Uion * C2 * sqrt(6.0/pi) * pptMultiplier;
-}
-
-tw::Float IonizationData::wfunc(tw::Float x)
-{
-	// the argument of this function varies from 0 up to sqrt(2*terms)
-	// where terms is the number of terms kept in the ppt expansion
-	return 0.5 * exp(-x*x) * tw::erfi(x) * sqrt(pi);
-}
-
-tw::Float IonizationData::Echar()
-{
-	// return characteristic field in simulation units
-	const tw::Float Uion = 0.5*ionizationPotential; // put in a.u.
-	if (ionizationModel==tw::ionization_model::MPI)
-	{
-		return E_MPI/E_sim_to_atomic;
-	}
-	if (ionizationModel==tw::ionization_model::ADK)
-	{
-		return two*pow(two*Uion,one+half)/tw::Float(3.0)/E_sim_to_atomic;
-	}
-	if (ionizationModel==tw::ionization_model::PPT)
-	{
-		const tw::Float F0 = pow(two*Uion,one+half);
-		return two*F0/tw::Float(3.0)/E_sim_to_atomic;
-	}
-	return 0.0;
-}
-
-tw::Float IonizationData::Rate(tw::Float instant,tw::Float peak)
-{
-	tw::Int i;
-	tw::Float ans,C_EXP;
-	tw::Float Uion = 0.5*ionizationPotential; // put in a.u.
-	instant = fabs(instant)*E_sim_to_atomic;
-	peak = fabs(peak)*E_sim_to_atomic;
-
-	if (ionizationModel==tw::ionization_model::MPI)
-	{
-		ans = two*pi*w0*pow(peak/E_MPI,two*photons) / Factorial(photons-1);
-		if (ans > max_rate) ans = max_rate;
-		return ans*f_atomic_to_sim;
-	}
-	if (ionizationModel==tw::ionization_model::ADK)
-	{
-		ans = 0.0;
-		C_EXP = two*pow(two*Uion,one+half)/tw::Float(3.0);
-		instant += 0.01*C_EXP; // avoid underflow and divide by zero
-		peak += 0.01*C_EXP;
-		ans += C_ADK*pow(instant,one-two*nstar)*exp(-C_EXP/instant);
-		ans += C_ADK_AVG*pow(peak,one+half-two*nstar)*exp(-C_EXP/peak);
-		if (ans > max_rate) ans = max_rate;
-		return ans*f_atomic_to_sim;
-	}
-	if (ionizationModel==tw::ionization_model::PPT)
-	{
-		ans = 0.0;
-		if (peak>tw::small_pos)
-		{
-			tw::Float F0 = pow(two*Uion,one+half);
-			C_EXP = two*F0/tw::Float(3.0);
-			peak += 0.01*C_EXP; // avoid underflow and divide by zero
-			tw::Float gam = sqrt(2*Uion)*w0/peak;
-			tw::Float gam2 = gam*gam;
-			tw::Float alpha = 2.0*(asinh(gam) - gam/sqrt(1.0 + gam2));
-			tw::Float beta = 2.0*gam/sqrt(1.0 + gam2);
-			tw::Float g = (3.0/(2.0*gam))*((1.0 + 1.0/(2.0*gam2))*asinh(gam) - sqrt(1.0 + gam2)/(2.0*gam));
-			tw::Float nu = (Uion/w0)*(1.0 + 1.0/(2.0*gam2));
-			for (i=tw::Int(MyCeil(nu));i<tw::Int(MyCeil(nu))+terms;i++)
-				ans += exp(-alpha*(tw::Float(i)-nu))*wfunc(sqrt(beta*(tw::Float(i)-nu)));
-			ans *= (4.0/sqrt(3.0*pi)) * (gam2/(1.0 + gam2));
-			ans *= pow(peak*sqrt(one + gam2)/(two*F0),one+half);
-			ans *= pow(two*F0/peak,two*nstar); // coulomb correction
-			ans *= exp(-C_EXP*g/peak);
-			ans *= C_PPT;
-		}
-		if (ans > max_rate) ans = max_rate;
-		return ans*f_atomic_to_sim;
-	}
-	return 0.0;
-}
-
-void IonizationData::AddDirectives(tw::input::DirectiveReader& directives)
-{
 	// read ionspecies and electronspecies indices in Species::Initialize
 	// setup hydro indexing during Chemical::Initialize
 	directives.Add("ionization potential",new tw::input::Float(&ionizationPotential));
-	std::map<std::string,tw::ionization_model> imod = {{"none",tw::ionization_model::none},
-		{"adk",tw::ionization_model::ADK},{"ppt",tw::ionization_model::PPT},{"mpi",tw::ionization_model::MPI}};
-	directives.Add("ionization model",new tw::input::Enums<tw::ionization_model>(imod,&ionizationModel));
-	directives.Add("mpi reference field",new tw::input::Float(&E_MPI));
-	directives.Add("terms",new tw::input::Int(&terms));
 	directives.Add("protons",new tw::input::Float(&protons));
 	directives.Add("electrons",new tw::input::Float(&electrons));
-	directives.Add("adk multiplier",new tw::input::Float(&adkMultiplier));
-	directives.Add("ppt multiplier",new tw::input::Float(&pptMultiplier));
+	directives.Add("multiplier",new tw::input::Float(&multiplier));
 	directives.Add("saturated rate",new tw::input::Float(&max_rate));
 	directives.Add("ion species",new tw::input::String(&ion_name));
 	directives.Add("electron species",new tw::input::String(&electron_name));
 }
 
-void IonizationData::ReadData(std::ifstream& inFile)
+void Ionizer::Initialize()
 {
-	inFile.read((char *)&ionizationModel,sizeof(ionizationModel));
+	ComputeTool::Initialize();
+	Z = protons - electrons + 1;
+	Uion = space->units->SimToAtomic(energy_dim,ionizationPotential);
+	nstar = Z / sqrt(2*Uion);
+	lstar = nstar - 1;
+}
+
+void Ionizer::ReadData(std::ifstream& inFile)
+{
+	ComputeTool::ReadData(inFile);
 	inFile.read((char *)&ionizationPotential,sizeof(ionizationPotential));
 	inFile.read((char *)&electrons,sizeof(electrons));
 	inFile.read((char *)&protons,sizeof(protons));
-	inFile.read((char *)&adkMultiplier,sizeof(adkMultiplier));
-	inFile.read((char *)&pptMultiplier,sizeof(pptMultiplier));
-	inFile.read((char *)&photons,sizeof(photons));
-	inFile.read((char *)&w0,sizeof(w0));
-	inFile.read((char *)&E_MPI,sizeof(E_MPI));
+	inFile.read((char *)&multiplier,sizeof(multiplier));
 	inFile.read((char *)&max_rate,sizeof(max_rate));
-	inFile.read((char *)&terms,sizeof(terms));
 	inFile.read((char *)&ionSpecies,sizeof(ionSpecies));
 	inFile.read((char *)&electronSpecies,sizeof(electronSpecies));
 	inFile.read((char *)&hi,sizeof(hi));
@@ -223,25 +96,139 @@ void IonizationData::ReadData(std::ifstream& inFile)
 	inFile.read((char *)&hgas,sizeof(hgas));
 }
 
-void IonizationData::WriteData(std::ofstream& outFile)
+void Ionizer::WriteData(std::ofstream& outFile)
 {
-	outFile.write((char *)&ionizationModel,sizeof(ionizationModel));
+	ComputeTool::WriteData(outFile);
 	outFile.write((char *)&ionizationPotential,sizeof(ionizationPotential));
 	outFile.write((char *)&electrons,sizeof(electrons));
 	outFile.write((char *)&protons,sizeof(protons));
-	outFile.write((char *)&adkMultiplier,sizeof(adkMultiplier));
-	outFile.write((char *)&pptMultiplier,sizeof(pptMultiplier));
-	outFile.write((char *)&photons,sizeof(photons));
-	outFile.write((char *)&w0,sizeof(w0));
-	outFile.write((char *)&E_MPI,sizeof(E_MPI));
+	outFile.write((char *)&multiplier,sizeof(multiplier));
 	outFile.write((char *)&max_rate,sizeof(max_rate));
-	outFile.write((char *)&terms,sizeof(terms));
 	outFile.write((char *)&ionSpecies,sizeof(ionSpecies));
 	outFile.write((char *)&electronSpecies,sizeof(electronSpecies));
 	outFile.write((char *)&hi,sizeof(hi));
 	outFile.write((char *)&he,sizeof(he));
 	outFile.write((char *)&hgas,sizeof(hgas));
 }
+
+MPI::MPI(const std::string& name,MetricSpace *m,Task *tsk) : Ionizer(name,m,tsk)
+{
+	typeCode = tw::tool_type::mpi;
+	directives.Add("reference field",new tw::input::Float(&E_MPI));
+}
+
+void MPI::Initialize()
+{
+	A3 = space->units->SimToAtomic(electric_field_dim,E_MPI);
+}
+
+tw::Float MPI::AverageRate(tw::Float w0,tw::Float E)
+{
+	const tw::Float wa = space->units->SimToAtomic(angular_frequency_dim,w0); // laser freq. in a.u.
+	const tw::Float photons = MyFloor(Uion/wa + 1);
+	return multiplier*two*pi*w0*pow(fabs(E)/E_MPI,two*photons) / Factorial(photons-1);
+}
+
+void MPI::ReadData(std::ifstream& inFile)
+{
+	Ionizer::ReadData(inFile);
+	inFile.read((char *)&E_MPI,sizeof(E_MPI));
+}
+
+void MPI::WriteData(std::ofstream& outFile)
+{
+	Ionizer::WriteData(outFile);
+	outFile.write((char *)&E_MPI,sizeof(E_MPI));
+}
+
+ADK::ADK(const std::string& name,MetricSpace *m,Task *tsk) : Ionizer(name,m,tsk)
+{
+	typeCode = tw::tool_type::adk;
+}
+
+void ADK::Initialize()
+{
+	Ionizer::Initialize();
+	I1 = multiplier*pow(4*exp(1)*pow(Z,3)/pow(nstar,4),2*nstar)/(8*pi*Z);
+	I2 = 1 - 2*nstar;
+	I3 = 2*pow(2*Uion,tw::Float(1.5))/3;
+	A1 = I1 * sqrt(3*cub(nstar)/(pi*cub(Z)));
+	A2 = I2 + tw::Float(0.5);
+	A3 = I3;
+	I1 = space->units->AtomicToSim(angular_frequency_dim,I1);
+	A1 = space->units->AtomicToSim(angular_frequency_dim,A1);
+}
+
+tw::Float ADK::InstantRate(tw::Float w0,tw::Float E)
+{
+	const tw::Float Ea = space->units->SimToAtomic(electric_field_dim,fabs(E)) + 0.01;
+	return I1*pow(Ea,I2)*exp(-I3/Ea);
+}
+
+tw::Float ADK::AverageRate(tw::Float w0,tw::Float E)
+{
+	const tw::Float Ea = space->units->SimToAtomic(electric_field_dim,fabs(E)) + 0.01;
+	return A1*pow(Ea,A2)*exp(-A3/Ea);
+}
+
+PPT::PPT(const std::string& name,MetricSpace *m,Task *tsk) : Ionizer(name,m,tsk)
+{
+	typeCode = tw::tool_type::ppt;
+	terms = 1;
+	directives.Add("terms",new tw::input::Int(&terms));
+}
+
+tw::Float PPT::wfunc(tw::Float x)
+{
+	// the argument of this function varies from 0 up to sqrt(2*terms)
+	// where terms is the number of terms kept in the ppt expansion
+	return tw::Float(0.5) * exp(-x*x) * tw::erfi(x) * sqrt(pi);
+}
+
+void PPT::Initialize()
+{
+	Ionizer::Initialize();
+	const tw::Float F0 = pow(2*Uion,tw::Float(1.5));
+	A1 =  multiplier * Uion * (4/sqrt(3*pi)) * sqrt(6/pi) * pow(2,2*nstar) / (nstar*tgamma(nstar+lstar+1)*tgamma(nstar-lstar));
+	A3 = 2*F0/3;
+	A1 = space->units->AtomicToSim(angular_frequency_dim,A1);
+}
+
+tw::Float PPT::AverageRate(tw::Float w0,tw::Float E)
+{
+	tw::Float ans = 0.0;
+	const tw::Float wa = space->units->SimToAtomic(angular_frequency_dim,w0);
+	const tw::Float Ea = space->units->SimToAtomic(electric_field_dim,fabs(E)) + 0.01;
+	const tw::Float F0 = pow(2*Uion,tw::Float(1.5));
+	const tw::Float gam = sqrt(2*Uion)*wa/Ea;
+	const tw::Float gam2 = gam*gam;
+	const tw::Float alpha = 2*(asinh(gam) - gam/sqrt(1 + gam2));
+	const tw::Float beta = 2*gam/sqrt(1 + gam2);
+	const tw::Float g = (3/(2*gam))*((1 + 1/(2*gam2))*asinh(gam) - sqrt(1 + gam2)/(2*gam));
+	const tw::Float nu = (Uion/wa)*(1 + 1/(2*gam2));
+	const tw::Float dnu = MyCeil(nu)-nu;
+	for (tw::Int n=0;n<terms;n++)
+		ans += exp(-alpha*(n+dnu))*wfunc(sqrt(beta*(n+dnu)));
+	ans *= (gam2/(1 + gam2));
+	ans *= pow(Ea*sqrt(1 + gam2)/(2*F0),tw::Float(1.5));
+	ans *= pow(2*F0/Ea,2*nstar); // coulomb correction
+	ans *= exp(-A3*g/Ea);
+	ans *= A1;
+	return ans;
+}
+
+void PPT::ReadData(std::ifstream& inFile)
+{
+	Ionizer::ReadData(inFile);
+	inFile.read((char *)&terms,sizeof(terms));
+}
+
+void PPT::WriteData(std::ofstream& outFile)
+{
+	Ionizer::WriteData(outFile);
+	outFile.write((char *)&terms,sizeof(terms));
+}
+
 
 // ASHER_MOD
 
@@ -410,12 +397,12 @@ void EOSLinearMieGruneisen::AddPKV(ScalarField& IE, ScalarField& nm, ScalarField
 		{
 			const tw::Float nion = hydro(cell,hidx.ni);
 			const tw::Float partial_IE = IE(cell) * nion * mat.mass / nm(cell);
-			const tw::Float mu = nion/n0 - 1.0;
+			const tw::Float mu = nion/n0 - 1;
 			const tw::Float sel = tw::Float(mu>=0.0);
 			// Temperature is not treated as additive, worked out by parent object
 			// Pressure from <http://bluevistasw.com/2016/02/16/mie-gruneisen-eos-implementation/>
-			eos(cell,eidx.P) += (1.0-sel)*(mat.mass*n0*c0*c0*mu + GRUN*(mu+1.0)*partial_IE);
-			eos(cell,eidx.P) += sel*(mat.mass*n0*c0*c0*mu*(1.0 + (1.0 - GRUN*(mu+1.0)/2.0)*mu)/(1.0 - (S1-1.0)*mu) + GRUN*(mu+1.0)*partial_IE);
+			eos(cell,eidx.P) += (1-sel)*(mat.mass*n0*c0*c0*mu + GRUN*(mu+1)*partial_IE);
+			eos(cell,eidx.P) += sel*(mat.mass*n0*c0*c0*mu*(1 + (1 - GRUN*(mu+1)/2)*mu)/(1 - (S1-1)*mu) + GRUN*(mu+1)*partial_IE);
 			eos(cell,eidx.K) += mat.thermometricConductivity * mat.cvm * nion;
 			eos(cell,eidx.visc) += mat.kinematicViscosity * mat.mass * nion;
 		}
@@ -491,7 +478,7 @@ void EOSMixture::ComputeTemperature(ScalarField& IE, ScalarField& nm, Field& hyd
 			const tw::Float nmcv_sum = tw::small_pos + eosRef(cell,eidx.nmcv) + eos(cell,eidx.nmcv);
 
 			//eos(cell,eidx.T) = eosRef(cell,eidx.T) + 2.0*(IE1 - IE0)/nmcv_sum; // wrong
-			eos(cell,eidx.T) = eosRef(cell,eidx.T) + (IE1*(1.0+nm0/nm1) - IE0*(1.0+nm1/nm0))/nmcv_sum;
+			eos(cell,eidx.T) = eosRef(cell,eidx.T) + (IE1*(1+nm0/nm1) - IE0*(1+nm1/nm0))/nmcv_sum;
 			eos(cell,eidx.Tv) = (epsvn/(nv+tw::small_pos))/log(1.0001 + epsvn/(hydro(cell,hidx.x)+tw::small_pos));
 			nm(cell) = nm1;
 			IE(cell) = IE1;

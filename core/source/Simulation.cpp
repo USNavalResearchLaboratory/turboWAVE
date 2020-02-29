@@ -1026,6 +1026,9 @@ std::string Simulation::InputFileFirstPass()
 		if (!foundGrid && !foundRestart)
 			throw tw::FatalError("neither a grid directive nor a restart file was found");
 
+		if (outerDirectives.TestKey("unit density"))
+			AttachUnits(unitDensityCGS);
+
 		// Check integer viability
 		int64_t totalCellsPerRank = int64_t(globalCells[1])*int64_t(globalCells[2])*int64_t(globalCells[3])/int64_t(numRanksProvided);
 		if (totalCellsPerRank>=pow(2,31) && sizeof(tw::Int)==4)

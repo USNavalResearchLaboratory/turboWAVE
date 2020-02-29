@@ -205,7 +205,6 @@ struct Species:Module
 	tw::Float minimumDensity;
 	tw::Float accelerationTime,accelerationImpulse,accelerationForceNow;
 	tw::bc::par bc0[4],bc1[4];
-	IonizationData ionization;
 	bool mobile,radiationDamping;
 	tw::Float meanFreePath;
 	tw::Int count,sortPeriod;
@@ -217,6 +216,7 @@ struct Species:Module
 	std::vector<ParticleOrbitDescriptor*> orbitDiagnostic;
 	std::vector<ParticleDetectorDescriptor*> detector;
 
+	Ionizer* ionizer;
 	Field* EM; // Ex,Ey,Ez,Bx,By,Bz
 	Field* sources; // rho,Jx,Jy,Jz
 	Field* laser; // F0x,F0y,F0z,F1x,F1y,F1z,aa0,aa1
@@ -231,6 +231,7 @@ struct Species:Module
 	Species(const std::string& name,Simulation* sim);
 	virtual ~Species();
 	virtual bool InspectResource(void* resource,const std::string& description);
+	virtual void VerifyInput();
 	virtual void Initialize();
 	void AddParticle(const tw::vec3& p,const Primitive& q,const float& number);
 	void AddParticle(const TransferParticle& newParticle);

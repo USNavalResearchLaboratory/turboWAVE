@@ -28,9 +28,6 @@ Module::Module(const std::string& name,Simulation* sim)
 	typeCode = tw::module_type::none;
 	suppressNextUpdate = false;
 	DiscreteSpace::operator=(*sim);
-	// Any Module will recognize any on-the-fly ComputeTool key
-	// for (auto tool_key : ComputeTool::Map())
-	// 	directives.Add(tool_key.first,new tw::input::Custom);
 	// Any Module recognizes smoothing keys
 	directives.Add("smoothing",new tw::input::Numbers<tw::Int>(&smoothing[1],3));
 	directives.Add("compensation",new tw::input::Numbers<tw::Int>(&compensation[1],3));
@@ -243,42 +240,41 @@ bool Module::QuasitoolNeedsModule(const tw::input::Preamble& preamble)
 	return ans;
 }
 
+std::map<std::string,tw::module_type> Module::Map()
+{
+	return
+	{
+		{"direct",tw::module_type::directSolver},
+		{"curvilinear direct",tw::module_type::curvilinearDirectSolver},
+		{"coulomb",tw::module_type::coulombSolver},
+		{"electrostatic",tw::module_type::electrostatic},
+		{"quasistatic",tw::module_type::qsLaser},
+		{"pgc",tw::module_type::pgcLaser},
+		{"bound",tw::module_type::boundElectrons},
+		{"schroedinger",tw::module_type::schroedinger},
+		{"pauli",tw::module_type::pauli},
+		{"klein",tw::module_type::kleinGordon},
+		{"dirac",tw::module_type::dirac},
+		{"fluid",tw::module_type::fluidFields},
+		{"hydrodynamics",tw::module_type::sparcHydroManager},
+		{"group",tw::module_type::equilibriumGroup},
+		{"chemical",tw::module_type::chemical},
+		{"species",tw::module_type::species},
+		{"kinetics",tw::module_type::kinetics}
+	};
+}
+
 tw::module_type Module::CreateTypeFromInput(const tw::input::Preamble& preamble)
 {
-	if (preamble.words[0]=="curvilinear" && preamble.words[1]=="direct")
-		return tw::module_type::curvilinearDirectSolver;
-	if (preamble.words[0]=="coulomb")
-		return tw::module_type::coulombSolver;
-	if (preamble.words[0]=="electrostatic")
-		return tw::module_type::electrostatic;
-	if (preamble.words[0]=="direct")
-		return tw::module_type::directSolver;
-	if (preamble.words[0]=="quasistatic")
-		return tw::module_type::qsLaser;
-	if (preamble.words[0]=="pgc" || preamble.words[0]=="PGC")
-		return tw::module_type::pgcLaser;
-	if (preamble.words[0]=="bound")
-		return tw::module_type::boundElectrons;
-	if (preamble.words[0]=="schroedinger" || preamble.words[0]=="atomic")
-		return tw::module_type::schroedinger;
-	if (preamble.words[0]=="pauli")
-		return tw::module_type::pauli;
-	if (preamble.words[0]=="klein")
-		return tw::module_type::kleinGordon;
-	if (preamble.words[0]=="dirac")
-		return tw::module_type::dirac;
-	if (preamble.words[0]=="fluid")
-		return tw::module_type::fluidFields;
-	if (preamble.words[0]=="chemistry" || preamble.words[0]=="hydro" || preamble.words[0]=="hydrodynamics")
-		return tw::module_type::sparcHydroManager;
-	if (preamble.words[0]=="group")
-		return tw::module_type::equilibriumGroup;
-	if (preamble.words[0]=="chemical")
-		return tw::module_type::chemical;
-	if (preamble.words[0]=="species")
-		return tw::module_type::species;
-	if (preamble.words[0]=="kinetics")
-		return tw::module_type::kinetics;
+	// Look for a Module key on a preamble (words between new and opening brace) and return the type of module.
+	const tw::Int max_words = preamble.words.size();
+	std::map<std::string,tw::module_type> module_map = Module::Map();
+	for (tw::Int i=1;i<=max_words;i++)
+	{
+		std::string key(tw::input::GetPhrase(preamble.words,i));
+		if (module_map.find(key)!=module_map.end())
+			return module_map[key];
+	}
 	return tw::module_type::none;
 }
 

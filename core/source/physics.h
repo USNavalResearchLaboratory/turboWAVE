@@ -1,8 +1,3 @@
-namespace tw
-{
-	enum class ionization_model {none,ADK,PPT,MPI};
-}
-
 namespace sparc
 {
 	struct hydro_set
@@ -90,15 +85,12 @@ namespace sparc
 	tw::Float ElectronPhononRateCoeff(const UnitConverter& uc,tw::Float Ti,tw::Float EFermi,tw::Float ks,tw::Float nref);
 }
 
-struct IonizationData
+struct Ionizer : ComputeTool
 {
-	// this quasitool requires the owner to manage indexing of ionized species
-	tw::ionization_model ionizationModel;
+	// this tool requires the owner to manage indexing of ionized species
 	tw::Float ionizationPotential;
 	tw::Float electrons,protons;
-	tw::Float adkMultiplier,pptMultiplier;
-	tw::Float photons,w0,E_MPI,max_rate;
-	tw::Int terms;
+	tw::Float multiplier,max_rate;
 
 	// members determining species involved
 	std::string ion_name,electron_name;
@@ -106,17 +98,44 @@ struct IonizationData
 	sparc::hydro_set hi,he,hgas; // for hydro use the field indexing
 
 	// members that are assigned in Initialize or in constructor
-	tw::Float C_PPT,C_ADK,C_ADK_AVG,nstar,lstar;
-	tw::Float t_atomic,E_atomic,f_atomic_to_sim,E_sim_to_atomic;
+	tw::Float Z,Uion,nstar,lstar,I1,I2,I3,A1,A2,A3;
 
-	IonizationData();
-	void Initialize(tw::Float unitDensity,tw::Float* carrierFrequency);
+	Ionizer(const std::string& name,MetricSpace *m,Task *tsk);
+	virtual void Initialize();
+	virtual void ReadData(std::ifstream& inFile);
+	virtual void WriteData(std::ofstream& outFile);
+	virtual tw::Float InstantRate(tw::Float w0,tw::Float E) { return 0.0; }
+	virtual tw::Float AverageRate(tw::Float w0,tw::Float E) { return 0.0; }
+	tw::Float ThresholdEstimate() { return space->units->AtomicToSim(electric_field_dim,A3); }
+};
+
+struct MPI : Ionizer
+{
+	tw::Float E_MPI;
+	MPI(const std::string& name,MetricSpace *m,Task *tsk);
+	virtual void Initialize();
+	virtual void ReadData(std::ifstream& inFile);
+	virtual void WriteData(std::ofstream& outFile);
+	virtual tw::Float AverageRate(tw::Float w0,tw::Float E);
+};
+
+struct ADK : Ionizer
+{
+	ADK(const std::string& name,MetricSpace *m,Task *tsk);
+	virtual void Initialize();
+	virtual tw::Float InstantRate(tw::Float w0,tw::Float E);
+	virtual tw::Float AverageRate(tw::Float w0,tw::Float E);
+};
+
+struct PPT : Ionizer
+{
+	tw::Int terms;
+	PPT(const std::string& name,MetricSpace *m,Task *tsk);
+	virtual void Initialize();
+	virtual void ReadData(std::ifstream& inFile);
+	virtual void WriteData(std::ofstream& outFile);
+	virtual tw::Float AverageRate(tw::Float w0,tw::Float E);
 	tw::Float wfunc(tw::Float x);
-	tw::Float Rate(tw::Float instant,tw::Float peak);
-	tw::Float Echar();
-	void AddDirectives(tw::input::DirectiveReader& directives);
-	void ReadData(std::ifstream& inFile);
-	void WriteData(std::ofstream& outFile);
 };
 
 // DFG - redesigned to:

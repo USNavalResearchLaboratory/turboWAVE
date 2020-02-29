@@ -15,18 +15,18 @@ namespace tw
 	{
 		if (n==0) return j0(x);
 		if (n==1) return j1(x);
-		return 0.0;
+		return 0;
 	}
 
 	inline tw::Float hermite(tw::Int n,tw::Float x)
 	{
-		tw::Float y0 = 1.0;
-		tw::Float y1 = 2.0*x;
-		tw::Float y2 = n==0 ? 1.0 : 2.0*x;
+		tw::Float y0 = 1;
+		tw::Float y1 = 2*x;
+		tw::Float y2 = n==0 ? 1 : 2*x;
 		tw::Int i = 2;
 		while (i<=n)
 		{
-			y2 = 2.0*x*y1 - 2.0*tw::Float(i-1)*y0;
+			y2 = 2*x*y1 - 2*tw::Float(i-1)*y0;
 			y0 = y1;
 			y1 = y2;
 			i++;
@@ -102,7 +102,7 @@ namespace tw
 		z = tw::Complex(fabs(real(x)),imag(x));
 		t=two/(two+z);
 		ans=t*std::exp(-z*z-z0+t*(z1+t*(z2+t*(z3+t*(-z4+t*(z5+t*(-z6+t*(z7+t*(-z8+t*z9)))))))));
-		return real(x) >= 0.0 ? ans : tw::Complex(2.0-real(ans),imag(ans));
+		return real(x) >= 0.0 ? ans : tw::Complex(2-real(ans),imag(ans));
 	}
 
 	inline tw::Float erfi(const tw::Float x)

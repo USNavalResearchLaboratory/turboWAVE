@@ -88,3 +88,76 @@ ADI Propagator
 .. py:function:: new adi propagator [<optional keys>] [for] <name> { directives }
 
 	Uses alternating direction implicit method.  This is a fast propagator that works in arbitrary coordinates.  It has poor fidelity for highly dispersive systems.  There are no directives.
+
+PhotoIonization
+---------------
+
+Ionization Shared Directives
+,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+
+All the photoionization tools support the following directives:
+
+.. py:function:: ionization potential = ip
+
+	:param float ip: Ionization potential, units are specified as usual, e.g., ``ionization potential = %13.6eV``
+
+.. py:function:: saturated rate = sr
+
+ 	:param float sr: saturate the ionization rate at this value
+
+.. py:function:: protons = np
+
+ 	:param int np: number of protons in nucleus (not needed for mpi model ; currently used to form residual charge only)
+
+.. py:function:: electrons = ne
+
+ 	:param int ne: number of bound electrons (not needed for mpi model ; currently used to form residual charge only)
+
+.. py:function:: ion species = is_name
+
+	:param str is_name: name of a species to add a particle to upon ionization (usually positive charge)
+
+.. py:function:: electron species = es_name
+
+	:param str es_name: name of a species to add a particle to upon ionization (usually negative charge)
+
+Multi-photon Ionization
+,,,,,,,,,,,,,,,,,,,,,,,,
+
+Model appropriate for low fields or high frequencies.
+
+.. py:function:: new mpi ionization [<optional keys>] [for] <name> { directives }
+
+	The following directives are supported:
+
+		Shared directives: see above
+
+		.. py:function:: reference field = E0
+
+		 	:param float E0: :math:`E_0`, where the MPI rate is proportional to :math:`(E/E_0)^{2l}`
+
+ADK Tunneling Ionization
+,,,,,,,,,,,,,,,,,,,,,,,,,
+
+Model appropriate for high fields or low frequencies.
+
+.. py:function:: new adk ionization [<optional keys>] [for] <name> { directives }
+
+	The following directives are supported:
+
+		Shared directives: see above
+
+PPT Photoionization
+,,,,,,,,,,,,,,,,,,,,
+
+Cycle-averaged model that works across multi-photon and tunneling regimes.  Cannot be used for ionization due to carrier-resolved fields, i.e., must be used with an enveloped field solver.
+
+.. py:function:: new ppt ionization [<optional keys>] [for] <name> { directives }
+
+	The following directives are supported:
+
+		Shared directives: see above
+
+		.. py:function:: terms = n
+
+		 	:param int n: number of terms to keep in the PPT expansion.

@@ -343,7 +343,7 @@ void ComputeAlphasAndBetas(tw::comm *strip,tw::Int systems,T* mpi_packet)
 // 				dsn = i==0 ? -ds*L : ds;
 // 				source[i] = k[index-dsn+5] - k[index-dsn+2]*k[index] + k[index-dsn+2]*k[index+4]*k[index+5]/(tw::small_pos + k[index+2]);
 // 				a[i] = k[index-dsn+1];
-// 				b[i] = one - k[index-dsn+2]*k[index+3] + k[index-dsn+2]*k[index+1]*k[index+4]/(tw::small_pos + k[index+2]);
+// 				b[i] = 1 - k[index-dsn+2]*k[index+3] + k[index-dsn+2]*k[index+1]*k[index+4]/(tw::small_pos + k[index+2]);
 // 				c[i] = k[index-dsn+2]*k[index+4]/(tw::small_pos + k[index+2]);
 // 			}
 // 			TriDiagonal<T,T>(ans,source,a,b,c);
@@ -356,7 +356,7 @@ void ComputeAlphasAndBetas(tw::comm *strip,tw::Int systems,T* mpi_packet)
 // 				dsn = i==L ? -ds*L : ds;
 // 				source[i] = k[index+dsn] - k[index+dsn+3]*k[index+5] + k[index+dsn+3]*k[index+1]*k[index]/(tw::small_pos + k[index+3]);
 // 				a[i] = k[index+dsn+3]*k[index+1]/(tw::small_pos + k[index+3]);
-// 				b[i] = one - k[index+2]*k[index+dsn+3] + k[index+dsn+3]*k[index+1]*k[index+4]/(tw::small_pos + k[index+3]);
+// 				b[i] = 1 - k[index+2]*k[index+dsn+3] + k[index+dsn+3]*k[index+1]*k[index+4]/(tw::small_pos + k[index+3]);
 // 				c[i] = k[index+dsn+4];
 // 			}
 // 			TriDiagonal<T,T>(ans,source,a,b,c);

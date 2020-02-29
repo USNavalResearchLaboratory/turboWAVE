@@ -479,49 +479,6 @@ Equation of State Shared Directives
 
 			:param float s1: slope of the Hugoniot curve at the reference density
 
-.. _ionization:
-
-Ionization Shared Directives
-----------------------------
-
-.. py:function:: ionization potential = ip
-
-	:param float ip: ratio of ionization potential to that of hydrogen
-
-.. py:function:: ionization model = im
-
-	:param enum im: can be ``none``, ``adk``, ``ppt`` , or ``mpi``
-
-.. py:function:: mpi reference field = mrf
-
- 	:param float mrf: :math:`E_0`, where the MPI rate is :math:`(E/E_0)^{2l}`
-
-.. py:function:: saturated rate = sr
-
- 	:param float sr: saturate the ionization rate at this value
-
-.. py:function:: terms = n
-
- 	:param int n: number of terms to keep in the ppt expansion
-
-.. py:function:: protons = np
-
- 	:param int np: number of protons in nucleus (not needed for mpi model ; currently used to form residual charge only)
-
-.. py:function:: electrons = ne
-
- 	:param int ne: number of bound electrons (not needed for mpi model ; currently used to form residual charge only)
-
-.. py:function:: ion species = is_name
-
-	:param str is_name: name of a species to add a particle to upon ionization (usually positive charge)
-
-.. py:function:: electron species = es_name
-
-	:param str es_name: name of a species to add a particle to upon ionization (usually negative charge)
-
-
-
 .. _matter-loading:
 
 Matter Loading
@@ -611,7 +568,7 @@ The following directives may be used with any profile type
 Specific Matter Loading Profiles
 ,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
 
-.. py:function:: generate uniform name { directives }
+.. py:function:: generate uniform <name> { directives }
 
 	Generate uniform density within the clipping region.
 
@@ -625,7 +582,7 @@ Specific Matter Loading Profiles
 			:param float n0: density to load
 
 
-.. py:function:: generate piecewise name { directives }
+.. py:function:: generate piecewise <name> { directives }
 
 	Generate piecewise varying density within the clipping region.  The total density is the product of 3 piecewise functions:
 
@@ -672,7 +629,7 @@ Specific Matter Loading Profiles
 
 		 	Multiply final profile by :math:`\left[\cos(n_x x/2)\cos(n_y y/2)\cos(n_z z/2)\right]^2`
 
-.. py:function:: generate channel name { directives }
+.. py:function:: generate channel <name> { directives }
 
 	Generate density channel within the clipping region.  The defining formula is
 
@@ -710,7 +667,7 @@ Specific Matter Loading Profiles
 			:param float n6: see :math:`n_6` in defining formula
 
 
-.. py:function:: generate column name { directives }
+.. py:function:: generate column <name> { directives }
 
 	Generate density column within the clipping region.
 
@@ -732,7 +689,7 @@ Specific Matter Loading Profiles
 			:param float sy: radius of column, per :math:`\sigma_y` in defining formula.
 			:param float sz: ignored.
 
-.. py:function:: generate gaussian name { directives }
+.. py:function:: generate gaussian <name> { directives }
 
 	Generate a Gaussian ellipsoid within the clipping region.
 
@@ -972,7 +929,7 @@ Specific Diagnostics
 			:param bool tst: if true the point moves with the window
 
 
-.. py:function:: new phase space plot for species_name { directives }
+.. py:function:: new phase space plot for <species_name> { directives }
 
 	Diagnostic to write out 2D phase space projections.
 	Phase space variables include ``x``, ``y``, ``z``, ``px``, ``py``, ``pz``, ``mass``, ``energy``
@@ -1007,7 +964,7 @@ Specific Diagnostics
 			:param int Ny: the number of cells in the y direction for the phase space grid
 
 
-.. py:function:: new orbit diagnostic for species_name
+.. py:function:: new orbit diagnostic for <species_name>
 
 	Diagnostic to write out full phase space data of the particles.
 

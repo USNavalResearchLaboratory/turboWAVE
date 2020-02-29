@@ -48,11 +48,11 @@ LKFLAGS = /Fetw3d /Zi
 LKFLAGS = /Fetw3d /Zi
 !ENDIF
 
-BASE_HEADERS = definitions.h tasks.h ctools.h 3dmath.h tw_iterator.h discreteSpace.h metricSpace.h functions.h fft.h numerics.h 3dfields.h region.h input.h
+BASE_HEADERS = definitions.h tasks.h ctools.h 3dmath.h tw_iterator.h discreteSpace.h metricSpace.h functions.h fft.h numerics.h 3dfields.h region.h input.h units.h
 TOOL_HEADERS = computeTool.h parabolic.h elliptic.h hyperbolic.h injection.h physics.h chemistry.h diagnostics.h
 SIM_HEADERS = $(BASE_HEADERS) $(TOOL_HEADERS) module.h simulation.h
 MODULE_HEADERS = fieldSolve.h electrostatic.h laserSolve.h fluid.h quantum.h particles.h solidState.h
-OBJ_LIST = 3DFields.obj Chemistry.obj ComputeTool.obj Diagnostics.obj DiscreteSpace.obj Electrostatic.obj Elliptic.obj FFT.obj FieldSolve.obj Fluid.obj Functions.obj Hyperbolic.obj Injection.obj Input.obj LaserSolve.obj Main.obj MetricSpace.obj Module.obj Numerics.obj Parabolic.obj Particles.obj Physics.obj Pusher.obj Quantum.obj Region.obj Simulation.obj SolidState.obj Tasks.obj TW_MPI.obj
+OBJ_LIST = 3DFields.obj Chemistry.obj ComputeTool.obj Diagnostics.obj DiscreteSpace.obj Electrostatic.obj Elliptic.obj FFT.obj FieldSolve.obj Fluid.obj Functions.obj Hyperbolic.obj Injection.obj Input.obj LaserSolve.obj Main.obj MetricSpace.obj Module.obj Numerics.obj Parabolic.obj Particles.obj Physics.obj Pusher.obj Quantum.obj Region.obj Simulation.obj SolidState.obj Tasks.obj TW_MPI.obj Units.obj
 
 all: tw3d copy_files
 
@@ -153,3 +153,6 @@ Tasks.obj: Tasks.cpp $(BASE_HEADERS)
 
 TW_MPI.obj: TW_MPI.cpp $(BASE_HEADERS)
 	$(TW_Compiler) $(CCFLAGS) TW_MPI.cpp
+
+Units.obj: Units.cpp $(BASE_HEADERS)
+	$(TW_Compiler) $(CCFLAGS) Units.cpp

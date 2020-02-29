@@ -30,13 +30,19 @@ Fluid::Fluid(const std::string& name,Simulation* sim):Module(name,sim)
 	laser = NULL;
 	chi = NULL;
 	carrierFrequency = NULL;
+	ionizer = NULL;
 
 	directives.Add("charge",new tw::input::Float(&charge));
 	directives.Add("mass",new tw::input::Float(&mass));
 	directives.Add("neutral cross section",new tw::input::Float(&enCrossSection));
 	directives.Add("initial ionization fraction",new tw::input::Float(&initialIonizationFraction));
 	directives.Add("coulomb collisions",new tw::input::Bool(&coulombCollisions));
-	ionization.AddDirectives(directives);
+}
+
+Fluid::~Fluid()
+{
+	if (ionizer!=NULL)
+		owner->RemoveTool(ionizer);
 }
 
 bool Fluid::InspectResource(void* resource,const std::string& description)
@@ -74,10 +80,19 @@ bool Fluid::InspectResource(void* resource,const std::string& description)
 	return false;
 }
 
+void Fluid::VerifyInput()
+{
+	for (auto tool : moduleTool)
+	{
+		ionizer = dynamic_cast<Ionizer*>(tool);
+		if (ionizer!=NULL)
+			break;
+	}
+}
+
 void Fluid::Initialize()
 {
 	Module::Initialize();
-	ionization.Initialize(owner->unitDensityCGS,carrierFrequency);
 
 	if (owner->restarted)
 		return;
@@ -205,7 +220,7 @@ void Fluid::MoveWindow()
 			incomingGas = incomingPlasma[0] = incomingPlasma[1] = incomingPlasma[2] = incomingPlasma[3] = 0.0;
 			for (tw::Int p=0;p<profile.size();p++)
 			{
-				if (ionization.ionizationModel==tw::ionization_model::none)
+				if (ionizer==NULL)
 					incomingPlasma[0] += profile[p]->GetValue(pos,*owner);
 				else
 				{
@@ -419,14 +434,14 @@ void Fluid::Update()
 
 	// Ionization
 
-	if (ionization.ionizationModel!=tw::ionization_model::none)
+	if (ionizer!=NULL)
 	{
 		for (tw::Int i=lfg[1];i<=ufg[1];i++)
 			for (tw::Int j=lfg[2];j<=ufg[2];j++)
 				for (tw::Int k=lfg[3];k<=ufg[3];k++)
 				{
 					field = sqrt(sqr((*EM)(i,j,k,0))+sqr((*EM)(i,j,k,1))+sqr((*EM)(i,j,k,2)));
-					ionizedDensity = gas(i,j,k)*dt*ionization.Rate(field,0.0);
+					ionizedDensity = gas(i,j,k)*dt*ionizer->InstantRate(1e-6,field);
 					if (ionizedDensity > gas(i,j,k))
 						ionizedDensity = gas(i,j,k);
 					gas(i,j,k) = fabs(gas(i,j,k) - ionizedDensity);
@@ -497,7 +512,6 @@ void Fluid::Update()
 void Fluid::ReadData(std::ifstream& inFile)
 {
 	Module::ReadData(inFile);
-	ionization.ReadData(inFile);
 	inFile.read((char *)&charge,sizeof(tw::Float));
 	inFile.read((char *)&mass,sizeof(tw::Float));
 	inFile.read((char *)&thermalMomentum,sizeof(tw::Float));
@@ -514,7 +528,6 @@ void Fluid::ReadData(std::ifstream& inFile)
 void Fluid::WriteData(std::ofstream& outFile)
 {
 	Module::WriteData(outFile);
-	ionization.WriteData(outFile);
 	outFile.write((char *)&charge,sizeof(tw::Float));
 	outFile.write((char *)&mass,sizeof(tw::Float));
 	outFile.write((char *)&thermalMomentum,sizeof(tw::Float));
@@ -572,7 +585,7 @@ Chemical::Chemical(const std::string& name,Simulation* sim):Module(name,sim)
 	mat.eps[0] = 1.0;
 	mat.eps[1] = 0.0;
 	eosData = NULL;
-	ionization.AddDirectives(directives);
+	ionizer = NULL;
 	mat.AddDirectives(directives);
 }
 
@@ -581,6 +594,8 @@ Chemical::~Chemical()
 {
 	if (eosData!=NULL)
 		owner->RemoveTool(eosData);
+	if (ionizer!=NULL)
+		owner->RemoveTool(ionizer);
 }
 
 void Chemical::Initialize()
@@ -589,22 +604,20 @@ void Chemical::Initialize()
 	group = (EquilibriumGroup*)super; // used a lot, so we define a member
 	sparc::HydroManager *master = (sparc::HydroManager*)(super->super); // only used here, local variable
 	Module::Initialize();
-	// DFG - the ionization object is what I now call a quasi-tool
-	// This concept may be retired at some point, we will see.
-	if (ionization.ionizationModel!=tw::ionization_model::none)
+	// DFG - the ionization object is now a ComputeTool
+	if (ionizer!=NULL)
 	{
-		ionization.Initialize(owner->unitDensityCGS,&master->laserFrequency);
 		// Setup the indexing for photoionization here (ionization tool cannot do it)
 		// By this point HydroManager has set up indexing for all its submodules, so we can use that data.
 		// N.b. that the the group pointer for other Chemical objects may not be setup yet.
-		Chemical *echem = (Chemical*)owner->GetModule(ionization.electron_name);
-		Chemical *ichem = (Chemical*)owner->GetModule(ionization.ion_name);
-		ionization.hgas = group->hidx;
-		ionization.hgas.ni = indexInState;
-		ionization.he = ((EquilibriumGroup*)echem->super)->hidx;
-		ionization.he.ni = echem->indexInState;
-		ionization.hi = ((EquilibriumGroup*)ichem->super)->hidx;
-		ionization.hi.ni = ichem->indexInState;
+		Chemical *echem = (Chemical*)owner->GetModule(ionizer->electron_name);
+		Chemical *ichem = (Chemical*)owner->GetModule(ionizer->ion_name);
+		ionizer->hgas = group->hidx;
+		ionizer->hgas.ni = indexInState;
+		ionizer->he = ((EquilibriumGroup*)echem->super)->hidx;
+		ionizer->he.ni = echem->indexInState;
+		ionizer->hi = ((EquilibriumGroup*)ichem->super)->hidx;
+		ionizer->hi.ni = ichem->indexInState;
 	}
 	// Have to send indexing data to EOS
 	eosData->SetupIndexing(indexInState,group->hidx,group->eidx,mat);
@@ -727,8 +740,15 @@ void Chemical::VerifyInput()
 		if (eosData!=NULL)
 			break;
 	}
-	// If the tool could not be found, create one automatically.
+	for (auto tool : moduleTool)
+	{
+		ionizer = dynamic_cast<Ionizer*>(tool);
+		if (ionizer!=NULL)
+			break;
+	}
+	// If the EOS tool could not be found, create one automatically.
 	// Another approach would be to throw an error, if we want to force the user to be explicit (this would break old input files).
+	// Ionization tool is optional, so if one was not found do nothing.
 	if (eosData==NULL)
 	{
 		if (mat.mass==1.0)
@@ -741,7 +761,6 @@ void Chemical::VerifyInput()
 void Chemical::ReadData(std::ifstream& inFile)
 {
 	Module::ReadData(inFile);
-	ionization.ReadData(inFile);
 	inFile.read((char *)&mat,sizeof(mat));
 	inFile.read((char *)&indexInState,sizeof(indexInState));
 }
@@ -749,7 +768,6 @@ void Chemical::ReadData(std::ifstream& inFile)
 void Chemical::WriteData(std::ofstream& outFile)
 {
 	Module::WriteData(outFile);
-	ionization.WriteData(outFile);
 	outFile.write((char *)&mat,sizeof(mat));
 	outFile.write((char *)&indexInState,sizeof(indexInState));
 }
@@ -1405,14 +1423,13 @@ void sparc::HydroManager::ComputeRadiativeSources()
 				for (auto grp : group)
 					for (auto chem : grp->chemical)
 					{
-						IonizationData& ionization = chem->ionization;
-						if (ionization.ionizationModel!=tw::ionization_model::none)
+						if (chem->ionizer!=NULL)
 						{
 							const tw::Float Emag = sqrt(norm(laserAmplitude(cell)));
-							const tw::Float photoRate = state1(cell,ionization.hgas.ni)*ionization.Rate(0.0,Emag);
-							DestroyMass(cell,photoRate,ionization.hgas);
-							CreateMass(cell,photoRate,ionization.hi);
-							CreateMass(cell,photoRate,ionization.he);
+							const tw::Float photoRate = state1(cell,chem->ionizer->hgas.ni)*chem->ionizer->AverageRate(laserFrequency,Emag);
+							DestroyMass(cell,photoRate,chem->ionizer->hgas);
+							CreateMass(cell,photoRate,chem->ionizer->hi);
+							CreateMass(cell,photoRate,chem->ionizer->he);
 						}
 					}
 

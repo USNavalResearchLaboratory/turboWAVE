@@ -15,7 +15,7 @@ struct Fluid:Module
 	// temporaries used in Update
 	Field vel; // gammaAvg,v1,v2,v3
 
-	IonizationData ionization;
+	Ionizer *ionizer;
 
 	Field *EM,*J4;
 	Field *laser;
@@ -23,7 +23,9 @@ struct Fluid:Module
 	tw::Float *carrierFrequency;
 
 	Fluid(const std::string& name,Simulation* sim);
+	~Fluid();
 	virtual bool InspectResource(void* resource,const std::string& description);
+	virtual void VerifyInput();
 	virtual void Initialize();
 	virtual void Update();
 	virtual void MoveWindow();
@@ -44,7 +46,7 @@ struct Chemical:Module
 {
 	EquilibriumGroup *group; // explictly typed super
 	EOSComponent *eosData;
-	IonizationData ionization;
+	Ionizer *ionizer;
 	sparc::material mat;
 	tw::Int indexInState;
 

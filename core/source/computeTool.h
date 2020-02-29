@@ -29,7 +29,9 @@ namespace tw
 		// Hyperbolic solvers
 		yeePropagatorPML, lorentzPropagator,
 		// Equation of state
-		eosData, eosIdealGas, eosHotElectrons, eosMixture, eosIdealGasMix, eosSimpleMieGruneisen, eosLinearMieGruneisen
+		eosData, eosIdealGas, eosHotElectrons, eosMixture, eosIdealGasMix, eosSimpleMieGruneisen, eosLinearMieGruneisen,
+		// Ionization
+		mpi, adk, ppt
 	};
 }
 

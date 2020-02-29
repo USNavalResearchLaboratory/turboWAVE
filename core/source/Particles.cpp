@@ -220,7 +220,7 @@ void Kinetics::Ionize()
 	// Ionized particle is being advanced in momentum from t = -1/2 to t = 1/2, and space from t = 0 to t = 1
 
 	weights_3D weights;
-	tw::Float instant,peak,a2,probability;
+	tw::Float w0,a2,probability;
 	std::valarray<tw::Float> temp(6),Fp(8);
 	tw::vec3 E,vel,momentum;
 	tw::Float gamma,m0,q0;
@@ -237,31 +237,33 @@ void Kinetics::Ionize()
 
 	for (tw::Int s=0;s<species.size();s++)
 	{
-		IonizationData& ionization = species[s]->ionization;
+		Ionizer *ionizer = species[s]->ionizer;
 		std::vector<Particle>& particle = species[s]->particle;
-		s1 = (Species*)owner->module[ionization.ionSpecies];
-		s2 = (Species*)owner->module[ionization.electronSpecies];
+		s1 = (Species*)owner->module[ionizer->ionSpecies];
+		s2 = (Species*)owner->module[ionizer->electronSpecies];
 		m0 = species[s]->restMass;
 		q0 = species[s]->charge;
 
-		if (ionization.ionizationModel!=tw::ionization_model::none)
+		if (ionizer!=NULL)
 		{
 			for (tw::Int i=0;i<particle.size();i++)
 			{
 				Particle& curr = particle[i]; // curr = particle being ionized
 				owner->GetWeights(&weights,curr.q);
-				peak = instant = a2 = 0.0;
+				probability = a2 = 0.0;
 				if (species[s]->laser)
 				{
 					species[s]->laser->Interpolate(Fp,Element(6),weights);
 					a2 = Fp[6];
-					instant = theLaserSolver->polarizationType==circularPolarization ? (*species[s]->carrierFrequency)*sqrt(0.5*a2) : 0.0;
-					peak = theLaserSolver->polarizationType==circularPolarization ? 0.0 : (*species[s]->carrierFrequency)*sqrt(a2);
+					w0 = *species[s]->carrierFrequency;
+					if (theLaserSolver->polarizationType==circularPolarization)
+						probability += dt*ionizer->InstantRate(w0,w0*sqrt(0.5*a2));
+					else
+						probability += dt*ionizer->AverageRate(w0,w0*sqrt(a2));
 				}
 				species[s]->EM->Interpolate(temp,Element(0,2),weights);
 				E.x = temp[0]; E.y = temp[1]; E.z = temp[2];
-				instant += Magnitude(E);
-				probability = ionization.Rate(instant,peak)*dt;
+				probability += dt*ionizer->InstantRate(1e-6,Magnitude(E));
 				gamma = sqrt(1.0 + Norm(curr.p)/(m0*m0) + 0.5*sqr(q0)*a2/(m0*m0));
 				// Starting velocity is that of the neutral
 				vel = curr.p/(gamma*m0);
@@ -274,8 +276,8 @@ void Kinetics::Ionize()
 
 					// For the electron, add the velocity accounting for depletion of the field due to ionization energy.
 					// This comes from a displacement satisfying dr.QE = dU, where dU = ionization energy.
-					const tw::Float dU = 2.66e-5 * ionization.ionizationPotential;
-					const tw::Float failsafe = sqr(0.01*ionization.Echar());
+					const tw::Float dU = ionizer->ionizationPotential;
+					const tw::Float failsafe = sqr(0.01*ionizer->ThresholdEstimate());
 					const tw::vec3 dr = E*dU/(s2->charge*curr.number*(Norm(E)+failsafe));
 
 					momentum = s2->restMass*gamma*(vel+dr/dt);
@@ -416,6 +418,8 @@ Species::Species(const std::string& name,Simulation* sim) : Module(name,sim)
 	mobile = true;
 	radiationDamping = false;
 
+	ionizer = NULL;
+
 	EM = NULL;
 	sources = NULL;
 	laser = NULL;
@@ -426,7 +430,6 @@ Species::Species(const std::string& name,Simulation* sim) : Module(name,sim)
 	ESField = NULL;
 	qo_j4 = NULL;
 
-	ionization.AddDirectives(directives);
 	directives.Add("xboundary",new tw::input::Enums<tw::bc::par>(tw::bc::par_map(),&bc0[1],&bc1[1]));
 	directives.Add("yboundary",new tw::input::Enums<tw::bc::par>(tw::bc::par_map(),&bc0[2],&bc1[2]));
 	directives.Add("zboundary",new tw::input::Enums<tw::bc::par>(tw::bc::par_map(),&bc0[3],&bc1[3]));
@@ -444,6 +447,8 @@ Species::Species(const std::string& name,Simulation* sim) : Module(name,sim)
 
 Species::~Species()
 {
+	if (ionizer!=NULL)
+		owner->RemoveTool(ionizer);
 	for (auto diag : phaseSpacePlot)
 		delete diag;
 	for (auto diag : orbitDiagnostic)
@@ -452,16 +457,25 @@ Species::~Species()
 		delete diag;
 }
 
+void Species::VerifyInput()
+{
+	for (auto tool : moduleTool)
+	{
+		ionizer = dynamic_cast<Ionizer*>(tool);
+		if (ionizer!=NULL)
+			break;
+	}
+}
+
 void Species::Initialize()
 {
 	Module::Initialize();
 	for (auto diag : phaseSpacePlot)
 		diag->SetupGeometry(owner->gridGeometry);
-	if (ionization.ionizationModel!=tw::ionization_model::none)
+	if (ionizer!=NULL)
 	{
-		ionization.Initialize(owner->unitDensityCGS,carrierFrequency);
-		ionization.electronSpecies = owner->FindModule(ionization.electron_name);
-		ionization.ionSpecies = owner->FindModule(ionization.ion_name);
+		ionizer->electronSpecies = owner->FindModule(ionizer->electron_name);
+		ionizer->ionSpecies = owner->FindModule(ionizer->ion_name);
 	}
 	if (!owner->restarted)
 	{
@@ -1163,7 +1177,6 @@ void Species::ReadData(std::ifstream& inFile)
 	tw::Int i,num;
 
 	Module::ReadData(inFile);
-	ionization.ReadData(inFile);
 	inFile.read((char *)&restMass,sizeof(tw::Float));
 	inFile.read((char *)&charge,sizeof(tw::Float));
 	inFile.read((char *)&emissionTemp,sizeof(tw::vec3));
@@ -1219,7 +1232,6 @@ void Species::WriteData(std::ofstream& outFile)
 	tw::Int i;
 
 	Module::WriteData(outFile);
-	ionization.WriteData(outFile);
 	outFile.write((char *)&restMass,sizeof(tw::Float));
 	outFile.write((char *)&charge,sizeof(tw::Float));
 	outFile.write((char *)&emissionTemp,sizeof(tw::vec3));

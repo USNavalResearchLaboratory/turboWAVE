@@ -23,9 +23,9 @@ profile: tw3d_profile copy_files
 
 # Uncomment exactly one platform
 
-PLATFORM = OSX
+#PLATFORM = OSX
 #PLATFORM = WIN
-#PLATFORM = LINUX
+PLATFORM = LINUX
 #PLATFORM = OPENMPI
 #PLATFORM = INTELMPI
 #PLATFORM = CRAY
@@ -309,11 +309,11 @@ tw3d_debug: tw3d
 tw3d_profile: CCFLAGS = $(PROFILE_FLAGS)
 tw3d_profile: tw3d
 
-BASE_HEADERS = definitions.h tasks.h ctools.h 3dmath.h tw_iterator.h discreteSpace.h metricSpace.h functions.h fft.h numerics.h 3dfields.h region.h input.h
+BASE_HEADERS = definitions.h tasks.h ctools.h 3dmath.h tw_iterator.h discreteSpace.h metricSpace.h functions.h fft.h numerics.h 3dfields.h region.h input.h units.h
 TOOL_HEADERS = computeTool.h parabolic.h elliptic.h hyperbolic.h injection.h physics.h chemistry.h diagnostics.h
 SIM_HEADERS = $(BASE_HEADERS) $(TOOL_HEADERS) module.h simulation.h
 MODULE_HEADERS = fieldSolve.h electrostatic.h laserSolve.h fluid.h quantum.h particles.h solidState.h
-OBJ_LIST = 3DFields.o Chemistry.o ComputeTool.o Diagnostics.o DiscreteSpace.o Electrostatic.o Elliptic.o FFT.o FieldSolve.o Fluid.o Functions.o Hyperbolic.o Injection.o Input.o LaserSolve.o Main.o MetricSpace.o Module.o Numerics.o Parabolic.o Particles.o Physics.o Pusher.o Quantum.o Region.o Simulation.o SolidState.o Tasks.o
+OBJ_LIST = 3DFields.o Chemistry.o ComputeTool.o Diagnostics.o DiscreteSpace.o Electrostatic.o Elliptic.o FFT.o FieldSolve.o Fluid.o Functions.o Hyperbolic.o Injection.o Input.o LaserSolve.o Main.o MetricSpace.o Module.o Numerics.o Parabolic.o Particles.o Physics.o Pusher.o Quantum.o Region.o Simulation.o SolidState.o Tasks.o Units.o
 ifdef TW_MPI
 	BASE_HEADERS += tw_mpi.h
 	OBJ_LIST += TW_MPI.o
@@ -435,3 +435,6 @@ ifdef TW_MPI
 TW_MPI.o: TW_MPI.cpp $(BASE_HEADERS)
 	$(TW_Compiler) $(CCFLAGS) TW_MPI.cpp
 endif
+
+Units.o: Units.cpp $(BASE_HEADERS)
+	$(TW_Compiler) $(CCFLAGS) Units.cpp

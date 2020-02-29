@@ -71,16 +71,15 @@ enum class strongbool { yes , no };
 
 static const tw::Float pi = 3.1415926535897932385;
 static const tw::Complex ii = tw::Complex(0,1);
-// The standard library doesn't allow binary operands to be std::complex<float> and double.
-// This presents problems due to the fact that all floating point literals are doubles.
-// Therefore, we define some trivial constants for convenience:
-static const tw::Float half = 0.5;
-static const tw::Float one = 1.0;
-static const tw::Float two = 2.0;
-static const tw::Float root2 = std::sqrt(two);
+// Define some trivial constants useful as binary operands with complex numbers.
+// This comes about because std::complex<T> binary operators do not perform automatic conversions.
+static const tw::Float one = tw::Float(1.0);
+static const tw::Float two = tw::Float(2.0);
+static const tw::Float half = tw::Float(0.5);
+static const tw::Float root2 = std::sqrt(2);
 namespace mks
 {
-	static const tw::Float c=2.9979e8,qe=1.6022e-19,me=9.1094e-31,eps0=8.8542e-12,kB=1.3807e-23,hbar=1.0546e-34;
+	static const tw::Float c=2.99792458e8,qe=1.6021766208e-19,me=9.10938356e-31,eps0=8.854187818e-12,kB=1.38064852e-23,hbar=1.0545718001e-34;
 }
 
 /////////////////////////////////

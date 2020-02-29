@@ -15,11 +15,14 @@ MetricSpace::MetricSpace()
 	I3x3[2][2] = 1;
 	#ifdef USE_OPENCL
 	metricsBuffer = NULL;
+	units = NULL;
 	#endif
 }
 
 MetricSpace::~MetricSpace()
 {
+	if (units!=NULL)
+		delete units;
 	#ifdef USE_OPENCL
 	if (metricsBuffer!=NULL)
 	{
@@ -30,6 +33,11 @@ MetricSpace::~MetricSpace()
 		clReleaseMemObject(stripBuffer[3]);
 	}
 	#endif
+}
+
+void MetricSpace::AttachUnits(tw::Float unitDensityCGS)
+{
+	units = new UnitConverter(unitDensityCGS);
 }
 
 #ifdef USE_OPENCL

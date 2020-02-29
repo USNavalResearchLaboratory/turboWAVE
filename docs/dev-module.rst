@@ -89,8 +89,8 @@ Modules are always created using :ref:`block form <block-create>`.  The block ca
 
 If you want the module to be accessible from the input file, carry out the following steps.
 
-	#. Implement the ``ReadInputFileDirective`` method for the module.  Remember to call the inherited method.  This is the function where you process specific input file directives appearing inside the module block.
-	#. Add a case to the static member ``CreateTypeFromInput`` in ``Module.cpp``.  This is where you will define the input file keys.
+	#. In the module's constructor define the input file directives. For each directive make one call to ``directives.Add(std::string&,tw::input::Directive*)``.
+	#. Add an entry to the hash table returned by ``Map`` in ``Module.cpp``.  This connects the input file keys with the ``tw::module_type``.
 
 Containment Support
 ,,,,,,,,,,,,,,,,,,,
@@ -120,7 +120,6 @@ To support restarting a module, carry out the following steps.
 	#. Override the ``ReadData`` method.  Call the superclass ``ReadData`` method first.  Then read any necessary data from the restart file.
 	#. Override the ``WriteData`` method.  Call the superclass ``WriteData`` method first.  Then write any necessary data to the restart file.
 	#. Verify that ``ReadData`` and ``WriteData`` access the data in the same order.
-	#. If the module uses the ``ComputeTool`` system see :doc:`dev-tool`.
 	#. Carefully check that the ``Initialize`` function does not overwrite any restarted data.  You may need to enclose some code in a conditional that tests ``owner->restarted``.
 
 Glossary

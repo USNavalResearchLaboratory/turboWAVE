@@ -71,6 +71,7 @@ struct Module:DiscreteSpace
 	virtual void WarningMessage(std::ostream *theStream);
 	virtual void StatusMessage(std::ostream *theStream) {;}
 
+	static std::map<std::string,tw::module_type> Map();
 	static bool SingularType(tw::module_type theType);
 	static tw::module_type CreateSupermoduleTypeFromSubmoduleKey(const std::string& key);
 	static bool QuasitoolNeedsModule(const tw::input::Preamble& preamble);
