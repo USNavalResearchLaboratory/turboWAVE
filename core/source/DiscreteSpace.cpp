@@ -78,7 +78,7 @@ void DiscreteSpace::Resize(tw::Int x,tw::Int y,tw::Int z,const tw::vec3& corner,
 	Resize(x,y,z,corner,size,2); // default to 2 ghost cell layers
 }
 
-void DiscreteSpace::ReadData(std::ifstream& inFile)
+void DiscreteSpace::ReadCheckpoint(std::ifstream& inFile)
 {
 	inFile.read((char*)&dt,sizeof(dt));
 	inFile.read((char*)&dth,sizeof(dth));
@@ -101,7 +101,7 @@ void DiscreteSpace::ReadData(std::ifstream& inFile)
 	inFile.read((char*)layers,sizeof(layers));
 }
 
-void DiscreteSpace::WriteData(std::ofstream& outFile)
+void DiscreteSpace::WriteCheckpoint(std::ofstream& outFile)
 {
 	outFile.write((char*)&dt,sizeof(dt));
 	outFile.write((char*)&dth,sizeof(dth));

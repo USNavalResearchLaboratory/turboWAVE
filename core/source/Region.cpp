@@ -159,7 +159,7 @@ Region* Region::CreateObjectFromFile(std::vector<Region*>& ml,std::ifstream& inF
 			ans = new CylindricalShellRegion(ml);
 			break;
 	}
-	ans->ReadData(inFile);
+	ans->ReadCheckpoint(inFile);
 	return ans;
 }
 
@@ -300,7 +300,7 @@ void Region::ReadInputFileDirective(std::stringstream& inputString,const std::st
 	}
 }
 
-void Region::ReadData(std::ifstream& inFile)
+void Region::ReadCheckpoint(std::ifstream& inFile)
 {
 	inFile.read((char *)&center,sizeof(center));
 	inFile.read((char *)&rbox,sizeof(rbox));
@@ -324,7 +324,7 @@ void Region::ReadData(std::ifstream& inFile)
 	inFile.ignore();
 }
 
-void Region::WriteData(std::ofstream& outFile)
+void Region::WriteCheckpoint(std::ofstream& outFile)
 {
 	outFile.write((char *)&rgnType,sizeof(regionSpec));
 	outFile.write((char *)&center,sizeof(center));
@@ -367,16 +367,16 @@ void BoxArrayRegion::ReadInputFileDirective(std::stringstream& inputString,const
 		inputString >> word >> spacing.x >> spacing.y >> spacing.z;
 }
 
-void BoxArrayRegion::ReadData(std::ifstream& inFile)
+void BoxArrayRegion::ReadCheckpoint(std::ifstream& inFile)
 {
-	Region::ReadData(inFile);
+	Region::ReadCheckpoint(inFile);
 	inFile.read((char *)&size,sizeof(tw::vec3));
 	inFile.read((char *)&spacing,sizeof(tw::vec3));
 }
 
-void BoxArrayRegion::WriteData(std::ofstream& outFile)
+void BoxArrayRegion::WriteCheckpoint(std::ofstream& outFile)
 {
-	Region::WriteData(outFile);
+	Region::WriteCheckpoint(outFile);
 	outFile.write((char *)&size,sizeof(tw::vec3));
 	outFile.write((char *)&spacing,sizeof(tw::vec3));
 }
@@ -392,16 +392,16 @@ void TorusRegion::ReadInputFileDirective(std::stringstream& inputString,const st
 	rbox = tw::vec3(majorRadius+minorRadius,majorRadius+minorRadius,minorRadius);
 }
 
-void TorusRegion::ReadData(std::ifstream& inFile)
+void TorusRegion::ReadCheckpoint(std::ifstream& inFile)
 {
-	Region::ReadData(inFile);
+	Region::ReadCheckpoint(inFile);
 	inFile.read((char *)&minorRadius,sizeof(tw::Float));
 	inFile.read((char *)&majorRadius,sizeof(tw::Float));
 }
 
-void TorusRegion::WriteData(std::ofstream& outFile)
+void TorusRegion::WriteCheckpoint(std::ofstream& outFile)
 {
-	Region::WriteData(outFile);
+	Region::WriteCheckpoint(outFile);
 	outFile.write((char *)&minorRadius,sizeof(tw::Float));
 	outFile.write((char *)&majorRadius,sizeof(tw::Float));
 }
@@ -419,16 +419,16 @@ void ConeRegion::ReadInputFileDirective(std::stringstream& inputString,const std
 	}
 }
 
-void ConeRegion::ReadData(std::ifstream& inFile)
+void ConeRegion::ReadCheckpoint(std::ifstream& inFile)
 {
-	Region::ReadData(inFile);
+	Region::ReadCheckpoint(inFile);
 	inFile.read((char *)&minorRadius,sizeof(tw::Float));
 	inFile.read((char *)&majorRadius,sizeof(tw::Float));
 }
 
-void ConeRegion::WriteData(std::ofstream& outFile)
+void ConeRegion::WriteCheckpoint(std::ofstream& outFile)
 {
-	Region::WriteData(outFile);
+	Region::WriteCheckpoint(outFile);
 	outFile.write((char *)&minorRadius,sizeof(tw::Float));
 	outFile.write((char *)&majorRadius,sizeof(tw::Float));
 }
@@ -446,16 +446,16 @@ void TangentOgiveRegion::ReadInputFileDirective(std::stringstream& inputString,c
 	}
 }
 
-void TangentOgiveRegion::ReadData(std::ifstream& inFile)
+void TangentOgiveRegion::ReadCheckpoint(std::ifstream& inFile)
 {
-	Region::ReadData(inFile);
+	Region::ReadCheckpoint(inFile);
 	inFile.read((char *)&tipRadius,sizeof(tw::Float));
 	inFile.read((char *)&bodyRadius,sizeof(tw::Float));
 }
 
-void TangentOgiveRegion::WriteData(std::ofstream& outFile)
+void TangentOgiveRegion::WriteCheckpoint(std::ofstream& outFile)
 {
-	Region::WriteData(outFile);
+	Region::WriteCheckpoint(outFile);
 	outFile.write((char *)&tipRadius,sizeof(tw::Float));
 	outFile.write((char *)&bodyRadius,sizeof(tw::Float));
 }
@@ -473,16 +473,16 @@ void CylindricalShellRegion::ReadInputFileDirective(std::stringstream& inputStri
 	}
 }
 
-void CylindricalShellRegion::ReadData(std::ifstream& inFile)
+void CylindricalShellRegion::ReadCheckpoint(std::ifstream& inFile)
 {
-	Region::ReadData(inFile);
+	Region::ReadCheckpoint(inFile);
 	inFile.read((char *)&innerRadius,sizeof(tw::Float));
 	inFile.read((char *)&outerRadius,sizeof(tw::Float));
 }
 
-void CylindricalShellRegion::WriteData(std::ofstream& outFile)
+void CylindricalShellRegion::WriteCheckpoint(std::ofstream& outFile)
 {
-	Region::WriteData(outFile);
+	Region::WriteCheckpoint(outFile);
 	outFile.write((char *)&innerRadius,sizeof(tw::Float));
 	outFile.write((char *)&outerRadius,sizeof(tw::Float));
 }

@@ -1,4 +1,4 @@
-// Example of a blowout wakefield with minimal resolution
+// Example of a blowout wakefield with ionization and minimal resolution
 // Keep the following line for generating twtest reports
 // TWTEST matplotlib zxyt=0,: e.dvdat dr=5.0
 
@@ -62,13 +62,55 @@ new hermite gauss pulse for 'pgc'
 	falltime = 5
 }
 
+new species 'He'
+{
+	charge = 0.0
+	mass = 7344
+	particles per cell = 4 1 4 when density = 1.0
+	xboundary = ( reflecting , reflecting )
+}
+
+new species 'He[+]'
+{
+	charge = 1.0
+	mass = 7343
+	particles per cell = 4 1 4 when density = 1.0
+	xboundary = ( reflecting , reflecting )
+}
+
+new species 'He[2+]'
+{
+	charge = 2.0
+	mass = 7342
+	particles per cell = 4 1 4 when density = 1.0
+	xboundary = ( reflecting , reflecting )
+}
+
 new species 'e'
 {
 	particles per cell = 4 1 4 when density = 1.0
 	xboundary = ( reflecting , reflecting )
 }
 
-generate piecewise 'e'
+new adk ionization for 'He'
+{
+	ionization potential = %24.587eV
+	protons = 2
+	electrons = 2
+	ion species = 'He[+]'
+	electron species = 'e'
+}
+
+new adk ionization for 'He[+]'
+{
+	ionization potential = %54.418eV
+	protons = 1
+	electrons = 1
+	ion species = 'He[2+]'
+	electron species = 'e'
+}
+
+generate piecewise 'He'
 {
 	zdensity = { 1 , 1 }
 	zpoints = { 0.0 , 1e10 }

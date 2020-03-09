@@ -6,7 +6,7 @@
 // Subreaction class serves as an element of the Reaction quasitool
 // No need to write chemical names into restart file.  We have the indices into the state array.
 
-void SubReaction::ReadData(std::ifstream& inFile)
+void SubReaction::ReadCheckpoint(std::ifstream& inFile)
 {
 	tw::Int i,num;
 	sparc::hydro_set htemp;
@@ -38,7 +38,7 @@ void SubReaction::ReadData(std::ifstream& inFile)
 	inFile.read((char *)&vheat,sizeof(tw::Float));
 }
 
-void SubReaction::WriteData(std::ofstream& outFile)
+void SubReaction::WriteCheckpoint(std::ofstream& outFile)
 {
 	tw::Int i,num;
 
@@ -83,7 +83,7 @@ tw::Float PrimitiveReaction::PrimitiveRate(tw::Float T)
 	return rate;
 }
 
-void PrimitiveReaction::ReadData(std::ifstream& inFile)
+void PrimitiveReaction::ReadCheckpoint(std::ifstream& inFile)
 {
 	inFile.read((char *)&unit_T_eV,sizeof(tw::Float));
 	inFile.read((char *)&unit_rate_cgs,sizeof(tw::Float));
@@ -95,7 +95,7 @@ void PrimitiveReaction::ReadData(std::ifstream& inFile)
 	inFile.read((char *)b,sizeof(tw::Float)*9);
 }
 
-void PrimitiveReaction::WriteData(std::ofstream& outFile)
+void PrimitiveReaction::WriteCheckpoint(std::ofstream& outFile)
 {
 	outFile.write((char *)&unit_T_eV,sizeof(tw::Float));
 	outFile.write((char *)&unit_rate_cgs,sizeof(tw::Float));
@@ -201,30 +201,30 @@ void Reaction::ReadInputFile(std::stringstream& inputString,tw::Float unitDensit
 	T1 = uc.eV_to_sim(T1);
 }
 
-void Reaction::ReadData(std::ifstream& inFile)
+void Reaction::ReadCheckpoint(std::ifstream& inFile)
 {
 	tw::Int i,num;
-	PrimitiveReaction::ReadData(inFile);
+	PrimitiveReaction::ReadCheckpoint(inFile);
 	inFile.read((char *)&catalyst,sizeof(catalyst));
 	inFile.read((char *)&numBodies,sizeof(numBodies));
 	inFile.read((char *)&num,sizeof(tw::Int));
 	for (i=0;i<num;i++)
 	{
 		sub.push_back(new SubReaction);
-		sub.back()->ReadData(inFile);
+		sub.back()->ReadCheckpoint(inFile);
 	}
 }
 
-void Reaction::WriteData(std::ofstream& outFile)
+void Reaction::WriteCheckpoint(std::ofstream& outFile)
 {
 	tw::Int i,num;
-	PrimitiveReaction::WriteData(outFile);
+	PrimitiveReaction::WriteCheckpoint(outFile);
 	outFile.write((char *)&catalyst,sizeof(catalyst));
 	outFile.write((char *)&numBodies,sizeof(numBodies));
 	num = sub.size();
 	outFile.write((char *)&num,sizeof(tw::Int));
 	for (i=0;i<num;i++)
-		sub[i]->WriteData(outFile);
+		sub[i]->WriteCheckpoint(outFile);
 }
 
 void Excitation::ReadInputFile(std::stringstream& inputString,tw::Float unitDensityCGS)
@@ -258,9 +258,9 @@ void Excitation::ReadInputFile(std::stringstream& inputString,tw::Float unitDens
 	}
 }
 
-void Excitation::ReadData(std::ifstream& inFile)
+void Excitation::ReadCheckpoint(std::ifstream& inFile)
 {
-	PrimitiveReaction::ReadData(inFile);
+	PrimitiveReaction::ReadCheckpoint(inFile);
 	inFile.read((char *)&h1,sizeof(h1));
 	inFile.read((char *)&h2,sizeof(h2));
 	inFile.read((char *)&e1,sizeof(e1));
@@ -270,9 +270,9 @@ void Excitation::ReadData(std::ifstream& inFile)
 	inFile.read((char *)&level,sizeof(tw::Float));
 }
 
-void Excitation::WriteData(std::ofstream& outFile)
+void Excitation::WriteCheckpoint(std::ofstream& outFile)
 {
-	PrimitiveReaction::WriteData(outFile);
+	PrimitiveReaction::WriteCheckpoint(outFile);
 	outFile.write((char *)&h1,sizeof(h1));
 	outFile.write((char *)&h2,sizeof(h2));
 	outFile.write((char *)&e1,sizeof(e1));
@@ -323,7 +323,7 @@ void Collision::ReadInputFile(std::stringstream& inputString,tw::Float unitDensi
 	}
 }
 
-void Collision::ReadData(std::ifstream& inFile)
+void Collision::ReadCheckpoint(std::ifstream& inFile)
 {
 	inFile.read((char *)&type,sizeof(sparc::collisionType));
 	inFile.read((char *)&h1,sizeof(h1));
@@ -338,7 +338,7 @@ void Collision::ReadData(std::ifstream& inFile)
 	inFile.read((char *)&n_ref,sizeof(tw::Float));
 }
 
-void Collision::WriteData(std::ofstream& outFile)
+void Collision::WriteCheckpoint(std::ofstream& outFile)
 {
 	outFile.write((char *)&type,sizeof(sparc::collisionType));
 	outFile.write((char *)&h1,sizeof(h1));

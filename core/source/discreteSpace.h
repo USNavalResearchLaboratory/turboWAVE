@@ -20,17 +20,22 @@ namespace tw
 	namespace grid
 	{
 		enum geometry {cartesian,cylindrical,spherical};
-		enum axis { tAxis , xAxis , yAxis , zAxis }; // (x,y,z) map to (r,phi,z) or (r,phi,theta) in cases of curvilinear geometry
+		enum axis { t,x,y,z,mass,px,py,pz,g,gbx,gby,gbz }; // (x,y,z) map to (r,phi,z) or (r,phi,theta) in cases of curvilinear geometry
 		enum side { low , high };
+		inline std::map<std::string,axis> axis_map()
+		{
+			std::map<std::string,fld> ans = {{"t",t},{"x",x},{"y",y},{"z",z},{"mass",mass},{"px",px},{"py",py},{"pz",pz},{"g",g},{"gbx",gbx},{"gby",gby},{"gbz",gbz}};
+			return ans;
+		}
 		inline tw::Int naxis(const tw::grid::axis& axis)
 		{
-			std::map<tw::grid::axis,tw::Int> M = {{tAxis,0},{xAxis,1},{yAxis,2},{zAxis,3}};
+			std::map<tw::grid::axis,tw::Int> M = {{t,0},{x,1},{y,2},{z,3},{mass,4},{px,5},{py,6},{pz,7},{g,8},{gbx,9},{gby,10},{gbz,11}};
 			return M[axis];
 		}
 
 		inline axis enumaxis(tw::Int ax)
 		{
-			std::map<tw::Int,axis> M = {{0,tAxis},{1,xAxis},{2,yAxis},{3,zAxis}};
+			std::map<tw::Int,axis> M = {{0,y},{1,x},{2,y},{3,z},{4,mass},{5,px},{6,py},{7,pz},{8,g},{9,gbx},{10,gby},{11,gbz}};
 			return M[ax];
 		}
 	}
@@ -149,8 +154,8 @@ struct DiscreteSpace
 	void GetWeights(float w[3][3][tw::max_bundle_size],float x[3][tw::max_bundle_size]);
 	void GetWallWeights(float w[3][3][tw::max_bundle_size],float x[3][tw::max_bundle_size]);
 
-	void ReadData(std::ifstream& inFile);
-	void WriteData(std::ofstream& outFile);
+	void ReadCheckpoint(std::ifstream& inFile);
+	void WriteCheckpoint(std::ofstream& outFile);
 
 	#ifdef USE_OPENCL
 	void CellUpdateProtocol(cl_kernel k,cl_command_queue q);

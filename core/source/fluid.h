@@ -31,8 +31,8 @@ struct Fluid:Module
 	virtual void MoveWindow();
 	virtual void AddDensity(tw::Float densityToAdd,tw::Int i,tw::Int j,tw::Int k);
 
-	virtual void ReadData(std::ifstream& inFile);
-	virtual void WriteData(std::ofstream& outFile);
+	virtual void ReadCheckpoint(std::ifstream& inFile);
+	virtual void WriteCheckpoint(std::ofstream& outFile);
 
 	virtual void BoxDiagnosticHeader(GridDataDescriptor*);
 	virtual void BoxDiagnose(GridDataDescriptor*);
@@ -57,8 +57,8 @@ struct Chemical:Module
 	bool GenerateFluid(Field& hydro,Field& eos);
 
 	virtual void VerifyInput();
-	virtual void ReadData(std::ifstream& inFile);
-	virtual void WriteData(std::ofstream& outFile);
+	virtual void ReadCheckpoint(std::ifstream& inFile);
+	virtual void WriteCheckpoint(std::ofstream& outFile);
 };
 
 struct EquilibriumGroup:Module
@@ -126,8 +126,8 @@ struct EquilibriumGroup:Module
 	virtual void Initialize();
 
 	virtual void VerifyInput();
-	virtual void ReadData(std::ifstream& inFile);
-	virtual void WriteData(std::ofstream& outFile);
+	virtual void ReadCheckpoint(std::ifstream& inFile);
+	virtual void WriteCheckpoint(std::ofstream& outFile);
 };
 
 namespace sparc
@@ -218,8 +218,8 @@ struct HydroManager:Module
 
 	virtual void VerifyInput();
 	virtual bool ReadQuasitoolBlock(const tw::input::Preamble& preamble,std::stringstream& inputString);
-	virtual void ReadData(std::ifstream& inFile);
-	virtual void WriteData(std::ofstream& outFile);
+	virtual void ReadCheckpoint(std::ifstream& inFile);
+	virtual void WriteCheckpoint(std::ofstream& outFile);
 	void ParseReaction(std::stringstream& inputString);
 	void ParseExcitation(std::stringstream& inputString);
 	void ParseCollision(std::stringstream& inputString);

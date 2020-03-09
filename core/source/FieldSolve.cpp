@@ -81,16 +81,16 @@ void Electromagnetic::Initialize()
 	SetExteriorBoundaryConditionsE(F,Element(0),Element(1),Element(2));
 	SetExteriorBoundaryConditionsB(F,Element(3),Element(4),Element(5));
 
-	sources.SetBoundaryConditions(tw::grid::xAxis,fld::dirichletCell,fld::dirichletCell);
-	sources.SetBoundaryConditions(Element(1),tw::grid::xAxis,fld::normalFluxFixed,fld::normalFluxFixed);
+	sources.SetBoundaryConditions(tw::grid::x,fld::dirichletCell,fld::dirichletCell);
+	sources.SetBoundaryConditions(Element(1),tw::grid::x,fld::normalFluxFixed,fld::normalFluxFixed);
 	if (owner->gridGeometry==tw::grid::cylindrical)
-		sources.SetBoundaryConditions(Element(0),tw::grid::xAxis,fld::neumannWall,fld::dirichletCell);
+		sources.SetBoundaryConditions(Element(0),tw::grid::x,fld::neumannWall,fld::dirichletCell);
 
-	sources.SetBoundaryConditions(tw::grid::yAxis,fld::dirichletCell,fld::dirichletCell);
-	sources.SetBoundaryConditions(Element(2),tw::grid::yAxis,fld::normalFluxFixed,fld::normalFluxFixed);
+	sources.SetBoundaryConditions(tw::grid::y,fld::dirichletCell,fld::dirichletCell);
+	sources.SetBoundaryConditions(Element(2),tw::grid::y,fld::normalFluxFixed,fld::normalFluxFixed);
 
-	sources.SetBoundaryConditions(tw::grid::zAxis,fld::dirichletCell,fld::dirichletCell);
-	sources.SetBoundaryConditions(Element(3),tw::grid::zAxis,fld::normalFluxFixed,fld::normalFluxFixed);
+	sources.SetBoundaryConditions(tw::grid::z,fld::dirichletCell,fld::dirichletCell);
+	sources.SetBoundaryConditions(Element(3),tw::grid::z,fld::normalFluxFixed,fld::normalFluxFixed);
 
 	Electromagnetic::Update(); // globalize charge density (local deposition in source modules)
 }
@@ -128,7 +128,7 @@ void Electromagnetic::MoveWindow()
 {
 	for (auto s : StripRange(*this,3,strongbool::yes))
 		F.Shift(s,-1,0.0);
-	F.DownwardCopy(tw::grid::zAxis,1);
+	F.DownwardCopy(tw::grid::z,1);
 }
 
 void Electromagnetic::InitializeConductors()
@@ -151,33 +151,33 @@ void Electromagnetic::InitializeConductors()
 void Electromagnetic::SetExteriorBoundaryConditionsE(Field& A,const Element& ex,const Element& ey,const Element& ez)
 {
 	// in the following, it doesn't hurt to zero out low-side cell walls in low-side ghost cells
-	A.SetBoundaryConditions(ex,tw::grid::xAxis,fld::dirichletCell,fld::none);
-	A.SetBoundaryConditions(ex,tw::grid::yAxis,fld::dirichletCell,fld::dirichletCell);
-	A.SetBoundaryConditions(ex,tw::grid::zAxis,fld::dirichletCell,fld::dirichletCell);
+	A.SetBoundaryConditions(ex,tw::grid::x,fld::dirichletCell,fld::none);
+	A.SetBoundaryConditions(ex,tw::grid::y,fld::dirichletCell,fld::dirichletCell);
+	A.SetBoundaryConditions(ex,tw::grid::z,fld::dirichletCell,fld::dirichletCell);
 
-	A.SetBoundaryConditions(ey,tw::grid::xAxis,fld::dirichletCell,fld::dirichletCell);
-	A.SetBoundaryConditions(ey,tw::grid::yAxis,fld::dirichletCell,fld::none);
-	A.SetBoundaryConditions(ey,tw::grid::zAxis,fld::dirichletCell,fld::dirichletCell);
+	A.SetBoundaryConditions(ey,tw::grid::x,fld::dirichletCell,fld::dirichletCell);
+	A.SetBoundaryConditions(ey,tw::grid::y,fld::dirichletCell,fld::none);
+	A.SetBoundaryConditions(ey,tw::grid::z,fld::dirichletCell,fld::dirichletCell);
 
-	A.SetBoundaryConditions(ez,tw::grid::xAxis,fld::dirichletCell,fld::dirichletCell);
-	A.SetBoundaryConditions(ez,tw::grid::yAxis,fld::dirichletCell,fld::dirichletCell);
-	A.SetBoundaryConditions(ez,tw::grid::zAxis,fld::dirichletCell,fld::none);
+	A.SetBoundaryConditions(ez,tw::grid::x,fld::dirichletCell,fld::dirichletCell);
+	A.SetBoundaryConditions(ez,tw::grid::y,fld::dirichletCell,fld::dirichletCell);
+	A.SetBoundaryConditions(ez,tw::grid::z,fld::dirichletCell,fld::none);
 }
 
 void Electromagnetic::SetExteriorBoundaryConditionsB(Field& A,const Element& bx,const Element& by,const Element& bz)
 {
 	// in the following, it doesn't hurt to zero out low-side cell walls in low-side ghost cells
-	A.SetBoundaryConditions(bx,tw::grid::xAxis,fld::dirichletCell,fld::dirichletCell);
-	A.SetBoundaryConditions(bx,tw::grid::yAxis,fld::dirichletCell,fld::none);
-	A.SetBoundaryConditions(bx,tw::grid::zAxis,fld::dirichletCell,fld::none);
+	A.SetBoundaryConditions(bx,tw::grid::x,fld::dirichletCell,fld::dirichletCell);
+	A.SetBoundaryConditions(bx,tw::grid::y,fld::dirichletCell,fld::none);
+	A.SetBoundaryConditions(bx,tw::grid::z,fld::dirichletCell,fld::none);
 
-	A.SetBoundaryConditions(by,tw::grid::xAxis,fld::dirichletCell,fld::none);
-	A.SetBoundaryConditions(by,tw::grid::yAxis,fld::dirichletCell,fld::dirichletCell);
-	A.SetBoundaryConditions(by,tw::grid::zAxis,fld::dirichletCell,fld::none);
+	A.SetBoundaryConditions(by,tw::grid::x,fld::dirichletCell,fld::none);
+	A.SetBoundaryConditions(by,tw::grid::y,fld::dirichletCell,fld::dirichletCell);
+	A.SetBoundaryConditions(by,tw::grid::z,fld::dirichletCell,fld::none);
 
-	A.SetBoundaryConditions(bz,tw::grid::xAxis,fld::dirichletCell,fld::none);
-	A.SetBoundaryConditions(bz,tw::grid::yAxis,fld::dirichletCell,fld::none);
-	A.SetBoundaryConditions(bz,tw::grid::zAxis,fld::dirichletCell,fld::dirichletCell);
+	A.SetBoundaryConditions(bz,tw::grid::x,fld::dirichletCell,fld::none);
+	A.SetBoundaryConditions(bz,tw::grid::y,fld::dirichletCell,fld::none);
+	A.SetBoundaryConditions(bz,tw::grid::z,fld::dirichletCell,fld::dirichletCell);
 }
 
 void Electromagnetic::ForceQuasistaticVectorPotential(Field& A4,ScalarField& DtPhi)
@@ -224,7 +224,7 @@ void Electromagnetic::ForceQuasistaticVectorPotential(Field& A4,ScalarField& DtP
 			for (j=lfg[2];j<=ufg[2];j++)
 				for (i=lfg[1];i<=ufg[1];i++)
 					rhs(i,j,k) = (1.0 - w)*rhs(i,j,k) + w*rhs(i,j,k+1);
-		rhs.DownwardCopy(tw::grid::zAxis,1);
+		rhs.DownwardCopy(tw::grid::z,1);
 
 		ellipticSolver->Solve(ans,rhs,1.0);
 		for (auto cell : EntireCellRange(*this))
@@ -246,37 +246,37 @@ void Electromagnetic::ReadInputFileDirective(std::stringstream& inputString,cons
 	// }
 }
 
-void Electromagnetic::ReadData(std::ifstream& inFile)
+void Electromagnetic::ReadCheckpoint(std::ifstream& inFile)
 {
 	tw::Int i,num;
 
-	FieldSolver::ReadData(inFile);
+	FieldSolver::ReadCheckpoint(inFile);
 	inFile.read((char*)&dipoleCenter,sizeof(tw::vec3));
 	inFile.read((char*)&gammaBeam,sizeof(tw::Float));
-	F.ReadData(inFile);
+	F.ReadCheckpoint(inFile);
 
 	inFile.read((char *)&num,sizeof(tw::Int));
 	(*owner->tw_out) << "Read " << num << " far-field diagnostics" << std::endl;
 	for (i=0;i<num;i++)
 	{
 		farFieldDetector.push_back(new FarFieldDetectorDescriptor(owner,owner,owner->clippingRegion));
-		farFieldDetector.back()->ReadData(inFile);
+		farFieldDetector.back()->ReadCheckpoint(inFile);
 	}
 }
 
-void Electromagnetic::WriteData(std::ofstream& outFile)
+void Electromagnetic::WriteCheckpoint(std::ofstream& outFile)
 {
 	tw::Int i;
 
-	FieldSolver::WriteData(outFile);
+	FieldSolver::WriteCheckpoint(outFile);
 	outFile.write((char*)&dipoleCenter,sizeof(tw::vec3));
 	outFile.write((char*)&gammaBeam,sizeof(tw::Float));
-	F.WriteData(outFile);
+	F.WriteCheckpoint(outFile);
 
 	i = farFieldDetector.size();
 	outFile.write((char *)&i,sizeof(tw::Int));
 	for (i=0;i<farFieldDetector.size();i++)
-		farFieldDetector[i]->WriteData(outFile);
+		farFieldDetector[i]->WriteCheckpoint(outFile);
 }
 
 void Electromagnetic::StartDiagnostics()
@@ -546,10 +546,10 @@ CoulombSolver::CoulombSolver(const std::string& name,Simulation* sim):Electromag
 	typeCode = tw::module_type::coulombSolver;
 	A4.Initialize(8,*this,owner);
 
-	L1.Initialize(sim,sim,&wave,tw::grid::zAxis,tw::grid::low,1,5);
-	L2.Initialize(sim,sim,&wave,tw::grid::zAxis,tw::grid::low,2,6);
-	R1.Initialize(sim,sim,&wave,tw::grid::zAxis,tw::grid::high,1,5);
-	R2.Initialize(sim,sim,&wave,tw::grid::zAxis,tw::grid::high,2,6);
+	L1.Initialize(sim,sim,&wave,tw::grid::z,tw::grid::low,1,5);
+	L2.Initialize(sim,sim,&wave,tw::grid::z,tw::grid::low,2,6);
+	R1.Initialize(sim,sim,&wave,tw::grid::z,tw::grid::high,1,5);
+	R2.Initialize(sim,sim,&wave,tw::grid::z,tw::grid::high,2,6);
 }
 
 void CoulombSolver::ExchangeResources()
@@ -586,26 +586,26 @@ void CoulombSolver::Initialize()
 	ComputeFinalFields();
 }
 
-void CoulombSolver::ReadData(std::ifstream& inFile)
+void CoulombSolver::ReadCheckpoint(std::ifstream& inFile)
 {
-	Electromagnetic::ReadData(inFile);
+	Electromagnetic::ReadCheckpoint(inFile);
 
-	A4.ReadData(inFile);
-	L1.ReadData(inFile);
-	L2.ReadData(inFile);
-	R1.ReadData(inFile);
-	R2.ReadData(inFile);
+	A4.ReadCheckpoint(inFile);
+	L1.ReadCheckpoint(inFile);
+	L2.ReadCheckpoint(inFile);
+	R1.ReadCheckpoint(inFile);
+	R2.ReadCheckpoint(inFile);
 }
 
-void CoulombSolver::WriteData(std::ofstream& outFile)
+void CoulombSolver::WriteCheckpoint(std::ofstream& outFile)
 {
-	Electromagnetic::WriteData(outFile);
+	Electromagnetic::WriteCheckpoint(outFile);
 
-	A4.WriteData(outFile);
-	L1.WriteData(outFile);
-	L2.WriteData(outFile);
-	R1.WriteData(outFile);
-	R2.WriteData(outFile);
+	A4.WriteCheckpoint(outFile);
+	L1.WriteCheckpoint(outFile);
+	L2.WriteCheckpoint(outFile);
+	R1.WriteCheckpoint(outFile);
+	R2.WriteCheckpoint(outFile);
 }
 
 void CoulombSolver::Update()
@@ -679,10 +679,10 @@ void CoulombSolver::Update()
 			A4(strip,dim[3]+1,3) = A4(strip,dim[3],3) - spacing.z*(A4.dfwd(strip,dim[3],1,1) + A4.dfwd(strip,dim[3],2,2));
 	}
 
-	A4.DownwardCopy(tw::grid::xAxis,Element(1,3),1);
-	A4.UpwardCopy(tw::grid::xAxis,Element(1,3),1);
-	A4.DownwardCopy(tw::grid::yAxis,Element(1,3),1);
-	A4.UpwardCopy(tw::grid::yAxis,Element(1,3),1);
+	A4.DownwardCopy(tw::grid::x,Element(1,3),1);
+	A4.UpwardCopy(tw::grid::x,Element(1,3),1);
+	A4.DownwardCopy(tw::grid::y,Element(1,3),1);
+	A4.UpwardCopy(tw::grid::y,Element(1,3),1);
 
 	// Swap A0 and A1 so A1 has most recent data
 
@@ -1037,28 +1037,28 @@ void DirectSolver::MoveWindow()
 	Electromagnetic::MoveWindow();
 	for (auto s : StripRange(*this,3,strongbool::yes))
 		A.Shift(s,-1,0.0);
-	A.DownwardCopy(tw::grid::zAxis,1);
+	A.DownwardCopy(tw::grid::z,1);
 }
 
-void DirectSolver::ReadData(std::ifstream& inFile)
+void DirectSolver::ReadCheckpoint(std::ifstream& inFile)
 {
-	Electromagnetic::ReadData(inFile);
-	A.ReadData(inFile);
-	PMLx.ReadData(inFile);
-	PMLy.ReadData(inFile);
-	PMLz.ReadData(inFile);
+	Electromagnetic::ReadCheckpoint(inFile);
+	A.ReadCheckpoint(inFile);
+	PMLx.ReadCheckpoint(inFile);
+	PMLy.ReadCheckpoint(inFile);
+	PMLz.ReadCheckpoint(inFile);
 	inFile.read((char *)&enforceChargeConservation,sizeof(bool));
 	inFile.read((char *)&layerThickness[0],sizeof(layerThickness));
 	inFile.read((char *)&reflectionCoefficient[0],sizeof(reflectionCoefficient));
 }
 
-void DirectSolver::WriteData(std::ofstream& outFile)
+void DirectSolver::WriteCheckpoint(std::ofstream& outFile)
 {
-	Electromagnetic::WriteData(outFile);
-	A.WriteData(outFile);
-	PMLx.WriteData(outFile);
-	PMLy.WriteData(outFile);
-	PMLz.WriteData(outFile);
+	Electromagnetic::WriteCheckpoint(outFile);
+	A.WriteCheckpoint(outFile);
+	PMLx.WriteCheckpoint(outFile);
+	PMLy.WriteCheckpoint(outFile);
+	PMLz.WriteCheckpoint(outFile);
 	outFile.write((char *)&enforceChargeConservation,sizeof(bool));
 	outFile.write((char *)&layerThickness[0],sizeof(layerThickness));
 	outFile.write((char *)&reflectionCoefficient[0],sizeof(reflectionCoefficient));
@@ -1129,11 +1129,11 @@ void CurvilinearDirectSolver::Initialize()
 
 	if (owner->gridGeometry==tw::grid::cylindrical)
 	{
-		A.SetBoundaryConditions(Element(0),tw::grid::xAxis,fld::none,fld::none);
-		A.SetBoundaryConditions(Element(1),tw::grid::xAxis,fld::dirichletWall,fld::dirichletCell);
-		A.SetBoundaryConditions(Element(2),tw::grid::xAxis,fld::neumannWall,fld::dirichletCell);
-		A.SetBoundaryConditions(Element(3),tw::grid::xAxis,fld::dirichletWall,fld::dirichletCell);
-		A.SetBoundaryConditions(Element(4,5),tw::grid::xAxis,fld::none,fld::none);
+		A.SetBoundaryConditions(Element(0),tw::grid::x,fld::none,fld::none);
+		A.SetBoundaryConditions(Element(1),tw::grid::x,fld::dirichletWall,fld::dirichletCell);
+		A.SetBoundaryConditions(Element(2),tw::grid::x,fld::neumannWall,fld::dirichletCell);
+		A.SetBoundaryConditions(Element(3),tw::grid::x,fld::dirichletWall,fld::dirichletCell);
+		A.SetBoundaryConditions(Element(4,5),tw::grid::x,fld::none,fld::none);
 	}
 
 	if (owner->restarted)
@@ -1309,9 +1309,9 @@ void CurvilinearDirectSolver::Update()
 
 	add_curlE<0,1,2,3,4,5>(A,A,*owner,-dt);
 	SetSingularPointsB();
-	A.UpwardCopy(tw::grid::xAxis,Element(3,5),1);
-	A.UpwardCopy(tw::grid::yAxis,Element(3,5),1);
-	A.UpwardCopy(tw::grid::zAxis,Element(3,5),1);
+	A.UpwardCopy(tw::grid::x,Element(3,5),1);
+	A.UpwardCopy(tw::grid::y,Element(3,5),1);
+	A.UpwardCopy(tw::grid::z,Element(3,5),1);
 
 	// Setup the final field for the particle push
 

@@ -159,11 +159,11 @@ struct UniformDeviate
 		else
 			return temp;
 	}
-	void WriteData(std::ofstream& outFile)
+	void WriteCheckpoint(std::ofstream& outFile)
 	{
 		outFile.write((char *)this,sizeof(UniformDeviate));
 	}
-	void ReadData(std::ifstream& inFile)
+	void ReadCheckpoint(std::ifstream& inFile)
 	{
 		inFile.read((char *)this,sizeof(UniformDeviate));
 	}
@@ -191,15 +191,15 @@ struct GaussianDeviate
 		x2 = ud->Next();
 		return sqrt(fabs(2.0*log(0.0001 + x1)))*cos(6.28*x2);
 	}
-	void WriteData(std::ofstream& outFile)
+	void WriteCheckpoint(std::ofstream& outFile)
 	{
-		ud->WriteData(outFile);
+		ud->WriteCheckpoint(outFile);
 		outFile.write((char *)&x1,sizeof(tw::Float));
 		outFile.write((char *)&x2,sizeof(tw::Float));
 	}
-	void ReadData(std::ifstream& inFile)
+	void ReadCheckpoint(std::ifstream& inFile)
 	{
-		ud->ReadData(inFile);
+		ud->ReadCheckpoint(inFile);
 		inFile.read((char *)&x1,sizeof(tw::Float));
 		inFile.read((char *)&x2,sizeof(tw::Float));
 	}

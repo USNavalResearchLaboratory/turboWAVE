@@ -449,7 +449,7 @@ void qo::State::ReadInputFileBlock(std::stringstream& inputString)
 	} while (command!="}");
 }
 
-void qo::State::ReadData(std::ifstream& inFile)
+void qo::State::ReadCheckpoint(std::ifstream& inFile)
 {
 	tw::Int i,num;
 	inFile.read((char*)&waveType,sizeof(waveFunctionType));
@@ -478,7 +478,7 @@ void qo::State::ReadData(std::ifstream& inFile)
 		inFile.read((char*)&radialFunction[i],sizeof(tw::Float));
 }
 
-void qo::State::WriteData(std::ofstream& outFile)
+void qo::State::WriteCheckpoint(std::ofstream& outFile)
 {
 	tw::Int i,num;
 	outFile.write((char*)&waveType,sizeof(waveFunctionType));
@@ -530,9 +530,9 @@ AtomicPhysics::AtomicPhysics(const std::string& name,Simulation* sim):Module(nam
 	m0 = 1.0;
 	q0 = -1.0;
 
-	A4.Initialize(4,*this,owner,tw::grid::xAxis);
-	Ao4.Initialize(4,*this,owner,tw::grid::xAxis);
-	J4.Initialize(4,*this,owner,tw::grid::xAxis);
+	A4.Initialize(4,*this,owner,tw::grid::x);
+	Ao4.Initialize(4,*this,owner,tw::grid::x);
+	J4.Initialize(4,*this,owner,tw::grid::x);
 
 	photonPropagator = NULL;
 
@@ -588,34 +588,34 @@ void AtomicPhysics::Initialize()
 	tw::bc::fld psiDefaultBC,A4DefaultBC;
 	psiDefaultBC = fld::neumannWall;
 	A4DefaultBC = fld::dirichletWall;
-	psi_r.SetBoundaryConditions(tw::grid::xAxis,psiDefaultBC,psiDefaultBC);
-	psi_r.SetBoundaryConditions(tw::grid::yAxis,psiDefaultBC,psiDefaultBC);
-	psi_r.SetBoundaryConditions(tw::grid::zAxis,psiDefaultBC,psiDefaultBC);
-	psi_i.SetBoundaryConditions(tw::grid::xAxis,psiDefaultBC,psiDefaultBC);
-	psi_i.SetBoundaryConditions(tw::grid::yAxis,psiDefaultBC,psiDefaultBC);
-	psi_i.SetBoundaryConditions(tw::grid::zAxis,psiDefaultBC,psiDefaultBC);
-	A4.SetBoundaryConditions(tw::grid::xAxis,A4DefaultBC,A4DefaultBC);
-	A4.SetBoundaryConditions(tw::grid::yAxis,A4DefaultBC,A4DefaultBC);
-	A4.SetBoundaryConditions(tw::grid::zAxis,A4DefaultBC,A4DefaultBC);
-	J4.SetBoundaryConditions(tw::grid::xAxis,A4DefaultBC,A4DefaultBC);
-	J4.SetBoundaryConditions(tw::grid::yAxis,A4DefaultBC,A4DefaultBC);
-	J4.SetBoundaryConditions(tw::grid::zAxis,A4DefaultBC,A4DefaultBC);
+	psi_r.SetBoundaryConditions(tw::grid::x,psiDefaultBC,psiDefaultBC);
+	psi_r.SetBoundaryConditions(tw::grid::y,psiDefaultBC,psiDefaultBC);
+	psi_r.SetBoundaryConditions(tw::grid::z,psiDefaultBC,psiDefaultBC);
+	psi_i.SetBoundaryConditions(tw::grid::x,psiDefaultBC,psiDefaultBC);
+	psi_i.SetBoundaryConditions(tw::grid::y,psiDefaultBC,psiDefaultBC);
+	psi_i.SetBoundaryConditions(tw::grid::z,psiDefaultBC,psiDefaultBC);
+	A4.SetBoundaryConditions(tw::grid::x,A4DefaultBC,A4DefaultBC);
+	A4.SetBoundaryConditions(tw::grid::y,A4DefaultBC,A4DefaultBC);
+	A4.SetBoundaryConditions(tw::grid::z,A4DefaultBC,A4DefaultBC);
+	J4.SetBoundaryConditions(tw::grid::x,A4DefaultBC,A4DefaultBC);
+	J4.SetBoundaryConditions(tw::grid::y,A4DefaultBC,A4DefaultBC);
+	J4.SetBoundaryConditions(tw::grid::z,A4DefaultBC,A4DefaultBC);
 
 	switch (owner->gridGeometry)
 	{
 		case tw::grid::cartesian:
 			break;
 		case tw::grid::cylindrical:
-			A4.SetBoundaryConditions(Element(0),tw::grid::xAxis,fld::neumannWall,fld::dirichletWall);
-			A4.SetBoundaryConditions(Element(3),tw::grid::xAxis,fld::neumannWall,fld::dirichletWall);
-			J4.SetBoundaryConditions(Element(0),tw::grid::xAxis,fld::neumannWall,fld::dirichletWall);
-			J4.SetBoundaryConditions(Element(3),tw::grid::xAxis,fld::neumannWall,fld::dirichletWall);
+			A4.SetBoundaryConditions(Element(0),tw::grid::x,fld::neumannWall,fld::dirichletWall);
+			A4.SetBoundaryConditions(Element(3),tw::grid::x,fld::neumannWall,fld::dirichletWall);
+			J4.SetBoundaryConditions(Element(0),tw::grid::x,fld::neumannWall,fld::dirichletWall);
+			J4.SetBoundaryConditions(Element(3),tw::grid::x,fld::neumannWall,fld::dirichletWall);
 			break;
 		case tw::grid::spherical:
-			A4.SetBoundaryConditions(Element(0),tw::grid::yAxis,fld::neumannWall,fld::neumannWall);
-			A4.SetBoundaryConditions(Element(1),tw::grid::yAxis,fld::neumannWall,fld::neumannWall);
-			J4.SetBoundaryConditions(Element(0),tw::grid::yAxis,fld::neumannWall,fld::neumannWall);
-			J4.SetBoundaryConditions(Element(1),tw::grid::yAxis,fld::neumannWall,fld::neumannWall);
+			A4.SetBoundaryConditions(Element(0),tw::grid::y,fld::neumannWall,fld::neumannWall);
+			A4.SetBoundaryConditions(Element(1),tw::grid::y,fld::neumannWall,fld::neumannWall);
+			J4.SetBoundaryConditions(Element(0),tw::grid::y,fld::neumannWall,fld::neumannWall);
+			J4.SetBoundaryConditions(Element(1),tw::grid::y,fld::neumannWall,fld::neumannWall);
 			break;
 	}
 
@@ -766,11 +766,11 @@ void AtomicPhysics::ReadInputFileDirective(std::stringstream& inputString,const 
 	}
 }
 
-void AtomicPhysics::ReadData(std::ifstream& inFile)
+void AtomicPhysics::ReadCheckpoint(std::ifstream& inFile)
 {
 	tw::Int num;
 
-	Module::ReadData(inFile);
+	Module::ReadCheckpoint(inFile);
 	inFile.read((char *)&potentialTypeSpec,sizeof(qo::potentialType));
 	inFile.read((char *)&residualCharge,sizeof(tw::Float));
 	inFile.read((char *)&nuclearRadius,sizeof(tw::Float));
@@ -806,18 +806,18 @@ void AtomicPhysics::ReadData(std::ifstream& inFile)
 		refState.back().ud = owner->uniformDeviate;
 	}
 
-	psi_r.ReadData(inFile);
-	psi_i.ReadData(inFile);
-	J4.ReadData(inFile);
-	Ao4.ReadData(inFile);
-	A4.ReadData(inFile);
+	psi_r.ReadCheckpoint(inFile);
+	psi_i.ReadCheckpoint(inFile);
+	J4.ReadCheckpoint(inFile);
+	Ao4.ReadCheckpoint(inFile);
+	A4.ReadCheckpoint(inFile);
 }
 
-void AtomicPhysics::WriteData(std::ofstream& outFile)
+void AtomicPhysics::WriteCheckpoint(std::ofstream& outFile)
 {
 	tw::Int num;
 
-	Module::WriteData(outFile);
+	Module::WriteCheckpoint(outFile);
 	outFile.write((char *)&potentialTypeSpec,sizeof(qo::potentialType));
 	outFile.write((char *)&residualCharge,sizeof(tw::Float));
 	outFile.write((char *)&nuclearRadius,sizeof(tw::Float));
@@ -845,11 +845,11 @@ void AtomicPhysics::WriteData(std::ofstream& outFile)
 	for (tw::Int i=0;i<num;i++)
 		outFile.write((char *)&refState[i],sizeof(qo::State));
 
-	psi_r.WriteData(outFile);
-	psi_i.WriteData(outFile);
-	J4.WriteData(outFile);
-	Ao4.WriteData(outFile);
-	A4.WriteData(outFile);
+	psi_r.WriteCheckpoint(outFile);
+	psi_i.WriteCheckpoint(outFile);
+	J4.WriteCheckpoint(outFile);
+	Ao4.WriteCheckpoint(outFile);
+	A4.WriteCheckpoint(outFile);
 }
 
 
@@ -945,12 +945,12 @@ void Schroedinger::Initialize()
 	AtomicPhysics::Initialize();
 
 	const tw::bc::fld psiDefaultBC = fld::neumannWall;
-	psi0.SetBoundaryConditions(tw::grid::xAxis,psiDefaultBC,psiDefaultBC);
-	psi0.SetBoundaryConditions(tw::grid::yAxis,psiDefaultBC,psiDefaultBC);
-	psi0.SetBoundaryConditions(tw::grid::zAxis,psiDefaultBC,psiDefaultBC);
-	psi1.SetBoundaryConditions(tw::grid::xAxis,psiDefaultBC,psiDefaultBC);
-	psi1.SetBoundaryConditions(tw::grid::yAxis,psiDefaultBC,psiDefaultBC);
-	psi1.SetBoundaryConditions(tw::grid::zAxis,psiDefaultBC,psiDefaultBC);
+	psi0.SetBoundaryConditions(tw::grid::x,psiDefaultBC,psiDefaultBC);
+	psi0.SetBoundaryConditions(tw::grid::y,psiDefaultBC,psiDefaultBC);
+	psi0.SetBoundaryConditions(tw::grid::z,psiDefaultBC,psiDefaultBC);
+	psi1.SetBoundaryConditions(tw::grid::x,psiDefaultBC,psiDefaultBC);
+	psi1.SetBoundaryConditions(tw::grid::y,psiDefaultBC,psiDefaultBC);
+	psi1.SetBoundaryConditions(tw::grid::z,psiDefaultBC,psiDefaultBC);
 
 	if (!owner->restarted)
 	{
@@ -1082,24 +1082,24 @@ void Schroedinger::Update()
 	FormPotentials(owner->elapsedTime);
 	J4 = 0.0;
 
-	propagator->DepositCurrent(tw::grid::tAxis,psi0,psi1,A4,J4,dtc);
+	propagator->DepositCurrent(tw::grid::t,psi0,psi1,A4,J4,dtc);
 
 	psi0 = psi1;
-	propagator->ApplyNumerator(tw::grid::xAxis,psi1,A4,keepA2Term,dtc);
-	propagator->ApplyDenominator(tw::grid::xAxis,psi1,A4,keepA2Term,dtc);
-	propagator->DepositCurrent(tw::grid::xAxis,psi0,psi1,A4,J4,dtc);
+	propagator->ApplyNumerator(tw::grid::x,psi1,A4,keepA2Term,dtc);
+	propagator->ApplyDenominator(tw::grid::x,psi1,A4,keepA2Term,dtc);
+	propagator->DepositCurrent(tw::grid::x,psi0,psi1,A4,J4,dtc);
 
 	psi0 = psi1;
-	propagator->ApplyNumerator(tw::grid::yAxis,psi1,A4,keepA2Term,dtc);
-	propagator->ApplyDenominator(tw::grid::yAxis,psi1,A4,keepA2Term,dtc);
-	propagator->DepositCurrent(tw::grid::yAxis,psi0,psi1,A4,J4,dtc);
+	propagator->ApplyNumerator(tw::grid::y,psi1,A4,keepA2Term,dtc);
+	propagator->ApplyDenominator(tw::grid::y,psi1,A4,keepA2Term,dtc);
+	propagator->DepositCurrent(tw::grid::y,psi0,psi1,A4,J4,dtc);
 
 	psi0 = psi1;
-	propagator->ApplyNumerator(tw::grid::zAxis,psi1,A4,keepA2Term,dtc);
-	propagator->ApplyDenominator(tw::grid::zAxis,psi1,A4,keepA2Term,dtc);
-	propagator->DepositCurrent(tw::grid::zAxis,psi0,psi1,A4,J4,dtc);
+	propagator->ApplyNumerator(tw::grid::z,psi1,A4,keepA2Term,dtc);
+	propagator->ApplyDenominator(tw::grid::z,psi1,A4,keepA2Term,dtc);
+	propagator->DepositCurrent(tw::grid::z,psi0,psi1,A4,J4,dtc);
 
-	propagator->DepositCurrent(tw::grid::tAxis,psi0,psi1,A4,J4,dtc);
+	propagator->DepositCurrent(tw::grid::t,psi0,psi1,A4,J4,dtc);
 
 	J4.CopyFromNeighbors();
 	J4.ApplyBoundaryCondition();
@@ -1114,12 +1114,12 @@ void Schroedinger::Update()
 // 	FormPotentials(owner->elapsedTime);
 //
 // 	psi0 = psi1;
-// 	propagator->ApplyNumerator(tw::grid::xAxis,psi1,A4,keepA2Term,dtc);
-// 	propagator->ApplyDenominator(tw::grid::xAxis,psi1,A4,keepA2Term,dtc);
-// 	propagator->ApplyNumerator(tw::grid::yAxis,psi1,A4,keepA2Term,dtc);
-// 	propagator->ApplyDenominator(tw::grid::yAxis,psi1,A4,keepA2Term,dtc);
-// 	propagator->ApplyNumerator(tw::grid::zAxis,psi1,A4,keepA2Term,dtc);
-// 	propagator->ApplyDenominator(tw::grid::zAxis,psi1,A4,keepA2Term,dtc);
+// 	propagator->ApplyNumerator(tw::grid::x,psi1,A4,keepA2Term,dtc);
+// 	propagator->ApplyDenominator(tw::grid::x,psi1,A4,keepA2Term,dtc);
+// 	propagator->ApplyNumerator(tw::grid::y,psi1,A4,keepA2Term,dtc);
+// 	propagator->ApplyDenominator(tw::grid::y,psi1,A4,keepA2Term,dtc);
+// 	propagator->ApplyNumerator(tw::grid::z,psi1,A4,keepA2Term,dtc);
+// 	propagator->ApplyDenominator(tw::grid::z,psi1,A4,keepA2Term,dtc);
 // 	if (owner->elapsedTime < timeRelaxingToGround)
 // 		Normalize();
 // 	else
@@ -1377,38 +1377,38 @@ void Pauli::Update()
 	FormPotentials(owner->elapsedTime);
 	J4 = 0.0;
 
-	propagator->DepositCurrent(tw::grid::tAxis,psi0,psi1,A4,J4,dtc);
-	propagator->DepositCurrent(tw::grid::tAxis,chi0,chi1,A4,J4,dtc);
+	propagator->DepositCurrent(tw::grid::t,psi0,psi1,A4,J4,dtc);
+	propagator->DepositCurrent(tw::grid::t,chi0,chi1,A4,J4,dtc);
 
 	psi0 = psi1;
 	chi0 = chi1;
-	propagator->ApplyNumerator(tw::grid::xAxis,psi1,A4,keepA2Term,dtc);
-	propagator->ApplyDenominator(tw::grid::xAxis,psi1,A4,keepA2Term,dtc);
-	propagator->DepositCurrent(tw::grid::xAxis,psi0,psi1,A4,J4,dtc);
-	propagator->ApplyNumerator(tw::grid::xAxis,chi1,A4,keepA2Term,dtc);
-	propagator->ApplyDenominator(tw::grid::xAxis,chi1,A4,keepA2Term,dtc);
-	propagator->DepositCurrent(tw::grid::xAxis,chi0,chi1,A4,J4,dtc);
+	propagator->ApplyNumerator(tw::grid::x,psi1,A4,keepA2Term,dtc);
+	propagator->ApplyDenominator(tw::grid::x,psi1,A4,keepA2Term,dtc);
+	propagator->DepositCurrent(tw::grid::x,psi0,psi1,A4,J4,dtc);
+	propagator->ApplyNumerator(tw::grid::x,chi1,A4,keepA2Term,dtc);
+	propagator->ApplyDenominator(tw::grid::x,chi1,A4,keepA2Term,dtc);
+	propagator->DepositCurrent(tw::grid::x,chi0,chi1,A4,J4,dtc);
 
 	psi0 = psi1;
 	chi0 = chi1;
-	propagator->ApplyNumerator(tw::grid::yAxis,psi1,A4,keepA2Term,dtc);
-	propagator->ApplyDenominator(tw::grid::yAxis,psi1,A4,keepA2Term,dtc);
-	propagator->DepositCurrent(tw::grid::yAxis,psi0,psi1,A4,J4,dtc);
-	propagator->ApplyNumerator(tw::grid::yAxis,chi1,A4,keepA2Term,dtc);
-	propagator->ApplyDenominator(tw::grid::yAxis,chi1,A4,keepA2Term,dtc);
-	propagator->DepositCurrent(tw::grid::yAxis,chi0,chi1,A4,J4,dtc);
+	propagator->ApplyNumerator(tw::grid::y,psi1,A4,keepA2Term,dtc);
+	propagator->ApplyDenominator(tw::grid::y,psi1,A4,keepA2Term,dtc);
+	propagator->DepositCurrent(tw::grid::y,psi0,psi1,A4,J4,dtc);
+	propagator->ApplyNumerator(tw::grid::y,chi1,A4,keepA2Term,dtc);
+	propagator->ApplyDenominator(tw::grid::y,chi1,A4,keepA2Term,dtc);
+	propagator->DepositCurrent(tw::grid::y,chi0,chi1,A4,J4,dtc);
 
 	psi0 = psi1;
 	chi0 = chi1;
-	propagator->ApplyNumerator(tw::grid::zAxis,psi1,A4,keepA2Term,dtc);
-	propagator->ApplyDenominator(tw::grid::zAxis,psi1,A4,keepA2Term,dtc);
-	propagator->DepositCurrent(tw::grid::zAxis,psi0,psi1,A4,J4,dtc);
-	propagator->ApplyNumerator(tw::grid::zAxis,chi1,A4,keepA2Term,dtc);
-	propagator->ApplyDenominator(tw::grid::zAxis,chi1,A4,keepA2Term,dtc);
-	propagator->DepositCurrent(tw::grid::zAxis,chi0,chi1,A4,J4,dtc);
+	propagator->ApplyNumerator(tw::grid::z,psi1,A4,keepA2Term,dtc);
+	propagator->ApplyDenominator(tw::grid::z,psi1,A4,keepA2Term,dtc);
+	propagator->DepositCurrent(tw::grid::z,psi0,psi1,A4,J4,dtc);
+	propagator->ApplyNumerator(tw::grid::z,chi1,A4,keepA2Term,dtc);
+	propagator->ApplyDenominator(tw::grid::z,chi1,A4,keepA2Term,dtc);
+	propagator->DepositCurrent(tw::grid::z,chi0,chi1,A4,J4,dtc);
 
-	propagator->DepositCurrent(tw::grid::tAxis,psi0,psi1,A4,J4,dtc);
-	propagator->DepositCurrent(tw::grid::tAxis,chi0,chi1,A4,J4,dtc);
+	propagator->DepositCurrent(tw::grid::t,psi0,psi1,A4,J4,dtc);
+	propagator->DepositCurrent(tw::grid::t,chi0,chi1,A4,J4,dtc);
 
    	propagator->UpdateSpin(psi1,chi1,A4,alpha*dt);
 
@@ -1570,8 +1570,8 @@ KleinGordon::KleinGordon(const std::string& name,Simulation* sim) : AtomicPhysic
 	q0 = -sqrt(alpha);
 	residualCharge = sqrt(alpha);
 	dipoleApproximation = false;
-	psi_r.Initialize(2,*this,owner,tw::grid::xAxis);
-	psi_i.Initialize(2,*this,owner,tw::grid::xAxis);
+	psi_r.Initialize(2,*this,owner,tw::grid::x);
+	psi_i.Initialize(2,*this,owner,tw::grid::x);
 
 	#ifdef USE_OPENCL
 	cl_int err;
@@ -1954,8 +1954,8 @@ Dirac::Dirac(const std::string& name,Simulation* sim) : AtomicPhysics(name,sim)
 	q0 = -sqrt(alpha);
 	residualCharge = sqrt(alpha);
 	dipoleApproximation = false;
-	psi_r.Initialize(4,*this,owner,tw::grid::xAxis);
-	psi_i.Initialize(4,*this,owner,tw::grid::xAxis);
+	psi_r.Initialize(4,*this,owner,tw::grid::x);
+	psi_i.Initialize(4,*this,owner,tw::grid::x);
 
 	#ifdef USE_OPENCL
 	cl_int err;
@@ -1977,8 +1977,8 @@ Dirac::~Dirac()
 void Dirac::Initialize()
 {
 	AtomicPhysics::Initialize();
-	psi_r.SetBoundaryConditions(tw::grid::xAxis,fld::neumannWall,fld::none);
-	psi_i.SetBoundaryConditions(tw::grid::xAxis,fld::neumannWall,fld::none);
+	psi_r.SetBoundaryConditions(tw::grid::x,fld::neumannWall,fld::none);
+	psi_i.SetBoundaryConditions(tw::grid::x,fld::neumannWall,fld::none);
 
 	if (!owner->restarted)
 	{

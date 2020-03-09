@@ -239,8 +239,8 @@ struct Task
 		return domains[1]*domains[2]*domains[3];
 	}
 
-	void ReadData(std::ifstream& inFile);
-	void WriteData(std::ofstream& outFile);
+	void ReadCheckpoint(std::ifstream& inFile);
+	void WriteCheckpoint(std::ofstream& outFile);
 
 	void Lock()
 	{

@@ -23,8 +23,8 @@ struct Electromagnetic:FieldSolver
 	virtual void Update();
 	virtual void MoveWindow();
 	virtual void ReadInputFileDirective(std::stringstream& inputString,const std::string& command);
-	virtual void ReadData(std::ifstream& inFile);
-	virtual void WriteData(std::ofstream& outFile);
+	virtual void ReadCheckpoint(std::ifstream& inFile);
+	virtual void WriteCheckpoint(std::ofstream& outFile);
 
 	template <tw::Int X,tw::Int Y,tw::Int Z>
 	void LoadVectorPotential(Field& A,tw::Float t);
@@ -53,8 +53,8 @@ struct CoulombSolver:Electromagnetic
 	CoulombSolver(const std::string& name,Simulation* sim);
 	virtual void ExchangeResources();
 	virtual void Initialize();
-	virtual void ReadData(std::ifstream& inFile);
-	virtual void WriteData(std::ofstream& outFile);
+	virtual void ReadCheckpoint(std::ifstream& inFile);
+	virtual void WriteCheckpoint(std::ofstream& outFile);
 
 	virtual void Update();
 	virtual void ComputeFinalFields();
@@ -80,8 +80,8 @@ struct DirectSolver:Electromagnetic
 	virtual void Initialize();
 	virtual void Update();
 	virtual void MoveWindow();
-	virtual void ReadData(std::ifstream& inFile);
-	virtual void WriteData(std::ofstream& outFile);
+	virtual void ReadCheckpoint(std::ifstream& inFile);
+	virtual void WriteCheckpoint(std::ofstream& outFile);
 
 	void SetupPML(Field& pml,tw::Int g0,tw::Int gN,tw::Int L0,tw::Int L1,tw::Float R0,tw::Float R1,tw::Float ds);
 };

@@ -14,8 +14,8 @@ struct LaserSolver:Module
 	virtual void Reset();
 
 	virtual void VerifyInput();
-	virtual void ReadData(std::ifstream& inFile);
-	virtual void WriteData(std::ofstream& outFile);
+	virtual void ReadCheckpoint(std::ifstream& inFile);
+	virtual void WriteCheckpoint(std::ofstream& outFile);
 
 	virtual void Update();
 

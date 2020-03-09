@@ -71,14 +71,14 @@ void ComputeTool::WarningMessage(std::ostream *theStream)
 	}
 }
 
-void ComputeTool::ReadData(std::ifstream& inFile)
+void ComputeTool::ReadCheckpoint(std::ifstream& inFile)
 {
 	// Get the region name.  Finding the Region object is deferred to owning Module.
 	inFile >> region_name;
 	inFile.ignore();
 }
 
-void ComputeTool::WriteData(std::ofstream& outFile)
+void ComputeTool::WriteCheckpoint(std::ofstream& outFile)
 {
 	outFile.write((char *)&typeCode,sizeof(tw::tool_type));
 	outFile << name << " ";
@@ -269,6 +269,6 @@ ComputeTool* ComputeTool::CreateObjectFromFile(std::ifstream& inFile,MetricSpace
 	inFile >> name;
 	inFile.ignore();
 	ans = CreateObjectFromType(name,theType,ms,tsk);
-	ans->ReadData(inFile);
+	ans->ReadCheckpoint(inFile);
 	return ans;
 }

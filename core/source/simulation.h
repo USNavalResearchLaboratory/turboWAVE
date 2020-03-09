@@ -5,12 +5,12 @@ struct Simulation;
 
 #include "module.h"
 
-struct NonUniformRegion
+struct Warp
 {
-	tw::Int i1,i2,ih,N;
-	tw::Float L,gridSum,dz,aux;
+	tw::Int ax,i1,i2,ih,N;
+	tw::Float L,gridSum,h,aux;
 
-	NonUniformRegion(tw::Int first,tw::Int last,tw::Float length,tw::Float dz0);
+	Warp(tw::Int first,tw::Int last,tw::Float length,tw::Float h0);
 	tw::Float AddedCellWidth(tw::Int globalCell);
 	tw::Float ACoefficient(tw::Float length);
 };
@@ -20,9 +20,6 @@ struct Simulation:Task,MetricSpace
 	std::string inputFileName;
 	std::ostream *tw_out;
 	tw::input::DirectiveReader outerDirectives,gridDirectives;
-
-	std::vector<NonUniformRegion*> region;
-	tw::Float radialProgressionFactor;
 
 	tw::grid::geometry gridGeometry;
 	tw::Float dt0,dtMin,dtMax,dtCritical,elapsedTime,elapsedTimeMax;
@@ -41,14 +38,11 @@ struct Simulation:Task,MetricSpace
 
 	tw::bc::par bc0[4],bc1[4];
 
+	std::vector<Warp*> warp;
 	std::vector<Region*> clippingRegion;
 	std::vector<ComputeTool*> computeTool;
 	std::vector<Module*> module;
 	std::vector<tw::module_type> createdModuleTypes;
-
-	std::vector<EnergySeriesDescriptor*> energyDiagnostic;
-	std::vector<PointSeriesDescriptor*> pointDiagnostic;
-	std::vector<GridDataDescriptor*> boxDiagnostic;
 
 	UniformDeviate *uniformDeviate;
 	GaussianDeviate *gaussianDeviate;
@@ -62,13 +56,6 @@ struct Simulation:Task,MetricSpace
 	void MoveWindow();
 	void AntiMoveWindow();
 	void Diagnose();
-	void EmergencyDump();
-	void GetGlobalBoxDataIndexing(GridDataDescriptor* theBox,tw::Int pts[4],tw::Int glob[6],tw::Int skip[4]);
-	void GetLocalBoxDataIndexing(GridDataDescriptor* theBox,const tw::Int pts[4],const tw::Int glob[6],const tw::Int skip[4],tw::Int loc[6],const tw::Int coords[4]);
-	void WriteBoxDataHeader(const std::string& quantity,GridDataDescriptor* theBox);
-	void WriteBoxData(const std::string& quantity,GridDataDescriptor* theBox,tw::Float* theData,const tw::Int *stride);
-	void WriteCellDataHeader(GridDataDescriptor* theBox);
-	void WriteCellData(GridDataDescriptor* theBox);
 
 	bool MangleModuleName(std::string& name);
 	bool CheckModule(const std::string& name);
@@ -97,8 +84,8 @@ struct Simulation:Task,MetricSpace
 	void SetupLocalGrid();
 	void NestedDeclaration(const std::string& com,std::stringstream& inputString,Module *sup);
 	void ReadInputFile();
-	void ReadData(std::ifstream& inFile);
-	void WriteData(std::ofstream& outFile);
+	void ReadCheckpoint(std::ifstream& inFile);
+	void WriteCheckpoint(std::ofstream& outFile);
 	void InteractiveCommand(const std::string& cmd,std::ostream *theStream);
 
 	#ifdef USE_OPENCL

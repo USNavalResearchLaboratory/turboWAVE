@@ -77,8 +77,8 @@ struct Region
 
 	virtual void ReadInputFileBlock(std::stringstream& inputString);
 	virtual void ReadInputFileDirective(std::stringstream& inputString,const std::string& command);
-	virtual void ReadData(std::ifstream& inFile);
-	virtual void WriteData(std::ofstream& outFile);
+	virtual void ReadCheckpoint(std::ifstream& inFile);
+	virtual void WriteCheckpoint(std::ofstream& outFile);
 };
 
 struct EntireRegion:Region
@@ -166,8 +166,8 @@ struct CylindricalShellRegion:Region
 		return complement ^ ( rho < outerRadius && rho > innerRadius && sqr(p.z) < sqr(rbox.z));
 	}
 	virtual void ReadInputFileDirective(std::stringstream& inputString,const std::string& command);
-	virtual void ReadData(std::ifstream& inFile);
-	virtual void WriteData(std::ofstream& outFile);
+	virtual void ReadCheckpoint(std::ifstream& inFile);
+	virtual void WriteCheckpoint(std::ofstream& outFile);
 };
 
 struct RoundedCylinderRegion:Region
@@ -233,8 +233,8 @@ struct BoxArrayRegion:Region
 		return complement ^ ans;
 	}
 	virtual void ReadInputFileDirective(std::stringstream& inputString,const std::string& command);
-	virtual void ReadData(std::ifstream& inFile);
-	virtual void WriteData(std::ofstream& outFile);
+	virtual void ReadCheckpoint(std::ifstream& inFile);
+	virtual void WriteCheckpoint(std::ofstream& outFile);
 };
 
 struct TorusRegion:Region
@@ -257,8 +257,8 @@ struct TorusRegion:Region
 			sqr(p.z) < sqr(minorRadius)-sqr(rho-majorRadius));
 	}
 	virtual void ReadInputFileDirective(std::stringstream& inputString,const std::string& command);
-	virtual void ReadData(std::ifstream& inFile);
-	virtual void WriteData(std::ofstream& outFile);
+	virtual void ReadCheckpoint(std::ifstream& inFile);
+	virtual void WriteCheckpoint(std::ofstream& outFile);
 };
 
 struct ConeRegion:Region
@@ -281,8 +281,8 @@ struct ConeRegion:Region
 		return complement ^ ( rho < rOfz && sqr(p.z) < sqr(rbox.z));
 	}
 	virtual void ReadInputFileDirective(std::stringstream& inputString,const std::string& command);
-	virtual void ReadData(std::ifstream& inFile);
-	virtual void WriteData(std::ofstream& outFile);
+	virtual void ReadCheckpoint(std::ifstream& inFile);
+	virtual void WriteCheckpoint(std::ofstream& outFile);
 };
 
 struct TangentOgiveRegion:Region
@@ -316,6 +316,6 @@ struct TangentOgiveRegion:Region
 		return complement ^ (rho < rOfz);
 	}
 	virtual void ReadInputFileDirective(std::stringstream& inputString,const std::string& command);
-	virtual void ReadData(std::ifstream& inFile);
-	virtual void WriteData(std::ofstream& outFile);
+	virtual void ReadCheckpoint(std::ifstream& inFile);
+	virtual void WriteCheckpoint(std::ofstream& outFile);
 };

@@ -81,9 +81,9 @@ void Ionizer::Initialize()
 	lstar = nstar - 1;
 }
 
-void Ionizer::ReadData(std::ifstream& inFile)
+void Ionizer::ReadCheckpoint(std::ifstream& inFile)
 {
-	ComputeTool::ReadData(inFile);
+	ComputeTool::ReadCheckpoint(inFile);
 	inFile.read((char *)&ionizationPotential,sizeof(ionizationPotential));
 	inFile.read((char *)&electrons,sizeof(electrons));
 	inFile.read((char *)&protons,sizeof(protons));
@@ -96,9 +96,9 @@ void Ionizer::ReadData(std::ifstream& inFile)
 	inFile.read((char *)&hgas,sizeof(hgas));
 }
 
-void Ionizer::WriteData(std::ofstream& outFile)
+void Ionizer::WriteCheckpoint(std::ofstream& outFile)
 {
-	ComputeTool::WriteData(outFile);
+	ComputeTool::WriteCheckpoint(outFile);
 	outFile.write((char *)&ionizationPotential,sizeof(ionizationPotential));
 	outFile.write((char *)&electrons,sizeof(electrons));
 	outFile.write((char *)&protons,sizeof(protons));
@@ -129,15 +129,15 @@ tw::Float MPI::AverageRate(tw::Float w0,tw::Float E)
 	return multiplier*two*pi*w0*pow(fabs(E)/E_MPI,two*photons) / Factorial(photons-1);
 }
 
-void MPI::ReadData(std::ifstream& inFile)
+void MPI::ReadCheckpoint(std::ifstream& inFile)
 {
-	Ionizer::ReadData(inFile);
+	Ionizer::ReadCheckpoint(inFile);
 	inFile.read((char *)&E_MPI,sizeof(E_MPI));
 }
 
-void MPI::WriteData(std::ofstream& outFile)
+void MPI::WriteCheckpoint(std::ofstream& outFile)
 {
-	Ionizer::WriteData(outFile);
+	Ionizer::WriteCheckpoint(outFile);
 	outFile.write((char *)&E_MPI,sizeof(E_MPI));
 }
 
@@ -217,15 +217,15 @@ tw::Float PPT::AverageRate(tw::Float w0,tw::Float E)
 	return ans;
 }
 
-void PPT::ReadData(std::ifstream& inFile)
+void PPT::ReadCheckpoint(std::ifstream& inFile)
 {
-	Ionizer::ReadData(inFile);
+	Ionizer::ReadCheckpoint(inFile);
 	inFile.read((char *)&terms,sizeof(terms));
 }
 
-void PPT::WriteData(std::ofstream& outFile)
+void PPT::WriteCheckpoint(std::ofstream& outFile)
 {
-	Ionizer::WriteData(outFile);
+	Ionizer::WriteCheckpoint(outFile);
 	outFile.write((char *)&terms,sizeof(terms));
 }
 
@@ -347,16 +347,16 @@ void EOSSimpleMieGruneisen::AddPKV(ScalarField& IE, ScalarField& nm, ScalarField
 	}
 }
 
-void EOSSimpleMieGruneisen::ReadData(std::ifstream& inFile)
+void EOSSimpleMieGruneisen::ReadCheckpoint(std::ifstream& inFile)
 {
-	// DFG - now tools can have ReadData/WriteData to support their own restarts
-	EOSComponent::ReadData(inFile);
+	// DFG - now tools can have ReadCheckpoint/WriteCheckpoint to support their own restarts
+	EOSComponent::ReadCheckpoint(inFile);
 	inFile.read((char*)&GRUN,sizeof(GRUN));
 }
 
-void EOSSimpleMieGruneisen::WriteData(std::ofstream& outFile)
+void EOSSimpleMieGruneisen::WriteCheckpoint(std::ofstream& outFile)
 {
-	EOSComponent::WriteData(outFile);
+	EOSComponent::WriteCheckpoint(outFile);
 	outFile.write((char*)&GRUN,sizeof(GRUN));
 }
 
@@ -409,18 +409,18 @@ void EOSLinearMieGruneisen::AddPKV(ScalarField& IE, ScalarField& nm, ScalarField
 	}
 }
 
-void EOSLinearMieGruneisen::ReadData(std::ifstream& inFile)
+void EOSLinearMieGruneisen::ReadCheckpoint(std::ifstream& inFile)
 {
-	EOSComponent::ReadData(inFile);
+	EOSComponent::ReadCheckpoint(inFile);
 	inFile.read((char*)&GRUN,sizeof(GRUN));
 	inFile.read((char*)&n0,sizeof(n0));
 	inFile.read((char*)&c0,sizeof(c0));
 	inFile.read((char*)&S1,sizeof(S1));
 }
 
-void EOSLinearMieGruneisen::WriteData(std::ofstream& outFile)
+void EOSLinearMieGruneisen::WriteCheckpoint(std::ofstream& outFile)
 {
-	EOSComponent::WriteData(outFile);
+	EOSComponent::WriteCheckpoint(outFile);
 	outFile.write((char*)&GRUN,sizeof(GRUN));
 	outFile.write((char*)&n0,sizeof(n0));
 	outFile.write((char*)&c0,sizeof(c0));

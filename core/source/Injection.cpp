@@ -96,9 +96,9 @@ void Profile::ReadInputFileDirective(std::stringstream& inputString,const std::s
 	}
 }
 
-void Profile::ReadData(std::ifstream& inFile)
+void Profile::ReadCheckpoint(std::ifstream& inFile)
 {
-	ComputeTool::ReadData(inFile);
+	ComputeTool::ReadCheckpoint(inFile);
 	inFile.read((char *)&centerPt,sizeof(tw::vec3));
 	inFile.read((char *)&symmetry,sizeof(symmetry));
 	inFile.read((char *)&segmentShape,sizeof(segmentShape));
@@ -119,9 +119,9 @@ void Profile::ReadData(std::ifstream& inFile)
 	inFile.read((char *)&gammaBoost,sizeof(tw::Float));
 }
 
-void Profile::WriteData(std::ofstream& outFile)
+void Profile::WriteCheckpoint(std::ofstream& outFile)
 {
-	ComputeTool::WriteData(outFile);
+	ComputeTool::WriteCheckpoint(outFile);
 	outFile.write((char *)&centerPt,sizeof(tw::vec3));
 	outFile.write((char *)&symmetry,sizeof(symmetry));
 	outFile.write((char *)&segmentShape,sizeof(segmentShape));
@@ -182,15 +182,15 @@ UniformProfile::UniformProfile(const std::string& name,MetricSpace *m,Task *tsk)
 	directives.Add("density",new tw::input::Float(&density));
 }
 
-void UniformProfile::ReadData(std::ifstream& inFile)
+void UniformProfile::ReadCheckpoint(std::ifstream& inFile)
 {
-	Profile::ReadData(inFile);
+	Profile::ReadCheckpoint(inFile);
 	inFile.read((char *)&density,sizeof(tw::Float));
 }
 
-void UniformProfile::WriteData(std::ofstream& outFile)
+void UniformProfile::WriteCheckpoint(std::ofstream& outFile)
 {
-	Profile::WriteData(outFile);
+	Profile::WriteCheckpoint(outFile);
 	outFile.write((char *)&density,sizeof(tw::Float));
 }
 
@@ -206,16 +206,16 @@ GaussianProfile::GaussianProfile(const std::string& name,MetricSpace *m,Task *ts
 	directives.Add("size",new tw::input::Vec3(&beamSize));
 }
 
-void GaussianProfile::ReadData(std::ifstream& inFile)
+void GaussianProfile::ReadCheckpoint(std::ifstream& inFile)
 {
-	Profile::ReadData(inFile);
+	Profile::ReadCheckpoint(inFile);
 	inFile.read((char *)&density,sizeof(tw::Float));
 	inFile.read((char *)&beamSize,sizeof(tw::vec3));
 }
 
-void GaussianProfile::WriteData(std::ofstream& outFile)
+void GaussianProfile::WriteCheckpoint(std::ofstream& outFile)
 {
-	Profile::WriteData(outFile);
+	Profile::WriteCheckpoint(outFile);
 	outFile.write((char *)&density,sizeof(tw::Float));
 	outFile.write((char *)&beamSize,sizeof(tw::vec3));
 }
@@ -239,9 +239,9 @@ ChannelProfile::ChannelProfile(const std::string& name,MetricSpace *m,Task *tsk)
 	directives.Add("zdensity",new tw::input::List<std::valarray<tw::Float>,tw::Float>(&fz));
 }
 
-void ChannelProfile::ReadData(std::ifstream& inFile)
+void ChannelProfile::ReadCheckpoint(std::ifstream& inFile)
 {
-	Profile::ReadData(inFile);
+	Profile::ReadCheckpoint(inFile);
 	inFile.read((char *)&coeff[0],sizeof(coeff));
 
 	tw::Int zDim;
@@ -252,9 +252,9 @@ void ChannelProfile::ReadData(std::ifstream& inFile)
 	inFile.read((char *)&fz[0],sizeof(tw::Float)*zDim);
 }
 
-void ChannelProfile::WriteData(std::ofstream& outFile)
+void ChannelProfile::WriteCheckpoint(std::ofstream& outFile)
 {
-	Profile::WriteData(outFile);
+	Profile::WriteCheckpoint(outFile);
 	outFile.write((char *)&coeff[0],sizeof(coeff));
 
 	tw::Int zDim = z.size();
@@ -294,9 +294,9 @@ ColumnProfile::ColumnProfile(const std::string& name,MetricSpace *m,Task *tsk):P
 	directives.Add("zdensity",new tw::input::List<std::valarray<tw::Float>,tw::Float>(&fz));
 }
 
-void ColumnProfile::ReadData(std::ifstream& inFile)
+void ColumnProfile::ReadCheckpoint(std::ifstream& inFile)
 {
-	Profile::ReadData(inFile);
+	Profile::ReadCheckpoint(inFile);
 	inFile.read((char *)&beamSize,sizeof(tw::vec3));
 
 	tw::Int zDim;
@@ -307,9 +307,9 @@ void ColumnProfile::ReadData(std::ifstream& inFile)
 	inFile.read((char *)&fz[0],sizeof(tw::Float)*zDim);
 }
 
-void ColumnProfile::WriteData(std::ofstream& outFile)
+void ColumnProfile::WriteCheckpoint(std::ofstream& outFile)
 {
-	Profile::WriteData(outFile);
+	Profile::WriteCheckpoint(outFile);
 	outFile.write((char *)&beamSize,sizeof(tw::vec3));
 
 	tw::Int zDim = z.size();
@@ -378,9 +378,9 @@ void PiecewiseProfile::Initialize()
 	}
 }
 
-void PiecewiseProfile::ReadData(std::ifstream& inFile)
+void PiecewiseProfile::ReadCheckpoint(std::ifstream& inFile)
 {
-	Profile::ReadData(inFile);
+	Profile::ReadCheckpoint(inFile);
 
 	tw::Int xDim,yDim,zDim;
 	inFile.read((char *)&xDim,sizeof(tw::Int));
@@ -403,9 +403,9 @@ void PiecewiseProfile::ReadData(std::ifstream& inFile)
 	inFile.read((char *)&fz[0],sizeof(tw::Float)*zDim);
 }
 
-void PiecewiseProfile::WriteData(std::ofstream& outFile)
+void PiecewiseProfile::WriteCheckpoint(std::ofstream& outFile)
 {
-	Profile::WriteData(outFile);
+	Profile::WriteCheckpoint(outFile);
 
 	tw::Int xDim,yDim,zDim;
 	xDim = x.size();
@@ -561,9 +561,9 @@ CorrugatedProfile::CorrugatedProfile(const std::string& name,MetricSpace *m,Task
 	directives.Add("rchannel",new tw::input::Float(&rchannel));
 }
 
-void CorrugatedProfile::ReadData(std::ifstream& inFile)
+void CorrugatedProfile::ReadCheckpoint(std::ifstream& inFile)
 {
-	Profile::ReadData(inFile);
+	Profile::ReadCheckpoint(inFile);
 	inFile.read((char *)&a0,sizeof(tw::Float));
 	inFile.read((char *)&gamma0,sizeof(tw::Float));
 	inFile.read((char *)&w0,sizeof(tw::Float));
@@ -573,9 +573,9 @@ void CorrugatedProfile::ReadData(std::ifstream& inFile)
 	inFile.read((char *)&rchannel,sizeof(tw::Float));
 }
 
-void CorrugatedProfile::WriteData(std::ofstream& outFile)
+void CorrugatedProfile::WriteCheckpoint(std::ofstream& outFile)
 {
-	Profile::WriteData(outFile);
+	Profile::WriteCheckpoint(outFile);
 	outFile.write((char *)&a0,sizeof(tw::Float));
 	outFile.write((char *)&gamma0,sizeof(tw::Float));
 	outFile.write((char *)&w0,sizeof(tw::Float));
@@ -749,9 +749,9 @@ void Wave::Initialize()
 	pulseShape.Initialize(pulseShape.delay + pulseShape.risetime);
 }
 
-void Wave::ReadData(std::ifstream& inFile)
+void Wave::ReadCheckpoint(std::ifstream& inFile)
 {
-	ComputeTool::ReadData(inFile);
+	ComputeTool::ReadCheckpoint(inFile);
 	inFile.read((char *)&direction,sizeof(tw::vec3));
 	inFile.read((char *)&focusPosition,sizeof(tw::vec3));
 	inFile.read((char *)&a,sizeof(tw::vec3));
@@ -768,9 +768,9 @@ void Wave::ReadData(std::ifstream& inFile)
 	inFile.read((char *)&laserFrame,sizeof(laserFrame));
 }
 
-void Wave::WriteData(std::ofstream& outFile)
+void Wave::WriteCheckpoint(std::ofstream& outFile)
 {
-	ComputeTool::WriteData(outFile);
+	ComputeTool::WriteCheckpoint(outFile);
 	outFile.write((char *)&direction,sizeof(tw::vec3));
 	outFile.write((char *)&focusPosition,sizeof(tw::vec3));
 	outFile.write((char *)&a,sizeof(tw::vec3));
@@ -1123,10 +1123,10 @@ void Conductor::DepositSources(Field& sources,tw::Float t,tw::Float dt)
 			}
 }
 
-void Conductor::ReadData(std::ifstream& inFile)
+void Conductor::ReadCheckpoint(std::ifstream& inFile)
 {
 	tw::Int num;
-	ComputeTool::ReadData(inFile);
+	ComputeTool::ReadCheckpoint(inFile);
 	inFile.read((char *)&num,sizeof(tw::Int));
 	Px.resize(num);
 	Py.resize(num);
@@ -1149,10 +1149,10 @@ void Conductor::ReadData(std::ifstream& inFile)
 	inFile.read((char *)&pulseShape,sizeof(PulseShape));
 }
 
-void Conductor::WriteData(std::ofstream& outFile)
+void Conductor::WriteCheckpoint(std::ofstream& outFile)
 {
 	tw::Int num = Px.size();
-	ComputeTool::WriteData(outFile);
+	ComputeTool::WriteCheckpoint(outFile);
 	outFile.write((char *)&num,sizeof(tw::Int));
 	outFile.write((char *)&Px[0],sizeof(tw::Float)*num);
 	outFile.write((char *)&Py[0],sizeof(tw::Float)*num);
@@ -1188,34 +1188,34 @@ void LindmanBoundary::Initialize(Task *task,MetricSpace *ms,std::vector<Wave*> *
 
 	DiscreteSpace bm_layout;
 
-	if (axis==tw::grid::xAxis && ms->Dim(1)==1)
+	if (axis==tw::grid::x && ms->Dim(1)==1)
 		throw tw::FatalError("Lindman boundary geometry is not consistent");
 
-	if (axis==tw::grid::yAxis && ms->Dim(2)==1)
+	if (axis==tw::grid::y && ms->Dim(2)==1)
 		throw tw::FatalError("Lindman boundary geometry is not consistent");
 
-	if (axis==tw::grid::zAxis && ms->Dim(3)==1)
+	if (axis==tw::grid::z && ms->Dim(3)==1)
 		throw tw::FatalError("Lindman boundary geometry is not consistent");
 
 	switch (axis)
 	{
-		case tw::grid::tAxis:
+		case tw::grid::t:
 			break;
-		case tw::grid::xAxis:
+		case tw::grid::x:
 			bm_layout.Resize(1,ms->Dim(2),ms->Dim(3),Corner(*ms),PhysicalSize(*ms));
 			break;
-		case tw::grid::yAxis:
+		case tw::grid::y:
 			bm_layout.Resize(ms->Dim(1),1,ms->Dim(3),Corner(*ms),PhysicalSize(*ms));
 			break;
-		case tw::grid::zAxis:
+		case tw::grid::z:
 			bm_layout.Resize(ms->Dim(1),ms->Dim(2),1,Corner(*ms),PhysicalSize(*ms));
 			break;
 	}
 
 	boundaryMemory.Initialize( 9 , bm_layout , task );
-	boundaryMemory.SetBoundaryConditions(tw::grid::xAxis,fld::none,fld::none);
-	boundaryMemory.SetBoundaryConditions(tw::grid::yAxis,fld::none,fld::none);
-	boundaryMemory.SetBoundaryConditions(tw::grid::zAxis,fld::none,fld::none);
+	boundaryMemory.SetBoundaryConditions(tw::grid::x,fld::none,fld::none);
+	boundaryMemory.SetBoundaryConditions(tw::grid::y,fld::none,fld::none);
+	boundaryMemory.SetBoundaryConditions(tw::grid::z,fld::none,fld::none);
 }
 
 void LindmanBoundary::UpdateBoundaryMemory(Field& A,tw::Float dt)
@@ -1289,18 +1289,18 @@ void LindmanBoundary::Set(Field& A,tw::Float t0,tw::Float dt)
 	}
 }
 
-void LindmanBoundary::ReadData(std::ifstream& inFile)
+void LindmanBoundary::ReadCheckpoint(std::ifstream& inFile)
 {
 	inFile.read((char*)&c0,sizeof(tw::Int));
 	inFile.read((char*)&c1,sizeof(tw::Int));
-	boundaryMemory.ReadData(inFile);
+	boundaryMemory.ReadCheckpoint(inFile);
 }
 
-void LindmanBoundary::WriteData(std::ofstream& outFile)
+void LindmanBoundary::WriteCheckpoint(std::ofstream& outFile)
 {
 	outFile.write((char*)&c0,sizeof(tw::Int));
 	outFile.write((char*)&c1,sizeof(tw::Int));
-	boundaryMemory.WriteData(outFile);
+	boundaryMemory.WriteCheckpoint(outFile);
 }
 
 

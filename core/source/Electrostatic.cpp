@@ -20,23 +20,23 @@ Electrostatic::Electrostatic(const std::string& name,Simulation* sim):FieldSolve
 	Ef.Initialize(*this,owner);
 	J4.Initialize(4,*this,owner);
 
-	Ef.SetBoundaryConditions(tw::grid::xAxis,fld::neumannWall,fld::neumannWall);
-	Ef.SetBoundaryConditions(Element(0),tw::grid::xAxis,fld::none,fld::normalFluxFixed);
+	Ef.SetBoundaryConditions(tw::grid::x,fld::neumannWall,fld::neumannWall);
+	Ef.SetBoundaryConditions(Element(0),tw::grid::x,fld::none,fld::normalFluxFixed);
 
-	Ef.SetBoundaryConditions(tw::grid::yAxis,fld::neumannWall,fld::neumannWall);
-	Ef.SetBoundaryConditions(Element(1),tw::grid::yAxis,fld::none,fld::normalFluxFixed);
+	Ef.SetBoundaryConditions(tw::grid::y,fld::neumannWall,fld::neumannWall);
+	Ef.SetBoundaryConditions(Element(1),tw::grid::y,fld::none,fld::normalFluxFixed);
 
-	Ef.SetBoundaryConditions(tw::grid::zAxis,fld::neumannWall,fld::neumannWall);
-	Ef.SetBoundaryConditions(Element(2),tw::grid::zAxis,fld::none,fld::normalFluxFixed);
+	Ef.SetBoundaryConditions(tw::grid::z,fld::neumannWall,fld::neumannWall);
+	Ef.SetBoundaryConditions(Element(2),tw::grid::z,fld::none,fld::normalFluxFixed);
 
-	J4.SetBoundaryConditions(tw::grid::xAxis,fld::dirichletCell,fld::dirichletCell);
-	J4.SetBoundaryConditions(Element(1),tw::grid::xAxis,fld::normalFluxFixed,fld::normalFluxFixed);
+	J4.SetBoundaryConditions(tw::grid::x,fld::dirichletCell,fld::dirichletCell);
+	J4.SetBoundaryConditions(Element(1),tw::grid::x,fld::normalFluxFixed,fld::normalFluxFixed);
 
-	J4.SetBoundaryConditions(tw::grid::yAxis,fld::dirichletCell,fld::dirichletCell);
-	J4.SetBoundaryConditions(Element(2),tw::grid::yAxis,fld::normalFluxFixed,fld::normalFluxFixed);
+	J4.SetBoundaryConditions(tw::grid::y,fld::dirichletCell,fld::dirichletCell);
+	J4.SetBoundaryConditions(Element(2),tw::grid::y,fld::normalFluxFixed,fld::normalFluxFixed);
 
-	J4.SetBoundaryConditions(tw::grid::zAxis,fld::dirichletCell,fld::dirichletCell);
-	J4.SetBoundaryConditions(Element(3),tw::grid::zAxis,fld::normalFluxFixed,fld::normalFluxFixed);
+	J4.SetBoundaryConditions(tw::grid::z,fld::dirichletCell,fld::dirichletCell);
+	J4.SetBoundaryConditions(Element(3),tw::grid::z,fld::normalFluxFixed,fld::normalFluxFixed);
 }
 
 void Electrostatic::Initialize()
@@ -64,54 +64,20 @@ void Electrostatic::Reset()
 	J4 = 0.0;
 }
 
-void Electrostatic::ReadData(std::ifstream& inFile)
+void Electrostatic::ReadCheckpoint(std::ifstream& inFile)
 {
-	FieldSolver::ReadData(inFile);
+	FieldSolver::ReadCheckpoint(inFile);
 
-	phi.ReadData(inFile);
-	J4.ReadData(inFile);
+	phi.ReadCheckpoint(inFile);
+	J4.ReadCheckpoint(inFile);
 }
 
-void Electrostatic::WriteData(std::ofstream& outFile)
+void Electrostatic::WriteCheckpoint(std::ofstream& outFile)
 {
-	FieldSolver::WriteData(outFile);
+	FieldSolver::WriteCheckpoint(outFile);
 
-	phi.WriteData(outFile);
-	J4.WriteData(outFile);
-}
-
-void Electrostatic::EnergyHeadings(std::ofstream& outFile)
-{
-	outFile << "FieldEnergy TotalCharge Current ";
-}
-
-void Electrostatic::EnergyColumns(std::vector<tw::Float>& cols,std::vector<bool>& avg,const Region& theRgn)
-{
-	tw::Int i,j,k;
-	tw::Float fieldEnergy,totalCharge,current;
-	tw::vec3 pos;
-
-	tw::Int x0,x1,y0,y1,z0,z1;
-	theRgn.GetLocalCellBounds(&x0,&x1,&y0,&y1,&z0,&z1);
-	fieldEnergy = 0.0;
-	totalCharge = 0.0;
-	current = 0.0;
-	for (k=z0;k<=z1;k++)
-		for (j=y0;j<=y1;j++)
-			for (i=x0;i<=x1;i++)
-			{
-				pos = owner->Pos(i,j,k);
-				if (theRgn.Inside(pos,*owner))
-				{
-					fieldEnergy += 0.5 * owner->dS(i,j,k,0) * Norm(Ef(i,j,k));
-					totalCharge += owner->dS(i,j,k,0) * J4(i,j,k,0);
-					current += owner->dS(i,j,k,3) * 0.5 * (J4(i,j,k-1,3) + J4(i,j,k,3)) / tw::Float(z1 - z0 + 1);
-				}
-			}
-
-	cols.push_back(fieldEnergy); avg.push_back(false);
-	cols.push_back(totalCharge); avg.push_back(false);
-	cols.push_back(current); avg.push_back(false);
+	phi.WriteCheckpoint(outFile);
+	J4.WriteCheckpoint(outFile);
 }
 
 void Electrostatic::Update()
@@ -138,44 +104,24 @@ void Electrostatic::ComputeFinalFields()
 	Ef.ApplyBoundaryCondition();
 }
 
-void Electrostatic::BoxDiagnosticHeader(GridDataDescriptor* box)
+void Electrostatic::Report(Diagnostic *diagnostic)
 {
-	owner->WriteBoxDataHeader("phi",box);
-	owner->WriteBoxDataHeader("Ex",box);
-	owner->WriteBoxDataHeader("Ey",box);
-	owner->WriteBoxDataHeader("Ez",box);
-	owner->WriteBoxDataHeader("rho",box);
-	owner->WriteBoxDataHeader("Jx",box);
-	owner->WriteBoxDataHeader("Jy",box);
-	owner->WriteBoxDataHeader("Jz",box);
-}
-
-void Electrostatic::BoxDiagnose(GridDataDescriptor* box)
-{
-	owner->WriteBoxData("phi",box,&phi(0,0,0),phi.Stride());
-	owner->WriteBoxData("Ex",box,&Ef(0,0,0).x,Ef.Stride());
-	owner->WriteBoxData("Ey",box,&Ef(0,0,0).y,Ef.Stride());
-	owner->WriteBoxData("Ez",box,&Ef(0,0,0).z,Ef.Stride());
-	owner->WriteBoxData("rho",box,&J4(0,0,0,0),J4.Stride());
-	owner->WriteBoxData("Jx",box,&J4(0,0,0,1),J4.Stride());
-	owner->WriteBoxData("Jy",box,&J4(0,0,0,2),J4.Stride());
-	owner->WriteBoxData("Jz",box,&J4(0,0,0,3),J4.Stride());
-}
-
-void Electrostatic::PointDiagnosticHeader(std::ofstream& outFile)
-{
-	outFile << "phi rho ";
-}
-
-void Electrostatic::PointDiagnose(std::ofstream& outFile,const weights_3D& w)
-{
-	tw::Float valNow;
-	std::valarray<tw::Float> j4(4);
-
-	phi.Interpolate(&valNow,w);
-	outFile << valNow << " ";
-	J4.Interpolate(j4,w);
-	outFile << j4[0] << " ";
+	if (!Module::Report(diagnostic))
+		return;
+	ScalarField energyDensity;
+	energyDensity.Initialize(*this,owner);
+	for (auto cell : EntireCellRange(*this))
+		energyDensity(cell) = 0.5*Norm(Ef(cell));
+	diagnostic->VolumeIntegral("FieldEnergy",energyDensity,0);
+	diagnostic->VolumeIntegral("TotalCharge",J4,0);
+	diagnostic->Field("phi",phi,0);
+	diagnostic->Field("Ex",Ef,0);
+	diagnostic->Field("Ey",Ef,1);
+	diagnostic->Field("Ez",Ef,2);
+	diagnostic->Field("rho",J4,0);
+	diagnostic->Field("Jx",J4,1);
+	diagnostic->Field("Jy",J4,2);
+	diagnostic->Field("Jz",J4,3);
 }
 
 void Electrostatic::SetupInitialPotential()

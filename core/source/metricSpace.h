@@ -33,8 +33,8 @@ struct MetricSpace:DiscreteSpace
 
 	void Resize(tw::Int x,tw::Int y,tw::Int z,const tw::vec3& corner,const tw::vec3& size,tw::Int ghostCellLayers);
 	void Resize(tw::Int x,tw::Int y,tw::Int z,const tw::vec3& corner,const tw::vec3& size);
-	void ReadData(std::ifstream& inFile);
-	void WriteData(std::ofstream& outFile);
+	void ReadCheckpoint(std::ifstream& inFile);
+	void WriteCheckpoint(std::ofstream& outFile);
 
 	void SetupPositionArrays();
 	void SetCartesianGeometry();

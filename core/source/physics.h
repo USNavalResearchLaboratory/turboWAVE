@@ -102,8 +102,8 @@ struct Ionizer : ComputeTool
 
 	Ionizer(const std::string& name,MetricSpace *m,Task *tsk);
 	virtual void Initialize();
-	virtual void ReadData(std::ifstream& inFile);
-	virtual void WriteData(std::ofstream& outFile);
+	virtual void ReadCheckpoint(std::ifstream& inFile);
+	virtual void WriteCheckpoint(std::ofstream& outFile);
 	virtual tw::Float InstantRate(tw::Float w0,tw::Float E) { return 0.0; }
 	virtual tw::Float AverageRate(tw::Float w0,tw::Float E) { return 0.0; }
 	tw::Float ThresholdEstimate() { return space->units->AtomicToSim(electric_field_dim,A3); }
@@ -114,8 +114,8 @@ struct MPI : Ionizer
 	tw::Float E_MPI;
 	MPI(const std::string& name,MetricSpace *m,Task *tsk);
 	virtual void Initialize();
-	virtual void ReadData(std::ifstream& inFile);
-	virtual void WriteData(std::ofstream& outFile);
+	virtual void ReadCheckpoint(std::ifstream& inFile);
+	virtual void WriteCheckpoint(std::ofstream& outFile);
 	virtual tw::Float AverageRate(tw::Float w0,tw::Float E);
 };
 
@@ -132,8 +132,8 @@ struct PPT : Ionizer
 	tw::Int terms;
 	PPT(const std::string& name,MetricSpace *m,Task *tsk);
 	virtual void Initialize();
-	virtual void ReadData(std::ifstream& inFile);
-	virtual void WriteData(std::ofstream& outFile);
+	virtual void ReadCheckpoint(std::ifstream& inFile);
+	virtual void WriteCheckpoint(std::ofstream& outFile);
 	virtual tw::Float AverageRate(tw::Float w0,tw::Float E);
 	tw::Float wfunc(tw::Float x);
 };
@@ -195,8 +195,8 @@ struct EOSSimpleMieGruneisen:EOSComponent
 
 	EOSSimpleMieGruneisen(const std::string& name,MetricSpace *m,Task *tsk);
 	virtual void AddPKV(ScalarField& IE,ScalarField& nm,ScalarField& nu_e,Field& hydro,Field& eos);
-	virtual void ReadData(std::ifstream& inFile);
-	virtual void WriteData(std::ofstream& outFile);
+	virtual void ReadCheckpoint(std::ifstream& inFile);
+	virtual void WriteCheckpoint(std::ofstream& outFile);
 };
 
 // This is a MieGruneisen EOS that assumes \rho * GRUN = const., and a linear Hugoniot fit
@@ -213,8 +213,8 @@ struct EOSLinearMieGruneisen:EOSComponent
 
 	EOSLinearMieGruneisen(const std::string& name,MetricSpace *m,Task *tsk);
 	virtual void AddPKV(ScalarField& IE,ScalarField& nm,ScalarField& nu_e,Field& hydro,Field& eos);
-	virtual void ReadData(std::ifstream& inFile);
-	virtual void WriteData(std::ofstream& outFile);
+	virtual void ReadCheckpoint(std::ifstream& inFile);
+	virtual void WriteCheckpoint(std::ofstream& outFile);
 };
 
 // DFG - the role of the mixture is still the same, it computes non-additive things like temperature.

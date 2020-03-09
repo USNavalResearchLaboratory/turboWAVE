@@ -49,8 +49,8 @@ public:
 	tw::vec3 Translate_Rotate(const tw::vec3& pos);
 	virtual tw::Float GetValue(const tw::vec3& pos,const MetricSpace& ds);
 	virtual void ReadInputFileDirective(std::stringstream& inputString,const std::string& command);
-	virtual void ReadData(std::ifstream& inFile);
-	virtual void WriteData(std::ofstream& outFile);
+	virtual void ReadCheckpoint(std::ifstream& inFile);
+	virtual void WriteCheckpoint(std::ofstream& outFile);
 };
 
 struct UniformProfile:Profile
@@ -59,8 +59,8 @@ struct UniformProfile:Profile
 
 	UniformProfile(const std::string& name,MetricSpace *m,Task *tsk);
 	virtual tw::Float GetValue(const tw::vec3& pos,const MetricSpace& ds);
-	virtual void ReadData(std::ifstream& inFile);
-	virtual void WriteData(std::ofstream& outFile);
+	virtual void ReadCheckpoint(std::ifstream& inFile);
+	virtual void WriteCheckpoint(std::ofstream& outFile);
 };
 
 struct GaussianProfile:Profile
@@ -70,8 +70,8 @@ struct GaussianProfile:Profile
 
 	GaussianProfile(const std::string& name,MetricSpace *m,Task *tsk);
 	virtual tw::Float GetValue(const tw::vec3& pos,const MetricSpace& ds);
-	virtual void ReadData(std::ifstream& inFile);
-	virtual void WriteData(std::ofstream& outFile);
+	virtual void ReadCheckpoint(std::ifstream& inFile);
+	virtual void WriteCheckpoint(std::ofstream& outFile);
 };
 
 struct ChannelProfile:Profile
@@ -81,8 +81,8 @@ struct ChannelProfile:Profile
 
 	ChannelProfile(const std::string& name,MetricSpace *m,Task *tsk);
 	virtual tw::Float GetValue(const tw::vec3& pos,const MetricSpace& ds);
-	virtual void ReadData(std::ifstream& inFile);
-	virtual void WriteData(std::ofstream& outFile);
+	virtual void ReadCheckpoint(std::ifstream& inFile);
+	virtual void WriteCheckpoint(std::ofstream& outFile);
 };
 
 struct ColumnProfile:Profile
@@ -92,8 +92,8 @@ struct ColumnProfile:Profile
 
 	ColumnProfile(const std::string& name,MetricSpace *m,Task *tsk);
 	virtual tw::Float GetValue(const tw::vec3& pos,const MetricSpace& ds);
-	virtual void ReadData(std::ifstream& inFile);
-	virtual void WriteData(std::ofstream& outFile);
+	virtual void ReadCheckpoint(std::ifstream& inFile);
+	virtual void WriteCheckpoint(std::ofstream& outFile);
 };
 
 struct PiecewiseProfile:Profile
@@ -103,8 +103,8 @@ struct PiecewiseProfile:Profile
 	PiecewiseProfile(const std::string& name,MetricSpace *m,Task *tsk);
 	virtual void Initialize();
 	virtual tw::Float GetValue(const tw::vec3& pos,const MetricSpace& ds);
-	virtual void ReadData(std::ifstream& inFile);
-	virtual void WriteData(std::ofstream& outFile);
+	virtual void ReadCheckpoint(std::ifstream& inFile);
+	virtual void WriteCheckpoint(std::ofstream& outFile);
 };
 
 struct CorrugatedProfile:Profile
@@ -113,8 +113,8 @@ struct CorrugatedProfile:Profile
 
 	CorrugatedProfile(const std::string& name,MetricSpace *m,Task *tsk);
 	virtual tw::Float GetValue(const tw::vec3& pos,const MetricSpace& ds);
-	virtual void ReadData(std::ifstream& inFile);
-	virtual void WriteData(std::ofstream& outFile);
+	virtual void ReadCheckpoint(std::ifstream& inFile);
+	virtual void WriteCheckpoint(std::ofstream& outFile);
 };
 
 struct PulseShape
@@ -187,8 +187,8 @@ struct Wave : ComputeTool
 		return A4.spatial(); // For certain boost geometries we will need to keep scalar potential
 	}
 
-	virtual void ReadData(std::ifstream& inFile);
-	virtual void WriteData(std::ofstream& outFile);
+	virtual void ReadCheckpoint(std::ifstream& inFile);
+	virtual void WriteCheckpoint(std::ofstream& outFile);
 };
 
 struct PlaneWave : Wave
@@ -247,8 +247,8 @@ struct Conductor : ComputeTool
 	tw::vec3 PolarizationDensity(const tw::vec3& pos,tw::Float t);
 	void DepositSources(Field& j4,tw::Float t,tw::Float dt);
 
-	virtual void ReadData(std::ifstream& inFile);
-	virtual void WriteData(std::ofstream& outFile);
+	virtual void ReadCheckpoint(std::ifstream& inFile);
+	virtual void WriteCheckpoint(std::ofstream& outFile);
 };
 
 struct LindmanBoundary
@@ -263,8 +263,8 @@ struct LindmanBoundary
 	void Initialize(Task *task,MetricSpace *ms,std::vector<Wave*> *waves,const tw::grid::axis& axis,const tw::grid::side& side,tw::Int c0,tw::Int c1);
 	void UpdateBoundaryMemory(Field& A,tw::Float dt);
 	void Set(Field& A,tw::Float t0,tw::Float dt);
-	void ReadData(std::ifstream& inFile);
-	void WriteData(std::ofstream& outFile);
+	void ReadCheckpoint(std::ifstream& inFile);
+	void WriteCheckpoint(std::ofstream& outFile);
 };
 
 struct MABoundary

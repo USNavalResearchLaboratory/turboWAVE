@@ -87,9 +87,9 @@ void Module::Initialize()
 			p->Initialize();
 }
 
-void Module::ReadData(std::ifstream& inFile)
+void Module::ReadCheckpoint(std::ifstream& inFile)
 {
-	DiscreteSpace::ReadData(inFile);
+	DiscreteSpace::ReadCheckpoint(inFile);
 	inFile.read((char *)&dt,sizeof(dt));
 	inFile.read((char *)&dth,sizeof(dth));
 	inFile.read((char *)&smoothing[0],sizeof(smoothing));
@@ -111,11 +111,11 @@ void Module::ReadData(std::ifstream& inFile)
 		owner->GetModule(super_name)->AddSubmodule(this);
 }
 
-void Module::WriteData(std::ofstream& outFile)
+void Module::WriteCheckpoint(std::ofstream& outFile)
 {
 	outFile.write((char *)&typeCode,sizeof(typeCode));
 	outFile << name << " ";
-	DiscreteSpace::WriteData(outFile);
+	DiscreteSpace::WriteCheckpoint(outFile);
 	outFile.write((char *)&dt,sizeof(dt));
 	outFile.write((char *)&dth,sizeof(dth));
 	outFile.write((char *)&smoothing[0],sizeof(smoothing));
@@ -195,6 +195,14 @@ void Module::ReadInputFileDirective(std::stringstream& inputString,const std::st
 
 void Module::StartDiagnostics()
 {
+}
+
+bool Module::Report(Diagnostic *diagnostic)
+{
+	for (auto d : moduleTool)
+		if (d==diagnostic)
+			return true;
+	return false;
 }
 
 void Module::WarningMessage(std::ostream *theStream)
@@ -351,6 +359,6 @@ Module* Module::CreateObjectFromFile(std::ifstream& inFile,Simulation* sim)
 	inFile >> name;
 	inFile.ignore();
 	ans = CreateObjectFromType(name,theType,sim);
-	ans->ReadData(inFile);
+	ans->ReadCheckpoint(inFile);
 	return ans;
 }

@@ -366,9 +366,9 @@ void MetricSpace::SetSphericalGeometry()
 				cell_area_z[i + c*sz] = tw::small_pos;
 }
 
-void MetricSpace::ReadData(std::ifstream& inFile)
+void MetricSpace::ReadCheckpoint(std::ifstream& inFile)
 {
-	DiscreteSpace::ReadData(inFile);
+	DiscreteSpace::ReadCheckpoint(inFile);
 	Resize(dim[1],dim[2],dim[3],corner,size,layers[0]);
 	inFile.read((char *)mnum,sizeof(mnum));
 	inFile.read((char *)mlb,sizeof(mlb));
@@ -384,9 +384,9 @@ void MetricSpace::ReadData(std::ifstream& inFile)
 	inFile.read((char *)&cell_arc_z[0],sizeof(tw::Float)*cell_arc_z.size());
 }
 
-void MetricSpace::WriteData(std::ofstream& outFile)
+void MetricSpace::WriteCheckpoint(std::ofstream& outFile)
 {
-	DiscreteSpace::WriteData(outFile);
+	DiscreteSpace::WriteCheckpoint(outFile);
 	outFile.write((char *)mnum,sizeof(mnum));
 	outFile.write((char *)mlb,sizeof(mlb));
 	outFile.write((char *)mub,sizeof(mub));

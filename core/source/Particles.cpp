@@ -60,7 +60,7 @@ void Kinetics::MoveWindow()
 	// rho00 array is always left in an unrefined post-deposition state
 	// i.e., charge from a given particle should be on only one node
 	// therefore charge has to be zeroed on one node after being sent to another
-	rho00.DownwardDeposit(tw::grid::zAxis,1);
+	rho00.DownwardDeposit(tw::grid::z,1);
 	for (auto s : StripRange(*this,3,strongbool::yes))
 	{
 		rho00(s,0) = 0.0;
@@ -238,14 +238,14 @@ void Kinetics::Ionize()
 	for (tw::Int s=0;s<species.size();s++)
 	{
 		Ionizer *ionizer = species[s]->ionizer;
-		std::vector<Particle>& particle = species[s]->particle;
-		s1 = (Species*)owner->module[ionizer->ionSpecies];
-		s2 = (Species*)owner->module[ionizer->electronSpecies];
-		m0 = species[s]->restMass;
-		q0 = species[s]->charge;
 
 		if (ionizer!=NULL)
 		{
+			std::vector<Particle>& particle = species[s]->particle;
+			s1 = (Species*)owner->module[ionizer->ionSpecies];
+			s2 = (Species*)owner->module[ionizer->electronSpecies];
+			m0 = species[s]->restMass;
+			q0 = species[s]->charge;
 			for (tw::Int i=0;i<particle.size();i++)
 			{
 				Particle& curr = particle[i]; // curr = particle being ionized
@@ -352,16 +352,16 @@ tw::Float Kinetics::KineticEnergy(const Region& theRgn)
 	return ans;
 }
 
-void Kinetics::ReadData(std::ifstream& inFile)
+void Kinetics::ReadCheckpoint(std::ifstream& inFile)
 {
-	Module::ReadData(inFile);
-	rho00.ReadData(inFile);
+	Module::ReadCheckpoint(inFile);
+	rho00.ReadCheckpoint(inFile);
 }
 
-void Kinetics::WriteData(std::ofstream& outFile)
+void Kinetics::WriteCheckpoint(std::ofstream& outFile)
 {
-	Module::WriteData(outFile);
-	rho00.WriteData(outFile);
+	Module::WriteCheckpoint(outFile);
+	rho00.WriteCheckpoint(outFile);
 }
 
 
@@ -379,12 +379,12 @@ Particle::Particle(const tw::vec3& p,const Primitive& q,const float number,const
 	this->aux2 = aux2;
 }
 
-void Particle::ReadData(std::ifstream& inFile)
+void Particle::ReadCheckpoint(std::ifstream& inFile)
 {
 	inFile.read((char *)this,sizeof(Particle));
 }
 
-void Particle::WriteData(std::ofstream& outFile)
+void Particle::WriteCheckpoint(std::ofstream& outFile)
 {
 	outFile.write((char *)this,sizeof(Particle));
 }
@@ -459,6 +459,7 @@ Species::~Species()
 
 void Species::VerifyInput()
 {
+	Module::VerifyInput();
 	for (auto tool : moduleTool)
 	{
 		ionizer = dynamic_cast<Ionizer*>(tool);
@@ -1146,37 +1147,9 @@ void Species::ReadInputFileDirective(std::stringstream& inputString,const std::s
 		inputString >> accelerationImpulse >> word >> accelerationTime;
 }
 
-bool Species::ReadQuasitoolBlock(const tw::input::Preamble& preamble,std::stringstream& inputString)
+void Species::ReadCheckpoint(std::ifstream& inFile)
 {
-	std::string key(preamble.words[0]);
-	std::string requested_name(preamble.words.back());
-	tw::input::StripQuotes(requested_name);
-	if (key=="phase" && requested_name==name) // eg, new phase space plot for electrons { ... }
-	{
-		phaseSpacePlot.push_back(new PhaseSpaceDescriptor(owner->clippingRegion));
-		phaseSpacePlot.back()->ReadInputFile(inputString);
-		return true;
-	}
-	if (key=="orbit" && requested_name==name) // eg, new orbit diagnostic for electrons { ... }
-	{
-		orbitDiagnostic.push_back(new ParticleOrbitDescriptor(owner->clippingRegion));
-		orbitDiagnostic.back()->ReadInputFile(inputString);
-		return true;
-	}
-	if (key=="detector" && requested_name==name) // eg, new detector diagnostic for electrons { ... }
-	{
-		detector.push_back(new ParticleDetectorDescriptor(owner->clippingRegion));
-		detector.back()->ReadInputFile(inputString);
-		return true;
-	}
-	return false;
-}
-
-void Species::ReadData(std::ifstream& inFile)
-{
-	tw::Int i,num;
-
-	Module::ReadData(inFile);
+	Module::ReadCheckpoint(inFile);
 	inFile.read((char *)&restMass,sizeof(tw::Float));
 	inFile.read((char *)&charge,sizeof(tw::Float));
 	inFile.read((char *)&emissionTemp,sizeof(tw::vec3));
@@ -1193,45 +1166,11 @@ void Species::ReadData(std::ifstream& inFile)
 	inFile.read((char *)&mobile,sizeof(bool));
 	inFile.read((char *)&radiationDamping,sizeof(bool));
 	inFile.read((char *)&meanFreePath,sizeof(tw::Float));
-
-	inFile.read((char *)&num,sizeof(tw::Int));
-	(*owner->tw_out) << "Read " << num << " phase space plots" << std::endl;
-	for (i=0;i<num;i++)
-	{
-		phaseSpacePlot.push_back(new PhaseSpaceDescriptor(owner->clippingRegion));
-		phaseSpacePlot.back()->ReadData(inFile);
-	}
-
-	inFile.read((char *)&num,sizeof(tw::Int));
-	(*owner->tw_out) << "Read " << num << " orbit diagnostics" << std::endl;
-	for (i=0;i<num;i++)
-	{
-		orbitDiagnostic.push_back(new ParticleOrbitDescriptor(owner->clippingRegion));
-		orbitDiagnostic.back()->ReadData(inFile);
-	}
-
-	inFile.read((char *)&num,sizeof(tw::Int));
-	(*owner->tw_out) << "Read " << num << " detector diagnostics" << std::endl;
-	for (i=0;i<num;i++)
-	{
-		detector.push_back(new ParticleDetectorDescriptor(owner->clippingRegion));
-		detector.back()->ReadData(inFile);
-	}
-
-	inFile.read((char *)&num,sizeof(tw::Int));
-	(*owner->tw_out) << "Read " << num << " particles" << std::endl;
-	for (i=0;i<num;i++)
-	{
-		particle.emplace_back(0,Primitive(),0,0,0);
-		particle.back().ReadData(inFile);
-	}
 }
 
-void Species::WriteData(std::ofstream& outFile)
+void Species::WriteCheckpoint(std::ofstream& outFile)
 {
-	tw::Int i;
-
-	Module::WriteData(outFile);
+	Module::WriteCheckpoint(outFile);
 	outFile.write((char *)&restMass,sizeof(tw::Float));
 	outFile.write((char *)&charge,sizeof(tw::Float));
 	outFile.write((char *)&emissionTemp,sizeof(tw::vec3));
@@ -1248,26 +1187,6 @@ void Species::WriteData(std::ofstream& outFile)
 	outFile.write((char *)&mobile,sizeof(bool));
 	outFile.write((char *)&radiationDamping,sizeof(bool));
 	outFile.write((char *)&meanFreePath,sizeof(tw::Float));
-
-	i = phaseSpacePlot.size();
-	outFile.write((char *)&i,sizeof(tw::Int));
-	for (i=0;i<phaseSpacePlot.size();i++)
-		phaseSpacePlot[i]->WriteData(outFile);
-
-	i = orbitDiagnostic.size();
-	outFile.write((char *)&i,sizeof(tw::Int));
-	for (i=0;i<orbitDiagnostic.size();i++)
-		orbitDiagnostic[i]->WriteData(outFile);
-
-	i = detector.size();
-	outFile.write((char *)&i,sizeof(tw::Int));
-	for (i=0;i<detector.size();i++)
-		detector[i]->WriteData(outFile);
-
-	i = particle.size();
-	outFile.write((char *)&i,sizeof(tw::Int));
-	for (i=0;i<particle.size();i++)
-		particle[i].WriteData(outFile);
 }
 
 
@@ -1291,9 +1210,9 @@ void Species::CalculateDensity(ScalarField& dens)
 		}
 	}
 	transfer.clear();
-	dens.SetBoundaryConditions(tw::grid::xAxis,fld::dirichletCell,fld::dirichletCell);
-	dens.SetBoundaryConditions(tw::grid::yAxis,fld::dirichletCell,fld::dirichletCell);
-	dens.SetBoundaryConditions(tw::grid::zAxis,fld::dirichletCell,fld::dirichletCell);
+	dens.SetBoundaryConditions(tw::grid::x,fld::dirichletCell,fld::dirichletCell);
+	dens.SetBoundaryConditions(tw::grid::y,fld::dirichletCell,fld::dirichletCell);
+	dens.SetBoundaryConditions(tw::grid::z,fld::dirichletCell,fld::dirichletCell);
 	dens.DepositFromNeighbors();
 	dens.ApplyFoldingCondition();
 	dens.DivideCellVolume(*owner);
@@ -1349,233 +1268,4 @@ void Species::BoxDiagnose(GridDataDescriptor* box)
 	// Write out the data
 
 	owner->WriteBoxData(name,box,&dens(0,0,0),dens.Stride());
-}
-
-tw::Float Species::GetPhaseSpaceData(Particle* p,std::string& what)
-{
-	tw::vec3 pos,mom;
-	pos = owner->PositionFromPrimitive(p->q);
-	owner->CurvilinearToCartesian(&pos);
-	mom = p->p;
-
-	if (what=="x")
-		return pos.x;
-	if (what=="y")
-		return pos.y;
-	if (what=="z")
-		return pos.z - (owner->movingWindow ? owner->elapsedTime : 0.0);
-	if (what=="px")
-		return mom.x;
-	if (what=="py")
-		return mom.y;
-	if (what=="pz")
-		return mom.z;
-	if (what=="gbx")
-		return mom.x/restMass;
-	if (what=="gby")
-		return mom.y/restMass;
-	if (what=="gbz")
-		return mom.z/restMass;
-	if (what=="mass")
-		return sqrt(sqr(restMass) + Norm(mom));
-	if (what=="energy")
-		return (sqrt(1 + Norm(mom)/sqr(restMass)) - 1.0)*restMass;
-	return 0.0;
-}
-
-void Species::CustomDiagnose()
-{
-	float data,gamma;
-	tw::Int i,j,s,pts;
-	std::stringstream fileName;
-	tw::vec3 position,phaseSpaceSize,phaseSpacePos,lastPos,vel;
-	weights_3D weights;
-	std::vector<float> parData;
-	std::valarray<float> parBuffer;
-
-	tw::Int master = 0;
-
-	ScalarField field;
-
-	if (owner->IsFirstStep() && !(owner->appendMode&&owner->restarted) && owner->strip[0].Get_rank()==master)
-	{
-		for (i=0;i<phaseSpacePlot.size();i++)
-		{
-			fileName.str("");
-			fileName << phaseSpacePlot[i]->filename << ".dvdat";
-			phaseSpacePlot[i]->outFile.open(fileName.str().c_str(),std::ios::binary);
-			WriteDVHeader(phaseSpacePlot[i]->outFile,2,phaseSpacePlot[i]->hDim,phaseSpacePlot[i]->vDim,1,
-				phaseSpacePlot[i]->min.x,phaseSpacePlot[i]->max.x,
-				phaseSpacePlot[i]->min.y,phaseSpacePlot[i]->max.y,0.0,1.0);
-			phaseSpacePlot[i]->outFile.close();
-		}
-		for (i=0;i<orbitDiagnostic.size();i++)
-		{
-			fileName.str("");
-			fileName << orbitDiagnostic[i]->filename << ".dvpar";
-			orbitDiagnostic[i]->outFile.open(fileName.str().c_str(),std::ios::binary);
-			orbitDiagnostic[i]->outFile.close();
-		}
-		for (i=0;i<detector.size();i++)
-		{
-			fileName.str("");
-			fileName << detector[i]->filename << ".txt";
-			detector[i]->outFile.open(fileName.str().c_str(),std::ios::binary);
-			detector[i]->outFile.close();
-		}
-	}
-
-	for (s=0;s<phaseSpacePlot.size();s++)
-	{
-		if (phaseSpacePlot[s]->WriteThisStep(owner->elapsedTime,dt,owner->stepNow))
-		{
-			phaseSpaceSize = phaseSpacePlot[s]->max - phaseSpacePlot[s]->min;
-			DiscreteSpace plot_layout(dt,phaseSpacePlot[s]->hDim,phaseSpacePlot[s]->vDim,1,phaseSpacePlot[s]->min,phaseSpaceSize,1);
-			field.Initialize(plot_layout,owner);
-			field.SetBoundaryConditions(tw::grid::xAxis,fld::dirichletCell,fld::dirichletCell);
-			field.SetBoundaryConditions(tw::grid::yAxis,fld::dirichletCell,fld::dirichletCell);
-			for (i=0;i<particle.size();i++)
-			{
-				position = owner->PositionFromPrimitive(particle[i].q);
-				if (phaseSpacePlot[s]->theRgn->Inside(position,*owner))
-				{
-					phaseSpacePos.x = GetPhaseSpaceData(&particle[i],phaseSpacePlot[s]->hAxis);
-					phaseSpacePos.y = GetPhaseSpaceData(&particle[i],phaseSpacePlot[s]->vAxis);
-					phaseSpacePos.z = 0.5;
-					if (phaseSpacePos.x>phaseSpacePlot[s]->min.x && phaseSpacePos.x<phaseSpacePlot[s]->max.x)
-						if (phaseSpacePos.y>phaseSpacePlot[s]->min.y && phaseSpacePos.y<phaseSpacePlot[s]->max.y)
-						{
-							field.GetWeights(&weights,phaseSpacePos);
-							field.InterpolateOnto( particle[i].number, weights );
-							// phase space volume is divided out below
-						}
-				}
-			}
-			owner->strip[0].Sum(&field(0,0,0),&field(0,0,0),sizeof(tw::Float)*(phaseSpacePlot[s]->hDim+2)*(phaseSpacePlot[s]->vDim+2),master);
-			if (owner->strip[0].Get_rank()==master)
-			{
-				field.ApplyBoundaryCondition();
-				fileName.str("");
-				fileName << phaseSpacePlot[s]->filename << ".dvdat";
-				phaseSpacePlot[s]->outFile.open(fileName.str().c_str(),std::ios::binary | std::ios::app);
-				for (j=1;j<=field.Dim(2);j++)
-					for (i=1;i<=field.Dim(1);i++)
-					{
-						data = field(i,j,1);
-						data /= phaseSpacePlot[s]->horVolFactor[i-1] * phaseSpacePlot[s]->verVolFactor[j-1];
-						WriteBigEndian((char *)&data,sizeof(float),0,phaseSpacePlot[s]->outFile);
-					}
-				phaseSpacePlot[s]->outFile.close();
-			}
-		}
-	}
-
-	for (s=0;s<orbitDiagnostic.size();s++)
-	{
-		if (orbitDiagnostic[s]->WriteThisStep(owner->elapsedTime,dt,owner->stepNow))
-		{
-			parData.clear();
-			for (i=0;i<particle.size();i++)
-			{
-				position = owner->PositionFromPrimitive(particle[i].q);
-				if (orbitDiagnostic[s]->theRgn->Inside(position,*owner))
-					if (sqrt(1.0 + Norm(particle[i].p/restMass)) >= orbitDiagnostic[s]->minGamma)
-					{
-						owner->CurvilinearToCartesian(&position);
-						parData.push_back(position.x);
-						parData.push_back(particle[i].p.x);
-						parData.push_back(position.y);
-						parData.push_back(particle[i].p.y);
-						parData.push_back(position.z - (owner->movingWindow ? owner->elapsedTime : 0.0));
-						parData.push_back(particle[i].p.z);
-						parData.push_back(particle[i].aux1);
-						parData.push_back(particle[i].aux2);
-					}
-			}
-			parBuffer.resize(parData.size());
-			for (i=0;i<parData.size();i++)
-				parBuffer[i] = parData[i];
-			pts = parData.size();
-			if (owner->strip[0].Get_rank()!=master)
-			{
-				owner->strip[0].Send(&pts,sizeof(tw::Int),master);
-				owner->strip[0].Send(&parBuffer[0],sizeof(float)*pts,master);
-			}
-			if (owner->strip[0].Get_rank()==master)
-			{
-				fileName.str("");
-				fileName << orbitDiagnostic[s]->filename << ".dvpar";
-				orbitDiagnostic[s]->outFile.open(fileName.str().c_str(),std::ios::binary | std::ios::app);
-				WriteBigEndian((char*)&parBuffer[0],sizeof(float)*pts,sizeof(float),orbitDiagnostic[s]->outFile);
-				for (i=0;i<owner->strip[0].Get_size();i++)
-				{
-					if (i!=master)
-					{
-						owner->strip[0].Recv(&pts,sizeof(tw::Int),i);
-						parBuffer.resize(pts);
-						owner->strip[0].Recv(&parBuffer[0],sizeof(float)*pts,i);
-						WriteBigEndian((char*)&parBuffer[0],sizeof(float)*pts,sizeof(float),orbitDiagnostic[s]->outFile);
-					}
-				}
-				float zero = 0.0;
-				for (i=0;i<8;i++)
-					WriteBigEndian((char*)&zero,sizeof(float),sizeof(float),orbitDiagnostic[s]->outFile);
-				orbitDiagnostic[s]->outFile.close();
-			}
-		}
-	}
-
-	for (s=0;s<detector.size();s++)
-	{
-		parData.clear();
-		for (i=0;i<particle.size();i++)
-		{
-			position = owner->PositionFromPrimitive(particle[i].q);
-			if (detector[s]->theRgn->Inside(position,*owner))
-			{
-				owner->CurvilinearToCartesian(&position);
-				vel = particle[i].p/sqrt(1.0 + Norm(particle[i].p/restMass));
-				lastPos = position - vel*dt;
-				gamma = sqrt(1.0 + Norm(particle[i].p/restMass));
-				if (lastPos.z < detector[s]->position.z && position.z > detector[s]->position.z)
-					if (gamma >= detector[s]->minGamma)
-					{
-						parData.push_back(position.x);
-						parData.push_back(particle[i].p.x/particle[i].p.z);
-						parData.push_back(position.y);
-						parData.push_back(particle[i].p.y/particle[i].p.z);
-						parData.push_back(owner->elapsedTime); // zero order accurate
-						parData.push_back(gamma-1.0);
-						parData.push_back(particle[i].number);
-					}
-			}
-		}
-		parBuffer.resize(parData.size());
-		for (i=0;i<parData.size();i++)
-			parBuffer[i] = parData[i];
-		pts = parData.size();
-		if (owner->strip[0].Get_rank()!=master)
-		{
-			owner->strip[0].Send(&pts,sizeof(tw::Int),master);
-			owner->strip[0].Send(&parBuffer[0],sizeof(float)*pts,master);
-		}
-		if (owner->strip[0].Get_rank()==master)
-		{
-			fileName.str("");
-			fileName << detector[s]->filename << ".txt";
-			detector[s]->outFile.open(fileName.str().c_str(),std::ios::binary | std::ios::app);
-			detector[s]->WriteRecords(parBuffer);
-			for (i=0;i<owner->strip[0].Get_size();i++)
-			{
-				if (i!=master)
-				{
-					owner->strip[0].Recv(&pts,sizeof(tw::Int),i);
-					parBuffer.resize(pts);
-					owner->strip[0].Recv(&parBuffer[0],sizeof(float)*pts,i);
-					detector[s]->WriteRecords(parBuffer);
-				}
-			}
-			detector[s]->outFile.close();
-		}
-	}
 }

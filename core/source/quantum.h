@@ -39,8 +39,8 @@ namespace qo
 		tw::Complex Amplitude(const tw::vec3& r,const tw::Float& t,const tw::Int& comp) const;
 
 		void ReadInputFileBlock(std::stringstream& inputString);
-		void ReadData(std::ifstream& inFile);
-		void WriteData(std::ofstream& outFile);
+		void ReadCheckpoint(std::ifstream& inFile);
+		void WriteCheckpoint(std::ofstream& outFile);
 	};
 }
 
@@ -94,8 +94,8 @@ struct AtomicPhysics:Module
 	}
 	virtual void VerifyInput();
 	virtual void ReadInputFileDirective(std::stringstream& inputString,const std::string& command);
-	virtual void ReadData(std::ifstream& inFile);
-	virtual void WriteData(std::ofstream& outFile);
+	virtual void ReadCheckpoint(std::ifstream& inFile);
+	virtual void WriteCheckpoint(std::ofstream& outFile);
 };
 
 struct Schroedinger:AtomicPhysics

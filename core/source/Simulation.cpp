@@ -14,7 +14,7 @@
 ///////////////////////////
 
 
-NonUniformRegion::NonUniformRegion(tw::Int first,tw::Int last,tw::Float length,tw::Float dz0)
+Warp::Warp(tw::Int first,tw::Int last,tw::Float length,tw::Float dz0)
 {
 	i1 = first;
 	i2 = last;
@@ -29,7 +29,7 @@ NonUniformRegion::NonUniformRegion(tw::Int first,tw::Int last,tw::Float length,t
 		gridSum += QuinticPulse(tw::Float(i-1)/tw::Float(N-1));
 }
 
-tw::Float NonUniformRegion::AddedCellWidth(tw::Int globalCell)
+tw::Float Warp::AddedCellWidth(tw::Int globalCell)
 {
 	tw::Float A = (1.0/gridSum)*(L/dz - N);
 	if (globalCell>=i1 && globalCell<=i2)
@@ -38,7 +38,7 @@ tw::Float NonUniformRegion::AddedCellWidth(tw::Int globalCell)
 		return 0.0;
 }
 
-tw::Float NonUniformRegion::ACoefficient(tw::Float length)
+tw::Float Warp::ACoefficient(tw::Float length)
 {
 	return (1.0/gridSum)*(length/dz - N);
 }
@@ -59,13 +59,13 @@ void Simulation::SetCellWidthsAndLocalSize()
 		}
 	}
 
-	if (dim[3]>1 && region.size())
+	if (dim[3]>1 && warp.size())
 	{
 		for (i=lfg[3];i<=ufg[3];i++)
 		{
 			dX(i,3) = spacing.z;
-			for (j=0;j<region.size();j++)
-				dX(i,3) += region[j]->AddedCellWidth(cornerCell[3] - 1 + i);
+			for (j=0;j<Warp.size();j++)
+				dX(i,3) += Warp[j]->AddedCellWidth(cornerCell[3] - 1 + i);
 		}
 	}
 
@@ -216,29 +216,21 @@ Simulation::Simulation(const std::string& file_name)
 	gridDirectives.Add("decomposition",new tw::input::Numbers<tw::Int>(&domains[1],3));
 	std::map<std::string,tw::grid::geometry> geo = {{"cartesian",tw::grid::cartesian},{"cylindrical",tw::grid::cylindrical},{"spherical",tw::grid::spherical}};
 	gridDirectives.Add("geometry",new tw::input::Enums<tw::grid::geometry>(geo,&gridGeometry));
-	gridDirectives.Add("region",new tw::input::Custom);
+	gridDirectives.Add("warp",new tw::input::Custom);
 }
 
 Simulation::~Simulation()
 {
-	tw::Int i;
+	for (auto rgn : clippingRegion)
+		delete rgn;
+	for (auto wrp : warp)
+		delete wrp;
 
-	for (i=0;i<energyDiagnostic.size();i++)
-		delete energyDiagnostic[i];
-	for (i=0;i<pointDiagnostic.size();i++)
-		delete pointDiagnostic[i];
-	for (i=0;i<boxDiagnostic.size();i++)
-		delete boxDiagnostic[i];
-	for (i=0;i<clippingRegion.size();i++)
-		delete clippingRegion[i];
-	for (i=0;i<region.size();i++)
-		delete region[i];
-
-	for (i=0;i<module.size();i++)
-		delete module[i];
+	for (auto m : module)
+		delete m;
 	// clean up after any modules that did not release tools
-	for (i=0;i<computeTool.size();i++)
-		delete computeTool[i];
+	for (auto tool : computeTool)
+		delete tool;
 
 	if (uniformDeviate!=NULL)
 		delete uniformDeviate;
@@ -358,7 +350,6 @@ void Simulation::SetupGeometry()
 void Simulation::PrepareSimulation()
 {
 	std::ofstream twstat;
-	tw::Int i;
 
 	#ifdef USE_OPENCL
 	PrintGPUInformation();
@@ -388,7 +379,7 @@ void Simulation::PrepareSimulation()
 	// Initialize Regions
 
 	if (!restarted)
-		for (i=1;i<clippingRegion.size();i++)
+		for (tw::Int i=1;i<clippingRegion.size();i++)
 			clippingRegion[i]->Initialize(*this,this);
 	// region 0 is not saved in restart file
 	clippingRegion[0]->Initialize(*this,this);
@@ -403,11 +394,11 @@ void Simulation::PrepareSimulation()
 
 	(*tw_out) << std::endl << "Initializing Compute Tools..." << std::endl << std::endl;
 
-	for (i=0;i<computeTool.size();i++)
+	for (auto tool : computeTool)
 	{
-		(*tw_out) << "Tool: " << computeTool[i]->name << std::endl;
-		computeTool[i]->Initialize();
-		computeTool[i]->WarningMessage(tw_out);
+		(*tw_out) << "Tool: " << tool->name << std::endl;
+		tool->Initialize();
+		tool->WarningMessage(tw_out);
 	}
 	if (computeTool.size()==0)
 		(*tw_out) << "(no tools)" << std::endl;
@@ -416,14 +407,14 @@ void Simulation::PrepareSimulation()
 
 	(*tw_out) << std::endl << "Initializing Modules..." << std::endl << std::endl;
 
-	for (i=0;i<module.size();i++)
-		module[i]->ExchangeResources();
+	for (auto m : module)
+		m->ExchangeResources();
 
-	for (i=0;i<module.size();i++)
+	for (auto m : module)
 	{
-		(*tw_out) << "Module: " << module[i]->name << std::endl;
-		module[i]->Initialize();
-		module[i]->WarningMessage(tw_out);
+		(*tw_out) << "Module: " << m->name << std::endl;
+		m->Initialize();
+		m->WarningMessage(tw_out);
 	}
 }
 
@@ -476,10 +467,10 @@ void Simulation::InteractiveCommand(const std::string& cmd,std::ostream *theStre
 		*theStream << "Current step: " << stepNow << std::endl;
 		*theStream << "Current step size: " << dt << std::endl;
 		*theStream << "Current elapsed time: " << elapsedTime << std::endl;
-		for (tw::Int i=0;i<module.size();i++)
-			module[i]->StatusMessage(theStream);
-		for (tw::Int i=0;i<computeTool.size();i++)
-			computeTool[i]->StatusMessage(theStream);
+		for (auto m : module)
+			m->StatusMessage(theStream);
+		for (auto tool : computeTool)
+			tool->StatusMessage(theStream);
 		*theStream << std::endl;
 	}
 	if (cmd=="list")
@@ -510,15 +501,13 @@ void Simulation::InteractiveCommand(const std::string& cmd,std::ostream *theStre
 
 void Simulation::FundamentalCycle()
 {
-	tw::Int i;
-
 	Diagnose();
 
-	for (i=0;i<module.size();i++)
-		module[i]->Reset();
+	for (auto m : module)
+		m->Reset();
 
-	for (i=0;i<module.size();i++)
-		module[i]->Update();
+		for (auto m : module)
+		m->Update();
 
 	elapsedTime += dt;
 	signalPosition += signalSpeed*dt;
@@ -526,8 +515,8 @@ void Simulation::FundamentalCycle()
 	stepNow++;
 
 	if (adaptiveGrid)
-		for (i=0;i<module.size();i++)
-			module[i]->AdaptGrid();
+		for (auto m : module)
+			m->AdaptGrid();
 
 	if (movingWindow && signalPosition>=(windowPosition + spacing.z) && dim[3]>1)
 		MoveWindow();
@@ -700,13 +689,13 @@ void Simulation::AntiMoveWindow()
 		module[i]->AntiMoveWindow();
 }
 
-void Simulation::ReadData(std::ifstream& inFile)
+void Simulation::ReadCheckpoint(std::ifstream& inFile)
 {
 	tw::Int i;
 	tw::Int num;
 
-	Task::ReadData(inFile);
-	MetricSpace::ReadData(inFile);
+	Task::ReadCheckpoint(inFile);
+	MetricSpace::ReadCheckpoint(inFile);
 	inFile.read((char *)&gridGeometry,sizeof(tw::grid::geometry));
 	inFile.read((char *)&unitDensityCGS,sizeof(tw::Float));
 	inFile.read((char *)&dt0,sizeof(tw::Float));
@@ -742,9 +731,9 @@ void Simulation::ReadData(std::ifstream& inFile)
 	inFile.read((char *)&num,sizeof(tw::Int));
 	for (i=0;i<num;i++)
 	{
-		(*tw_out) << "Add Nonuniform Region" << std::endl;
-		region.push_back(new NonUniformRegion(1,2,1.0,1.0));
-		inFile.read((char*)region.back(),sizeof(NonUniformRegion));
+		(*tw_out) << "Add Warp" << std::endl;
+		warp.push_back(new Warp(1,2,1.0,1.0));
+		inFile.read((char*)warp.back(),sizeof(Warp));
 	}
 
 	inFile.read((char *)&num,sizeof(tw::Int));
@@ -756,11 +745,11 @@ void Simulation::ReadData(std::ifstream& inFile)
 
 	if (uniformDeviate!=NULL) delete uniformDeviate;
 	uniformDeviate = new UniformDeviate(1);
-	uniformDeviate->ReadData(inFile);
+	uniformDeviate->ReadCheckpoint(inFile);
 
 	if (gaussianDeviate!=NULL) delete gaussianDeviate;
 	gaussianDeviate = new GaussianDeviate(1);
-	gaussianDeviate->ReadData(inFile);
+	gaussianDeviate->ReadCheckpoint(inFile);
 
 	// Read ComputeTool objects
 
@@ -777,45 +766,19 @@ void Simulation::ReadData(std::ifstream& inFile)
 	inFile.read((char *)&num,sizeof(tw::Int));
 	for (i=0;i<num;i++)
 	{
-		// Following calls Module::ReadData, the base takes care of module containment, and populating the ComputeTool list.
+		// Following calls Module::ReadCheckpoint, the base takes care of module containment, and populating the ComputeTool list.
 		// Setup of ComputeTools is not completed until after input file processing, when Module::VerifyInput() is called.
 		module.push_back(Module::CreateObjectFromFile(inFile,this));
 		(*tw_out) << "Installed Module " << module.back()->name << std::endl;
 	}
-
-	// Read Diagnostics
-
-	inFile.read((char *)&num,sizeof(tw::Int));
-	for (i=0;i<num;i++)
-	{
-		(*tw_out) << "Add Energy Series" << std::endl;
-		energyDiagnostic.push_back(new EnergySeriesDescriptor(clippingRegion));
-		energyDiagnostic.back()->ReadData(inFile);
-	}
-
-	inFile.read((char *)&num,sizeof(tw::Int));
-	for (i=0;i<num;i++)
-	{
-		(*tw_out) << "Add Point Series" << std::endl;
-		pointDiagnostic.push_back(new PointSeriesDescriptor(clippingRegion));
-		pointDiagnostic.back()->ReadData(inFile);
-	}
-
-	inFile.read((char *)&num,sizeof(tw::Int));
-	for (i=0;i<num;i++)
-	{
-		(*tw_out) << "Add Box Diagnostic" << std::endl;
-		boxDiagnostic.push_back(new GridDataDescriptor(clippingRegion));
-		boxDiagnostic.back()->ReadData(inFile);
-	}
 }
 
-void Simulation::WriteData(std::ofstream& outFile)
+void Simulation::WriteCheckpoint(std::ofstream& outFile)
 {
 	tw::Int i;
 
-	Task::WriteData(outFile);
-	MetricSpace::WriteData(outFile);
+	Task::WriteCheckpoint(outFile);
+	MetricSpace::WriteCheckpoint(outFile);
 	outFile.write((char *)&gridGeometry,sizeof(tw::grid::geometry));
 	outFile.write((char *)&unitDensityCGS,sizeof(tw::Float));
 	outFile.write((char *)&dt0,sizeof(tw::Float));
@@ -843,43 +806,28 @@ void Simulation::WriteData(std::ofstream& outFile)
 	outFile.write((char *)bc1,sizeof(tw::bc::par)*4);
  	outFile.write((char *)&radialProgressionFactor,sizeof(tw::Float));
 
-	i = region.size();
+	i = warp.size();
 	outFile.write((char *)&i,sizeof(tw::Int));
-	for (i=0;i<region.size();i++)
-		outFile.write((char*)region[i],sizeof(NonUniformRegion));
+	for (i=0;i<warp.size();i++)
+		outFile.write((char*)warp[i],sizeof(Warp));
 
 	i = clippingRegion.size();
 	outFile.write((char *)&i,sizeof(tw::Int));
 	for (i=1;i<clippingRegion.size();i++) // don't write index 0, it is created by constructor
-		clippingRegion[i]->WriteData(outFile);
+		clippingRegion[i]->WriteCheckpoint(outFile);
 
-	uniformDeviate->WriteData(outFile);
-	gaussianDeviate->WriteData(outFile);
+	uniformDeviate->WriteCheckpoint(outFile);
+	gaussianDeviate->WriteCheckpoint(outFile);
 
 	i = computeTool.size();
 	outFile.write((char *)&i,sizeof(tw::Int));
 	for (i=0;i<computeTool.size();i++)
-		computeTool[i]->WriteData(outFile);
+		computeTool[i]->WriteCheckpoint(outFile);
 
 	i = module.size();
 	outFile.write((char *)&i,sizeof(tw::Int));
 	for (i=0;i<module.size();i++)
-		module[i]->WriteData(outFile);
-
-	i = energyDiagnostic.size();
-	outFile.write((char *)&i,sizeof(tw::Int));
-	for (i=0;i<energyDiagnostic.size();i++)
-		energyDiagnostic[i]->WriteData(outFile);
-
-	i = pointDiagnostic.size();
-	outFile.write((char *)&i,sizeof(tw::Int));
-	for (i=0;i<pointDiagnostic.size();i++)
-		pointDiagnostic[i]->WriteData(outFile);
-
-	i = boxDiagnostic.size();
-	outFile.write((char *)&i,sizeof(tw::Int));
-	for (i=0;i<boxDiagnostic.size();i++)
-		boxDiagnostic[i]->WriteData(outFile);
+		module[i]->WriteCheckpoint(outFile);
 }
 
 
@@ -964,12 +912,12 @@ std::string Simulation::InputFileFirstPass()
 						do
 						{
 							com2 = gridDirectives.ReadNext(inputString);
-							if (com2=="region") // eg, region : start = 1 , end = 100 , length = 1e4
+							if (com2=="warp") // eg, warp : start = 1 , end = 100 , length = 1e4
 							{
 								tw::Int i1,i2;
 								tw::Float length;
 								inputString >> word >> word >> word >> i1 >> word >> word >> i2 >> word >> word >> length;
-								region.push_back(new NonUniformRegion(i1,i2,length,spacing.z));
+								warp.push_back(new Warp(i1,i2,length,spacing.z));
 							}
 						} while (com2!="}");
 						tw::Int corners_given = gridDirectives.TestKey("corner") ? 1 : 0;
@@ -1009,7 +957,7 @@ std::string Simulation::InputFileFirstPass()
 					std::ifstream inFile(fileName.str().c_str());
 					if (inFile.rdstate() & std::ios::failbit)
 						throw tw::FatalError("could not open restart file");
-					Task::ReadData(inFile);
+					Task::ReadCheckpoint(inFile);
 					inFile.close();
 				}
 			}
@@ -1285,8 +1233,7 @@ void Simulation::ReadInputFile()
 					throw tw::FatalError("Unhandled key <" + preamble.words[0] + ">. Check order of input file.");
 			}
 
-			// The remaining objects are explicitly managed by Simulation
-			// Perhaps they should be repackaged as ComputeTool objects
+			// Regions are neither modules nor tools
 
 			if (preamble.words[0]=="region")
 			{
@@ -1294,27 +1241,6 @@ void Simulation::ReadInputFile()
 				clippingRegion.push_back(Region::CreateObjectFromString(clippingRegion,preamble.words[1]));
 				clippingRegion.back()->name = preamble.obj_name;
 				clippingRegion.back()->ReadInputFileBlock(inputString);
-			}
-
-			if (preamble.words[0]=="energy") // eg, new energy series { ... }
-			{
-				processed = true;
-				energyDiagnostic.push_back(new EnergySeriesDescriptor(clippingRegion));
-				energyDiagnostic.back()->ReadInputFile(inputString);
-			}
-
-			if (preamble.words[0]=="point") // eg, new point series { ... }
-			{
-				processed = true;
-				pointDiagnostic.push_back(new PointSeriesDescriptor(clippingRegion));
-				pointDiagnostic.back()->ReadInputFile(inputString);
-			}
-
-			if (preamble.words[0]=="box") // eg, new box series { ... }
-			{
-				processed = true;
-				boxDiagnostic.push_back(new GridDataDescriptor(clippingRegion));
-				boxDiagnostic.back()->ReadInputFile(inputString);
 			}
 
 			if (preamble.words[0]=="grid") // drop out of grid block, it was already processed during first pass.
@@ -1335,11 +1261,65 @@ void Simulation::ReadInputFile()
 			fileName << InputPathName() << strip[0].Get_rank() << "_" << word;
 			(*tw_out) << "Reading restart file " << fileName.str() << "..." << std::endl;
 			restartFile.open(fileName.str().c_str());
-			ReadData(restartFile);
+			ReadCheckpoint(restartFile);
 			restartFile.close();
 		}
 
 	} while (!inputString.eof());
 
 	Unlock();
+}
+
+void Simulation::Diagnose()
+{
+	tw::Int master = 0;
+	tw::Int curr = strip[0].Get_rank();
+
+	// DIAGNOSTIC PREP
+	// Main purpose of this step is to let modules transfer data from compute devices.
+	// This has a high cost, so only do if necessary.
+
+	bool doing_restart=false, doing_diagnostics=false;
+	doing_restart = dumpPeriod>0 && stepNow%dumpPeriod==0;
+	for (auto d : diagnostic)
+		doing_diagnostics = doing_diagnostics || d->WriteThisStep(elapsedTime,dt,stepNow);
+	if (doing_restart || doing_diagnostics)
+	{
+		for (auto m : module)
+			m->StartDiagnostics();
+	}
+	else
+	{
+		return;
+	}
+
+	// RESTART MECHANISM
+
+	Lock();
+	if (doing_restart)
+	{
+		std::ofstream restartFile;
+		std::string fileName = std::to_string(curr) + "_dump" + std::to_string(stepNow/dumpPeriod);
+		restartFile.open(fileName.c_str(),std::ios::binary);
+		WriteCheckpoint(restartFile);
+		restartFile.close();
+	}
+	Unlock();
+
+	// MAIN DIAGNOSTIC LOOP
+
+	for (auto d : diagnostic)
+	{
+		if (d->WriteThisStep(elapsedTime,dt,stepNow))
+		{
+			const bool writeHeaders = IsFirstStep() && !(appendMode&&restarted) && curr==master;
+			d->Start(writeHeaders);
+			d->Float("time",elapsedTime);
+			d->Float("dt",dt);
+			d->Float("zwindow",windowPosition);
+			for (auto m : module)
+				m->Report(d);
+			d->Finish();
+		}
+	}
 }

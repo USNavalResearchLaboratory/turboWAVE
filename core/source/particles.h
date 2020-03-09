@@ -9,8 +9,8 @@ struct Particle
 
 	Particle(const tw::vec3& p,const Primitive& q,const float number,const float aux1,const float aux2) noexcept;
 
-	void ReadData(std::ifstream& inFile);
-	void WriteData(std::ofstream& outFile);
+	void ReadCheckpoint(std::ifstream& inFile);
+	void WriteCheckpoint(std::ofstream& outFile);
 
 	friend bool operator < (const Particle& p1,const Particle& p2)
 	{
@@ -212,10 +212,6 @@ struct Species:Module
 	std::vector<Particle> particle;
 	std::vector<TransferParticle> transfer;
 
-	std::vector<PhaseSpaceDescriptor*> phaseSpacePlot;
-	std::vector<ParticleOrbitDescriptor*> orbitDiagnostic;
-	std::vector<ParticleDetectorDescriptor*> detector;
-
 	Ionizer* ionizer;
 	Field* EM; // Ex,Ey,Ez,Bx,By,Bz
 	Field* sources; // rho,Jx,Jy,Jz
@@ -256,15 +252,9 @@ struct Species:Module
 	void CalculateDensity(ScalarField& dens);
 
 	virtual void ReadInputFileDirective(std::stringstream& inputString,const std::string& command);
-	virtual bool ReadQuasitoolBlock(const tw::input::Preamble& preamble,std::stringstream& inputString);
-	virtual void ReadData(std::ifstream& inFile);
-	virtual void WriteData(std::ofstream& outFile);
-	virtual void EnergyHeadings(std::ofstream& outFile);
-	virtual void EnergyColumns(std::vector<tw::Float>& cols,std::vector<bool>& avg,const Region& theRgn);
-	virtual void BoxDiagnosticHeader(GridDataDescriptor*);
-	virtual void BoxDiagnose(GridDataDescriptor*);
-	tw::Float GetPhaseSpaceData(Particle* p,std::string& what);
-	virtual void CustomDiagnose();
+	virtual void ReadCheckpoint(std::ifstream& inFile);
+	virtual void WriteCheckpoint(std::ofstream& outFile);
+	virtual bool Report(Diagnostic *diagnostic);
 	virtual void WarningMessage(std::ostream *theStream);
 
 	void GetSubarrayBounds(std::vector<ParticleRef>& sorted,tw::Int low[4],tw::Int high[4],tw::Int layers);
@@ -296,12 +286,11 @@ struct Kinetics:Module
 	void Ionize();
 
 	void TransferParticles();
-	virtual void EnergyHeadings(std::ofstream& outFile);
-	virtual void EnergyColumns(std::vector<tw::Float>& cols,std::vector<bool>& avg,const Region& theRgn);
 	tw::Float KineticEnergy(const Region& theRgn);
+	virtual void Report(Diagnostic *diagnostic);
 
-	virtual void ReadData(std::ifstream& inFile);
-	virtual void WriteData(std::ofstream& outFile);
+	virtual void ReadCheckpoint(std::ifstream& inFile);
+	virtual void WriteCheckpoint(std::ofstream& outFile);
 };
 
 

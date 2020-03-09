@@ -65,8 +65,8 @@ struct ComputeTool
 	virtual void StatusMessage(std::ostream *theStream) {;}
 	virtual void ReadInputFileBlock(std::stringstream& inputString);
 	virtual void ReadInputFileDirective(std::stringstream& inputString,const std::string& command);
-	virtual void ReadData(std::ifstream& inFile);
-	virtual void WriteData(std::ofstream& outFile);
+	virtual void ReadCheckpoint(std::ifstream& inFile);
+	virtual void WriteCheckpoint(std::ofstream& outFile);
 	virtual void SaveToolReference(std::ofstream& outFile);
 
 	static std::map<std::string,tw::tool_type> Map();

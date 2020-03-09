@@ -61,9 +61,9 @@ void EllipticSolver::SetCoefficients(ScalarField *coefficients)
 
 void EllipticSolver::SetBoundaryConditions(ScalarField& phi)
 {
-	phi.SetBoundaryConditions(tw::grid::xAxis,x0,x1);
-	phi.SetBoundaryConditions(tw::grid::yAxis,y0,y1);
-	phi.SetBoundaryConditions(tw::grid::zAxis,z0,z1);
+	phi.SetBoundaryConditions(tw::grid::x,x0,x1);
+	phi.SetBoundaryConditions(tw::grid::y,y0,y1);
+	phi.SetBoundaryConditions(tw::grid::z,z0,z1);
 }
 
 void EllipticSolver::SetBoundaryConditions(tw::bc::fld x0,tw::bc::fld x1,tw::bc::fld y0,tw::bc::fld y1,tw::bc::fld z0,tw::bc::fld z1)
@@ -133,9 +133,9 @@ void EllipticSolver::ZeroModeGhostCellValues(tw::Float *phi0,tw::Float *phiN1,Sc
 	}
 }
 
-void EllipticSolver::ReadData(std::ifstream& inFile)
+void EllipticSolver::ReadCheckpoint(std::ifstream& inFile)
 {
-	ComputeTool::ReadData(inFile);
+	ComputeTool::ReadCheckpoint(inFile);
 	inFile.read((char*)&x0,sizeof(x0));
 	inFile.read((char*)&x1,sizeof(x1));
 	inFile.read((char*)&y0,sizeof(y0));
@@ -145,9 +145,9 @@ void EllipticSolver::ReadData(std::ifstream& inFile)
 	inFile.read((char*)&gammaBeam,sizeof(gammaBeam));
 }
 
-void EllipticSolver::WriteData(std::ofstream& outFile)
+void EllipticSolver::WriteCheckpoint(std::ofstream& outFile)
 {
-	ComputeTool::WriteData(outFile);
+	ComputeTool::WriteCheckpoint(outFile);
 	outFile.write((char*)&x0,sizeof(x0));
 	outFile.write((char*)&x1,sizeof(x1));
 	outFile.write((char*)&y0,sizeof(y0));
@@ -202,19 +202,19 @@ void EllipticSolver1D::Solve(ScalarField& phi,ScalarField& source,tw::Float mul)
 	di = dj = dk = 0;
 	if (task->globalCells[1]>1)
 	{
-		axis = tw::grid::xAxis;
+		axis = tw::grid::x;
 		sDim = xDim;
 		di = 1;
 	}
 	if (task->globalCells[2]>1)
 	{
-		axis = tw::grid::yAxis;
+		axis = tw::grid::y;
 		sDim = yDim;
 		dj = 1;
 	}
 	if (task->globalCells[3]>1)
 	{
-		axis = tw::grid::zAxis;
+		axis = tw::grid::z;
 		sDim = zDim;
 		dk = 1;
 	}
@@ -462,16 +462,16 @@ void IterativePoissonSolver::StatusMessage(std::ostream *theStream)
 	*theStream << "   Norm[residual] = " << normResidualAchieved << std::endl;
 }
 
-void IterativePoissonSolver::ReadData(std::ifstream& inFile)
+void IterativePoissonSolver::ReadCheckpoint(std::ifstream& inFile)
 {
-	EllipticSolver::ReadData(inFile);
+	EllipticSolver::ReadCheckpoint(inFile);
 	inFile.read((char*)&tolerance,sizeof(tolerance));
 	inFile.read((char*)&overrelaxation,sizeof(overrelaxation));
 }
 
-void IterativePoissonSolver::WriteData(std::ofstream& outFile)
+void IterativePoissonSolver::WriteCheckpoint(std::ofstream& outFile)
 {
-	EllipticSolver::WriteData(outFile);
+	EllipticSolver::WriteCheckpoint(outFile);
 	outFile.write((char*)&tolerance,sizeof(tolerance));
 	outFile.write((char*)&overrelaxation,sizeof(overrelaxation));
 }
@@ -588,7 +588,7 @@ void PoissonSolver::Solve(ScalarField& phi,ScalarField& source,tw::Float mul)
 					}
 				}
 				else
-					phi.AdjustTridiagonalForBoundaries(tw::grid::zAxis,tw::grid::low,T1,T2,T3,s,phi(i,j,space->LFG(3)));
+					phi.AdjustTridiagonalForBoundaries(tw::grid::z,tw::grid::low,T1,T2,T3,s,phi(i,j,space->LFG(3)));
 			}
 			if (task->n1[3]==MPI_PROC_NULL)
 			{
@@ -605,7 +605,7 @@ void PoissonSolver::Solve(ScalarField& phi,ScalarField& source,tw::Float mul)
 					}
 				}
 				else
-					phi.AdjustTridiagonalForBoundaries(tw::grid::zAxis,tw::grid::high,T1,T2,T3,s,phi(i,j,space->UFG(3)));
+					phi.AdjustTridiagonalForBoundaries(tw::grid::z,tw::grid::high,T1,T2,T3,s,phi(i,j,space->UFG(3)));
 			}
 			TriDiagonal<tw::Float,tw::Float>(u,s,T1,T2,T3);
 			for (k=1;k<=zDim;k++)
@@ -803,7 +803,7 @@ void EigenmodePoissonSolver::Solve(ScalarField& phi,ScalarField& source,tw::Floa
 				}
 			}
 			else
-				phi.AdjustTridiagonalForBoundaries(tw::grid::zAxis,tw::grid::low,T1,T2,T3,s,phi(i,0,space->LFG(3)));
+				phi.AdjustTridiagonalForBoundaries(tw::grid::z,tw::grid::low,T1,T2,T3,s,phi(i,0,space->LFG(3)));
 		}
 		if (task->n1[3]==MPI_PROC_NULL)
 		{
@@ -820,7 +820,7 @@ void EigenmodePoissonSolver::Solve(ScalarField& phi,ScalarField& source,tw::Floa
 				}
 			}
 			else
-				phi.AdjustTridiagonalForBoundaries(tw::grid::zAxis,tw::grid::high,T1,T2,T3,s,phi(i,0,space->UFG(3)));
+				phi.AdjustTridiagonalForBoundaries(tw::grid::z,tw::grid::high,T1,T2,T3,s,phi(i,0,space->UFG(3)));
 		}
 
 		TriDiagonal<tw::Float,tw::Float>(u,s,T1,T2,T3);

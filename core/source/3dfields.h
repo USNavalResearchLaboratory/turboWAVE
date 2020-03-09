@@ -202,7 +202,7 @@ struct Field:DiscreteSpace
 
 	Field();
 	virtual ~Field();
-	void Initialize(tw::Int components,const DiscreteSpace& ds,Task *task,const tw::grid::axis& axis = tw::grid::zAxis);
+	void Initialize(tw::Int components,const DiscreteSpace& ds,Task *task,const tw::grid::axis& axis = tw::grid::z);
 	void SetBoundaryConditions(const Element& e,const tw::grid::axis& axis,tw::bc::fld low,tw::bc::fld high);
 	friend void CopyBoundaryConditions(Field& dst,const Element& dstElement,Field& src,const Element& srcElement);
 
@@ -516,8 +516,8 @@ struct Field:DiscreteSpace
 
 	// File operations
 
-	void ReadData(std::ifstream& inFile);
-	void WriteData(std::ofstream& outFile);
+	void ReadCheckpoint(std::ifstream& inFile);
+	void WriteCheckpoint(std::ofstream& outFile);
 
 	// Assignment
 
@@ -890,7 +890,7 @@ struct AutoField : Field
 	}
 	void Initialize(const DiscreteSpace& ds,Task *task)
 	{
-		Field::Initialize(num[0],ds,task,tw::grid::tAxis);
+		Field::Initialize(num[0],ds,task,tw::grid::t);
 	}
 
 	// Interface to superclass accessors

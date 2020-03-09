@@ -104,45 +104,45 @@ void Fluid::Initialize()
 
 	if (owner->movingWindow)
 	{
-		state0.SetBoundaryConditions(tw::grid::xAxis,xParallel,other);
-		state0.SetBoundaryConditions(tw::grid::yAxis,other,other);
-		state0.SetBoundaryConditions(tw::grid::zAxis,other,fld::none);
-		state0.SetBoundaryConditions(Element(1),tw::grid::xAxis,xNormal,other);
+		state0.SetBoundaryConditions(tw::grid::x,xParallel,other);
+		state0.SetBoundaryConditions(tw::grid::y,other,other);
+		state0.SetBoundaryConditions(tw::grid::z,other,fld::none);
+		state0.SetBoundaryConditions(Element(1),tw::grid::x,xNormal,other);
 
-		state1.SetBoundaryConditions(tw::grid::xAxis,xParallel,other);
-		state1.SetBoundaryConditions(tw::grid::yAxis,other,other);
-		state1.SetBoundaryConditions(tw::grid::zAxis,other,fld::none);
-		state1.SetBoundaryConditions(Element(1),tw::grid::xAxis,xNormal,other);
+		state1.SetBoundaryConditions(tw::grid::x,xParallel,other);
+		state1.SetBoundaryConditions(tw::grid::y,other,other);
+		state1.SetBoundaryConditions(tw::grid::z,other,fld::none);
+		state1.SetBoundaryConditions(Element(1),tw::grid::x,xNormal,other);
 
-		gas.SetBoundaryConditions(tw::grid::xAxis,xParallel,other);
-		gas.SetBoundaryConditions(tw::grid::yAxis,other,other);
-		gas.SetBoundaryConditions(tw::grid::zAxis,other,fld::none);
+		gas.SetBoundaryConditions(tw::grid::x,xParallel,other);
+		gas.SetBoundaryConditions(tw::grid::y,other,other);
+		gas.SetBoundaryConditions(tw::grid::z,other,fld::none);
 
-		vel.SetBoundaryConditions(tw::grid::xAxis,xParallel,other);
-		vel.SetBoundaryConditions(tw::grid::yAxis,other,other);
-		vel.SetBoundaryConditions(tw::grid::zAxis,other,other);
+		vel.SetBoundaryConditions(tw::grid::x,xParallel,other);
+		vel.SetBoundaryConditions(tw::grid::y,other,other);
+		vel.SetBoundaryConditions(tw::grid::z,other,other);
 	}
 	else
 	{
-		state0.SetBoundaryConditions(tw::grid::xAxis,fld::neumannWall,fld::neumannWall);
-		state0.SetBoundaryConditions(tw::grid::yAxis,fld::neumannWall,fld::neumannWall);
-		state0.SetBoundaryConditions(tw::grid::zAxis,fld::neumannWall,fld::neumannWall);
-		state0.SetBoundaryConditions(Element(1),tw::grid::xAxis,xNormal,fld::neumannWall);
-		state0.SetBoundaryConditions(Element(3),tw::grid::zAxis,fld::dirichletWall,fld::dirichletWall);
+		state0.SetBoundaryConditions(tw::grid::x,fld::neumannWall,fld::neumannWall);
+		state0.SetBoundaryConditions(tw::grid::y,fld::neumannWall,fld::neumannWall);
+		state0.SetBoundaryConditions(tw::grid::z,fld::neumannWall,fld::neumannWall);
+		state0.SetBoundaryConditions(Element(1),tw::grid::x,xNormal,fld::neumannWall);
+		state0.SetBoundaryConditions(Element(3),tw::grid::z,fld::dirichletWall,fld::dirichletWall);
 
-		state1.SetBoundaryConditions(tw::grid::xAxis,fld::neumannWall,fld::neumannWall);
-		state1.SetBoundaryConditions(tw::grid::yAxis,fld::neumannWall,fld::neumannWall);
-		state1.SetBoundaryConditions(tw::grid::zAxis,fld::neumannWall,fld::neumannWall);
-		state1.SetBoundaryConditions(Element(1),tw::grid::xAxis,xNormal,fld::neumannWall);
-		state1.SetBoundaryConditions(Element(3),tw::grid::zAxis,fld::dirichletWall,fld::dirichletWall);
+		state1.SetBoundaryConditions(tw::grid::x,fld::neumannWall,fld::neumannWall);
+		state1.SetBoundaryConditions(tw::grid::y,fld::neumannWall,fld::neumannWall);
+		state1.SetBoundaryConditions(tw::grid::z,fld::neumannWall,fld::neumannWall);
+		state1.SetBoundaryConditions(Element(1),tw::grid::x,xNormal,fld::neumannWall);
+		state1.SetBoundaryConditions(Element(3),tw::grid::z,fld::dirichletWall,fld::dirichletWall);
 
-		gas.SetBoundaryConditions(tw::grid::xAxis,fld::neumannWall,fld::neumannWall);
-		gas.SetBoundaryConditions(tw::grid::yAxis,fld::neumannWall,fld::neumannWall);
-		gas.SetBoundaryConditions(tw::grid::zAxis,fld::neumannWall,fld::neumannWall);
+		gas.SetBoundaryConditions(tw::grid::x,fld::neumannWall,fld::neumannWall);
+		gas.SetBoundaryConditions(tw::grid::y,fld::neumannWall,fld::neumannWall);
+		gas.SetBoundaryConditions(tw::grid::z,fld::neumannWall,fld::neumannWall);
 
-		vel.SetBoundaryConditions(tw::grid::xAxis,fld::neumannWall,fld::neumannWall);
-		vel.SetBoundaryConditions(tw::grid::yAxis,fld::neumannWall,fld::neumannWall);
-		vel.SetBoundaryConditions(tw::grid::zAxis,fld::neumannWall,fld::neumannWall);
+		vel.SetBoundaryConditions(tw::grid::x,fld::neumannWall,fld::neumannWall);
+		vel.SetBoundaryConditions(tw::grid::y,fld::neumannWall,fld::neumannWall);
+		vel.SetBoundaryConditions(tw::grid::z,fld::neumannWall,fld::neumannWall);
 	}
 
 	#pragma omp parallel
@@ -250,10 +250,10 @@ void Fluid::MoveWindow()
 		}
 	}
 
-	state0.DownwardCopy(tw::grid::zAxis,1);
-	state1.DownwardCopy(tw::grid::zAxis,1);
-	fixed.DownwardCopy(tw::grid::zAxis,1);
-	gas.DownwardCopy(tw::grid::zAxis,1);
+	state0.DownwardCopy(tw::grid::z,1);
+	state1.DownwardCopy(tw::grid::z,1);
+	fixed.DownwardCopy(tw::grid::z,1);
+	gas.DownwardCopy(tw::grid::z,1);
 }
 
 void Fluid::AddDensity(tw::Float densToAdd,tw::Int i,tw::Int j,tw::Int k)
@@ -394,18 +394,18 @@ void Fluid::Update()
 	if (dim[1]>1)
 	{
 		convector.SetVelocityElement(1);
-		convector.Convect(tw::grid::xAxis, tw::bc::fld::dirichletCell, tw::bc::fld::dirichletCell, dth);
+		convector.Convect(tw::grid::x, tw::bc::fld::dirichletCell, tw::bc::fld::dirichletCell, dth);
 	}
 	if (dim[2]>1)
 	{
 		convector.SetVelocityElement(2);
-		convector.Convect(tw::grid::yAxis, tw::bc::fld::dirichletCell, tw::bc::fld::dirichletCell, dth);
+		convector.Convect(tw::grid::y, tw::bc::fld::dirichletCell, tw::bc::fld::dirichletCell, dth);
 	}
 	if (dim[3]>1)
 	{
 		bc = owner->movingWindow ? tw::bc::fld::neumannWall : tw::bc::fld::dirichletCell;
 		convector.SetVelocityElement(3);
-		convector.Convect(tw::grid::zAxis,bc,bc,dth);
+		convector.Convect(tw::grid::z,bc,bc,dth);
 	}
 
 	// FCT Update of density - full step
@@ -414,20 +414,20 @@ void Fluid::Update()
 	if (dim[1]>1)
 	{
 		convector.SetVelocityElement(1);
-		convector.Convect(tw::grid::xAxis, tw::bc::fld::dirichletCell, tw::bc::fld::dirichletCell, dt);
+		convector.Convect(tw::grid::x, tw::bc::fld::dirichletCell, tw::bc::fld::dirichletCell, dt);
 		convector.GetTrueFlux(vel,Element(1),Element(0));
 	}
 	if (dim[2]>1)
 	{
 		convector.SetVelocityElement(2);
-		convector.Convect(tw::grid::yAxis, tw::bc::fld::dirichletCell, tw::bc::fld::dirichletCell, dt);
+		convector.Convect(tw::grid::y, tw::bc::fld::dirichletCell, tw::bc::fld::dirichletCell, dt);
 		convector.GetTrueFlux(vel,Element(2),Element(0));
 	}
 	if (dim[3]>1)
 	{
 		bc = owner->movingWindow ? tw::bc::fld::neumannWall : tw::bc::fld::dirichletCell;
 		convector.SetVelocityElement(3);
-		convector.Convect(tw::grid::zAxis,bc,bc,dt);
+		convector.Convect(tw::grid::z,bc,bc,dt);
 		convector.GetTrueFlux(vel,Element(3),Element(0));
 	}
 	Swap(state0,state1); // dens0(t=1/2) , dens1(t=1)
@@ -509,9 +509,9 @@ void Fluid::Update()
 	}
 }
 
-void Fluid::ReadData(std::ifstream& inFile)
+void Fluid::ReadCheckpoint(std::ifstream& inFile)
 {
-	Module::ReadData(inFile);
+	Module::ReadCheckpoint(inFile);
 	inFile.read((char *)&charge,sizeof(tw::Float));
 	inFile.read((char *)&mass,sizeof(tw::Float));
 	inFile.read((char *)&thermalMomentum,sizeof(tw::Float));
@@ -519,15 +519,15 @@ void Fluid::ReadData(std::ifstream& inFile)
 	inFile.read((char *)&initialIonizationFraction,sizeof(tw::Float));
 	inFile.read((char *)&coulombCollisions,sizeof(bool));
 
-	state0.ReadData(inFile);
-	state1.ReadData(inFile);
-	gas.ReadData(inFile);
-	fixed.ReadData(inFile);
+	state0.ReadCheckpoint(inFile);
+	state1.ReadCheckpoint(inFile);
+	gas.ReadCheckpoint(inFile);
+	fixed.ReadCheckpoint(inFile);
 }
 
-void Fluid::WriteData(std::ofstream& outFile)
+void Fluid::WriteCheckpoint(std::ofstream& outFile)
 {
-	Module::WriteData(outFile);
+	Module::WriteCheckpoint(outFile);
 	outFile.write((char *)&charge,sizeof(tw::Float));
 	outFile.write((char *)&mass,sizeof(tw::Float));
 	outFile.write((char *)&thermalMomentum,sizeof(tw::Float));
@@ -535,10 +535,10 @@ void Fluid::WriteData(std::ofstream& outFile)
 	outFile.write((char *)&initialIonizationFraction,sizeof(tw::Float));
 	outFile.write((char *)&coulombCollisions,sizeof(bool));
 
-	state0.WriteData(outFile);
-	state1.WriteData(outFile);
-	gas.WriteData(outFile);
-	fixed.WriteData(outFile);
+	state0.WriteCheckpoint(outFile);
+	state1.WriteCheckpoint(outFile);
+	gas.WriteCheckpoint(outFile);
+	fixed.WriteCheckpoint(outFile);
 }
 
 void Fluid::BoxDiagnosticHeader(GridDataDescriptor* box)
@@ -758,16 +758,16 @@ void Chemical::VerifyInput()
 	}
 }
 
-void Chemical::ReadData(std::ifstream& inFile)
+void Chemical::ReadCheckpoint(std::ifstream& inFile)
 {
-	Module::ReadData(inFile);
+	Module::ReadCheckpoint(inFile);
 	inFile.read((char *)&mat,sizeof(mat));
 	inFile.read((char *)&indexInState,sizeof(indexInState));
 }
 
-void Chemical::WriteData(std::ofstream& outFile)
+void Chemical::WriteCheckpoint(std::ofstream& outFile)
 {
-	Module::WriteData(outFile);
+	Module::WriteCheckpoint(outFile);
 	outFile.write((char *)&mat,sizeof(mat));
 	outFile.write((char *)&indexInState,sizeof(indexInState));
 }
@@ -787,7 +787,7 @@ EquilibriumGroup::EquilibriumGroup(const std::string& name,Simulation* sim):Modu
 	forceFilter = 1.0;
 
 	// DFG - Start with NULL tool.
-	// User can select one by name, or let it be created automatically in Initialize()
+	// User can select one by name, or let it be created automatically in VerifyInput()
 	eosMixData = NULL;
 
 	directives.Add("mobile",new tw::input::Bool(&mobile));
@@ -835,9 +835,9 @@ void EquilibriumGroup::Initialize()
 	eosMixData->SetupIndexing(hidx,eidx,matset);
 }
 
-void EquilibriumGroup::ReadData(std::ifstream& inFile)
+void EquilibriumGroup::ReadCheckpoint(std::ifstream& inFile)
 {
-	Module::ReadData(inFile);
+	Module::ReadCheckpoint(inFile);
 	inFile.read((char *)&mobile,sizeof(mobile));
 	inFile.read((char *)&forceFilter,sizeof(tw::Float));
 	inFile.read((char *)&hidx,sizeof(hidx));
@@ -845,9 +845,9 @@ void EquilibriumGroup::ReadData(std::ifstream& inFile)
 	// material set will be created in Initialize
 }
 
-void EquilibriumGroup::WriteData(std::ofstream& outFile)
+void EquilibriumGroup::WriteCheckpoint(std::ofstream& outFile)
 {
-	Module::WriteData(outFile);
+	Module::WriteCheckpoint(outFile);
 	outFile.write((char *)&mobile,sizeof(mobile));
 	outFile.write((char *)&forceFilter,sizeof(tw::Float));
 	outFile.write((char *)&hidx,sizeof(hidx));
@@ -1074,12 +1074,12 @@ void sparc::HydroManager::Initialize()
 	// Electrostatic boundary conditions - override the tool (should we still?)
 	ellipticSolver->SetBoundaryConditions(owner->bc0[1]==par::axisymmetric ? fld::neumannWall : fld::dirichletCell,fld::dirichletCell,fld::dirichletCell,fld::dirichletCell,fld::dirichletCell,fld::neumannWall);
 	ellipticSolver->SetBoundaryConditions(phi);
-	rho.SetBoundaryConditions(tw::grid::xAxis,fld::neumannWall,fld::neumannWall);
-	rho.SetBoundaryConditions(tw::grid::yAxis,fld::neumannWall,fld::neumannWall);
-	rho.SetBoundaryConditions(tw::grid::zAxis,fld::neumannWall,fld::neumannWall);
-	scratch.SetBoundaryConditions(tw::grid::xAxis,fld::neumannWall,fld::neumannWall);
-	scratch.SetBoundaryConditions(tw::grid::yAxis,fld::neumannWall,fld::neumannWall);
-	scratch.SetBoundaryConditions(tw::grid::zAxis,fld::neumannWall,fld::neumannWall);
+	rho.SetBoundaryConditions(tw::grid::x,fld::neumannWall,fld::neumannWall);
+	rho.SetBoundaryConditions(tw::grid::y,fld::neumannWall,fld::neumannWall);
+	rho.SetBoundaryConditions(tw::grid::z,fld::neumannWall,fld::neumannWall);
+	scratch.SetBoundaryConditions(tw::grid::x,fld::neumannWall,fld::neumannWall);
+	scratch.SetBoundaryConditions(tw::grid::y,fld::neumannWall,fld::neumannWall);
+	scratch.SetBoundaryConditions(tw::grid::z,fld::neumannWall,fld::neumannWall);
 
 	// Find number of state variables characterizing the whole system
 	// DFG - now we have a static variable to help keep count of these more reliably
@@ -1123,27 +1123,27 @@ void sparc::HydroManager::Initialize()
 		}
 
 	// Non-vector boundary conditions; vector elements are modified after setting up indexing.
-	state0.SetBoundaryConditions(tw::grid::xAxis,fld::neumannWall,fld::neumannWall);
-	state0.SetBoundaryConditions(tw::grid::yAxis,fld::neumannWall,fld::neumannWall);
-	state0.SetBoundaryConditions(tw::grid::zAxis,fld::neumannWall,fld::neumannWall);
-	state1.SetBoundaryConditions(tw::grid::xAxis,fld::neumannWall,fld::neumannWall);
-	state1.SetBoundaryConditions(tw::grid::yAxis,fld::neumannWall,fld::neumannWall);
-	state1.SetBoundaryConditions(tw::grid::zAxis,fld::neumannWall,fld::neumannWall);
-	eos0.SetBoundaryConditions(tw::grid::xAxis,fld::neumannWall,fld::neumannWall);
-	eos0.SetBoundaryConditions(tw::grid::yAxis,fld::neumannWall,fld::neumannWall);
-	eos0.SetBoundaryConditions(tw::grid::zAxis,fld::neumannWall,fld::neumannWall);
-	eos1.SetBoundaryConditions(tw::grid::xAxis,fld::neumannWall,fld::neumannWall);
-	eos1.SetBoundaryConditions(tw::grid::yAxis,fld::neumannWall,fld::neumannWall);
-	eos1.SetBoundaryConditions(tw::grid::zAxis,fld::neumannWall,fld::neumannWall);
-	creationRate.SetBoundaryConditions(tw::grid::xAxis,fld::neumannWall,fld::neumannWall);
-	creationRate.SetBoundaryConditions(tw::grid::yAxis,fld::neumannWall,fld::neumannWall);
-	creationRate.SetBoundaryConditions(tw::grid::zAxis,fld::neumannWall,fld::neumannWall);
-	destructionRate.SetBoundaryConditions(tw::grid::xAxis,fld::neumannWall,fld::neumannWall);
-	destructionRate.SetBoundaryConditions(tw::grid::yAxis,fld::neumannWall,fld::neumannWall);
-	destructionRate.SetBoundaryConditions(tw::grid::zAxis,fld::neumannWall,fld::neumannWall);
-	nu_e.SetBoundaryConditions(tw::grid::xAxis,fld::neumannWall,fld::neumannWall);
-	nu_e.SetBoundaryConditions(tw::grid::yAxis,fld::neumannWall,fld::neumannWall);
-	nu_e.SetBoundaryConditions(tw::grid::zAxis,fld::neumannWall,fld::neumannWall);
+	state0.SetBoundaryConditions(tw::grid::x,fld::neumannWall,fld::neumannWall);
+	state0.SetBoundaryConditions(tw::grid::y,fld::neumannWall,fld::neumannWall);
+	state0.SetBoundaryConditions(tw::grid::z,fld::neumannWall,fld::neumannWall);
+	state1.SetBoundaryConditions(tw::grid::x,fld::neumannWall,fld::neumannWall);
+	state1.SetBoundaryConditions(tw::grid::y,fld::neumannWall,fld::neumannWall);
+	state1.SetBoundaryConditions(tw::grid::z,fld::neumannWall,fld::neumannWall);
+	eos0.SetBoundaryConditions(tw::grid::x,fld::neumannWall,fld::neumannWall);
+	eos0.SetBoundaryConditions(tw::grid::y,fld::neumannWall,fld::neumannWall);
+	eos0.SetBoundaryConditions(tw::grid::z,fld::neumannWall,fld::neumannWall);
+	eos1.SetBoundaryConditions(tw::grid::x,fld::neumannWall,fld::neumannWall);
+	eos1.SetBoundaryConditions(tw::grid::y,fld::neumannWall,fld::neumannWall);
+	eos1.SetBoundaryConditions(tw::grid::z,fld::neumannWall,fld::neumannWall);
+	creationRate.SetBoundaryConditions(tw::grid::x,fld::neumannWall,fld::neumannWall);
+	creationRate.SetBoundaryConditions(tw::grid::y,fld::neumannWall,fld::neumannWall);
+	creationRate.SetBoundaryConditions(tw::grid::z,fld::neumannWall,fld::neumannWall);
+	destructionRate.SetBoundaryConditions(tw::grid::x,fld::neumannWall,fld::neumannWall);
+	destructionRate.SetBoundaryConditions(tw::grid::y,fld::neumannWall,fld::neumannWall);
+	destructionRate.SetBoundaryConditions(tw::grid::z,fld::neumannWall,fld::neumannWall);
+	nu_e.SetBoundaryConditions(tw::grid::x,fld::neumannWall,fld::neumannWall);
+	nu_e.SetBoundaryConditions(tw::grid::y,fld::neumannWall,fld::neumannWall);
+	nu_e.SetBoundaryConditions(tw::grid::z,fld::neumannWall,fld::neumannWall);
 
 	if (!owner->restarted)
 		SetupIndexing();
@@ -1154,22 +1154,22 @@ void sparc::HydroManager::Initialize()
 		Element np;
 		// X-Component
 		np = Element(grp->hidx.npx);
-		state0.SetBoundaryConditions(np,tw::grid::xAxis,bc0[1],bc1[1]);
-		state1.SetBoundaryConditions(np,tw::grid::xAxis,bc0[1],bc1[1]);
-		creationRate.SetBoundaryConditions(np,tw::grid::xAxis,bc0[1],bc1[1]);
-		destructionRate.SetBoundaryConditions(np,tw::grid::xAxis,bc0[1],bc1[1]);
+		state0.SetBoundaryConditions(np,tw::grid::x,bc0[1],bc1[1]);
+		state1.SetBoundaryConditions(np,tw::grid::x,bc0[1],bc1[1]);
+		creationRate.SetBoundaryConditions(np,tw::grid::x,bc0[1],bc1[1]);
+		destructionRate.SetBoundaryConditions(np,tw::grid::x,bc0[1],bc1[1]);
 		// Y-Component
 		np = Element(grp->hidx.npy);
-		state0.SetBoundaryConditions(np,tw::grid::yAxis,bc0[2],bc1[2]);
-		state1.SetBoundaryConditions(np,tw::grid::yAxis,bc0[2],bc1[2]);
-		creationRate.SetBoundaryConditions(np,tw::grid::yAxis,bc0[2],bc1[2]);
-		destructionRate.SetBoundaryConditions(np,tw::grid::yAxis,bc0[2],bc1[2]);
+		state0.SetBoundaryConditions(np,tw::grid::y,bc0[2],bc1[2]);
+		state1.SetBoundaryConditions(np,tw::grid::y,bc0[2],bc1[2]);
+		creationRate.SetBoundaryConditions(np,tw::grid::y,bc0[2],bc1[2]);
+		destructionRate.SetBoundaryConditions(np,tw::grid::y,bc0[2],bc1[2]);
 		// Z-Component
 		np = Element(grp->hidx.npz);
-		state0.SetBoundaryConditions(np,tw::grid::zAxis,bc0[3],bc1[3]);
-		state1.SetBoundaryConditions(np,tw::grid::zAxis,bc0[3],bc1[3]);
-		creationRate.SetBoundaryConditions(np,tw::grid::zAxis,bc0[3],bc1[3]);
-		destructionRate.SetBoundaryConditions(np,tw::grid::zAxis,bc0[3],bc1[3]);
+		state0.SetBoundaryConditions(np,tw::grid::z,bc0[3],bc1[3]);
+		state1.SetBoundaryConditions(np,tw::grid::z,bc0[3],bc1[3]);
+		creationRate.SetBoundaryConditions(np,tw::grid::z,bc0[3],bc1[3]);
+		destructionRate.SetBoundaryConditions(np,tw::grid::z,bc0[3],bc1[3]);
 	}
 
 	// DFG - no longer find electrons here.
@@ -2040,9 +2040,9 @@ void sparc::HydroManager::FirstOrderAdvance(tw::Float dt,bool computeSources)
 		ComputeElectronCollisionFrequency();
 		ComputeSources();
 	}
-	HydroAdvance(tw::grid::xAxis,dt);
-	HydroAdvance(tw::grid::yAxis,dt);
-	HydroAdvance(tw::grid::zAxis,dt);
+	HydroAdvance(tw::grid::x,dt);
+	HydroAdvance(tw::grid::y,dt);
+	HydroAdvance(tw::grid::z,dt);
 	ChemAdvance(dt);
 	Swap(state0,state1);
 
@@ -2099,10 +2099,10 @@ bool sparc::HydroManager::ReadQuasitoolBlock(const tw::input::Preamble& preamble
 	return false;
 }
 
-void sparc::HydroManager::ReadData(std::ifstream& inFile)
+void sparc::HydroManager::ReadCheckpoint(std::ifstream& inFile)
 {
 	tw::Int i,num,hydro_size,eos_size;
-	Module::ReadData(inFile);
+	Module::ReadCheckpoint(inFile);
 
 	inFile.read((char *)&radModel,sizeof(sparc::radiationModel));
 	inFile.read((char *)&lasModel,sizeof(sparc::laserModel));
@@ -2120,17 +2120,17 @@ void sparc::HydroManager::ReadData(std::ifstream& inFile)
 	eos0.Initialize(eos_size,*this,owner);
 	eos1.Initialize(eos_size,*this,owner);
 
-	eos1.ReadData(inFile);
-	state1.ReadData(inFile);
-	rho.ReadData(inFile);
-	phi.ReadData(inFile);
+	eos1.ReadCheckpoint(inFile);
+	state1.ReadCheckpoint(inFile);
+	rho.ReadCheckpoint(inFile);
+	phi.ReadCheckpoint(inFile);
 
 	inFile.read((char *)&num,sizeof(tw::Int));
 	for (i=0;i<num;i++)
 	{
 		(*owner->tw_out) << "Add Reaction" << std::endl;
 		reaction.push_back(new Reaction);
-		reaction.back()->ReadData(inFile);
+		reaction.back()->ReadCheckpoint(inFile);
 	}
 
 	inFile.read((char *)&num,sizeof(tw::Int));
@@ -2138,7 +2138,7 @@ void sparc::HydroManager::ReadData(std::ifstream& inFile)
 	{
 		(*owner->tw_out) << "Add Excitation" << std::endl;
 		excitation.push_back(new Excitation);
-		excitation.back()->ReadData(inFile);
+		excitation.back()->ReadCheckpoint(inFile);
 	}
 
 	inFile.read((char *)&num,sizeof(tw::Int));
@@ -2146,14 +2146,14 @@ void sparc::HydroManager::ReadData(std::ifstream& inFile)
 	{
 		(*owner->tw_out) << "Add Collision" << std::endl;
 		collision.push_back(new Collision);
-		collision.back()->ReadData(inFile);
+		collision.back()->ReadCheckpoint(inFile);
 	}
 }
 
-void sparc::HydroManager::WriteData(std::ofstream& outFile)
+void sparc::HydroManager::WriteCheckpoint(std::ofstream& outFile)
 {
 	tw::Int i;
-	Module::WriteData(outFile);
+	Module::WriteCheckpoint(outFile);
 
 	ellipticSolver->SaveToolReference(outFile);
 	parabolicSolver->SaveToolReference(outFile);
@@ -2171,25 +2171,25 @@ void sparc::HydroManager::WriteData(std::ofstream& outFile)
 	i = eos1.Components();
 	outFile.write((char *)&i,sizeof(tw::Int));
 
-	eos1.WriteData(outFile);
-	state1.WriteData(outFile);
-	rho.WriteData(outFile);
-	phi.WriteData(outFile);
+	eos1.WriteCheckpoint(outFile);
+	state1.WriteCheckpoint(outFile);
+	rho.WriteCheckpoint(outFile);
+	phi.WriteCheckpoint(outFile);
 
 	i = reaction.size();
 	outFile.write((char *)&i,sizeof(tw::Int));
 	for (i=0;i<reaction.size();i++)
-		reaction[i]->WriteData(outFile);
+		reaction[i]->WriteCheckpoint(outFile);
 
 	i = excitation.size();
 	outFile.write((char *)&i,sizeof(tw::Int));
 	for (i=0;i<excitation.size();i++)
-		excitation[i]->WriteData(outFile);
+		excitation[i]->WriteCheckpoint(outFile);
 
 	i = collision.size();
 	outFile.write((char *)&i,sizeof(tw::Int));
 	for (i=0;i<collision.size();i++)
-		collision[i]->WriteData(outFile);
+		collision[i]->WriteCheckpoint(outFile);
 }
 
 void sparc::HydroManager::EnergyHeadings(std::ofstream& outFile)

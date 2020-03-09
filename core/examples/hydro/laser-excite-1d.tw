@@ -41,13 +41,13 @@ new hydrodynamics 'hydro'
 
 new bessel beam for 'hydro'
 {
-	a = .002 0 0
+	a = .0015 0 0
 	w = 10
 	r0 = 10 10
 	delay = 0
-	risetime = 29850 // 100 ps
+	risetime = %100ps
 	holdtime = 0
-	falltime = 29850
+	falltime = %100ps
 }
 
 new chemical e
@@ -87,6 +87,7 @@ generate ppt ionization for Ar
 	electrons = 18
 	ion species = Ar[+]
 	electron species = e
+	terms = 4
 }
 
 new collision = e <-> Ar[+] , coulomb

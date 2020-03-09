@@ -39,16 +39,16 @@ void LaserPropagator::SetBoundaryConditions(ComplexField& a0,ComplexField& a1,Co
 	yl = fld::neumannWall;
 	yh = fld::neumannWall;
 
-	a0.SetBoundaryConditions(tw::grid::xAxis,xl,xh);
-	a1.SetBoundaryConditions(tw::grid::xAxis,xl,xh);
-	a0.SetBoundaryConditions(tw::grid::yAxis,yl,yh);
-	a1.SetBoundaryConditions(tw::grid::yAxis,yl,yh);
+	a0.SetBoundaryConditions(tw::grid::x,xl,xh);
+	a1.SetBoundaryConditions(tw::grid::x,xl,xh);
+	a0.SetBoundaryConditions(tw::grid::y,yl,yh);
+	a1.SetBoundaryConditions(tw::grid::y,yl,yh);
 
 	xl = space->cyl==1.0 ? fld::neumannWall : fld::dirichletWall;
 
-	chi.SetBoundaryConditions(tw::grid::xAxis,xl,fld::dirichletCell);
-	chi.SetBoundaryConditions(tw::grid::yAxis,fld::dirichletCell,fld::dirichletCell);
-	chi.SetBoundaryConditions(tw::grid::zAxis,fld::dirichletCell,fld::dirichletCell);
+	chi.SetBoundaryConditions(tw::grid::x,xl,fld::dirichletCell);
+	chi.SetBoundaryConditions(tw::grid::y,fld::dirichletCell,fld::dirichletCell);
+	chi.SetBoundaryConditions(tw::grid::z,fld::dirichletCell,fld::dirichletCell);
 }
 
 
@@ -225,18 +225,18 @@ void EigenmodePropagator::Advance(ComplexField& a0,ComplexField& a1,ComplexField
 			a1(s,space->UFG(3)) = a0(s,space->UFG(3));
 }
 
-void EigenmodePropagator::ReadData(std::ifstream& inFile)
+void EigenmodePropagator::ReadCheckpoint(std::ifstream& inFile)
 {
-	ComputeTool::ReadData(inFile);
+	ComputeTool::ReadCheckpoint(inFile);
 	inFile.read((char*)&modes,sizeof(modes));
 	inFile.read((char*)&layers,sizeof(layers));
 	inFile.read((char*)&causality,sizeof(causality));
 	inFile.read((char*)&dampingTime,sizeof(dampingTime));
 }
 
-void EigenmodePropagator::WriteData(std::ofstream& outFile)
+void EigenmodePropagator::WriteCheckpoint(std::ofstream& outFile)
 {
-	ComputeTool::WriteData(outFile);
+	ComputeTool::WriteCheckpoint(outFile);
 	outFile.write((char*)&modes,sizeof(modes));
 	outFile.write((char*)&layers,sizeof(layers));
 	outFile.write((char*)&causality,sizeof(causality));
@@ -349,9 +349,9 @@ void ADIPropagator::Advance(ComplexField& a0,ComplexField& a1,ComplexField& chi)
 				}
 
 				if (task->n0[1]==MPI_PROC_NULL)
-					a1.AdjustTridiagonalForBoundaries(tw::grid::xAxis,tw::grid::low,X1,X2,X3,src,tw::Complex(0.0));
+					a1.AdjustTridiagonalForBoundaries(tw::grid::x,tw::grid::low,X1,X2,X3,src,tw::Complex(0.0));
 				if (task->n1[1]==MPI_PROC_NULL)
-					a1.AdjustTridiagonalForBoundaries(tw::grid::xAxis,tw::grid::high,X1,X2,X3,src,tw::Complex(0.0));
+					a1.AdjustTridiagonalForBoundaries(tw::grid::x,tw::grid::high,X1,X2,X3,src,tw::Complex(0.0));
 
 				TriDiagonal(ans,src,X1,X2,X3);
 				for (i=1;i<=xDim;i++)
@@ -362,10 +362,10 @@ void ADIPropagator::Advance(ComplexField& a0,ComplexField& a1,ComplexField& chi)
 			}
 
 		xGlobalIntegrator->Parallelize();
-		a1.DownwardCopy(tw::grid::yAxis,1);
-		a1.UpwardCopy(tw::grid::yAxis,1);
-		a1.DownwardCopy(tw::grid::zAxis,1);
-		a1.UpwardCopy(tw::grid::zAxis,1);
+		a1.DownwardCopy(tw::grid::y,1);
+		a1.UpwardCopy(tw::grid::y,1);
+		a1.DownwardCopy(tw::grid::z,1);
+		a1.UpwardCopy(tw::grid::z,1);
 		a1.ApplyBoundaryCondition();
 	}
 
@@ -402,9 +402,9 @@ void ADIPropagator::Advance(ComplexField& a0,ComplexField& a1,ComplexField& chi)
 				}
 
 				if (task->n0[2]==MPI_PROC_NULL)
-					a1.AdjustTridiagonalForBoundaries(tw::grid::yAxis,tw::grid::low,Y1,Y2,Y3,src,tw::Complex(0.0));
+					a1.AdjustTridiagonalForBoundaries(tw::grid::y,tw::grid::low,Y1,Y2,Y3,src,tw::Complex(0.0));
 				if (task->n1[2]==MPI_PROC_NULL)
-					a1.AdjustTridiagonalForBoundaries(tw::grid::yAxis,tw::grid::high,Y1,Y2,Y3,src,tw::Complex(0.0));
+					a1.AdjustTridiagonalForBoundaries(tw::grid::y,tw::grid::high,Y1,Y2,Y3,src,tw::Complex(0.0));
 
 				TriDiagonal(ans,src,Y1,Y2,Y3);
 				for (j=1;j<=yDim;j++)
@@ -415,10 +415,10 @@ void ADIPropagator::Advance(ComplexField& a0,ComplexField& a1,ComplexField& chi)
 			}
 
 		yGlobalIntegrator->Parallelize();
-		a1.DownwardCopy(tw::grid::xAxis,1);
-		a1.UpwardCopy(tw::grid::xAxis,1);
-		a1.DownwardCopy(tw::grid::zAxis,1);
-		a1.UpwardCopy(tw::grid::zAxis,1);
+		a1.DownwardCopy(tw::grid::x,1);
+		a1.UpwardCopy(tw::grid::x,1);
+		a1.DownwardCopy(tw::grid::z,1);
+		a1.UpwardCopy(tw::grid::z,1);
 		a1.ApplyBoundaryCondition();
 	}
 
@@ -482,7 +482,7 @@ void SchroedingerPropagator::DepositCurrent(const tw::grid::axis& axis,ComplexFi
 	if (imag(dt)!=0.0)
 		return;
 
-	if (axis==tw::grid::tAxis)
+	if (axis==tw::grid::t)
 	{
 		#pragma omp parallel
 		{
@@ -744,13 +744,13 @@ void ParabolicSolver::Advance(ScalarField& psi,ScalarField& fluxMask,tw::Float c
 	// solve d(psi)/dt - coeff*div(grad(psi)) = 0
 
 	if (space->Dim(1)>1)
-		Advance(tw::grid::xAxis,psi,fluxMask,coeff,dt);
+		Advance(tw::grid::x,psi,fluxMask,coeff,dt);
 
 	if (space->Dim(2)>1)
-		Advance(tw::grid::yAxis,psi,fluxMask,coeff,dt);
+		Advance(tw::grid::y,psi,fluxMask,coeff,dt);
 
 	if (space->Dim(3)>1)
-		Advance(tw::grid::zAxis,psi,fluxMask,coeff,dt);
+		Advance(tw::grid::z,psi,fluxMask,coeff,dt);
 }
 
 void ParabolicSolver::Advance(	const tw::grid::axis& axis,
@@ -825,13 +825,13 @@ void ParabolicSolver::Advance(	Field& psi,
 	// solve coeff1*d(psi)/dt - div(coeff2*grad(psi)) = 0
 
 	if (space->Dim(1)>1)
-		Advance(tw::grid::xAxis,psi,psi_idx,fluxMask,coeff1,c1_idx,coeff2,c2_idx,dt);
+		Advance(tw::grid::x,psi,psi_idx,fluxMask,coeff1,c1_idx,coeff2,c2_idx,dt);
 
 	if (space->Dim(2)>1)
-		Advance(tw::grid::yAxis,psi,psi_idx,fluxMask,coeff1,c1_idx,coeff2,c2_idx,dt);
+		Advance(tw::grid::y,psi,psi_idx,fluxMask,coeff1,c1_idx,coeff2,c2_idx,dt);
 
 	if (space->Dim(3)>1)
-		Advance(tw::grid::zAxis,psi,psi_idx,fluxMask,coeff1,c1_idx,coeff2,c2_idx,dt);
+		Advance(tw::grid::z,psi,psi_idx,fluxMask,coeff1,c1_idx,coeff2,c2_idx,dt);
 }
 
 

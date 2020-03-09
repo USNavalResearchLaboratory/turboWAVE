@@ -194,9 +194,9 @@ bool BoundElectrons::InspectResource(void* resource,const std::string& descripti
 void BoundElectrons::MoveWindow()
 {
 	// must prepare before shift
-	dens.DownwardCopy(tw::grid::zAxis,1);
-	R0.DownwardCopy(tw::grid::zAxis,1);
-	R1.DownwardCopy(tw::grid::zAxis,1);
+	dens.DownwardCopy(tw::grid::z,1);
+	R0.DownwardCopy(tw::grid::z,1);
+	R1.DownwardCopy(tw::grid::z,1);
 
 	// carry out shift
 	for (auto s : StripRange(*this,3,strongbool::yes))
@@ -315,9 +315,9 @@ void BoundElectrons::ReadInputFileDirective(std::stringstream& inputString,const
 	}
 }
 
-void BoundElectrons::ReadData(std::ifstream& inFile)
+void BoundElectrons::ReadCheckpoint(std::ifstream& inFile)
 {
-	Module::ReadData(inFile);
+	Module::ReadCheckpoint(inFile);
 	inFile.read((char*)&q0,sizeof(tw::Float));
 	inFile.read((char*)&m0,sizeof(tw::Float));
 	inFile.read((char*)&theta,sizeof(tw::Float));
@@ -332,14 +332,14 @@ void BoundElectrons::ReadData(std::ifstream& inFile)
 	inFile.read((char *)&b,sizeof(tw::Float));
 	inFile.read((char *)&d,sizeof(tw::Float));
 
-	R0.ReadData(inFile);
-	R1.ReadData(inFile);
-	dens.ReadData(inFile);
+	R0.ReadCheckpoint(inFile);
+	R1.ReadCheckpoint(inFile);
+	dens.ReadCheckpoint(inFile);
 }
 
-void BoundElectrons::WriteData(std::ofstream& outFile)
+void BoundElectrons::WriteCheckpoint(std::ofstream& outFile)
 {
-	Module::WriteData(outFile);
+	Module::WriteCheckpoint(outFile);
 	outFile.write((char*)&q0,sizeof(tw::Float));
 	outFile.write((char*)&m0,sizeof(tw::Float));
 	outFile.write((char*)&theta,sizeof(tw::Float));
@@ -354,9 +354,9 @@ void BoundElectrons::WriteData(std::ofstream& outFile)
 	outFile.write((char *)&b,sizeof(tw::Float));
 	outFile.write((char *)&d,sizeof(tw::Float));
 
-	R0.WriteData(outFile);
-	R1.WriteData(outFile);
-	dens.WriteData(outFile);
+	R0.WriteCheckpoint(outFile);
+	R1.WriteCheckpoint(outFile);
+	dens.WriteCheckpoint(outFile);
 }
 
 void BoundElectrons::StartDiagnostics()

@@ -57,17 +57,11 @@ struct Module:DiscreteSpace
 	virtual void ReadInputFileBlock(std::stringstream& inputString);
 	virtual bool ReadQuasitoolBlock(const tw::input::Preamble& preamble,std::stringstream& inputString);
 	virtual void ReadInputFileDirective(std::stringstream& inputString,const std::string& command);
-	virtual void ReadData(std::ifstream& inFile);
-	virtual void WriteData(std::ofstream& outFile);
+	virtual void ReadCheckpoint(std::ifstream& inFile);
+	virtual void WriteCheckpoint(std::ofstream& outFile);
 
 	virtual void StartDiagnostics();
-	virtual void EnergyHeadings(std::ofstream& outFile) {;}
-	virtual void EnergyColumns(std::vector<tw::Float>& cols,std::vector<bool>& avg,const Region& theRgn) {;}
-	virtual void BoxDiagnosticHeader(GridDataDescriptor*) {;}
-	virtual void BoxDiagnose(GridDataDescriptor*) {;}
-	virtual void PointDiagnosticHeader(std::ofstream& outFile) {;}
-	virtual void PointDiagnose(std::ofstream& outFile,const weights_3D& w) {;}
-	virtual void CustomDiagnose() {;}
+	virtual bool Report(Diagnostic *diagnostic);
 	virtual void WarningMessage(std::ostream *theStream);
 	virtual void StatusMessage(std::ostream *theStream) {;}
 

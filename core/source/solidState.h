@@ -34,8 +34,8 @@ struct BoundElectrons:Module
 	virtual void Update();
 
 	virtual void ReadInputFileDirective(std::stringstream& inputString,const std::string& command);
-	virtual void ReadData(std::ifstream& inFile);
-	virtual void WriteData(std::ofstream& outFile);
+	virtual void ReadCheckpoint(std::ifstream& inFile);
+	virtual void WriteCheckpoint(std::ofstream& outFile);
 
 	virtual void StartDiagnostics();
 	virtual void EnergyHeadings(std::ofstream& outFile);

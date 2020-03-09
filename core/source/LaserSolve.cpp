@@ -94,22 +94,22 @@ void LaserSolver::VerifyInput()
 		propagator = (LaserPropagator*)owner->CreateTool("default_adi",tw::tool_type::adiPropagator);
 }
 
-void LaserSolver::ReadData(std::ifstream& inFile)
+void LaserSolver::ReadCheckpoint(std::ifstream& inFile)
 {
-	Module::ReadData(inFile);
+	Module::ReadCheckpoint(inFile);
 	inFile.read((char *)&laserFreq,sizeof(tw::Float));
 	inFile.read((char *)&polarizationType,sizeof(tw_polarization_type));
-	a0.ReadData(inFile);
-	a1.ReadData(inFile);
+	a0.ReadCheckpoint(inFile);
+	a1.ReadCheckpoint(inFile);
 }
 
-void LaserSolver::WriteData(std::ofstream& outFile)
+void LaserSolver::WriteCheckpoint(std::ofstream& outFile)
 {
-	Module::WriteData(outFile);
+	Module::WriteCheckpoint(outFile);
 	outFile.write((char *)&laserFreq,sizeof(tw::Float));
 	outFile.write((char *)&polarizationType,sizeof(tw_polarization_type));
-	a0.WriteData(outFile);
-	a1.WriteData(outFile);
+	a0.WriteCheckpoint(outFile);
+	a1.WriteCheckpoint(outFile);
 }
 
 void LaserSolver::BoxDiagnosticHeader(GridDataDescriptor* box)
@@ -179,39 +179,39 @@ void PGCSolver::Initialize()
 	// longitudinal boundary conditions
 	if (owner->movingWindow)
 	{
-		F.SetBoundaryConditions(Element(0,5),tw::grid::zAxis,fld::neumannWall,fld::dirichletWall);
+		F.SetBoundaryConditions(Element(0,5),tw::grid::z,fld::neumannWall,fld::dirichletWall);
 	}
 	else
 	{
-		F.SetBoundaryConditions(Element(0,5),tw::grid::zAxis,fld::neumannWall,fld::neumannWall);
-		F.SetBoundaryConditions(Element(2),tw::grid::zAxis,fld::dirichletWall,fld::dirichletWall);
-		F.SetBoundaryConditions(Element(5),tw::grid::zAxis,fld::dirichletWall,fld::dirichletWall);
+		F.SetBoundaryConditions(Element(0,5),tw::grid::z,fld::neumannWall,fld::neumannWall);
+		F.SetBoundaryConditions(Element(2),tw::grid::z,fld::dirichletWall,fld::dirichletWall);
+		F.SetBoundaryConditions(Element(5),tw::grid::z,fld::dirichletWall,fld::dirichletWall);
 	}
-	F.SetBoundaryConditions(Element(6,7),tw::grid::zAxis,fld::neumannWall,fld::neumannWall);
+	F.SetBoundaryConditions(Element(6,7),tw::grid::z,fld::neumannWall,fld::neumannWall);
 
 	// transverse boundary conditions
 	if (owner->bc0[1]==par::axisymmetric || owner->bc0[1]==par::reflecting)
 	{
-		F.SetBoundaryConditions(Element(0,5),tw::grid::xAxis, fld::neumannWall, fld::neumannWall);
-		F.SetBoundaryConditions(Element(0),tw::grid::xAxis,fld::dirichletWall,fld::neumannWall);
-		F.SetBoundaryConditions(Element(3),tw::grid::xAxis,fld::dirichletWall,fld::neumannWall);
+		F.SetBoundaryConditions(Element(0,5),tw::grid::x, fld::neumannWall, fld::neumannWall);
+		F.SetBoundaryConditions(Element(0),tw::grid::x,fld::dirichletWall,fld::neumannWall);
+		F.SetBoundaryConditions(Element(3),tw::grid::x,fld::dirichletWall,fld::neumannWall);
 	}
 	else
 	{
-		F.SetBoundaryConditions(Element(0,5),tw::grid::xAxis, fld::neumannWall, fld::neumannWall);
+		F.SetBoundaryConditions(Element(0,5),tw::grid::x, fld::neumannWall, fld::neumannWall);
 	}
 	if (owner->bc0[2]==par::axisymmetric || owner->bc0[2]==par::reflecting)
 	{
-		F.SetBoundaryConditions(Element(0,5),tw::grid::yAxis, fld::neumannWall, fld::neumannWall);
-		F.SetBoundaryConditions(Element(1),tw::grid::yAxis,fld::dirichletWall,fld::neumannWall);
-		F.SetBoundaryConditions(Element(4),tw::grid::yAxis,fld::dirichletWall,fld::neumannWall);
+		F.SetBoundaryConditions(Element(0,5),tw::grid::y, fld::neumannWall, fld::neumannWall);
+		F.SetBoundaryConditions(Element(1),tw::grid::y,fld::dirichletWall,fld::neumannWall);
+		F.SetBoundaryConditions(Element(4),tw::grid::y,fld::dirichletWall,fld::neumannWall);
 	}
 	else
 	{
-		F.SetBoundaryConditions(Element(0,5),tw::grid::yAxis, fld::neumannWall, fld::neumannWall);
+		F.SetBoundaryConditions(Element(0,5),tw::grid::y, fld::neumannWall, fld::neumannWall);
 	}
-	F.SetBoundaryConditions(Element(6,7),tw::grid::xAxis,fld::neumannWall,fld::neumannWall);
-	F.SetBoundaryConditions(Element(6,7),tw::grid::yAxis,fld::neumannWall,fld::neumannWall);
+	F.SetBoundaryConditions(Element(6,7),tw::grid::x,fld::neumannWall,fld::neumannWall);
+	F.SetBoundaryConditions(Element(6,7),tw::grid::y,fld::neumannWall,fld::neumannWall);
 
 	ComputeFinalFields();
 }
@@ -220,7 +220,7 @@ void PGCSolver::MoveWindow()
 {
 	for (auto s : StripRange(*this,3,strongbool::yes))
 		F.Shift(s,-1,0.0);
-	F.DownwardCopy(tw::grid::zAxis,1);
+	F.DownwardCopy(tw::grid::z,1);
 }
 
 void PGCSolver::AntiMoveWindow()
@@ -242,8 +242,8 @@ void PGCSolver::AntiMoveWindow()
 		a0.Shift(s,1,incoming0);
 		a1.Shift(s,1,incoming1);
 	}
-	a0.UpwardCopy(tw::grid::zAxis,1);
-	a1.UpwardCopy(tw::grid::zAxis,1);
+	a0.UpwardCopy(tw::grid::z,1);
+	a1.UpwardCopy(tw::grid::z,1);
 }
 
 void PGCSolver::EnergyHeadings(std::ofstream& outFile)
@@ -300,8 +300,8 @@ void PGCSolver::Update()
 				chi(s,k) = owner->ValueOnLightGrid<ComplexField,tw::Complex>(chi,s,k,dth);
 		}
 	}
-	chi.DownwardCopy(tw::grid::zAxis,1);
-	chi.UpwardCopy(tw::grid::zAxis,1);
+	chi.DownwardCopy(tw::grid::z,1);
+	chi.UpwardCopy(tw::grid::z,1);
 	chi.ApplyBoundaryCondition();
 
 	propagator->Advance(a0,a1,chi);
@@ -323,8 +323,8 @@ void PGCSolver::ComputeFinalFields()
 		}
 	}
 
-	F.DownwardCopy(tw::grid::zAxis,Element(6,7),1);
-	F.UpwardCopy(tw::grid::zAxis,Element(6,7),1);
+	F.DownwardCopy(tw::grid::z,Element(6,7),1);
+	F.UpwardCopy(tw::grid::z,Element(6,7),1);
 
 	#pragma omp parallel
 	{
