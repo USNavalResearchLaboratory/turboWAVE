@@ -18,11 +18,6 @@ struct LaserSolver:Module
 	virtual void WriteCheckpoint(std::ofstream& outFile);
 
 	virtual void Update();
-
-	virtual void BoxDiagnosticHeader(GridDataDescriptor*);
-	virtual void PointDiagnosticHeader(std::ofstream& outFile);
-	virtual void PointDiagnose(std::ofstream& outFile,const weights_3D& w);
-
 	tw::vec3 GetIonizationKick(const tw::Float& a2,const tw::Float& q0,const tw::Float& m0);
 };
 
@@ -42,11 +37,8 @@ struct PGCSolver:LaserSolver
 	virtual void MoveWindow();
 	virtual void AntiMoveWindow();
 
-	virtual void EnergyHeadings(std::ofstream& outFile);
-	virtual void EnergyColumns(std::vector<tw::Float>& cols,std::vector<bool>& avg,const Region& theRgn);
-
 	virtual void Update();
 	virtual void ComputeFinalFields();
 
-	virtual void BoxDiagnose(GridDataDescriptor*);
+	virtual void Report(Diagnostic&);
 };

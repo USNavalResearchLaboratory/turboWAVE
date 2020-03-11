@@ -104,24 +104,23 @@ void Electrostatic::ComputeFinalFields()
 	Ef.ApplyBoundaryCondition();
 }
 
-void Electrostatic::Report(Diagnostic *diagnostic)
+void Electrostatic::Report(Diagnostic& diagnostic)
 {
-	if (!Module::Report(diagnostic))
-		return;
+	FieldSolver::Report(diagnostic);
 	ScalarField energyDensity;
 	energyDensity.Initialize(*this,owner);
 	for (auto cell : EntireCellRange(*this))
 		energyDensity(cell) = 0.5*Norm(Ef(cell));
-	diagnostic->VolumeIntegral("FieldEnergy",energyDensity,0);
-	diagnostic->VolumeIntegral("TotalCharge",J4,0);
-	diagnostic->Field("phi",phi,0);
-	diagnostic->Field("Ex",Ef,0);
-	diagnostic->Field("Ey",Ef,1);
-	diagnostic->Field("Ez",Ef,2);
-	diagnostic->Field("rho",J4,0);
-	diagnostic->Field("Jx",J4,1);
-	diagnostic->Field("Jy",J4,2);
-	diagnostic->Field("Jz",J4,3);
+	diagnostic.VolumeIntegral("FieldEnergy",energyDensity,0);
+	diagnostic.VolumeIntegral("TotalCharge",J4,0);
+	diagnostic.Field("phi",phi,0);
+	diagnostic.Field("Ex",Ef,0);
+	diagnostic.Field("Ey",Ef,1);
+	diagnostic.Field("Ez",Ef,2);
+	diagnostic.Field("rho",J4,0);
+	diagnostic.Field("Jx",J4,1);
+	diagnostic.Field("Jy",J4,2);
+	diagnostic.Field("Jz",J4,3);
 }
 
 void Electrostatic::SetupInitialPotential()

@@ -1,23 +1,7 @@
 struct Species;
 struct Kinetics;
 
-struct Particle
-{
-	Primitive q; // DEFINITION: {x,y,z,cell} constitute a "primitive" coordinate
-	tw::vec3 p; // momentum , always known in cartesian coordinates
-	float number,aux1,aux2; // number = particles per macroparticle divided by n0*(c/wp)^3
-
-	Particle(const tw::vec3& p,const Primitive& q,const float number,const float aux1,const float aux2) noexcept;
-
-	void ReadCheckpoint(std::ifstream& inFile);
-	void WriteCheckpoint(std::ofstream& outFile);
-
-	friend bool operator < (const Particle& p1,const Particle& p2)
-	{
-		// Used to define the ordering of particles following std::sort
-		return p1.q.cell < p2.q.cell;
-	}
-};
+// Particle struct is defined in discreteSpace.h
 
 struct TransferParticle
 {
@@ -254,7 +238,7 @@ struct Species:Module
 	virtual void ReadInputFileDirective(std::stringstream& inputString,const std::string& command);
 	virtual void ReadCheckpoint(std::ifstream& inFile);
 	virtual void WriteCheckpoint(std::ofstream& outFile);
-	virtual bool Report(Diagnostic *diagnostic);
+	virtual void Report(Diagnostic&);
 	virtual void WarningMessage(std::ostream *theStream);
 
 	void GetSubarrayBounds(std::vector<ParticleRef>& sorted,tw::Int low[4],tw::Int high[4],tw::Int layers);
@@ -287,7 +271,7 @@ struct Kinetics:Module
 
 	void TransferParticles();
 	tw::Float KineticEnergy(const Region& theRgn);
-	virtual void Report(Diagnostic *diagnostic);
+	virtual void Report(Diagnostic&);
 
 	virtual void ReadCheckpoint(std::ifstream& inFile);
 	virtual void WriteCheckpoint(std::ofstream& outFile);

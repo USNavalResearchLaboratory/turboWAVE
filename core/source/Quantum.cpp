@@ -1165,127 +1165,74 @@ void Schroedinger::Normalize()
 	psi1.ApplyBoundaryCondition();
 }
 
-void Schroedinger::EnergyHeadings(std::ofstream& outFile)
+void Schroedinger::Report(Diagnostic& diagnostic)
 {
-	outFile << "TotalProb Ex Ey Ez Ax Ay Az Px Py Pz ";
+	AtomicPhysics::Report(diagnostic);
 
-	tw::Int i;
-	for (i=0;i<refState.size();i++)
-		outFile << "real<ref" << i << "|psi> imag<ref" << i << "|psi> ";
-}
+	tw::vec3 r0,ENow,ANow;
+	ScalarField temp;
+	temp.Initialize(*this,owner);
 
-void Schroedinger::EnergyColumns(std::vector<tw::Float>& cols,std::vector<bool>& avg,const Region& theRgn)
-{
-	tw::Int i,j,k,s;
-	tw::Int x0,x1,y0,y1,z0,z1;
-	tw::Float dV;
-	tw::vec3 pos,ENow,ANow;
-	std::valarray<tw::Complex> overlap(refState.size());
-	tw::Complex psiNow;
-	tw::Float totalProb = 0.0;
-	tw::vec3 dipoleMoment = 0.0;
-	ENow = 0.0;
-	ANow = 0.0;
-	overlap = tw::Complex(0,0);
-
-	for (s=0;s<wave.size();s++)
+	r0 = 0.0;
+	for (auto w : wave)
 	{
-		ANow += wave[s]->VectorPotential(owner->elapsedTime,tw::vec3(0,0,0));
-		ENow -= dti*wave[s]->VectorPotential(owner->elapsedTime+0.5*dt,tw::vec3(0,0,0));
-		ENow += dti*wave[s]->VectorPotential(owner->elapsedTime-0.5*dt,tw::vec3(0,0,0));
+		ANow += w->VectorPotential(owner->elapsedTime,tw::vec3(0,0,0));
+		ENow -= dti*w->VectorPotential(owner->elapsedTime+0.5*dt,tw::vec3(0,0,0));
+		ENow += dti*w->VectorPotential(owner->elapsedTime-0.5*dt,tw::vec3(0,0,0));
 	}
 
-	theRgn.GetLocalCellBounds(&x0,&x1,&y0,&y1,&z0,&z1);
-	for (k=z0;k<=z1;k++)
-		for (j=y0;j<=y1;j++)
-			for (i=x0;i<=x1;i++)
-			{
-				pos = owner->Pos(i,j,k);
-				if (theRgn.Inside(pos,*owner))
-				{
-					dV = owner->dS(i,j,k,0);
-					psiNow = psi1(i,j,k);
-					totalProb += norm(psiNow)*dV;
-					dipoleMoment += norm(psiNow)*pos*dV;
-					// Gauge transformation (remove uniform A)
-					psiNow *= std::exp(-ii*q0*(ANow^pos));
-					for (s=0;s<refState.size();s++)
-						overlap[s] += conj(refState[s].Amplitude(pos,owner->elapsedTime,0))*psiNow*dV;
-				}
-			}
+	for (auto cell : InteriorCellRange(*this))
+		temp(cell) = norm(psi1(cell));
+	diagnostic.VolumeIntegral("TotalProb",temp,0);
+	diagnostic.Float("Ex",ENow.x,true);
+	diagnostic.Float("Ey",ENow.y,true);
+	diagnostic.Float("Ez",ENow.z,true);
+	diagnostic.Float("Ax",ANow.x,true);
+	diagnostic.Float("Ay",ANow.y,true);
+	diagnostic.Float("Az",ANow.z,true);
+	diagnostic.FirstMoment("Dx",temp,0,r0,tw::grid::x);
+	diagnostic.FirstMoment("Dy",temp,0,r0,tw::grid::y);
+	diagnostic.FirstMoment("Dz",temp,0,r0,tw::grid::z);
 
-	cols.push_back(totalProb); avg.push_back(false);
-	cols.push_back(ENow.x); avg.push_back(true);
-	cols.push_back(ENow.y); avg.push_back(true);
-	cols.push_back(ENow.z); avg.push_back(true);
-	cols.push_back(ANow.x); avg.push_back(true);
-	cols.push_back(ANow.y); avg.push_back(true);
-	cols.push_back(ANow.z); avg.push_back(true);
-	cols.push_back(dipoleMoment.x); avg.push_back(false);
-	cols.push_back(dipoleMoment.y); avg.push_back(false);
-	cols.push_back(dipoleMoment.z); avg.push_back(false);
-	for (s=0;s<refState.size();s++)
+	for (tw::Int s=0;s<refState.size();s++)
 	{
-		cols.push_back(real(overlap[s])); avg.push_back(false);
-		cols.push_back(imag(overlap[s])); avg.push_back(false);
+		for (auto cell : InteriorCellRange(*this))
+		{
+			const tw::vec3 pos = owner->Pos(cell);
+			// the following is a gauge transformation to "remove" the uniform A
+			const tw::Complex psiNow = psi1(cell)*std::exp(-ii*q0*(ANow^pos));
+			temp(cell) = real(conj(refState[s].Amplitude(pos,owner->elapsedTime,0))*psi1(cell));
+		}
+		diagnostic.VolumeIntegral("real<ref"+std::to_string(s)+"|psi>",temp,0);
+
+		for (auto cell : InteriorCellRange(*this))
+		{
+			const tw::vec3 pos = owner->Pos(cell);
+			// the following is a gauge transformation to "remove" the uniform A
+			const tw::Complex psiNow = psi1(cell)*std::exp(-ii*q0*(ANow^pos));
+			temp(cell) = imag(conj(refState[s].Amplitude(pos,owner->elapsedTime,0))*psi1(cell));
+		}
+		diagnostic.VolumeIntegral("imag<ref"+std::to_string(s)+"|psi>",temp,0);
 	}
-}
 
-void Schroedinger::BoxDiagnosticHeader(GridDataDescriptor* box)
-{
-	owner->WriteBoxDataHeader("psi_r",box);
-	owner->WriteBoxDataHeader("psi_i",box);
-	owner->WriteBoxDataHeader("rho",box);
-	owner->WriteBoxDataHeader("Jx",box);
-	owner->WriteBoxDataHeader("Jy",box);
-	owner->WriteBoxDataHeader("Jz",box);
-	owner->WriteBoxDataHeader("phi",box);
-	owner->WriteBoxDataHeader("Ax",box);
-	owner->WriteBoxDataHeader("Ay",box);
-	owner->WriteBoxDataHeader("Az",box);
-	owner->WriteBoxDataHeader("divJ",box);
-}
+	diagnostic.Field("psi_r",psi1,0);
+	diagnostic.Field("psi_i",psi1,1);
 
-void Schroedinger::BoxDiagnose(GridDataDescriptor* box)
-{
-	owner->WriteBoxData("psi_r",box,&psi1(0,0,0,0),psi1.Stride());
-	owner->WriteBoxData("psi_i",box,&psi1(0,0,0,1),psi1.Stride());
+	diagnostic.Field("rho",J4,0);
+	diagnostic.Field("Jx",J4,1);
+	diagnostic.Field("Jy",J4,2);
+	diagnostic.Field("Jz",J4,3);
 
-	owner->WriteBoxData("rho",box,&J4(0,0,0,0),J4.Stride());
-	owner->WriteBoxData("Jx",box,&J4(0,0,0,1),J4.Stride());
-	owner->WriteBoxData("Jy",box,&J4(0,0,0,2),J4.Stride());
-	owner->WriteBoxData("Jz",box,&J4(0,0,0,3),J4.Stride());
+	diagnostic.Field("phi",A4,0);
+	diagnostic.Field("Ax",A4,1);
+	diagnostic.Field("Ay",A4,2);
+	diagnostic.Field("Az",A4,3);
 
-	owner->WriteBoxData("phi",box,&A4(0,0,0,0),A4.Stride());
-	owner->WriteBoxData("Ax",box,&A4(0,0,0,1),A4.Stride());
-	owner->WriteBoxData("Ay",box,&A4(0,0,0,2),A4.Stride());
-	owner->WriteBoxData("Az",box,&A4(0,0,0,3),A4.Stride());
-
-	tw::Int i,j,k;
-	ScalarField divJ;
-	divJ.Initialize(*this,owner);
-	for (k=1;k<=dim[3];k++)
-		for (j=1;j<=dim[2];j++)
-			for (i=1;i<=dim[1];i++)
-				divJ(i,j,k) = div<1,2,3>(J4,i,j,k,*owner);
-	owner->WriteBoxData("divJ",box,&divJ(0,0,0),divJ.Stride());
-}
-
-
-void Schroedinger::PointDiagnosticHeader(std::ofstream& outFile)
-{
-	outFile << "psi_r psi_i Ax Ay Az ";
-}
-
-void Schroedinger::PointDiagnose(std::ofstream& outFile,const weights_3D& w)
-{
-	tw::Int s;
-	tw::vec3 ANow = 0.0;
-	tw::Complex psiNow;
-	psi1.Interpolate(&psiNow,w);
-	for (s=0;s<wave.size();s++)
-		ANow += wave[s]->VectorPotential(owner->elapsedTime,tw::vec3(0,0,0));
-	outFile << real(psiNow) << " " << imag(psiNow) << " " << ANow.x << " " << ANow.y << " " << ANow.z << " ";
+	for (tw::Int k=1;k<=dim[3];k++)
+		for (tw::Int j=1;j<=dim[2];j++)
+			for (tw::Int i=1;i<=dim[1];i++)
+				temp(i,j,k) = div<1,2,3>(J4,i,j,k,*owner);
+	diagnostic.Field("divJ",temp,0);
 }
 
 void Schroedinger::StartDiagnostics()
@@ -1431,110 +1378,60 @@ void Pauli::Normalize()
 	chi1.ApplyBoundaryCondition();
 }
 
-void Pauli::EnergyHeadings(std::ofstream& outFile)
+void Pauli::Report(Diagnostic& diagnostic)
 {
-	outFile << "TotalProb Ex Ey Ez Ax Ay Az Px Py Pz Sz ";
+	AtomicPhysics::Report(diagnostic);
 
-	tw::Int i;
-	for (i=0;i<refState.size();i++)
-		outFile << "real<ref" << i << "|psi> imag<ref" << i << "|psi> ";
-}
+	tw::vec3 r0,ENow,ANow;
+	ScalarField temp;
+	temp.Initialize(*this,owner);
 
-void Pauli::EnergyColumns(std::vector<tw::Float>& cols,std::vector<bool>& avg,const Region& theRgn)
-{
-	tw::Int i,j,k,s;
-	tw::Int x0,x1,y0,y1,z0,z1;
-	tw::Float dV;
-	tw::vec3 pos,ENow,ANow;
-	std::valarray<tw::Complex> overlap(refState.size());
-
-	tw::Float totalProb = 0.0, Sz = 0.0;
-	tw::vec3 dipoleMoment = 0.0;
-	ENow = 0.0;
-	ANow = 0.0;
-	overlap = tw::Complex(0,0);
-
-	theRgn.GetLocalCellBounds(&x0,&x1,&y0,&y1,&z0,&z1);
-	for (k=z0;k<=z1;k++)
-		for (j=y0;j<=y1;j++)
-			for (i=x0;i<=x1;i++)
-			{
-				pos = owner->Pos(i,j,k);
-				if (theRgn.Inside(pos,*owner))
-				{
-					dV = owner->dS(i,j,k,0);
-					totalProb += (norm(psi1(i,j,k)) + norm(chi1(i,j,k)))*dV;
-					dipoleMoment += (norm(psi1(i,j,k)) + norm(chi1(i,j,k)))*pos*dV;
-					Sz += (norm(psi1(i,j,k)) - norm(chi1(i,j,k)))*dV;
-					for (s=0;s<refState.size();s++)
-						overlap[s] += 0.0; // need to revisit
-				}
-			}
-
-	for (s=0;s<wave.size();s++)
+	r0 = 0.0;
+	for (auto w : wave)
 	{
-		ANow += wave[s]->VectorPotential(owner->elapsedTime,tw::vec3(0,0,0));
-		ENow -= dti*wave[s]->VectorPotential(owner->elapsedTime+0.5*dt,tw::vec3(0,0,0));
-		ENow += dti*wave[s]->VectorPotential(owner->elapsedTime-0.5*dt,tw::vec3(0,0,0));
+		ANow += w->VectorPotential(owner->elapsedTime,tw::vec3(0,0,0));
+		ENow -= dti*w->VectorPotential(owner->elapsedTime+0.5*dt,tw::vec3(0,0,0));
+		ENow += dti*w->VectorPotential(owner->elapsedTime-0.5*dt,tw::vec3(0,0,0));
 	}
 
-	cols.push_back(totalProb); avg.push_back(false);
-	cols.push_back(ENow.x); avg.push_back(true);
-	cols.push_back(ENow.y); avg.push_back(true);
-	cols.push_back(ENow.z); avg.push_back(true);
-	cols.push_back(ANow.x); avg.push_back(true);
-	cols.push_back(ANow.y); avg.push_back(true);
-	cols.push_back(ANow.z); avg.push_back(true);
-	cols.push_back(dipoleMoment.x); avg.push_back(false);
-	cols.push_back(dipoleMoment.y); avg.push_back(false);
-	cols.push_back(dipoleMoment.z); avg.push_back(false);
-	cols.push_back(Sz); avg.push_back(false);
-	for (s=0;s<refState.size();s++)
-	{
-		cols.push_back(real(overlap[s])); avg.push_back(false);
-		cols.push_back(imag(overlap[s])); avg.push_back(false);
-	}
-}
-
-void Pauli::BoxDiagnosticHeader(GridDataDescriptor* box)
-{
-	owner->WriteBoxDataHeader("psi_r",box);
-	owner->WriteBoxDataHeader("psi_i",box);
-	owner->WriteBoxDataHeader("chi_r",box);
-	owner->WriteBoxDataHeader("chi_i",box);
-	owner->WriteBoxDataHeader("rho",box);
-	owner->WriteBoxDataHeader("Jx",box);
-	owner->WriteBoxDataHeader("Jy",box);
-	owner->WriteBoxDataHeader("Jz",box);
-	owner->WriteBoxDataHeader("phi",box);
-	owner->WriteBoxDataHeader("Ax",box);
-	owner->WriteBoxDataHeader("Ay",box);
-	owner->WriteBoxDataHeader("Az",box);
-	owner->WriteBoxDataHeader("Sz",box);
-}
-
-void Pauli::BoxDiagnose(GridDataDescriptor* box)
-{
-	owner->WriteBoxData("psi_r",box,&psi1(0,0,0,0),psi1.Stride());
-	owner->WriteBoxData("psi_i",box,&psi1(0,0,0,1),psi1.Stride());
-	owner->WriteBoxData("chi_r",box,&chi1(0,0,0,0),chi1.Stride());
-	owner->WriteBoxData("chi_i",box,&chi1(0,0,0,1),chi1.Stride());
-
-	owner->WriteBoxData("rho",box,&J4(0,0,0,0),J4.Stride());
-	owner->WriteBoxData("Jx",box,&J4(0,0,0,1),J4.Stride());
-	owner->WriteBoxData("Jy",box,&J4(0,0,0,2),J4.Stride());
-	owner->WriteBoxData("Jz",box,&J4(0,0,0,3),J4.Stride());
-
-	owner->WriteBoxData("phi",box,&A4(0,0,0,0),A4.Stride());
-	owner->WriteBoxData("Ax",box,&A4(0,0,0,1),A4.Stride());
-	owner->WriteBoxData("Ay",box,&A4(0,0,0,2),A4.Stride());
-	owner->WriteBoxData("Az",box,&A4(0,0,0,3),A4.Stride());
-
-	ScalarField Sz;
-	Sz.Initialize(*this,owner);
 	for (auto cell : InteriorCellRange(*this))
-		Sz(cell) = norm(psi1(cell))-norm(chi1(cell));
-	owner->WriteBoxData("Sz",box,&Sz(0,0,0),Sz.Stride());
+		temp(cell) = norm(psi1(cell)) + norm(chi1(cell));
+	diagnostic.VolumeIntegral("TotalProb",temp,0);
+	diagnostic.Float("Ex",ENow.x,true);
+	diagnostic.Float("Ey",ENow.y,true);
+	diagnostic.Float("Ez",ENow.z,true);
+	diagnostic.Float("Ax",ANow.x,true);
+	diagnostic.Float("Ay",ANow.y,true);
+	diagnostic.Float("Az",ANow.z,true);
+	diagnostic.FirstMoment("Dx",temp,0,r0,tw::grid::x);
+	diagnostic.FirstMoment("Dy",temp,0,r0,tw::grid::y);
+	diagnostic.FirstMoment("Dz",temp,0,r0,tw::grid::z);
+
+	diagnostic.Field("psi_r",psi1,0);
+	diagnostic.Field("psi_i",psi1,1);
+	diagnostic.Field("chi_r",chi1,0);
+	diagnostic.Field("chi_i",chi1,1);
+
+	diagnostic.Field("rho",J4,0);
+	diagnostic.Field("Jx",J4,1);
+	diagnostic.Field("Jy",J4,2);
+	diagnostic.Field("Jz",J4,3);
+
+	diagnostic.Field("phi",A4,0);
+	diagnostic.Field("Ax",A4,1);
+	diagnostic.Field("Ay",A4,2);
+	diagnostic.Field("Az",A4,3);
+
+	for (tw::Int k=1;k<=dim[3];k++)
+		for (tw::Int j=1;j<=dim[2];j++)
+			for (tw::Int i=1;i<=dim[1];i++)
+				temp(i,j,k) = div<1,2,3>(J4,i,j,k,*owner);
+	diagnostic.Field("divJ",temp,0);
+
+	for (auto cell : InteriorCellRange(*this))
+		temp(cell) = norm(psi1(cell)) - norm(chi1(cell));
+	diagnostic.Field("Sz",temp,0);
+	diagnostic.VolumeIntegral("Sz",temp,0);
 }
 
 void Pauli::StartDiagnostics()
@@ -1821,110 +1718,72 @@ void KleinGordon::Update()
 }
 #endif
 
-void KleinGordon::EnergyHeadings(std::ofstream& outFile)
+void KleinGordon::Report(Diagnostic& diagnostic)
 {
-	outFile << "TotalCharge Ex Ey Ez Ax Ay Az Px Py Pz ";
+	AtomicPhysics::Report(diagnostic);
 
-	tw::Int i;
-	for (i=0;i<refState.size();i++)
-		outFile << "real<ref" << i << "|psi> imag<ref" << i << "|psi> ";
-}
+	tw::vec3 r0,ENow,ANow;
+	ScalarField temp;
+	temp.Initialize(*this,owner);
 
-void KleinGordon::EnergyColumns(std::vector<tw::Float>& cols,std::vector<bool>& avg,const Region& theRgn)
-{
-	tw::Int i,j,k,s;
-	tw::Int x0,x1,y0,y1,z0,z1;
-	tw::Float dV,chargeDensity;
-	tw::vec3 pos,ENow,ANow,dipoleMoment;
-	tw::Complex estate,pstate,psi_ref,chi_ref;
-	std::valarray<tw::Complex> overlap(refState.size());
-
-	tw::Float totalCharge = 0.0;
-	ENow = 0.0;
-	ANow = 0.0;
-	dipoleMoment = 0.0;
-	overlap = tw::Complex(0,0);
-
-	for (s=0;s<wave.size();s++)
+	r0 = 0.0;
+	for (auto w : wave)
 	{
-		ANow += wave[s]->VectorPotential(owner->elapsedTime,tw::vec3(0,0,0));
-		ENow -= dti*wave[s]->VectorPotential(owner->elapsedTime+0.5*dt,tw::vec3(0,0,0));
-		ENow += dti*wave[s]->VectorPotential(owner->elapsedTime-0.5*dt,tw::vec3(0,0,0));
+		ANow += w->VectorPotential(owner->elapsedTime,tw::vec3(0,0,0));
+		ENow -= dti*w->VectorPotential(owner->elapsedTime+0.5*dt,tw::vec3(0,0,0));
+		ENow += dti*w->VectorPotential(owner->elapsedTime-0.5*dt,tw::vec3(0,0,0));
 	}
 
-	theRgn.GetLocalCellBounds(&x0,&x1,&y0,&y1,&z0,&z1);
-	for (k=z0;k<=z1;k++)
-		for (j=y0;j<=y1;j++)
-			for (i=x0;i<=x1;i++)
-			{
-				pos = owner->Pos(i,j,k);
-				if (theRgn.Inside(pos,*owner))
-				{
-					dV = owner->dS(i,j,k,0);
-					chargeDensity = J4(i,j,k,0);
-					totalCharge += chargeDensity*dV;
-					dipoleMoment += chargeDensity*pos*dV;
-					// Feshbach-Villars decomposition for overlaps
-					estate = FV(i,j,k,1.0);
-					pstate = FV(i,j,k,-1.0);
-					// Gauge transformation (remove uniform A)
-					estate *= std::exp(-ii*q0*(ANow^pos));
-					pstate *= std::exp(-ii*q0*(ANow^pos));
-					for (s=0;s<refState.size();s++)
-					{
-						psi_ref = refState[s].Amplitude(pos,0.0,0)/root2;
-						chi_ref = refState[s].Amplitude(pos,0.0,1)/root2;
-						overlap[s] += conj(psi_ref+chi_ref)*estate*dV;
-						overlap[s] -= conj(psi_ref-chi_ref)*pstate*dV;
-					}
-				}
-			}
+	diagnostic.VolumeIntegral("TotalCharge",J4,0);
+	diagnostic.Float("Ex",ENow.x,true);
+	diagnostic.Float("Ey",ENow.y,true);
+	diagnostic.Float("Ez",ENow.z,true);
+	diagnostic.Float("Ax",ANow.x,true);
+	diagnostic.Float("Ay",ANow.y,true);
+	diagnostic.Float("Az",ANow.z,true);
+	diagnostic.FirstMoment("Dx",J4,0,r0,tw::grid::x);
+	diagnostic.FirstMoment("Dy",J4,0,r0,tw::grid::y);
+	diagnostic.FirstMoment("Dz",J4,0,r0,tw::grid::z);
 
-	cols.push_back(totalCharge); avg.push_back(false);
-	cols.push_back(ENow.x); avg.push_back(true);
-	cols.push_back(ENow.y); avg.push_back(true);
-	cols.push_back(ENow.z); avg.push_back(true);
-	cols.push_back(ANow.x); avg.push_back(true);
-	cols.push_back(ANow.y); avg.push_back(true);
-	cols.push_back(ANow.z); avg.push_back(true);
-	cols.push_back(dipoleMoment.x); avg.push_back(false);
-	cols.push_back(dipoleMoment.y); avg.push_back(false);
-	cols.push_back(dipoleMoment.z); avg.push_back(false);
-	for (s=0;s<refState.size();s++)
+	for (tw::Int s=0;s<refState.size();s++)
 	{
-		cols.push_back(real(overlap[s])); avg.push_back(false);
-		cols.push_back(imag(overlap[s])); avg.push_back(false);
+		for (auto cell : InteriorCellRange(*this))
+		{
+			const tw::vec3 pos = owner->Pos(cell);
+			// Feshbach-Villars decomposition, including gauge transformation
+			const tw::Complex estate = FV(cell,1.0)*std::exp(-ii*q0*(ANow^pos));
+			const tw::Complex pstate = FV(cell,-1.0)*std::exp(-ii*q0*(ANow^pos));
+			const tw::Complex psi_ref = refState[s].Amplitude(pos,0.0,0)/root2;
+			const tw::Complex chi_ref = refState[s].Amplitude(pos,0.0,1)/root2;
+			temp(cell) = real(conj(psi_ref+chi_ref)*estate - conj(psi_ref-chi_ref)*pstate);
+		}
+		diagnostic.VolumeIntegral("real<ref"+std::to_string(s)+"|psi>",temp,0);
+
+		for (auto cell : InteriorCellRange(*this))
+		{
+			const tw::vec3 pos = owner->Pos(cell);
+			// Feshbach-Villars decomposition, including gauge transformation
+			const tw::Complex estate = FV(cell,1.0)*std::exp(-ii*q0*(ANow^pos));
+			const tw::Complex pstate = FV(cell,-1.0)*std::exp(-ii*q0*(ANow^pos));
+			const tw::Complex psi_ref = refState[s].Amplitude(pos,0.0,0)/root2;
+			const tw::Complex chi_ref = refState[s].Amplitude(pos,0.0,1)/root2;
+			temp(cell) = imag(conj(psi_ref+chi_ref)*estate - conj(psi_ref-chi_ref)*pstate);
+		}
+		diagnostic.VolumeIntegral("imag<ref"+std::to_string(s)+"|psi>",temp,0);
 	}
-}
 
-void KleinGordon::BoxDiagnosticHeader(GridDataDescriptor* box)
-{
-	owner->WriteBoxDataHeader("rho",box);
-	owner->WriteBoxDataHeader("Jx",box);
-	owner->WriteBoxDataHeader("Jy",box);
-	owner->WriteBoxDataHeader("Jz",box);
-	owner->WriteBoxDataHeader("phi",box);
-	owner->WriteBoxDataHeader("Ax",box);
-	owner->WriteBoxDataHeader("Ay",box);
-	owner->WriteBoxDataHeader("Az",box);
-	owner->WriteBoxDataHeader("psi0_r",box);
-	owner->WriteBoxDataHeader("psi1_r",box);
-}
+	diagnostic.Field("psi0_r",psi_r,0);
+	diagnostic.Field("psi1_r",psi_r,1);
 
-void KleinGordon::BoxDiagnose(GridDataDescriptor* box)
-{
-	owner->WriteBoxData("rho",box,&J4(0,0,0,0),J4.Stride());
-	owner->WriteBoxData("Jx",box,&J4(0,0,0,1),J4.Stride());
-	owner->WriteBoxData("Jy",box,&J4(0,0,0,2),J4.Stride());
-	owner->WriteBoxData("Jz",box,&J4(0,0,0,3),J4.Stride());
+	diagnostic.Field("rho",J4,0);
+	diagnostic.Field("Jx",J4,1);
+	diagnostic.Field("Jy",J4,2);
+	diagnostic.Field("Jz",J4,3);
 
-	owner->WriteBoxData("phi",box,&A4(0,0,0,0),A4.Stride());
-	owner->WriteBoxData("Ax",box,&A4(0,0,0,1),A4.Stride());
-	owner->WriteBoxData("Ay",box,&A4(0,0,0,2),A4.Stride());
-	owner->WriteBoxData("Az",box,&A4(0,0,0,3),A4.Stride());
-
-	owner->WriteBoxData("psi0_r",box,&psi_r(0,0,0,0),psi_r.Stride());
-	owner->WriteBoxData("psi1_r",box,&psi_r(0,0,0,1),psi_r.Stride());
+	diagnostic.Field("phi",A4,0);
+	diagnostic.Field("Ax",A4,1);
+	diagnostic.Field("Ay",A4,2);
+	diagnostic.Field("Az",A4,3);
 }
 
 void KleinGordon::StartDiagnostics()
@@ -2156,120 +2015,47 @@ void Dirac::Update()
 }
 #endif
 
-void Dirac::EnergyHeadings(std::ofstream& outFile)
+void Dirac::Report(Diagnostic& diagnostic)
 {
-	outFile << "TotalCharge Ex Ey Ez Ax Ay Az Px Py Pz ";
+	AtomicPhysics::Report(diagnostic);
 
-	tw::Int i;
-	for (i=0;i<refState.size();i++)
-		outFile << "real<ref" << i << "|psi> imag<ref" << i << "|psi> ";
-}
+	tw::vec3 r0,ENow,ANow;
+	ScalarField temp;
+	temp.Initialize(*this,owner);
 
-void Dirac::EnergyColumns(std::vector<tw::Float>& cols,std::vector<bool>& avg,const Region& theRgn)
-{
-	tw::Int i,j,k,s;
-	tw::Int x0,x1,y0,y1,z0,z1;
-	tw::Float dV,chargeDensity;
-	tw::vec3 pos,ENow,ANow,dipoleMoment;
-	std::valarray<tw::Complex> overlap(refState.size());
-
-	tw::Float totalCharge = 0.0;
-	ENow = 0.0;
-	ANow = 0.0;
-	dipoleMoment = 0.0;
-	overlap = tw::Complex(0,0);
-
-	for (s=0;s<wave.size();s++)
+	r0 = 0.0;
+	for (auto w : wave)
 	{
-		ANow += wave[s]->VectorPotential(owner->elapsedTime,tw::vec3(0,0,0));
-		ENow -= dti*wave[s]->VectorPotential(owner->elapsedTime+0.5*dt,tw::vec3(0,0,0));
-		ENow += dti*wave[s]->VectorPotential(owner->elapsedTime-0.5*dt,tw::vec3(0,0,0));
+		ANow += w->VectorPotential(owner->elapsedTime,tw::vec3(0,0,0));
+		ENow -= dti*w->VectorPotential(owner->elapsedTime+0.5*dt,tw::vec3(0,0,0));
+		ENow += dti*w->VectorPotential(owner->elapsedTime-0.5*dt,tw::vec3(0,0,0));
 	}
 
-	theRgn.GetLocalCellBounds(&x0,&x1,&y0,&y1,&z0,&z1);
-	for (k=z0;k<=z1;k++)
-		for (j=y0;j<=y1;j++)
-			for (i=x0;i<=x1;i++)
-			{
-				pos = owner->Pos(i,j,k);
-				if (theRgn.Inside(pos,*owner))
-				{
-					dV = owner->dS(i,j,k,0);
-					chargeDensity = J4(i,j,k,0);
-					totalCharge += chargeDensity*dV;
-					dipoleMoment += chargeDensity*pos*dV;
-					// Need to revisit statistical interpretation
-					for (s=0;s<refState.size();s++)
-						overlap[s] += 0.0;
-				}
-			}
+	diagnostic.VolumeIntegral("TotalCharge",J4,0);
+	diagnostic.Float("Ex",ENow.x,true);
+	diagnostic.Float("Ey",ENow.y,true);
+	diagnostic.Float("Ez",ENow.z,true);
+	diagnostic.Float("Ax",ANow.x,true);
+	diagnostic.Float("Ay",ANow.y,true);
+	diagnostic.Float("Az",ANow.z,true);
+	diagnostic.FirstMoment("Dx",J4,0,r0,tw::grid::x);
+	diagnostic.FirstMoment("Dy",J4,0,r0,tw::grid::y);
+	diagnostic.FirstMoment("Dz",J4,0,r0,tw::grid::z);
 
-	cols.push_back(totalCharge); avg.push_back(false);
-	cols.push_back(ENow.x); avg.push_back(true);
-	cols.push_back(ENow.y); avg.push_back(true);
-	cols.push_back(ENow.z); avg.push_back(true);
-	cols.push_back(ANow.x); avg.push_back(true);
-	cols.push_back(ANow.y); avg.push_back(true);
-	cols.push_back(ANow.z); avg.push_back(true);
-	cols.push_back(dipoleMoment.x); avg.push_back(false);
-	cols.push_back(dipoleMoment.y); avg.push_back(false);
-	cols.push_back(dipoleMoment.z); avg.push_back(false);
-	for (s=0;s<refState.size();s++)
-	{
-		cols.push_back(real(overlap[s])); avg.push_back(false);
-		cols.push_back(imag(overlap[s])); avg.push_back(false);
-	}
-}
+	diagnostic.Field("psi0_r",psi_r,0);
+	diagnostic.Field("psi1_r",psi_r,1);
+	diagnostic.Field("psi2_r",psi_r,2);
+	diagnostic.Field("psi3_r",psi_r,3);
 
-void Dirac::BoxDiagnosticHeader(GridDataDescriptor* box)
-{
-	owner->WriteBoxDataHeader("rho",box);
-	owner->WriteBoxDataHeader("Jx",box);
-	owner->WriteBoxDataHeader("Jy",box);
-	owner->WriteBoxDataHeader("Jz",box);
-	owner->WriteBoxDataHeader("phi",box);
-	owner->WriteBoxDataHeader("Ax",box);
-	owner->WriteBoxDataHeader("Ay",box);
-	owner->WriteBoxDataHeader("Az",box);
-	owner->WriteBoxDataHeader("psi0_r",box);
-	owner->WriteBoxDataHeader("psi1_r",box);
-	owner->WriteBoxDataHeader("psi2_r",box);
-	owner->WriteBoxDataHeader("psi3_r",box);
-}
+	diagnostic.Field("rho",J4,0);
+	diagnostic.Field("Jx",J4,1);
+	diagnostic.Field("Jy",J4,2);
+	diagnostic.Field("Jz",J4,3);
 
-void Dirac::BoxDiagnose(GridDataDescriptor* box)
-{
-	owner->WriteBoxData("rho",box,&J4(0,0,0,0),J4.Stride());
-	owner->WriteBoxData("Jx",box,&J4(0,0,0,1),J4.Stride());
-	owner->WriteBoxData("Jy",box,&J4(0,0,0,2),J4.Stride());
-	owner->WriteBoxData("Jz",box,&J4(0,0,0,3),J4.Stride());
-
-	owner->WriteBoxData("phi",box,&A4(0,0,0,0),A4.Stride());
-	owner->WriteBoxData("Ax",box,&A4(0,0,0,1),A4.Stride());
-	owner->WriteBoxData("Ay",box,&A4(0,0,0,2),A4.Stride());
-	owner->WriteBoxData("Az",box,&A4(0,0,0,3),A4.Stride());
-
-	owner->WriteBoxData("psi0_r",box,&psi_r(0,0,0,0),psi_r.Stride());
-	owner->WriteBoxData("psi1_r",box,&psi_r(0,0,0,1),psi_r.Stride());
-	owner->WriteBoxData("psi2_r",box,&psi_r(0,0,0,2),psi_r.Stride());
-	owner->WriteBoxData("psi3_r",box,&psi_r(0,0,0,3),psi_r.Stride());
-}
-
-void Dirac::PointDiagnosticHeader(std::ofstream& outFile)
-{
-	outFile << "phi Ax Ay Az psi0_r psi0_i psi1_r psi1_i psi2_r psi2_i psi3_r psi3_i ";
-}
-
-void Dirac::PointDiagnose(std::ofstream& outFile,const weights_3D& w)
-{
-	std::valarray<tw::Float> ANow(4),psiNow_r(4),psiNow_i(4);
-	A4.Interpolate(ANow,w);
-	psi_r.Interpolate(psiNow_r,w);
-	psi_i.Interpolate(psiNow_i,w);
-	for (tw::Int c=0;c<4;c++)
-		outFile << ANow[c] << " ";
-	for (tw::Int c=0;c<4;c++)
-		outFile << psiNow_r[c] << " " << psiNow_i[c] << " ";
+	diagnostic.Field("phi",A4,0);
+	diagnostic.Field("Ax",A4,1);
+	diagnostic.Field("Ay",A4,2);
+	diagnostic.Field("Az",A4,3);
 }
 
 void Dirac::StartDiagnostics()

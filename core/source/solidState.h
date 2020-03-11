@@ -38,10 +38,5 @@ struct BoundElectrons:Module
 	virtual void WriteCheckpoint(std::ofstream& outFile);
 
 	virtual void StartDiagnostics();
-	virtual void EnergyHeadings(std::ofstream& outFile);
-	virtual void EnergyColumns(std::vector<tw::Float>& cols,std::vector<bool>& avg,const Region& theRgn);
-	virtual void BoxDiagnosticHeader(GridDataDescriptor*);
-	virtual void BoxDiagnose(GridDataDescriptor*);
-	virtual void PointDiagnosticHeader(std::ofstream& outFile);
-	virtual void PointDiagnose(std::ofstream& outFile,const weights_3D& w);
+	virtual void Report(Diagnostic&);
 };

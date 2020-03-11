@@ -31,7 +31,9 @@ namespace tw
 		// Equation of state
 		eosData, eosIdealGas, eosHotElectrons, eosMixture, eosIdealGasMix, eosSimpleMieGruneisen, eosLinearMieGruneisen,
 		// Ionization
-		mpi, adk, ppt
+		mpi, adk, ppt,
+		// Diagnostics
+		boxDiagnostic,particleOrbits,phaseSpaceDiagnostic,volumeDiagnostic,pointDiagnostic
 	};
 }
 

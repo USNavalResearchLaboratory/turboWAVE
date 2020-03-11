@@ -117,12 +117,7 @@ struct Schroedinger:AtomicPhysics
 	virtual void Normalize();
 
 	virtual void StartDiagnostics();
-	virtual void EnergyHeadings(std::ofstream& outFile);
-	virtual void EnergyColumns(std::vector<tw::Float>& cols,std::vector<bool>& avg,const Region& theRgn);
-	virtual void BoxDiagnosticHeader(GridDataDescriptor*);
-	virtual void BoxDiagnose(GridDataDescriptor*);
-	virtual void PointDiagnosticHeader(std::ofstream& outFile);
-	virtual void PointDiagnose(std::ofstream& outFile,const weights_3D& w);
+	virtual void Report(Diagnostic&);
 };
 
 struct Pauli:AtomicPhysics
@@ -141,10 +136,7 @@ struct Pauli:AtomicPhysics
 	virtual void Normalize();
 
 	virtual void StartDiagnostics();
-	virtual void EnergyHeadings(std::ofstream& outFile);
-	virtual void EnergyColumns(std::vector<tw::Float>& cols,std::vector<bool>& avg,const Region& theRgn);
-	virtual void BoxDiagnosticHeader(GridDataDescriptor*);
-	virtual void BoxDiagnose(GridDataDescriptor*);
+	virtual void Report(Diagnostic&);
 };
 
 struct KleinGordon:AtomicPhysics
@@ -178,10 +170,7 @@ struct KleinGordon:AtomicPhysics
 	virtual void Normalize();
 
 	virtual void StartDiagnostics();
-	virtual void EnergyHeadings(std::ofstream& outFile);
-	virtual void EnergyColumns(std::vector<tw::Float>& cols,std::vector<bool>& avg,const Region& theRgn);
-	virtual void BoxDiagnosticHeader(GridDataDescriptor*);
-	virtual void BoxDiagnose(GridDataDescriptor*);
+	virtual void Report(Diagnostic&);
 };
 
 struct Dirac:AtomicPhysics
@@ -202,12 +191,7 @@ struct Dirac:AtomicPhysics
 	virtual void Normalize();
 
 	virtual void StartDiagnostics();
-	virtual void EnergyHeadings(std::ofstream& outFile);
-	virtual void EnergyColumns(std::vector<tw::Float>& cols,std::vector<bool>& avg,const Region& theRgn);
-	virtual void BoxDiagnosticHeader(GridDataDescriptor*);
-	virtual void BoxDiagnose(GridDataDescriptor*);
-	virtual void PointDiagnosticHeader(std::ofstream& outFile);
-	virtual void PointDiagnose(std::ofstream& outFile,const weights_3D& w);
+	virtual void Report(Diagnostic&);
 };
 
 template <tw::Int OUT1,tw::Int OUT2,tw::Int IN1,tw::Int IN2>

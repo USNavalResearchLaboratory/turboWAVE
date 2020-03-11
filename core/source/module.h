@@ -6,6 +6,12 @@ namespace tw
 					qsLaser,pgcLaser,
 					kinetics,species,fluidFields,equilibriumGroup,chemical,sparcHydroManager,
 					boundElectrons,schroedinger,pauli,kleinGordon,dirac};
+	enum class priority { diagnostic, source, field };
+	inline std::map<tw::priority,tw::Int> priority_sort_map()
+	{
+		std::map<tw::priority,tw::Int> ans = {{priority::diagnostic,100},{priority::source,200},{priority::field,300}};
+		return ans;
+	}
 }
 
 struct Module:DiscreteSpace
@@ -17,7 +23,8 @@ struct Module:DiscreteSpace
 	std::vector<ComputeTool*> moduleTool;
 	tw::input::DirectiveReader directives;
 
-	tw::Int updateSequencePriority;
+	tw::priority updateSequencePriority;
+	tw::Int subSequencePriority;
 	tw::Int smoothing[4],compensation[4];
 	tw::module_type typeCode;
 	bool suppressNextUpdate;
@@ -61,7 +68,7 @@ struct Module:DiscreteSpace
 	virtual void WriteCheckpoint(std::ofstream& outFile);
 
 	virtual void StartDiagnostics();
-	virtual bool Report(Diagnostic *diagnostic);
+	virtual void Report(Diagnostic&);
 	virtual void WarningMessage(std::ostream *theStream);
 	virtual void StatusMessage(std::ostream *theStream) {;}
 
@@ -78,6 +85,8 @@ struct ModuleComparator
 {
 	bool operator() (Module* const& m1,Module* const& m2)
 	{
-		return m1->updateSequencePriority < m2->updateSequencePriority;
+		tw::Int idx1 = tw::priority_sort_map()[m1->updateSequencePriority] + m1->subSequencePriority;
+		tw::Int idx2 = tw::priority_sort_map()[m2->updateSequencePriority] + m2->subSequencePriority;
+		return idx1 < idx2;
 	}
 };

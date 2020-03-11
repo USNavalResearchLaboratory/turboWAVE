@@ -24,7 +24,7 @@ namespace tw
 		enum side { low , high };
 		inline std::map<std::string,axis> axis_map()
 		{
-			std::map<std::string,fld> ans = {{"t",t},{"x",x},{"y",y},{"z",z},{"mass",mass},{"px",px},{"py",py},{"pz",pz},{"g",g},{"gbx",gbx},{"gby",gby},{"gbz",gbz}};
+			std::map<std::string,axis> ans = {{"t",t},{"x",x},{"y",y},{"z",z},{"mass",mass},{"px",px},{"py",py},{"pz",pz},{"g",g},{"gbx",gbx},{"gby",gby},{"gbz",gbz}};
 			return ans;
 		}
 		inline tw::Int naxis(const tw::grid::axis& axis)
@@ -56,6 +56,24 @@ struct Primitive
 		x[0] = x0;
 		x[1] = x1;
 		x[2] = x2;
+	}
+};
+
+struct Particle
+{
+	Primitive q; // DEFINITION: {x,y,z,cell} constitute a "primitive" coordinate
+	tw::vec3 p; // momentum , always known in cartesian coordinates
+	float number,aux1,aux2; // number = particles per macroparticle divided by n0*(c/wp)^3
+
+	Particle(const tw::vec3& p,const Primitive& q,const float number,const float aux1,const float aux2) noexcept;
+
+	void ReadCheckpoint(std::ifstream& inFile);
+	void WriteCheckpoint(std::ofstream& outFile);
+
+	friend bool operator < (const Particle& p1,const Particle& p2)
+	{
+		// Used to define the ordering of particles following std::sort
+		return p1.q.cell < p2.q.cell;
 	}
 };
 

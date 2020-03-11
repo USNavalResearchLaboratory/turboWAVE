@@ -128,7 +128,12 @@ std::map<std::string,tw::tool_type> ComputeTool::Map()
 		{"eos linear mie gruneisen",tw::tool_type::eosLinearMieGruneisen},
 		{"mpi ionization",tw::tool_type::mpi},
 		{"adk ionization",tw::tool_type::adk},
-		{"ppt ionization",tw::tool_type::ppt}
+		{"ppt ionization",tw::tool_type::ppt},
+		{"box diagnostic",tw::tool_type::boxDiagnostic},
+		{"orbit diagnostic",tw::tool_type::particleOrbits},
+		{"phase space diagnostic",tw::tool_type::phaseSpaceDiagnostic},
+		{"energy diagnostic",tw::tool_type::volumeDiagnostic},
+		{"point diagnostic",tw::tool_type::pointDiagnostic}
 	};
 }
 
@@ -255,6 +260,21 @@ ComputeTool* ComputeTool::CreateObjectFromType(const std::string& name,tw::tool_
 			break;
 		case tw::tool_type::ppt:
 			ans = new PPT(name,ms,tsk);
+			break;
+		case tw::tool_type::boxDiagnostic:
+			ans = new BoxDiagnostic(name,ms,tsk);
+			break;
+		case tw::tool_type::pointDiagnostic:
+			ans = new PointDiagnostic(name,ms,tsk);
+			break;
+		case tw::tool_type::volumeDiagnostic:
+			ans = new VolumeDiagnostic(name,ms,tsk);
+			break;
+		case tw::tool_type::particleOrbits:
+			ans = new ParticleOrbits(name,ms,tsk);
+			break;
+		case tw::tool_type::phaseSpaceDiagnostic:
+			ans = new PhaseSpaceDiagnostic(name,ms,tsk);
 			break;
 	}
 	return ans;

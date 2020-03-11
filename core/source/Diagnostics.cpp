@@ -36,7 +36,7 @@ void WriteDVHeader(std::ofstream& outFile,tw::Int version,tw::Int xDim,tw::Int y
 
 Diagnostic::Diagnostic(const std::string& name,MetricSpace *ms,Task *tsk) : ComputeTool(name,ms,tsk)
 {
-	typeCode = tw::tool_type::diagnostic;
+	typeCode = tw::tool_type::none;
 	skip[0] = 0;
 	skip[1] = skip[2] = skip[3] = 1;
 	t0 = 0.0;
@@ -44,15 +44,15 @@ Diagnostic::Diagnostic(const std::string& name,MetricSpace *ms,Task *tsk) : Comp
 	tRef = tw::big_neg;
 	timePeriod = 0.0;
 	filename = "diagnostic";
-	moveWithWindow = true;
-	writeHeader = true;
+	vGalileo = 0.0;
+	headerWritten = false;
 	directives.Add("period",new tw::input::Int(&skip[0]));
 	directives.Add("time period",new tw::input::Float(&timePeriod));
 	directives.Add("skip",new tw::input::Numbers<tw::Int>(&skip[1],3));
 	directives.Add("filename",new tw::input::String(&filename));
 	directives.Add("t0",new tw::input::Float(&t0));
 	directives.Add("t1",new tw::input::Float(&t1));
-	directives.Add("move with window",new tw::input::Bool(&moveWithWindow));
+	directives.Add("galilean velocity",new tw::input::Vec3(&vGalileo));
 }
 
 bool Diagnostic::WriteThisStep(tw::Float elapsedTime,tw::Float dt,tw::Int stepNow)
@@ -82,25 +82,23 @@ bool Diagnostic::WriteThisStep(tw::Float elapsedTime,tw::Float dt,tw::Int stepNo
 	return false;
 }
 
-virtual void Diagnostic::Start(bool writeHeader)
-{
-	this->writeHeader = writeHeader;
-}
-
-virtual void Diagnostic::Finish()
+void Diagnostic::Start()
 {
 }
 
-virtual void Diagnostic::Float(const std::string& label,tw::Float val)
+void Diagnostic::Finish()
 {
 }
 
-virtual tw::Float Diagnostic::VolumeIntegral(const std::string& fieldName,const Field& F,const tw::Int c)
+void Diagnostic::Float(const std::string& label,tw::Float val,bool average)
+{
+}
+
+tw::Float Diagnostic::VolumeIntegral(const std::string& fieldName,const struct Field& F,const tw::Int c)
 {
 	tw::Float ans = 0.0;
-	tw::Int xl,xh,yl,yh,zl,zh;
-	theRgn.GetRawCellBounds(&xl,&xh,&yl,&yh,&zl,&zh);
-	theRgn.GetLocalCellBounds(&x0,&x1,&y0,&y1,&z0,&z1);
+	tw::Int x0,x1,y0,y1,z0,z1;
+	theRgn->GetLocalCellBounds(&x0,&x1,&y0,&y1,&z0,&z1);
 	for (tw::Int k=z0;k<=z1;k++)
 		for (tw::Int j=y0;j<=y1;j++)
 			for (tw::Int i=x0;i<=x1;i++)
@@ -109,11 +107,34 @@ virtual tw::Float Diagnostic::VolumeIntegral(const std::string& fieldName,const 
 	return ans;
 }
 
-virtual void Diagnostic::Field(const std::string& fieldName,const Field& F,const tw::Int c)
+tw::Float Diagnostic::FirstMoment(const std::string& fieldName,const struct Field& F,const tw::Int c,const tw::vec3& r0,const tw::grid::axis axis)
+{
+	tw::Float ans = 0.0;
+	const tw::Int ax = tw::grid::naxis(axis);
+	tw::Int x0,x1,y0,y1,z0,z1;
+	theRgn->GetLocalCellBounds(&x0,&x1,&y0,&y1,&z0,&z1);
+	for (tw::Int k=z0;k<=z1;k++)
+		for (tw::Int j=y0;j<=y1;j++)
+			for (tw::Int i=x0;i<=x1;i++)
+			{
+				const tw::vec3 pos = space->Pos(i,j,k);
+				if (theRgn->Inside(pos,*space))
+				{
+					tw::vec3 r1 = r0;
+					tw::vec3 r2 = pos;
+					space->CurvilinearToCartesian(&r1);
+					space->CurvilinearToCartesian(&r2);
+					ans += F(i,j,k,c) * (r2[ax-1]-r1[ax-1]) * space->dS(i,j,k,0);
+				}
+			}
+	return ans;
+}
+
+void Diagnostic::Field(const std::string& fieldName,const struct Field& F,const tw::Int c)
 {
 }
 
-virtual void Diagnostic::Particle(const Particle& par,tw::Float m0,tw::Float t)
+void Diagnostic::Particle(const struct Particle& par,tw::Float m0,tw::Float t)
 {
 }
 
@@ -124,6 +145,8 @@ void Diagnostic::ReadCheckpoint(std::ifstream& inFile)
 	inFile.read((char *)&tRef,sizeof(tw::Float));
 	inFile.read((char *)&t0,sizeof(tw::Float));
 	inFile.read((char *)&t1,sizeof(tw::Float));
+	inFile.read((char *)&headerWritten,sizeof(headerWritten));
+	inFile.read((char *)&vGalileo,sizeof(vGalileo));
 	inFile >> filename;
 	inFile.ignore();
 }
@@ -135,26 +158,28 @@ void Diagnostic::WriteCheckpoint(std::ofstream& outFile)
 	outFile.write((char *)&tRef,sizeof(tw::Float));
 	outFile.write((char *)&t0,sizeof(tw::Float));
 	outFile.write((char *)&t1,sizeof(tw::Float));
+	outFile.write((char *)&headerWritten,sizeof(headerWritten));
+	outFile.write((char *)&vGalileo,sizeof(vGalileo));
 	outFile << filename << " ";
 }
 
 TextTableBase::TextTableBase(const std::string& name,MetricSpace *ms,Task *tsk) : Diagnostic(name,ms,tsk)
 {
-	typeCode = tw::tool_type::textTableBase;
+	typeCode = tw::tool_type::none;
 	numSigFigs = 6;
 	filename = "table";
 	directives.Add("precision",new tw::input::Int(&numSigFigs));
 }
 
-virtual void TextTableBase::Start(bool writeHeader)
+void TextTableBase::Start()
 {
-	Diagnostic::Start(writeHeader);
+	Diagnostic::Start();
 	labels.clear();
 	values.clear();
 	avg.clear();
 }
 
-virtual void TextTableBase::Finish()
+void TextTableBase::Finish()
 {
 	Diagnostic::Finish();
 	if (values.size())
@@ -173,20 +198,31 @@ virtual void TextTableBase::Finish()
 		{
 			std::string fileName(filename+".txt");
 			std::ofstream file;
-			file.open(fileName.c_str());
-			file.precision(numSigFigs);
-			if (writeHeader)
+			if (!headerWritten)
 			{
+				file.open(fileName.c_str());
 				for (auto s : labels)
 					file << s << " ";
 				file << std::endl;
+				headerWritten = true;
 			}
+			else
+				file.open(fileName.c_str(),std::ios::app);
+			file.precision(numSigFigs);
 			for (auto v : values)
 				file << v << " ";
 			file << std::endl;
 			file.close();
 		}
 	}
+}
+
+void TextTableBase::Float(const std::string& label,tw::Float val,bool average)
+{
+	Diagnostic::Float(label,val,average);
+	labels.push_back(label);
+	values.push_back(val);
+	avg.push_back(average);
 }
 
 void TextTableBase::ReadCheckpoint(std::ifstream& inFile)
@@ -207,17 +243,18 @@ VolumeDiagnostic::VolumeDiagnostic(const std::string& name,MetricSpace *ms,Task 
 	filename = "energy";
 }
 
-virtual void VolumeDiagnostic::Float(const std::string& label,tw::Float val)
-{
-	Diagnostic::Float(label,val);
-	labels.push_back(label);
-	values.push_back(val);
-	avg.push_back(true);
-}
-
-virtual tw::Float VolumeDiagnostic::VolumeIntegral(const std::string& fieldName,const Field& F,const tw::Int c)
+tw::Float VolumeDiagnostic::VolumeIntegral(const std::string& fieldName,const struct Field& F,const tw::Int c)
 {
 	const tw::Float ans = Diagnostic::VolumeIntegral(fieldName,F,c);
+	labels.push_back(fieldName);
+	values.push_back(ans);
+	avg.push_back(false);
+	return ans;
+}
+
+tw::Float VolumeDiagnostic::FirstMoment(const std::string& fieldName,const struct Field& F,const tw::Int c,const tw::vec3& r0,const tw::grid::axis axis)
+{
+	const tw::Float ans = Diagnostic::FirstMoment(fieldName,F,c,r0,axis);
 	labels.push_back(fieldName);
 	values.push_back(ans);
 	avg.push_back(false);
@@ -232,12 +269,12 @@ PointDiagnostic::PointDiagnostic(const std::string& name,MetricSpace *ms,Task *t
 	directives.Add("point",new tw::input::Vec3(&thePoint));
 }
 
-virtual void PointDiagnostic::Field(const std::string& fieldName,const Field& F,const tw::Int c)
+void PointDiagnostic::Field(const std::string& fieldName,const struct Field& F,const tw::Int c)
 {
 	tw::vec3 r = thePoint;
-	if (IsPointValid(r)) // assumes uniform grid
+	if (space->IsPointValid(r)) // assumes uniform grid
 	{
-		std::valarray<std::Float> ans(1);
+		std::valarray<tw::Float> ans(1);
 		weights_3D w;
 		space->GetWeights(&w,r);
 		F.Interpolate(ans,Element(c),w);
@@ -283,7 +320,7 @@ void BoxDiagnostic::GetGlobalIndexing(tw::Int pts[4],tw::Int glb[6])
 	{
 		const tw::Int lb = 2*ax-2;
 		const tw::Int ub = 2*ax-1;
-		skip[ax] = space->dim[ax]==1 ? 1 : skip[ax];
+		skip[ax] = space->Dim(ax)==1 ? 1 : skip[ax];
 		// Force global bounds into skipping sequence
 		// The upper bound is adjusted to respect the lower bound
 		pts[ax] = (glb[ub] - glb[lb] + 1)/skip[ax];
@@ -308,14 +345,14 @@ void BoxDiagnostic::GetLocalIndexing(const tw::Int pts[4],const tw::Int glb[6],t
 		if (i0<1) i0 += skip[ax];
 		loc[lb] = i0;
 		// Get the upper local cell bounds and force into global skipping sequence
-		i0 = localCells[ax] + cell0;
+		i0 = task->localCells[ax] + cell0;
 		i0 = i0 > glb[ub] ? glb[ub] : i0;
 		i0 -= cell0 + ((i0 - glb[lb]) % skip[ax]);
 		loc[ub] = i0;
 	}
 }
 
-void BoxDiagnostic::Field(const std::string& fieldName,const Field& F,const tw::Int c)
+void BoxDiagnostic::Field(const std::string& fieldName,const struct Field& F,const tw::Int c)
 {
 	tw::Int buffSize,ready,i0,i1;
 	std::valarray<float> buffer,gData;
@@ -333,7 +370,7 @@ void BoxDiagnostic::Field(const std::string& fieldName,const Field& F,const tw::
 		xname = filename + "_" + fieldName + ".dvdat";
 
 	GetGlobalIndexing(pts,glb);
-	for (tw::Int i=1;i<=3;i++) dim[i] = space->dim[i];
+	for (tw::Int i=1;i<=3;i++) dim[i] = space->Dim(i);
 	for (tw::Int i=1;i<=3;i++) s[i] = skip[i];
 
 	if (thisNode==master)
@@ -353,9 +390,9 @@ void BoxDiagnostic::Field(const std::string& fieldName,const Field& F,const tw::
 					{
 						if (curr==master)
 						{
-							for (k=loc[4];k<=loc[5];k+=s[3])
-								for (j=loc[2];j<=loc[3];j+=s[2])
-									for (i=loc[0];i<=loc[1];i+=s[1])
+							for (tw::Int k=loc[4];k<=loc[5];k+=s[3])
+								for (tw::Int j=loc[2];j<=loc[3];j+=s[2])
+									for (tw::Int i=loc[0];i<=loc[1];i+=s[1])
 									{
 										i0 = (task->GlobalCellIndex(i,1) - glb[0])/s[1];
 										i0 += pts[1]*(task->GlobalCellIndex(j,2) - glb[2])/s[2];
@@ -393,9 +430,9 @@ void BoxDiagnostic::Field(const std::string& fieldName,const Field& F,const tw::
 									i0 = (i - loc[0])/s[1];
 									i0 += (loc[1]-loc[0]+s[1])*(j - loc[2])/(s[1]*s[2]);
 									i0 += (loc[1]-loc[0]+s[1])*(loc[3]-loc[2]+s[2])*(k - loc[4])/(s[1]*s[2]*s[3]);
-									i1 = (coords[1]*localCells[1]+i - glb[0])/s[1];
-									i1 += pts[1]*(coords[2]*localCells[2]+j - glb[2])/s[2];
-									i1 += pts[1]*pts[2]*(coords[3]*localCells[3]+k - glb[4])/s[3];
+									i1 = (coords[1]*task->localCells[1]+i - glb[0])/s[1];
+									i1 += pts[1]*(coords[2]*task->localCells[2]+j - glb[2])/s[2];
+									i1 += pts[1]*pts[2]*(coords[3]*task->localCells[3]+k - glb[4])/s[3];
 									gData[i1] = buffer[i0];
 								}
 					}
@@ -404,20 +441,27 @@ void BoxDiagnostic::Field(const std::string& fieldName,const Field& F,const tw::
 
 	if (thisNode==master)
 	{
-		if (writeHeader)
+		if (!headerWritten)
 		{
+			outFile.open(xname.c_str(),std::ios::binary);
 			WriteDVHeader(outFile,2,pts[1],pts[2],pts[3],
-			space->globalCorner.x + space->spacing.x*(glb[0]-0.5-0.5*skip[1]),
-			space->globalCorner.x + space->spacing.x*(glb[1]-0.5+0.5*skip[1]),
-			space->globalCorner.y + space->spacing.y*(glb[2]-0.5-0.5*skip[2]),
-			space->globalCorner.y + space->spacing.y*(glb[3]-0.5+0.5*skip[2]),
-			space->globalCorner.z + space->spacing.z*(glb[4]-0.5-0.5*skip[3]),
-			space->globalCorner.z + space->spacing.z*(glb[5]-0.5+0.5*skip[3]));
+			GlobalCorner(*space).x + dx(*space)*(glb[0]-0.5-0.5*skip[1]),
+			GlobalCorner(*space).x + dx(*space)*(glb[1]-0.5+0.5*skip[1]),
+			GlobalCorner(*space).y + dy(*space)*(glb[2]-0.5-0.5*skip[2]),
+			GlobalCorner(*space).y + dy(*space)*(glb[3]-0.5+0.5*skip[2]),
+			GlobalCorner(*space).z + dz(*space)*(glb[4]-0.5-0.5*skip[3]),
+			GlobalCorner(*space).z + dz(*space)*(glb[5]-0.5+0.5*skip[3]));
+			outFile.close();
 		}
 		outFile.open(xname.c_str(),std::ios::app | std::ios::binary);
 		WriteBigEndian((char*)&gData[0],sizeof(float)*pts[1]*pts[2]*pts[3],sizeof(float),outFile);
 		outFile.close();
 	}
+}
+
+void BoxDiagnostic::Finish()
+{
+	headerWritten = true;
 }
 
 void BoxDiagnostic::ReadCheckpoint(std::ifstream& inFile)
@@ -440,9 +484,9 @@ ParticleOrbits::ParticleOrbits(const std::string& name,MetricSpace *ms,Task *tsk
 	directives.Add("minimum gamma",new tw::input::Float(&minGamma));
 }
 
-void ParticleOrbits::Start(bool writeHeader)
+void ParticleOrbits::Start()
 {
-	Diagnostic::Start(writeHeader);
+	Diagnostic::Start();
 	parData.clear();
 }
 
@@ -453,7 +497,7 @@ void ParticleOrbits::Finish()
 	parBuffer.resize(parData.size());
 	for (tw::Int i=0;i<parData.size();i++)
 		parBuffer[i] = parData[i];
-	const tw::Int pts = parData.size();
+	tw::Int pts = parData.size();
 	if (task->strip[0].Get_rank()!=master)
 	{
 		task->strip[0].Send(&pts,sizeof(tw::Int),master);
@@ -461,11 +505,17 @@ void ParticleOrbits::Finish()
 	}
 	if (task->strip[0].Get_rank()==master)
 	{
-		std::string fileName = filename + ".dvpar"
+		std::string fileName = filename + ".dvpar";
 		std::ofstream outFile;
-		outFile.open(fileName.c_str(),std::ios::binary | std::ios::app);
+		if (!headerWritten)
+		{
+			outFile.open(fileName.c_str(),std::ios::binary);
+			headerWritten = true;
+		}
+		else
+			outFile.open(fileName.c_str(),std::ios::binary | std::ios::app);
 		WriteBigEndian((char*)&parBuffer[0],sizeof(float)*pts,sizeof(float),outFile);
-		for (i=0;i<task->strip[0].Get_size();i++)
+		for (tw::Int i=0;i<task->strip[0].Get_size();i++)
 		{
 			if (i!=master)
 			{
@@ -476,24 +526,24 @@ void ParticleOrbits::Finish()
 			}
 		}
 		float zero = 0.0;
-		for (i=0;i<8;i++)
+		for (tw::Int i=0;i<8;i++)
 			WriteBigEndian((char*)&zero,sizeof(float),sizeof(float),outFile);
 		outFile.close();
 	}
 }
 
-void ParticleOrbits::Particle(const Particle& par,tw::Float m0,tw::Float t)
+void ParticleOrbits::Particle(const struct Particle& par,tw::Float m0,tw::Float t)
 {
 	tw::vec3 position = space->PositionFromPrimitive(par.q);
 	if (theRgn->Inside(position,*space))
-		if (sqrt(1.0 + Norm(par.p/restMass)) >= minGamma)
+		if (sqrt(1.0 + Norm(par.p/m0)) >= minGamma)
 		{
 			space->CurvilinearToCartesian(&position);
-			parData.push_back(position.x);
+			parData.push_back(position.x - vGalileo.x*t);
 			parData.push_back(par.p.x);
-			parData.push_back(position.y);
+			parData.push_back(position.y - vGalileo.y*t);
 			parData.push_back(par.p.y);
-			parData.push_back(position.z - t);
+			parData.push_back(position.z - vGalileo.z*t);
 			parData.push_back(par.p.z);
 			parData.push_back(par.aux1);
 			parData.push_back(par.aux2);
@@ -531,26 +581,27 @@ PhaseSpaceDiagnostic::PhaseSpaceDiagnostic(const std::string& name,MetricSpace *
 	directives.Add("bounds",new tw::input::Numbers<tw::Float>(&bounds[0],6));
 }
 
-void PhaseSpaceDiagnostic::Start(bool writeHeader)
+void PhaseSpaceDiagnostic::Start()
 {
-	Diagnostic::Start(writeHeader);
+	Diagnostic::Start();
 
-	if (writeHeader)
+	if (!headerWritten && task->strip[0].Get_rank()==0)
 	{
 		std::string fileName = filename + ".dvdat";
 		std::ofstream outFile;
 		outFile.open(fileName.c_str(),std::ios::binary);
 		WriteDVHeader(outFile,2,dims[1],dims[2],dims[3],bounds[0],bounds[1],bounds[2],bounds[3],bounds[4],bounds[5]);
 		outFile.close();
+		headerWritten = true;
 	}
 
 	tw::vec3 phaseSpaceMin(bounds[0],bounds[2],bounds[4]);
 	tw::vec3 phaseSpaceSize(bounds[1]-bounds[0],bounds[3]-bounds[2],bounds[5]-bounds[4]);
-	DiscreteSpace plot_layout(dt,dims[1],dims[2],dims[3],phaseSpaceMin,phaseSpaceSize,1);
+	plot_layout.Resize(dims[1],dims[2],dims[3],phaseSpaceMin,phaseSpaceSize,1);
 	fxp.Initialize(plot_layout,task);
-	fxp.SetBoundaryConditions(tw::grid::x,fld::dirichletCell,fld::dirichletCell);
-	fxp.SetBoundaryConditions(tw::grid::y,fld::dirichletCell,fld::dirichletCell);
-	fxp.SetBoundaryConditions(tw::grid::z,fld::dirichletCell,fld::dirichletCell);
+	fxp.SetBoundaryConditions(tw::grid::x,tw::bc::fld::dirichletCell,tw::bc::fld::dirichletCell);
+	fxp.SetBoundaryConditions(tw::grid::y,tw::bc::fld::dirichletCell,tw::bc::fld::dirichletCell);
+	fxp.SetBoundaryConditions(tw::grid::z,tw::bc::fld::dirichletCell,tw::bc::fld::dirichletCell);
 }
 
 void PhaseSpaceDiagnostic::Finish()
@@ -563,16 +614,19 @@ void PhaseSpaceDiagnostic::Finish()
 		std::string fileName = filename + ".dvdat";
 		std::ofstream outFile;
 		outFile.open(fileName.c_str(),std::ios::binary | std::ios::app);
-		for (auto cell : InteriorCellRange(*space))
-		{
-			float data = fxp(cell);
-			WriteBigEndian((char *)&data,sizeof(float),0,outFile);
+		// Convention is to write in FORTRAN order, so need an explicit nested loop
+		for (tw::Int k=1;k<=dims[3];k++)
+			for (tw::Int j=1;j<=dims[2];j++)
+				for (tw::Int i=1;i<=dims[1];i++)
+				{
+					float data = fxp(i,j,k);
+					WriteBigEndian((char *)&data,sizeof(float),0,outFile);
 		}
 		outFile.close();
 	}
 }
 
-void PhaseSpaceDiagnostic::Particle(const Particle& par,tw::Float m0,tw::Float t)
+void PhaseSpaceDiagnostic::Particle(const struct Particle& par,tw::Float m0,tw::Float t)
 {
 	weights_3D weights;
 	tw::vec3 r = space->PositionFromPrimitive(par.q);
@@ -581,10 +635,14 @@ void PhaseSpaceDiagnostic::Particle(const Particle& par,tw::Float m0,tw::Float t
 	if (theRgn->Inside(r,*space))
 	{
 		space->CurvilinearToCartesian(&r);
+		r -= vGalileo*t;
 		std::map<tw::grid::axis,tw::Float> m = {{tw::grid::t,t},{tw::grid::x,r.x},{tw::grid::y,r.y},{tw::grid::z,r.z},
 			{tw::grid::mass,sqrt(m0*m0+Norm(p))},{tw::grid::px,p.x},{tw::grid::py,p.y},{tw::grid::pz,p.z},
 			{tw::grid::g,sqrt(1+Norm(p)/(m0*m0))},{tw::grid::gbx,p.x/m0},{tw::grid::gby,p.y/m0},{tw::grid::gbz,p.z/m0}};
-		const tw::vec3 q(m[ax[1]],m[ax[2]],m[ax[3]]);
+		tw::vec3 q(m[ax[1]],m[ax[2]],m[ax[3]]);
+		if (dims[1]==1) q.x = 0.0;
+		if (dims[2]==1) q.y = 0.0;
+		if (dims[3]==1) q.z = 0.0;
 		if (q.x>bounds[0] && q.x<bounds[1] && q.y>bounds[2] && q.y<bounds[3] && q.z>bounds[4] && q.z<bounds[5])
 		{
 			fxp.GetWeights(&weights,q);
@@ -709,3 +767,104 @@ void PhaseSpaceDiagnostic::WriteCheckpoint(std::ofstream& outFile)
 // 		phiNow += dphi;
 // 	}
 // }
+
+// void Electromagnetic::CustomDiagnose()
+// {
+// 	tw::Int i,j,k,s;
+//
+// 	std::stringstream fileName;
+// 	tw::Int master = 0;
+//
+// 	if (owner->IsFirstStep() && !owner->restarted && owner->strip[0].Get_rank()==master)
+// 	{
+// 		for (s=0;s<farFieldDetector.size();s++)
+// 		{
+// 			fileName.str("");
+// 			fileName << farFieldDetector[s]->filename << "-Atheta.dvdat";
+// 			farFieldDetector[s]->AthetaFile.open(fileName.str().c_str(),std::ios::binary);
+// 			WriteDVHeader(farFieldDetector[s]->AthetaFile,2,
+// 				farFieldDetector[s]->timePts,farFieldDetector[s]->thetaPts,farFieldDetector[s]->phiPts,
+// 				farFieldDetector[s]->t0,farFieldDetector[s]->t1,
+// 				farFieldDetector[s]->theta0,farFieldDetector[s]->theta1,
+// 				farFieldDetector[s]->phi0,farFieldDetector[s]->phi1);
+// 			farFieldDetector[s]->AthetaFile.close();
+//
+// 			fileName.str("");
+// 			fileName << farFieldDetector[s]->filename << "-Aphi.dvdat";
+// 			farFieldDetector[s]->AphiFile.open(fileName.str().c_str(),std::ios::binary);
+// 			WriteDVHeader(farFieldDetector[s]->AphiFile,2,
+// 				farFieldDetector[s]->timePts,farFieldDetector[s]->thetaPts,farFieldDetector[s]->phiPts,
+// 				farFieldDetector[s]->t0,farFieldDetector[s]->t1,
+// 				farFieldDetector[s]->theta0,farFieldDetector[s]->theta1,
+// 				farFieldDetector[s]->phi0,farFieldDetector[s]->phi1);
+// 			farFieldDetector[s]->AphiFile.close();
+// 		}
+// 	}
+//
+// 	for (s=0;s<farFieldDetector.size();s++)
+// 	{
+// 		if (farFieldDetector[s]->WriteThisStep(owner->elapsedTime,dt,owner->stepNow))
+// 			farFieldDetector[s]->AccumulateField(owner->elapsedTime,sources);
+// 	}
+//
+// 	if (owner->IsLastStep())
+// 	{
+// 		Vec3Field accum;
+// 		tw::vec3 ACG,rVec,thetaVec,phiVec;
+// 		tw::Float theta,phi,dtheta,dphi;
+// 		FarFieldDetectorDescriptor *det;
+// 		float data;
+//
+// 		for (s=0;s<farFieldDetector.size();s++)
+// 		{
+// 			det = farFieldDetector[s];
+// 			dtheta = (det->theta1-det->theta0)/tw::Float(det->thetaPts);
+// 			dphi = (det->phi1-det->phi0)/tw::Float(det->phiPts);
+// 			DiscreteSpace ff_layout(dt,det->timePts,det->thetaPts,det->phiPts,tw::vec3(0.0,0.0,0.0),tw::vec3(det->t1-det->t0,det->theta1-det->theta0,det->phi1-det->phi0),1);
+// 			accum.Initialize(ff_layout,owner);
+// 			owner->strip[0].Sum(&det->A(0,0,0),&accum(0,0,0),sizeof(tw::vec3)*accum.TotalCells(),master);
+//
+// 			if (owner->strip[0].Get_rank()==master)
+// 			{
+// 				// put vector potential in coulomb gauge and spherical coordinates
+// 				for (k=1;k<=det->phiPts;k++)
+// 					for (j=1;j<=det->thetaPts;j++)
+// 						for (i=1;i<=det->timePts;i++)
+// 						{
+// 							theta = det->theta0 + (tw::Float(j)-0.5)*dtheta;
+// 							phi = det->phi0 + (tw::Float(k)-0.5)*dphi;
+// 							rVec = tw::vec3( sin(theta)*cos(phi) , sin(theta)*sin(phi) , cos(theta) );
+// 							thetaVec = tw::vec3( cos(theta)*cos(phi) , cos(theta)*sin(phi) , -sin(theta) );
+// 							phiVec = tw::vec3( -sin(phi) , cos(phi) , 0.0 );
+// 							ACG = rVec | (accum(i,j,k) | rVec); // form coulomb gauge A
+// 							accum(i,j,k) = tw::vec3( ACG^rVec , ACG^thetaVec , ACG^phiVec ); // put in spherical coordinates
+// 						}
+//
+// 				fileName.str("");
+// 				fileName << det->filename << "-Atheta.dvdat";
+// 				det->AthetaFile.open(fileName.str().c_str(),std::ios::binary | std::ios::app);
+// 				for (k=1;k<=det->phiPts;k++)
+// 					for (j=1;j<=det->thetaPts;j++)
+// 						for (i=1;i<=det->timePts;i++)
+// 						{
+// 							data = accum(i,j,k).y;
+// 							WriteBigEndian((char *)&data,sizeof(float),0,det->AthetaFile);
+// 						}
+// 				det->AthetaFile.close();
+//
+// 				fileName.str("");
+// 				fileName << det->filename << "-Aphi.dvdat";
+// 				det->AphiFile.open(fileName.str().c_str(),std::ios::binary | std::ios::app);
+// 				for (k=1;k<=det->phiPts;k++)
+// 					for (j=1;j<=det->thetaPts;j++)
+// 						for (i=1;i<=det->timePts;i++)
+// 						{
+// 							data = accum(i,j,k).z;
+// 							WriteBigEndian((char *)&data,sizeof(float),0,det->AphiFile);
+// 						}
+// 				det->AphiFile.close();
+// 			}
+// 		}
+// 	}
+// }
+//

@@ -574,8 +574,8 @@ struct Field:DiscreteSpace
 
 	// Grid Interpolation
 
-	void Interpolate(std::valarray<tw::Float>& val,const Element& e,const weights_3D& weights);
-	void Interpolate(std::valarray<tw::Float>& val,const weights_3D& weights)
+	void Interpolate(std::valarray<tw::Float>& val,const Element& e,const weights_3D& weights) const;
+	void Interpolate(std::valarray<tw::Float>& val,const weights_3D& weights) const
 	{
 		Interpolate(val,All(*this),weights);
 	}
@@ -829,7 +829,7 @@ inline tw::Float div(const Field& coeff,const Field& sf,tw::Int i,tw::Int j,tw::
 ////////////////////////
 
 
-inline void Field::Interpolate(std::valarray<tw::Float>& val,const Element& e,const weights_3D& weights)
+inline void Field::Interpolate(std::valarray<tw::Float>& val,const Element& e,const weights_3D& weights) const
 {
 	tw::Int i,j,k,s,ijk[4];
 	tw::Float wijk;
@@ -936,7 +936,7 @@ struct AutoField : Field
 	T& operator () (const tw::xstrip<3>& v,const tw::Int& k)
 		{ return (T&)Field::operator () (v,k,0); }
 
-	void Interpolate(T* val,const weights_3D& weights)
+	void Interpolate(T* val,const weights_3D& weights) const
 	{
 		tw::Int i;
 		Field::Interpolate(elementArray,weights);

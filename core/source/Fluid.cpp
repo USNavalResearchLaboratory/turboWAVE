@@ -541,30 +541,12 @@ void Fluid::WriteCheckpoint(std::ofstream& outFile)
 	fixed.WriteCheckpoint(outFile);
 }
 
-void Fluid::BoxDiagnosticHeader(GridDataDescriptor* box)
+void Fluid::Report(Diagnostic& diagnostic)
 {
-	owner->WriteBoxDataHeader(name+"_e",box);
-	owner->WriteBoxDataHeader(name+"_n",box);
+	Module::Report(diagnostic);
+	diagnostic.Field(name+"_e",state1,0);
+	diagnostic.Field(name+"_n",gas,0);
 }
-
-void Fluid::BoxDiagnose(GridDataDescriptor* box)
-{
-	owner->WriteBoxData(name+"_e",box,&state1(0,0,0,0),state1.Stride());
-	owner->WriteBoxData(name+"_n",box,&gas(0,0,0),gas.Stride());
-}
-
-void Fluid::PointDiagnosticHeader(std::ofstream& outFile)
-{
-	outFile << name << " ";
-}
-
-void Fluid::PointDiagnose(std::ofstream& outFile,const weights_3D& w)
-{
-	std::valarray<tw::Float> dens(4);
-	state1.Interpolate(dens,w);
-	outFile << dens[0]  << " ";
-}
-
 
 /////////////////////
 //                 //
@@ -2155,10 +2137,6 @@ void sparc::HydroManager::WriteCheckpoint(std::ofstream& outFile)
 	tw::Int i;
 	Module::WriteCheckpoint(outFile);
 
-	ellipticSolver->SaveToolReference(outFile);
-	parabolicSolver->SaveToolReference(outFile);
-	laserPropagator->SaveToolReference(outFile);
-
 	outFile.write((char *)&radModel,sizeof(sparc::radiationModel));
 	outFile.write((char *)&lasModel,sizeof(sparc::laserModel));
 	outFile.write((char *)&plasModel,sizeof(sparc::plasmaModel));
@@ -2192,103 +2170,17 @@ void sparc::HydroManager::WriteCheckpoint(std::ofstream& outFile)
 		collision[i]->WriteCheckpoint(outFile);
 }
 
-void sparc::HydroManager::EnergyHeadings(std::ofstream& outFile)
+void sparc::HydroManager::Report(Diagnostic& diagnostic)
 {
-	outFile << "Mass Charge Energy Px Py Pz Fx Fy Fz Dx Dy Dz ";
-}
+	Module::Report(diagnostic);
 
-void sparc::HydroManager::EnergyColumns(std::vector<tw::Float>& cols,std::vector<bool>& avg,const Region& theRgn)
-{
-	tw::Int x0,x1,y0,y1,z0,z1;
-	tw::Float dV;
-	tw::vec3 r1,r2,pos,bodyForce,fluidMomentum,dipoleMoment;
-	tw::Float totalEnergy = 0.0;
-	tw::Float totalMass = 0.0;
-	tw::Float totalCharge = 0.0;
-	theRgn.GetLocalCellBounds(&x0,&x1,&y0,&y1,&z0,&z1);
-	for (tw::Int k=z0;k<=z1;k++)
-		for (tw::Int j=y0;j<=y1;j++)
-			for (tw::Int i=x0;i<=x1;i++)
-			{
-				tw::cell cell(*this,i,j,k);
-				pos = owner->Pos(cell);
-				if (theRgn.Inside(pos,*owner))
-				{
-					dV = owner->dS(cell,0);
-					owner->CurvilinearToCartesian(&(r1=dipoleCenter));
-					owner->CurvilinearToCartesian(&(r2=pos));
-					for (auto g : group)
-					{
-						totalMass += g->DensityWeightedSum(state1,g->matset.mass,cell) * dV;
-						totalEnergy += state1(cell,g->hidx.u) * dV;
-						totalCharge += rho(cell) * dV;
-						fluidMomentum.x += state1(cell,g->hidx.npx) * dV;
-						fluidMomentum.y += state1(cell,g->hidx.npy) * dV;
-						fluidMomentum.z += state1(cell,g->hidx.npz) * dV;
-						dipoleMoment += (r2 - r1) * rho(cell) * dV;
-					}
-					bodyForce += ComputeForceOnBody(i,j,k);
-				}
-			}
-	cols.push_back(totalMass); avg.push_back(false);
-	cols.push_back(totalCharge); avg.push_back(false);
-	cols.push_back(totalEnergy); avg.push_back(false);
-	cols.push_back(fluidMomentum.x); avg.push_back(false);
-	cols.push_back(fluidMomentum.y); avg.push_back(false);
-	cols.push_back(fluidMomentum.z); avg.push_back(false);
-	cols.push_back(bodyForce.x); avg.push_back(false);
-	cols.push_back(bodyForce.y); avg.push_back(false);
-	cols.push_back(bodyForce.z); avg.push_back(false);
-	cols.push_back(dipoleMoment.x); avg.push_back(false);
-	cols.push_back(dipoleMoment.y); avg.push_back(false);
-	cols.push_back(dipoleMoment.z); avg.push_back(false);
-}
+	std::map<tw::Int,std::string> xyz = {{1,"x"},{2,"y"},{3,"z"}};
 
-void sparc::HydroManager::BoxDiagnosticHeader(GridDataDescriptor* box)
-{
-	owner->WriteBoxDataHeader("impermeable",box);
-	owner->WriteBoxDataHeader("collisionFreq",box);
-	owner->WriteBoxDataHeader("massdensity",box);
-	owner->WriteBoxDataHeader("rad-intensity",box);
-	owner->WriteBoxDataHeader("rad-ereal",box);
-	owner->WriteBoxDataHeader("rad-eimag",box);
-	owner->WriteBoxDataHeader("rad-losses",box);
-	owner->WriteBoxDataHeader("rad-nreal",box);
-	owner->WriteBoxDataHeader("rad-nimag",box);
-	owner->WriteBoxDataHeader("me_eff",box);
-	if (electrons)
-	{
-		owner->WriteBoxDataHeader("chem-phi",box);
-		owner->WriteBoxDataHeader("chem-rho",box);
-	}
-	for (auto g : group)
-	{
-		for (auto chem : g->chemical)
-			owner->WriteBoxDataHeader(chem->name,box);
-		owner->WriteBoxDataHeader("T_" + g->name,box);
-		owner->WriteBoxDataHeader("P_" + g->name,box);
-		owner->WriteBoxDataHeader("nmcv_" + g->name,box);
-		owner->WriteBoxDataHeader("K_" + g->name,box);
-		owner->WriteBoxDataHeader("Tv_" + g->name,box);
-		owner->WriteBoxDataHeader("vx_" + g->name,box);
-		owner->WriteBoxDataHeader("vy_" + g->name,box);
-		owner->WriteBoxDataHeader("vz_" + g->name,box);
-	}
-}
-
-void sparc::HydroManager::BoxDiagnose(GridDataDescriptor* box)
-{
 	auto WriteSubmoduleData = [&] (Field& theData,tw::Int comp,const std::string& filename)
 	{
 		CopyFieldData(scratch,Element(0),theData,Element(comp));
 		scratch *= fluxMask;
-		owner->WriteBoxData(filename,box,&scratch(0,0,0),scratch.Stride());
-	};
-
-	auto VelName = [&] (tw::Int ax,const std::string& name)
-	{
-		std::string ax_lab = "txyz";
-		return "v" + ax_lab.substr(ax,1) + "_" + name;
+		diagnostic.Field(filename,scratch,0);
 	};
 
 	// If first step we need to apply EOS so that EquilibriumGroups can write out T
@@ -2300,15 +2192,7 @@ void sparc::HydroManager::BoxDiagnose(GridDataDescriptor* box)
 		ComputeElectronCollisionFrequency();
 	}
 
-	// Impermeable Region
-
-	owner->WriteBoxData("impermeable",box,&fluxMask(0,0,0),fluxMask.Stride());
-
-	// Collision Diagnostic
-
-	owner->WriteBoxData("collisionFreq",box,&nu_e(0,0,0),nu_e.Stride());
-
-	// Mass Density Diagnostic
+	// Mass, Charge, Energy
 
 	scratch = 0.0;
 	for (auto g : group)
@@ -2317,24 +2201,58 @@ void sparc::HydroManager::BoxDiagnose(GridDataDescriptor* box)
 		scratch2 *= fluxMask;
 		scratch += scratch2;
 	}
-	owner->WriteBoxData("massdensity",box,&scratch(0,0,0),scratch.Stride());
+	diagnostic.VolumeIntegral("Mass",scratch,0);
+	diagnostic.Field("massdensity",scratch,0);
+
+	diagnostic.VolumeIntegral("Charge",rho,0);
+
+	scratch = 0.0;
+	for (auto g : group)
+		for (auto cell : InteriorCellRange(*this))
+			scratch(cell) += state1(cell,g->hidx.u);
+	diagnostic.VolumeIntegral("Energy",scratch,0);
+
+	// Momentum
+
+	for (tw::Int ax=1;ax<=3;ax++)
+	{
+		scratch = 0.0;
+		for (auto g : group)
+			for (auto cell : InteriorCellRange(*this))
+				scratch(cell) += state1(cell,g->hidx.npx+ax-1);
+		diagnostic.VolumeIntegral("P"+xyz[ax],scratch,0);
+	}
+
+	// Dipole moment
+
+	diagnostic.FirstMoment("Dx",rho,0,dipoleCenter,tw::grid::x);
+	diagnostic.FirstMoment("Dy",rho,0,dipoleCenter,tw::grid::y);
+	diagnostic.FirstMoment("Dz",rho,0,dipoleCenter,tw::grid::z);
+
+	// Impermeable Region
+
+	diagnostic.Field("impermeable",fluxMask,0);
+
+	// Collision Diagnostic
+
+	diagnostic.Field("collisionFreq",nu_e,0);
 
 	// Radiation Diagnostic
 
-	owner->WriteBoxData("rad-intensity",box,&radiationIntensity(0,0,0),radiationIntensity.Stride());
-	owner->WriteBoxData("rad-ereal",box,&laserAmplitude(0,0,0,0),laserAmplitude.Stride());
-	owner->WriteBoxData("rad-eimag",box,&laserAmplitude(0,0,0,1),laserAmplitude.Stride());
-	owner->WriteBoxData("rad-losses",box,&radiativeLosses(0,0,0),radiativeLosses.Stride());
-	owner->WriteBoxData("rad-nreal",box,&refractiveIndex(0,0,0,0),refractiveIndex.Stride());
-	owner->WriteBoxData("rad-nimag",box,&refractiveIndex(0,0,0,1),refractiveIndex.Stride());
-	owner->WriteBoxData("me_eff",box,&me_eff(0,0,0),me_eff.Stride());
+	diagnostic.Field("rad-intensity",radiationIntensity,0);
+	diagnostic.Field("rad-ereal",laserAmplitude,0);
+	diagnostic.Field("rad-eimag",laserAmplitude,1);
+	diagnostic.Field("rad-losses",radiativeLosses,0);
+	diagnostic.Field("rad-nreal",refractiveIndex,0);
+	diagnostic.Field("rad-nimag",refractiveIndex,1);
+	diagnostic.Field("me_eff",me_eff,0);
 
 	// Electrostatics
 
 	if (electrons)
 	{
-		owner->WriteBoxData("chem-phi",box,&phi(0,0,0),phi.Stride());
-		owner->WriteBoxData("chem-rho",box,&rho(0,0,0),rho.Stride());
+		diagnostic.Field("chem-phi",phi,0);
+		diagnostic.Field("chem-rho",rho,0);
 	}
 
 	// Constituents and groups
@@ -2354,13 +2272,9 @@ void sparc::HydroManager::BoxDiagnose(GridDataDescriptor* box)
 		{
 			g->LoadVelocity(scratch,state1,ax);
 			scratch *= fluxMask;
-			owner->WriteBoxData(VelName(ax,g->name),box,&scratch(0,0,0),scratch.Stride());
+			diagnostic.Field("v"+xyz[ax]+"_"+g->name,scratch,0);
 		}
 	}
-}
-
-void sparc::HydroManager::CustomDiagnose()
-{
 }
 
 void sparc::HydroManager::StatusMessage(std::ostream *theStream)

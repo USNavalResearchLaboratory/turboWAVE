@@ -14,7 +14,6 @@ struct Electromagnetic:FieldSolver
 
 	tw::vec3 dipoleCenter;
 	tw::Float gammaBeam;
-	std::vector<FarFieldDetectorDescriptor*> farFieldDetector;
 
 	Electromagnetic(const std::string& name,Simulation* sim);
 	virtual void ExchangeResources();
@@ -22,7 +21,6 @@ struct Electromagnetic:FieldSolver
 	virtual void Reset();
 	virtual void Update();
 	virtual void MoveWindow();
-	virtual void ReadInputFileDirective(std::stringstream& inputString,const std::string& command);
 	virtual void ReadCheckpoint(std::ifstream& inFile);
 	virtual void WriteCheckpoint(std::ofstream& outFile);
 
@@ -36,13 +34,7 @@ struct Electromagnetic:FieldSolver
 	void ForceQuasistaticVectorPotential(Field& A,ScalarField& DtPhi);
 
 	virtual void StartDiagnostics();
-	virtual void EnergyHeadings(std::ofstream& outFile);
-	virtual void EnergyColumns(std::vector<tw::Float>& cols,std::vector<bool>& avg,const Region& theRgn);
-	virtual void BoxDiagnosticHeader(GridDataDescriptor*);
-	virtual void BoxDiagnose(GridDataDescriptor*);
-	virtual void PointDiagnosticHeader(std::ofstream& outFile);
-	virtual void PointDiagnose(std::ofstream& outFile,const weights_3D& w);
-	virtual void CustomDiagnose();
+	virtual void Report(Diagnostic&);
 };
 
 struct CoulombSolver:Electromagnetic
@@ -58,11 +50,7 @@ struct CoulombSolver:Electromagnetic
 
 	virtual void Update();
 	virtual void ComputeFinalFields();
-
-	virtual void BoxDiagnosticHeader(GridDataDescriptor*);
-	virtual void BoxDiagnose(GridDataDescriptor*);
-	virtual void PointDiagnosticHeader(std::ofstream& outFile);
-	virtual void PointDiagnose(std::ofstream& outFile,const weights_3D& w);
+	virtual void Report(Diagnostic&);
 };
 
 struct DirectSolver:Electromagnetic

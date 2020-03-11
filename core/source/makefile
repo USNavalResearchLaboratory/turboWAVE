@@ -23,8 +23,8 @@ profile: tw3d_profile copy_files
 
 # Uncomment exactly one platform
 
-#PLATFORM = OSX
-PLATFORM = WIN
+PLATFORM = OSX
+#PLATFORM = WIN
 #PLATFORM = LINUX
 #PLATFORM = OPENMPI
 #PLATFORM = INTELMPI

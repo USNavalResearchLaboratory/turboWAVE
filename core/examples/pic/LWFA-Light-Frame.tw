@@ -59,18 +59,22 @@ generate uniform 'e'
 	loading = deterministic
 }
 
-new box diagnostic
+new box diagnostic 'box'
 {
 	period = 100
 }
 
-new phase space plot for 'e'
+new energy diagnostic 'energy'
+{
+	period = 100
+}
+
+new phase space diagnostic for 'e'
 {
 	filename = zpz
-	abcissa = z
-	ordinate = pz
-	dimensions = 200 200
 	period = 100
-	minimum = -50 0
-	maximum = 0 20
+	galilean velocity = ( 0.0 , 0.0 , 1.0 )
+	axes = ( pz , y , z )
+	dimensions = ( 200 , 1 , 200 )
+	bounds = ( 0 , 20 , -0.5 , 0.5 , -50 , 0 )
 }

@@ -15,5 +15,5 @@ struct Electrostatic:FieldSolver
 	virtual void SetupInitialPotential();
 	virtual void ComputeFinalFields();
 
-	virtual void Report(Diagnostic *diagnostic);
+	virtual void Report(Diagnostic&);
 };

@@ -14,13 +14,14 @@
 ///////////////////////////
 
 
-Warp::Warp(tw::Int first,tw::Int last,tw::Float length,tw::Float dz0)
+Warp::Warp(tw::grid::axis axis,tw::Int first,tw::Int last,tw::Float length,tw::Float h0)
 {
+	ax = axis;
 	i1 = first;
 	i2 = last;
 	ih = (i1+i2)/2;
 	L = length;
-	dz = dz0;
+	h = h0;
 	N = i2 - i1 + 1;
 
 	tw::Int i;
@@ -31,51 +32,34 @@ Warp::Warp(tw::Int first,tw::Int last,tw::Float length,tw::Float dz0)
 
 tw::Float Warp::AddedCellWidth(tw::Int globalCell)
 {
-	tw::Float A = (1.0/gridSum)*(L/dz - N);
+	tw::Float A = (1.0/gridSum)*(L/h - N);
 	if (globalCell>=i1 && globalCell<=i2)
-		return dz*A*QuinticPulse(tw::Float(globalCell-i1)/tw::Float(N-1));
+		return h*A*QuinticPulse(tw::Float(globalCell-i1)/tw::Float(N-1));
 	else
 		return 0.0;
 }
 
 tw::Float Warp::ACoefficient(tw::Float length)
 {
-	return (1.0/gridSum)*(length/dz - N);
+	return (1.0/gridSum)*(length/h - N);
 }
 
 void Simulation::SetCellWidthsAndLocalSize()
 {
-	tw::Int i,j;
-
 	// Overwrite uniform cell widths with requested variable widths.
 	// Correct the local domain size to reflect the variable cell widths.
 
-	if (radialProgressionFactor!=1.0)
+	for (auto w : warp)
 	{
-		for (i=cornerCell[1]-1;i<=cornerCell[1]+dim[1];i++)
-		{
-			if (i > globalCells[1]/3)
-				dX(i-cornerCell[1]+1,1) = spacing.x*pow(radialProgressionFactor,tw::Float(i-globalCells[1]/3));
-		}
-	}
-
-	if (dim[3]>1 && warp.size())
-	{
-		for (i=lfg[3];i<=ufg[3];i++)
-		{
-			dX(i,3) = spacing.z;
-			for (j=0;j<Warp.size();j++)
-				dX(i,3) += Warp[j]->AddedCellWidth(cornerCell[3] - 1 + i);
-		}
+		tw::Int ax = tw::grid::naxis(w->ax);
+		for (tw::Int i=lfg[ax];i<=ufg[ax];i++)
+			dX(i,ax) = spacing[ax-1] + w->AddedCellWidth(cornerCell[ax]-1+i);
 	}
 
 	size = 0.0;
-	for (i=1;i<=dim[1];i++)
-		size.x += dX(i,1);
-	for (i=1;i<=dim[2];i++)
-		size.y += dX(i,2);
-	for (i=1;i<=dim[3];i++)
-		size.z += dX(i,3);
+	for (tw::Int ax=1;ax<=3;ax++)
+		for (tw::Int i=1;i<=dim[ax];i++)
+			size[ax-1] += dX(i,ax);
 }
 
 void Simulation::SetGlobalSizeAndLocalCorner()
@@ -153,9 +137,6 @@ Simulation::Simulation(const std::string& file_name)
 	antiSignalPosition = 0.0;
 	antiWindowPosition = 0.0;
 
-	radialProgressionFactor = 1.0;
-
-	appendMode = true;
 	neutralize = true;
 	movingWindow = false;
 	restarted = false;
@@ -195,7 +176,6 @@ Simulation::Simulation(const std::string& file_name)
 	outerDirectives.Add("neutralize",new tw::input::Bool(&neutralize));
 	outerDirectives.Add("window speed",new tw::input::Float(&signalSpeed));
 	outerDirectives.Add("moving window",new tw::input::Bool(&movingWindow));
-	outerDirectives.Add("append mode",new tw::input::Bool(&appendMode));
 
 	// allow user to choose any of 8 corners with strings like corner001, corner010, etc.
 	tw::vec3 corner[2][2][2];
@@ -209,7 +189,6 @@ Simulation::Simulation(const std::string& file_name)
 				gridDirectives.Add(corner_str(i,j,k),new tw::input::Numbers<tw::Float>(&corner[i][j][k][0],3));
 	gridDirectives.Add("corner",new tw::input::Numbers<tw::Float>(&globalCorner[0],3));
 	gridDirectives.Add("cell size",new tw::input::Numbers<tw::Float>(&spacing[0],3));
-	gridDirectives.Add("radial progression factor",new tw::input::Numbers<tw::Float>(&radialProgressionFactor,1));
 	gridDirectives.Add("adaptive timestep",new tw::input::Bool(&adaptiveTimestep));
 	gridDirectives.Add("adaptive grid",new tw::input::Bool(&adaptiveGrid));
 	gridDirectives.Add("dimensions",new tw::input::Numbers<tw::Int>(&globalCells[1],3));
@@ -372,6 +351,15 @@ void Simulation::PrepareSimulation()
 	// The following is where Modules process the ComputeTool instances attached by the user.
 	for (auto m : module)
 		m->VerifyInput();
+
+	// If a diagnostic tool is not attached to any module attach it to all modules
+	for (auto tool : computeTool)
+		if (dynamic_cast<Diagnostic*>(tool) && tool->refCount==0)
+			for (auto m : module)
+			{
+				m->moduleTool.push_back(tool);
+				tool->refCount++;
+			}
 
 	// The Task and MetricSpace inherited members are initialized during input file reading,
 	// because Module constructors are allowed to assume the grid is fully specified.
@@ -714,14 +702,12 @@ void Simulation::ReadCheckpoint(std::ifstream& inFile)
 	inFile.read((char *)&movingWindow,sizeof(bool));
 	inFile.read((char *)&adaptiveTimestep,sizeof(bool));
 	inFile.read((char *)&adaptiveGrid,sizeof(bool));
-	inFile.read((char *)&appendMode,sizeof(bool));
 	inFile.read((char *)&outputLevel,sizeof(outputLevel));
 	inFile.read((char *)&neutralize,sizeof(bool));
 	inFile.read((char *)&stepsToTake,sizeof(tw::Int));
 	inFile.read((char *)&dumpPeriod,sizeof(tw::Int));
 	inFile.read((char *)bc0,sizeof(tw::bc::par)*4);
 	inFile.read((char *)bc1,sizeof(tw::bc::par)*4);
-	inFile.read((char *)&radialProgressionFactor,sizeof(tw::Float));
 
 	(*tw_out) << "Local Grid = " << dim[1] << "x" << dim[2] << "x" << dim[3] << std::endl;
 	#ifdef USE_OPENCL
@@ -732,7 +718,7 @@ void Simulation::ReadCheckpoint(std::ifstream& inFile)
 	for (i=0;i<num;i++)
 	{
 		(*tw_out) << "Add Warp" << std::endl;
-		warp.push_back(new Warp(1,2,1.0,1.0));
+		warp.push_back(new Warp(tw::grid::x,1,2,1.0,1.0));
 		inFile.read((char*)warp.back(),sizeof(Warp));
 	}
 
@@ -797,14 +783,12 @@ void Simulation::WriteCheckpoint(std::ofstream& outFile)
 	outFile.write((char *)&movingWindow,sizeof(bool));
 	outFile.write((char *)&adaptiveTimestep,sizeof(bool));
 	outFile.write((char *)&adaptiveGrid,sizeof(bool));
-	outFile.write((char *)&appendMode,sizeof(bool));
 	outFile.write((char *)&outputLevel,sizeof(outputLevel));
 	outFile.write((char *)&neutralize,sizeof(bool));
 	outFile.write((char *)&stepsToTake,sizeof(tw::Int));
 	outFile.write((char *)&dumpPeriod,sizeof(tw::Int));
 	outFile.write((char *)bc0,sizeof(tw::bc::par)*4);
 	outFile.write((char *)bc1,sizeof(tw::bc::par)*4);
- 	outFile.write((char *)&radialProgressionFactor,sizeof(tw::Float));
 
 	i = warp.size();
 	outFile.write((char *)&i,sizeof(tw::Int));
@@ -912,12 +896,15 @@ std::string Simulation::InputFileFirstPass()
 						do
 						{
 							com2 = gridDirectives.ReadNext(inputString);
-							if (com2=="warp") // eg, warp : start = 1 , end = 100 , length = 1e4
+							if (com2=="warp") // eg, warp axis = x , start = 1 , end = 100 , length = 1e4
 							{
+								tw::grid::axis ax;
 								tw::Int i1,i2;
 								tw::Float length;
-								inputString >> word >> word >> word >> i1 >> word >> word >> i2 >> word >> word >> length;
-								warp.push_back(new Warp(i1,i2,length,spacing.z));
+								inputString >> word >> word >> word;
+								ax = tw::grid::axis_map()[word];
+								inputString >> word >> word >> i1 >> word >> word >> i2 >> word >> word >> length;
+								warp.push_back(new Warp(ax,i1,i2,length,spacing.z));
 							}
 						} while (com2!="}");
 						tw::Int corners_given = gridDirectives.TestKey("corner") ? 1 : 0;
@@ -1099,7 +1086,7 @@ void Simulation::NestedDeclaration(const std::string& com,std::stringstream& inp
 				throw tw::FatalError(preamble.err_prefix+"Singular module type was created twice.  Check order of input file.");
 		createdModuleTypes.push_back(whichModule);
 		MangleModuleName(preamble.obj_name);
-		(*tw_out) << "   Installing submodule <" << preamble.obj_name << ">..." << std::endl;
+		(*tw_out) << "   Attaching nested module <" << preamble.obj_name << ">..." << std::endl;
 		module.push_back(Module::CreateObjectFromType(preamble.obj_name,whichModule,this));
 		module.back()->ReadInputFileBlock(inputString);
 		bool added = sup->AddSubmodule(module.back());
@@ -1110,7 +1097,7 @@ void Simulation::NestedDeclaration(const std::string& com,std::stringstream& inp
 	if (whichTool!=tw::tool_type::none)
 	{
 		ComputeTool *tool = CreateTool(preamble.obj_name,whichTool);
-		(*tw_out) << "   Installing tool <" << tool->name << ">..." << std::endl;
+		(*tw_out) << "   Attaching nested tool <" << tool->name << ">..." << std::endl;
 		tool->ReadInputFileBlock(inputString);
 		sup->moduleTool.push_back(tool);
 	}
@@ -1183,7 +1170,7 @@ void Simulation::ReadInputFile()
 				}
 				else
 				{
-					(*tw_out) << "   Installing tool <" << preamble.obj_name << ">..." << std::endl;
+					(*tw_out) << "   Creating Tool <" << preamble.obj_name << ">..." << std::endl;
 					if (MangleToolName(preamble.obj_name))
 						throw tw::FatalError(preamble.err_prefix+"duplicate tool name.");
 					// Do not use CreateTool, do not want to increase refCount
@@ -1275,6 +1262,11 @@ void Simulation::Diagnose()
 	tw::Int master = 0;
 	tw::Int curr = strip[0].Get_rank();
 
+	std::vector<Diagnostic*> diagnostic;
+	for (auto tool : computeTool)
+		if (dynamic_cast<Diagnostic*>(tool))
+			diagnostic.push_back(dynamic_cast<Diagnostic*>(tool));
+
 	// DIAGNOSTIC PREP
 	// Main purpose of this step is to let modules transfer data from compute devices.
 	// This has a high cost, so only do if necessary.
@@ -1308,17 +1300,25 @@ void Simulation::Diagnose()
 
 	// MAIN DIAGNOSTIC LOOP
 
+	auto has_diagnostic = [&] (Module *m,Diagnostic *diagnostic)
+	{
+		for (auto d : m->moduleTool)
+			if (d==diagnostic)
+				return true;
+		return false;
+	};
+
 	for (auto d : diagnostic)
 	{
 		if (d->WriteThisStep(elapsedTime,dt,stepNow))
 		{
-			const bool writeHeaders = IsFirstStep() && !(appendMode&&restarted) && curr==master;
-			d->Start(writeHeaders);
-			d->Float("time",elapsedTime);
-			d->Float("dt",dt);
-			d->Float("zwindow",windowPosition);
+			d->Start();
+			d->Float("time",elapsedTime,true);
+			d->Float("dt",dt,true);
+			d->Float("zwindow",windowPosition,true);
 			for (auto m : module)
-				m->Report(d);
+				if (has_diagnostic(m,d))
+					m->Report(*d);
 			d->Finish();
 		}
 	}

@@ -7,10 +7,11 @@ struct Simulation;
 
 struct Warp
 {
-	tw::Int ax,i1,i2,ih,N;
+	tw::grid::axis ax;
+	tw::Int i1,i2,ih,N;
 	tw::Float L,gridSum,h,aux;
 
-	Warp(tw::Int first,tw::Int last,tw::Float length,tw::Float h0);
+	Warp(tw::grid::axis ax,tw::Int first,tw::Int last,tw::Float length,tw::Float h0);
 	tw::Float AddedCellWidth(tw::Int globalCell);
 	tw::Float ACoefficient(tw::Float length);
 };
@@ -28,7 +29,7 @@ struct Simulation:Task,MetricSpace
 	tw::Float unitDensityCGS;
 
 	bool neutralize,movingWindow,adaptiveTimestep,adaptiveGrid;
-	bool restarted,appendMode,completed;
+	bool restarted,completed;
 	tw::Int outputLevel;
 
 	tw::Int stepsToTake,stepNow;

@@ -13,7 +13,7 @@ using namespace tw::bc;
 
 LaserSolver::LaserSolver(const std::string& name,Simulation* sim):Module(name,sim)
 {
-	updateSequencePriority = 3;
+	updateSequencePriority = tw::priority::field;
 	laserFreq = 10.0;
 	polarizationType = linearPolarization;
 	propagator = NULL;
@@ -110,29 +110,6 @@ void LaserSolver::WriteCheckpoint(std::ofstream& outFile)
 	outFile.write((char *)&polarizationType,sizeof(tw_polarization_type));
 	a0.WriteCheckpoint(outFile);
 	a1.WriteCheckpoint(outFile);
-}
-
-void LaserSolver::BoxDiagnosticHeader(GridDataDescriptor* box)
-{
-	owner->WriteBoxDataHeader("a2",box);
-	owner->WriteBoxDataHeader("e_real",box);
-	owner->WriteBoxDataHeader("e_imag",box);
-	owner->WriteBoxDataHeader("j_real",box);
-	owner->WriteBoxDataHeader("j_imag",box);
-	owner->WriteBoxDataHeader("a_real_raw",box);
-	owner->WriteBoxDataHeader("a_imag_raw",box);
-}
-
-void LaserSolver::PointDiagnosticHeader(std::ofstream& outFile)
-{
-	outFile << "ar ai ";
-}
-
-void LaserSolver::PointDiagnose(std::ofstream& outFile,const weights_3D& w)
-{
-	tw::Complex aNow;
-	a1.Interpolate(&aNow,w);
-	outFile << real(aNow) << " " << imag(aNow) << " ";
 }
 
 
@@ -246,45 +223,6 @@ void PGCSolver::AntiMoveWindow()
 	a1.UpwardCopy(tw::grid::z,1);
 }
 
-void PGCSolver::EnergyHeadings(std::ofstream& outFile)
-{
-	outFile << "LaserEnergy WaveAction ";
-}
-
-void PGCSolver::EnergyColumns(std::vector<tw::Float>& cols,std::vector<bool>& avg,const Region& theRgn)
-{
-	tw::Int i,j,k;
-	tw::Int x0,x1,y0,y1,z0,z1;
-	tw::Float fieldEnergy,waveAction;
-	tw::vec3 pos;
-	tw::Complex aNow,dtau,dzeta;
-	tw::Complex eNow,bNow;
-
-	fieldEnergy = 0.0;
-	waveAction = 0.0;
-	theRgn.GetLocalCellBounds(&x0,&x1,&y0,&y1,&z0,&z1);
-	for (i=x0;i<=x1;i++)
-		for (j=y0;j<=y1;j++)
-			for (k=z0;k<=z1;k++)
-			{
-				pos = owner->Pos(i,j,k);
-				if (theRgn.Inside(pos,*owner))
-				{
-					aNow = half*(a0(i,j,k) + a1(i,j,k));
-					dtau = dti*(a1(i,j,k) - a0(i,j,k));
-					dzeta = half*(a0(i,j,k+1) + a1(i,j,k+1) - a0(i,j,k-1) - a1(i,j,k-1)) / (owner->X(k+1,3) - owner->X(k-1,3));
-
-					eNow = ii*laserFreq*aNow - (dtau-dzeta);
-					bNow = ii*laserFreq*aNow + dzeta;
-					fieldEnergy += 0.25*(norm(eNow) + norm(bNow))*owner->dS(i,j,k,0);
-					waveAction += imag( conj(aNow)*bNow - aNow*conj(bNow) ) * owner->dS(i,j,k,0);
-				}
-			}
-
-	cols.push_back(fieldEnergy); avg.push_back(false);
-	cols.push_back(waveAction); avg.push_back(false);
-}
-
 void PGCSolver::Update()
 {
 	chi.DepositFromNeighbors();
@@ -344,28 +282,60 @@ void PGCSolver::ComputeFinalFields()
 	F.ApplyBoundaryCondition();
 }
 
-void PGCSolver::BoxDiagnose(GridDataDescriptor* box)
+void PGCSolver::Report(Diagnostic& diagnostic)
 {
-	ScalarField er,ei;
-	er.Initialize(*this,owner);
-	ei.Initialize(*this,owner);
-	tw::Complex dadt,anow;
+	LaserSolver::Report(diagnostic);
+
+	ScalarField temp;
+	temp.Initialize(*this,owner);
+
+	for (auto cell : InteriorCellRange(*this))
+	{
+		const tw::Complex aNow = half*(a0(cell)+a1(cell));
+		const tw::Complex dtau = dti*(a1(cell)-a0(cell));
+		const tw::Complex dzeta = half*(a0(cell,0,3) + a1(cell,0,3)) + ii*half*(a0(cell,1,3) + a1(cell,1,3));
+		const tw::Complex eNow = ii*laserFreq*aNow - (dtau-dzeta);
+		const tw::Complex bNow = ii*laserFreq*aNow + dzeta;
+		temp(cell) = 0.25*(norm(eNow) + norm(bNow));
+	}
+	diagnostic.VolumeIntegral("LaserEnergy",temp,0);
+
+	for (auto cell : InteriorCellRange(*this))
+	{
+		const tw::Complex aNow = half*(a0(cell)+a1(cell));
+		const tw::Complex dtau = dti*(a1(cell)-a0(cell));
+		const tw::Complex dzeta = half*(a0(cell,0,3) + a1(cell,0,3)) + ii*half*(a0(cell,1,3) + a1(cell,1,3));
+		const tw::Complex eNow = ii*laserFreq*aNow - (dtau-dzeta);
+		const tw::Complex bNow = ii*laserFreq*aNow + dzeta;
+		temp(cell) = imag( conj(aNow)*bNow - aNow*conj(bNow) );
+	}
+	diagnostic.VolumeIntegral("WaveAction",temp,0);
+
 	for (auto s : StripRange(*this,3,strongbool::no))
 	{
 		for (tw::Int k=1;k<=dim[3];k++)
 		{
-			dadt = dti*(owner->ValueOnLabGrid<ComplexField,tw::Complex>(a1,s,k,dth) - owner->ValueOnLabGrid<ComplexField,tw::Complex>(a0,s,k,-dth));
-			anow = tw::Float(0.5)*(owner->ValueOnLabGrid<ComplexField,tw::Complex>(a0,s,k,-dth) + owner->ValueOnLabGrid<ComplexField,tw::Complex>(a1,s,k,dth));
-			er(s,k) = -real(dadt - ii*laserFreq*anow);
-			ei(s,k) = -imag(dadt - ii*laserFreq*anow);
+			tw::Complex dadt = dti*(owner->ValueOnLabGrid<ComplexField,tw::Complex>(a1,s,k,dth) - owner->ValueOnLabGrid<ComplexField,tw::Complex>(a0,s,k,-dth));
+			tw::Complex anow = tw::Float(0.5)*(owner->ValueOnLabGrid<ComplexField,tw::Complex>(a0,s,k,-dth) + owner->ValueOnLabGrid<ComplexField,tw::Complex>(a1,s,k,dth));
+			temp(s,k) = -real(dadt - ii*laserFreq*anow);
 		}
 	}
+	diagnostic.Field("e_real",temp,0);
 
-	owner->WriteBoxData("a_real_raw",box,&a1(0,0,0,0),a1.Stride());
-	owner->WriteBoxData("a_imag_raw",box,&a1(0,0,0,1),a1.Stride());
-	owner->WriteBoxData("e_real",box,&er(0,0,0),er.Stride());
-	owner->WriteBoxData("e_imag",box,&ei(0,0,0),ei.Stride());
-	owner->WriteBoxData("a2",box,&F(0,0,0,7),F.Stride());
-	owner->WriteBoxData("j_real",box,&chi(0,0,0,0),chi.Stride());
-	owner->WriteBoxData("j_imag",box,&chi(0,0,0,1),chi.Stride());
+	for (auto s : StripRange(*this,3,strongbool::no))
+	{
+		for (tw::Int k=1;k<=dim[3];k++)
+		{
+			tw::Complex dadt = dti*(owner->ValueOnLabGrid<ComplexField,tw::Complex>(a1,s,k,dth) - owner->ValueOnLabGrid<ComplexField,tw::Complex>(a0,s,k,-dth));
+			tw::Complex anow = tw::Float(0.5)*(owner->ValueOnLabGrid<ComplexField,tw::Complex>(a0,s,k,-dth) + owner->ValueOnLabGrid<ComplexField,tw::Complex>(a1,s,k,dth));
+			temp(s,k) = -imag(dadt - ii*laserFreq*anow);
+		}
+	}
+	diagnostic.Field("e_imag",temp,0);
+
+	diagnostic.Field("a_real_raw",a1,0);
+	diagnostic.Field("a_imag_raw",a1,1);
+	diagnostic.Field("a2",F,7);
+	diagnostic.Field("j_real",chi,0);
+	diagnostic.Field("j_imag",chi,1);
 }

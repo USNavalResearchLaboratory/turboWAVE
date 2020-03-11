@@ -1199,8 +1199,6 @@ void LindmanBoundary::Initialize(Task *task,MetricSpace *ms,std::vector<Wave*> *
 
 	switch (axis)
 	{
-		case tw::grid::t:
-			break;
 		case tw::grid::x:
 			bm_layout.Resize(1,ms->Dim(2),ms->Dim(3),Corner(*ms),PhysicalSize(*ms));
 			break;
@@ -1210,6 +1208,8 @@ void LindmanBoundary::Initialize(Task *task,MetricSpace *ms,std::vector<Wave*> *
 		case tw::grid::z:
 			bm_layout.Resize(ms->Dim(1),ms->Dim(2),1,Corner(*ms),PhysicalSize(*ms));
 			break;
+		default:
+			throw tw::FatalError("Lindman boundary axis must be one of x,y,z");
 	}
 
 	boundaryMemory.Initialize( 9 , bm_layout , task );

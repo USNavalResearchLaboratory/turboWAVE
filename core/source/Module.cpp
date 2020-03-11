@@ -22,7 +22,8 @@ Module::Module(const std::string& name,Simulation* sim)
 	super = NULL;
 	programFilename = "";
 	buildLog = "";
-	updateSequencePriority = 1;
+	updateSequencePriority = tw::priority::source;
+	subSequencePriority = 0;
 	for (tw::Int i=0;i<4;i++)
 		smoothing[i] = compensation[i] = 0;
 	typeCode = tw::module_type::none;
@@ -197,12 +198,8 @@ void Module::StartDiagnostics()
 {
 }
 
-bool Module::Report(Diagnostic *diagnostic)
+void Module::Report(Diagnostic& diagnostic)
 {
-	for (auto d : moduleTool)
-		if (d==diagnostic)
-			return true;
-	return false;
 }
 
 void Module::WarningMessage(std::ostream *theStream)
@@ -239,9 +236,6 @@ tw::module_type Module::CreateSupermoduleTypeFromSubmoduleKey(const std::string&
 bool Module::QuasitoolNeedsModule(const tw::input::Preamble& preamble)
 {
 	bool ans = false;
-	ans = ans || (preamble.words[0]=="phase");
-	ans = ans || (preamble.words[0]=="orbit");
-	ans = ans || (preamble.words[0]=="detector");
 	ans = ans || (preamble.words[0]=="reaction");
 	ans = ans || (preamble.words[0]=="collision");
 	ans = ans || (preamble.words[0]=="excitation");

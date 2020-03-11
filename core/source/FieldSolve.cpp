@@ -11,7 +11,7 @@ using namespace tw::bc;
 
 FieldSolver::FieldSolver(const std::string& name,Simulation* sim):Module(name,sim)
 {
-	updateSequencePriority = 3;
+	updateSequencePriority = tw::priority::field;
 	ellipticSolver = NULL;
 }
 
@@ -234,18 +234,6 @@ void Electromagnetic::ForceQuasistaticVectorPotential(Field& A4,ScalarField& DtP
 	ellipticSolver->gammaBeam = 1.0;
 }
 
-void Electromagnetic::ReadInputFileDirective(std::stringstream& inputString,const std::string& command)
-{
-	FieldSolver::ReadInputFileDirective(inputString,command);
-
-	// if (command=="far-field") // eg, new far-field diagnostic { ... }
-	// {
-	// 	inputString >> word	>> word;
-	// 	farFieldDetector.push_back(new FarFieldDetectorDescriptor(owner,owner,owner->clippingRegion));
-	// 	farFieldDetector.back()->ReadInputFile(inputString);
-	// }
-}
-
 void Electromagnetic::ReadCheckpoint(std::ifstream& inFile)
 {
 	tw::Int i,num;
@@ -254,14 +242,6 @@ void Electromagnetic::ReadCheckpoint(std::ifstream& inFile)
 	inFile.read((char*)&dipoleCenter,sizeof(tw::vec3));
 	inFile.read((char*)&gammaBeam,sizeof(tw::Float));
 	F.ReadCheckpoint(inFile);
-
-	inFile.read((char *)&num,sizeof(tw::Int));
-	(*owner->tw_out) << "Read " << num << " far-field diagnostics" << std::endl;
-	for (i=0;i<num;i++)
-	{
-		farFieldDetector.push_back(new FarFieldDetectorDescriptor(owner,owner,owner->clippingRegion));
-		farFieldDetector.back()->ReadCheckpoint(inFile);
-	}
 }
 
 void Electromagnetic::WriteCheckpoint(std::ofstream& outFile)
@@ -272,11 +252,6 @@ void Electromagnetic::WriteCheckpoint(std::ofstream& outFile)
 	outFile.write((char*)&dipoleCenter,sizeof(tw::vec3));
 	outFile.write((char*)&gammaBeam,sizeof(tw::Float));
 	F.WriteCheckpoint(outFile);
-
-	i = farFieldDetector.size();
-	outFile.write((char *)&i,sizeof(tw::Int));
-	for (i=0;i<farFieldDetector.size();i++)
-		farFieldDetector[i]->WriteCheckpoint(outFile);
 }
 
 void Electromagnetic::StartDiagnostics()
@@ -287,253 +262,32 @@ void Electromagnetic::StartDiagnostics()
 	#endif
 }
 
-void Electromagnetic::EnergyHeadings(std::ofstream& outFile)
+void Electromagnetic::Report(Diagnostic& diagnostic)
 {
-	outFile << "FieldEnergy J.E ExB.dS TotalCharge Current Px Py Pz ";
+	FieldSolver::Report(diagnostic);
+
+	ScalarField temp;
+	temp.Initialize(*this,owner);
+
+	for (auto cell : InteriorCellRange(*this))
+		temp(cell) = 0.5*(Norm(F.Vec3(cell,0))+Norm(F.Vec3(cell,3)));
+	diagnostic.VolumeIntegral("FieldEnergy",temp,0);
+
+	diagnostic.VolumeIntegral("TotalCharge",sources,0);
+	diagnostic.FirstMoment("Dx",sources,0,dipoleCenter,tw::grid::x);
+	diagnostic.FirstMoment("Dy",sources,0,dipoleCenter,tw::grid::y);
+	diagnostic.FirstMoment("Dz",sources,0,dipoleCenter,tw::grid::z);
+	diagnostic.Field("Ex",F,0);
+	diagnostic.Field("Ey",F,1);
+	diagnostic.Field("Ez",F,2);
+	diagnostic.Field("Bx",F,3);
+	diagnostic.Field("By",F,4);
+	diagnostic.Field("Bz",F,5);
+	diagnostic.Field("rho",sources,0);
+	diagnostic.Field("Jx",sources,1);
+	diagnostic.Field("Jy",sources,2);
+	diagnostic.Field("Jz",sources,3);
 }
-
-void Electromagnetic::EnergyColumns(std::vector<tw::Float>& cols,std::vector<bool>& avg,const Region& theRgn)
-{
-	tw::Int i,j,k;
-	tw::Float fieldEnergy,JE,fluxOut,totalCharge,current,dV;
-	tw::vec3 dipoleMoment,pos,PoyntingVector,r1,r2;
-	tw::vec3 Ef,Bf,J;
-
-	fieldEnergy = 0.0;
-	JE = 0.0;
-	fluxOut = 0.0;
-	totalCharge = 0.0;
-	current = 0.0;
-
-	tw::Int xl,xh,yl,yh,zl,zh;
-	tw::Int x0,x1,y0,y1,z0,z1;
-
-	theRgn.GetRawCellBounds(&xl,&xh,&yl,&yh,&zl,&zh);
-	theRgn.GetLocalCellBounds(&x0,&x1,&y0,&y1,&z0,&z1);
-	for (k=z0;k<=z1;k++)
-		for (j=y0;j<=y1;j++)
-			for (i=x0;i<=x1;i++)
-			{
-				pos = owner->Pos(i,j,k);
-				if (theRgn.Inside(pos,*owner))
-				{
-					dV = owner->dS(i,j,k,0);
-					Ef = F.Vec3(i,j,k,0);
-					Bf = F.Vec3(i,j,k,3);
-					J = sources.Vec3(i,j,k,1);
-					owner->CurvilinearToCartesian(&(r1=dipoleCenter));
-					owner->CurvilinearToCartesian(&(r2=pos));
-					dipoleMoment += (r2 - r1) * sources(i,j,k,0) * dV;
-					fieldEnergy += 0.5 * (Norm(Ef) + Norm(Bf)) * dV;
-					JE += J ^ Ef * dV;
-					totalCharge += sources(i,j,k,0) * dV;
-					current += owner->dS(i,j,k,3) * 0.5 * (sources(i,j,k-1,3) + sources(i,j,k,3)) / tw::Float(z1 - z0 + 1);
-				}
-			}
-
-	if (x0<=x1 && y0<=y1 && z0<=z1) // region intersects this domain
-	{
-		for (k=z0;k<=z1;k++)
-			for (j=y0;j<=y1;j++)
-			{
-				pos = owner->Pos(x0,j,k);
-				if (theRgn.Inside(pos,*owner) && xl>=1)
-				{
-					PoyntingVector = F.Vec3(x0,j,k,0) | F.Vec3(x0,j,k,3);
-					fluxOut -= owner->dS(x0,j,k,1) * PoyntingVector.x;
-				}
-				pos = owner->Pos(x1,j,k);
-				if (theRgn.Inside(pos,*owner) && xh<=dim[1])
-				{
-					PoyntingVector = F.Vec3(x1,j,k,0) | F.Vec3(x1,j,k,3);
-					fluxOut += owner->dS(x1,j,k,1) * PoyntingVector.x;
-				}
-			}
-		for (k=z0;k<=z1;k++)
-			for (i=x0;i<=x1;i++)
-			{
-				pos = owner->Pos(i,y0,k);
-				if (theRgn.Inside(pos,*owner) && yl>=1)
-				{
-					PoyntingVector = F.Vec3(i,y0,k,0) | F.Vec3(i,y0,k,3);
-					fluxOut -= owner->dS(i,y0,k,2) * PoyntingVector.y;
-				}
-			   pos = owner->Pos(i,y1,k);
-				if (theRgn.Inside(pos,*owner) && yh<=dim[2])
-				{
-					PoyntingVector = F.Vec3(i,y1,k,0) | F.Vec3(i,y1,k,3);
-					fluxOut += owner->dS(i,y1,k,2) * PoyntingVector.y;
-				}
-			}
-		for (j=y0;j<=y1;j++)
-			for (i=x0;i<=x1;i++)
-			{
-				pos = owner->Pos(i,j,z0);
-				if (theRgn.Inside(pos,*owner) && zl>=1)
-				{
-					PoyntingVector = F.Vec3(i,j,z0,0) | F.Vec3(i,j,z0,3);
-					fluxOut -= owner->dS(i,j,z0,3) * PoyntingVector.z;
-				}
-				pos = owner->Pos(i,j,z1);
-				if (theRgn.Inside(pos,*owner) && zh<=dim[3])
-				{
-					PoyntingVector = F.Vec3(i,j,z1,0) | F.Vec3(i,j,z1,3);
-					fluxOut += owner->dS(i,j,z1,3) * PoyntingVector.z;
-				}
-			}
-	}
-
-	cols.push_back(fieldEnergy); avg.push_back(false);
-	cols.push_back(JE); avg.push_back(false);
-	cols.push_back(fluxOut); avg.push_back(false);
-	cols.push_back(totalCharge); avg.push_back(false);
-	cols.push_back(current); avg.push_back(false);
-	cols.push_back(dipoleMoment.x); avg.push_back(false);
-	cols.push_back(dipoleMoment.y); avg.push_back(false);
-	cols.push_back(dipoleMoment.z); avg.push_back(false);
-}
-
-void Electromagnetic::BoxDiagnosticHeader(GridDataDescriptor* box)
-{
-	owner->WriteBoxDataHeader("Ex",box);
-	owner->WriteBoxDataHeader("Ey",box);
-	owner->WriteBoxDataHeader("Ez",box);
-	owner->WriteBoxDataHeader("Bx",box);
-	owner->WriteBoxDataHeader("By",box);
-	owner->WriteBoxDataHeader("Bz",box);
-	owner->WriteBoxDataHeader("rho",box);
-	owner->WriteBoxDataHeader("Jx",box);
-	owner->WriteBoxDataHeader("Jy",box);
-	owner->WriteBoxDataHeader("Jz",box);
-}
-
-void Electromagnetic::BoxDiagnose(GridDataDescriptor* box)
-{
-	owner->WriteBoxData("Ex",box,&F(0,0,0,0),F.Stride());
-	owner->WriteBoxData("Ey",box,&F(0,0,0,1),F.Stride());
-	owner->WriteBoxData("Ez",box,&F(0,0,0,2),F.Stride());
-	owner->WriteBoxData("Bx",box,&F(0,0,0,3),F.Stride());
-	owner->WriteBoxData("By",box,&F(0,0,0,4),F.Stride());
-	owner->WriteBoxData("Bz",box,&F(0,0,0,5),F.Stride());
-	owner->WriteBoxData("rho",box,&sources(0,0,0,0),sources.Stride());
-	owner->WriteBoxData("Jx",box,&sources(0,0,0,1),sources.Stride());
-	owner->WriteBoxData("Jy",box,&sources(0,0,0,2),sources.Stride());
-	owner->WriteBoxData("Jz",box,&sources(0,0,0,3),sources.Stride());
-}
-
-void Electromagnetic::PointDiagnosticHeader(std::ofstream& outFile)
-{
-	outFile << "Ex Ey Ez Bx By Bz ";
-}
-
-void Electromagnetic::PointDiagnose(std::ofstream& outFile,const weights_3D& w)
-{
-	std::valarray<tw::Float> EM(6);
-	F.Interpolate(EM,w);
-	for (tw::Int i=0;i<6;i++)
-		outFile << EM[i] << " ";
-}
-
-void Electromagnetic::CustomDiagnose()
-{
-	tw::Int i,j,k,s;
-
-	std::stringstream fileName;
-	tw::Int master = 0;
-
-	if (owner->IsFirstStep() && !(owner->appendMode&&owner->restarted) && owner->strip[0].Get_rank()==master)
-	{
-		for (s=0;s<farFieldDetector.size();s++)
-		{
-			fileName.str("");
-			fileName << farFieldDetector[s]->filename << "-Atheta.dvdat";
-			farFieldDetector[s]->AthetaFile.open(fileName.str().c_str(),std::ios::binary);
-			WriteDVHeader(farFieldDetector[s]->AthetaFile,2,
-				farFieldDetector[s]->timePts,farFieldDetector[s]->thetaPts,farFieldDetector[s]->phiPts,
-				farFieldDetector[s]->t0,farFieldDetector[s]->t1,
-				farFieldDetector[s]->theta0,farFieldDetector[s]->theta1,
-				farFieldDetector[s]->phi0,farFieldDetector[s]->phi1);
-			farFieldDetector[s]->AthetaFile.close();
-
-			fileName.str("");
-			fileName << farFieldDetector[s]->filename << "-Aphi.dvdat";
-			farFieldDetector[s]->AphiFile.open(fileName.str().c_str(),std::ios::binary);
-			WriteDVHeader(farFieldDetector[s]->AphiFile,2,
-				farFieldDetector[s]->timePts,farFieldDetector[s]->thetaPts,farFieldDetector[s]->phiPts,
-				farFieldDetector[s]->t0,farFieldDetector[s]->t1,
-				farFieldDetector[s]->theta0,farFieldDetector[s]->theta1,
-				farFieldDetector[s]->phi0,farFieldDetector[s]->phi1);
-			farFieldDetector[s]->AphiFile.close();
-		}
-	}
-
-	for (s=0;s<farFieldDetector.size();s++)
-	{
-		if (farFieldDetector[s]->WriteThisStep(owner->elapsedTime,dt,owner->stepNow))
-			farFieldDetector[s]->AccumulateField(owner->elapsedTime,sources);
-	}
-
-	if (owner->IsLastStep())
-	{
-		Vec3Field accum;
-		tw::vec3 ACG,rVec,thetaVec,phiVec;
-		tw::Float theta,phi,dtheta,dphi;
-		FarFieldDetectorDescriptor *det;
-		float data;
-
-		for (s=0;s<farFieldDetector.size();s++)
-		{
-			det = farFieldDetector[s];
-			dtheta = (det->theta1-det->theta0)/tw::Float(det->thetaPts);
-			dphi = (det->phi1-det->phi0)/tw::Float(det->phiPts);
-			DiscreteSpace ff_layout(dt,det->timePts,det->thetaPts,det->phiPts,tw::vec3(0.0,0.0,0.0),tw::vec3(det->t1-det->t0,det->theta1-det->theta0,det->phi1-det->phi0),1);
-			accum.Initialize(ff_layout,owner);
-			owner->strip[0].Sum(&det->A(0,0,0),&accum(0,0,0),sizeof(tw::vec3)*accum.TotalCells(),master);
-
-			if (owner->strip[0].Get_rank()==master)
-			{
-				// put vector potential in coulomb gauge and spherical coordinates
-				for (k=1;k<=det->phiPts;k++)
-					for (j=1;j<=det->thetaPts;j++)
-						for (i=1;i<=det->timePts;i++)
-						{
-							theta = det->theta0 + (tw::Float(j)-0.5)*dtheta;
-							phi = det->phi0 + (tw::Float(k)-0.5)*dphi;
-							rVec = tw::vec3( sin(theta)*cos(phi) , sin(theta)*sin(phi) , cos(theta) );
-							thetaVec = tw::vec3( cos(theta)*cos(phi) , cos(theta)*sin(phi) , -sin(theta) );
-							phiVec = tw::vec3( -sin(phi) , cos(phi) , 0.0 );
-							ACG = rVec | (accum(i,j,k) | rVec); // form coulomb gauge A
-							accum(i,j,k) = tw::vec3( ACG^rVec , ACG^thetaVec , ACG^phiVec ); // put in spherical coordinates
-						}
-
-				fileName.str("");
-				fileName << det->filename << "-Atheta.dvdat";
-				det->AthetaFile.open(fileName.str().c_str(),std::ios::binary | std::ios::app);
-				for (k=1;k<=det->phiPts;k++)
-					for (j=1;j<=det->thetaPts;j++)
-						for (i=1;i<=det->timePts;i++)
-						{
-							data = accum(i,j,k).y;
-							WriteBigEndian((char *)&data,sizeof(float),0,det->AthetaFile);
-						}
-				det->AthetaFile.close();
-
-				fileName.str("");
-				fileName << det->filename << "-Aphi.dvdat";
-				det->AphiFile.open(fileName.str().c_str(),std::ios::binary | std::ios::app);
-				for (k=1;k<=det->phiPts;k++)
-					for (j=1;j<=det->thetaPts;j++)
-						for (i=1;i<=det->timePts;i++)
-						{
-							data = accum(i,j,k).z;
-							WriteBigEndian((char *)&data,sizeof(float),0,det->AphiFile);
-						}
-				det->AphiFile.close();
-			}
-		}
-	}
-}
-
 
 
 ////////////////////////////////////////////////
@@ -725,74 +479,28 @@ void CoulombSolver::ComputeFinalFields()
 	F.ApplyBoundaryCondition();
 }
 
-void CoulombSolver::BoxDiagnosticHeader(GridDataDescriptor* box)
-{
-	Electromagnetic::BoxDiagnosticHeader(box);
-
-	owner->WriteBoxDataHeader("phi",box);
-	owner->WriteBoxDataHeader("Ax",box);
-	owner->WriteBoxDataHeader("Ay",box);
-	owner->WriteBoxDataHeader("Az",box);
-
-	owner->WriteBoxDataHeader("AxDot",box);
-	owner->WriteBoxDataHeader("AyDot",box);
-	owner->WriteBoxDataHeader("AzDot",box);
-}
-
-void CoulombSolver::BoxDiagnose(GridDataDescriptor* box)
+void CoulombSolver::Report(Diagnostic& diagnostic)
 {
 	// Upon entry : A0(-1/2) , A1(1/2) , phi0(-1) , phi1(0)
-	Electromagnetic::BoxDiagnose(box);
+	Electromagnetic::Report(diagnostic);
 
-	owner->WriteBoxData("phi",box,&A4(0,0,0,4),A4.Stride());
+	diagnostic.Field("phi",A4,4);
 
-	scratch1 = 0.0;
-	AddMulFieldData(scratch1,Element(0),A4,Element(1),0.5);
-	AddMulFieldData(scratch1,Element(0),A4,Element(5),0.5);
-	owner->WriteBoxData("Ax",box,&scratch1(0,0,0),scratch1.Stride());
+	std::map<tw::Int,std::string> xyz = {{1,"x"},{2,"y"},{3,"z"}};
 
-	scratch1 = 0.0;
-	AddMulFieldData(scratch1,Element(0),A4,Element(2),0.5);
-	AddMulFieldData(scratch1,Element(0),A4,Element(6),0.5);
-	owner->WriteBoxData("Ay",box,&scratch1(0,0,0),scratch1.Stride());
+	for (tw::Int ax=1;ax<=3;ax++)
+	{
+		scratch1 = 0.0;
+		AddMulFieldData(scratch1,Element(0),A4,Element(ax),0.5);
+		AddMulFieldData(scratch1,Element(0),A4,Element(ax+4),0.5);
+		diagnostic.Field("A"+xyz[ax],scratch1,0);
 
-	scratch1 = 0.0;
-	AddMulFieldData(scratch1,Element(0),A4,Element(3),0.5);
-	AddMulFieldData(scratch1,Element(0),A4,Element(7),0.5);
-	owner->WriteBoxData("Az",box,&scratch1(0,0,0),scratch1.Stride());
-
-	scratch1 = 0.0;
-	AddMulFieldData(scratch1,Element(0),A4,Element(1),-1.0/dt);
-	AddMulFieldData(scratch1,Element(0),A4,Element(5),1.0/dt);
-	owner->WriteBoxData("AxDot",box,&scratch1(0,0,0),scratch1.Stride());
-
-	scratch1 = 0.0;
-	AddMulFieldData(scratch1,Element(0),A4,Element(2),-1.0/dt);
-	AddMulFieldData(scratch1,Element(0),A4,Element(6),1.0/dt);
-	owner->WriteBoxData("AyDot",box,&scratch1(0,0,0),scratch1.Stride());
-
-	scratch1 = 0.0;
-	AddMulFieldData(scratch1,Element(0),A4,Element(3),-1.0/dt);
-	AddMulFieldData(scratch1,Element(0),A4,Element(7),1.0/dt);
-	owner->WriteBoxData("AzDot",box,&scratch1(0,0,0),scratch1.Stride());
+		scratch1 = 0.0;
+		AddMulFieldData(scratch1,Element(0),A4,Element(ax),-1.0/dt);
+		AddMulFieldData(scratch1,Element(0),A4,Element(ax+4),1.0/dt);
+		diagnostic.Field("A"+xyz[ax]+"Dot",scratch1,0);
+	}
 }
-
-void CoulombSolver::PointDiagnosticHeader(std::ofstream& outFile)
-{
-	Electromagnetic::PointDiagnosticHeader(outFile);
-	outFile << "phi ";
-}
-
-void CoulombSolver::PointDiagnose(std::ofstream& outFile,const weights_3D& w)
-{
-	Electromagnetic::PointDiagnose(outFile,w);
-
-	std::valarray<tw::Float> A4Now(8);
-
-	A4.Interpolate(A4Now,w);
-	outFile << A4Now[4] << " ";
-}
-
 
 
 ///////////////////////

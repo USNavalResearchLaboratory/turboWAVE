@@ -11,7 +11,8 @@
 BoundElectrons::BoundElectrons(const std::string& name,Simulation* sim) : Module(name,sim)
 {
 	typeCode = tw::module_type::boundElectrons;
-	updateSequencePriority = 2;
+	updateSequencePriority = tw::priority::source;
+	subSequencePriority = 1;
 	q0 = -1.0;
 	m0 = 1.0;
 	resFreq = 10.0;
@@ -367,63 +368,26 @@ void BoundElectrons::StartDiagnostics()
 	#endif
 }
 
-void BoundElectrons::EnergyHeadings(std::ofstream& outFile)
+void BoundElectrons::Report(Diagnostic& diagnostic)
 {
-	outFile << "bound-KE bound-PE ";
-}
+	Module::Report(diagnostic);
 
-void BoundElectrons::EnergyColumns(std::vector<tw::Float>& cols,std::vector<bool>& avg,const Region& theRgn)
-{
-	tw::Int i,j,k;
-	tw::Float kinetic,potential,number;
-	tw::vec3 pos,r0,r1,vel;
+	ScalarField temp;
+	temp.Initialize(*this,owner);
 
-	kinetic = 0.0;
-	potential = 0.0;
+	for (auto cell : InteriorCellRange(*this))
+	{
+		const tw::vec3 vel = oscStrength*(R1.Vec3(cell,0) - R0.Vec3(cell,0))/dt;
+		temp(cell) = 0.5*m0*dens(cell)*Norm(vel);
+	}
+	diagnostic.VolumeIntegral("bound-KE",temp,0);
 
-	tw::Int x0,x1,y0,y1,z0,z1;
-	theRgn.GetLocalCellBounds(&x0,&x1,&y0,&y1,&z0,&z1);
-	for (k=z0;k<=z1;k++)
-		for (j=y0;j<=y1;j++)
-			for (i=x0;i<=x1;i++)
-			{
-				pos = owner->Pos(i,j,k);
-				if (theRgn.Inside(pos,*owner))
-				{
-					number = dens(i,j,k)*owner->dS(i,j,k,0);
-					r0 = oscStrength*tw::vec3(R0(i,j,k,0),R0(i,j,k,1),R0(i,j,k,2));
- 					r1 = oscStrength*tw::vec3(R1(i,j,k,0),R1(i,j,k,1),R1(i,j,k,2));
-                    vel = (r1-r0)/dt; // in crystal basis
-					kinetic += 0.5*m0*Norm(vel)*number;
-					potential += 0.5*m0*Norm(resFreq*r1)*number;
-					//diss += 2.0*m0*((dampFreq*vel)^vel)*number;
-				}
-			}
+	for (auto cell : InteriorCellRange(*this))
+		temp(cell) = 0.5*m0*dens(cell)*Norm(resFreq*R1.Vec3(cell,0));
+	diagnostic.VolumeIntegral("bound-PE",temp,0);
 
-	cols.push_back(kinetic); avg.push_back(false);
-	cols.push_back(potential); avg.push_back(false);
-}
-
-void BoundElectrons::BoxDiagnosticHeader(GridDataDescriptor *box)
-{
-	owner->WriteBoxDataHeader(name,box);
-	owner->WriteBoxDataHeader(name+"_x",box);
-	owner->WriteBoxDataHeader(name+"_y",box);
-	owner->WriteBoxDataHeader(name+"_z",box);
-}
-
-void BoundElectrons::BoxDiagnose(GridDataDescriptor *box)
-{
-	owner->WriteBoxData(name,box,&dens(0,0,0),dens.Stride());
-	owner->WriteBoxData(name+"_x",box,&R1(0,0,0,0),R1.Stride());
-	owner->WriteBoxData(name+"_y",box,&R1(0,0,0,1),R1.Stride());
-	owner->WriteBoxData(name+"_z",box,&R1(0,0,0,2),R1.Stride());
-}
-
-void BoundElectrons::PointDiagnosticHeader(std::ofstream& outFile)
-{
-}
-
-void BoundElectrons::PointDiagnose(std::ofstream& outFile,const weights_3D& w)
-{
+	diagnostic.Field(name,dens,0);
+	diagnostic.Field(name+"_x",R1,0);
+	diagnostic.Field(name+"_y",R1,1);
+	diagnostic.Field(name+"_z",R1,2);
 }

@@ -317,39 +317,29 @@ tw::vec3 LaserSolver::GetIonizationKick(const tw::Float& a2,const tw::Float& q0,
 	return ans;
 }
 
-void Kinetics::EnergyHeadings(std::ofstream& outFile)
-{
-	outFile << "Kinetic ";
-}
-
-void Kinetics::EnergyColumns(std::vector<tw::Float>& cols,std::vector<bool>& avg,const Region& theRgn)
-{
-	cols.push_back(KineticEnergy(theRgn)); avg.push_back(false);
-}
-
 tw::Float Kinetics::KineticEnergy(const Region& theRgn)
 {
 	tw::Float ans = 0.0;
-	tw::Float p2,m0;
-	tw::vec3 pos;
-	tw::Int i,j;
-
-	for (i=0;i<species.size();i++)
+	for (auto sp : species)
 	{
-		m0 = species[i]->restMass;
-		for (j=0;j<species[i]->particle.size();j++)
+		const tw::Float m0 = sp->restMass;
+		for (auto par : sp->particle)
 		{
-			const Particle& par = species[i]->particle[j];
-			pos = owner->PositionFromPrimitive(par.q);
-			if (theRgn.Inside(pos,*owner))
+			if (theRgn.Inside(owner->PositionFromPrimitive(par.q),*owner))
 			{
-				p2 = Norm(par.p);
+				const tw::Float p2 = Norm(par.p);
 				tw::Float gamma = sqrt(1 + p2/(m0*m0));
 				ans += par.number * m0 * (gamma - 1.0);
 			}
 		}
 	}
 	return ans;
+}
+
+void Kinetics::Report(Diagnostic& diagnostic)
+{
+	Module::Report(diagnostic);
+	diagnostic.Float("Kinetic",KineticEnergy(*diagnostic.theRgn),false);
 }
 
 void Kinetics::ReadCheckpoint(std::ifstream& inFile)
@@ -449,12 +439,6 @@ Species::~Species()
 {
 	if (ionizer!=NULL)
 		owner->RemoveTool(ionizer);
-	for (auto diag : phaseSpacePlot)
-		delete diag;
-	for (auto diag : orbitDiagnostic)
-		delete diag;
-	for (auto diag : detector)
-		delete diag;
 }
 
 void Species::VerifyInput()
@@ -471,8 +455,6 @@ void Species::VerifyInput()
 void Species::Initialize()
 {
 	Module::Initialize();
-	for (auto diag : phaseSpacePlot)
-		diag->SetupGeometry(owner->gridGeometry);
 	if (ionizer!=NULL)
 	{
 		ionizer->electronSpecies = owner->FindModule(ionizer->electron_name);
@@ -1197,16 +1179,15 @@ void Species::WriteCheckpoint(std::ofstream& outFile)
 
 void Species::CalculateDensity(ScalarField& dens)
 {
-	tw::Int i;
 	Primitive q;
 	weights_3D w;
 	dens.Initialize(*this,owner);
-	for (i=0;i<particle.size();i++)
+	for (auto par : particle)
 	{
-		if (RefCellInDomain(particle[i].q))
+		if (RefCellInDomain(par.q))
 		{
-			dens.GetWeights(&w,particle[i].q);
-			dens.InterpolateOnto(particle[i].number,w);
+			dens.GetWeights(&w,par.q);
+			dens.InterpolateOnto(par.number,w);
 		}
 	}
 	transfer.clear();
@@ -1220,52 +1201,27 @@ void Species::CalculateDensity(ScalarField& dens)
 	dens.Smooth(*owner,smoothing,compensation);
 }
 
-void Species::EnergyHeadings(std::ofstream& outFile)
+void Species::Report(Diagnostic& diagnostic)
 {
-	outFile << "N_" << name << " ";
-	if (qo_j4!=NULL)
-		outFile << "tot_mass overlap ";
-}
+	Module::Report(diagnostic);
 
-void Species::EnergyColumns(std::vector<tw::Float>& cols,std::vector<bool>& avg,const Region& theRgn)
-{
-	cols.push_back(particle.size()); avg.push_back(false);
+	ScalarField temp;
 
-	tw::Int i,j,k;
-	tw::Int x0,x1,y0,y1,z0,z1;
-	ScalarField dens;
-	tw::Float overlap,tot_mass;
+	diagnostic.Float("N_"+name,particle.size(),false);
+	CalculateDensity(temp);
+	diagnostic.Field(name,temp,0);
 
 	if (qo_j4!=NULL)
 	{
-		CalculateDensity(dens);
-		tot_mass = overlap = 0.0;
-		theRgn.GetLocalCellBounds(&x0,&x1,&y0,&y1,&z0,&z1);
-		for (k=z0;k<=z1;k++)
-			for (j=y0;j<=y1;j++)
-				for (i=x0;i<=x1;i++)
-				{
-					tot_mass += restMass * dens(i,j,k) * owner->dS(i,j,k,0);
-					overlap += sqrt(fabs((*qo_j4)(i,j,k,0) * dens(i,j,k))) * owner->dS(i,j,k,0);
-				}
-		cols.push_back(tot_mass); avg.push_back(false);
-		cols.push_back(overlap); avg.push_back(false); // square in post-processing to get population
+		temp *= restMass;
+		diagnostic.VolumeIntegral("tot_mass",temp,0);
+		temp /= restMass;
+
+		for (auto cell : InteriorCellRange(*this))
+			temp(cell) = sqrt(fabs((*qo_j4)(cell,0) * temp(cell)));
+		diagnostic.VolumeIntegral("overlap",temp,0); // square in post-processing to get population
 	}
-}
 
-void Species::BoxDiagnosticHeader(GridDataDescriptor* box)
-{
-	owner->WriteBoxDataHeader(name,box);
-}
-
-void Species::BoxDiagnose(GridDataDescriptor* box)
-{
-	// Deposit this species onto a scratch array
-
-	ScalarField dens;
-	CalculateDensity(dens);
-
-	// Write out the data
-
-	owner->WriteBoxData(name,box,&dens(0,0,0),dens.Stride());
+	for (auto par : particle)
+		diagnostic.Particle(par,restMass,owner->elapsedTime);
 }
