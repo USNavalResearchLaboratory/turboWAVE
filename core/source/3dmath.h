@@ -498,7 +498,7 @@ namespace tw
 			array[3] = a[3];
 		}
 
-		tw::vec3 spatial()
+		tw::vec3 spatial() const
 		{
 			return tw::vec3(array[1],array[2],array[3]);
 		}

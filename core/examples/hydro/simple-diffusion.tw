@@ -7,7 +7,6 @@
 // N.b. in this situation adaptive time stepping is dangerous because
 // rate estimates tend to come out near zero
 // If outer b.c. is reflecting mass and energy should be conserved to several digits
-append mode = on
 steps = 10000
 timestep = 2.8e5
 dump period = 0

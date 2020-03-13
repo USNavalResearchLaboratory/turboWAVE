@@ -151,6 +151,7 @@ struct DiscreteSpace
 	tw::Int UNG(const tw::Int& ax) const { return ung[ax]; }
 	tw::Int LFG(const tw::Int& ax) const { return lfg[ax]; }
 	tw::Int UFG(const tw::Int& ax) const { return ufg[ax]; }
+	tw::Float dx0(const tw::Int& ax) const { return spacing[ax-1]; }
 	friend tw::Float timestep(const DiscreteSpace& A) { return A.dt; }
 	friend tw::Float dx(const DiscreteSpace& A)  { return A.spacing.x; }
 	friend tw::Float dy(const DiscreteSpace& A)  { return A.spacing.y; }

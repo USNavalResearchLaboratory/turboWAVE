@@ -7,7 +7,6 @@ dump period = 0
 moving window = no
 neutralize = yes
 unit density = 1e+19
-append mode = true
 
 xboundary = ( periodic , periodic )
 yboundary = ( periodic , periodic )

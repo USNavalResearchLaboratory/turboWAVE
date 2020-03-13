@@ -1,511 +1,6 @@
 #include "simulation.h"
-#include "fieldSolve.h"
 #include "quantum.h"
 using namespace tw::bc;
-
-qo::State::State(MetricSpace *m,UniformDeviate *u)
-{
-	space = m;
-	ud = u;
-	waveType = qo::bound;
-	waveEquation = qo::schroedinger;
-	Lam = 0.0;
-	Jam = jzam = 0.0;
-	nr = 0.0;
-	amplitude = tw::Complex(1.0,0.0);
-	cell_size = tw::vec3(1.0,1.0,1.0);
-	size = tw::vec3(1.0,1.0,1.0);
-	k = tw::vec3(0.0,0.0,1.0);
-	negativeEnergy = false;
-	helicity = 0.5;
-	qnuc = 1.0;
-	qorb = -1.0;
-	morb = 1.0;
-	if (m->Dim(3)==1)
-		cylindricalAtom = true;
-	else
-		cylindricalAtom = false;
-	energy = -0.5;
-	normalizationConstant = 1.0;
-	components = 1;
-}
-
-bool qo::State::GoodQuantumNumbers()
-{
-	tw::Float int_part;
-	auto good_lam = [&] (tw::Float test) { return std::modf(test,&int_part)==0.0; };
-	auto good_jam = [&] (tw::Float test) { return std::abs(std::modf(test,&int_part))==0.5; };
-	if (waveEquation==qo::schroedinger || waveEquation==qo::klein_gordon)
-	{
-		if (cylindricalAtom)
-			return good_lam(jzam) && jzam==Lam;
-		return Jam>=0.0 && good_lam(Jam) && good_lam(jzam) && Jam==Lam && jzam>=-Jam && jzam<=Jam;
-	}
-	if (waveEquation==qo::pauli || waveEquation==qo::dirac)
-	{
-		if (cylindricalAtom)
-			return good_jam(jzam) && std::abs(Lam-jzam)==0.5 && ((nr==0.0 && (Lam-jzam)*jzam<0.0) || nr>0.0);
-		return Jam>0.0 && good_jam(Jam) && good_jam(jzam) && std::abs(Jam-Lam)==0.5 && jzam>=-Jam && jzam<=Jam && ((nr==0.0 && Lam<Jam) || nr>0.0);
-	}
-	return true;
-}
-
-void qo::State::Initialize(qo::waveEquationType waveEq,tw::Float nuclearCharge,tw::Float orbitingCharge,tw::Float orbitingMass)
-{
-	waveEquation = waveEq;
-	qnuc = nuclearCharge;
-	qorb = orbitingCharge;
-	morb = orbitingMass;
-	const tw::Float n = nr + Lam + 1.0;
-	const tw::Float kr = morb*qnuc*qorb/n;
-
-	switch (waveType)
-	{
-		case qo::random:
-			energy = 0.0;
-			break;
-		case qo::lookup:
-			if (!GoodQuantumNumbers())
-				throw tw::FatalError("Quantum numbers are invalid.");
-			break;
-		case qo::bound:
-			if (!GoodQuantumNumbers())
-				throw tw::FatalError("Quantum numbers are invalid.");
-			switch (waveEquation)
-			{
-				case schroedinger:
-					energy = -0.5*morb*sqr(qnuc*qorb/n);
-					normalizationConstant = pow(kr,1.5)*sqrt(Factorial(n+Lam)/Factorial(nr))/(Factorial(2.0*Lam+1.0)*sqrt(n*pi));
-					break;
-				case pauli:
-					energy = -0.5*morb*sqr(qnuc*qorb/n);
-					normalizationConstant = pow(kr,1.5)*sqrt(Factorial(n+Lam)/Factorial(nr))/(Factorial(2.0*Lam+1.0)*sqrt(n*pi));
-					break;
-				case klein_gordon:
-					if (cylindricalAtom)
-						energy = morb/sqrt(1.0 + sqr(qnuc*qorb)/sqr(nr+0.5+sqrt(sqr(jzam)-sqr(qnuc*qorb))));
-					else
-						energy = morb/sqrt(1.0 + sqr(qnuc*qorb)/sqr(nr+0.5+sqrt(sqr(Lam+0.5)-sqr(qnuc*qorb))));
-					break;
-				case dirac:
-					if (cylindricalAtom)
-						energy = morb/sqrt(1.0 + sqr(qnuc*qorb)/sqr(nr+sqrt(sqr(jzam)-sqr(qnuc*qorb))));
-					else
-						energy = morb/sqrt(1.0 + sqr(qnuc*qorb)/sqr(nr+sqrt(sqr(Jam+0.5)-sqr(qnuc*qorb))));
-					break;
-			}
-			break;
-		case qo::free:
-		case qo::helicity:
-			switch (waveEquation)
-			{
-				case schroedinger:
-					energy = 0.5*(k^k)/morb;
-					break;
-				case pauli:
-					energy = 0.5*(k^k)/morb;
-					break;
-				case klein_gordon:
-					energy = sqrt((k^k) + morb*morb);
-					break;
-				case dirac:
-					energy = sqrt((k^k) + morb*morb);
-					break;
-			}
-			break;
-	}
-}
-
-tw::Complex qo::State::Random(const tw::vec3& r,const tw::Float& t,const tw::Int& comp) const
-{
-	tw::Complex ans;
-	ans = ud->Next() * exp( -sqr(r.x/size.x) - sqr(r.y/size.y) - sqr(r.z/size.z) );
-	ans *= amplitude * std::exp( ii*ud->Next()*two*pi );
-	return normalizationConstant*ans;
-}
-
-tw::Complex qo::State::Lookup(const tw::vec3& r,const std::valarray<tw::Complex>& fr,const tw::Float& dr,const tw::Float& t,const tw::Int& comp) const
-{
-	tw::Complex ans;
-	tw::vec3 R = r;
-	if (cylindricalAtom)
-		space->CurvilinearToCylindrical(&R);
-	else
-		space->CurvilinearToSpherical(&R);
-	tw::Int dim = fr.size()/components;
-	tw::Int s = MyFloor((R.x-0.5*dr)/dr);
-	tw::Float w = (R.x-0.5*dr)/dr - tw::Float(s);
-	if (s>=0 && s<dim-1)
-		ans = fr[comp*dim+s]*(one-w) + fr[comp*dim+s+1]*w;
-	if (s<0)
-		ans = fr[comp*dim];
-	if (s==dim-1)
-		ans = fr[comp*dim+dim-1];
-	if (cylindricalAtom)
-	{
-		if (waveEquation==schroedinger || waveEquation==klein_gordon)
-		{
-			ans *= std::exp(ii*jzam*R.y);
-		}
-		if (waveEquation==pauli || waveEquation==dirac)
-		{
-			if (comp==0) ans *= std::exp(ii*(jzam-half)*R.y);
-			if (comp==1) ans *= std::exp(ii*(jzam+half)*R.y);
-			if (comp==2) ans *= std::exp(ii*(jzam-half)*R.y);
-			if (comp==3) ans *= std::exp(ii*(jzam+half)*R.y);
-		}
-	}
-	else
-	{
-		if (waveEquation==schroedinger || waveEquation==klein_gordon)
-		{
-			ans *= SphericalHarmonic(Lam,jzam,R.y,R.z);
-		}
-		if (waveEquation==pauli || waveEquation==dirac)
-		{
-			const tw::Float Lamp = 2*Jam - Lam;
-			if (comp==0)
-				ans *= SphericalHarmonicSpinor(Jam,Lam,jzam,R.y,R.z)[0];
-			if (comp==1)
-				ans *= SphericalHarmonicSpinor(Jam,Lam,jzam,R.y,R.z)[1];
-			if (comp==2)
-				ans *= SphericalHarmonicSpinor(Jam,Lamp,jzam,R.y,R.z)[0];
-			if (comp==3)
-				ans *= SphericalHarmonicSpinor(Jam,Lamp,jzam,R.y,R.z)[1];
-		}
-	}
-	return normalizationConstant*amplitude*std::exp(-ii*energy*t)*ans;
-}
-
-tw::Complex qo::State::Free(bool helicityState,const tw::vec3& r,const tw::Float& t,const tw::Int& comp) const
-{
-	tw::spinor w;
-	if (helicityState)
-		w = tw::spinor(k/Magnitude(k),helicity);
-	else
-		w = tw::spinor(0.5+helicity,0.5-helicity);
-	tw::Complex ans(amplitude);
-	ans *= exp( -sqr(r.x/size.x) - sqr(r.y/size.y) - sqr(r.z/size.z) );
-	ans *= std::exp( ii*((k^r) - energy*t) );
-	ans *= normalizationConstant;
-
-	switch (waveEquation)
-	{
-		case schroedinger:
-			// nothing to do
-			break;
-		case pauli:
-			ans *= w[comp];
-			break;
-		case klein_gordon:
-			// nothing to do for positive energy
-			// need to put something here for negative energy
-			break;
-		case dirac:
-			// Create an electron bispinor coefficient in the rest frame, L&L QED 23
-			tw::bispinor u(w);
-			// Boost to desired momentum
-			u.Boost(tw::vec4(energy,k));
-			// If negative energy apply charge conjugation operator
-			// This reverses momentum and spin
-			if (negativeEnergy)
-			{
-				ans = std::conj(ans);
-				u.ChargeConjugate();
-			}
-			ans *= u[comp];
-			break;
-	}
-	return ans;
-}
-
-tw::Complex qo::State::Bound(const tw::vec3& r,const tw::Float& t,const tw::Int& comp) const
-{
-	tw::Complex ans;
-	tw::vec3 R = r;
-
-	if (waveEquation==schroedinger)
-	{
-		if (cylindricalAtom)
-		{
-			space->CurvilinearToCylindrical(&R);
-			ans = tw::Complex(0,0);
-		}
-		else
-		{
-			space->CurvilinearToSpherical(&R);
-			tw::Float kr = sqrt(-two*morb*energy);
-			ans = ConfluentHypergeometric(-tw::Int(nr),two*(Lam+one),two*kr*R.x)*pow(two*kr*R.x,Lam)*exp(-kr*R.x);
-			ans *= SphericalHarmonic(Lam,jzam,R.y,R.z);
-		}
-	}
-
-	if (waveEquation==pauli)
-	{
-		if (cylindricalAtom)
-		{
-			space->CurvilinearToCylindrical(&R);
-			ans = tw::Complex(0,0);
-		}
-		else
-		{
-			space->CurvilinearToSpherical(&R);
-			tw::Float kr = sqrt(-two*morb*energy);
-			ans = ConfluentHypergeometric(-tw::Int(nr),two*(Lam+one),two*kr*R.x)*pow(two*kr*R.x,Lam)*exp(-kr*R.x);
-			ans *= SphericalHarmonic(Lam,jzam,R.y,R.z);
-			if (comp==0)
-				ans *= Jam-Lam+0.5;
-			if (comp==1)
-				ans *= 0.5-Jam+Lam;
-		}
-	}
-
-	if (waveEquation==klein_gordon)
-	{
-		tw::Float kr = sqrt(morb*morb - sqr(energy));
-		if (cylindricalAtom)
-		{
-			space->CurvilinearToCylindrical(&R);
-			const tw::Float gam = sqrt(sqr(jzam) - sqr(qnuc*qorb));
-			ans = ConfluentHypergeometric(-tw::Int(nr),two*gam+one,two*kr*R.x);
-			ans *= pow(R.x,gam)*exp(-kr*R.x);
-			ans *= std::exp(ii*jzam*R.y);
-			if (comp==1)
-				ans *= (energy - qnuc*qorb/R.x)/morb;
-		}
-		else
-		{
-			space->CurvilinearToSpherical(&R);
-			const tw::Float gam = sqrt(sqr(Lam+0.5)-sqr(qnuc*qorb));
-			ans = ConfluentHypergeometric(-tw::Int(nr),two*gam+one,two*kr*R.x);
-			ans *= pow(R.x,gam-0.5)*exp(-kr*R.x);
-			ans *= SphericalHarmonic(Lam,jzam,R.y,R.z);
-			if (comp==1)
-				ans *= (energy - qnuc*qorb/R.x)/morb;
-		}
-	}
-
-	if (waveEquation==dirac)
-	{
-		tw::Complex Q1,Q2;
-		tw::Float kr = sqrt(morb*morb - sqr(energy));
-		if (cylindricalAtom)
-		{
-			space->CurvilinearToCylindrical(&R);
-			const tw::Float szam = jzam-Lam;
-			const tw::Float kappa = -2*szam*jzam;
-			const tw::Float gam = sqrt(sqr(kappa) - sqr(qnuc*qorb));
-			Q1 = ConfluentHypergeometric(-tw::Int(nr),two*gam+one,two*kr*R.x);
-			Q2 = ConfluentHypergeometric(1-tw::Int(nr),two*gam+one,two*kr*R.x);
-			Q2 *= -(kappa - qnuc*qorb*morb/kr) / (gam - qnuc*qorb*energy/kr);
-			tw::Complex f = tw::Float(sqrt(morb+energy)*exp(-kr*R.x)*pow(R.x,gam-0.5))*(Q1+Q2);
-			tw::Complex g = ii*tw::Float(sqrt(morb-energy)*exp(-kr*R.x)*pow(R.x,gam-0.5))*(Q1-Q2);
-			if (comp==0)
-				ans = f*(szam+0.5)*std::exp(ii*(jzam-half)*R.y);
-			if (comp==1)
-				ans = f*(0.5-szam)*std::exp(ii*(jzam+half)*R.y);
-			if (comp==2)
-				ans = g*(0.5-szam)*std::exp(ii*(jzam-half)*R.y);
-			if (comp==3)
-				ans = g*(szam+0.5)*std::exp(ii*(jzam+half)*R.y);
-		}
-		else
-		{
-			space->CurvilinearToSpherical(&R);
-			const tw::Float Sam = Jam-Lam;
-			const tw::Float Lamp = 2*Jam - Lam;
-			const tw::Float kappa = -2*Sam*(Jam+0.5);
-			const tw::Float gam = sqrt(sqr(kappa)-sqr(qorb*qnuc));
-			Q1 = ConfluentHypergeometric(-tw::Int(nr),two*gam+one,two*kr*R.x);
-			Q2 = ConfluentHypergeometric(1-tw::Int(nr),two*gam+one,two*kr*R.x);
-			Q2 *= -(gam - qnuc*qorb*energy/kr)/(kappa - qnuc*qorb*morb/kr);
-			tw::Complex f = tw::Float(sqrt(morb+energy)*exp(-kr*R.x)*pow(2.0*kr*R.x,gam-1.0))*(Q1+Q2);
-			tw::Complex g = tw::Float(sqrt(morb-energy)*exp(-kr*R.x)*pow(2.0*kr*R.x,gam-1.0))*(Q1-Q2);
-			ans = 0.0;
-			if (comp==0)
-				ans = f*SphericalHarmonicSpinor(Jam,Lam,jzam,R.y,R.z)[0];
-			if (comp==1)
-				ans = f*SphericalHarmonicSpinor(Jam,Lam,jzam,R.y,R.z)[1];
-			if (comp==2)
-				ans = tw::Float(pow(-1.0,0.5*(1.0+Lam-Lamp)))*g*SphericalHarmonicSpinor(Jam,Lamp,jzam,R.y,R.z)[0];
-			if (comp==3)
-				ans = tw::Float(pow(-1.0,0.5*(1.0+Lam-Lamp)))*g*SphericalHarmonicSpinor(Jam,Lamp,jzam,R.y,R.z)[1];
-		}
-	}
-
-	return normalizationConstant*amplitude*std::exp(-ii*energy*t)*ans;
-}
-
-tw::Complex qo::State::Amplitude(const tw::vec3& r,const tw::Float& t,const tw::Int& comp) const
-{
-	switch (waveType)
-	{
-		case qo::lookup:
-			return Lookup(r,radialFunction,cell_size.x,t,comp);
-			break;
-		case qo::bound:
-			return Bound(r,t,comp);
-			break;
-		case qo::free:
-			return Free(false,r,t,comp);
-			break;
-		case qo::helicity:
-			return Free(true,r,t,comp);
-			break;
-		case qo::random:
-			return Random(r,t,comp);
-			break;
-	}
-	return tw::Complex(0.0,0.0);
-}
-
-void qo::State::ReadInputFileBlock(std::stringstream& inputString)
-{
-	std::string command,word;
-	tw::Float realAmplitude,imagAmplitude;
-	do
-	{
-		inputString >> command;
-		if (command=="type")
-		{
-			inputString >> word >> word;
-			if (word=="lookup")
-				waveType = qo::lookup;
-			if (word=="free")
-				waveType = qo::free;
-			if (word=="helicity")
-				waveType = qo::helicity;
-			if (word=="bound")
-				waveType = qo::bound;
-			if (word=="random")
-				waveType = qo::random;
-		}
-		if (command=="file")
-		{
-			inputString >> word >> word;
-			std::ifstream inFile(word.c_str());
-			tw::Int i,num;
-			do
-			{
-				inFile >> word;
-				//if (word=="soft_core_radius")
-				//if (word=="nuclear_charge")
-				//if (word=="Bz")
-				if (word=="energy")
-					inFile >> word >> energy;
-				if (word=="pts")
-					inFile >> word >> num;
-				if (word=="components")
-					inFile >> word >> components;
-				if (word=="cell_width")
-					inFile >> word >> cell_size.x;
-				if (word=="nr_j_l_m")
-					inFile >> word >> nr >> Jam >> Lam >> jzam;
-				if (word=="cylindrical")
-				{
-					inFile >> word >> word;
-					cylindricalAtom = (word=="true" || word=="yes" || word=="on") ? true : false;
-				}
-			} while (word!="start_data");
-
-			radialFunction.resize(components*num);
-			for (i=0;i<components*num;i++)
-			{
-				inFile >> realAmplitude >> imagAmplitude;
-				radialFunction[i] = tw::Complex(realAmplitude,imagAmplitude);
-			}
-		}
-		if (command=="dr")
-			throw tw::FatalError("state specification 'dr' no longer supported, specify in file");
-		if (command=="amplitude")
-		{
-			inputString >> word >> realAmplitude >> imagAmplitude;
-			amplitude = tw::Complex(realAmplitude,imagAmplitude);
-		}
-		if (command=="nr_j_l_m")
-		{
-			inputString >> word >> nr >> Jam >> Lam >> jzam;
-		}
-		if (command=="nrlz" || command=="nrllz" || command=="lam" || command=="jam" || command=="zam" || command=="nr")
-		{
-			throw tw::FatalError("Quantum state specification is deprecated.");
-		}
-		if (command=="size")
-		{
-			inputString >> word >> size.x >> size.y >> size.z;
-		}
-		if (command=="k")
-			throw tw::FatalError("Free state specification is deprecated.");
-		if (command=="k_e_s")
-		{
-			inputString >> word >> k.x >> k.y >> k.z >> energy >> helicity;
-			negativeEnergy = (energy<0.0);
-		}
-		if (command=="cylindrical")
-		{
-			inputString >> word >> word;
-			cylindricalAtom = (word=="true" || word=="yes" || word=="on") ? true : false;
-		}
-	} while (command!="}");
-}
-
-void qo::State::ReadCheckpoint(std::ifstream& inFile)
-{
-	tw::Int i,num;
-	inFile.read((char*)&waveType,sizeof(waveFunctionType));
-	inFile.read((char*)&waveEquation,sizeof(waveEquationType));
-	inFile.read((char*)&amplitude,sizeof(tw::Complex));
-	inFile.read((char*)&Lam,sizeof(tw::Float));
-	inFile.read((char*)&Jam,sizeof(tw::Float));
-	inFile.read((char*)&jzam,sizeof(tw::Float));
-	inFile.read((char*)&nr,sizeof(tw::Float));
-	inFile.read((char*)&k,sizeof(tw::vec3));
-	inFile.read((char*)&negativeEnergy,sizeof(bool));
-	inFile.read((char*)&helicity,sizeof(tw::Float));
-	inFile.read((char*)&size,sizeof(tw::vec3));
-	inFile.read((char*)&cell_size,sizeof(tw::vec3));
-	inFile.read((char*)&qnuc,sizeof(tw::Float));
-	inFile.read((char*)&qorb,sizeof(tw::Float));
-	inFile.read((char*)&morb,sizeof(tw::Float));
-	inFile.read((char*)&energy,sizeof(tw::Float));
-	inFile.read((char*)&normalizationConstant,sizeof(tw::Float));
-	inFile.read((char*)&cylindricalAtom,sizeof(bool));
-
-	inFile.read((char*)&num,sizeof(tw::Int));
-	inFile.read((char*)&components,sizeof(tw::Int));
-	radialFunction.resize(num);
-	for (i=0;i<num;i++)
-		inFile.read((char*)&radialFunction[i],sizeof(tw::Float));
-}
-
-void qo::State::WriteCheckpoint(std::ofstream& outFile)
-{
-	tw::Int i,num;
-	outFile.write((char*)&waveType,sizeof(waveFunctionType));
-	outFile.write((char*)&waveEquation,sizeof(waveEquationType));
-	outFile.write((char*)&amplitude,sizeof(tw::Complex));
-	outFile.write((char*)&Lam,sizeof(tw::Float));
-	outFile.write((char*)&Jam,sizeof(tw::Float));
-	outFile.write((char*)&jzam,sizeof(tw::Float));
-	outFile.write((char*)&nr,sizeof(tw::Float));
-	outFile.write((char*)&k,sizeof(tw::vec3));
-	outFile.write((char*)&negativeEnergy,sizeof(bool));
-	outFile.write((char*)&helicity,sizeof(tw::Float));
-	outFile.write((char*)&size,sizeof(tw::vec3));
-	outFile.write((char*)&cell_size,sizeof(tw::vec3));
-	outFile.write((char*)&qnuc,sizeof(tw::Float));
-	outFile.write((char*)&qorb,sizeof(tw::Float));
-	outFile.write((char*)&morb,sizeof(tw::Float));
-	outFile.write((char*)&energy,sizeof(tw::Float));
-	outFile.write((char*)&normalizationConstant,sizeof(tw::Float));
-	outFile.write((char*)&cylindricalAtom,sizeof(bool));
-
-	num = radialFunction.size();
-	outFile.write((char*)&num,sizeof(tw::Int));
-	outFile.write((char*)&components,sizeof(tw::Int));
-	for (i=0;i<num;i++)
-		outFile.write((char*)&radialFunction[i],sizeof(tw::Float));
-}
 
 
 ////////////////////////////////
@@ -523,12 +18,12 @@ AtomicPhysics::AtomicPhysics(const std::string& name,Simulation* sim):Module(nam
 	alpha = 0.0072973525664;
 	timeRelaxingToGround = 0.0;
 
-	potentialTypeSpec = qo::softCore;
-	nuclearRadius = 0.01;
-	residualCharge = 1.0;
-	B0 = 0.0;
-	m0 = 1.0;
-	q0 = -1.0;
+	H.form = qo::schroedinger;
+	H.qorb = -1.0;
+	H.morb = 1.0;
+	H.qnuc = 1.0;
+	H.rnuc = 0.01;
+	H.B0 = 0.0;
 
 	A4.Initialize(4,*this,owner,tw::grid::x);
 	Ao4.Initialize(4,*this,owner,tw::grid::x);
@@ -543,14 +38,14 @@ AtomicPhysics::AtomicPhysics(const std::string& name,Simulation* sim):Module(nam
 	J4.InitializeComputeBuffer();
 	#endif
 
-	directives.Add("orbiting charge",new tw::input::Float(&q0));
-	directives.Add("orbiting mass",new tw::input::Float(&m0));
-	directives.Add("B0",new tw::input::Vec3(&B0));
-	directives.Add("keep a2 term",new tw::input::Bool(&keepA2Term));
-	directives.Add("dipole approximation",new tw::input::Bool(&dipoleApproximation));
-	directives.Add("relaxation time",new tw::input::Float(&timeRelaxingToGround));
-	directives.Add("soft core potential charge",new tw::input::Custom);
-	directives.Add("bachelet potential",new tw::input::Custom);
+	directives.Add("orbiting charge",new tw::input::Float(&H.qorb),false);
+	directives.Add("orbiting mass",new tw::input::Float(&H.morb),false);
+	directives.Add("B0",new tw::input::Vec3(&H.B0),false);
+	directives.Add("keep a2 term",new tw::input::Bool(&keepA2Term),false);
+	directives.Add("dipole approximation",new tw::input::Bool(&dipoleApproximation),false);
+	directives.Add("relaxation time",new tw::input::Float(&timeRelaxingToGround),false);
+	directives.Add("soft core potential charge",new tw::input::Custom,false);
+	directives.Add("bachelet potential",new tw::input::Custom,false);
 }
 
 AtomicPhysics::~AtomicPhysics()
@@ -562,17 +57,8 @@ AtomicPhysics::~AtomicPhysics()
 
 tw::Float AtomicPhysics::GetSphericalPotential(tw::Float r) const
 {
-	tw::Int j;
-	tw::Float ans;
-	if (potentialTypeSpec==qo::softCore)
-		ans = residualCharge/sqrt(sqr(nuclearRadius) + sqr(r));
-	if (potentialTypeSpec==qo::bachelet)
-	{
-		ans = (residualCharge / r) * (c1*erf(sqrt(a1)*r) + c2*erf(sqrt(a2)*r));
-		for (j=0;j<3;j++)
-			ans -= (Asr[j] + r*r*Asr[j+3])*exp(-asr[j]*r*r);
-	}
-	return ans;
+	return H.qnuc/sqrt(sqr(H.rnuc) + sqr(r));
+	//return (H.qnuc / r) * (H.c1*erf(sqrt(H.a1)*r) + H.c2*erf(sqrt(H.a2)*r));
 }
 
 void AtomicPhysics::Initialize()
@@ -619,12 +105,18 @@ void AtomicPhysics::Initialize()
 			break;
 	}
 
-	// Wavefunction and Potentials are initialized in sub classes
+	// Error check quantum numbers
+
+	for (auto w : waveFunction)
+		if (!w->GoodQuantumNumbers(H))
+			throw tw::FatalError("Bad quantum numbers detected in module <"+name+">");
 }
 
 void AtomicPhysics::ExchangeResources()
 {
+	Module::ExchangeResources();
 	PublishResource(&J4,"qo:j4");
+	PublishResource(&H,"qo:H");
 }
 
 void AtomicPhysics::FormPotentials(tw::Float t)
@@ -642,7 +134,7 @@ void AtomicPhysics::FormPotentials(tw::Float t)
 			phiNow = GetSphericalPotential(r);
 			r_cart = dipoleApproximation ? tw::vec3(0,0,0) : owner->Pos(cell);
 			owner->CurvilinearToCartesian(&r_cart);
-			A0 = A1 = tw::vec3(-0.5*r_cart.y*B0.z,0.5*r_cart.x*B0.z,0.0);
+			A0 = A1 = tw::vec3(-0.5*r_cart.y*H.B0.z,0.5*r_cart.x*H.B0.z,0.0);
 			for (tw::Int s=0;s<wave.size();s++)
 			{
 				A0 += wave[s]->VectorPotential(t-dt,r_cart);
@@ -680,7 +172,7 @@ void AtomicPhysics::FormGhostCellPotentials(tw::Float t)
 					for (tw::Int ghostCell=0;ghostCell<=Dim(s.Axis())+1;ghostCell+=Dim(s.Axis())+1)
 					{
 						tw::vec3 pos(owner->Pos(s,ghostCell));
-						tw::vec3 A3(-0.5*pos.y*B0.z,0.5*pos.x*B0.z,0.0);
+						tw::vec3 A3(-0.5*pos.y*H.B0.z,0.5*pos.x*H.B0.z,0.0);
 						for (tw::Int wv=0;wv<wave.size();wv++)
 							A3 += wave[wv]->VectorPotential(t,pos);
 						if ((ghostCell==0 && owner->n0[ax]==MPI_PROC_NULL) || (ghostCell!=0 && owner->n1[ax]==MPI_PROC_NULL))
@@ -714,8 +206,13 @@ void AtomicPhysics::VerifyInput()
 {
 	Module::VerifyInput();
 	if (owner->gridGeometry!=tw::grid::cartesian)
-		if (B0.x!=0.0 || B0.y!=0.0 || B0.z!=0.0)
+		if (Norm(H.B0)!=0.0)
 			throw tw::FatalError("Static B field assumes Cartesian geometry.");
+	for (auto tool : moduleTool)
+	{
+		QState *state = dynamic_cast<QState*>(tool);
+		if (state) waveFunction.push_back(state);
+	}
 	for (auto tool : moduleTool)
 	{
 		photonPropagator = dynamic_cast<LorentzPropagator*>(tool);
@@ -729,82 +226,28 @@ void AtomicPhysics::VerifyInput()
 void AtomicPhysics::ReadInputFileDirective(std::stringstream& inputString,const std::string& command)
 {
 	std::string word;
-	// Must intercept new before Module::ReadInputFileDirective,
-	// otherwise submodule interpretation will be made.
-	if (command=="new")
-	{
-		inputString >> word;
-		if (word=="wavefunction")
-		{
-			waveFunction.push_back(qo::State(owner,owner->uniformDeviate));
-			waveFunction.back().ReadInputFileBlock(inputString);
-		}
-		if (word=="reference")
-		{
-			refState.push_back(qo::State(owner,owner->uniformDeviate));
-			refState.back().ReadInputFileBlock(inputString);
-		}
-	}
-	else
-		Module::ReadInputFileDirective(inputString,command);
+	Module::ReadInputFileDirective(inputString,command);
 	// note: examples of charge are geared toward atomic units
 	// if using natural units, unit of charge is sqrt(alpha) ~ 0.085
-	// at present unit conversions are not performed in quantum modules---you have to enter it as it will be used
 	if (command=="soft core potential charge") // eg, soft core potential , charge = 1.0 , radius = 0.01
 	{
-		potentialTypeSpec = qo::softCore;
-		inputString >> word >> residualCharge >> word >> word >> nuclearRadius;
+		inputString >> word >> H.qnuc >> word >> word >> H.rnuc;
 	}
-	if (command=="bachelet potential") // eg, bachelet potential = ...
+	if (command=="bachelet potential") // eg, bachelet potential = 1.0 1.0 1.0 0.1 0.5
 	{
-		potentialTypeSpec = qo::bachelet;
 		inputString >> word;
-		inputString >> residualCharge;
-		inputString >> c1 >> c2 >> a1 >> a2;
-		inputString >> Asr[0] >> Asr[1] >> Asr[2] >> Asr[3] >> Asr[4] >> Asr[5];
-		inputString >> asr[0] >> asr[1] >> asr[2];
+		inputString >> H.qnuc;
+		inputString >> H.c1 >> H.c2 >> H.a1 >> H.a2;
 	}
 }
 
 void AtomicPhysics::ReadCheckpoint(std::ifstream& inFile)
 {
-	tw::Int num;
-
 	Module::ReadCheckpoint(inFile);
-	inFile.read((char *)&potentialTypeSpec,sizeof(qo::potentialType));
-	inFile.read((char *)&residualCharge,sizeof(tw::Float));
-	inFile.read((char *)&nuclearRadius,sizeof(tw::Float));
-	inFile.read((char *)&c1,sizeof(tw::Float));
-	inFile.read((char *)&c2,sizeof(tw::Float));
-	inFile.read((char *)&a1,sizeof(tw::Float));
-	inFile.read((char *)&a2,sizeof(tw::Float));
-	inFile.read((char *)Asr,6*sizeof(tw::Float));
-	inFile.read((char *)asr,3*sizeof(tw::Float));
-	inFile.read((char *)&B0,sizeof(tw::vec3));
-	inFile.read((char *)&q0,sizeof(tw::Float));
-	inFile.read((char *)&m0,sizeof(tw::Float));
+	inFile.read((char *)&H,sizeof(H));
 	inFile.read((char *)&keepA2Term,sizeof(bool));
 	inFile.read((char *)&dipoleApproximation,sizeof(bool));
 	inFile.read((char *)&timeRelaxingToGround,sizeof(tw::Float));
-	inFile.read((char *)&groundStateEnergy,sizeof(tw::Float));
-
-	inFile.read((char *)&num,sizeof(tw::Int));
-	for (tw::Int i=0;i<num;i++)
-	{
-		waveFunction.push_back(qo::State(owner,owner->uniformDeviate));
-		inFile.read((char *)&waveFunction.back(),sizeof(qo::State));
-		waveFunction.back().space = owner;
-		waveFunction.back().ud = owner->uniformDeviate;
-	}
-
-	inFile.read((char *)&num,sizeof(tw::Int));
-	for (tw::Int i=0;i<num;i++)
-	{
-		refState.push_back(qo::State(owner,owner->uniformDeviate));
-		inFile.read((char *)&refState.back(),sizeof(qo::State));
-		refState.back().space = owner;
-		refState.back().ud = owner->uniformDeviate;
-	}
 
 	psi_r.ReadCheckpoint(inFile);
 	psi_i.ReadCheckpoint(inFile);
@@ -815,35 +258,11 @@ void AtomicPhysics::ReadCheckpoint(std::ifstream& inFile)
 
 void AtomicPhysics::WriteCheckpoint(std::ofstream& outFile)
 {
-	tw::Int num;
-
 	Module::WriteCheckpoint(outFile);
-	outFile.write((char *)&potentialTypeSpec,sizeof(qo::potentialType));
-	outFile.write((char *)&residualCharge,sizeof(tw::Float));
-	outFile.write((char *)&nuclearRadius,sizeof(tw::Float));
-	outFile.write((char *)&c1,sizeof(tw::Float));
-	outFile.write((char *)&c2,sizeof(tw::Float));
-	outFile.write((char *)&a1,sizeof(tw::Float));
-	outFile.write((char *)&a2,sizeof(tw::Float));
-	outFile.write((char *)Asr,6*sizeof(tw::Float));
-	outFile.write((char *)asr,3*sizeof(tw::Float));
-	outFile.write((char *)&B0,sizeof(tw::vec3));
-	outFile.write((char *)&q0,sizeof(tw::Float));
-	outFile.write((char *)&m0,sizeof(tw::Float));
+	outFile.write((char *)&H,sizeof(H));
 	outFile.write((char *)&keepA2Term,sizeof(bool));
 	outFile.write((char *)&dipoleApproximation,sizeof(bool));
 	outFile.write((char *)&timeRelaxingToGround,sizeof(tw::Float));
-	outFile.write((char *)&groundStateEnergy,sizeof(tw::Float));
-
-	num = waveFunction.size();
-	outFile.write((char *)&num,sizeof(tw::Int));
-	for (tw::Int i=0;i<num;i++)
-		outFile.write((char *)&waveFunction[i],sizeof(qo::State));
-
-	num = refState.size();
-	outFile.write((char *)&num,sizeof(tw::Int));
-	for (tw::Int i=0;i<num;i++)
-		outFile.write((char *)&refState[i],sizeof(qo::State));
 
 	psi_r.WriteCheckpoint(outFile);
 	psi_i.WriteCheckpoint(outFile);
@@ -864,6 +283,7 @@ Schroedinger::Schroedinger(const std::string& name,Simulation* sim):AtomicPhysic
 {
 	// Should move OpenCL stuff into the propagator tool
 	typeCode = tw::module_type::schroedinger;
+	H.form = qo::schroedinger;
 	#ifndef USE_OPENCL
 	propagator = NULL;
 	#endif
@@ -931,6 +351,12 @@ Schroedinger::~Schroedinger()
 	#endif
 }
 
+void Schroedinger::ExchangeResources()
+{
+	AtomicPhysics::ExchangeResources();
+	PublishResource(&psi1,"qo:psi");
+}
+
 void Schroedinger::VerifyInput()
 {
 	AtomicPhysics::VerifyInput();
@@ -963,25 +389,14 @@ void Schroedinger::Initialize()
 		std::valarray<tw::Float> eigenvector(dim),phi_r(dim);
 		for (tw::Int i=0;i<dim;i++)
 			phi_r[i] = GetSphericalPotential((tw::Float(i)+0.5)*dr);
-		groundStateEnergy = GetSphericalGroundState(eigenvector,phi_r,dr);
+		tw::Float groundStateEnergy = GetSphericalGroundState(eigenvector,phi_r,dr);
 		(*owner->tw_out) << "Numerical ground state energy = " << groundStateEnergy << std::endl;
-
-		for (tw::Int s=0;s<waveFunction.size();s++)
-		{
-			waveFunction[s].Initialize(qo::schroedinger,residualCharge,q0,m0);
-			(*owner->tw_out) << "Wavefunction " << s << " : energy = " << waveFunction[s].energy << std::endl;
-		}
-		for (tw::Int s=0;s<refState.size();s++)
-		{
-			refState[s].Initialize(qo::schroedinger,residualCharge,q0,m0);
-			(*owner->tw_out) << "Reference " << s << " : energy = " << refState[s].energy << std::endl;
-		}
 
 		#pragma omp parallel
 		{
 			for (auto cell : EntireCellRange(*this))
-				for (tw::Int s=0;s<waveFunction.size();s++)
-					psi1(cell) += waveFunction[s].Amplitude(owner->Pos(cell),0.0,0);
+				for (auto w : waveFunction)
+					psi1(cell) += w->Amplitude(H,owner->Pos(cell),0.0,0);
 		}
 		Normalize();
 		psi0 = psi1;
@@ -1004,7 +419,6 @@ void Schroedinger::Initialize()
 void Schroedinger::Update()
 {
 	Field mpi_packet;
-	tw::Int i,j,k;
 	tw::Float partitionFactor,relax,totalProbability;
 	partitionFactor = 1.0/tw::Float(owner->Dimensionality());
 	relax = owner->elapsedTime < timeRelaxingToGround ? 1.0 : 0.0;
@@ -1027,13 +441,13 @@ void Schroedinger::Update()
 	owner->CellUpdateProtocol(chargeKernel);
 
 	// Loop over Dimensions Updating Wavefunction and Currents
-	for (i=1;i<=3;i++)
+	for (tw::Int i=1;i<=3;i++)
 	{
 		if (owner->localCells[i]>1)
 		{
 			CopyComputeBuffer(psi0,psi1);
-			j = i > 2 ? i-2 : i+1; // 2 , 3 , 1
-			k = i > 1 ? i-1 : i+2; // 3 , 1 , 2
+			tw::Int j = i > 2 ? i-2 : i+1; // 2 , 3 , 1
+			tw::Int k = i > 1 ? i-1 : i+2; // 3 , 1 , 2
 			DiscreteSpace mpi_layout;
 			mpi_layout.Resize(owner->localCells[j],owner->localCells[k],1,corner,size);
 			mpi_packet.Initialize(16,mpi_layout,owner);
@@ -1131,14 +545,13 @@ void Schroedinger::UpdateJ4()
 {
 	// Here is the naive centered differencing to determine the non-relativistic probability current.
 	// The results are usually pathological.  The conservative scheme should be used instead.
-	tw::Int i,j,k;
 	tw::Complex psiNow,psi_x,psi_y,psi_z;
 	if (owner->elapsedTime < timeRelaxingToGround)
 		return;
 
-	for (k=1;k<=dim[3];k++)
-		for (j=1;j<=dim[2];j++)
-			for (i=1;i<=dim[1];i++)
+	for (tw::Int k=1;k<=dim[3];k++)
+		for (tw::Int j=1;j<=dim[2];j++)
+			for (tw::Int i=1;i<=dim[1];i++)
 			{
 				psiNow = psi1(i,j,k);
 				psi_x = (psi1(i+1,j,k) - psi1(i-1,j,k))/owner->dL(i,j,k,1);
@@ -1146,9 +559,9 @@ void Schroedinger::UpdateJ4()
 				psi_z = (psi1(i,j,k+1) - psi1(i,j,k-1))/owner->dL(i,j,k,3);
 
 				J4(i,j,k,0) = norm(psiNow);
-				J4(i,j,k,1) = -real((half*ii/m0) * (conj(psiNow)*psi_x - conj(psi_x)*psiNow)) - q0*A4(i,j,k,1)*norm(psiNow)/m0;
-				J4(i,j,k,2) = -real((half*ii/m0) * (conj(psiNow)*psi_y - conj(psi_y)*psiNow)) - q0*A4(i,j,k,2)*norm(psiNow)/m0;
-				J4(i,j,k,3) = -real((half*ii/m0) * (conj(psiNow)*psi_z - conj(psi_z)*psiNow)) - q0*A4(i,j,k,3)*norm(psiNow)/m0;
+				J4(i,j,k,1) = -real((half*ii/H.morb) * (conj(psiNow)*psi_x - conj(psi_x)*psiNow)) - H.qorb*A4(i,j,k,1)*norm(psiNow)/H.morb;
+				J4(i,j,k,2) = -real((half*ii/H.morb) * (conj(psiNow)*psi_y - conj(psi_y)*psiNow)) - H.qorb*A4(i,j,k,2)*norm(psiNow)/H.morb;
+				J4(i,j,k,3) = -real((half*ii/H.morb) * (conj(psiNow)*psi_z - conj(psi_z)*psiNow)) - H.qorb*A4(i,j,k,3)*norm(psiNow)/H.morb;
 			}
 	J4.CopyFromNeighbors();
 	J4.ApplyBoundaryCondition();
@@ -1194,27 +607,6 @@ void Schroedinger::Report(Diagnostic& diagnostic)
 	diagnostic.FirstMoment("Dy",temp,0,r0,tw::grid::y);
 	diagnostic.FirstMoment("Dz",temp,0,r0,tw::grid::z);
 
-	for (tw::Int s=0;s<refState.size();s++)
-	{
-		for (auto cell : InteriorCellRange(*this))
-		{
-			const tw::vec3 pos = owner->Pos(cell);
-			// the following is a gauge transformation to "remove" the uniform A
-			const tw::Complex psiNow = psi1(cell)*std::exp(-ii*q0*(ANow^pos));
-			temp(cell) = real(conj(refState[s].Amplitude(pos,owner->elapsedTime,0))*psi1(cell));
-		}
-		diagnostic.VolumeIntegral("real<ref"+std::to_string(s)+"|psi>",temp,0);
-
-		for (auto cell : InteriorCellRange(*this))
-		{
-			const tw::vec3 pos = owner->Pos(cell);
-			// the following is a gauge transformation to "remove" the uniform A
-			const tw::Complex psiNow = psi1(cell)*std::exp(-ii*q0*(ANow^pos));
-			temp(cell) = imag(conj(refState[s].Amplitude(pos,owner->elapsedTime,0))*psi1(cell));
-		}
-		diagnostic.VolumeIntegral("imag<ref"+std::to_string(s)+"|psi>",temp,0);
-	}
-
 	diagnostic.Field("psi_r",psi1,0);
 	diagnostic.Field("psi_i",psi1,1);
 
@@ -1254,6 +646,7 @@ Pauli::Pauli(const std::string& name,Simulation* sim):AtomicPhysics(name,sim)
 {
 	throw tw::FatalError("Pauli module is not supported in this version of TW.");
 	typeCode = tw::module_type::pauli;
+	H.form = qo::pauli;
 	#ifndef USE_OPENCL
 	propagator = NULL;
 	#endif
@@ -1463,9 +856,10 @@ KleinGordon::KleinGordon(const std::string& name,Simulation* sim) : AtomicPhysic
 	// Component 1 is psi1 = (id/dt - q*phi)*psi0/m
 	// The symmetric form is obtained from (psi0+psi1)/sqrt(2) , (psi0-psi1)/sqrt(2)
 	typeCode = tw::module_type::kleinGordon;
-	m0 = 1.0;
-	q0 = -sqrt(alpha);
-	residualCharge = sqrt(alpha);
+	H.form = qo::klein_gordon;
+	H.morb = 1.0;
+	H.qorb = -sqrt(alpha);
+	H.qnuc = sqrt(alpha);
 	dipoleApproximation = false;
 	psi_r.Initialize(2,*this,owner,tw::grid::x);
 	psi_i.Initialize(2,*this,owner,tw::grid::x);
@@ -1504,26 +898,15 @@ void KleinGordon::Initialize()
 
 	if (!owner->restarted)
 	{
-		for (tw::Int s=0;s<waveFunction.size();s++)
-		{
-			waveFunction[s].Initialize(qo::klein_gordon,residualCharge,q0,m0);
-			(*owner->tw_out) << "Wavefunction " << s << " : energy = " << waveFunction[s].energy << std::endl;
-		}
-		for (tw::Int s=0;s<refState.size();s++)
-		{
-			refState[s].Initialize(qo::klein_gordon,residualCharge,q0,m0);
-			(*owner->tw_out) << "Reference " << s << " : energy = " << refState[s].energy << std::endl;
-		}
-
 		for (auto cell : InteriorCellRange(*this))
 		{
 			const tw::vec3 pos = owner->Pos(cell);
-			for (tw::Int s=0;s<waveFunction.size();s++)
+			for (auto w : waveFunction)
 			{
-				psi_r(cell,0) += real(waveFunction[s].Amplitude(pos,0.0,0));
-				psi_i(cell,0) += imag(waveFunction[s].Amplitude(pos,0.0,0));
-				psi_r(cell,1) += real(waveFunction[s].Amplitude(pos,dth,1));
-				psi_i(cell,1) += imag(waveFunction[s].Amplitude(pos,dth,1));
+				psi_r(cell,0) += real(w->Amplitude(H,pos,0.0,0));
+				psi_i(cell,0) += imag(w->Amplitude(H,pos,0.0,0));
+				psi_r(cell,1) += real(w->Amplitude(H,pos,dth,1));
+				psi_i(cell,1) += imag(w->Amplitude(H,pos,dth,1));
 			}
 		}
 
@@ -1540,17 +923,17 @@ void KleinGordon::Initialize()
 	psi_i.SendToComputeBuffer();
 	Ao4.SendToComputeBuffer();
 	A4.SendToComputeBuffer();
-	clSetKernelArg(updatePsi,4,sizeof(m0),&m0);
-	clSetKernelArg(updatePsi,5,sizeof(q0),&q0);
-	clSetKernelArg(updateChi,4,sizeof(m0),&m0);
-	clSetKernelArg(updateChi,5,sizeof(q0),&q0);
+	clSetKernelArg(updatePsi,4,sizeof(H.morb),&H.morb);
+	clSetKernelArg(updatePsi,5,sizeof(H.qorb),&H.qorb);
+	clSetKernelArg(updateChi,4,sizeof(H.morb),&H.morb);
+	clSetKernelArg(updateChi,5,sizeof(H.qorb),&H.qorb);
 
 	#endif
 }
 
 tw::Float KleinGordon::ComputeRho(const tw::cell& cell)
 {
-	return q0*(norm(FV(cell,1.0)) - norm(FV(cell,-1.0)));
+	return H.qorb*(norm(FV(cell,1.0)) - norm(FV(cell,-1.0)));
 }
 
 void KleinGordon::UpdateJ4()
@@ -1561,7 +944,7 @@ void KleinGordon::UpdateJ4()
 		{
 			for (tw::Int i=1;i<=dim[1];i++)
 			{
-				J4(v,i,0) = q0*(norm(FV(v,i,1.0)) - norm(FV(v,i,-1.0)));
+				J4(v,i,0) = H.qorb*(norm(FV(v,i,1.0)) - norm(FV(v,i,-1.0)));
 				J4(v,i,1) = 0.0;
 				J4(v,i,2) = 0.0;
 				J4(v,i,3) = 0.0;
@@ -1578,8 +961,8 @@ void KleinGordon::Normalize()
 	for (auto cell : InteriorCellRange(*this))
 		totalCharge += ComputeRho(cell) * owner->dS(cell,0);
 	owner->strip[0].AllSum(&totalCharge,&totalCharge,sizeof(tw::Float),0);
-	psi_r *= sqrt(fabs(q0/totalCharge));
-	psi_i *= sqrt(fabs(q0/totalCharge));
+	psi_r *= sqrt(fabs(H.qorb/totalCharge));
+	psi_i *= sqrt(fabs(H.qorb/totalCharge));
 	psi_r.CopyFromNeighbors();
 	psi_r.ApplyBoundaryCondition();
 	psi_i.CopyFromNeighbors();
@@ -1619,6 +1002,8 @@ void KleinGordon::Update()
 	// Advance psi to n+1/2 using chi(n),A(n)
 	// Advance chi to n+1 using psi(n+1/2),A(n+1/2)
 
+	static const tw::Float q0 = H.qorb;
+	static const tw::Float m0 = H.morb;
 	static const tw::Int AB = tw::vec_align_bytes;
 	#pragma omp parallel
 	{
@@ -1745,33 +1130,6 @@ void KleinGordon::Report(Diagnostic& diagnostic)
 	diagnostic.FirstMoment("Dy",J4,0,r0,tw::grid::y);
 	diagnostic.FirstMoment("Dz",J4,0,r0,tw::grid::z);
 
-	for (tw::Int s=0;s<refState.size();s++)
-	{
-		for (auto cell : InteriorCellRange(*this))
-		{
-			const tw::vec3 pos = owner->Pos(cell);
-			// Feshbach-Villars decomposition, including gauge transformation
-			const tw::Complex estate = FV(cell,1.0)*std::exp(-ii*q0*(ANow^pos));
-			const tw::Complex pstate = FV(cell,-1.0)*std::exp(-ii*q0*(ANow^pos));
-			const tw::Complex psi_ref = refState[s].Amplitude(pos,0.0,0)/root2;
-			const tw::Complex chi_ref = refState[s].Amplitude(pos,0.0,1)/root2;
-			temp(cell) = real(conj(psi_ref+chi_ref)*estate - conj(psi_ref-chi_ref)*pstate);
-		}
-		diagnostic.VolumeIntegral("real<ref"+std::to_string(s)+"|psi>",temp,0);
-
-		for (auto cell : InteriorCellRange(*this))
-		{
-			const tw::vec3 pos = owner->Pos(cell);
-			// Feshbach-Villars decomposition, including gauge transformation
-			const tw::Complex estate = FV(cell,1.0)*std::exp(-ii*q0*(ANow^pos));
-			const tw::Complex pstate = FV(cell,-1.0)*std::exp(-ii*q0*(ANow^pos));
-			const tw::Complex psi_ref = refState[s].Amplitude(pos,0.0,0)/root2;
-			const tw::Complex chi_ref = refState[s].Amplitude(pos,0.0,1)/root2;
-			temp(cell) = imag(conj(psi_ref+chi_ref)*estate - conj(psi_ref-chi_ref)*pstate);
-		}
-		diagnostic.VolumeIntegral("imag<ref"+std::to_string(s)+"|psi>",temp,0);
-	}
-
 	diagnostic.Field("psi0_r",psi_r,0);
 	diagnostic.Field("psi1_r",psi_r,1);
 
@@ -1809,9 +1167,10 @@ Dirac::Dirac(const std::string& name,Simulation* sim) : AtomicPhysics(name,sim)
 	// Wavefunction is in standard representation
 	// i.e., gamma^0 = diag(1,1,-1,-1)
 	typeCode = tw::module_type::dirac;
-	m0 = 1.0;
-	q0 = -sqrt(alpha);
-	residualCharge = sqrt(alpha);
+	H.form = qo::dirac;
+	H.morb = 1.0;
+	H.qorb = -sqrt(alpha);
+	H.qnuc = sqrt(alpha);
 	dipoleApproximation = false;
 	psi_r.Initialize(4,*this,owner,tw::grid::x);
 	psi_i.Initialize(4,*this,owner,tw::grid::x);
@@ -1841,32 +1200,21 @@ void Dirac::Initialize()
 
 	if (!owner->restarted)
 	{
-		for (tw::Int s=0;s<waveFunction.size();s++)
-		{
-			waveFunction[s].Initialize(qo::dirac,residualCharge,q0,m0);
-			(*owner->tw_out) << "Wavefunction " << s << " : energy = " << waveFunction[s].energy << std::endl;
-		}
-		for (tw::Int s=0;s<refState.size();s++)
-		{
-			refState[s].Initialize(qo::dirac,residualCharge,q0,m0);
-			(*owner->tw_out) << "Reference " << s << " : energy = " << refState[s].energy << std::endl;
-		}
-
 		#pragma omp parallel
 		{
 			for (auto cell : InteriorCellRange(*this))
 			{
 				tw::vec3 pos = owner->Pos(cell);
-				for (tw::Int s=0;s<waveFunction.size();s++)
+				for (auto w : waveFunction)
 				{
-					psi_r(cell,0) += real(waveFunction[s].Amplitude(pos,0.0,0));
-					psi_r(cell,1) += real(waveFunction[s].Amplitude(pos,0.0,1));
-					psi_r(cell,2) += real(waveFunction[s].Amplitude(pos,dth,2));
-					psi_r(cell,3) += real(waveFunction[s].Amplitude(pos,dth,3));
-					psi_i(cell,0) += imag(waveFunction[s].Amplitude(pos,0.0,0));
-					psi_i(cell,1) += imag(waveFunction[s].Amplitude(pos,0.0,1));
-					psi_i(cell,2) += imag(waveFunction[s].Amplitude(pos,dth,2));
-					psi_i(cell,3) += imag(waveFunction[s].Amplitude(pos,dth,3));
+					psi_r(cell,0) += real(w->Amplitude(H,pos,0.0,0));
+					psi_r(cell,1) += real(w->Amplitude(H,pos,0.0,1));
+					psi_r(cell,2) += real(w->Amplitude(H,pos,dth,2));
+					psi_r(cell,3) += real(w->Amplitude(H,pos,dth,3));
+					psi_i(cell,0) += imag(w->Amplitude(H,pos,0.0,0));
+					psi_i(cell,1) += imag(w->Amplitude(H,pos,0.0,1));
+					psi_i(cell,2) += imag(w->Amplitude(H,pos,dth,2));
+					psi_i(cell,3) += imag(w->Amplitude(H,pos,dth,3));
 				}
 			}
 		}
@@ -1888,8 +1236,8 @@ void Dirac::Initialize()
 	clSetKernelArg(leapFrog,1,sizeof(cl_mem),&psi_i.computeBuffer);
 	clSetKernelArg(leapFrog,2,sizeof(cl_mem),&A4.computeBuffer);
 	clSetKernelArg(leapFrog,3,sizeof(cl_mem),&owner->metricsBuffer);
-	clSetKernelArg(leapFrog,4,sizeof(m0),&m0);
-	clSetKernelArg(leapFrog,5,sizeof(q0),&q0);
+	clSetKernelArg(leapFrog,4,sizeof(H.morb),&H.morb);
+	clSetKernelArg(leapFrog,5,sizeof(H.qorb),&H.qorb);
 
 	#endif
 }
@@ -1899,7 +1247,7 @@ tw::Float Dirac::ComputeRho(const tw::cell& cell)
 	tw::Float ans = 0.0;
 	for (tw::Int c=0;c<4;c++)
 		ans += sqr(psi_r(cell,c)) + sqr(psi_i(cell,c));
-	return q0*ans;
+	return H.qorb*ans;
 }
 
 void Dirac::UpdateJ4()
@@ -1913,10 +1261,10 @@ void Dirac::UpdateJ4()
 			z1 = tw::Complex(psi_r(cell,1),psi_i(cell,1));
 			z2 = tw::Complex(psi_r(cell,2),psi_i(cell,2));
 			z3 = tw::Complex(psi_r(cell,3),psi_i(cell,3));
-			J4(cell,0) = q0*(norm(z0)+norm(z1)+norm(z2)+norm(z3));
-			J4(cell,1) = two*q0*real(conj(z0)*z3 + z1*conj(z2));
-			J4(cell,2) = two*q0*imag(conj(z0)*z3 + z1*conj(z2));
-			J4(cell,3) = two*q0*real(z0*conj(z2) - z1*conj(z3));
+			J4(cell,0) = H.qorb*(norm(z0)+norm(z1)+norm(z2)+norm(z3));
+			J4(cell,1) = two*H.qorb*real(conj(z0)*z3 + z1*conj(z2));
+			J4(cell,2) = two*H.qorb*imag(conj(z0)*z3 + z1*conj(z2));
+			J4(cell,3) = two*H.qorb*real(z0*conj(z2) - z1*conj(z3));
 		}
 	}
 	J4.CopyFromNeighbors();
@@ -1929,8 +1277,8 @@ void Dirac::Normalize()
 	for (auto cell : InteriorCellRange(*this))
 		totalCharge += ComputeRho(cell) * owner->dS(cell,0);
 	owner->strip[0].AllSum(&totalCharge,&totalCharge,sizeof(tw::Float),0);
-	psi_r *= sqrt(fabs(q0/totalCharge));
-	psi_i *= sqrt(fabs(q0/totalCharge));
+	psi_r *= sqrt(fabs(H.qorb/totalCharge));
+	psi_i *= sqrt(fabs(H.qorb/totalCharge));
 	psi_r.CopyFromNeighbors();
 	psi_r.ApplyBoundaryCondition();
 	psi_i.CopyFromNeighbors();
@@ -1951,7 +1299,7 @@ void Dirac::Update()
 	// Advance psi2,psi3 to n+1 using psi0(n+1/2),psi1(n+1/2),A(n+1/2)
 
 	cl_int components[4] = { 0,1,2,3 };
-	tw::Float mass[2] = { m0 , -m0 };
+	tw::Float mass[2] = { H.morb , -H.morb };
 
 	// Update upper pair in the bispinor
 	clSetKernelArg(leapFrog,4,sizeof(tw::Float),&mass[0]);
@@ -2066,4 +1414,113 @@ void Dirac::StartDiagnostics()
 	A4.ReceiveFromComputeBuffer();
 	#endif
 	UpdateJ4();
+}
+
+PopulationDiagnostic::PopulationDiagnostic(const std::string& name,Simulation *sim) : Module(name,sim)
+{
+	typeCode = tw::module_type::populationDiagnostic;
+	H = NULL;
+	psi = NULL;
+}
+
+bool PopulationDiagnostic::InspectResource(void* resource,const std::string& description)
+{
+	// The Hamiltonian parameters and wavefunction we want to analyze come from some other module.
+	// We get this data via the publisher-consumer resource exchange mechanism.
+	if (description=="qo:H")
+	{
+		H = (HamiltonianParameters*)resource;
+		return true;
+	}
+	if (description=="qo:psi")
+	{
+		psi = (ComplexField*)resource;
+		return true;
+	}
+	return false;
+}
+
+void PopulationDiagnostic::VerifyInput()
+{
+	// The reference states are encapsulated as QState tools.
+	// These are attached explicitly by the user in the input file.
+	for (auto tool : moduleTool)
+	{
+		QState *state = dynamic_cast<QState*>(tool);
+		if (state) refState.push_back(state);
+	}
+	// EM waves are also attached in the input file.
+	// Module base class already populates the wave list.
+	// However the user has to know to attach waves to all modules that need them.
+}
+
+void PopulationDiagnostic::Initialize()
+{
+	for (auto ref : refState)
+		if (!ref->GoodQuantumNumbers(*H))
+			throw tw::FatalError("Bad quantum numbers detected in module <"+name+">");
+}
+
+void PopulationDiagnostic::Report(Diagnostic& diagnostic)
+{
+	Module::Report(diagnostic);
+
+	ScalarField temp;
+	temp.Initialize(*this,owner);
+
+	tw::vec3 ANow(0.0);
+	for (auto w : wave)
+		ANow += w->VectorPotential(owner->elapsedTime,tw::vec3(0,0,0));
+
+	for (auto ref : refState)
+	{
+		// Real part
+		for (auto cell : InteriorCellRange(*this))
+		{
+			const tw::vec3 pos = owner->Pos(cell);
+			// the following is a gauge transformation to "remove" the uniform A
+			const tw::Complex psiNow = (*psi)(cell)*std::exp(-ii*H->qorb*(ANow^pos));
+			temp(cell) = real(conj(ref->Amplitude(*H,pos,owner->elapsedTime,0))*psiNow);
+		}
+		diagnostic.VolumeIntegral("real<"+ref->name+"|psi>",temp,0);
+
+		// Imaginary part
+		for (auto cell : InteriorCellRange(*this))
+		{
+			const tw::vec3 pos = owner->Pos(cell);
+			// the following is a gauge transformation to "remove" the uniform A
+			const tw::Complex psiNow = (*psi)(cell)*std::exp(-ii*H->qorb*(ANow^pos));
+			temp(cell) = imag(conj(ref->Amplitude(*H,pos,owner->elapsedTime,0))*psiNow);
+		}
+		diagnostic.VolumeIntegral("imag<"+ref->name+"|psi>",temp,0);
+	}
+
+	// Relativistic scalar overlaps - enable this later.
+
+	// for (tw::Int s=0;s<refState.size();s++)
+	// {
+	// 	for (auto cell : InteriorCellRange(*this))
+	// 	{
+	// 		const tw::vec3 pos = owner->Pos(cell);
+	// 		// Feshbach-Villars decomposition, including gauge transformation
+	// 		const tw::Complex estate = FV(cell,1.0)*std::exp(-ii*H.qorb*(ANow^pos));
+	// 		const tw::Complex pstate = FV(cell,-1.0)*std::exp(-ii*H.qorb*(ANow^pos));
+	// 		const tw::Complex psi_ref = refState[s].Amplitude(pos,0.0,0)/root2;
+	// 		const tw::Complex chi_ref = refState[s].Amplitude(pos,0.0,1)/root2;
+	// 		temp(cell) = real(conj(psi_ref+chi_ref)*estate - conj(psi_ref-chi_ref)*pstate);
+	// 	}
+	// 	diagnostic.VolumeIntegral("real<ref"+std::to_string(s)+"|psi>",temp,0);
+	//
+	// 	for (auto cell : InteriorCellRange(*this))
+	// 	{
+	// 		const tw::vec3 pos = owner->Pos(cell);
+	// 		// Feshbach-Villars decomposition, including gauge transformation
+	// 		const tw::Complex estate = FV(cell,1.0)*std::exp(-ii*H.qorb*(ANow^pos));
+	// 		const tw::Complex pstate = FV(cell,-1.0)*std::exp(-ii*H.qorb*(ANow^pos));
+	// 		const tw::Complex psi_ref = refState[s].Amplitude(pos,0.0,0)/root2;
+	// 		const tw::Complex chi_ref = refState[s].Amplitude(pos,0.0,1)/root2;
+	// 		temp(cell) = imag(conj(psi_ref+chi_ref)*estate - conj(psi_ref-chi_ref)*pstate);
+	// 	}
+	// 	diagnostic.VolumeIntegral("imag<ref"+std::to_string(s)+"|psi>",temp,0);
+	// }
 }

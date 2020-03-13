@@ -178,12 +178,6 @@ Top level directives tend to come first in an input file.  They are not containe
 
 	:param int dp: steps before dumping restart file
 
-.. py:function:: append mode = am
-
-	if simulation is restarted, append data to diagnostic files rather than overwrite them
-
-	:param bool am: Use append mode if true.  Default is false.
-
 .. py:function:: output level = lvl
 
 	:param int lvl: If 0 then only MPI rank 0 writes an output file (to stdout).  If lvl > 0 than every MPI process produces an output file.

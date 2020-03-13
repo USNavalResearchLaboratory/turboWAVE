@@ -22,7 +22,7 @@ void tw::input::DirectiveReader::Reset()
 	keysFound.clear();
 }
 
-void tw::input::DirectiveReader::Add(const std::string& key,tw::input::Directive *dir)
+void tw::input::DirectiveReader::Add(const std::string& key,tw::input::Directive *dir,bool required)
 {
 	dmap[key] = dir;
 	// count number of words in this key
@@ -38,6 +38,9 @@ void tw::input::DirectiveReader::Add(const std::string& key,tw::input::Directive
 	// update max words
 	if (words>maxKeyWords)
 		maxKeyWords = words;
+	// update required keys
+	if (required)
+		requiredKeys.push_back(key);
 }
 
 std::string tw::input::DirectiveReader::ReadNext(std::stringstream& in)
@@ -80,6 +83,13 @@ void tw::input::DirectiveReader::ReadAll(std::stringstream& in)
 bool tw::input::DirectiveReader::TestKey(const std::string& test)
 {
 	return (keysFound.find(test)!=keysFound.end());
+}
+
+void tw::input::DirectiveReader::ThrowErrorIfMissingKeys(const std::string& src)
+{
+	for (auto s : requiredKeys)
+		if (!TestKey(s))
+			throw tw::FatalError("Missing required key <"+s+"> in <"+src+">");
 }
 
 

@@ -21,6 +21,7 @@ ComputeTool::ComputeTool(const std::string& name,MetricSpace *ms,Task *tsk)
 	theRgn = NULL;
 	programFilename = "";
 	buildLog = "";
+	directives.Add("clipping region",new tw::input::String(&region_name),false);
 }
 
 ComputeTool::~ComputeTool()
@@ -59,6 +60,7 @@ void ComputeTool::ReadInputFileBlock(std::stringstream& inputString)
 		com = directives.ReadNext(inputString);
 		ReadInputFileDirective(inputString,com);
 	} while (com!="}");
+	directives.ThrowErrorIfMissingKeys(name);
 }
 
 void ComputeTool::WarningMessage(std::ostream *theStream)
@@ -96,6 +98,7 @@ std::map<std::string,tw::tool_type> ComputeTool::Map()
 {
 	return
 	{
+		{"warp",tw::tool_type::warp},
 		{"conductor",tw::tool_type::conductor},
 		{"plane wave",tw::tool_type::planeWave},
 		{"hermite gauss",tw::tool_type::hermiteGauss},
@@ -133,7 +136,11 @@ std::map<std::string,tw::tool_type> ComputeTool::Map()
 		{"orbit diagnostic",tw::tool_type::particleOrbits},
 		{"phase space diagnostic",tw::tool_type::phaseSpaceDiagnostic},
 		{"energy diagnostic",tw::tool_type::volumeDiagnostic},
-		{"point diagnostic",tw::tool_type::pointDiagnostic}
+		{"point diagnostic",tw::tool_type::pointDiagnostic},
+		{"qstate free",tw::tool_type::freeState},
+		{"qstate bound",tw::tool_type::boundState},
+		{"qstate random",tw::tool_type::randomState},
+		{"qstate tabulated",tw::tool_type::tabulatedState}
 	};
 }
 
@@ -158,6 +165,9 @@ ComputeTool* ComputeTool::CreateObjectFromType(const std::string& name,tw::tool_
 	{
 		case tw::tool_type::none:
 			ans = NULL;
+			break;
+		case tw::tool_type::warp:
+			ans = new Warp(name,ms,tsk);
 			break;
 		case tw::tool_type::conductor:
 			ans = new Conductor(name,ms,tsk);
@@ -275,6 +285,18 @@ ComputeTool* ComputeTool::CreateObjectFromType(const std::string& name,tw::tool_
 			break;
 		case tw::tool_type::phaseSpaceDiagnostic:
 			ans = new PhaseSpaceDiagnostic(name,ms,tsk);
+			break;
+		case tw::tool_type::boundState:
+			ans = new BoundState(name,ms,tsk);
+			break;
+		case tw::tool_type::freeState:
+			ans = new FreeState(name,ms,tsk);
+			break;
+		case tw::tool_type::randomState:
+			ans = new RandomState(name,ms,tsk);
+			break;
+		case tw::tool_type::tabulatedState:
+			ans = new TabulatedState(name,ms,tsk);
 			break;
 	}
 	return ans;

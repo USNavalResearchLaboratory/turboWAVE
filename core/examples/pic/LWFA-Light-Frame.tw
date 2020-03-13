@@ -76,5 +76,5 @@ new phase space diagnostic for 'e'
 	galilean velocity = ( 0.0 , 0.0 , 1.0 )
 	axes = ( pz , y , z )
 	dimensions = ( 200 , 1 , 200 )
-	bounds = ( 0 , 20 , -0.5 , 0.5 , -50 , 0 )
+	bounds = ( 1 , 20 , -0.5 , 0.5 , -50 , 0 )
 }

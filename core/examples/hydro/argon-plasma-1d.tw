@@ -2,7 +2,6 @@
 // TWTEST matplotlib xtyz=0,0 e.dvdat dr=4.0
 
 // SPARC input file to model relaxation of an Argon plasma
-append mode = on
 steps = 20000
 timestep = %0.1ns
 dtmax = %1ns

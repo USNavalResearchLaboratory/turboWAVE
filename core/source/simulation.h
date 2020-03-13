@@ -5,17 +5,6 @@ struct Simulation;
 
 #include "module.h"
 
-struct Warp
-{
-	tw::grid::axis ax;
-	tw::Int i1,i2,ih,N;
-	tw::Float L,gridSum,h,aux;
-
-	Warp(tw::grid::axis ax,tw::Int first,tw::Int last,tw::Float length,tw::Float h0);
-	tw::Float AddedCellWidth(tw::Int globalCell);
-	tw::Float ACoefficient(tw::Float length);
-};
-
 struct Simulation:Task,MetricSpace
 {
 	std::string inputFileName;
@@ -30,7 +19,7 @@ struct Simulation:Task,MetricSpace
 
 	bool neutralize,movingWindow,adaptiveTimestep,adaptiveGrid;
 	bool restarted,completed;
-	tw::Int outputLevel;
+	tw::Int outputLevel,errorCheckingLevel;
 
 	tw::Int stepsToTake,stepNow;
 	tw::Int lastTime;
@@ -39,14 +28,10 @@ struct Simulation:Task,MetricSpace
 
 	tw::bc::par bc0[4],bc1[4];
 
-	std::vector<Warp*> warp;
 	std::vector<Region*> clippingRegion;
 	std::vector<ComputeTool*> computeTool;
 	std::vector<Module*> module;
 	std::vector<tw::module_type> createdModuleTypes;
-
-	UniformDeviate *uniformDeviate;
-	GaussianDeviate *gaussianDeviate;
 
 	Simulation(const std::string& inputFileName);
 	virtual ~Simulation();

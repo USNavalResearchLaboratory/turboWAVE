@@ -18,12 +18,11 @@
 steps = 8000
 timestep = 0.02655350991
 dump period = 0
-append mode = true
 moving window = no
 neutralize = yes
 unit density = 1
 
-hardware acceleration device string = titan
+hardware acceleration device string = firepro
 
 xboundary = ( absorbing , absorbing )
 yboundary = ( periodic , periodic )
@@ -44,24 +43,21 @@ new grid
 	geometry = cartesian
 }
 
-new klein gordon module
+new klein gordon module 'tdkge'
 {
 	soft core potential , charge = 6.398259757531933 , radius = 0.637284237839
 
-	new wavefunction
+	new qstate tabulated
 	{
-		type = lookup
-		file = z92_c00.txt
+		filename = z92_c00.txt
 	}
 }
 
-new wave
+new plane wave for 'tdkge'
 {
-	type = plane
 	direction = 1 0 0
 	a = 0.0 -28.8538676419 0.0
 	w = 0.0147889707624
-	r0 = 1e5 1e5
 	focus position = -14.8952172976  0 0
 	delay = 0
 	risetime = 0.42485615856
@@ -69,13 +65,11 @@ new wave
 	falltime = 0.42485615856
 	phase = 0
 }
-new wave
+new plane wave for 'tdkge'
 {
-	type = plane
 	direction = 1 0 0
 	a = 0.0 28.8538676419 0.0
 	w = 0.0
-	r0 = 1e5 1e5
 	focus position = -14.8952172976  0 0
 	delay = 0
 	risetime = 0.42485615856
@@ -89,7 +83,7 @@ new box diagnostic
 	period = 1000
 }
 
-new energy diagnostic
+new energy diagnostic 'full'
 {
 	period = 1000
 	precision = 15
@@ -100,7 +94,7 @@ new region circ s1
 	radius = 29.7904345953
 }
 
-new energy diagnostic
+new energy diagnostic 'sphere'
 {
 	filename = s1
 	period = 1000

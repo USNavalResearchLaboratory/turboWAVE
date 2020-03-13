@@ -24,7 +24,7 @@ LaserSolver::LaserSolver(const std::string& name,Simulation* sim):Module(name,si
 
 	directives.Add("carrier frequency",new tw::input::Float(&laserFreq));
 	std::map<std::string,tw_polarization_type> pol = {{"linear",linearPolarization},{"circular",circularPolarization},{"radial",radialPolarization}};
-	directives.Add("polarization",new tw::input::Enums<tw_polarization_type>(pol,&polarizationType));
+	directives.Add("polarization",new tw::input::Enums<tw_polarization_type>(pol,&polarizationType),false);
 }
 
 LaserSolver::~LaserSolver()

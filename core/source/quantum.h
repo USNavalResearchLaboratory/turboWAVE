@@ -1,68 +1,11 @@
-namespace qo
-{
-	enum waveEquationType { schroedinger,pauli,klein_gordon,dirac };
-	enum waveFunctionType { random,free,helicity,bound,lookup };
-	enum potentialType { softCore,bachelet };
-
-	struct State
-	{
-		qo::waveEquationType waveEquation;
-		qo::waveFunctionType waveType;
-		bool cylindricalAtom;
-		tw::Complex amplitude;
-		tw::Float nr; // radial quantum number
-		tw::Float Lam,Jam,jzam; // angular momentum: parity(orbital), total, total-z
-		// N.b. quantum numbers have different meanings depending on type of state.
-		// Scalars: Jam = [0,1,...], Lam = Jam, jzam = [-Lam,...,Lam]
-		// Spinors: Jam = [0.5,1.5,...], Lam = Jam +- 1/2, jzam = [-Jam,...,Jam]
-		// Cylindrical Scalars: Lam = jzam , is signed, and Jam is ignored.
-		// Cylindrical Spinors: Lam = jzam+-1/2, is signed, and Jam is ignored.
-		tw::vec3 k,size; // free or random state parameters
-		bool negativeEnergy;
-		tw::Float helicity;
-		tw::vec3 cell_size; // cell size used in lookup table
-		tw::Float qnuc,qorb,morb,energy,normalizationConstant;
-		MetricSpace *space;
-		UniformDeviate *ud;
-		std::valarray<tw::Complex> radialFunction;
-		tw::Int components;
-
-		State(MetricSpace *m,UniformDeviate *u);
-		void Initialize(qo::waveEquationType waveEq,tw::Float nuclearCharge,tw::Float orbitingCharge,tw::Float orbitingMass);
-		bool GoodQuantumNumbers();
-
-		tw::Complex Random(const tw::vec3& r,const tw::Float& t,const tw::Int& comp) const;
-		tw::Complex Free(bool helicityState,const tw::vec3& r,const tw::Float& t,const tw::Int& comp) const;
-		tw::Complex Bound(const tw::vec3& r,const tw::Float& t,const tw::Int& comp) const;
-		tw::Complex Lookup(const tw::vec3& r,const std::valarray<tw::Complex>& fr,const tw::Float& dr,const tw::Float& t,const tw::Int& comp) const;
-
-		tw::Complex Amplitude(const tw::vec3& r,const tw::Float& t,const tw::Int& comp) const;
-
-		void ReadInputFileBlock(std::stringstream& inputString);
-		void ReadCheckpoint(std::ifstream& inFile);
-		void WriteCheckpoint(std::ofstream& outFile);
-	};
-}
-
 struct AtomicPhysics:Module
 {
 	tw::Float alpha; // fine structure constant
-
-	// Specification of potential
-	qo::potentialType potentialTypeSpec;
-	tw::Float residualCharge;
-	tw::Float nuclearRadius; // soft core
-	tw::Float c1,c2,a1,a2,Asr[6],asr[3]; // Bachelet
-	tw::vec3 B0; // constant magnetic field
-
-	// Electronic state
-	std::vector<qo::State> waveFunction;
-	std::vector<qo::State> refState;
-	tw::Float q0,m0;
-	tw::Float groundStateEnergy;
+	HamiltonianParameters H;
+	LorentzPropagator *photonPropagator;
+	std::vector<QState*> waveFunction;
 
 	// Solution method
-	LorentzPropagator *photonPropagator;
 	bool keepA2Term,dipoleApproximation;
 	tw::Float timeRelaxingToGround;
 
@@ -73,9 +16,9 @@ struct AtomicPhysics:Module
 
 	AtomicPhysics(const std::string& name,Simulation* sim);
 	virtual ~AtomicPhysics();
-	void ExchangeResources();
-	tw::Float GetSphericalPotential(tw::Float r) const;
 	virtual void Initialize();
+	virtual void ExchangeResources();
+	tw::Float GetSphericalPotential(tw::Float r) const;
 	void FormPotentials(tw::Float t);
 	void FormGhostCellPotentials(tw::Float t);
 	tw::vec4 GetA4AtOrigin();
@@ -110,6 +53,7 @@ struct Schroedinger:AtomicPhysics
 	Schroedinger(const std::string& name,Simulation* sim);
 	virtual ~Schroedinger();
 	virtual void Initialize();
+	virtual void ExchangeResources();
 	virtual void Update();
 	virtual void VerifyInput();
 
@@ -154,15 +98,15 @@ struct KleinGordon:AtomicPhysics
 	tw::Float ComputeRho(const tw::cell& cell);
 	// The following give the Feshbach-Villars decomposition
 	// If sgn = 1.0, returns electron part, if sgn=-1.0 returns positron part
-	tw::Complex FV(const tw::Int& i,const tw::Int& j,const tw::Int& k,const tw::Float& sgn)
+	tw::Complex FV(const tw::Int& i,const tw::Int& j,const tw::Int& k,const tw::Float& sgn) const
 	{
 		return (Psi(i,j,k,0) + sgn*Psi(i,j,k,1))/root2;
 	}
-	tw::Complex FV(const tw::cell& cell,const tw::Float sgn)
+	tw::Complex FV(const tw::cell& cell,const tw::Float sgn) const
 	{
 		return (Psi(cell,0) + sgn*Psi(cell,1))/root2;
 	}
-	tw::Complex FV(const tw::xstrip<1>& v,const tw::Int i,const tw::Float& sgn)
+	tw::Complex FV(const tw::xstrip<1>& v,const tw::Int i,const tw::Float& sgn) const
 	{
 		return (Psi(v,i,0) + sgn*Psi(v,i,1))/root2;
 	}
@@ -202,6 +146,8 @@ void Dirac::LeapFrog(tw::Float sgn)
 	// If (OUT1,OUT2) is the electron then sgn=1.0 (positive energy)
 	// If (OUT1,OUT2) is the positron then sgn=-1.0 (negative energy)
 
+	static const tw::Float q0 = H.qorb;
+	static const tw::Float m0 = H.morb;
 	static const tw::Int AB = tw::vec_align_bytes;
 	#pragma omp parallel firstprivate(sgn)
 	{
@@ -259,3 +205,16 @@ void Dirac::LeapFrog(tw::Float sgn)
 		}
 	}
 }
+
+struct PopulationDiagnostic : Module
+{
+	std::vector<QState*> refState; // ComputeTool defining the wavefunction of the reference state
+	HamiltonianParameters *H;
+	ComplexField *psi;
+
+	PopulationDiagnostic(const std::string& name,Simulation* sim);
+	virtual bool InspectResource(void *resource,const std::string& description);
+	virtual void VerifyInput();
+	virtual void Initialize();
+	virtual void Report(Diagnostic&);
+};

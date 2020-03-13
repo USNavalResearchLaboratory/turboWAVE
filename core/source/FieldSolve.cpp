@@ -63,8 +63,8 @@ Electromagnetic::Electromagnetic(const std::string& name,Simulation* sim):FieldS
 	sources.InitializeComputeBuffer();
 	#endif
 
-	directives.Add("dipole center",new tw::input::Vec3(&dipoleCenter));
-	directives.Add("gamma beam",new tw::input::Float(&gammaBeam));
+	directives.Add("dipole center",new tw::input::Vec3(&dipoleCenter),false);
+	directives.Add("gamma beam",new tw::input::Float(&gammaBeam),false);
 }
 
 void Electromagnetic::ExchangeResources()
@@ -533,9 +533,9 @@ DirectSolver::DirectSolver(const std::string& name,Simulation* sim):Electromagne
 	yeeTool->SetupComputeKernels(F,A,PMLx,PMLy,PMLz,sources);
 	#endif
 
-	directives.Add("enforce charge conservation",new tw::input::Bool(&enforceChargeConservation));
-	directives.Add("layers",new tw::input::Numbers<tw::Int>(layerThickness,6));
-	directives.Add("reflection coefficient",new tw::input::Numbers<tw::Float>(reflectionCoefficient,6));
+	directives.Add("enforce charge conservation",new tw::input::Bool(&enforceChargeConservation),false);
+	directives.Add("layers",new tw::input::Numbers<tw::Int>(layerThickness,6),false);
+	directives.Add("reflection coefficient",new tw::input::Numbers<tw::Float>(reflectionCoefficient,6),false);
 }
 
 DirectSolver::~DirectSolver()

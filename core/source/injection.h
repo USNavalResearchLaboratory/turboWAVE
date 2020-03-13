@@ -195,6 +195,7 @@ struct PlaneWave : Wave
 {
 	PlaneWave(const std::string& name,MetricSpace *m,Task *tsk);
 	virtual tw::Complex PrimitivePhasor(const tw::vec4& x4) const;
+	virtual tw::vec3 PrimitiveVector(const tw::vec4& x4) const;
 };
 
 struct BesselBeam : Wave
@@ -279,4 +280,18 @@ struct MABoundary
 	void AdvanceRight(std::valarray<tw::Complex>& amplitude,tw::Float dt);
 	tw::Complex NormalDerivativeLeft(tw::Int index,tw::Complex amplitude,tw::Float carrierFrequency);
 	tw::Complex NormalDerivativeRight(tw::Int index,tw::Complex amplitude,tw::Float carrierFrequency);
+};
+
+struct Warp : ComputeTool
+{
+	tw::grid::axis ax;
+	bool increasing;
+	tw::Int rng[2];
+	tw::Float L,gridSum;
+
+	Warp(const std::string& name,MetricSpace *m,Task *tsk);
+	virtual void Initialize();
+	virtual void ReadCheckpoint(std::ifstream& inFile);
+	virtual void WriteCheckpoint(std::ofstream& outFile);
+	tw::Float AddedCellWidth(tw::Int globalCell);
 };

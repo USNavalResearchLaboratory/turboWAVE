@@ -880,13 +880,10 @@ inline void Field::InterpolateOnto(std::valarray<tw::Float>& val,const Element& 
 template <class T>
 struct AutoField : Field
 {
-	std::valarray<tw::Float> elementArray; // for use as a temporary
-
 	AutoField()
 	{
 		packedAxis = 0;
 		num[0] = sizeof(T)/sizeof(tw::Float);
-		elementArray.resize(num[0]);
 	}
 	void Initialize(const DiscreteSpace& ds,Task *task)
 	{
@@ -938,17 +935,17 @@ struct AutoField : Field
 
 	void Interpolate(T* val,const weights_3D& weights) const
 	{
-		tw::Int i;
-		Field::Interpolate(elementArray,weights);
-		for (i=0;i<num[0];i++)
-			((tw::Float*)val)[i] = elementArray[i];
+		std::valarray<tw::Float> temp(num[0]);
+		Field::Interpolate(temp,weights);
+		for (tw::Int i=0;i<num[0];i++)
+			((tw::Float*)val)[i] = temp[i];
 	}
 	void InterpolateOnto(const T& val,const weights_3D& weights)
 	{
-		tw::Int i;
-		for (i=0;i<num[0];i++)
-			elementArray[i] = ((tw::Float*)&val)[i];
-		Field::InterpolateOnto(elementArray,weights);
+		std::valarray<tw::Float> temp(num[0]);
+		for (tw::Int i=0;i<num[0];i++)
+			temp[i] = ((tw::Float*)&val)[i];
+		Field::InterpolateOnto(temp,weights);
 	}
 	void Shift(const tw::strip& s,tw::Int cells,const T& incoming)
 	{

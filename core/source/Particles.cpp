@@ -420,18 +420,18 @@ Species::Species(const std::string& name,Simulation* sim) : Module(name,sim)
 	ESField = NULL;
 	qo_j4 = NULL;
 
-	directives.Add("xboundary",new tw::input::Enums<tw::bc::par>(tw::bc::par_map(),&bc0[1],&bc1[1]));
-	directives.Add("yboundary",new tw::input::Enums<tw::bc::par>(tw::bc::par_map(),&bc0[2],&bc1[2]));
-	directives.Add("zboundary",new tw::input::Enums<tw::bc::par>(tw::bc::par_map(),&bc0[3],&bc1[3]));
-	directives.Add("sort period",new tw::input::Int(&sortPeriod));
-	directives.Add("mobile",new tw::input::Bool(&mobile));
-	directives.Add("radiation damping",new tw::input::Bool(&radiationDamping));
-	directives.Add("mean free path",new tw::input::Float(&meanFreePath));
-	directives.Add("mass",new tw::input::Float(&restMass));
-	directives.Add("charge",new tw::input::Float(&charge));
-	directives.Add("minimum density",new tw::input::Float(&minimumDensity));
-	directives.Add("emission temperature",new tw::input::Vec3(&emissionTemp));
-	directives.Add("accelerate to",new tw::input::Custom);
+	directives.Add("xboundary",new tw::input::Enums<tw::bc::par>(tw::bc::par_map(),&bc0[1],&bc1[1]),false);
+	directives.Add("yboundary",new tw::input::Enums<tw::bc::par>(tw::bc::par_map(),&bc0[2],&bc1[2]),false);
+	directives.Add("zboundary",new tw::input::Enums<tw::bc::par>(tw::bc::par_map(),&bc0[3],&bc1[3]),false);
+	directives.Add("sort period",new tw::input::Int(&sortPeriod),false);
+	directives.Add("mobile",new tw::input::Bool(&mobile),false);
+	directives.Add("radiation damping",new tw::input::Bool(&radiationDamping),false);
+	directives.Add("mean free path",new tw::input::Float(&meanFreePath),false);
+	directives.Add("mass",new tw::input::Float(&restMass),false);
+	directives.Add("charge",new tw::input::Float(&charge),false);
+	directives.Add("minimum density",new tw::input::Float(&minimumDensity),false);
+	directives.Add("emission temperature",new tw::input::Vec3(&emissionTemp),false);
+	directives.Add("accelerate to",new tw::input::Custom,false);
 	directives.Add("particles per cell",new tw::input::Custom);
 }
 

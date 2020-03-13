@@ -57,9 +57,17 @@ namespace tw
 		{
 			Float(tw::Float *f) : Numbers<tw::Float>(f,1) { ; }
 		};
+		struct Complex : Numbers<tw::Float>
+		{
+			Complex(tw::Complex *c) : Numbers<tw::Float>((tw::Float*)c,2) { ; }
+		};
 		struct Vec3 : Numbers<tw::Float>
 		{
 			Vec3(tw::vec3 *v) : Numbers<tw::Float>(&v->x,3) { ; }
+		};
+		struct Vec4 : Numbers<tw::Float>
+		{
+			Vec4(tw::vec4 *v) : Numbers<tw::Float>(&((*v)[0]),4) { ; }
 		};
 		template <class T,class N>
 		struct List : Directive
@@ -135,16 +143,18 @@ namespace tw
 		class DirectiveReader
 		{
 			tw::Int maxKeyWords;
+			std::vector<std::string> requiredKeys;
 			std::map<std::string,tw::Int> keysFound;
 			std::map<std::string,tw::input::Directive*> dmap;
 		public:
 			DirectiveReader();
 			~DirectiveReader();
 			void Reset();
-			void Add(const std::string& key,tw::input::Directive *dir);
+			void Add(const std::string& key,tw::input::Directive *dir,bool required=true);
 			std::string ReadNext(std::stringstream& in);
 			void ReadAll(std::stringstream& in);
 			bool TestKey(const std::string& test);
+			void ThrowErrorIfMissingKeys(const std::string& src);
 		};
 		struct Preamble
 		{

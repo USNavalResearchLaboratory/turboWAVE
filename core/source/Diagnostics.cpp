@@ -46,13 +46,13 @@ Diagnostic::Diagnostic(const std::string& name,MetricSpace *ms,Task *tsk) : Comp
 	filename = "diagnostic";
 	vGalileo = 0.0;
 	headerWritten = false;
-	directives.Add("period",new tw::input::Int(&skip[0]));
-	directives.Add("time period",new tw::input::Float(&timePeriod));
-	directives.Add("skip",new tw::input::Numbers<tw::Int>(&skip[1],3));
-	directives.Add("filename",new tw::input::String(&filename));
-	directives.Add("t0",new tw::input::Float(&t0));
-	directives.Add("t1",new tw::input::Float(&t1));
-	directives.Add("galilean velocity",new tw::input::Vec3(&vGalileo));
+	directives.Add("period",new tw::input::Int(&skip[0]),false);
+	directives.Add("time period",new tw::input::Float(&timePeriod),false);
+	directives.Add("skip",new tw::input::Numbers<tw::Int>(&skip[1],3),false);
+	directives.Add("filename",new tw::input::String(&filename),false);
+	directives.Add("t0",new tw::input::Float(&t0),false);
+	directives.Add("t1",new tw::input::Float(&t1),false);
+	directives.Add("galilean velocity",new tw::input::Vec3(&vGalileo),false);
 }
 
 bool Diagnostic::WriteThisStep(tw::Float elapsedTime,tw::Float dt,tw::Int stepNow)
@@ -168,7 +168,7 @@ TextTableBase::TextTableBase(const std::string& name,MetricSpace *ms,Task *tsk) 
 	typeCode = tw::tool_type::none;
 	numSigFigs = 6;
 	filename = "table";
-	directives.Add("precision",new tw::input::Int(&numSigFigs));
+	directives.Add("precision",new tw::input::Int(&numSigFigs),false);
 }
 
 void TextTableBase::Start()
@@ -307,7 +307,7 @@ BoxDiagnostic::BoxDiagnostic(const std::string& name,MetricSpace *ms,Task *tsk) 
 	typeCode = tw::tool_type::boxDiagnostic;
 	average = false;
 	filename = "full";
-	directives.Add("average",new tw::input::Bool(&average));
+	directives.Add("average",new tw::input::Bool(&average),false);
 }
 
 void BoxDiagnostic::GetGlobalIndexing(tw::Int pts[4],tw::Int glb[6])

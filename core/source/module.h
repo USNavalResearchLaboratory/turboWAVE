@@ -5,7 +5,7 @@ namespace tw
 					coulombSolver,directSolver,curvilinearDirectSolver,
 					qsLaser,pgcLaser,
 					kinetics,species,fluidFields,equilibriumGroup,chemical,sparcHydroManager,
-					boundElectrons,schroedinger,pauli,kleinGordon,dirac};
+					boundElectrons,schroedinger,pauli,kleinGordon,dirac,populationDiagnostic};
 	enum class priority { diagnostic, source, field };
 	inline std::map<tw::priority,tw::Int> priority_sort_map()
 	{

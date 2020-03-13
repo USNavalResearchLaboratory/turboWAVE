@@ -213,6 +213,9 @@ struct Task
 	std::valarray<tw::Int> deviceIDList; // accelerator devices such as GPGPU
 	std::valarray<tw::Int> affinityMask; // IDs of logical processors for thread binding
 
+	UniformDeviate *uniformDeviate;
+	GaussianDeviate *gaussianDeviate;
+
 	#ifdef USE_OPENCL
 	cl_program fieldProgram;
 	cl_kernel k_fieldToBoundary,k_boundaryToField,k_ghostToField,k_zeroGhostCells;

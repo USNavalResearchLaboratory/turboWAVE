@@ -54,24 +54,23 @@ Profile::Profile(const std::string& name,MetricSpace *m,Task *tsk) : ComputeTool
 
 	std::map<std::string,tw::grid::geometry> geo = {{"cylindrical",tw::grid::cylindrical},{"spherical",tw::grid::spherical}};
 
-	directives.Add("clipping region",new tw::input::String(&region_name));
-	directives.Add("neutralize",new tw::input::Bool(&neutralize)); // not used
-	directives.Add("position",new tw::input::Vec3(&centerPt));
-	directives.Add("type",new tw::input::Enums<tw::profile::quantity>(qty,&whichQuantity));
-	directives.Add("drift momentum",new tw::input::Vec3(&driftMomentum));
-	directives.Add("thermal momentum",new tw::input::Vec3(&thermalMomentum));
-	directives.Add("temperature",new tw::input::Float(&temperature));
-	directives.Add("shape",new tw::input::Enums<tw::profile::shape>(shp,&segmentShape));
-	directives.Add("timing",new tw::input::Enums<tw::profile::timing>(tm,&timingMethod));
-	directives.Add("t0",new tw::input::Float(&t0));
-	directives.Add("t1",new tw::input::Float(&t1));
-	directives.Add("loading",new tw::input::Enums<tw::profile::loading>(ld,&loadingMethod));
-	directives.Add("symmetry",new tw::input::Enums<tw::grid::geometry>(geo,&symmetry));
-	directives.Add("mode amplitude",new tw::input::Float(&modeAmplitude));
-	directives.Add("mode number",new tw::input::Vec3(&modeNumber));
-	directives.Add("boosted frame gamma",new tw::input::Float(&gammaBoost));
-	directives.Add("particle weight",new tw::input::Custom);
-	directives.Add("euler angles",new tw::input::Custom);
+	directives.Add("neutralize",new tw::input::Bool(&neutralize),false); // not used
+	directives.Add("position",new tw::input::Vec3(&centerPt),false);
+	directives.Add("type",new tw::input::Enums<tw::profile::quantity>(qty,&whichQuantity),false);
+	directives.Add("drift momentum",new tw::input::Vec3(&driftMomentum),false);
+	directives.Add("thermal momentum",new tw::input::Vec3(&thermalMomentum),false);
+	directives.Add("temperature",new tw::input::Float(&temperature),false);
+	directives.Add("shape",new tw::input::Enums<tw::profile::shape>(shp,&segmentShape),false);
+	directives.Add("timing",new tw::input::Enums<tw::profile::timing>(tm,&timingMethod),false);
+	directives.Add("t0",new tw::input::Float(&t0),false);
+	directives.Add("t1",new tw::input::Float(&t1),false);
+	directives.Add("loading",new tw::input::Enums<tw::profile::loading>(ld,&loadingMethod),false);
+	directives.Add("symmetry",new tw::input::Enums<tw::grid::geometry>(geo,&symmetry),false);
+	directives.Add("mode amplitude",new tw::input::Float(&modeAmplitude),false);
+	directives.Add("mode number",new tw::input::Vec3(&modeNumber),false);
+	directives.Add("boosted frame gamma",new tw::input::Float(&gammaBoost),false);
+	directives.Add("particle weight",new tw::input::Custom,false);
+	directives.Add("euler angles",new tw::input::Custom,false);
 }
 
 void Profile::Initialize()
@@ -344,12 +343,12 @@ tw::Float ColumnProfile::GetValue(const tw::vec3& pos,const MetricSpace& ds)
 PiecewiseProfile::PiecewiseProfile(const std::string& name,MetricSpace *m,Task *tsk) : Profile(name,m,tsk)
 {
 	typeCode = tw::tool_type::piecewiseProfile;
-	directives.Add("xpoints",new tw::input::List<std::valarray<tw::Float>,tw::Float>(&x));
-	directives.Add("ypoints",new tw::input::List<std::valarray<tw::Float>,tw::Float>(&y));
-	directives.Add("zpoints",new tw::input::List<std::valarray<tw::Float>,tw::Float>(&z));
-	directives.Add("xdensity",new tw::input::List<std::valarray<tw::Float>,tw::Float>(&fx));
-	directives.Add("ydensity",new tw::input::List<std::valarray<tw::Float>,tw::Float>(&fy));
-	directives.Add("zdensity",new tw::input::List<std::valarray<tw::Float>,tw::Float>(&fz));
+	directives.Add("xpoints",new tw::input::List<std::valarray<tw::Float>,tw::Float>(&x),false);
+	directives.Add("ypoints",new tw::input::List<std::valarray<tw::Float>,tw::Float>(&y),false);
+	directives.Add("zpoints",new tw::input::List<std::valarray<tw::Float>,tw::Float>(&z),false);
+	directives.Add("xdensity",new tw::input::List<std::valarray<tw::Float>,tw::Float>(&fx),false);
+	directives.Add("ydensity",new tw::input::List<std::valarray<tw::Float>,tw::Float>(&fy),false);
+	directives.Add("zdensity",new tw::input::List<std::valarray<tw::Float>,tw::Float>(&fz),false);
 }
 
 void PiecewiseProfile::Initialize()
@@ -710,24 +709,23 @@ Wave::Wave(const std::string& name,MetricSpace *m,Task *tsk) : ComputeTool(name,
 	modeData.scale[1] = 1.0;
 	modeData.exponent[0] = 2;
 	modeData.exponent[1] = 2;
-	directives.Add("direction",new tw::input::Vec3(&direction));
-	directives.Add("focus position",new tw::input::Vec3(&focusPosition));
+	directives.Add("direction",new tw::input::Vec3(&direction),false);
+	directives.Add("focus position",new tw::input::Vec3(&focusPosition),false);
 	directives.Add("a",new tw::input::Vec3(&a));
 	directives.Add("w",new tw::input::Float(&w));
-	directives.Add("refractive index",new tw::input::Float(&nrefr));
-	directives.Add("chirp",new tw::input::Float(&chirp));
-	directives.Add("phase",new tw::input::Float(&phase));
-	directives.Add("random phase",new tw::input::Float(&randomPhase));
+	directives.Add("refractive index",new tw::input::Float(&nrefr),false);
+	directives.Add("chirp",new tw::input::Float(&chirp),false);
+	directives.Add("phase",new tw::input::Float(&phase),false);
+	directives.Add("random phase",new tw::input::Float(&randomPhase),false);
 	directives.Add("delay",new tw::input::Float(&pulseShape.delay));
 	directives.Add("risetime",new tw::input::Float(&pulseShape.risetime));
 	directives.Add("holdtime",new tw::input::Float(&pulseShape.holdtime));
 	directives.Add("falltime",new tw::input::Float(&pulseShape.falltime));
-	directives.Add("boosted frame gamma",new tw::input::Float(&gammaBoost));
-	directives.Add("r0",new tw::input::Numbers<tw::Float>(&modeData.scale[0],2));
-	directives.Add("exponent",new tw::input::Numbers<tw::Int>(&modeData.exponent[0],2));
-	directives.Add("mode",new tw::input::Numbers<tw::Int>(&modeData.order[0],2));
+	directives.Add("boosted frame gamma",new tw::input::Float(&gammaBoost),false);
+	directives.Add("exponent",new tw::input::Numbers<tw::Int>(&modeData.exponent[0],2),false);
+	directives.Add("mode",new tw::input::Numbers<tw::Int>(&modeData.order[0],2),false);
 	std::map<std::string,tw::profile::shape> shape = {{"quintic",tw::profile::shape::quintic},{"sech",tw::profile::shape::sech},{"sin2",tw::profile::shape::sin2}};
-	directives.Add("shape",new tw::input::Enums<tw::profile::shape>(shape,&pulseShape.whichProfile));
+	directives.Add("shape",new tw::input::Enums<tw::profile::shape>(shape,&pulseShape.whichProfile),false);
 }
 
 void Wave::Initialize()
@@ -800,9 +798,15 @@ tw::Complex PlaneWave::PrimitivePhasor(const tw::vec4& x) const
 	return a0 * pulseShape.PulseShapeFactor(tau) * std::exp(ii*psi);
 }
 
+tw::vec3 PlaneWave::PrimitiveVector(const tw::vec4& x4) const
+{
+	return tw::vec3(std::real(PrimitivePhasor(x4)),0.0,0.0);
+}
+
 BesselBeam::BesselBeam(const std::string& name,MetricSpace *m,Task *tsk) : Wave(name,m,tsk)
 {
 	typeCode = tw::tool_type::besselBeam;
+	directives.Add("r0",new tw::input::Numbers<tw::Float>(&modeData.scale[0],2));
 }
 
 tw::Complex BesselBeam::PrimitivePhasor(const tw::vec4& x) const
@@ -816,6 +820,7 @@ tw::Complex BesselBeam::PrimitivePhasor(const tw::vec4& x) const
 AiryDisc::AiryDisc(const std::string& name,MetricSpace *m,Task *tsk) : Wave(name,m,tsk)
 {
 	typeCode = tw::tool_type::airyDisc;
+	directives.Add("r0",new tw::input::Numbers<tw::Float>(&modeData.scale[0],2));
 }
 
 tw::Complex AiryDisc::PrimitivePhasor(const tw::vec4& x) const
@@ -831,6 +836,7 @@ tw::Complex AiryDisc::PrimitivePhasor(const tw::vec4& x) const
 LaguerreGauss::LaguerreGauss(const std::string& name,MetricSpace *m,Task *tsk) : Wave(name,m,tsk)
 {
 	typeCode = tw::tool_type::laguerreGauss;
+	directives.Add("r0",new tw::input::Numbers<tw::Float>(&modeData.scale[0],2));
 }
 
 void LaguerreGauss::Initialize()
@@ -872,6 +878,7 @@ tw::Complex LaguerreGauss::PrimitivePhasor(const tw::vec4& x) const
 HermiteGauss::HermiteGauss(const std::string& name,MetricSpace *m,Task *tsk) : Wave(name,m,tsk)
 {
 	typeCode = tw::tool_type::hermiteGauss;
+	directives.Add("r0",new tw::input::Numbers<tw::Float>(&modeData.scale[0],2));
 }
 
 void HermiteGauss::Initialize()
@@ -970,26 +977,25 @@ Conductor::Conductor(const std::string& name,MetricSpace *m,Task *tsk) : Compute
 	gaussianRadius = tw::big_pos;
 	f = tw::big_pos;
 	ks = 0.0;
-	directives.Add("clipping region",new tw::input::String(&region_name));
-	directives.Add("px",new tw::input::List<std::valarray<tw::Float>,tw::Float>(&Px));
-	directives.Add("py",new tw::input::List<std::valarray<tw::Float>,tw::Float>(&Py));
-	directives.Add("pz",new tw::input::List<std::valarray<tw::Float>,tw::Float>(&Pz));
-	directives.Add("potential",new tw::input::List<std::valarray<tw::Float>,tw::Float>(&potential));
-	directives.Add("w",new tw::input::List<std::valarray<tw::Float>,tw::Float>(&angFreq));
-	directives.Add("phase",new tw::input::List<std::valarray<tw::Float>,tw::Float>(&phase));
-	directives.Add("delay",new tw::input::Float(&pulseShape.delay));
-	directives.Add("risetime",new tw::input::Float(&pulseShape.risetime));
-	directives.Add("holdtime",new tw::input::Float(&pulseShape.holdtime));
-	directives.Add("falltime",new tw::input::Float(&pulseShape.falltime));
+	directives.Add("px",new tw::input::List<std::valarray<tw::Float>,tw::Float>(&Px),false);
+	directives.Add("py",new tw::input::List<std::valarray<tw::Float>,tw::Float>(&Py),false);
+	directives.Add("pz",new tw::input::List<std::valarray<tw::Float>,tw::Float>(&Pz),false);
+	directives.Add("potential",new tw::input::List<std::valarray<tw::Float>,tw::Float>(&potential),false);
+	directives.Add("w",new tw::input::List<std::valarray<tw::Float>,tw::Float>(&angFreq),false);
+	directives.Add("phase",new tw::input::List<std::valarray<tw::Float>,tw::Float>(&phase),false);
+	directives.Add("delay",new tw::input::Float(&pulseShape.delay),false);
+	directives.Add("risetime",new tw::input::Float(&pulseShape.risetime),false);
+	directives.Add("holdtime",new tw::input::Float(&pulseShape.holdtime),false);
+	directives.Add("falltime",new tw::input::Float(&pulseShape.falltime),false);
 	std::map<std::string,tw::profile::shape> shapeMap = {{"quintic",tw::profile::shape::quintic},{"sech",tw::profile::shape::sech},{"sin2",tw::profile::shape::sin2}};
-	directives.Add("shape",new tw::input::Enums<tw::profile::shape>(shapeMap,&pulseShape.whichProfile));
-	directives.Add("enable electrostatic",new tw::input::Bool(&affectsPhi));
-	directives.Add("enable electromagnetic",new tw::input::Bool(&affectsA));
+	directives.Add("shape",new tw::input::Enums<tw::profile::shape>(shapeMap,&pulseShape.whichProfile),false);
+	directives.Add("enable electrostatic",new tw::input::Bool(&affectsPhi),false);
+	directives.Add("enable electromagnetic",new tw::input::Bool(&affectsA),false);
 	std::map<std::string,EM::current> currentMap = {{"none",EM::current::none},{"electric",EM::current::electric},{"magnetic",EM::current::magnetic}};
-	directives.Add("current type",new tw::input::Enums<EM::current>(currentMap,&currentType));
-	directives.Add("gaussian size",new tw::input::Vec3(&gaussianRadius));
-	directives.Add("f",new tw::input::Float(&f));
-	directives.Add("ks",new tw::input::Vec3(&ks));
+	directives.Add("current type",new tw::input::Enums<EM::current>(currentMap,&currentType),false);
+	directives.Add("gaussian size",new tw::input::Vec3(&gaussianRadius),false);
+	directives.Add("f",new tw::input::Float(&f),false);
+	directives.Add("ks",new tw::input::Vec3(&ks),false);
 }
 
 void Conductor::Initialize()
@@ -1379,4 +1385,62 @@ tw::Complex MABoundary::NormalDerivativeRight(tw::Int j,tw::Complex amplitude,tw
 	for (i=0;i<10;i++)
 		ans += g[i][j] - amplitude*sigma[i]/gamma[i];
 	return ans*std::sqrt(-two*ii*carrierFrequency*scaleFactor);
+}
+
+//////////////////
+//  GRID WARPS  //
+//////////////////
+
+Warp::Warp(const std::string& name,MetricSpace *m,Task *tsk) : ComputeTool(name,m,tsk)
+{
+	ax = tw::grid::z;
+	increasing = true;
+	directives.Add("axis",new tw::input::Enums<tw::grid::axis>(tw::grid::axis_map(),&ax));
+	directives.Add("increasing",new tw::input::Bool(&increasing));
+	directives.Add("index range",new tw::input::Numbers<tw::Int>(&rng[0],2));
+	directives.Add("length",new tw::input::Float(&L));
+}
+
+void Warp::Initialize()
+{
+	const tw::Int N = rng[1] - rng[0] + 1;
+	gridSum = 0.0;
+	for (tw::Int i=1;i<=N;i++)
+		gridSum += QuinticRise(tw::Float(i-1)/tw::Float(N-1));
+}
+
+tw::Float Warp::AddedCellWidth(tw::Int globalCell)
+{
+	const tw::Int N = rng[1] - rng[0] + 1;
+	const tw::Float h = space->dx0(tw::grid::naxis(ax));
+	const tw::Float A = (1.0/gridSum)*(L/h - N);
+	if (globalCell>=rng[0] && globalCell<=rng[1])
+	{
+		if (increasing)
+			return h*A*QuinticRise(tw::Float(globalCell-rng[0])/tw::Float(N-1));
+		else
+			return h*A*QuinticFall(tw::Float(globalCell-rng[0])/tw::Float(N-1));
+	}
+	else
+		return 0.0;
+}
+
+void Warp::ReadCheckpoint(std::ifstream& inFile)
+{
+	ComputeTool::ReadCheckpoint(inFile);
+	inFile.read((char*)&ax,sizeof(ax));
+	inFile.read((char*)&increasing,sizeof(increasing));
+	inFile.read((char*)&rng[0],sizeof(rng));
+	inFile.read((char*)&L,sizeof(L));
+	inFile.read((char*)&gridSum,sizeof(gridSum));
+}
+
+void Warp::WriteCheckpoint(std::ofstream& outFile)
+{
+	ComputeTool::WriteCheckpoint(outFile);
+	outFile.write((char*)&ax,sizeof(ax));
+	outFile.write((char*)&increasing,sizeof(increasing));
+	outFile.write((char*)&rng[0],sizeof(rng));
+	outFile.write((char*)&L,sizeof(L));
+	outFile.write((char*)&gridSum,sizeof(gridSum));
 }

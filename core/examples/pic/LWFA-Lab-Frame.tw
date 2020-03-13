@@ -75,13 +75,11 @@ new box diagnostic
 	period = 100
 }
 
-new phase space plot for 'e'
+new phase space diagnostic for 'e'
 {
 	filename = zpz
-	abcissa = z
-	ordinate = pz
-	dimensions = 200 200
 	period = 100
-	minimum = 0 0
-	maximum = 51.2 20
+	axes = ( pz , y , z )
+	dimensions = ( 200 , 1 , 200 )
+	bounds = ( 1 , 20 , -0.5 , 0.5 , 0 , 51.2 )
 }

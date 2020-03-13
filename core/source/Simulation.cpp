@@ -8,40 +8,113 @@
 #include "solidState.h"
 //#include <unistd.h>
 
+////////////////////////
+//  SIMULATION CLASS  //
+////////////////////////
 
-///////////////////////////
-//  NON-UNIFORM REGIONS  //
-///////////////////////////
 
-
-Warp::Warp(tw::grid::axis axis,tw::Int first,tw::Int last,tw::Float length,tw::Float h0)
+Simulation::Simulation(const std::string& file_name)
 {
-	ax = axis;
-	i1 = first;
-	i2 = last;
-	ih = (i1+i2)/2;
-	L = length;
-	h = h0;
-	N = i2 - i1 + 1;
+	inputFileName = file_name;
+	clippingRegion.push_back(new EntireRegion(clippingRegion));
 
-	tw::Int i;
-	gridSum = 0.0;
-	for (i=1;i<=N;i++)
-		gridSum += QuinticPulse(tw::Float(i-1)/tw::Float(N-1));
+	gridGeometry = tw::grid::cartesian;
+
+	dt0 = 0.1;
+	SetupTimeInfo(dt0);
+	dtCritical = tw::small_pos;
+	dtMin = tw::small_pos;
+	dtMax = tw::big_pos;
+	elapsedTime = 0.0;
+	elapsedTimeMax = tw::big_pos;
+	signalPosition = 0.0;
+	windowPosition = 0.0;
+	signalSpeed = 1.0;
+	antiSignalPosition = 0.0;
+	antiWindowPosition = 0.0;
+
+	neutralize = true;
+	movingWindow = false;
+	restarted = false;
+	completed = false;
+	adaptiveTimestep = false;
+	adaptiveGrid = false;
+
+	stepNow = 1;
+	stepsToTake = 32;
+	lastTime = 0;
+	outputLevel = 0;
+	errorCheckingLevel = 0;
+	dumpPeriod = 0;
+
+	bc0[1] = tw::bc::par::periodic;
+	bc1[1] = tw::bc::par::periodic;
+	bc0[2] = tw::bc::par::periodic;
+	bc1[2] = tw::bc::par::periodic;
+	bc0[3] = tw::bc::par::absorbing;
+	bc1[3] = tw::bc::par::absorbing;
+
+	outerDirectives.Add("affinity",new tw::input::List<std::valarray<tw::Int>,tw::Int>(&affinityMask),false);
+	outerDirectives.Add("hardware acceleration device string",new tw::input::String(&deviceSearchString),false);
+	outerDirectives.Add("hardware acceleration device numbers",new tw::input::List<std::valarray<tw::Int>,tw::Int>(&deviceIDList),false);
+	outerDirectives.Add("hardware acceleration platform string",new tw::input::String(&platformSearchString),false);
+	outerDirectives.Add("timestep",new tw::input::Float(&dt0));
+	outerDirectives.Add("output level",new tw::input::Int(&outputLevel),false);
+	outerDirectives.Add("xboundary",new tw::input::Enums<tw::bc::par>(tw::bc::par_map(),&bc0[1],&bc1[1]));
+	outerDirectives.Add("yboundary",new tw::input::Enums<tw::bc::par>(tw::bc::par_map(),&bc0[2],&bc1[2]));
+	outerDirectives.Add("zboundary",new tw::input::Enums<tw::bc::par>(tw::bc::par_map(),&bc0[3],&bc1[3]));
+	outerDirectives.Add("unit density",new tw::input::Float(&unitDensityCGS));
+	outerDirectives.Add("dtmin",new tw::input::Float(&dtMin),false);
+	outerDirectives.Add("dtmax",new tw::input::Float(&dtMax),false);
+	outerDirectives.Add("dtcrit",new tw::input::Float(&dtCritical),false);
+	outerDirectives.Add("maxtime",new tw::input::Float(&elapsedTimeMax),false);
+	outerDirectives.Add("steps",new tw::input::Int(&stepsToTake));
+	outerDirectives.Add("dump period",new tw::input::Int(&dumpPeriod),false);
+	outerDirectives.Add("neutralize",new tw::input::Bool(&neutralize),false);
+	outerDirectives.Add("window speed",new tw::input::Float(&signalSpeed),false);
+	outerDirectives.Add("moving window",new tw::input::Bool(&movingWindow),false);
+	outerDirectives.Add("error checking level",new tw::input::Int(&errorCheckingLevel),false);
+
+	// allow user to choose any of 8 corners with strings like corner001, corner010, etc.
+	tw::vec3 corner[2][2][2];
+	auto corner_str = [&] (tw::Int i,tw::Int j,tw::Int k)
+	{
+		return "corner" + std::to_string(i) + std::to_string(j) + std::to_string(k);
+	};
+	for (tw::Int i=0;i<2;i++)
+		for (tw::Int j=0;j<2;j++)
+			for (tw::Int k=0;k<2;k++)
+				gridDirectives.Add(corner_str(i,j,k),new tw::input::Numbers<tw::Float>(&corner[i][j][k][0],3),false);
+	gridDirectives.Add("corner",new tw::input::Numbers<tw::Float>(&globalCorner[0],3),false);
+	gridDirectives.Add("cell size",new tw::input::Numbers<tw::Float>(&spacing[0],3));
+	gridDirectives.Add("adaptive timestep",new tw::input::Bool(&adaptiveTimestep),false);
+	gridDirectives.Add("adaptive grid",new tw::input::Bool(&adaptiveGrid),false);
+	gridDirectives.Add("dimensions",new tw::input::Numbers<tw::Int>(&globalCells[1],3));
+	gridDirectives.Add("decomposition",new tw::input::Numbers<tw::Int>(&domains[1],3));
+	std::map<std::string,tw::grid::geometry> geo = {{"cartesian",tw::grid::cartesian},{"cylindrical",tw::grid::cylindrical},{"spherical",tw::grid::spherical}};
+	gridDirectives.Add("geometry",new tw::input::Enums<tw::grid::geometry>(geo,&gridGeometry),false);
 }
 
-tw::Float Warp::AddedCellWidth(tw::Int globalCell)
+Simulation::~Simulation()
 {
-	tw::Float A = (1.0/gridSum)*(L/h - N);
-	if (globalCell>=i1 && globalCell<=i2)
-		return h*A*QuinticPulse(tw::Float(globalCell-i1)/tw::Float(N-1));
-	else
-		return 0.0;
-}
+	for (auto rgn : clippingRegion)
+		delete rgn;
 
-tw::Float Warp::ACoefficient(tw::Float length)
-{
-	return (1.0/gridSum)*(length/h - N);
+	for (auto m : module)
+		delete m;
+	// clean up after any modules that did not release tools
+	for (auto tool : computeTool)
+		delete tool;
+
+	if (uniformDeviate!=NULL)
+		delete uniformDeviate;
+	if (gaussianDeviate!=NULL)
+		delete gaussianDeviate;
+
+	if (dynamic_cast<std::ofstream*>(tw_out))
+		((std::ofstream*)tw_out)->close();
+	if (dynamic_cast<std::stringstream*>(tw_out))
+		delete tw_out;
 }
 
 void Simulation::SetCellWidthsAndLocalSize()
@@ -49,11 +122,15 @@ void Simulation::SetCellWidthsAndLocalSize()
 	// Overwrite uniform cell widths with requested variable widths.
 	// Correct the local domain size to reflect the variable cell widths.
 
-	for (auto w : warp)
+	for (auto tool : computeTool)
 	{
-		tw::Int ax = tw::grid::naxis(w->ax);
-		for (tw::Int i=lfg[ax];i<=ufg[ax];i++)
-			dX(i,ax) = spacing[ax-1] + w->AddedCellWidth(cornerCell[ax]-1+i);
+		Warp *w = dynamic_cast<Warp*>(tool);
+		if (w)
+		{
+			tw::Int ax = tw::grid::naxis(w->ax);
+			for (tw::Int i=lfg[ax];i<=ufg[ax];i++)
+				dX(i,ax) = spacing[ax-1] + w->AddedCellWidth(cornerCell[ax]-1+i);
+		}
 	}
 
 	size = 0.0;
@@ -108,118 +185,6 @@ void Simulation::SetGlobalSizeAndLocalCorner()
 		((tw::Float*)&corner)[axis-1] = lcorn[axis];
 		((tw::Float*)&globalSize)[axis-1] = gsize[axis];
 	}
-}
-
-
-
-////////////////////////
-//  SIMULATION CLASS  //
-////////////////////////
-
-
-Simulation::Simulation(const std::string& file_name)
-{
-	inputFileName = file_name;
-	clippingRegion.push_back(new EntireRegion(clippingRegion));
-
-	gridGeometry = tw::grid::cartesian;
-
-	dt0 = 0.1;
-	SetupTimeInfo(dt0);
-	dtCritical = tw::small_pos;
-	dtMin = tw::small_pos;
-	dtMax = tw::big_pos;
-	elapsedTime = 0.0;
-	elapsedTimeMax = tw::big_pos;
-	signalPosition = 0.0;
-	windowPosition = 0.0;
-	signalSpeed = 1.0;
-	antiSignalPosition = 0.0;
-	antiWindowPosition = 0.0;
-
-	neutralize = true;
-	movingWindow = false;
-	restarted = false;
-	completed = false;
-	adaptiveTimestep = false;
-	adaptiveGrid = false;
-
-	stepNow = 1;
-	stepsToTake = 32;
-	lastTime = 0;
-	outputLevel = 0;
-	dumpPeriod = 0;
-
-	bc0[1] = tw::bc::par::periodic;
-	bc1[1] = tw::bc::par::periodic;
-	bc0[2] = tw::bc::par::periodic;
-	bc1[2] = tw::bc::par::periodic;
-	bc0[3] = tw::bc::par::absorbing;
-	bc1[3] = tw::bc::par::absorbing;
-
-	outerDirectives.Add("affinity",new tw::input::List<std::valarray<tw::Int>,tw::Int>(&affinityMask));
-	outerDirectives.Add("hardware acceleration device string",new tw::input::String(&deviceSearchString));
-	outerDirectives.Add("hardware acceleration device numbers",new tw::input::List<std::valarray<tw::Int>,tw::Int>(&deviceIDList));
-	outerDirectives.Add("hardware acceleration platform string",new tw::input::String(&platformSearchString));
-	outerDirectives.Add("timestep",new tw::input::Float(&dt0));
-	outerDirectives.Add("output level",new tw::input::Int(&outputLevel));
-	outerDirectives.Add("xboundary",new tw::input::Enums<tw::bc::par>(tw::bc::par_map(),&bc0[1],&bc1[1]));
-	outerDirectives.Add("yboundary",new tw::input::Enums<tw::bc::par>(tw::bc::par_map(),&bc0[2],&bc1[2]));
-	outerDirectives.Add("zboundary",new tw::input::Enums<tw::bc::par>(tw::bc::par_map(),&bc0[3],&bc1[3]));
-	outerDirectives.Add("unit density",new tw::input::Float(&unitDensityCGS));
-	outerDirectives.Add("dtmin",new tw::input::Float(&dtMin));
-	outerDirectives.Add("dtmax",new tw::input::Float(&dtMax));
-	outerDirectives.Add("dtcrit",new tw::input::Float(&dtCritical));
-	outerDirectives.Add("maxtime",new tw::input::Float(&elapsedTimeMax));
-	outerDirectives.Add("steps",new tw::input::Int(&stepsToTake));
-	outerDirectives.Add("dump period",new tw::input::Int(&dumpPeriod));
-	outerDirectives.Add("neutralize",new tw::input::Bool(&neutralize));
-	outerDirectives.Add("window speed",new tw::input::Float(&signalSpeed));
-	outerDirectives.Add("moving window",new tw::input::Bool(&movingWindow));
-
-	// allow user to choose any of 8 corners with strings like corner001, corner010, etc.
-	tw::vec3 corner[2][2][2];
-	auto corner_str = [&] (tw::Int i,tw::Int j,tw::Int k)
-	{
-		return "corner" + std::to_string(i) + std::to_string(j) + std::to_string(k);
-	};
-	for (tw::Int i=0;i<2;i++)
-		for (tw::Int j=0;j<2;j++)
-			for (tw::Int k=0;k<2;k++)
-				gridDirectives.Add(corner_str(i,j,k),new tw::input::Numbers<tw::Float>(&corner[i][j][k][0],3));
-	gridDirectives.Add("corner",new tw::input::Numbers<tw::Float>(&globalCorner[0],3));
-	gridDirectives.Add("cell size",new tw::input::Numbers<tw::Float>(&spacing[0],3));
-	gridDirectives.Add("adaptive timestep",new tw::input::Bool(&adaptiveTimestep));
-	gridDirectives.Add("adaptive grid",new tw::input::Bool(&adaptiveGrid));
-	gridDirectives.Add("dimensions",new tw::input::Numbers<tw::Int>(&globalCells[1],3));
-	gridDirectives.Add("decomposition",new tw::input::Numbers<tw::Int>(&domains[1],3));
-	std::map<std::string,tw::grid::geometry> geo = {{"cartesian",tw::grid::cartesian},{"cylindrical",tw::grid::cylindrical},{"spherical",tw::grid::spherical}};
-	gridDirectives.Add("geometry",new tw::input::Enums<tw::grid::geometry>(geo,&gridGeometry));
-	gridDirectives.Add("warp",new tw::input::Custom);
-}
-
-Simulation::~Simulation()
-{
-	for (auto rgn : clippingRegion)
-		delete rgn;
-	for (auto wrp : warp)
-		delete wrp;
-
-	for (auto m : module)
-		delete m;
-	// clean up after any modules that did not release tools
-	for (auto tool : computeTool)
-		delete tool;
-
-	if (uniformDeviate!=NULL)
-		delete uniformDeviate;
-	if (gaussianDeviate!=NULL)
-		delete gaussianDeviate;
-
-	if (dynamic_cast<std::ofstream*>(tw_out))
-		((std::ofstream*)tw_out)->close();
-	if (dynamic_cast<std::stringstream*>(tw_out))
-		delete tw_out;
 }
 
 void Simulation::Run()
@@ -516,7 +481,7 @@ void Simulation::FundamentalCycle()
 bool Simulation::MangleModuleName(std::string& name)
 {
 	bool trouble,did_mangle;
-	tw::Int id = 1;
+	tw::Int id = 2;
 	std::string mangled(name);
 	do
 	{
@@ -562,7 +527,7 @@ tw::Int Simulation::FindModule(const std::string& name)
 bool Simulation::MangleToolName(std::string& name)
 {
 	bool trouble,did_mangle;
-	tw::Int id = 1;
+	tw::Int id = 2;
 	std::string mangled(name);
 	do
 	{
@@ -583,7 +548,7 @@ ComputeTool* Simulation::CreateTool(const std::string& basename,tw::tool_type th
 {
 	std::string name(basename);
 	MangleToolName(name);
-	(*tw_out) << "   Creating Tool <" << name << ">..." << std::endl;
+	(*tw_out) << "Creating Tool <" << name << ">..." << std::endl;
 	computeTool.push_back(ComputeTool::CreateObjectFromType(name,theType,this,this));
 	computeTool.back()->refCount++;
 	return computeTool.back();
@@ -703,6 +668,7 @@ void Simulation::ReadCheckpoint(std::ifstream& inFile)
 	inFile.read((char *)&adaptiveTimestep,sizeof(bool));
 	inFile.read((char *)&adaptiveGrid,sizeof(bool));
 	inFile.read((char *)&outputLevel,sizeof(outputLevel));
+	inFile.read((char *)&errorCheckingLevel,sizeof(errorCheckingLevel));
 	inFile.read((char *)&neutralize,sizeof(bool));
 	inFile.read((char *)&stepsToTake,sizeof(tw::Int));
 	inFile.read((char *)&dumpPeriod,sizeof(tw::Int));
@@ -713,14 +679,6 @@ void Simulation::ReadCheckpoint(std::ifstream& inFile)
 	#ifdef USE_OPENCL
 	InitializeMetricsBuffer(context,dt);
 	#endif
-
-	inFile.read((char *)&num,sizeof(tw::Int));
-	for (i=0;i<num;i++)
-	{
-		(*tw_out) << "Add Warp" << std::endl;
-		warp.push_back(new Warp(tw::grid::x,1,2,1.0,1.0));
-		inFile.read((char*)warp.back(),sizeof(Warp));
-	}
 
 	inFile.read((char *)&num,sizeof(tw::Int));
 	for (i=1;i<num;i++) // don't read index 0, it is created by constructor
@@ -784,16 +742,12 @@ void Simulation::WriteCheckpoint(std::ofstream& outFile)
 	outFile.write((char *)&adaptiveTimestep,sizeof(bool));
 	outFile.write((char *)&adaptiveGrid,sizeof(bool));
 	outFile.write((char *)&outputLevel,sizeof(outputLevel));
+	outFile.write((char *)&errorCheckingLevel,sizeof(errorCheckingLevel));
 	outFile.write((char *)&neutralize,sizeof(bool));
 	outFile.write((char *)&stepsToTake,sizeof(tw::Int));
 	outFile.write((char *)&dumpPeriod,sizeof(tw::Int));
 	outFile.write((char *)bc0,sizeof(tw::bc::par)*4);
 	outFile.write((char *)bc1,sizeof(tw::bc::par)*4);
-
-	i = warp.size();
-	outFile.write((char *)&i,sizeof(tw::Int));
-	for (i=0;i<warp.size();i++)
-		outFile.write((char*)warp[i],sizeof(Warp));
 
 	i = clippingRegion.size();
 	outFile.write((char *)&i,sizeof(tw::Int));
@@ -896,17 +850,10 @@ std::string Simulation::InputFileFirstPass()
 						do
 						{
 							com2 = gridDirectives.ReadNext(inputString);
-							if (com2=="warp") // eg, warp axis = x , start = 1 , end = 100 , length = 1e4
-							{
-								tw::grid::axis ax;
-								tw::Int i1,i2;
-								tw::Float length;
-								inputString >> word >> word >> word;
-								ax = tw::grid::axis_map()[word];
-								inputString >> word >> word >> i1 >> word >> word >> i2 >> word >> word >> length;
-								warp.push_back(new Warp(ax,i1,i2,length,spacing.z));
-							}
+							if (com2=="new" || com2=="generate" || com2=="get" || com2=="open")
+								throw tw::FatalError("Keyword <"+com2+"> inside grid block is not allowed.");
 						} while (com2!="}");
+						gridDirectives.ThrowErrorIfMissingKeys("grid");
 						tw::Int corners_given = gridDirectives.TestKey("corner") ? 1 : 0;
 						for (tw::Int i=0;i<2;i++)
 							for (tw::Int j=0;j<2;j++)
@@ -1164,14 +1111,15 @@ void Simulation::ReadInputFile()
 				if (preamble.attaching)
 				{
 					ComputeTool *tool = CreateTool(preamble.obj_name,whichTool);
-					(*tw_out) << "   Attaching <" << tool->name << "> to <" << preamble.owner_name << ">..." << std::endl;
+					(*tw_out) << "Attaching <" << tool->name << "> to <" << preamble.owner_name << ">..." << std::endl;
 					tool->ReadInputFileBlock(inputString);
 					GetModule(preamble.owner_name)->moduleTool.push_back(tool);
 				}
 				else
 				{
-					(*tw_out) << "   Creating Tool <" << preamble.obj_name << ">..." << std::endl;
-					if (MangleToolName(preamble.obj_name))
+					bool duplicate = MangleToolName(preamble.obj_name);
+					(*tw_out) << "Creating Tool <" << preamble.obj_name << ">..." << std::endl;
+					if (duplicate && errorCheckingLevel>0)
 						throw tw::FatalError(preamble.err_prefix+"duplicate tool name.");
 					// Do not use CreateTool, do not want to increase refCount
 					computeTool.push_back(ComputeTool::CreateObjectFromType(preamble.obj_name,whichTool,this,this));
@@ -1253,6 +1201,8 @@ void Simulation::ReadInputFile()
 		}
 
 	} while (!inputString.eof());
+
+	outerDirectives.ThrowErrorIfMissingKeys("Simulation");
 
 	Unlock();
 }

@@ -6,7 +6,6 @@
 // Increasing laser intensity may require timestep reduction
 // If you want electrostatic fields, set plasma model = quasineutral
 // (quasineutral model will be slow)
-append mode = on
 steps = 2000
 timestep = %100fs
 dtmax = %100fs

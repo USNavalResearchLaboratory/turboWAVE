@@ -15,7 +15,7 @@ namespace tw
 {
 	enum class tool_type
 	{
-		none,
+		none,warp,
 		// Profiles
 		uniformProfile,channelProfile,gaussianProfile,columnProfile,piecewiseProfile,corrugatedProfile,
 		// Wave launchers
@@ -33,7 +33,9 @@ namespace tw
 		// Ionization
 		mpi, adk, ppt,
 		// Diagnostics
-		boxDiagnostic,particleOrbits,phaseSpaceDiagnostic,volumeDiagnostic,pointDiagnostic
+		boxDiagnostic,particleOrbits,phaseSpaceDiagnostic,volumeDiagnostic,pointDiagnostic,
+		// Quantum
+		randomState,freeState,boundState,tabulatedState
 	};
 }
 
@@ -62,14 +64,15 @@ struct ComputeTool
 	ComputeTool(const std::string& name,MetricSpace *ms,Task *tsk);
 	virtual ~ComputeTool();
 	virtual void Initialize();
-	void InitializeCLProgram(const std::string& filename);
 	virtual void WarningMessage(std::ostream *theStream);
 	virtual void StatusMessage(std::ostream *theStream) {;}
 	virtual void ReadInputFileBlock(std::stringstream& inputString);
 	virtual void ReadInputFileDirective(std::stringstream& inputString,const std::string& command);
 	virtual void ReadCheckpoint(std::ifstream& inFile);
 	virtual void WriteCheckpoint(std::ofstream& outFile);
-	virtual void SaveToolReference(std::ofstream& outFile);
+
+	void InitializeCLProgram(const std::string& filename);
+	void SaveToolReference(std::ofstream& outFile);
 
 	static std::map<std::string,tw::tool_type> Map();
 	static tw::tool_type CreateTypeFromInput(const tw::input::Preamble& preamble);

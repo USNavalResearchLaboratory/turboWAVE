@@ -9,7 +9,6 @@ dump period = 0
 moving window = no
 neutralize = yes
 unit density = 1e19
-append mode = true
 
 xboundary = ( axisymmetric , reflecting )
 yboundary = ( periodic , periodic )

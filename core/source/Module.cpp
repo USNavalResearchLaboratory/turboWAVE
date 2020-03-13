@@ -30,8 +30,8 @@ Module::Module(const std::string& name,Simulation* sim)
 	suppressNextUpdate = false;
 	DiscreteSpace::operator=(*sim);
 	// Any Module recognizes smoothing keys
-	directives.Add("smoothing",new tw::input::Numbers<tw::Int>(&smoothing[1],3));
-	directives.Add("compensation",new tw::input::Numbers<tw::Int>(&compensation[1],3));
+	directives.Add("smoothing",new tw::input::Numbers<tw::Int>(&smoothing[1],3),false);
+	directives.Add("compensation",new tw::input::Numbers<tw::Int>(&compensation[1],3),false);
 }
 
 Module::~Module()
@@ -148,20 +148,14 @@ void Module::VerifyInput()
 
 	for (auto tool : moduleTool)
 	{
-		Profile *theProfile;
-		theProfile = dynamic_cast<Profile*>(tool);
-		if (theProfile!=NULL)
-			profile.push_back(theProfile);
+		Profile *theProfile = dynamic_cast<Profile*>(tool);
+		if (theProfile) profile.push_back(theProfile);
 
-		Wave *theWave;
-		theWave = dynamic_cast<Wave*>(tool);
-		if (theWave!=NULL)
-			wave.push_back(theWave);
+		Wave *theWave = dynamic_cast<Wave*>(tool);
+		if (theWave) wave.push_back(theWave);
 
-		Conductor *theConductor;
-		theConductor = dynamic_cast<Conductor*>(tool);
-		if (theConductor!=NULL)
-			conductor.push_back(theConductor);
+		Conductor *theConductor = dynamic_cast<Conductor*>(tool);
+		if (theConductor) conductor.push_back(theConductor);
 	}
 }
 
@@ -173,6 +167,7 @@ void Module::ReadInputFileBlock(std::stringstream& inputString)
 		com = directives.ReadNext(inputString);
 		ReadInputFileDirective(inputString,com);
 	} while (com!="}");
+	directives.ThrowErrorIfMissingKeys(name);
 }
 
 bool Module::ReadQuasitoolBlock(const tw::input::Preamble& preamble,std::stringstream& inputString)
@@ -262,7 +257,8 @@ std::map<std::string,tw::module_type> Module::Map()
 		{"group",tw::module_type::equilibriumGroup},
 		{"chemical",tw::module_type::chemical},
 		{"species",tw::module_type::species},
-		{"kinetics",tw::module_type::kinetics}
+		{"kinetics",tw::module_type::kinetics},
+		{"population diagnostic",tw::module_type::populationDiagnostic}
 	};
 }
 
@@ -338,6 +334,9 @@ Module* Module::CreateObjectFromType(const std::string& name,tw::module_type the
 			break;
 		case tw::module_type::dirac:
 			ans = new Dirac(name,sim);
+			break;
+		case tw::module_type::populationDiagnostic:
+			ans = new PopulationDiagnostic(name,sim);
 			break;
 	}
 	return ans;

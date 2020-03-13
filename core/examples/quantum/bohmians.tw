@@ -4,10 +4,11 @@
 // Bohmian particles in a Rabi oscillation
 // The Rabi frequency is 0.0137 a.u.
 // We run for 1/2 the Rabi period, so that the atom should end up in a 2p state
-steps = 24000
+steps = 10
 timestep = 0.01
 dump period = 0
-append mode = true
+error checking level = 0
+unit density = 1e19
 
 xboundary = ( axisymmetric , absorbing )
 yboundary = ( periodic , periodic )
@@ -24,23 +25,31 @@ new grid
 	geometry = cylindrical
 }
 
-new schroedinger equation module
+new schroedinger equation module 'tdse'
 {
 	soft core potential , charge = 1.0 , radius = 0.04
 	// bound states : -0.494 , -0.125
 	relaxation time = 20.0
-
-	new wavefunction
-	{
-		type = random
-		amplitude = ( 1.0 , 0.0 )
-		size = 5.0 5.0 5.0
-	}
 }
 
-new wave
+new population diagnostic 'pop'
 {
-	type = plane
+}
+
+new qstate random for 'tdse'
+{
+	amplitude = ( 1.0 , 0.0 )
+	size = 5.0 5.0 5.0
+}
+
+new qstate bound for 'pop'
+{
+	nr_j_l_m = 1.0 0.0 0.0 0.0
+	amplitude = 1.0 0.0
+}
+
+new plane wave for 'tdse'
+{
 	direction = 1 0 0
 	a = 0.0 0.0 0.05
 	w = 0.369
@@ -52,9 +61,8 @@ new wave
 	phase = 0
 }
 
-new wave
+new plane wave for 'tdse'
 {
-	type = plane
 	direction = 1 0 0
 	a = 0.0 0.0 -0.05
 	w = 0.0
@@ -88,5 +96,5 @@ new box diagnostic
 
 new energy diagnostic
 {
-	period = 2000
+	period = 10
 }

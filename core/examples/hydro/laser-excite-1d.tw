@@ -4,7 +4,6 @@
 // SPARC input file to model laser excitation of an Argon plasma
 // This includes photo and collisional ionization
 // Increasing laser intensity may require timestep reduction
-append mode = on
 steps = 2000
 timestep = %100fs
 dtmax = %100fs

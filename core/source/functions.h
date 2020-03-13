@@ -194,6 +194,11 @@ inline tw::Float QuinticRise(tw::Float x)
 	return 10.0*pow(x,tw::Float(3.0)) - 15.0*pow(x,tw::Float(4.0)) + 6.0*pow(x,tw::Float(5.0));
 }
 
+inline tw::Float QuinticFall(tw::Float x)
+{
+	return 10.0*pow(1.0-x,tw::Float(3.0)) - 15.0*pow(1.0-x,tw::Float(4.0)) + 6.0*pow(1.0-x,tw::Float(5.0));
+}
+
 // base to base from x=0 to x=1
 inline tw::Float QuinticPulse(tw::Float x)
 {
