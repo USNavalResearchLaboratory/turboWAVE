@@ -63,7 +63,7 @@ Simulation::Simulation(const std::string& file_name)
 	outerDirectives.Add("xboundary",new tw::input::Enums<tw::bc::par>(tw::bc::par_map(),&bc0[1],&bc1[1]));
 	outerDirectives.Add("yboundary",new tw::input::Enums<tw::bc::par>(tw::bc::par_map(),&bc0[2],&bc1[2]));
 	outerDirectives.Add("zboundary",new tw::input::Enums<tw::bc::par>(tw::bc::par_map(),&bc0[3],&bc1[3]));
-	outerDirectives.Add("unit density",new tw::input::Float(&unitDensityCGS));
+	outerDirectives.Add("unit density",new tw::input::Float(&unitDensityCGS),false);
 	outerDirectives.Add("dtmin",new tw::input::Float(&dtMin),false);
 	outerDirectives.Add("dtmax",new tw::input::Float(&dtMax),false);
 	outerDirectives.Add("dtcrit",new tw::input::Float(&dtCritical),false);
@@ -850,6 +850,8 @@ std::string Simulation::InputFileFirstPass()
 						do
 						{
 							com2 = gridDirectives.ReadNext(inputString);
+							if (com2=="tw::EOF")
+								throw tw::FatalError("Encountered EOF while processing <grid>.");
 							if (com2=="new" || com2=="generate" || com2=="get" || com2=="open")
 								throw tw::FatalError("Keyword <"+com2+"> inside grid block is not allowed.");
 						} while (com2!="}");

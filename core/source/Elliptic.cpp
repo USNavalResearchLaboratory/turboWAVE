@@ -15,9 +15,9 @@ EllipticSolver::EllipticSolver(const std::string& name,MetricSpace *m,Task *tsk)
 	coeff = NULL;
 	x0 = x1 = y0 = y1 = z0 = z1 = tw::bc::fld::natural;
 	gammaBeam = 1.0;
-	directives.Add("poisson boundary condition x",new tw::input::Enums<tw::bc::fld>(tw::bc::fld_map(),&x0,&x1));
-	directives.Add("poisson boundary condition y",new tw::input::Enums<tw::bc::fld>(tw::bc::fld_map(),&y0,&y1));
-	directives.Add("poisson boundary condition z",new tw::input::Enums<tw::bc::fld>(tw::bc::fld_map(),&z0,&z1));
+	directives.Add("poisson boundary condition x",new tw::input::Enums<tw::bc::fld>(tw::bc::fld_map(),&x0,&x1),false);
+	directives.Add("poisson boundary condition y",new tw::input::Enums<tw::bc::fld>(tw::bc::fld_map(),&y0,&y1),false);
+	directives.Add("poisson boundary condition z",new tw::input::Enums<tw::bc::fld>(tw::bc::fld_map(),&z0,&z1),false);
 }
 
 void EllipticSolver::FormOperatorStencil(std::valarray<tw::Float>& D,tw::Int i,tw::Int j,tw::Int k)
@@ -297,7 +297,7 @@ IterativePoissonSolver::IterativePoissonSolver(const std::string& name,MetricSpa
 			redSquare = !redSquare;
 	}
 	directives.Add("tolerance",new tw::input::Float(&tolerance));
-	directives.Add("overrelaxation",new tw::input::Float(&overrelaxation));
+	directives.Add("overrelaxation",new tw::input::Float(&overrelaxation),false);
 }
 
 IterativePoissonSolver::~IterativePoissonSolver()

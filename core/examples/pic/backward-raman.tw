@@ -56,7 +56,7 @@ new hermite gauss for 'coul' // pump
 
 new species 'e'
 {
-	mean free path = 0.06
+	particles per cell = 1 1 8 when density = 1.0
 }
 
 generate piecewise 'e'

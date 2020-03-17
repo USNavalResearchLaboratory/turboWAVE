@@ -58,6 +58,8 @@ void ComputeTool::ReadInputFileBlock(std::stringstream& inputString)
 	do
 	{
 		com = directives.ReadNext(inputString);
+		if (com=="tw::EOF")
+			throw tw::FatalError("Encountered EOF while processing <"+name+">.");
 		ReadInputFileDirective(inputString,com);
 	} while (com!="}");
 	directives.ThrowErrorIfMissingKeys(name);

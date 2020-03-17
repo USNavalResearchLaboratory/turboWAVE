@@ -1,5 +1,5 @@
 // Keep the following line for generating twtest reports
-// TWTEST matplotlib xyzt=0,: zpz.dvdat dr=5.0
+// TWTEST matplotlib zxyt=0,: zpz.dvdat dr=5.0
 
 steps = 2000
 timestep = 0.04

@@ -11,6 +11,7 @@ Preliminaries
 	:maxdepth: 1
 
 	license
+	whats-new
 	overview
 	workstation
 

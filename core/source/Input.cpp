@@ -246,11 +246,19 @@ void tw::input::UnitMacros(std::stringstream& in,std::stringstream& out)
 	bool unitMacrosPresent = false;
 	std::string word;
 
+	auto IsUnitMacro = [&] (const std::string& s)
+	{
+		if (word.size()>1)
+			if (word[0]=='%' || word[0]=='-' && word[1]=='%')
+				return true;
+		return false;
+	};
+
 	while (!in.eof())
 	{
 		in >> word;
 		if (!in.eof())
-			if (word[0]=='%')
+			if (IsUnitMacro(word))
 				unitMacrosPresent = true;
 	}
 
@@ -258,7 +266,7 @@ void tw::input::UnitMacros(std::stringstream& in,std::stringstream& out)
 	in.seekg(0,in.beg);
 	tw::Float unitDensityCGS = tw::input::GetUnitDensityCGS(in);
 	if (unitDensityCGS==0.0 && unitMacrosPresent)
-		throw tw::FatalError("Unit density directive is required.");
+		throw tw::FatalError("Dimensional numbers found, but unit density parameter is missing.");
 	UnitConverter uc(unitDensityCGS);
 
 	in.clear();
@@ -268,7 +276,7 @@ void tw::input::UnitMacros(std::stringstream& in,std::stringstream& out)
 		in >> word;
 		if (!in.eof())
 		{
-			if (word[0]=='%')
+			if (IsUnitMacro(word))
 				tw::input::NormalizeInput(uc,word);
 			out << word << " ";
 		}
@@ -390,84 +398,91 @@ void tw::input::NormalizeInput(const UnitConverter& uc,std::string& in_out)
 	// un-normalized quantities are signaled with percent,e.g. %1.0m
 	// signals to replace the string with normalized length corresponding to 1 meter
 	std::size_t endpos;
-	std::string units;
+	std::string dimensionalNumber,units;
 	std::stringstream temp;
-	tw::Float qty,nqty=tw::small_pos;
-	if (in_out[0]=='%')
+	tw::Float qty,sgn,nqty=tw::small_pos;
+	if (in_out[0]=='-')
 	{
-		try { qty = std::stod(in_out.substr(1),&endpos); }
-		catch (std::invalid_argument) { throw tw::FatalError("Invalid unit conversion macro : " + in_out); }
-		units = in_out.substr(1+endpos);
+		dimensionalNumber = in_out.substr(2);
+		sgn = -1.0;
+	}
+	else
+	{
+		dimensionalNumber = in_out.substr(1);
+		sgn = 1.0;
+	}
+	try { qty = std::stod(dimensionalNumber,&endpos); }
+	catch (std::invalid_argument) { throw tw::FatalError("Invalid unit conversion macro : " + in_out); }
+	units = dimensionalNumber.substr(endpos);
 
-		// Angle Conversions
-		if (units=="rad")
-			nqty = qty;
-		if (units=="mrad")
-			nqty = 1e-3*qty;
-		if (units=="urad")
-			nqty = 1e-6*qty;
-		if (units=="deg")
-			nqty = qty*pi/180.0;
+	// Angle Conversions
+	if (units=="rad")
+		nqty = qty;
+	if (units=="mrad")
+		nqty = 1e-3*qty;
+	if (units=="urad")
+		nqty = 1e-6*qty;
+	if (units=="deg")
+		nqty = qty*pi/180.0;
 
-		// Length Conversions
-		if (units=="um")
-			nqty = uc.MKSToSim(length_dim,1e-6*qty);
-		if (units=="mm")
-			nqty = uc.MKSToSim(length_dim,1e-3*qty);
-		if (units=="cm")
-			nqty = uc.MKSToSim(length_dim,1e-2*qty);
-		if (units=="m")
-			nqty = uc.MKSToSim(length_dim,qty);
+	// Length Conversions
+	if (units=="um")
+		nqty = uc.MKSToSim(length_dim,1e-6*qty);
+	if (units=="mm")
+		nqty = uc.MKSToSim(length_dim,1e-3*qty);
+	if (units=="cm")
+		nqty = uc.MKSToSim(length_dim,1e-2*qty);
+	if (units=="m")
+		nqty = uc.MKSToSim(length_dim,qty);
 
-		// Time Conversions
-		if (units=="fs")
-			nqty = uc.MKSToSim(time_dim,1e-15*qty);
-		if (units=="ps")
-			nqty = uc.MKSToSim(time_dim,1e-12*qty);
-		if (units=="ns")
-			nqty = uc.MKSToSim(time_dim,1e-9*qty);
-		if (units=="us")
-			nqty = uc.MKSToSim(time_dim,1e-6*qty);
-		if (units=="s")
-			nqty = uc.MKSToSim(time_dim,qty);
+	// Time Conversions
+	if (units=="fs")
+		nqty = uc.MKSToSim(time_dim,1e-15*qty);
+	if (units=="ps")
+		nqty = uc.MKSToSim(time_dim,1e-12*qty);
+	if (units=="ns")
+		nqty = uc.MKSToSim(time_dim,1e-9*qty);
+	if (units=="us")
+		nqty = uc.MKSToSim(time_dim,1e-6*qty);
+	if (units=="s")
+		nqty = uc.MKSToSim(time_dim,qty);
 
-		// Number Density Conversions
-		if (units=="m-3")
-			nqty = uc.MKSToSim(density_dim,qty);
-		if (units=="cm-3")
-			nqty = uc.CGSToSim(density_dim,qty);
+	// Number Density Conversions
+	if (units=="m-3")
+		nqty = uc.MKSToSim(density_dim,qty);
+	if (units=="cm-3")
+		nqty = uc.CGSToSim(density_dim,qty);
 
-		// Energy Density Conversions
-		if (units=="Jm3")
-			nqty = uc.MKSToSim(energy_density_dim,qty);
-		if (units=="Jcm3")
-			nqty = uc.MKSToSim(energy_density_dim,1e6*qty);
+	// Energy Density Conversions
+	if (units=="Jm3")
+		nqty = uc.MKSToSim(energy_density_dim,qty);
+	if (units=="Jcm3")
+		nqty = uc.MKSToSim(energy_density_dim,1e6*qty);
 
-		// Temperature Conversions
-		if (units=="eV")
-			nqty = uc.eV_to_sim(qty);
-		if (units=="K")
-			nqty = uc.MKSToSim(temperature_dim,qty);
+	// Temperature Conversions
+	if (units=="eV")
+		nqty = uc.eV_to_sim(qty);
+	if (units=="K")
+		nqty = uc.MKSToSim(temperature_dim,qty);
 
-		// Cross Section Conversions
-		if (units=="cm2")
-			nqty = uc.CGSToSim(cross_section_dim,qty);
-		if (units=="m2")
-			nqty = uc.MKSToSim(cross_section_dim,qty);
+	// Cross Section Conversions
+	if (units=="cm2")
+		nqty = uc.CGSToSim(cross_section_dim,qty);
+	if (units=="m2")
+		nqty = uc.MKSToSim(cross_section_dim,qty);
 
-		// Diffusivity Conversions
-		if (units=="cm2s")
-			nqty = uc.CGSToSim(diffusivity_dim,qty);
-		if (units=="m2s")
-			nqty = uc.MKSToSim(diffusivity_dim,qty);
+	// Diffusivity Conversions
+	if (units=="cm2s")
+		nqty = uc.CGSToSim(diffusivity_dim,qty);
+	if (units=="m2s")
+		nqty = uc.MKSToSim(diffusivity_dim,qty);
 
-		if (nqty==tw::small_pos)
-			throw tw::FatalError("Unrecognized Units " + in_out);
-		else
-		{
-			temp << nqty; // don't use std::to_string; it rounds small numbers to 0.
-			in_out = temp.str();
-		}
+	if (nqty==tw::small_pos)
+		throw tw::FatalError("Unrecognized Units " + in_out);
+	else
+	{
+		temp << sgn*nqty; // don't use std::to_string; it rounds small numbers to 0.
+		in_out = temp.str();
 	}
 }
 
@@ -526,7 +541,34 @@ tw::input::Preamble tw::input::EnterInputFileBlock(const std::string& com,std::s
 	// Get the object names
 	if (ans.attaching)
 	{
-		ans.obj_name = std::string(ans.words.front());
+		std::string option1,option2,testString;
+		if (keywordFound)
+		{
+			// option1 is the word before <for>, which is taken if it is quoted
+			// option2 is the concatenation all the words before <for>
+			option1 = std::string(*(ans.words.end()-3));
+			option2 = "";
+			for (auto iter=ans.words.begin();iter<ans.words.end()-2;++iter)
+				option2.append(*iter+"_");
+			option2.pop_back();
+		}
+		else
+		{
+			// This is a generate block.
+			// option1 is the second to last word, which is taken if it is quoted
+			// option2 is the concatenation of all the words before the last word
+			option1 = std::string(*(ans.words.end()-2));
+			option2 = "";
+			for (auto iter=ans.words.begin();iter<ans.words.end()-1;++iter)
+				option2.append(*iter+"_");
+			option2.pop_back();
+		}
+		testString = std::string(option1);
+		tw::input::StripQuotes(testString);
+		if (testString!=option1)
+			ans.obj_name = std::string(option1);
+		else
+			ans.obj_name = std::string(option2);
 		ans.owner_name = std::string(ans.words.back());
 	}
 	else

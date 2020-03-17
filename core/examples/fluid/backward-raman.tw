@@ -62,11 +62,6 @@ new fluid 'gas'
 	initial ionization fraction = .01
 	neutral cross section = 1e-15
 	coulomb collisions = true
-
-	ionization model = adk
-	ionization potential = 100.0 // suppress ionization
-	protons = 1
-	electrons = 1
 }
 
 generate piecewise 'gas'

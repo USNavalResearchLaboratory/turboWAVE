@@ -40,6 +40,7 @@ new hermite gauss for 'em'
 	focus position = 0 0 40
 	delay = 0
 	risetime = 20
+	holdtime = 0
 	falltime = 20
 }
 

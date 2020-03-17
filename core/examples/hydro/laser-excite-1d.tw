@@ -79,7 +79,7 @@ new group heavies
 	mobile = true
 }
 
-generate ppt ionization for Ar
+new ppt ionization for Ar
 {
 	ionization potential = %15.76eV
 	protons = 18

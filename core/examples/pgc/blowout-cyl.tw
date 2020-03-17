@@ -116,7 +116,7 @@ generate piecewise 'He'
 	particle weight = variable
 }
 
-new energy series
+new energy diagnostic
 {
 	filename = energy
 	time period = $diag_step

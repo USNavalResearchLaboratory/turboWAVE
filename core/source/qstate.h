@@ -22,6 +22,8 @@ public:
 	QState(const std::string& name,MetricSpace *ms,Task *tsk);
 	virtual tw::Complex Amplitude(const HamiltonianParameters& H,const tw::vec3& r,const tw::Float& t,const tw::Int& comp) const;
 	virtual bool GoodQuantumNumbers(const HamiltonianParameters& H) const;
+	virtual tw::Float Energy(const HamiltonianParameters& H) const;
+	virtual tw::Float NormalizationConstant(const HamiltonianParameters& H) const;
 	virtual void ReadCheckpoint(std::ifstream& inFile);
 	virtual void WriteCheckpoint(std::ofstream& outFile);
 };
@@ -64,10 +66,10 @@ public:
 	BoundState(const std::string& name,MetricSpace *ms,Task *tsk);
 	virtual tw::Complex Amplitude(const HamiltonianParameters& H,const tw::vec3& r,const tw::Float& t,const tw::Int& comp) const;
 	virtual bool GoodQuantumNumbers(const HamiltonianParameters& H) const;
+	virtual tw::Float Energy(const HamiltonianParameters& H) const;
+	virtual tw::Float NormalizationConstant(const HamiltonianParameters& H) const;
 	virtual void ReadCheckpoint(std::ifstream& inFile);
 	virtual void WriteCheckpoint(std::ofstream& outFile);
-	tw::Float Energy(const HamiltonianParameters& H) const;
-	tw::Float NormalizationConstant(const HamiltonianParameters& H) const;
 };
 
 class TabulatedState : public QState

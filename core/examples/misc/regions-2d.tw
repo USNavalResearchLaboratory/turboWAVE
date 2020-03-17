@@ -1,5 +1,5 @@
 // Keep the following line for generating twtest reports
-// TWTEST matplotlib zxyt=0,0 electrons.dvdat
+// TWTEST matplotlib zxyt=0,0 e.dvdat
 
 steps = 2
 timestep = 0.005
@@ -66,7 +66,7 @@ new region intersection i1
 
 new direct electromagnetic module
 {
-	layer thickness = 8 8 8 8 8 8
+	layers = 8 8 8 8 8 8
 	reflection coefficient = 1e-4 1e-4 1e-4 1e-4 1e-4 1e-4
 }
 

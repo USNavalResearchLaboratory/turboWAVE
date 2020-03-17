@@ -32,11 +32,11 @@ Fluid::Fluid(const std::string& name,Simulation* sim):Module(name,sim)
 	carrierFrequency = NULL;
 	ionizer = NULL;
 
-	directives.Add("charge",new tw::input::Float(&charge));
-	directives.Add("mass",new tw::input::Float(&mass));
-	directives.Add("neutral cross section",new tw::input::Float(&enCrossSection));
-	directives.Add("initial ionization fraction",new tw::input::Float(&initialIonizationFraction));
-	directives.Add("coulomb collisions",new tw::input::Bool(&coulombCollisions));
+	directives.Add("charge",new tw::input::Float(&charge),false);
+	directives.Add("mass",new tw::input::Float(&mass),false);
+	directives.Add("neutral cross section",new tw::input::Float(&enCrossSection),false);
+	directives.Add("initial ionization fraction",new tw::input::Float(&initialIonizationFraction),false);
+	directives.Add("coulomb collisions",new tw::input::Bool(&coulombCollisions),false);
 }
 
 Fluid::~Fluid()
@@ -82,12 +82,15 @@ bool Fluid::InspectResource(void* resource,const std::string& description)
 
 void Fluid::VerifyInput()
 {
+	Module::VerifyInput();
 	for (auto tool : moduleTool)
 	{
 		ionizer = dynamic_cast<Ionizer*>(tool);
 		if (ionizer!=NULL)
 			break;
 	}
+	if (owner->units==NULL)
+		throw tw::FatalError("Fluid module requires units (set unit density).");
 }
 
 void Fluid::Initialize()
@@ -149,20 +152,19 @@ void Fluid::Initialize()
 	{
 		tw::vec3 pos,A0,A1;
 		tw::Float density;
-		UnitConverter uc(owner->unitDensityCGS);
 
 		for (auto cell : EntireCellRange(*this))
 		{
 			pos = owner->Pos(cell);
 
-			for (tw::Int s=0;s<profile.size();s++)
+			for (auto prof : profile)
 			{
 				for (tw::Int c=1;c<=3;c++)
 				{
-					state0(cell,c) = profile[s]->DriftMomentum(1.0)[c-1];
-					state1(cell,c) = profile[s]->DriftMomentum(1.0)[c-1];
+					state0(cell,c) = prof->DriftMomentum(1.0)[c-1];
+					state1(cell,c) = prof->DriftMomentum(1.0)[c-1];
 				}
-				density = profile[s]->GetValue(pos,*owner);
+				density = prof->GetValue(pos,*owner);
 				gas(cell) += (1.0 - initialIonizationFraction)*density;
 				state0(cell,0) += initialIonizationFraction*density; // ionization fraction should not be zero
 				state1(cell,0) += initialIonizationFraction*density;
@@ -170,27 +172,35 @@ void Fluid::Initialize()
 					fixed(cell) += initialIonizationFraction*density;
 			}
 
-			A0 = A1 = tw::vec3(0,0,0);
-			for (tw::Int s=0;s<wave.size();s++)
+			if (carrierFrequency==NULL)
 			{
-				A0 += wave[s]->VectorPotential(-dth,pos);
-				A1 += wave[s]->VectorPotential(0.0,pos);
+				A0 = A1 = tw::vec3(0,0,0);
+				for (auto w : wave)
+				{
+					A0 += w->VectorPotential(-dth,pos);
+					A1 += w->VectorPotential(0.0,pos);
+				}
+				state0(cell,1) += A0.x;
+				state0(cell,2) += A0.y;
+				state0(cell,3) += 0.5*(A0.x*A0.x + A0.y*A0.y);
+				state1(cell,1) += A1.x;
+				state1(cell,2) += A1.y;
+				state1(cell,3) += 0.5*(A1.x*A1.x + A1.y*A1.y);
 			}
-			state0(cell,1) += A0.x;
-			state0(cell,2) += A0.y;
-			state0(cell,3) += 0.5*(A0.x*A0.x + A0.y*A0.y);
-			state1(cell,1) += A1.x;
-			state1(cell,2) += A1.y;
-			state1(cell,3) += 0.5*(A1.x*A1.x + A1.y*A1.y);
-			for (auto pulse : wave)
+			else
 			{
-				state0(cell,3) += 0.25*norm(pulse->VectorPotentialEnvelope(-dth,pos,*carrierFrequency));
-				state1(cell,3) += 0.25*norm(pulse->VectorPotentialEnvelope(0.0,pos,*carrierFrequency));
+				for (auto w : wave)
+				{
+					state0(cell,3) += 0.25*norm(w->VectorPotentialEnvelope(-dth,pos,*carrierFrequency));
+					state1(cell,3) += 0.25*norm(w->VectorPotentialEnvelope(0.0,pos,*carrierFrequency));
+				}
 			}
 		}
 	}
 
 	// temperature is set to last profile's temperature
+	if (profile.size()==0)
+		throw tw::FatalError("Fluid module needs a profile.");
 	thermalMomentum = profile.back()->thermalMomentum.x;
 	if (profile.back()->temperature!=0.0)
 		thermalMomentum = sqrt(profile.back()->temperature*mass); // appropriate for exp(-v^2/(2*vth^2)) convention
@@ -274,7 +284,7 @@ void Fluid::Update()
 {
 	tw::bc::fld bc;
 	tw::Float field,ionizedDensity;
-	UnitConverter uc(owner->unitDensityCGS);
+	const UnitConverter& uc = *owner->units;
 
 	const tw::Float q0 = charge;
 	const tw::Float m0 = mass;
@@ -640,16 +650,16 @@ bool Chemical::GenerateFluid(Field& hydro,Field& eos)
 	const tw::Int U = group->hidx.u;
 	const tw::Int Xi = group->hidx.x;
 
-	for (tw::Int s=0;s<profile.size();s++)
+	for (auto prof : profile)
 	{
-		switch (profile[s]->timingMethod)
+		switch (prof->timingMethod)
 		{
 			case tw::profile::timing::triggered:
-				timeGate = owner->elapsedTime>=profile[s]->t0 && !profile[s]->wasTriggered;
+				timeGate = owner->elapsedTime>=prof->t0 && !prof->wasTriggered;
 				add = 1.0;
 				break;
 			case tw::profile::timing::maintained:
-				timeGate = owner->elapsedTime>=profile[s]->t0 && owner->elapsedTime<=profile[s]->t1;
+				timeGate = owner->elapsedTime>=prof->t0 && owner->elapsedTime<=prof->t1;
 				add = 0.0;
 				break;
 			default:
@@ -657,18 +667,18 @@ bool Chemical::GenerateFluid(Field& hydro,Field& eos)
 		}
 		if ( timeGate )
 		{
-			profile[s]->wasTriggered = true;
+			prof->wasTriggered = true;
 			didGenerate = true;
-			kT = sqr(profile[s]->thermalMomentum.x)/mat.mass; // appropriate for exp(-v^2/(2*vth^2)) convention
-			if (profile[s]->temperature!=0.0)
-				kT = profile[s]->temperature;
-			p0.x = profile[s]->DriftMomentum(mat.mass).x;
-			p0.y = profile[s]->DriftMomentum(mat.mass).y;
-			p0.z = profile[s]->DriftMomentum(mat.mass).z;
+			kT = sqr(prof->thermalMomentum.x)/mat.mass; // appropriate for exp(-v^2/(2*vth^2)) convention
+			if (prof->temperature!=0.0)
+				kT = prof->temperature;
+			p0.x = prof->DriftMomentum(mat.mass).x;
+			p0.y = prof->DriftMomentum(mat.mass).y;
+			p0.z = prof->DriftMomentum(mat.mass).z;
 			for (auto cell : EntireCellRange(*this))
 			{
-				dens = profile[s]->GetValue(owner->Pos(cell),*owner);
-				if (profile[s]->whichQuantity==tw::profile::quantity::density && dens>0.0)
+				dens = prof->GetValue(owner->Pos(cell),*owner);
+				if (prof->whichQuantity==tw::profile::quantity::density && dens>0.0)
 				{
 					kinetic = 0.5*Norm(dens*p0)/(tw::small_pos + mat.mass*dens);
 					vibrational = dens*mat.excitationEnergy/(fabs(exp(mat.excitationEnergy/kT) - 1.0) + tw::small_pos);
@@ -680,19 +690,19 @@ bool Chemical::GenerateFluid(Field& hydro,Field& eos)
 					hydro(cell,Xi) = add*hydro(cell,Xi) + vibrational;
 					master->scratch(cell) = dens*mat.mass; // save nm for use below
 				}
-				if (profile[s]->whichQuantity==tw::profile::quantity::energy)
+				if (prof->whichQuantity==tw::profile::quantity::energy)
 				{
 					hydro(cell,U) = add*hydro(cell,U) + dens;
 				}
-				if (profile[s]->whichQuantity==tw::profile::quantity::px)
+				if (prof->whichQuantity==tw::profile::quantity::px)
 				{
 					hydro(cell,npx) = add*hydro(cell,npx) + dens;
 				}
-				if (profile[s]->whichQuantity==tw::profile::quantity::py)
+				if (prof->whichQuantity==tw::profile::quantity::py)
 				{
 					hydro(cell,npy) = add*hydro(cell,npy) + dens;
 				}
-				if (profile[s]->whichQuantity==tw::profile::quantity::pz)
+				if (prof->whichQuantity==tw::profile::quantity::pz)
 				{
 					hydro(cell,npz) = add*hydro(cell,npz) + dens;
 				}
@@ -875,14 +885,14 @@ sparc::HydroManager::HydroManager(const std::string& name,Simulation* sim):Modul
 	plasModel = sparc::neutral;
 	electrons = NULL;
 
-	directives.Add("epsilon factor",new tw::input::Float(&epsilonFactor));
+	directives.Add("epsilon factor",new tw::input::Float(&epsilonFactor),false);
 	std::map<std::string,sparc::radiationModel> rad = {{"none",sparc::noRadiation},{"thin",sparc::thin},{"thick",sparc::thick}};
-	directives.Add("radiation model",new tw::input::Enums<sparc::radiationModel>(rad,&radModel));
+	directives.Add("radiation model",new tw::input::Enums<sparc::radiationModel>(rad,&radModel),false);
 	std::map<std::string,sparc::laserModel> las = {{"vacuum",sparc::vacuum},{"isotropic",sparc::isotropic}};
-	directives.Add("laser model",new tw::input::Enums<sparc::laserModel>(las,&lasModel));
+	directives.Add("laser model",new tw::input::Enums<sparc::laserModel>(las,&lasModel),false);
 	std::map<std::string,sparc::plasmaModel> plas = {{"neutral",sparc::neutral},{"quasineutral",sparc::quasineutral}};
-	directives.Add("plasma model",new tw::input::Enums<sparc::plasmaModel>(plas,&plasModel));
-	directives.Add("dipole center",new tw::input::Vec3(&dipoleCenter));
+	directives.Add("plasma model",new tw::input::Enums<sparc::plasmaModel>(plas,&plasModel),false);
+	directives.Add("dipole center",new tw::input::Vec3(&dipoleCenter),false);
 }
 
 sparc::HydroManager::~HydroManager()
@@ -993,6 +1003,9 @@ void sparc::HydroManager::SetupIndexing()
 void sparc::HydroManager::VerifyInput()
 {
 	Module::VerifyInput();
+
+	if (owner->units==NULL)
+		throw tw::FatalError("Hydro module requires units (set unit density).");
 
 	// DFG - here is an example of where we have more than 1 kind of tool to consider.
 	// Simple appoach is just repeat the structure for each one.
@@ -1188,12 +1201,13 @@ void sparc::HydroManager::Reset()
 	}
 }
 
-tw::Float sparc::HydroManager::CollisionCoefficient(Collision *coll,const tw::cell& cell,const UnitConverter& uc)
+tw::Float sparc::HydroManager::CollisionCoefficient(Collision *coll,const tw::cell& cell)
 {
 	// DFG - this used to appear in multiple places, now modularized.
 	// Deriving a particular frequency depends on the process.
 	// Energy and momentum transfer have a factor of 3 difference, and different mass dependence.
 	// If this coefficient is multiplied by the field density, we get what is typically called "collision frequency".
+	const UnitConverter& uc = *owner->units;
 	const tw::Float N1 = state1(cell,coll->h1.ni);
 	const tw::Float N2 = state1(cell,coll->h2.ni);
 	const tw::Float T1 = eos1(cell,coll->e1.T);
@@ -1231,16 +1245,15 @@ void sparc::HydroManager::ComputeElectronCollisionFrequency()
 {
 	#pragma omp parallel
 	{
-		UnitConverter uc(owner->unitDensityCGS);
 		for (auto cell : InteriorCellRange(*this))
 		{
 			tw::Float aggregateCollFreq = 0.0;
 			for (auto coll : collision)
 			{
 				if (coll->h1.ni==ie)
-					aggregateCollFreq += state1(cell,coll->h2.ni) * CollisionCoefficient(coll,cell,uc);
+					aggregateCollFreq += state1(cell,coll->h2.ni) * CollisionCoefficient(coll,cell);
 				if (coll->h2.ni==ie)
-					aggregateCollFreq += state1(cell,coll->h1.ni) * CollisionCoefficient(coll,cell,uc);
+					aggregateCollFreq += state1(cell,coll->h1.ni) * CollisionCoefficient(coll,cell);
 			}
 			nu_e(cell) = aggregateCollFreq;
 		}
@@ -1253,7 +1266,6 @@ void sparc::HydroManager::ComputeCollisionalSources()
 {
 	#pragma omp parallel
 	{
-		UnitConverter uc(owner->unitDensityCGS);
 		tw::Float rateNow;
 
 		// REACTIONS
@@ -1331,7 +1343,7 @@ void sparc::HydroManager::ComputeCollisionalSources()
 		for (auto coll : collision)
 			for (auto cell : InteriorCellRange(*this))
 			{
-				const tw::Float R = CollisionCoefficient(coll,cell,uc);
+				const tw::Float R = CollisionCoefficient(coll,cell);
 				const tw::Float N1 = state1(cell,coll->h1.ni);
 				const tw::Float N2 = state1(cell,coll->h2.ni);
 				const tw::Float T1 = eos1(cell,coll->e1.T);
@@ -1392,7 +1404,7 @@ void sparc::HydroManager::ComputeRadiativeSources()
 {
 	#pragma omp parallel
 	{
-		UnitConverter uc(owner->unitDensityCGS);
+		const UnitConverter& uc = *owner->units;
 
 		// Ohmic heating due to laser fields
 		if (electrons)

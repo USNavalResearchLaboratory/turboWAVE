@@ -296,7 +296,7 @@ try:
 						html_doc += '<p>Completed successfully but with warnings:</p>'
 						for w in warnings:
 							print(w)
-							html_doc += '<p><samp>' + w + '</samp></p>'
+							html_doc += '<p><samp>' + w.replace('<','&lt;').replace('>','&gt;') + '</samp></p>'
 					else:
 						print('Completed successfully.')
 						html_doc += '<p>Completed successfully.</p>'
@@ -317,7 +317,7 @@ try:
 					for l in compl.stdout.splitlines():
 						if l.find('ERROR')>=0:
 							print(l)
-							html_doc += '<p><samp>' + l + '</samp></p>'
+							html_doc += '<p><samp>' + l.replace('<','&lt;').replace('>','&gt;') + '</samp></p>'
 			else:
 				print('  Test not requested, or not a TW input file.')
 				html_doc += '<p>Test not requested, or not a TW input file.</p>'

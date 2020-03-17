@@ -195,7 +195,7 @@ struct HydroManager:Module
 	{
 		return sub->typeCode==tw::module_type::equilibriumGroup;
 	}
-	tw::Float CollisionCoefficient(Collision *coll,const tw::cell& cell,const UnitConverter& uc);
+	tw::Float CollisionCoefficient(Collision *coll,const tw::cell& cell);
 	void ComputeElectronCollisionFrequency();
 	void ComputeCollisionalSources();
 	void ComputeRadiativeSources();

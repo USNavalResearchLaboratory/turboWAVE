@@ -59,7 +59,6 @@ new fluid 'e'
 
 generate piecewise 'e'
 {
-	symmetry = none
 	zdensity = { 0 1 1 }
 	zpoints = { 0.0 30.0 100000.0 }
 	thermal momentum = ( 0.01 , 0.01 , 0.01 )

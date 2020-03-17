@@ -19,6 +19,16 @@ bool QState::GoodQuantumNumbers(const HamiltonianParameters& H) const
 	return true;
 }
 
+tw::Float QState::Energy(const HamiltonianParameters& H) const
+{
+	return 0.0;
+}
+
+tw::Float QState::NormalizationConstant(const HamiltonianParameters& H) const
+{
+	return 1.0;
+}
+
 tw::Complex QState::Amplitude(const HamiltonianParameters& H,const tw::vec3& r,const tw::Float& t,const tw::Int& comp) const
 {
 	return tw::Complex(0.0,0.0);
@@ -162,7 +172,7 @@ tw::Float BoundState::NormalizationConstant(const HamiltonianParameters& H) cons
 {
 	tw::Float normalizationConstant;
 	const tw::Float n = nr + Lam + 1.0;
-	const tw::Float kr = H.morb*H.qnuc*H.qorb/n;
+	const tw::Float kr = -H.morb*H.qnuc*H.qorb/n;
 	switch (H.form)
 	{
 		case qo::schroedinger:

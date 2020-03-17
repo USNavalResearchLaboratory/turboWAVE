@@ -10,10 +10,10 @@ void sparc::material::AddDirectives(tw::input::DirectiveReader& directives)
 	directives.Add("mass",new tw::input::Float(&mass));
 	directives.Add("charge",new tw::input::Float(&charge));
 	directives.Add("cv",new tw::input::Float(&cvm));
-	directives.Add("vibrational energy",new tw::input::Float(&excitationEnergy));
-	directives.Add("thermometric conductivity",new tw::input::Float(&thermometricConductivity));
-	directives.Add("kinematic viscosity",new tw::input::Float(&kinematicViscosity));
-	directives.Add("permittivity",new tw::input::Numbers<tw::Float>(&eps[0],2));
+	directives.Add("vibrational energy",new tw::input::Float(&excitationEnergy),false);
+	directives.Add("thermometric conductivity",new tw::input::Float(&thermometricConductivity),false);
+	directives.Add("kinematic viscosity",new tw::input::Float(&kinematicViscosity),false);
+	directives.Add("permittivity",new tw::input::Numbers<tw::Float>(&eps[0],2),false);
 }
 
 tw::Float sparc::CoulombCrossSection(const UnitConverter& uc,tw::Float q1,tw::Float q2,tw::Float m12,tw::Float v12,tw::Float N1,tw::Float N2,tw::Float T1,tw::Float T2)
@@ -66,8 +66,8 @@ Ionizer::Ionizer(const std::string& name,MetricSpace *m,Task *tsk) : ComputeTool
 	directives.Add("ionization potential",new tw::input::Float(&ionizationPotential));
 	directives.Add("protons",new tw::input::Float(&protons));
 	directives.Add("electrons",new tw::input::Float(&electrons));
-	directives.Add("multiplier",new tw::input::Float(&multiplier));
-	directives.Add("saturated rate",new tw::input::Float(&max_rate));
+	directives.Add("multiplier",new tw::input::Float(&multiplier),false);
+	directives.Add("saturated rate",new tw::input::Float(&max_rate),false);
 	directives.Add("ion species",new tw::input::String(&ion_name));
 	directives.Add("electron species",new tw::input::String(&electron_name));
 }
@@ -75,6 +75,8 @@ Ionizer::Ionizer(const std::string& name,MetricSpace *m,Task *tsk) : ComputeTool
 void Ionizer::Initialize()
 {
 	ComputeTool::Initialize();
+	if (space->units==NULL)
+		throw tw::FatalError("Ionizer tool requires units (set unit density).");
 	Z = protons - electrons + 1;
 	Uion = space->units->SimToAtomic(energy_dim,ionizationPotential);
 	nstar = Z / sqrt(2*Uion);

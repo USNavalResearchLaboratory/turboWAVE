@@ -4,11 +4,13 @@
 // Bohmian particles in a Rabi oscillation
 // The Rabi frequency is 0.0137 a.u.
 // We run for 1/2 the Rabi period, so that the atom should end up in a 2p state
-steps = 10
+
+// This also illustrates the population diagnostic which computes the occupation
+// probability of a given reference state.
+
+steps = 24000
 timestep = 0.01
 dump period = 0
-error checking level = 0
-unit density = 1e19
 
 xboundary = ( axisymmetric , absorbing )
 yboundary = ( periodic , periodic )
@@ -21,7 +23,7 @@ new grid
 	corner = ( 0 , -3.1416 , -20 )
 	dimensions = ( 800 , 1 , 2000 )
 	cell size = ( 0.02 , 6.2832 , 0.02 )
-	decomposition = ( 4 , 1 , 4 )
+	decomposition = ( 4 , 1 , 5 )
 	geometry = cylindrical
 }
 
@@ -30,22 +32,25 @@ new schroedinger equation module 'tdse'
 	soft core potential , charge = 1.0 , radius = 0.04
 	// bound states : -0.494 , -0.125
 	relaxation time = 20.0
+	new qstate random 'random_state'
+	{
+		amplitude = ( 1.0 , 0.0 )
+		size = 5.0 5.0 5.0
+	}
 }
 
 new population diagnostic 'pop'
 {
-}
-
-new qstate random for 'tdse'
-{
-	amplitude = ( 1.0 , 0.0 )
-	size = 5.0 5.0 5.0
-}
-
-new qstate bound for 'pop'
-{
-	nr_j_l_m = 1.0 0.0 0.0 0.0
-	amplitude = 1.0 0.0
+	new qstate bound '1s'
+	{
+		nr_j_l_m = 0.0 0.0 0.0 0.0
+		amplitude = 1.0 0.0
+	}
+	new qstate bound '2p'
+	{
+		nr_j_l_m = 0.0 1.0 1.0 0.0
+		amplitude = 1.0 0.0
+	}
 }
 
 new plane wave for 'tdse'
@@ -96,5 +101,5 @@ new box diagnostic
 
 new energy diagnostic
 {
-	period = 10
+	period = 100
 }

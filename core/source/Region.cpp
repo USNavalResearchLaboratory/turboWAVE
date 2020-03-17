@@ -1,5 +1,34 @@
 #include "meta_base.h"
 
+Region::Region(std::vector<Region*>& ml) : masterList(ml)
+{
+	name = "entire";
+	rgnType = baseRegion;
+	center = tw::vec3(0.0);
+	rbox = tw::vec3(tw::big_pos);
+	intersectsDomain = true;
+	complement = false;
+	intersection = false;
+	moveWithWindow = true;
+	orientation.u = tw::vec3(1,0,0);
+	orientation.v = tw::vec3(0,1,0);
+	orientation.w = tw::vec3(0,0,1);
+	// Regions use directives somewhat differently.
+	// Dependent geometric variables are updated as the input file is read in.
+	// This happens in ReadInputFileDirective (normally used only for custom inputs).
+	// It might be better to make this more conventional by updating dependent variables in the Initialize function instead.
+	directives.Add("bounds",new tw::input::Numbers<tw::Float>(&temp_bounds[0],6),false);
+	directives.Add("radius",new tw::input::Float(&temp_Float),false);
+	directives.Add("length",new tw::input::Float(&temp_Float),false);
+	directives.Add("elements",new tw::input::Custom,false);
+	directives.Add("translation",new tw::input::Vec3(&temp_vec3),false);
+	directives.Add("rotation about x",new tw::input::Float(&temp_Float),false);
+	directives.Add("rotation about y",new tw::input::Float(&temp_Float),false);
+	directives.Add("rotation about z",new tw::input::Float(&temp_Float),false);
+	directives.Add("move with window",new tw::input::Bool(&moveWithWindow),false);
+	directives.Add("complement",new tw::input::Bool(&complement),false);
+}
+
 void Region::Initialize(const MetricSpace& ds,Task *task)
 {
 	// Initialization is needed to set up index limits
@@ -163,22 +192,6 @@ Region* Region::CreateObjectFromFile(std::vector<Region*>& ml,std::ifstream& inF
 	return ans;
 }
 
-Region* Region::ReadRegion(std::vector<Region*>& ml,Region *curr,std::stringstream& source,const std::string& com)
-{
-	// This should go in favor of standard directive reader
-	std::string word;
-	if (com=="clipping") // eg, clipping region = region1
-	{
-		source >> word >> word >> word;
-		std::cout << word << std::endl;
-		tw::input::StripQuotes(word);
-		curr = FindRegion(ml,word);
-		if (curr==NULL)
-			throw tw::FatalError("Could not read region <"+word+">.");
-	}
-	return curr;
-}
-
 Region* Region::FindRegion(std::vector<Region*>& ml,const std::string& name)
 {
 	tw::Int i;
@@ -195,9 +208,12 @@ void Region::ReadInputFileBlock(std::stringstream& inputString)
 	std::string com;
 	do
 	{
-		inputString >> com;
+		com = directives.ReadNext(inputString);
+		if (com=="tw::EOF")
+			throw tw::FatalError("Encountered EOF while processing <"+name+">.");
 		ReadInputFileDirective(inputString,com);
 	} while (com!="}");
+	directives.ThrowErrorIfMissingKeys(name);
 }
 
 void Region::ReadInputFileDirective(std::stringstream& inputString,const std::string& com)
@@ -208,20 +224,18 @@ void Region::ReadInputFileDirective(std::stringstream& inputString,const std::st
 	if (com=="bounds")
 	{
 		tw::vec3 r0,r1;
-		inputString >> word >> r0.x >> r1.x >> r0.y >> r1.y >> r0.z >> r1.z;
+		r0.x = temp_bounds[0]; r1.x = temp_bounds[1];
+		r0.y = temp_bounds[2]; r1.y = temp_bounds[3];
+		r0.z = temp_bounds[4]; r1.z = temp_bounds[5];
 		if (r0.x>r1.x) std::swap(r0.x,r1.x);
 		if (r0.y>r1.y) std::swap(r0.y,r1.y);
 		if (r0.z>r1.z) std::swap(r0.z,r1.z);
 		center = 0.5*(r0 + r1);
 		rbox = 0.5*(r1 - r0);
 	}
-	if (com=="center")
-	{
-		throw tw::FatalError("Direct assignment to center is illegal.  Use translation instead.");
-	}
 	if (com=="radius")
 	{
-		inputString >> word >> rbox.x;
+		rbox.x = temp_Float;
 		if (rbox.y > 0.99*tw::big_pos)
 			rbox.y = rbox.x;
 		if (rbox.z > 0.99*tw::big_pos)
@@ -229,10 +243,8 @@ void Region::ReadInputFileDirective(std::stringstream& inputString,const std::st
 	}
 	if (com=="length")
 	{
-		inputString >> word >> rbox.z;
-		rbox.z *= 0.5;
+		rbox.z = 0.5*temp_Float;
 	}
-
 	if (com=="elements")
 	{
 		Region *curr;
@@ -244,6 +256,8 @@ void Region::ReadInputFileDirective(std::stringstream& inputString,const std::st
 			throw tw::FatalError("Expected <{> at start of list.");
 		do {
 			inputString >> word;
+			if (inputString.eof())
+				throw tw::FatalError("Encountered EOF while processing <"+name+">.");
 			if (word!="}")
 			{
 				tw::input::StripQuotes(word);
@@ -252,51 +266,30 @@ void Region::ReadInputFileDirective(std::stringstream& inputString,const std::st
 			}
 		} while (word!="}");
 	}
-
-	if (com=="move") // eg, move with window = true
-	{
-		inputString >> word >> word >> word >> word;
-		moveWithWindow = (word=="on" || word=="true" || word=="yes");
-	}
 	if (com=="translation") // eg, translation = 1 0 0
 	{
-		tw::vec3 dr;
-		inputString >> word >> dr.x >> dr.y >> dr.z;
-		center += dr;
+		center += temp_vec3;
 	}
-	if (com=="rotation")
+	if (com=="rotation about x")
 	{
-		inputString >> word >> word; // eg, rotation about x = 45
-		if (word=="x")
-		{
-			inputString >> word >> theta;
-			orientation.u.RotateX(theta);
-			orientation.v.RotateX(theta);
-			orientation.w.RotateX(theta);
-			center.RotateX(theta);
-		}
-		if (word=="y")
-		{
-			inputString >> word >> theta;
-			orientation.u.RotateY(theta);
-			orientation.v.RotateY(theta);
-			orientation.w.RotateY(theta);
-			center.RotateY(theta);
-		}
-		if (word=="z")
-		{
-			inputString >> word >> theta;
-			orientation.u.RotateZ(theta);
-			orientation.v.RotateZ(theta);
-			orientation.w.RotateZ(theta);
-			center.RotateZ(theta);
-		}
+		orientation.u.RotateX(temp_Float);
+		orientation.v.RotateX(temp_Float);
+		orientation.w.RotateX(temp_Float);
+		center.RotateX(temp_Float);
 	}
-
-	if (com=="complement")
+	if (com=="rotation about y")
 	{
-		inputString >> word >> word; // eg, complement = true
-		complement = (word=="true" || word=="yes" || word=="on");
+		orientation.u.RotateY(temp_Float);
+		orientation.v.RotateY(temp_Float);
+		orientation.w.RotateY(temp_Float);
+		center.RotateY(temp_Float);
+	}
+	if (com=="rotation about z")
+	{
+		orientation.u.RotateZ(temp_Float);
+		orientation.v.RotateZ(temp_Float);
+		orientation.w.RotateZ(temp_Float);
+		center.RotateZ(temp_Float);
 	}
 }
 
@@ -357,14 +350,19 @@ bool TrueSphere::Inside(const tw::vec3& pos,const MetricSpace& ds) const
 	return complement ^ (Norm(p_cart-c_cart)<sqr(rbox.x));
 }
 
+BoxArrayRegion::BoxArrayRegion(std::vector<Region*>& ml) : Region(ml)
+{
+	rgnType = boxArrayRegion;
+	size = tw::vec3(1,1,1);
+	spacing = tw::vec3(2,2,2);
+	directives.Add("size",new tw::input::Vec3(&size));
+	directives.Add("spacing",new tw::input::Vec3(&spacing));
+}
+
 void BoxArrayRegion::ReadInputFileDirective(std::stringstream& inputString,const std::string& com)
 {
 	Region::ReadInputFileDirective(inputString,com);
-	std::string word;
-	if (com=="size")
-		inputString >> word >> size.x >> size.y >> size.z;
-	if (com=="spacing")
-		inputString >> word >> spacing.x >> spacing.y >> spacing.z;
+	rbox = 0.5*size;
 }
 
 void BoxArrayRegion::ReadCheckpoint(std::ifstream& inFile)
@@ -381,14 +379,19 @@ void BoxArrayRegion::WriteCheckpoint(std::ofstream& outFile)
 	outFile.write((char *)&spacing,sizeof(tw::vec3));
 }
 
+TorusRegion::TorusRegion(std::vector<Region*>& ml) : Region(ml)
+{
+	rgnType = torusRegion;
+	majorRadius = 1.0;
+	minorRadius = 0.1;
+	rbox = tw::vec3(majorRadius+minorRadius,majorRadius+minorRadius,minorRadius);
+	directives.Add("minor radius",new tw::input::Float(&minorRadius));
+	directives.Add("major radius",new tw::input::Float(&majorRadius));
+}
+
 void TorusRegion::ReadInputFileDirective(std::stringstream& inputString,const std::string& com)
 {
 	Region::ReadInputFileDirective(inputString,com);
-	std::string word;
-	if (com=="minor")
-		inputString >> word >> word >> minorRadius;
-	if (com=="major")
-		inputString >> word >> word >> majorRadius;
 	rbox = tw::vec3(majorRadius+minorRadius,majorRadius+minorRadius,minorRadius);
 }
 
@@ -406,17 +409,20 @@ void TorusRegion::WriteCheckpoint(std::ofstream& outFile)
 	outFile.write((char *)&majorRadius,sizeof(tw::Float));
 }
 
+ConeRegion::ConeRegion(std::vector<Region*>& ml) : Region(ml)
+{
+	rgnType = coneRegion;
+	majorRadius = 1.0;
+	minorRadius = 0.1;
+	rbox = tw::vec3(majorRadius,majorRadius,tw::big_pos);
+	directives.Add("tip radius",new tw::input::Float(&minorRadius));
+	directives.Add("base radius",new tw::input::Float(&majorRadius));
+}
+
 void ConeRegion::ReadInputFileDirective(std::stringstream& inputString,const std::string& com)
 {
 	Region::ReadInputFileDirective(inputString,com);
-	std::string word;
-	if (com=="tip" || com=="minor")
-		inputString >> word >> word >> minorRadius;
-	if (com=="base" || com=="major")
-	{
-		inputString >> word >> word >> majorRadius;
-		rbox.x = rbox.y = majorRadius;
-	}
+	rbox.x = rbox.y = majorRadius;
 }
 
 void ConeRegion::ReadCheckpoint(std::ifstream& inFile)
@@ -433,17 +439,20 @@ void ConeRegion::WriteCheckpoint(std::ofstream& outFile)
 	outFile.write((char *)&majorRadius,sizeof(tw::Float));
 }
 
+TangentOgiveRegion::TangentOgiveRegion(std::vector<Region*>& ml) : Region(ml)
+{
+	rgnType = tangentOgiveRegion;
+	tipRadius = 1.0;
+	bodyRadius = 5.0;
+	rbox = tw::vec3(bodyRadius,bodyRadius,tw::big_pos);
+	directives.Add("tip radius",new tw::input::Float(&tipRadius));
+	directives.Add("body radius",new tw::input::Float(&bodyRadius));
+}
+
 void TangentOgiveRegion::ReadInputFileDirective(std::stringstream& inputString,const std::string& com)
 {
 	Region::ReadInputFileDirective(inputString,com);
-	std::string word;
-	if (com=="tip" || com=="minor")
-		inputString >> word >> word >> tipRadius;
-	if (com=="base" || com=="major" || com=="body")
-	{
-		inputString >> word >> word >> bodyRadius;
-		rbox.x = rbox.y = bodyRadius;
-	}
+	rbox.x = rbox.y = bodyRadius;
 }
 
 void TangentOgiveRegion::ReadCheckpoint(std::ifstream& inFile)
@@ -460,17 +469,20 @@ void TangentOgiveRegion::WriteCheckpoint(std::ofstream& outFile)
 	outFile.write((char *)&bodyRadius,sizeof(tw::Float));
 }
 
+CylindricalShellRegion::CylindricalShellRegion(std::vector<Region*>& ml) : Region(ml)
+{
+	rgnType = cylindricalShellRegion;
+	innerRadius = 1.0;
+	outerRadius = 2.0;
+	rbox = tw::vec3(outerRadius,outerRadius,tw::big_pos);
+	directives.Add("inner radius",new tw::input::Float(&innerRadius));
+	directives.Add("outer radius",new tw::input::Float(&outerRadius));
+}
+
 void CylindricalShellRegion::ReadInputFileDirective(std::stringstream& inputString,const std::string& com)
 {
 	Region::ReadInputFileDirective(inputString,com);
-	std::string word;
-	if (com=="inner" || com=="minor")
-		inputString >> word >> word >> innerRadius;
-	if (com=="outer" || com=="major")
-	{
-		inputString >> word >> word >> outerRadius;
-		rbox.x = rbox.y = outerRadius;
-	}
+	rbox.x = rbox.y = outerRadius;
 }
 
 void CylindricalShellRegion::ReadCheckpoint(std::ifstream& inFile)

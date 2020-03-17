@@ -45,19 +45,19 @@ BoundElectrons::BoundElectrons(const std::string& name,Simulation* sim) : Module
 	// hence, do it in Initialize() below
 	#endif
 
-	directives.Add("charge",new tw::input::Float(&q0));
-	directives.Add("mass",new tw::input::Float(&m0));
+	directives.Add("charge",new tw::input::Float(&q0),false);
+	directives.Add("mass",new tw::input::Float(&m0),false);
 	directives.Add("resonance",new tw::input::Vec3(&resFreq));
-	directives.Add("damping",new tw::input::Vec3(&dampFreq));
-	directives.Add("strength",new tw::input::Vec3(&oscStrength));
-	directives.Add("a1",new tw::input::Numbers<tw::Float>(&a1[1],6));
-	directives.Add("a2",new tw::input::Numbers<tw::Float>(&a2[1],6));
-	directives.Add("a3",new tw::input::Numbers<tw::Float>(&a3[1],6));
-	directives.Add("b",new tw::input::Float(&b));
-	directives.Add("d",new tw::input::Float(&d));
-	directives.Add("theta",new tw::input::Float(&theta));
-	directives.Add("phi",new tw::input::Float(&phi));
-	directives.Add("basis",new tw::input::Custom);
+	directives.Add("damping",new tw::input::Vec3(&dampFreq),false);
+	directives.Add("strength",new tw::input::Vec3(&oscStrength),false);
+	directives.Add("a1",new tw::input::Numbers<tw::Float>(&a1[1],6),false);
+	directives.Add("a2",new tw::input::Numbers<tw::Float>(&a2[1],6),false);
+	directives.Add("a3",new tw::input::Numbers<tw::Float>(&a3[1],6),false);
+	directives.Add("b",new tw::input::Float(&b),false);
+	directives.Add("d",new tw::input::Float(&d),false);
+	directives.Add("theta",new tw::input::Float(&theta),false);
+	directives.Add("phi",new tw::input::Float(&phi),false);
+	directives.Add("basis",new tw::input::Custom,false);
 }
 
 BoundElectrons::~BoundElectrons()

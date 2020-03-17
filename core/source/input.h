@@ -174,8 +174,6 @@ namespace tw
 
 		void PythonRange(std::string& source,tw::Float *v0,tw::Float *v1);
 
-		void ReadRect(Region *ans,std::stringstream& source);
-
 		void NormalizeInput(const UnitConverter& uc,std::string& in_out);
 
 		Preamble EnterInputFileBlock(const std::string& com,std::stringstream& inputString,const std::string& end_tokens);

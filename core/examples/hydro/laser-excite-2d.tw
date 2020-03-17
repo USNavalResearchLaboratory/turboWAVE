@@ -83,14 +83,18 @@ new group heavies
 		charge = 0.0
 		mass = 73440
 		cv = 1.5
-		ionization potential = 1.16
-		ionization model = adk
-		protons = 18
-		electrons = 18
-		ion species = Ar[+]
-		electron species = e
 	}
 	mobile = true
+}
+
+new ppt ionization for Ar
+{
+	ionization potential = %15.76eV
+	protons = 18
+	electrons = 18
+	ion species = Ar[+]
+	electron species = e
+	terms = 4
 }
 
 new collision = e <-> Ar[+] , coulomb

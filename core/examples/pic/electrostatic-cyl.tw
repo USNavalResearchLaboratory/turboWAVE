@@ -6,6 +6,7 @@ timestep = 0.1
 dump period = 0
 moving window = no
 neutralize = yes
+unit density = 1e14
 
 xboundary = ( reflecting , reflecting )
 yboundary = ( periodic , periodic )

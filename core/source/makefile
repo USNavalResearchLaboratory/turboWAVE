@@ -23,9 +23,9 @@ profile: tw3d_profile copy_files
 
 # Uncomment exactly one platform
 
-PLATFORM = OSX
+#PLATFORM = OSX
 #PLATFORM = WIN
-#PLATFORM = LINUX
+PLATFORM = LINUX
 #PLATFORM = OPENMPI
 #PLATFORM = INTELMPI
 #PLATFORM = CRAY
@@ -41,8 +41,8 @@ HARDWARE_ACCEL = OMP
 
 # Specify a preference for compiler (ignored in some cases)
 
-#COMPILER_PREF = GNU
-COMPILER_PREF = LLVM_CLANG
+COMPILER_PREF = GNU
+#COMPILER_PREF = LLVM_CLANG
 #COMPILER_PREF = INTEL
 #COMPILER_PREF = CRAY
 

@@ -16,20 +16,13 @@ struct Region
 	std::vector<Region*> composite;
 	std::vector<Region*>& masterList;
 
-	Region(std::vector<Region*>& ml) : masterList(ml)
-	{
-		name = "entire";
-		rgnType = baseRegion;
-		center = tw::vec3(0.0);
-		rbox = tw::vec3(tw::big_pos);
-		intersectsDomain = true;
-		complement = false;
-		intersection = false;
-		moveWithWindow = true;
-		orientation.u = tw::vec3(1,0,0);
-		orientation.v = tw::vec3(0,1,0);
-		orientation.w = tw::vec3(0,0,1);
-	}
+	// input processing aids
+	tw::input::DirectiveReader directives;
+	tw::vec3 temp_vec3;
+	tw::Float temp_Float;
+	tw::Float temp_bounds[6];
+
+	Region(std::vector<Region*>& ml);
 	virtual bool Inside(const tw::vec3& pos,const MetricSpace& ds) const
 	{
 		bool ans = intersection;
@@ -72,7 +65,6 @@ struct Region
 
 	static Region* CreateObjectFromString(std::vector<Region*>& ml,const std::string& str);
 	static Region* CreateObjectFromFile(std::vector<Region*>& ml,std::ifstream& inFile);
-	static Region* ReadRegion(std::vector<Region*>& ml,Region *curr,std::stringstream& source,const std::string& word);
 	static Region* FindRegion(std::vector<Region*>& ml,const std::string& name);
 
 	virtual void ReadInputFileBlock(std::stringstream& inputString);
@@ -150,13 +142,7 @@ struct CylinderRegion:Region
 struct CylindricalShellRegion:Region
 {
 	tw::Float innerRadius,outerRadius;
-	CylindricalShellRegion(std::vector<Region*>& ml) : Region(ml)
-	{
-		rgnType = cylindricalShellRegion;
-		innerRadius = 1.0;
-		outerRadius = 2.0;
-		rbox = tw::vec3(outerRadius,outerRadius,tw::big_pos);
-	}
+	CylindricalShellRegion(std::vector<Region*>& ml);
 	virtual bool Inside(const tw::vec3& pos,const MetricSpace& ds) const
 	{
 		tw::Float rho;
@@ -215,12 +201,7 @@ struct BoxArrayRegion:Region
 {
 	tw::vec3 size,spacing;
 
-	BoxArrayRegion(std::vector<Region*>& ml) : Region(ml)
-	{
-		rgnType = boxArrayRegion;
-		size = tw::vec3(1,1,1);
-		spacing = tw::vec3(2,2,2);
-	}
+	BoxArrayRegion(std::vector<Region*>& ml);
 	virtual bool Inside(const tw::vec3& pos,const MetricSpace& ds) const
 	{
 		tw::vec3 p = pos - center;
@@ -240,13 +221,7 @@ struct BoxArrayRegion:Region
 struct TorusRegion:Region
 {
 	tw::Float majorRadius,minorRadius;
-	TorusRegion(std::vector<Region*>& ml) : Region(ml)
-	{
-		rgnType = torusRegion;
-		majorRadius = 1.0;
-		minorRadius = 0.1;
-		rbox = tw::vec3(majorRadius+minorRadius,majorRadius+minorRadius,minorRadius);
-	}
+	TorusRegion(std::vector<Region*>& ml);
 	virtual bool Inside(const tw::vec3& pos,const MetricSpace& ds) const
 	{
 		tw::Float rho;
@@ -264,13 +239,7 @@ struct TorusRegion:Region
 struct ConeRegion:Region
 {
 	tw::Float majorRadius,minorRadius;
-	ConeRegion(std::vector<Region*>& ml) : Region(ml)
-	{
-		rgnType = coneRegion;
-		majorRadius = 1.0;
-		minorRadius = 0.1;
-		rbox = tw::vec3(majorRadius,majorRadius,tw::big_pos);
-	}
+	ConeRegion(std::vector<Region*>& ml);
 	virtual bool Inside(const tw::vec3& pos,const MetricSpace& ds) const
 	{
 		tw::Float rho,rOfz;
@@ -288,13 +257,7 @@ struct ConeRegion:Region
 struct TangentOgiveRegion:Region
 {
 	tw::Float tipRadius,bodyRadius;
-	TangentOgiveRegion(std::vector<Region*>& ml) : Region(ml)
-	{
-		rgnType = tangentOgiveRegion;
-		tipRadius = 1.0;
-		bodyRadius = 5.0;
-		rbox = tw::vec3(bodyRadius,bodyRadius,tw::big_pos);
-}
+	TangentOgiveRegion(std::vector<Region*>& ml);
 	virtual bool Inside(const tw::vec3& pos,const MetricSpace& ds) const
 	{
 		tw::Float rho,rOfz,ogiveRadius,x0,xt,yt;

@@ -89,6 +89,8 @@ ADI Propagator
 
 	Uses alternating direction implicit method.  This is a fast propagator that works in arbitrary coordinates.  It has poor fidelity for highly dispersive systems.  There are no directives.
 
+.. _ionization:
+
 PhotoIonization
 ---------------
 

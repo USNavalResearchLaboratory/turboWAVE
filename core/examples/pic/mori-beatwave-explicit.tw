@@ -84,7 +84,7 @@ new box diagnostic
 	period = 500
 }
 
-new energy series
+new energy diagnostic
 {
 	period = 200
 }

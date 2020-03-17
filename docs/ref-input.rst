@@ -1,28 +1,77 @@
 Input File: Base
 ================
 
-General Rules
---------------
+.. _little_lang:
 
-#.	Comments may be in C or C++ style
-#.	Case matters
-#.	Keywords are ``new``, ``generate``, ``get``, ``for``, and ``open``.
-#.	Names assigned to objects must not contain white space, or any of the characters :samp:`/={}()`
-#.  Any word starting with the :samp:`%` character triggers a macro substitution (see :ref:`preprocessor`)
-#.	Any uninterrupted sequence of white space is equivalent to any other (same as in C)
-#.	Parenthesis or commas may be freely exchanged with any white space character
+Little Language Quick Start
+---------------------------
 
-	* :samp:`( 1 , 2 , 3 )` is the same as :samp:`1 2 3`
-	* Do not confuse parenthesis with curly braces, cf. :samp:`()` and :samp:`{}`
+TurboWAVE input files are written using an intuitive "little language."  The strict syntax is defined in :download:`grammar.js`, which conforms to the `Tree-sitter <https://tree-sitter.github.io/tree-sitter/>`_ language syntax format.  The turboWAVE parser currently uses a relaxed interpretation of the strict syntax.
 
-#.	Spaces around an equals sign or curly braces may be omitted
+The little language serves three fundamental purposes:
 
- 	* :samp:`x=1` is the same as :samp:`x = 1`
+	#. Create objects
+	#. Associate objects
+	#. Set parameters
 
-#.	All boolean variables can be set to an affirmative value using either :samp:`true`, :samp:`yes`, or :samp:`on`, or a negative value using :samp:`false`, :samp:`no`, or :samp:`off`.
-#.	Variable length lists are enclosed by curly braces
+There are only four keywords, **new**, **get**, **generate**, and **for**.  You can probably get by with only **new**.  The following short example illustrates almost the full range of little language syntax::
 
-	* ``{ 0 , 1 , 2 , 3 }`` is a list that can have any number of elements
+	#define $dens %1.0e18cm-3 // (1) variables and units
+	timestep = .01 // (2) floating point assignment
+
+	new plane wave 'pw1' // (3) creating a tool with name given in quotes
+	{
+		// Several parameter assignments for the plane wave go here.
+		// Some parameters are required, some are optional.
+	}
+
+	new coulomb field solver 'coul' // (4) creating a module
+	{
+		dipole center = ( 0.0 , 0.0 , 0.0 ) // (5) tuple assignment
+		get 'pw1' // (6) attach the previously defined plane wave tool to this field solver
+		new hermite gauss // (7) adding a tool in nested fashion
+		{
+			// several parameter assignments go here
+		}
+	}
+
+	new plane wave 'pw2' for 'coul' // (8) simulataneously create and attach a tool
+	{
+		// several parameter assignments go here
+	}
+
+	new species 'electrons'
+	{
+		// several parameter assignments go here
+	}
+
+	generate uniform 'electrons' // (9) create a tool and attach to named module
+	{
+		density = $dens // (10) using the C-style macro as a numerical constant
+	}
+
+If you are familiar with C++ syntax you will recognize comments as preceded by ``//``.  The C-style ``/*`` and ``*/`` comment delimiters are supported also.  Numbered highlights in the above example are as follows:
+
+ 	#. C-style preprocessor macros are used to gain the effect of user defined constants.  Numbers can be given physical units using the % prefix followed by a unit specifier postfix.
+	#. Simple assignment to a floating point parameter. Since no units are given, it is assumed dimensionless.
+	#. Creating a plane wave tool with the user assigned name 'pw1'.  This name can be used later in the input file.
+	#. Creating a field solver module; modules do the high level management of data.
+	#. Assignment to a tuple, in this case a spatial 3-vector.  The strict syntax requires parenthesis, although the current parser ignores them.
+	#. Attaching a Hermite-Gauss wave tool to the field solver.  Since the tool is nested inside the module, the association is established automatically.  The user-assigned name is optional in this case.
+	#. Create another plane wave tool and use the **for** keyword to attach it to the previously defined module.
+	#. Create a uniform profile tool and associate with the species 'electrons'.  This illustrates the **generate** keyword, which is merely syntactic sugar that can be used in place of the **new**-**for** combination.
+	#. The macro key ``$dens`` is used to achieve the effect of a user-defined constant.
+
+Little Language Terminology
+---------------------------
+
+The input file is a sequence of **directives**.  The directives are one of the following: **preprocessor-directives**, **statements**, or **assignments**.
+
+Preprocessor directives are a limited and slightly modified version of C language preprocessor directives.
+
+Statements start with **new**, **get**, or **generate**.  The **new** and **generate** statements are usually terminated by a curly-brace delimited **block** that may contain a further sequence of directives.  Blocks of directives can be nested in this way with arbitrary depth.
+
+Assignments copy a value in the input file to a simulation parameter.  These values can be decimal numbers, physical quantities with units, or **identifiers** (usual meaning).
 
 .. _preprocessor:
 
@@ -126,17 +175,11 @@ Top level directives tend to come first in an input file.  They are not containe
 
 	:param str platform: the substring to search for in the platform name, e.g., ``cuda``.  Case doesn't matter.
 
-.. py:function:: open restart file name
+.. py:function:: unit density = CGS_density
 
-	opens the named restart file.  If this command is used, all others are optional. Opening the restart file automatically creates the grid and any waves, pulses, species, or particles that were present when the restart file was saved. Subsequent directives override or add to the data in the restart file.
+	Sets the unit density and fixes the system of normalized units.
 
-	:param str name: the name of the restart file to load
-
-.. py:function:: unit density = dens
-
-	Sets the unit density.  Fixes the normalization if needed.
-
-	:param float dens: the density in particles per cubic centimeter
+	:param float CGS_density: the density in particles per cubic centimeter.  Unit conversion macros must **not** be used.
 
 .. py:function:: steps = s
 
@@ -201,20 +244,18 @@ Top level directives tend to come first in an input file.  They are not containe
 Object Creation
 ---------------
 
-There is a general form for creating objects:
+Objects (modules and tools) can be created using the following syntax:
 
 .. _block-create:
 .. py:function:: new <key1> [<key2> <key3> ...] [<name>] { <directives> }
 .. py:function:: new <key1> [<key2> <key3> ...] for <name> { <directives> }
 .. py:function:: generate <key1> [<key2> <key3> ...] [for] <name> { <directives> }
 
-This entire construct is called a block.  The start of the block is signaled by a keyword, either ``new`` or ``generate``.  The next several words are ordered keys.  The keys are used to identify the type of object requested.  The user is free to add any number of trailing keys.  In the first form, the last word is the user-defined name of the new object.  The second form allows the new object to be associated with a parent object.  In this case the given name refers to the parent object, while the name of the new object is assigned automatically based on the keys. The third form is merely an alternative syntax for the second form, in which the ``for`` keyword is not required. Finally, there is a set of directives enclosed by curly braces.
+Each of these three forms has a preamble followed by a curly-brace delimited block.  The start of the preamble is signaled by a keyword, either ``new`` or ``generate``.  The next several words are ordered keys.  The keys are used to identify the type of object requested.  The user is free to add any number of trailing keys.  In the first form, the last word is the user-defined name of the new object.  The second form allows the new object to be associated with a parent object.  In this case the given name refers to the parent object, while the name of the new object is assigned automatically based on the keys. The third form is merely syntactic sugar for the second form, in which the ``for`` keyword is not required.
 
-.. Tip::
+The strict little language syntax requires that the user-assigned name should be in quotes, and that the quoted string satisfy the usual rules for naming an identifier (no white space or special characters except ``_``).  At present the turboWAVE parser does not strictly enforce this, but is likely to do so in the future.
 
-	Enclosing the name in quotes is not required, but can be helpful in distinguishing your own names from internal names.  If you use quotes remember they must be used everywhere the name is referenced.  Using quotes does not change the naming rules, e.g., you still may not use spaces.
-
-Some low level objects use ordered directives.  Then the form is typically
+Objects which may have a high multiplicity use a more compact form with ordered directives.  The form is typically
 
 .. py:function:: new <key1> [<key2> <key3> ...] = <directives>
 
@@ -275,6 +316,8 @@ To use a post-declaration use one of the two associative forms of object creatio
 Numerical Grid
 --------------
 
+TurboWAVE uses only structured grids, at present.  Some of the effect of unstructured grids can be obtained by using :ref:`grid warps <warps>`.
+
 .. py:function:: new grid { directives }
 
 	There must be exactly one grid block, which defines the numerical grid for all modules.
@@ -319,23 +362,16 @@ Numerical Grid
 			:param int Dy: cuts along the second coordinate
 			:param int Dz: cuts along the third coordinate
 
-		.. py:function:: radial progression factor = rpf
-
-			:param float rpf: radial cells start to increase by this factor after the first 1/3 of radial cells
-
-		.. py:function:: region : start = s , end = e , length = l
-
-			Create a non-uniform grid region along the z-coordinate.
-			The z-width of the cells grows according to a quintic polynomial.
-
-			:param int s: the cell where the non-uniform grid region starts
-			:param int e: the cell where the non-uniform grid region ends
-			:param float l: the total length of the non-uniform grid region.  The cells sizes are adjusted to give the requested length.
-
 		.. py:function:: adaptive timestep = at
 
 			:param bool at: whether or not to use an adaptive time stepping scheme.
 
+.. _warps:
+
+Grid Warps
+----------
+
+Grid warps allow the user to ramp the cell size up or down, along a given axis, and through a given range of cell indices.
 
 Radiation Injection
 -------------------

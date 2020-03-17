@@ -77,10 +77,10 @@ EigenmodePropagator::EigenmodePropagator(const std::string& name,MetricSpace *m,
 	layers = 8;
 	globalIntegrator = new GlobalIntegrator<tw::Complex>(&task->strip[3],xDim*yDim,zDim);
 
-	directives.Add("modes",new tw::input::Int(&modes));
-	directives.Add("damping time",new tw::input::Float(&dampingTime));
-	directives.Add("absorbing layers",new tw::input::Int(&layers));
-	directives.Add("causality",new tw::input::Float(&causality));
+	directives.Add("modes",new tw::input::Int(&modes),false);
+	directives.Add("damping time",new tw::input::Float(&dampingTime),false);
+	directives.Add("absorbing layers",new tw::input::Int(&layers),false);
+	directives.Add("causality",new tw::input::Float(&causality),false);
 }
 
 EigenmodePropagator::~EigenmodePropagator()

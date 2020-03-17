@@ -1,7 +1,7 @@
 Module
 ======
 
-The ``Module`` class is the highest level object for managing simulations.  Its principle method is the virtual function ``Update``.  The simulation cycle invokes ``Update`` for each module.  The order of ``Update`` calls is determined by a sorting index stored with each ``Module`` instance, called ``updateSequencePriority``.
+The ``Module`` class is the highest level object for managing simulations.  Its principle method is the virtual function ``Update``.  The simulation cycle invokes ``Update`` for each module.  The order of ``Update`` calls is determined by a sorting index stored with each ``Module`` instance.
 
 Communication between modules can be accomplished in two ways.
 
@@ -85,12 +85,11 @@ Values or allocations that can only be known after the whole input file is proce
 Input File Support
 ,,,,,,,,,,,,,,,,,,
 
-Modules are always created using :ref:`block form <block-create>`.  The block can appear either at the root level of the input file, or within another module block.  In the latter case a supermodule-submodule relationship is automatically established.
-
-If you want the module to be accessible from the input file, carry out the following steps.
+With very little effort the user will be able to create the module and associate it with other objects from within the input file.  To support this, carry out the following steps.
 
 	#. In the module's constructor define the input file directives. For each directive make one call to ``directives.Add(std::string&,tw::input::Directive*)``.
 	#. Add an entry to the hash table returned by ``Map`` in ``Module.cpp``.  This connects the input file keys with the ``tw::module_type``.
+	#. Add a case to the static member ``Module::CreateObjectFromType``.
 
 Containment Support
 ,,,,,,,,,,,,,,,,,,,

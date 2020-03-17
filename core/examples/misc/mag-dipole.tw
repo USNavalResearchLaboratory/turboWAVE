@@ -25,9 +25,8 @@ new grid
 new dirac equation module 'dirac'
 {
 	soft core potential , charge = 1.0 , radius = 1.0
-	new wavefunction
+	new qstate random
 	{
-		type = random
 		size = 10 10 10
 	}
 }

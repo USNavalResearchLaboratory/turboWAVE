@@ -1,0 +1,60 @@
+# Syntax highlights based on Tree-sitter language definition
+# keys herein refer back to the Tree-sitter grammar.js file
+
+name: 'turbowave'
+scopeName: 'input.tw'
+type: 'tree-sitter'
+parser: 'tree-sitter-turbowave'
+
+fileTypes: [
+	'tw'
+]
+
+contentRegex: 'new ([a-zA-Z_]\\w*\\s)+for'
+
+folds: [
+	{
+		type: ['comment']
+	},
+	{
+		start: {type: '"{"', index: 0},
+		end: {type: '"}"', index: -1}
+	}
+]
+
+comments:
+	start: '// '
+
+scopes:
+	'"#include"': 'keyword.control.directive'
+	'"#define"': 'keyword.control.directive'
+
+	'"new"': 'keyword.control'
+	'"generate"': 'keyword.control'
+	'"for"': 'keyword.control'
+	'"open"': 'keyword.control'
+	'"get"': 'keyword.control'
+
+	'''
+	new > identifier_sequence,
+	associative_new > identifier_sequence,
+	generate > identifier_sequence
+	''' : 'builtin.object.tw'
+
+	'define_key' : 'variable.other.tw'
+	'decimal1' : 'constant.numeric.decimal'
+	'decimal2' : 'constant.numeric.decimal'
+	'unit_macro' : 'constant.other.tw'
+	'string_literal' : 'string.quoted.single'
+ 	'"true"': 'constant.language.boolean'
+ 	'"false"': 'constant.language.boolean'
+	'"on"': 'constant.language.boolean'
+	'"off"': 'constant.language.boolean'
+ 	'"yes"': 'constant.language.boolean'
+	'"no"': 'constant.language.boolean'
+
+	'","': 'punctuation.separator.delimiter'
+	'"{"': 'punctuation.section.block.begin.bracket.curly'
+	'"}"': 'punctuation.section.block.end.bracket.curly'
+	'"("': 'punctuation.section.parens.begin.bracket.round'
+	'")"': 'punctuation.section.parens.end.bracket.round'

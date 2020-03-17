@@ -42,7 +42,6 @@ The ``Run`` method executes the following sequence:
 		#. Construct grid using input file
 		#. Construct other objects using input file
 		#. Initialize ``Region`` objects
-		#. Initialize ``Wave``, ``Pulse``, and ``Conductor`` objects
 		#. Initialize ``ComputeTool`` objects
 		#. Initialize ``Module`` objects
 

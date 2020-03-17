@@ -20,7 +20,6 @@ timestep = 0.02655350991
 dump period = 0
 moving window = no
 neutralize = yes
-unit density = 1
 
 hardware acceleration device string = firepro
 

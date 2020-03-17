@@ -105,11 +105,14 @@ void AtomicPhysics::Initialize()
 			break;
 	}
 
-	// Error check quantum numbers
+	// Error check quantum numbers , print state information
 
 	for (auto w : waveFunction)
+	{
+		*owner->tw_out << w->name << ": energy = " << w->Energy(H) << " , Cn = " << w->NormalizationConstant(H) << std::endl;
 		if (!w->GoodQuantumNumbers(H))
 			throw tw::FatalError("Bad quantum numbers detected in module <"+name+">");
+	}
 }
 
 void AtomicPhysics::ExchangeResources()
