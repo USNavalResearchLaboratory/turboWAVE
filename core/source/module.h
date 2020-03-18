@@ -26,7 +26,6 @@ struct Module:DiscreteSpace
 	tw::priority updateSequencePriority;
 	tw::Int subSequencePriority;
 	tw::Int smoothing[4],compensation[4];
-	tw::module_type typeCode;
 	bool suppressNextUpdate;
 
 	// Strongly typed ComputeTool lists that are provided for free
@@ -45,8 +44,7 @@ struct Module:DiscreteSpace
 
 	Module(const std::string& name,Simulation* sim);
 	virtual ~Module();
-	bool AddSubmodule(Module* sub);
-	virtual bool ValidSubmodule(Module* sub);
+	void AddSubmodule(Module* sub);
 	virtual void PublishResource(void* resource,const std::string& description);
 	virtual bool InspectResource(void* resource,const std::string& description);
 	virtual void ExchangeResources() {;}
@@ -74,7 +72,7 @@ struct Module:DiscreteSpace
 
 	static std::map<std::string,tw::module_type> Map();
 	static bool SingularType(tw::module_type theType);
-	static tw::module_type CreateSupermoduleTypeFromSubmoduleKey(const std::string& key);
+	static tw::module_type RequiredSupermoduleType(tw::module_type submoduleType);
 	static bool QuasitoolNeedsModule(const tw::input::Preamble& preamble);
 	static tw::module_type CreateTypeFromInput(const tw::input::Preamble& preamble);
 	static Module* CreateObjectFromType(const std::string& name,tw::module_type theType,Simulation* sim);

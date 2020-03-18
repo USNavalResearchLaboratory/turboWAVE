@@ -94,8 +94,7 @@ struct Ionizer : ComputeTool
 
 	// members determining species involved
 	std::string ion_name,electron_name;
-	tw::Int ionSpecies,electronSpecies; // for PIC use the module index
-	sparc::hydro_set hi,he,hgas; // for hydro use the field indexing
+	sparc::hydro_set hi,he,hgas; // for hydro save the field indexing
 
 	// members that are assigned in Initialize or in constructor
 	tw::Float Z,Uion,nstar,lstar,I1,I2,I3,A1,A2,A3;

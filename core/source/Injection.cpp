@@ -151,7 +151,6 @@ tw::Float Profile::GetValue(const tw::vec3& pos,const MetricSpace& ds)
 
 UniformProfile::UniformProfile(const std::string& name,MetricSpace *m,Task *tsk):Profile(name,m,tsk)
 {
-	typeCode = tw::tool_type::uniformProfile;
 	directives.Add("density",new tw::input::Float(&density));
 }
 
@@ -162,7 +161,6 @@ tw::Float UniformProfile::GetValue(const tw::vec3& pos,const MetricSpace& ds)
 
 GaussianProfile::GaussianProfile(const std::string& name,MetricSpace *m,Task *tsk):Profile(name,m,tsk)
 {
-	typeCode = tw::tool_type::gaussianProfile;
 	directives.Add("density",new tw::input::Float(&density));
 	directives.Add("size",new tw::input::Vec3(&beamSize));
 }
@@ -180,7 +178,6 @@ tw::Float GaussianProfile::GetValue(const tw::vec3& pos,const MetricSpace& ds)
 
 ChannelProfile::ChannelProfile(const std::string& name,MetricSpace *m,Task *tsk):Profile(name,m,tsk)
 {
-	typeCode = tw::tool_type::channelProfile;
 	directives.Add("coefficients",new tw::input::Numbers<tw::Float>(&coeff[0],4));
 	directives.Add("zpoints",new tw::input::List<std::valarray<tw::Float>,tw::Float>(&z));
 	directives.Add("zdensity",new tw::input::List<std::valarray<tw::Float>,tw::Float>(&fz));
@@ -225,7 +222,6 @@ tw::Float ChannelProfile::GetValue(const tw::vec3& pos,const MetricSpace& ds)
 
 ColumnProfile::ColumnProfile(const std::string& name,MetricSpace *m,Task *tsk):Profile(name,m,tsk)
 {
-	typeCode = tw::tool_type::columnProfile;
 	directives.Add("size",new tw::input::Vec3(&beamSize));
 	directives.Add("zpoints",new tw::input::List<std::valarray<tw::Float>,tw::Float>(&z));
 	directives.Add("zdensity",new tw::input::List<std::valarray<tw::Float>,tw::Float>(&fz));
@@ -270,7 +266,6 @@ tw::Float ColumnProfile::GetValue(const tw::vec3& pos,const MetricSpace& ds)
 
 PiecewiseProfile::PiecewiseProfile(const std::string& name,MetricSpace *m,Task *tsk) : Profile(name,m,tsk)
 {
-	typeCode = tw::tool_type::piecewiseProfile;
 	directives.Add("xpoints",new tw::input::List<std::valarray<tw::Float>,tw::Float>(&x),false);
 	directives.Add("ypoints",new tw::input::List<std::valarray<tw::Float>,tw::Float>(&y),false);
 	directives.Add("zpoints",new tw::input::List<std::valarray<tw::Float>,tw::Float>(&z),false);
@@ -452,7 +447,6 @@ tw::Float PiecewiseProfile::GetValue(const tw::vec3& pos,const MetricSpace& ds)
 
 CorrugatedProfile::CorrugatedProfile(const std::string& name,MetricSpace *m,Task *tsk) : Profile(name,m,tsk)
 {
-	typeCode = tw::tool_type::corrugatedProfile;
 	directives.Add("a0",new tw::input::Float(&a0));
 	directives.Add("gamma0",new tw::input::Float(&gamma0));
 	directives.Add("w0",new tw::input::Float(&w0));
@@ -571,7 +565,6 @@ tw::Float PulseShape::D1Intensity(const tw::Float t) const
 
 Wave::Wave(const std::string& name,MetricSpace *m,Task *tsk) : ComputeTool(name,m,tsk)
 {
-	typeCode = tw::tool_type::none;
 	direction = tw::vec3(0.0,0.0,1.0);
 	focusPosition = tw::vec3(0.0,0.0,0.0);
 	a = tw::vec3(0.1,0.0,0.0);
@@ -627,7 +620,6 @@ void Wave::Initialize()
 
 PlaneWave::PlaneWave(const std::string& name,MetricSpace *m,Task *tsk) : Wave(name,m,tsk)
 {
-	typeCode = tw::tool_type::planeWave;
 }
 
 tw::Complex PlaneWave::PrimitivePhasor(const tw::vec4& x) const
@@ -645,7 +637,6 @@ tw::vec3 PlaneWave::PrimitiveVector(const tw::vec4& x4) const
 
 BesselBeam::BesselBeam(const std::string& name,MetricSpace *m,Task *tsk) : Wave(name,m,tsk)
 {
-	typeCode = tw::tool_type::besselBeam;
 	directives.Add("r0",new tw::input::Numbers<tw::Float>(&modeData.scale[0],2));
 }
 
@@ -659,7 +650,6 @@ tw::Complex BesselBeam::PrimitivePhasor(const tw::vec4& x) const
 
 AiryDisc::AiryDisc(const std::string& name,MetricSpace *m,Task *tsk) : Wave(name,m,tsk)
 {
-	typeCode = tw::tool_type::airyDisc;
 	directives.Add("r0",new tw::input::Numbers<tw::Float>(&modeData.scale[0],2));
 }
 
@@ -675,7 +665,6 @@ tw::Complex AiryDisc::PrimitivePhasor(const tw::vec4& x) const
 
 LaguerreGauss::LaguerreGauss(const std::string& name,MetricSpace *m,Task *tsk) : Wave(name,m,tsk)
 {
-	typeCode = tw::tool_type::laguerreGauss;
 	directives.Add("r0",new tw::input::Numbers<tw::Float>(&modeData.scale[0],2));
 }
 
@@ -717,7 +706,6 @@ tw::Complex LaguerreGauss::PrimitivePhasor(const tw::vec4& x) const
 
 HermiteGauss::HermiteGauss(const std::string& name,MetricSpace *m,Task *tsk) : Wave(name,m,tsk)
 {
-	typeCode = tw::tool_type::hermiteGauss;
 	directives.Add("r0",new tw::input::Numbers<tw::Float>(&modeData.scale[0],2));
 }
 
@@ -760,7 +748,6 @@ tw::Complex HermiteGauss::PrimitivePhasor(const tw::vec4& x) const
 
 Multipole::Multipole(const std::string& name,MetricSpace *m,Task *tsk) : Wave(name,m,tsk)
 {
-	typeCode = tw::tool_type::multipole;
 }
 
 void Multipole::Initialize()

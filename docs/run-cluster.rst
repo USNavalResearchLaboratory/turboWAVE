@@ -33,13 +33,15 @@ Command line arguments
 
 For cluster installations the command line specification is
 
-.. py:function:: <launcher> -np <procs> [--hostfile <nodes>] tw3d [-c <threads>] [--input-file <file>] [--no-interactive] [--version] [--help]
+.. py:function:: <launcher> -np <procs> [--hostfile <nodes>] tw3d [-c <threads>] [--input-file <file>] [--restart] [--no-interactive] [--version] [--help]
 
 	:param command launcher: Command provided by the external MPI implementation to launch parallel processes, e.g., ``mpirun``.
 	:param int procs: number of MPI processes to launch
 	:param str nodes: name of the file listing the hosts to be used in case of a multi-node run
 	:param int threads: Sets the number of OpenMP threads to fork for each MPI process.  If not specified, the number of threads is chosen according to the usual OpenMP rules.
 	:param str file: name or path of the file to use as the input file (default=stdin)
+
+	The :samp:`--restart` argument, if present, causes the initial data to be loaded from a checkpoint.
 
 	The :samp:`--no-interactive` argument, if present, suppresses the interactive thread (currently ignored in cluster mode).
 

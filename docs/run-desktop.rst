@@ -44,11 +44,13 @@ Command line arguments
 
 For desktop installations the command line specification is
 
-.. py:function:: tw3d [-n <procs>] [-c <threads>] [--input-file <file>] [--no-interactive] [--version] [--help]
+.. py:function:: tw3d [-n <procs>] [-c <threads>] [--input-file <file>] [--no-interactive] [--restart] [--version] [--help]
 
 	:param int procs: number of MPI processes (default=1, desktop only)
 	:param int threads: number of OpenMP threads (see below for default)
 	:param str file: name or path of the file to use as the input file (default=stdin)
+
+	The :samp:`--restart` argument, if present, causes initial data to be loaded from a checkpoint.
 
 	The :samp:`--no-interactive` argument, if present, suppresses the interactive thread.
 

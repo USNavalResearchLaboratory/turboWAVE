@@ -62,8 +62,6 @@ void LaserPropagator::SetBoundaryConditions(ComplexField& a0,ComplexField& a1,Co
 
 EigenmodePropagator::EigenmodePropagator(const std::string& name,MetricSpace *m,Task *tsk) : LaserPropagator(name,m,tsk)
 {
-	typeCode = tw::tool_type::eigenmodePropagator;
-
 	if (space->car==1.0 && !space->TransversePowersOfTwo())
 		throw tw::FatalError("eigenmode propagator in Cartesian coordinates requires transverse dimensions be powers of two.");
 
@@ -235,7 +233,6 @@ void EigenmodePropagator::Advance(ComplexField& a0,ComplexField& a1,ComplexField
 
 ADIPropagator::ADIPropagator(const std::string& name,MetricSpace *m,Task *tsk) : LaserPropagator(name,m,tsk)
 {
-	typeCode = tw::tool_type::adiPropagator;
 	evenTime = true;
 	xGlobalIntegrator = NULL;
 	yGlobalIntegrator = NULL;
@@ -429,7 +426,6 @@ void ADIPropagator::Advance(ComplexField& a0,ComplexField& a1,ComplexField& chi)
 
 SchroedingerPropagator::SchroedingerPropagator(const std::string& name,MetricSpace *m,Task *tsk) : ComputeTool(name,m,tsk)
 {
-	typeCode = tw::tool_type::schroedingerPropagator;
 	globalIntegrator.assign(4,NULL);
 
 	const tw::Int xDim = space->Dim(1);
@@ -635,7 +631,6 @@ void SchroedingerPropagator::UpdateSpin(ComplexField& psi,ComplexField& chi,Fiel
 
 ParabolicSolver::ParabolicSolver(const std::string& name,MetricSpace *m,Task *tsk) : ComputeTool(name,m,tsk)
 {
-	typeCode = tw::tool_type::generalParabolicPropagator;
 	globalIntegrator.assign(4,NULL);
 
 	if (space->Dim(1)>1)
@@ -826,7 +821,6 @@ void ParabolicSolver::Advance(	Field& psi,
 
 IsotropicPropagator::IsotropicPropagator(const std::string& name,MetricSpace *m,Task *tsk) : ComputeTool(name,m,tsk)
 {
-	typeCode = tw::tool_type::isotropicPropagator;
 	zGlobalIntegrator = NULL;
 
 	const tw::Int xDim = space->Dim(1);

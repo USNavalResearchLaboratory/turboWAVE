@@ -15,7 +15,6 @@ ComputeTool::ComputeTool(const std::string& name,MetricSpace *ms,Task *tsk)
 	this->name = name;
 	space = ms;
 	task = tsk;
-	typeCode = tw::tool_type::none;
 	refCount = 0;
 	region_name = "tw::entire";
 	theRgn = NULL;

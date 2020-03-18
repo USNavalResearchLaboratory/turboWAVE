@@ -168,7 +168,6 @@ void EllipticSolver::WriteCheckpoint(std::ofstream& outFile)
 
 EllipticSolver1D::EllipticSolver1D(const std::string& name,MetricSpace *m,Task *tsk) : EllipticSolver(name,m,tsk)
 {
-	typeCode = tw::tool_type::ellipticSolver1D;
 	if (space->Dimensionality()!=1)
 		throw tw::FatalError("EllipticSolver1D cannot be used in multi-dimensions.");
 	globalIntegrator = NULL;
@@ -259,7 +258,6 @@ void EllipticSolver1D::Solve(ScalarField& phi,ScalarField& source,tw::Float mul)
 
 IterativePoissonSolver::IterativePoissonSolver(const std::string& name,MetricSpace *m,Task *tsk) : EllipticSolver(name,m,tsk)
 {
-	typeCode = tw::tool_type::iterativePoissonSolver;
 	const tw::Int xDim = space->Dim(1);
 	const tw::Int yDim = space->Dim(2);
 	const tw::Int zDim = space->Dim(3);
@@ -486,7 +484,6 @@ void IterativePoissonSolver::WriteCheckpoint(std::ofstream& outFile)
 
 PoissonSolver::PoissonSolver(const std::string& name,MetricSpace *m,Task *tsk) : EllipticSolver(name,m,tsk)
 {
-	typeCode = tw::tool_type::facrPoissonSolver;
 	globalIntegrator = NULL;
 	z0 = tw::bc::fld::dirichletWall;
 	z1 = tw::bc::fld::neumannWall;
@@ -705,7 +702,6 @@ void PoissonSolver::Solve(ScalarField& phi,ScalarField& source,tw::Float mul)
 
 EigenmodePoissonSolver::EigenmodePoissonSolver(const std::string& name,MetricSpace *m,Task *tsk) : EllipticSolver(name,m,tsk)
 {
-	typeCode = tw::tool_type::eigenmodePoissonSolver;
 	x0 = tw::bc::fld::neumannWall;
 	x1 = tw::bc::fld::dirichletCell;
 	y0 = tw::bc::fld::periodic;

@@ -14,7 +14,6 @@ using namespace tw::bc;
 
 Electrostatic::Electrostatic(const std::string& name,Simulation* sim):FieldSolver(name,sim)
 {
-	typeCode = tw::module_type::electrostatic;
 	phi.Initialize(*this,owner);
 	source.Initialize(*this,owner);
 	Ef.Initialize(*this,owner);

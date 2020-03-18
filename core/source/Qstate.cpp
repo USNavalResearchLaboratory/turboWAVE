@@ -4,7 +4,6 @@
 
 QState::QState(const std::string& name,MetricSpace *ms,Task *tsk) : ComputeTool(name,ms,tsk)
 {
-	typeCode = tw::tool_type::none;
 	amplitude = tw::Complex(1.0,0.0);
 	if (ms->Dim(3)==1)
 		cylindricalAtom = true;
@@ -36,7 +35,6 @@ tw::Complex QState::Amplitude(const HamiltonianParameters& H,const tw::vec3& r,c
 
 RandomState::RandomState(const std::string& name,MetricSpace *ms,Task *tsk) : QState(name,ms,tsk)
 {
-	typeCode = tw::tool_type::randomState;
 	directives.Add("size",new tw::input::Vec3(&size));
 }
 
@@ -51,7 +49,6 @@ tw::Complex RandomState::Amplitude(const HamiltonianParameters& H,const tw::vec3
 
 FreeState::FreeState(const std::string& name,MetricSpace *ms,Task *tsk) : QState(name,ms,tsk)
 {
-	typeCode = tw::tool_type::freeState;
 	directives.Add("size",new tw::input::Vec3(&size));
 	directives.Add("k4",new tw::input::Vec4(&k4));
 	directives.Add("spin",new tw::input::Vec3(&spin));
@@ -90,7 +87,6 @@ tw::Complex FreeState::Amplitude(const HamiltonianParameters& H,const tw::vec3& 
 
 BoundState::BoundState(const std::string& name,MetricSpace *ms,Task *tsk) : QState(name,ms,tsk)
 {
-	typeCode = tw::tool_type::boundState;
 	directives.Add("nr_j_l_m",new tw::input::Vec4(&qnumbers));
 }
 
@@ -289,7 +285,6 @@ tw::Complex BoundState::Amplitude(const HamiltonianParameters& H,const tw::vec3&
 
 TabulatedState::TabulatedState(const std::string& name,MetricSpace *ms,Task *tsk) : QState(name,ms,tsk)
 {
-	typeCode = tw::tool_type::tabulatedState;
 	directives.Add("filename",new tw::input::String(&filename));
 }
 

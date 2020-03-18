@@ -26,7 +26,6 @@ Module::Module(const std::string& name,Simulation* sim)
 	subSequencePriority = 0;
 	for (tw::Int i=0;i<4;i++)
 		smoothing[i] = compensation[i] = 0;
-	typeCode = tw::module_type::none;
 	suppressNextUpdate = false;
 	DiscreteSpace::operator=(*sim);
 	// Any Module recognizes smoothing keys
@@ -44,21 +43,10 @@ Module::~Module()
 	#endif
 }
 
-bool Module::ValidSubmodule(Module* sub)
+void Module::AddSubmodule(Module* sub)
 {
-	return false;
-}
-
-bool Module::AddSubmodule(Module* sub)
-{
-	if (ValidSubmodule(sub))
-	{
-		submodule.push_back(sub);
-		sub->super = this;
-		return true;
-	}
-	else
-		return false;
+	submodule.push_back(sub);
+	sub->super = this;
 }
 
 void Module::InitializeCLProgram(const std::string& filename)
@@ -183,15 +171,18 @@ bool Module::SingularType(tw::module_type theType)
 	return theType==tw::module_type::kinetics || theType==tw::module_type::sparcHydroManager;
 }
 
-tw::module_type Module::CreateSupermoduleTypeFromSubmoduleKey(const std::string& key)
+tw::module_type Module::RequiredSupermoduleType(const tw::module_type submoduleType)
 {
-	if (key=="species")
-		return tw::module_type::kinetics;
-	if (key=="chemical")
-		return tw::module_type::equilibriumGroup;
-	if (key=="group")
-		return tw::module_type::sparcHydroManager;
-	return tw::module_type::none;
+	std::map<tw::module_type,tw::module_type> containmentMap =
+	{
+		{tw::module_type::species,tw::module_type::kinetics},
+		{tw::module_type::chemical,tw::module_type::equilibriumGroup},
+		{tw::module_type::equilibriumGroup,tw::module_type::sparcHydroManager}
+	};
+	if (containmentMap.find(submoduleType)==containmentMap.end())
+		return tw::module_type::none;
+	else
+		return containmentMap[submoduleType];
 }
 
 bool Module::QuasitoolNeedsModule(const tw::input::Preamble& preamble)

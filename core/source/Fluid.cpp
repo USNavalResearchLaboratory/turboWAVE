@@ -11,7 +11,6 @@ using namespace tw::bc;
 
 Fluid::Fluid(const std::string& name,Simulation* sim):Module(name,sim)
 {
-	typeCode = tw::module_type::fluidFields;
 	charge = -1.0;
 	mass = 1.0;
 	thermalMomentum = 0.0;
@@ -550,7 +549,6 @@ void Fluid::Report(Diagnostic& diagnostic)
 
 Chemical::Chemical(const std::string& name,Simulation* sim):Module(name,sim)
 {
-	typeCode = tw::module_type::chemical;
 	mat.charge = -1.0;
 	mat.mass = 1.0;
 	mat.cvm = 1.5;
@@ -573,18 +571,44 @@ Chemical::~Chemical()
 		owner->RemoveTool(ionizer);
 }
 
-void Chemical::Initialize()
+void Chemical::VerifyInput()
 {
-	// DFG - use containment tree to find EquilibriumGroup and HydroManager objects.
-	group = (EquilibriumGroup*)super; // used a lot, so we define a member
-	sparc::HydroManager *master = (sparc::HydroManager*)(super->super); // only used here, local variable
-	Module::Initialize();
+	Module::VerifyInput();
+	group = (EquilibriumGroup*)super;
+	// DFG - Find an EOS on the list of tools associated with this module.
+	// This list is populated automatically by the base Module class.
+	for (auto tool : moduleTool)
+	{
+		eosData = dynamic_cast<EOSComponent*>(tool);
+		if (eosData!=NULL)
+			break;
+	}
+	for (auto tool : moduleTool)
+	{
+		ionizer = dynamic_cast<Ionizer*>(tool);
+		if (ionizer!=NULL)
+			break;
+	}
+	// If the EOS tool could not be found, create one automatically.
+	// Another approach would be to throw an error, if we want to force the user to be explicit (this would break old input files).
+	// Ionization tool is optional, so if one was not found do nothing.
+	if (eosData==NULL)
+	{
+		if (mat.mass==1.0)
+			eosData = (EOSComponent*)owner->CreateTool("default_hot_electrons",tw::tool_type::eosHotElectrons);
+		else
+			eosData = (EOSComponent*)owner->CreateTool("default_ideal_gas",tw::tool_type::eosIdealGas);
+	}
+}
+
+void Chemical::SetupIndexing()
+{
+	// Called by EquilibriumGroup::SetupIndexing()
 	// DFG - the ionization object is now a ComputeTool
 	if (ionizer!=NULL)
 	{
 		// Setup the indexing for photoionization here (ionization tool cannot do it)
-		// By this point HydroManager has set up indexing for all its submodules, so we can use that data.
-		// N.b. that the the group pointer for other Chemical objects may not be setup yet.
+		// Since Hydromanager starts this chain, we can count on all EquilibriumGroup indexing to be in place.
 		Chemical *echem = (Chemical*)owner->GetModule(ionizer->electron_name);
 		Chemical *ichem = (Chemical*)owner->GetModule(ionizer->ion_name);
 		ionizer->hgas = group->hidx;
@@ -596,18 +620,24 @@ void Chemical::Initialize()
 	}
 	// Have to send indexing data to EOS
 	eosData->SetupIndexing(indexInState,group->hidx,group->eidx,mat);
-	// DFG - check to see if this Chemical is electrons.
-	// If it is, notify HydroManager and EquilibriumGroup.
-	// This is again an example of using the containment tree.
 	if (mat.mass==1.0)
 	{
-		// Might be more neatly done with formal Notify functions
-		master->electrons = this;
+		sparc::HydroManager *master = (sparc::HydroManager*)(super->super);
 		master->ie = indexInState;
+	}
+}
+
+void Chemical::Initialize()
+{
+	Module::Initialize();
+	// DFG - check to see if this Chemical is electrons.
+	// If it is, notify HydroManager and EquilibriumGroup.
+	if (mat.mass==1.0)
+	{
+		sparc::HydroManager *master = (sparc::HydroManager*)(super->super);
+		master->electrons = this;
 		group->forceFilter = 0.0;
 	}
-	// can't generate in HydroManager::Initialize since profiles would not be initialized
-	GenerateFluid(master->state1,master->eos1);
 }
 
 bool Chemical::GenerateFluid(Field& hydro,Field& eos)
@@ -704,35 +734,6 @@ bool Chemical::GenerateFluid(Field& hydro,Field& eos)
 	return didGenerate;
 }
 
-void Chemical::VerifyInput()
-{
-	Module::VerifyInput();
-	// DFG - Find an EOS on the list of tools associated with this module.
-	// This list is populated automatically by the base Module class.
-	for (auto tool : moduleTool)
-	{
-		eosData = dynamic_cast<EOSComponent*>(tool);
-		if (eosData!=NULL)
-			break;
-	}
-	for (auto tool : moduleTool)
-	{
-		ionizer = dynamic_cast<Ionizer*>(tool);
-		if (ionizer!=NULL)
-			break;
-	}
-	// If the EOS tool could not be found, create one automatically.
-	// Another approach would be to throw an error, if we want to force the user to be explicit (this would break old input files).
-	// Ionization tool is optional, so if one was not found do nothing.
-	if (eosData==NULL)
-	{
-		if (mat.mass==1.0)
-			eosData = (EOSComponent*)owner->CreateTool("default_hot_electrons",tw::tool_type::eosHotElectrons);
-		else
-			eosData = (EOSComponent*)owner->CreateTool("default_ideal_gas",tw::tool_type::eosIdealGas);
-	}
-}
-
 
 /////////////////////
 //                 //
@@ -743,7 +744,6 @@ void Chemical::VerifyInput()
 
 EquilibriumGroup::EquilibriumGroup(const std::string& name,Simulation* sim):Module(name,sim)
 {
-	typeCode = tw::module_type::equilibriumGroup;
 	mobile = true;
 	forceFilter = 1.0;
 
@@ -761,9 +761,31 @@ EquilibriumGroup::~EquilibriumGroup()
 		owner->RemoveTool(eosMixData);
 }
 
+void EquilibriumGroup::SetupIndexing()
+{
+	// Called by HydroManager::SetupIndexing()
+	matset.Allocate(chemical.size());
+	for (tw::Int i=0;i<chemical.size();i++)
+		matset.AddMaterial(chemical[i]->mat,i);
+	eosMixData->SetupIndexing(hidx,eidx,matset);
+	// First need to set indexInState for all chemicals
+	for (tw::Int i=0;i<chemical.size();i++)
+		chemical[i]->indexInState = hidx.first + i;
+	// Now we can setup indexing for all Chemical modules
+	for (auto chem : chemical)
+		chem->SetupIndexing();
+}
+
 void EquilibriumGroup::VerifyInput()
 {
 	Module::VerifyInput();
+	// Extract Chemical modules from the submodule list
+	for (auto sub : submodule)
+	{
+		Chemical *chem = dynamic_cast<Chemical*>(sub);
+		if (chem!=NULL)
+			chemical.push_back(chem);
+	}
 	// DFG - Find an EOS mixture on the list of tools associated with this module.
 	// This list is populated automatically by the base Module class.
 	for (auto tool : moduleTool)
@@ -782,18 +804,6 @@ void EquilibriumGroup::Initialize()
 {
 	Module::Initialize();
 	forceFilter = mobile ? 1.0 : 0.0;
-
-	// DFG - Containment is automatic, but explicit typing is not.
-	// So we simply copy the submodule list and typecast it.
-	for (auto sub : submodule)
-		chemical.push_back((Chemical*)sub);
-
-	// DFG - take advantage of sparc::material and sparc::material_set
-	matset.Allocate(chemical.size());
-	for (tw::Int i=0;i<chemical.size();i++)
-		matset.AddMaterial(chemical[i]->mat,i);
-
-	eosMixData->SetupIndexing(hidx,eidx,matset);
 }
 
 
@@ -806,7 +816,6 @@ void EquilibriumGroup::Initialize()
 
 sparc::HydroManager::HydroManager(const std::string& name,Simulation* sim):Module(name,sim)
 {
-	typeCode = tw::module_type::sparcHydroManager;
 	epsilonFactor = 1e-4;
 	laserFrequency = 1.0;
 
@@ -873,18 +882,11 @@ void sparc::HydroManager::SetupIndexing()
 	// Hydro indexing
 	r = 0; // running index
 	for (auto grp : group)
-		r = grp->hidx.Load(r,grp->submodule.size());
+		r = grp->hidx.Load(r,grp->chemical.size());
 
-	// Setup indexInState for each chemical, also redundantly set typecast super here.
+	// Pass indexing down to lower level objects.
 	for (auto grp : group)
-	{
-		for (tw::Int c=0;c<grp->submodule.size();c++)
-		{
-			Chemical *chem = (Chemical*)grp->submodule[c];
-			chem->indexInState = grp->hidx.first + c;
-			chem->group = (EquilibriumGroup*)chem->super;
-		}
-	}
+		grp->SetupIndexing();
 
 	// Under new system, collisions and reactions also have to be indexed.
 	// First define some lambdas to help, then index.
@@ -956,6 +958,15 @@ void sparc::HydroManager::VerifyInput()
 	if (owner->units==NULL)
 		throw tw::FatalError("Hydro module requires units (set unit density).");
 
+	// Search submodule list for EquilibriumGroup modules
+
+	for (auto sub : submodule)
+	{
+		EquilibriumGroup *grp = dynamic_cast<EquilibriumGroup*>(sub);
+		if (grp!=NULL)
+			group.push_back(grp);
+	}
+
 	// DFG - here is an example of where we have more than 1 kind of tool to consider.
 	// Simple appoach is just repeat the structure for each one.
 
@@ -997,11 +1008,6 @@ void sparc::HydroManager::Initialize()
 {
 	Module::Initialize();
 
-	// DFG - Containment is automatic, but explicit typing is not.
-	// So we simply copy the submodule list and typecast it.
-	for (auto sub : submodule)
-		group.push_back((EquilibriumGroup*)sub);
-
 	for (auto c : conductor)
 		ellipticSolver->FixPotential(phi,c->theRgn,0.0);
 
@@ -1030,8 +1036,8 @@ void sparc::HydroManager::Initialize()
 	// For more see sparc::hydro_set and sparc::eos_set in physics.h
 	tw::Int hydroElements = 0;
 	for (auto grp : group)
-		hydroElements += grp->submodule.size() + sparc::hydro_set::count;
-	tw::Int eosElements = submodule.size()*sparc::eos_set::count;
+		hydroElements += grp->chemical.size() + sparc::hydro_set::count;
+	tw::Int eosElements = group.size()*sparc::eos_set::count;
 	state0.Initialize(hydroElements,*this,owner);
 	state1.Initialize(hydroElements,*this,owner);
 	creationRate.Initialize(hydroElements,*this,owner);
@@ -1087,6 +1093,10 @@ void sparc::HydroManager::Initialize()
 	nu_e.SetBoundaryConditions(tw::grid::z,fld::neumannWall,fld::neumannWall);
 
 	SetupIndexing();
+	for (auto grp : group)
+		for (auto chem : grp->chemical)
+			// Following depends on complete indexing through the whole hydro tree
+			chem->GenerateFluid(state1,eos1);
 
 	// Take care of vector boundary conditions
 	for (auto grp : group)

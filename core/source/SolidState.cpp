@@ -10,7 +10,6 @@
 
 BoundElectrons::BoundElectrons(const std::string& name,Simulation* sim) : Module(name,sim)
 {
-	typeCode = tw::module_type::boundElectrons;
 	updateSequencePriority = tw::priority::source;
 	subSequencePriority = 1;
 	q0 = -1.0;

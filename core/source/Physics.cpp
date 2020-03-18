@@ -59,8 +59,6 @@ Ionizer::Ionizer(const std::string& name,MetricSpace *m,Task *tsk) : ComputeTool
 	multiplier = 1.0;
 	I1 = I2 = I3 = A1 = A2 = A3 = 0.0;
 	max_rate = tw::big_pos;
-	ionSpecies = 0;
-	electronSpecies = 0;
 	// read ionspecies and electronspecies indices in Species::Initialize
 	// setup hydro indexing during Chemical::Initialize
 	directives.Add("ionization potential",new tw::input::Float(&ionizationPotential));
@@ -85,7 +83,6 @@ void Ionizer::Initialize()
 
 MPI::MPI(const std::string& name,MetricSpace *m,Task *tsk) : Ionizer(name,m,tsk)
 {
-	typeCode = tw::tool_type::mpi;
 	directives.Add("reference field",new tw::input::Float(&E_MPI));
 }
 
@@ -103,7 +100,6 @@ tw::Float MPI::AverageRate(tw::Float w0,tw::Float E)
 
 ADK::ADK(const std::string& name,MetricSpace *m,Task *tsk) : Ionizer(name,m,tsk)
 {
-	typeCode = tw::tool_type::adk;
 }
 
 void ADK::Initialize()
@@ -133,7 +129,6 @@ tw::Float ADK::AverageRate(tw::Float w0,tw::Float E)
 
 PPT::PPT(const std::string& name,MetricSpace *m,Task *tsk) : Ionizer(name,m,tsk)
 {
-	typeCode = tw::tool_type::ppt;
 	terms = 1;
 	directives.Add("terms",new tw::input::Int(&terms));
 }
@@ -190,7 +185,6 @@ EOSComponent::EOSComponent(const std::string& name,MetricSpace *m,Task *tsk) : C
 {
 	// DFG - must not set names anymore here, let the base class constructor handle it
 	// Note enumerated types are now strongly typed and namespaced.
-	typeCode = tw::tool_type::eosData;
 }
 
 void EOSComponent::SetHeatCapacity(ScalarField& nm,Field& eos)
@@ -235,7 +229,6 @@ void EOSComponent::AddPKV(ScalarField& IE, ScalarField& nm, ScalarField& nu_e, F
 
 EOSIdealGas::EOSIdealGas(const std::string& name,MetricSpace *m, Task *tsk) : EOSComponent(name,m,tsk)
 {
-	typeCode = tw::tool_type::eosIdealGas;
 }
 
 /////////////////////////////////
@@ -246,7 +239,6 @@ EOSIdealGas::EOSIdealGas(const std::string& name,MetricSpace *m, Task *tsk) : EO
 
 EOSHotElectrons::EOSHotElectrons(const std::string& name,MetricSpace *m, Task *tsk) : EOSComponent(name,m,tsk)
 {
-	typeCode = tw::tool_type::eosHotElectrons;
 }
 
 void EOSHotElectrons::AddPKV(ScalarField& IE, ScalarField& nm, ScalarField& nu_e, Field& hydro, Field& eos)
@@ -273,7 +265,6 @@ void EOSHotElectrons::AddPKV(ScalarField& IE, ScalarField& nm, ScalarField& nu_e
 
 EOSSimpleMieGruneisen::EOSSimpleMieGruneisen(const std::string& name,MetricSpace *m, Task *tsk) : EOSComponent(name,m,tsk)
 {
-	typeCode = tw::tool_type::eosSimpleMieGruneisen;
 	GRUN = 2.0; // value for Cu on p. 257 of "Shock Wave Physics and Equation of State Modeling"
 	// GRUN = 0.1; // value for water in the above book.
 	directives.Add("gruneisen parameter",new tw::input::Float(&GRUN));
@@ -304,7 +295,6 @@ void EOSSimpleMieGruneisen::AddPKV(ScalarField& IE, ScalarField& nm, ScalarField
 
 EOSLinearMieGruneisen::EOSLinearMieGruneisen(const std::string& name,MetricSpace *m, Task *tsk) : EOSComponent(name,m,tsk)
 {
-	typeCode = tw::tool_type::eosLinearMieGruneisen;
 	// Hugoniot data fit for Cu
 	n0 = 3.3e3;
 	c0 = 1.3248e-5;
@@ -353,7 +343,6 @@ void EOSLinearMieGruneisen::AddPKV(ScalarField& IE, ScalarField& nm, ScalarField
 
 EOSMixture::EOSMixture(const std::string& name,MetricSpace *m, Task *tsk) : ComputeTool(name,m,tsk)
 {
-	typeCode = tw::tool_type::eosMixture;
 }
 
 void EOSMixture::ComputeTemperature(ScalarField& IE, ScalarField& nm, Field& hydro, Field& eos)
@@ -424,7 +413,6 @@ void EOSMixture::UpdateEnergy(ScalarField& nm,ScalarField& T0,Field& hydro,Field
 
 EOSIdealGasMix::EOSIdealGasMix(const std::string& name,MetricSpace *m, Task *tsk) : EOSMixture(name,m,tsk)
 {
-	typeCode = tw::tool_type::eosIdealGasMix;
 }
 
 void EOSIdealGasMix::ComputeTemperature(ScalarField& IE, ScalarField& nm, Field& hydroRef, Field& hydro, Field& eosRef, Field& eos)

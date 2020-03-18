@@ -43,7 +43,6 @@ struct ComputeTool
 {
 	MetricSpace *space;
 	Task *task;
-	tw::tool_type typeCode;
 	std::string name;
 	int refCount; // how many modules currently using
 	tw::input::DirectiveReader directives;

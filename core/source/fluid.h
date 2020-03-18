@@ -49,6 +49,7 @@ struct Chemical:Module
 
 	Chemical(const std::string& name,Simulation* sim);
 	virtual ~Chemical();
+	void SetupIndexing();
 	virtual void Initialize();
 
 	bool GenerateFluid(Field& hydro,Field& eos);
@@ -72,10 +73,6 @@ struct EquilibriumGroup:Module
 	// Following is used to limit motion by zeroing forces on this group
 	tw::Float forceFilter;
 
-	virtual bool ValidSubmodule(Module* sub)
-	{
-		return sub->typeCode==tw::module_type::chemical;
-	}
 	tw::Float DensitySum(const Field& f,const tw::cell& cell)
 	{
 		tw::Float ans = 0.0;
@@ -118,6 +115,7 @@ struct EquilibriumGroup:Module
 
 	EquilibriumGroup(const std::string& name,Simulation* sim);
 	virtual ~EquilibriumGroup(); // ASHER_MOD
+	void SetupIndexing();
 	virtual void Initialize();
 
 	virtual void VerifyInput();
@@ -187,10 +185,6 @@ struct HydroManager:Module
 	void SetupIndexing();
 	virtual void Initialize();
 	virtual void Reset();
-	virtual bool ValidSubmodule(Module* sub)
-	{
-		return sub->typeCode==tw::module_type::equilibriumGroup;
-	}
 	tw::Float CollisionCoefficient(Collision *coll,const tw::cell& cell);
 	void ComputeElectronCollisionFrequency();
 	void ComputeCollisionalSources();

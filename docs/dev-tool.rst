@@ -3,10 +3,6 @@ ComputeTool
 
 The ``ComputeTool`` object is used to perform calculations that may be re-used by various modules.  Unlike a ``Module``, a ``ComputeTool`` is assumed to perform its functions independently, and so does not require any data sharing paradigm beyond passing arguments into its methods.  All ``ComputeTool`` objects are owned by ``Simulation``.  When a ``Module`` wants to create or release a ``ComputeTool`` it calls a method of ``Simulation`` to do so.
 
-.. note::
-
-	While ``Module`` objects have been part of turboWAVE almost from the inception, ``ComputeTool`` objects were introduced later.  As a result there are objects in the framework that over time may be transitioned to ``ComputeTool`` objects.
-
 When to use a ``ComputeTool``
 -----------------------------
 
@@ -31,7 +27,7 @@ Declaration
 
 When implementing a new ``ComputeTool``, first carry out the following.
 
-	#. In ``computeTool.h``, introduce a new ``tw::tool_type`` element to identify the type of tool.
+	#. In ``computeTool.h``, introduce a new ``tw::tool_type`` element.  This is a label for the type of tool.
 	#. In ``ComputeTool.cpp``, add a case to the ``CreateObjectFromType`` method for the new type.
 	#. In an appropriate header file, derive the new type from ``ComputeTool``.
 	#. In an appropriate source file, implement the ``ComputeTool``.
@@ -71,7 +67,7 @@ If you want the tool to be accessible from the input file, carry out the followi
 Restart File Support
 ,,,,,,,,,,,,,,,,,,,,
 
-To support restarting a tool, carry out the following steps.
+As of version 4.0.0, only time varying quantities need to be checkpointed (no need to store constants or structural information).  To support restarting a tool, carry out the following steps.
 
 	#. Override the tool's ``ReadCheckpoint`` method.  Call the inherited ``ReadCheckpoint`` method first.  Then read any necessary data from the restart file.
 	#. Override the tool's ``WriteCheckpoint`` method.  Call the inherited ``WriteCheckpoint`` method first.  Then write any necessary data to the restart file.

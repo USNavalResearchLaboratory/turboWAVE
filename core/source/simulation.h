@@ -31,7 +31,8 @@ struct Simulation:Task,MetricSpace
 	std::vector<Region*> clippingRegion;
 	std::vector<ComputeTool*> computeTool;
 	std::vector<Module*> module;
-	std::vector<tw::module_type> createdModuleTypes;
+	// Map of the most recently created module of a given type
+	std::map<tw::module_type,Module*> module_map;
 
 	Simulation(const std::string& inputFileName,const std::string& restartFileName);
 	virtual ~Simulation();
@@ -46,7 +47,6 @@ struct Simulation:Task,MetricSpace
 	bool MangleModuleName(std::string& name);
 	bool CheckModule(const std::string& name);
 	Module* GetModule(const std::string& name);
-	tw::Int FindModule(const std::string& name);
 
 	bool MangleToolName(std::string& name);
 	ComputeTool* CreateTool(const std::string& basename,tw::tool_type theType);
@@ -68,6 +68,7 @@ struct Simulation:Task,MetricSpace
 	std::string InputFileFirstPass();
 	void SetupLocalGrid();
 	void NestedDeclaration(const std::string& com,std::stringstream& inputString,Module *sup);
+	Module* RecursiveAutoSuper(tw::module_type reqType,const std::string& basename);
 	void ReadInputFile();
 	void ReadCheckpoint(std::ifstream& inFile);
 	void WriteCheckpoint(std::ofstream& outFile);

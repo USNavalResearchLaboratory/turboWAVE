@@ -293,7 +293,6 @@ void Electromagnetic::Report(Diagnostic& diagnostic)
 
 CoulombSolver::CoulombSolver(const std::string& name,Simulation* sim):Electromagnetic(name,sim)
 {
-	typeCode = tw::module_type::coulombSolver;
 	A4.Initialize(8,*this,owner);
 
 	L1.Initialize(sim,sim,&wave,tw::grid::z,tw::grid::low,1,5);
@@ -504,7 +503,6 @@ void CoulombSolver::Report(Diagnostic& diagnostic)
 
 DirectSolver::DirectSolver(const std::string& name,Simulation* sim):Electromagnetic(name,sim)
 {
-	typeCode = tw::module_type::directSolver;
 	yeeTool = (YeePropagatorPML*)owner->CreateTool("yee",tw::tool_type::yeePropagatorPML);
 	enforceChargeConservation = true;
 	for (tw::Int i=0;i<6;i++) layerThickness[i] = 0;
@@ -811,7 +809,6 @@ void DirectSolver::Update()
 
 CurvilinearDirectSolver::CurvilinearDirectSolver(const std::string& name,Simulation* sim):DirectSolver(name,sim)
 {
-	typeCode = tw::module_type::curvilinearDirectSolver;
 	A.Initialize(6,*this,owner);
 }
 

@@ -12,7 +12,6 @@ using namespace tw::bc;
 
 AtomicPhysics::AtomicPhysics(const std::string& name,Simulation* sim):Module(name,sim)
 {
-	typeCode = tw::module_type::none;
 	keepA2Term = true;
 	dipoleApproximation = true;
 	alpha = 0.0072973525664;
@@ -252,10 +251,24 @@ void AtomicPhysics::ReadCheckpoint(std::ifstream& inFile)
 	J4.ReadCheckpoint(inFile);
 	Ao4.ReadCheckpoint(inFile);
 	A4.ReadCheckpoint(inFile);
+	#ifdef USE_OPENCL
+	psi_r.SendToComputeBuffer();
+	psi_i.SendToComputeBuffer();
+	J4.SendToComputeBuffer();
+	Ao4.SendToComputeBuffer();
+	A4.SendToComputeBuffer();
+	#endif
 }
 
 void AtomicPhysics::WriteCheckpoint(std::ofstream& outFile)
 {
+	#ifdef USE_OPENCL
+	psi_r.ReceiveFromComputeBuffer();
+	psi_i.ReceiveFromComputeBuffer();
+	J4.ReceiveFromComputeBuffer();
+	Ao4.ReceiveFromComputeBuffer();
+	A4.ReceiveFromComputeBuffer();
+	#endif
 	Module::WriteCheckpoint(outFile);
 	psi_r.WriteCheckpoint(outFile);
 	psi_i.WriteCheckpoint(outFile);
@@ -275,7 +288,6 @@ void AtomicPhysics::WriteCheckpoint(std::ofstream& outFile)
 Schroedinger::Schroedinger(const std::string& name,Simulation* sim):AtomicPhysics(name,sim)
 {
 	// Should move OpenCL stuff into the propagator tool
-	typeCode = tw::module_type::schroedinger;
 	H.form = qo::schroedinger;
 	#ifndef USE_OPENCL
 	propagator = NULL;
@@ -410,11 +422,19 @@ void Schroedinger::ReadCheckpoint(std::ifstream& inFile)
 	AtomicPhysics::ReadCheckpoint(inFile);
 	psi0.ReadCheckpoint(inFile);
 	psi1.ReadCheckpoint(inFile);
+	#ifdef USE_OPENCL
+	psi0.SendToComputeBuffer();
+	psi1.SendToComputeBuffer();
+	#endif
 }
 
 void Schroedinger::WriteCheckpoint(std::ofstream& outFile)
 {
 	AtomicPhysics::WriteCheckpoint(outFile);
+	#ifdef USE_OPENCL
+	psi0.ReceiveFromComputeBuffer();
+	psi1.ReceiveFromComputeBuffer();
+	#endif
 	psi0.WriteCheckpoint(outFile);
 	psi1.WriteCheckpoint(outFile);
 }
@@ -649,7 +669,6 @@ void Schroedinger::StartDiagnostics()
 Pauli::Pauli(const std::string& name,Simulation* sim):AtomicPhysics(name,sim)
 {
 	throw tw::FatalError("Pauli module is not supported in this version of TW.");
-	typeCode = tw::module_type::pauli;
 	H.form = qo::pauli;
 	#ifndef USE_OPENCL
 	propagator = NULL;
@@ -702,11 +721,23 @@ void Pauli::ReadCheckpoint(std::ifstream& inFile)
 	psi1.ReadCheckpoint(inFile);
 	chi0.ReadCheckpoint(inFile);
 	chi1.ReadCheckpoint(inFile);
+	#ifdef USE_OPENCL
+	psi0.SendToComputeBuffer();
+	psi1.SendToComputeBuffer();
+	chi0.SendToComputeBuffer();
+	chi1.SendToComputeBuffer();
+	#endif
 }
 
 void Pauli::WriteCheckpoint(std::ofstream& outFile)
 {
 	AtomicPhysics::WriteCheckpoint(outFile);
+	#ifdef USE_OPENCL
+	psi0.ReceiveFromComputeBuffer();
+	psi1.ReceiveFromComputeBuffer();
+	chi0.ReceiveFromComputeBuffer();
+	chi1.ReceiveFromComputeBuffer();
+	#endif
 	psi0.WriteCheckpoint(outFile);
 	psi1.WriteCheckpoint(outFile);
 	chi0.WriteCheckpoint(outFile);
@@ -877,7 +908,6 @@ KleinGordon::KleinGordon(const std::string& name,Simulation* sim) : AtomicPhysic
 	// In this representation, component 0 is the usual scalar wavefunction.
 	// Component 1 is psi1 = (id/dt - q*phi)*psi0/m
 	// The symmetric form is obtained from (psi0+psi1)/sqrt(2) , (psi0-psi1)/sqrt(2)
-	typeCode = tw::module_type::kleinGordon;
 	H.form = qo::klein_gordon;
 	H.morb = 1.0;
 	H.qorb = -sqrt(alpha);
@@ -1185,7 +1215,6 @@ Dirac::Dirac(const std::string& name,Simulation* sim) : AtomicPhysics(name,sim)
 {
 	// Wavefunction is in standard representation
 	// i.e., gamma^0 = diag(1,1,-1,-1)
-	typeCode = tw::module_type::dirac;
 	H.form = qo::dirac;
 	H.morb = 1.0;
 	H.qorb = -sqrt(alpha);
@@ -1434,7 +1463,6 @@ void Dirac::StartDiagnostics()
 
 PopulationDiagnostic::PopulationDiagnostic(const std::string& name,Simulation *sim) : Module(name,sim)
 {
-	typeCode = tw::module_type::populationDiagnostic;
 	H = NULL;
 	psi = NULL;
 }

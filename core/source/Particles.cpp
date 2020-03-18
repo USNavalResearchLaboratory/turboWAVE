@@ -12,7 +12,6 @@ using namespace tw::bc;
 
 Kinetics::Kinetics(const std::string& name,Simulation* sim) : Module(name,sim)
 {
-	typeCode = tw::module_type::kinetics;
 	rho00.Initialize(*this,owner);
 	sources = NULL;
 	chi = NULL;
@@ -21,13 +20,12 @@ Kinetics::Kinetics(const std::string& name,Simulation* sim) : Module(name,sim)
 void Kinetics::Initialize()
 {
 	Module::Initialize();
-	for (tw::Int i=0;i<submodule.size();i++)
-		species.push_back((Species*)submodule[i]);
-}
-
-bool Kinetics::ValidSubmodule(Module* sub)
-{
-	return sub->typeCode==tw::module_type::species;
+	for (auto sub : submodule)
+	{
+		Species *sp = dynamic_cast<Species*>(sub);
+		if (sp!=NULL)
+			species.push_back(sp);
+	}
 }
 
 void Kinetics::ExchangeResources()
@@ -242,8 +240,8 @@ void Kinetics::Ionize()
 		if (ionizer!=NULL)
 		{
 			std::vector<Particle>& particle = species[s]->particle;
-			s1 = (Species*)owner->module[ionizer->ionSpecies];
-			s2 = (Species*)owner->module[ionizer->electronSpecies];
+			s1 = (Species*)owner->GetModule(ionizer->ion_name);
+			s2 = (Species*)owner->GetModule(ionizer->electron_name);
 			m0 = species[s]->restMass;
 			q0 = species[s]->charge;
 			for (tw::Int i=0;i<particle.size();i++)
@@ -387,7 +385,6 @@ void Particle::WriteCheckpoint(std::ofstream& outFile)
 
 Species::Species(const std::string& name,Simulation* sim) : Module(name,sim)
 {
-	typeCode = tw::module_type::species;
 	restMass = 1.0;
 	charge = -1.0;
 	distributionInCell = tw::vec3(2.0,2.0,2.0);
@@ -455,11 +452,6 @@ void Species::VerifyInput()
 void Species::Initialize()
 {
 	Module::Initialize();
-	if (ionizer!=NULL)
-	{
-		ionizer->electronSpecies = owner->FindModule(ionizer->electron_name);
-		ionizer->ionSpecies = owner->FindModule(ionizer->ion_name);
-	}
 	GenerateParticles(true);
 	CleanParticleList();
 	if (!owner->neutralize)

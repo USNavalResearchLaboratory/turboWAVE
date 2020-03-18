@@ -539,15 +539,6 @@ Module* Simulation::GetModule(const std::string& name)
 	return NULL;
 }
 
-tw::Int Simulation::FindModule(const std::string& name)
-{
-	for (tw::Int i=0;i<module.size();i++)
-		if (module[i]->name==name)
-			return i;
-	throw tw::FatalError("Could not find module: <" + name+">");
-	return 0;
-}
-
 bool Simulation::MangleToolName(std::string& name)
 {
 	bool trouble,did_mangle;
@@ -689,7 +680,7 @@ void Simulation::ReadCheckpoint(std::ifstream& inFile)
 	{
 		inFile >> objectName;
 		inFile.ignore();
-		(*tw_out) << "Read region <" << objectName << ">..." << std::endl;
+		(*tw_out) << "Read checkpoint data for region <" << objectName << ">..." << std::endl;
 		Region::FindRegion(clippingRegion,objectName)->ReadCheckpoint(inFile);
 	}
 
@@ -699,7 +690,7 @@ void Simulation::ReadCheckpoint(std::ifstream& inFile)
 	{
 		inFile >> objectName;
 		inFile.ignore();
-		(*tw_out) << "Read tool <" << objectName << ">..." << std::endl;
+		(*tw_out) << "Read checkpoint data for tool <" << objectName << ">..." << std::endl;
 		GetTool(objectName,false)->ReadCheckpoint(inFile);
 	}
 
@@ -709,7 +700,7 @@ void Simulation::ReadCheckpoint(std::ifstream& inFile)
 	{
 		inFile >> objectName;
 		inFile.ignore();
-		(*tw_out) << "Read module <" << objectName << ">..." << std::endl;
+		(*tw_out) << "Read checkpoint data for module <" << objectName << ">..." << std::endl;
 		GetModule(objectName)->ReadCheckpoint(inFile);
 	}
 }
@@ -976,20 +967,16 @@ void Simulation::SetupLocalGrid()
 	#endif
 }
 
-void Simulation::NestedDeclaration(const std::string& com,std::stringstream& inputString,Module *sup)
+void Simulation::NestedDeclaration(const std::string& com,std::stringstream& inputString,Module *super)
 {
 	// To be called by supermodules that want to add submodules or tools while
 	// reading their own input file block.
+	// This function can be called recursively.
 
 	// Get the preamble = words that come between "new" and the opening brace
 	tw::input::Preamble preamble = tw::input::EnterInputFileBlock(com,inputString,"{=");
 	if (preamble.attaching)
 		throw tw::FatalError(preamble.err_prefix+"keyword <for> is not allowed in a nested declaration.");
-
-	auto module_type_exists = [&] (tw::module_type whichType)
-	{
-		return std::find(createdModuleTypes.begin(),createdModuleTypes.end(),whichType) != createdModuleTypes.end();
-	};
 
 	tw::module_type whichModule = Module::CreateTypeFromInput(preamble);
 	tw::tool_type whichTool = ComputeTool::CreateTypeFromInput(preamble);
@@ -1001,16 +988,17 @@ void Simulation::NestedDeclaration(const std::string& com,std::stringstream& inp
 	if (whichModule!=tw::module_type::none)
 	{
 		if (Module::SingularType(whichModule))
-			if (module_type_exists(whichModule))
+			if (module_map.find(whichModule)!=module_map.end())
 				throw tw::FatalError(preamble.err_prefix+"Singular module type was created twice.  Check order of input file.");
-		createdModuleTypes.push_back(whichModule);
 		MangleModuleName(preamble.obj_name);
 		(*tw_out) << "   Attaching nested module <" << preamble.obj_name << ">..." << std::endl;
-		module.push_back(Module::CreateObjectFromType(preamble.obj_name,whichModule,this));
-		module.back()->ReadInputFileBlock(inputString);
-		bool added = sup->AddSubmodule(module.back());
-		if (!added)
-			throw tw::FatalError(preamble.err_prefix+"parent module rejected the child.");
+		Module *sub = Module::CreateObjectFromType(preamble.obj_name,whichModule,this);
+		module.push_back(sub);
+		module_map[whichModule] = sub;
+		// The following may lead to a recursive call of this function.
+		// If so the module vector and map can be modified.
+		sub->ReadInputFileBlock(inputString);
+		super->AddSubmodule(sub);
 	}
 
 	if (whichTool!=tw::tool_type::none)
@@ -1018,8 +1006,32 @@ void Simulation::NestedDeclaration(const std::string& com,std::stringstream& inp
 		ComputeTool *tool = CreateTool(preamble.obj_name,whichTool);
 		(*tw_out) << "   Attaching nested tool <" << tool->name << ">..." << std::endl;
 		tool->ReadInputFileBlock(inputString);
-		sup->moduleTool.push_back(tool);
+		super->moduleTool.push_back(tool);
 	}
+}
+
+Module* Simulation::RecursiveAutoSuper(tw::module_type reqType,const std::string& basename)
+{
+	// If it already exists we are done
+	if (module_map.find(reqType)!=module_map.end())
+			return module_map[reqType];
+
+	// Automatic creation of supermodule
+	std::string super_module_name = basename + "_sup";
+	MangleModuleName(super_module_name);
+	(*tw_out) << "Installing supermodule triggered by <" << basename << ">..." << std::endl;
+	Module *super = Module::CreateObjectFromType(super_module_name,reqType,this);
+	module.push_back(super);
+	module_map[reqType] = super;
+
+	// Handle recursion
+	tw::module_type superSuperType = Module::RequiredSupermoduleType(reqType);
+	if (superSuperType!=tw::module_type::none)
+	{
+		Module *superSuper = RecursiveAutoSuper(superSuperType,super_module_name);
+		superSuper->AddSubmodule(super);
+	}
+	return super;
 }
 
 void Simulation::ReadInputFile()
@@ -1040,27 +1052,6 @@ void Simulation::ReadInputFile()
 	inputString.seekg(0);
 	outerDirectives.Reset();
 	gridDirectives.Reset();
-
-	auto module_type_exists = [&] (tw::module_type whichType)
-	{
-		return std::find(createdModuleTypes.begin(),createdModuleTypes.end(),whichType) != createdModuleTypes.end();
-	};
-
-	auto find_super = [&] (Module *sub)
-	{
-		// used for submodules defined outside the supermodule's block
-		bool added = false;
-		for (auto it=module.end()-1;it>=module.begin();--it)
-		{
-			added = (*it)->AddSubmodule(sub);
-			if (added)
-				break;
-		}
-		if (added)
-			(*tw_out) << "   (super=" << sub->super->name << ")" << std::endl;
-		else
-			(*tw_out) << "   (super=none)" << std::endl;
-	};
 
 	do
 	{
@@ -1099,34 +1090,36 @@ void Simulation::ReadInputFile()
 				}
 			}
 
-			// Handle modules whose creation is automatically triggered by another module
-			// Must do this before reading in the submodule
-			tw::module_type super_type = Module::CreateSupermoduleTypeFromSubmoduleKey(preamble.words[0]);
-			if (super_type!=tw::module_type::none)
-				if (!module_type_exists(super_type) || !Module::SingularType(super_type))
-				{
-					createdModuleTypes.push_back(super_type);
-					std::string super_module_name = preamble.obj_name + "_sup";
-					MangleModuleName(super_module_name);
-					(*tw_out) << "Installing supermodule triggered by <" << preamble.obj_name << ">..." << std::endl;
-					module.push_back(Module::CreateObjectFromType(super_module_name,super_type,this));
-					find_super(module.back());
-				}
-
-			// Straight module installation
+			// Module Installation
 			tw::module_type whichModule = Module::CreateTypeFromInput(preamble);
 			if (whichModule!=tw::module_type::none)
 			{
 				processed = true;
 				if (Module::SingularType(whichModule))
-					if (module_type_exists(whichModule))
+					if (module_map.find(whichModule)!=module_map.end())
 						throw tw::FatalError(preamble.err_prefix + "singular module type was created twice.  Check order of input file.");
-				createdModuleTypes.push_back(whichModule);
 				MangleModuleName(preamble.obj_name);
 				(*tw_out) << "Installing module <" << preamble.obj_name << ">..." << std::endl;
-				module.push_back(Module::CreateObjectFromType(preamble.obj_name,whichModule,this));
-				find_super(module.back()); // note next line might change module.back()
-				module.back()->ReadInputFileBlock(inputString);
+				Module *sub = Module::CreateObjectFromType(preamble.obj_name,whichModule,this);
+				module.push_back(sub);
+				module_map[whichModule] = sub;
+				sub->ReadInputFileBlock(inputString); // important to note this can change module vector and map if there are nested declarations
+				if (preamble.attaching)
+				{
+					Module *super = GetModule(preamble.owner_name);
+					(*tw_out) << "Attaching <" << preamble.obj_name << "> to <" << preamble.owner_name << ">..." << std::endl;
+					super->AddSubmodule(sub);
+				}
+				else
+				{
+					// If not explicitly attaching, but supermodule is required, find or create one
+					tw::module_type reqType = Module::RequiredSupermoduleType(whichModule);
+					if (reqType!=tw::module_type::none)
+					{
+						Module *super = RecursiveAutoSuper(reqType,preamble.obj_name);
+						super->AddSubmodule(sub);
+					}
+				}
 			}
 
 			// Handle low level objects (not modules or tools) that should be owned by a module

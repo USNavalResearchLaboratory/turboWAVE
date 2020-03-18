@@ -36,7 +36,6 @@ void WriteDVHeader(std::ofstream& outFile,tw::Int version,tw::Int xDim,tw::Int y
 
 Diagnostic::Diagnostic(const std::string& name,MetricSpace *ms,Task *tsk) : ComputeTool(name,ms,tsk)
 {
-	typeCode = tw::tool_type::none;
 	skip[0] = 0;
 	skip[1] = skip[2] = skip[3] = 1;
 	t = 0.0;
@@ -165,7 +164,6 @@ void Diagnostic::WriteCheckpoint(std::ofstream& outFile)
 
 TextTableBase::TextTableBase(const std::string& name,MetricSpace *ms,Task *tsk) : Diagnostic(name,ms,tsk)
 {
-	typeCode = tw::tool_type::none;
 	numSigFigs = 6;
 	filename = "table";
 	directives.Add("precision",new tw::input::Int(&numSigFigs),false);
@@ -227,7 +225,6 @@ void TextTableBase::Float(const std::string& label,tw::Float val,bool average)
 
 VolumeDiagnostic::VolumeDiagnostic(const std::string& name,MetricSpace *ms,Task *tsk) : TextTableBase(name,ms,tsk)
 {
-	typeCode = tw::tool_type::volumeDiagnostic;
 	filename = "energy";
 }
 
@@ -251,7 +248,6 @@ tw::Float VolumeDiagnostic::FirstMoment(const std::string& fieldName,const struc
 
 PointDiagnostic::PointDiagnostic(const std::string& name,MetricSpace *ms,Task *tsk) : TextTableBase(name,ms,tsk)
 {
-	typeCode = tw::tool_type::pointDiagnostic;
 	thePoint = tw::vec3(1.0);
 	filename = "pt1";
 	directives.Add("point",new tw::input::Vec3(&thePoint));
@@ -292,7 +288,6 @@ void PointDiagnostic::WriteCheckpoint(std::ofstream& outFile)
 
 BoxDiagnostic::BoxDiagnostic(const std::string& name,MetricSpace *ms,Task *tsk) : Diagnostic(name,ms,tsk)
 {
-	typeCode = tw::tool_type::boxDiagnostic;
 	average = false;
 	filename = "full";
 	directives.Add("average",new tw::input::Bool(&average),false);
@@ -454,7 +449,6 @@ void BoxDiagnostic::Finish()
 
 ParticleOrbits::ParticleOrbits(const std::string& name,MetricSpace *ms,Task *tsk) : Diagnostic(name,ms,tsk)
 {
-	typeCode = tw::tool_type::particleOrbits;
 	filename = "par";
 	minGamma = 1.0;
 	directives.Add("minimum gamma",new tw::input::Float(&minGamma));
@@ -540,7 +534,6 @@ void ParticleOrbits::WriteCheckpoint(std::ofstream& outFile)
 
 PhaseSpaceDiagnostic::PhaseSpaceDiagnostic(const std::string& name,MetricSpace *ms,Task *tsk) : Diagnostic(name,ms,tsk)
 {
-	typeCode = tw::tool_type::phaseSpaceDiagnostic;
 	filename = "xpx";
 	ax[0] = tw::grid::t;
 	ax[1] = tw::grid::x;
@@ -630,7 +623,6 @@ void PhaseSpaceDiagnostic::Particle(const struct Particle& par,tw::Float m0,tw::
 
 // FarFieldDetector::FarFieldDetector(const std::string& name,MetricSpace *ms,Task *tsk) : Diagnostic(name,ms,tsk)
 // {
-// 	typeCode = tw::tool_type::farFieldDetector;
 // 	filename = "far-field";
 // 	radius = 100;
 // 	theta0 = 0;

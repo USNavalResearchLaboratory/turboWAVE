@@ -253,7 +253,7 @@ struct Species:Module
 
 struct Kinetics:Module
 {
-	std::vector<Species*> species; // explicitly typed copy of submodule list
+	std::vector<Species*> species; // explicitly typed submodules
 
 	ScalarField rho00;
 	Field* sources;
@@ -262,7 +262,6 @@ struct Kinetics:Module
 
 	Kinetics(const std::string& name,Simulation* sim);
 	virtual void Initialize();
-	virtual bool ValidSubmodule(Module* sub);
 	virtual void ExchangeResources();
 	virtual bool InspectResource(void* resource,const std::string& description);
 	virtual void Update();

@@ -219,7 +219,7 @@ Top level directives tend to come first in an input file.  They are not containe
 
 .. py:function:: dump period = dp
 
-	:param int dp: steps before dumping restart file
+	:param int dp: Write out checkpoint data every ``dp`` steps.  If zero do not save any checkpoints.
 
 .. py:function:: output level = lvl
 

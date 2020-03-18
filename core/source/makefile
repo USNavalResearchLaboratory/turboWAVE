@@ -34,10 +34,10 @@ PLATFORM = LINUX
 # Uncomment one, and at most one, of the following to use hardware acceleration
 # N.b. specific accelerator devices can be specified in the turboWAVE input file
 
-HARDWARE_ACCEL = OMP
+#HARDWARE_ACCEL = OMP
 #HARDWARE_ACCEL = APPLE_CL
 #HARDWARE_ACCEL = CUDA
-#HARDWARE_ACCEL = RADEON_PRO
+HARDWARE_ACCEL = RADEON_PRO
 
 # Specify a preference for compiler (ignored in some cases)
 

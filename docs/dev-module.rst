@@ -66,7 +66,7 @@ Declaration
 
 When implementing a new ``Module``, first carry out the following.
 
-	#. In ``module.h``, introduce a new ``tw::module_type`` element to identify the type of module.
+	#. In ``module.h``, introduce a new ``tw::module_type`` element.  This is as a label for the type of module.
 	#. In ``Module.cpp``, add a case to the static member ``CreateObjectFromType`` for the new type.
 	#. If this is a singular module, modify the static member ``SingularType`` in ``Module.cpp`` appropriately.
 	#. In an appropriate header file, derive the new type from ``Module``.
@@ -78,7 +78,7 @@ When implementing a new ``Module``, first carry out the following.
 Constructor and Initializer
 ,,,,,,,,,,,,,,,,,,,,,,,,,,,
 
-The constructor *must* set the ``typeCode`` of the module, which you defined in ``module.h``.  It should also be used to set default values for member variables, or set up any storage that is independent of subsequent input file processing.
+The constructor is used to define input file parameters (see below), to set default parameter values, and to set up allocations that are independent of subsequent input file processing.
 
 Values or allocations that can only be known after the whole input file is processed should be set in the ``Initialize`` method.
 
@@ -94,15 +94,15 @@ With very little effort the user will be able to create the module and associate
 Containment Support
 ,,,,,,,,,,,,,,,,,,,
 
-Module blocks within other module blocks automatically establish the containment tree.  However, there are some details of the relationship that have to be specified explicitly.
+Input file semantics automatically establish the containment tree.  However, there are some details of the relationship that have to be specified in source code.
 
 #. If your module is intended as a supermodule:
 
- 	* Override ``ValidSubmodule``.  Test the ``Module`` that is passed in and return a boolean indicating whether or not it is a suitable submodule (generally you will test the type of module).
+ 	* If you need strongly typed pointers to submodules, use ``Module::VerifyInput`` to search the ``submodule`` vector for the desired modules.  Use ``dynamic_cast`` to identify the module type, and to create the strongly typed pointer.
 
 #. If your module is intended as a submodule:
 
-	* If you want a particular supermodule to be automatically created when your module is created, add a case to the static member ``CreateSupermoduleTypeFromSubmoduleKey``.
+	* If the submodule *requires* its supermodule, add an entry to the hash table in the static member ``RequiredSupermoduleType``.
 
 #. If you want your module to use the ``ComputeTool`` system, see :doc:`dev-tool`.
 
@@ -114,7 +114,7 @@ If your module needs to share data through the publisher-consumer mechanism, fol
 Restart File Support
 ,,,,,,,,,,,,,,,,,,,,
 
-To support restarting a module, carry out the following steps.
+As of version 4.0.0, only time varying quantities need to be checkpointed (no need to store constants or structural information).  To support restarting a module, carry out the following steps.
 
 	#. Override the ``ReadCheckpoint`` method.  Call the superclass ``ReadCheckpoint`` method first.  Then read any necessary data from the restart file.
 	#. Override the ``WriteCheckpoint`` method.  Call the superclass ``WriteCheckpoint`` method first.  Then write any necessary data to the restart file.

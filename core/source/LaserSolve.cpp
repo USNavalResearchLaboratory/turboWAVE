@@ -115,7 +115,6 @@ void LaserSolver::WriteCheckpoint(std::ofstream& outFile)
 
 QSSolver::QSSolver(const std::string& name,Simulation* sim):LaserSolver(name,sim)
 {
-	typeCode = tw::module_type::qsLaser;
 }
 
 
@@ -128,8 +127,6 @@ QSSolver::QSSolver(const std::string& name,Simulation* sim):LaserSolver(name,sim
 
 PGCSolver::PGCSolver(const std::string& name,Simulation* sim):LaserSolver(name,sim)
 {
-	typeCode = tw::module_type::pgcLaser;
-
 	F.Initialize(8,*this,owner);
 }
 
