@@ -13,9 +13,10 @@
 ////////////////////////
 
 
-Simulation::Simulation(const std::string& file_name)
+Simulation::Simulation(const std::string& file_name,const std::string& restart_name)
 {
 	inputFileName = file_name;
+	restartFileName = restart_name;
 	clippingRegion.push_back(new EntireRegion(clippingRegion));
 
 	gridGeometry = tw::grid::cartesian;
@@ -35,12 +36,11 @@ Simulation::Simulation(const std::string& file_name)
 
 	neutralize = true;
 	movingWindow = false;
-	restarted = false;
 	completed = false;
 	adaptiveTimestep = false;
 	adaptiveGrid = false;
 
-	stepNow = 1;
+	stepNow = 0;
 	stepsToTake = 32;
 	lastTime = 0;
 	outputLevel = 0;
@@ -234,12 +234,12 @@ void Simulation::Run()
 			FundamentalCycle();
 		}
 
-		(*tw_out) << "Completed " << stepNow - 1 << " steps in " << GetSeconds() - startTime << " seconds." << std::endl;
+		(*tw_out) << "Completed " << stepNow << " steps in " << GetSeconds() - startTime << " seconds." << std::endl;
 		(*tw_out) << "Simulated elapsed time = " << elapsedTime << std::endl;
 		if (strip[0].Get_rank()==0)
 		{
 			twstat.open("twstat");
-			twstat << "Completed " << stepNow - 1 << " steps in " << GetSeconds() - startTime << " seconds." << std::endl;
+			twstat << "Completed " << stepNow << " steps in " << GetSeconds() - startTime << " seconds." << std::endl;
 			twstat << "Simulated elapsed time = " << elapsedTime << std::endl;
 			twstat.close();
 		}
@@ -274,17 +274,17 @@ void Simulation::SetupGeometry()
 	switch (gridGeometry)
 	{
 		case tw::grid::cartesian:
-			if (stepNow==1)
+			if (stepNow==0)
 				(*tw_out) << "Using CARTESIAN Grid" << std::endl;
 			SetCartesianGeometry();
 			break;
 		case tw::grid::cylindrical:
-			if (stepNow==1)
+			if (stepNow==0)
 				(*tw_out) << "Using CYLINDRICAL Grid" << std::endl;
 			SetCylindricalGeometry();
 			break;
 		case tw::grid::spherical:
-			if (stepNow==1)
+			if (stepNow==0)
 				(*tw_out) << "Using SPHERICAL Grid" << std::endl;
 			SetSphericalGeometry();
 			break;
@@ -299,8 +299,7 @@ void Simulation::PrepareSimulation()
 	PrintGPUInformation();
 	#endif
 
-	if (!restarted)
-		SetupLocalGrid();
+	SetupLocalGrid();
 
 	ReadInputFile();
 
@@ -331,11 +330,8 @@ void Simulation::PrepareSimulation()
 
 	// Initialize Regions
 
-	if (!restarted)
-		for (tw::Int i=1;i<clippingRegion.size();i++)
-			clippingRegion[i]->Initialize(*this,this);
-	// region 0 is not saved in restart file
-	clippingRegion[0]->Initialize(*this,this);
+	for (auto rgn : clippingRegion)
+		rgn->Initialize(*this,this);
 
 	// Sort Modules
 
@@ -368,6 +364,19 @@ void Simulation::PrepareSimulation()
 		(*tw_out) << "Module: " << m->name << std::endl;
 		m->Initialize();
 		m->WarningMessage(tw_out);
+	}
+
+	// Read checkpoint data
+
+	if (restartFileName!="tw::none")
+	{
+		std::stringstream fileName;
+		std::ifstream restartFile;
+		fileName << InputPathName() << strip[0].Get_rank() << "_dump.chk";
+		(*tw_out) << std::endl << "Reading restart file " << fileName.str() << "..." << std::endl << std::endl;
+		restartFile.open(fileName.str().c_str());
+		ReadCheckpoint(restartFile);
+		restartFile.close();
 	}
 }
 
@@ -476,6 +485,21 @@ void Simulation::FundamentalCycle()
 
 	if (!movingWindow && antiSignalPosition<=(antiWindowPosition - spacing.z) && dim[3]>1)
 		AntiMoveWindow();
+
+	// RESTART MECHANISM
+
+	tw::Int curr = strip[0].Get_rank();
+	bool doing_restart = dumpPeriod>0 && stepNow%dumpPeriod==0;
+	Lock();
+	if (doing_restart)
+	{
+		std::ofstream restartFile;
+		std::string fileName = std::to_string(curr) + "_dump.chk";
+		restartFile.open(fileName.c_str(),std::ios::binary);
+		WriteCheckpoint(restartFile);
+		restartFile.close();
+	}
+	Unlock();
 }
 
 bool Simulation::MangleModuleName(std::string& name)
@@ -554,28 +578,19 @@ ComputeTool* Simulation::CreateTool(const std::string& basename,tw::tool_type th
 	return computeTool.back();
 }
 
-ComputeTool* Simulation::GetTool(const std::string& name)
+ComputeTool* Simulation::GetTool(const std::string& name,bool attaching)
 {
 	for (tw::Int i=0;i<computeTool.size();i++)
 	{
 		if (computeTool[i]->name==name)
 		{
-			computeTool[i]->refCount++;
+			if (attaching)
+				computeTool[i]->refCount++;
 			return computeTool[i];
 		}
 	}
 	throw tw::FatalError("Could not find tool: " + name);
 	return NULL;
-}
-
-ComputeTool* Simulation::GetRestartedTool(std::ifstream& inFile)
-{
-	// Read in the name and find the tool
-	// No need to read data, it has already happened.
-	std::string tmp;
-	inFile >> tmp;
-	inFile.ignore();
-	return GetTool(tmp);
 }
 
 void Simulation::ToolFromDirective(std::vector<ComputeTool*>& tool,std::stringstream& inputString,const std::string& command)
@@ -594,7 +609,7 @@ void Simulation::ToolFromDirective(std::vector<ComputeTool*>& tool,std::stringst
 		tw::input::StripQuotes(word);
 		if (CheckModule(word))
 			throw tw::FatalError("Tried to <get> module "+word+", but <get> can only be used for tools.");
-		tool.push_back(GetTool(word));
+		tool.push_back(GetTool(word,true));
 		return;
 	}
 }
@@ -644,16 +659,13 @@ void Simulation::AntiMoveWindow()
 
 void Simulation::ReadCheckpoint(std::ifstream& inFile)
 {
-	tw::Int i;
-	tw::Int num;
+	std::string objectName;
 
-	Task::ReadCheckpoint(inFile);
 	MetricSpace::ReadCheckpoint(inFile);
-	inFile.read((char *)&gridGeometry,sizeof(tw::grid::geometry));
-	inFile.read((char *)&unitDensityCGS,sizeof(tw::Float));
+	inFile.read((char *)&stepNow,sizeof(tw::Int));
+	stepNow++;
+	stepsToTake += stepNow-1;
 	inFile.read((char *)&dt0,sizeof(tw::Float));
-	inFile.read((char *)&dt,sizeof(tw::Float));
-	inFile.read((char *)&dth,sizeof(tw::Float));
 	inFile.read((char *)&dtCritical,sizeof(tw::Float));
 	inFile.read((char *)&dtMin,sizeof(tw::Float));
 	inFile.read((char *)&dtMax,sizeof(tw::Float));
@@ -664,70 +676,49 @@ void Simulation::ReadCheckpoint(std::ifstream& inFile)
 	inFile.read((char *)&windowPosition,sizeof(tw::Float));
 	inFile.read((char *)&antiSignalPosition,sizeof(tw::Float));
 	inFile.read((char *)&antiWindowPosition,sizeof(tw::Float));
-	inFile.read((char *)&movingWindow,sizeof(bool));
-	inFile.read((char *)&adaptiveTimestep,sizeof(bool));
-	inFile.read((char *)&adaptiveGrid,sizeof(bool));
-	inFile.read((char *)&outputLevel,sizeof(outputLevel));
-	inFile.read((char *)&errorCheckingLevel,sizeof(errorCheckingLevel));
-	inFile.read((char *)&neutralize,sizeof(bool));
-	inFile.read((char *)&stepsToTake,sizeof(tw::Int));
-	inFile.read((char *)&dumpPeriod,sizeof(tw::Int));
-	inFile.read((char *)bc0,sizeof(tw::bc::par)*4);
-	inFile.read((char *)bc1,sizeof(tw::bc::par)*4);
 
-	(*tw_out) << "Local Grid = " << dim[1] << "x" << dim[2] << "x" << dim[3] << std::endl;
-	#ifdef USE_OPENCL
-	InitializeMetricsBuffer(context,dt);
-	#endif
+	if (uniformDeviate!=NULL)
+		uniformDeviate->ReadCheckpoint(inFile);
 
-	inFile.read((char *)&num,sizeof(tw::Int));
-	for (i=1;i<num;i++) // don't read index 0, it is created by constructor
+	if (gaussianDeviate!=NULL)
+		gaussianDeviate->ReadCheckpoint(inFile);
+
+	// Read Region objects
+
+	for (tw::Int i=0;i<clippingRegion.size();i++)
 	{
-		clippingRegion.push_back(Region::CreateObjectFromFile(clippingRegion,inFile));
-		(*tw_out) << "Add Region " << clippingRegion.back()->name << std::endl;
+		inFile >> objectName;
+		inFile.ignore();
+		(*tw_out) << "Read region <" << objectName << ">..." << std::endl;
+		Region::FindRegion(clippingRegion,objectName)->ReadCheckpoint(inFile);
 	}
-
-	if (uniformDeviate!=NULL) delete uniformDeviate;
-	uniformDeviate = new UniformDeviate(1);
-	uniformDeviate->ReadCheckpoint(inFile);
-
-	if (gaussianDeviate!=NULL) delete gaussianDeviate;
-	gaussianDeviate = new GaussianDeviate(1);
-	gaussianDeviate->ReadCheckpoint(inFile);
 
 	// Read ComputeTool objects
 
-	inFile.read((char *)&num,sizeof(num));
-	for (i=0;i<num;i++)
+	for (tw::Int i=0;i<computeTool.size();i++)
 	{
-		computeTool.push_back(ComputeTool::CreateObjectFromFile(inFile,this,this));
-		(*tw_out) << "Installed Tool " << computeTool.back()->name << std::endl;
+		inFile >> objectName;
+		inFile.ignore();
+		(*tw_out) << "Read tool <" << objectName << ">..." << std::endl;
+		GetTool(objectName,false)->ReadCheckpoint(inFile);
 	}
 
-	// Read Modules
-	// Quasi-tools are read at the same time
+	// Read Module objects
 
-	inFile.read((char *)&num,sizeof(tw::Int));
-	for (i=0;i<num;i++)
+	for (tw::Int i=0;i<module.size();i++)
 	{
-		// Following calls Module::ReadCheckpoint, the base takes care of module containment, and populating the ComputeTool list.
-		// Setup of ComputeTools is not completed until after input file processing, when Module::VerifyInput() is called.
-		module.push_back(Module::CreateObjectFromFile(inFile,this));
-		(*tw_out) << "Installed Module " << module.back()->name << std::endl;
+		inFile >> objectName;
+		inFile.ignore();
+		(*tw_out) << "Read module <" << objectName << ">..." << std::endl;
+		GetModule(objectName)->ReadCheckpoint(inFile);
 	}
 }
 
 void Simulation::WriteCheckpoint(std::ofstream& outFile)
 {
-	tw::Int i;
-
-	Task::WriteCheckpoint(outFile);
 	MetricSpace::WriteCheckpoint(outFile);
-	outFile.write((char *)&gridGeometry,sizeof(tw::grid::geometry));
-	outFile.write((char *)&unitDensityCGS,sizeof(tw::Float));
+	outFile.write((char *)&stepNow,sizeof(tw::Int));
 	outFile.write((char *)&dt0,sizeof(tw::Float));
-	outFile.write((char *)&dt,sizeof(tw::Float));
-	outFile.write((char *)&dth,sizeof(tw::Float));
 	outFile.write((char *)&dtCritical,sizeof(tw::Float));
 	outFile.write((char *)&dtMin,sizeof(tw::Float));
 	outFile.write((char *)&dtMax,sizeof(tw::Float));
@@ -738,34 +729,30 @@ void Simulation::WriteCheckpoint(std::ofstream& outFile)
 	outFile.write((char *)&windowPosition,sizeof(tw::Float));
 	outFile.write((char *)&antiSignalPosition,sizeof(tw::Float));
 	outFile.write((char *)&antiWindowPosition,sizeof(tw::Float));
-	outFile.write((char *)&movingWindow,sizeof(bool));
-	outFile.write((char *)&adaptiveTimestep,sizeof(bool));
-	outFile.write((char *)&adaptiveGrid,sizeof(bool));
-	outFile.write((char *)&outputLevel,sizeof(outputLevel));
-	outFile.write((char *)&errorCheckingLevel,sizeof(errorCheckingLevel));
-	outFile.write((char *)&neutralize,sizeof(bool));
-	outFile.write((char *)&stepsToTake,sizeof(tw::Int));
-	outFile.write((char *)&dumpPeriod,sizeof(tw::Int));
-	outFile.write((char *)bc0,sizeof(tw::bc::par)*4);
-	outFile.write((char *)bc1,sizeof(tw::bc::par)*4);
 
-	i = clippingRegion.size();
-	outFile.write((char *)&i,sizeof(tw::Int));
-	for (i=1;i<clippingRegion.size();i++) // don't write index 0, it is created by constructor
-		clippingRegion[i]->WriteCheckpoint(outFile);
+	if (uniformDeviate!=NULL)
+		uniformDeviate->WriteCheckpoint(outFile);
 
-	uniformDeviate->WriteCheckpoint(outFile);
-	gaussianDeviate->WriteCheckpoint(outFile);
+	if (gaussianDeviate!=NULL)
+		gaussianDeviate->WriteCheckpoint(outFile);
 
-	i = computeTool.size();
-	outFile.write((char *)&i,sizeof(tw::Int));
-	for (i=0;i<computeTool.size();i++)
-		computeTool[i]->WriteCheckpoint(outFile);
+	for (auto obj : clippingRegion)
+	{
+		(*tw_out) << "Checkpointing <" << obj->name << ">" << std::endl;
+		obj->WriteCheckpoint(outFile);
+	}
 
-	i = module.size();
-	outFile.write((char *)&i,sizeof(tw::Int));
-	for (i=0;i<module.size();i++)
-		module[i]->WriteCheckpoint(outFile);
+	for (auto obj : computeTool)
+	{
+		(*tw_out) << "Checkpointing <" << obj->name << ">" << std::endl;
+		obj->WriteCheckpoint(outFile);
+	}
+
+	for (auto obj : module)
+	{
+		(*tw_out) << "Checkpointing <" << obj->name << ">" << std::endl;
+		obj->WriteCheckpoint(outFile);
+	}
 }
 
 
@@ -829,9 +816,9 @@ std::string Simulation::InputFileFirstPass()
 					do
 					{
 						temp >> word;
-						if (word!="new" && word!="generate" && word!="open")
+						if (word!="new" && word!="generate")
 							inputString >> word;
-					} while (word!="new" && word!="generate" && word!="open");
+					} while (word!="new" && word!="generate");
 				}
 				else
 				{
@@ -852,7 +839,7 @@ std::string Simulation::InputFileFirstPass()
 							com2 = gridDirectives.ReadNext(inputString);
 							if (com2=="tw::EOF")
 								throw tw::FatalError("Encountered EOF while processing <grid>.");
-							if (com2=="new" || com2=="generate" || com2=="get" || com2=="open")
+							if (com2=="new" || com2=="generate" || com2=="get")
 								throw tw::FatalError("Keyword <"+com2+"> inside grid block is not allowed.");
 						} while (com2!="}");
 						gridDirectives.ThrowErrorIfMissingKeys("grid");
@@ -880,23 +867,6 @@ std::string Simulation::InputFileFirstPass()
 			if (com1=="generate")
 				tw::input::ExitInputFileBlock(inputString,false);
 
-			if (com1=="open")
-			{
-				inputString >> com2;
-				if (com2=="restart")
-				{
-					foundRestart = true;
-					restarted = true;
-					inputString >> com2 >> com2;
-					fileName.str("");
-					fileName << InputPathName() << worldRank << "_" << com2;
-					std::ifstream inFile(fileName.str().c_str());
-					if (inFile.rdstate() & std::ios::failbit)
-						throw tw::FatalError("could not open restart file");
-					Task::ReadCheckpoint(inFile);
-					inFile.close();
-				}
-			}
 		} while (!inputString.eof());
 
 		if (outerDirectives.TestKey("timestep"))
@@ -1190,18 +1160,6 @@ void Simulation::ReadInputFile()
 				throw tw::FatalError(preamble.err_prefix+"keys were not understood.");
 		}
 
-		if (com1=="open") // eg, open restart file dump1
-		{
-			std::stringstream fileName;
-			std::ifstream restartFile;
-			inputString >> word >> word >> word;
-			fileName << InputPathName() << strip[0].Get_rank() << "_" << word;
-			(*tw_out) << "Reading restart file " << fileName.str() << "..." << std::endl;
-			restartFile.open(fileName.str().c_str());
-			ReadCheckpoint(restartFile);
-			restartFile.close();
-		}
-
 	} while (!inputString.eof());
 
 	outerDirectives.ThrowErrorIfMissingKeys("Simulation");
@@ -1211,9 +1169,6 @@ void Simulation::ReadInputFile()
 
 void Simulation::Diagnose()
 {
-	tw::Int master = 0;
-	tw::Int curr = strip[0].Get_rank();
-
 	std::vector<Diagnostic*> diagnostic;
 	for (auto tool : computeTool)
 		if (dynamic_cast<Diagnostic*>(tool))
@@ -1223,11 +1178,10 @@ void Simulation::Diagnose()
 	// Main purpose of this step is to let modules transfer data from compute devices.
 	// This has a high cost, so only do if necessary.
 
-	bool doing_restart=false, doing_diagnostics=false;
-	doing_restart = dumpPeriod>0 && stepNow%dumpPeriod==0;
+	bool doing_diagnostics=false;
 	for (auto d : diagnostic)
 		doing_diagnostics = doing_diagnostics || d->WriteThisStep(elapsedTime,dt,stepNow);
-	if (doing_restart || doing_diagnostics)
+	if (doing_diagnostics)
 	{
 		for (auto m : module)
 			m->StartDiagnostics();
@@ -1236,19 +1190,6 @@ void Simulation::Diagnose()
 	{
 		return;
 	}
-
-	// RESTART MECHANISM
-
-	Lock();
-	if (doing_restart)
-	{
-		std::ofstream restartFile;
-		std::string fileName = std::to_string(curr) + "_dump" + std::to_string(stepNow/dumpPeriod);
-		restartFile.open(fileName.c_str(),std::ios::binary);
-		WriteCheckpoint(restartFile);
-		restartFile.close();
-	}
-	Unlock();
 
 	// MAIN DIAGNOSTIC LOOP
 

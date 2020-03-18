@@ -54,8 +54,6 @@ struct Chemical:Module
 	bool GenerateFluid(Field& hydro,Field& eos);
 
 	virtual void VerifyInput();
-	virtual void ReadCheckpoint(std::ifstream& inFile);
-	virtual void WriteCheckpoint(std::ofstream& outFile);
 };
 
 struct EquilibriumGroup:Module
@@ -123,8 +121,6 @@ struct EquilibriumGroup:Module
 	virtual void Initialize();
 
 	virtual void VerifyInput();
-	virtual void ReadCheckpoint(std::ifstream& inFile);
-	virtual void WriteCheckpoint(std::ofstream& outFile);
 };
 
 namespace sparc

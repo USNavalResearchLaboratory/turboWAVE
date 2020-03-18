@@ -11,9 +11,6 @@ struct SubReaction
 	std::vector<sparc::hydro_set> reactants,products;
 	std::vector<sparc::material> mat_r,mat_p;
 	tw::Float heat,vheat;
-
-	virtual void ReadCheckpoint(std::ifstream& inFile);
-	virtual void WriteCheckpoint(std::ofstream& outFile);
 };
 
 struct PrimitiveReaction
@@ -24,8 +21,6 @@ struct PrimitiveReaction
 	tw::Float unit_T_eV,unit_rate_cgs; // normalization help for janev
 
 	tw::Float PrimitiveRate(tw::Float T);
-	virtual void ReadCheckpoint(std::ifstream& inFile);
-	virtual void WriteCheckpoint(std::ofstream& outFile);
 };
 
 struct Reaction : PrimitiveReaction
@@ -36,8 +31,6 @@ struct Reaction : PrimitiveReaction
 	tw::Int numBodies;
 
 	virtual void ReadInputFile(std::stringstream& inputString,tw::Float unitDensityCGS);
-	virtual void ReadCheckpoint(std::ifstream& inFile);
-	virtual void WriteCheckpoint(std::ofstream& outFile);
 };
 
 struct Excitation : PrimitiveReaction
@@ -49,8 +42,6 @@ struct Excitation : PrimitiveReaction
 	tw::Float level;
 
 	virtual void ReadInputFile(std::stringstream& inputString,tw::Float unitDensityCGS);
-	virtual void ReadCheckpoint(std::ifstream& inFile);
-	virtual void WriteCheckpoint(std::ofstream& outFile);
 };
 
 struct Collision
@@ -64,6 +55,4 @@ struct Collision
 	tw::Float ks,T_ref,n_ref;
 
 	virtual void ReadInputFile(std::stringstream& inputString,tw::Float unitDensityCGS);
-	virtual void ReadCheckpoint(std::ifstream& inFile);
-	virtual void WriteCheckpoint(std::ofstream& outFile);
 };

@@ -64,7 +64,6 @@ struct Region
 	}
 
 	static Region* CreateObjectFromString(std::vector<Region*>& ml,const std::string& str);
-	static Region* CreateObjectFromFile(std::vector<Region*>& ml,std::ifstream& inFile);
 	static Region* FindRegion(std::vector<Region*>& ml,const std::string& name);
 
 	virtual void ReadInputFileBlock(std::stringstream& inputString);

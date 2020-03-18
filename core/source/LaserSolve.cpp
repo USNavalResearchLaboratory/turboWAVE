@@ -51,9 +51,6 @@ void LaserSolver::Initialize()
 	propagator->SetData(laserFreq,dt,polarizationType,owner->movingWindow);
 	propagator->SetBoundaryConditions(a0,a1,chi);
 
-	if (owner->restarted)
-		return;
-
 	if (polarizationType==circularPolarization)
 		polarizationFactor = 1.414;
 	else
@@ -97,8 +94,6 @@ void LaserSolver::VerifyInput()
 void LaserSolver::ReadCheckpoint(std::ifstream& inFile)
 {
 	Module::ReadCheckpoint(inFile);
-	inFile.read((char *)&laserFreq,sizeof(tw::Float));
-	inFile.read((char *)&polarizationType,sizeof(tw_polarization_type));
 	a0.ReadCheckpoint(inFile);
 	a1.ReadCheckpoint(inFile);
 }
@@ -106,8 +101,6 @@ void LaserSolver::ReadCheckpoint(std::ifstream& inFile)
 void LaserSolver::WriteCheckpoint(std::ofstream& outFile)
 {
 	Module::WriteCheckpoint(outFile);
-	outFile.write((char *)&laserFreq,sizeof(tw::Float));
-	outFile.write((char *)&polarizationType,sizeof(tw_polarization_type));
 	a0.WriteCheckpoint(outFile);
 	a1.WriteCheckpoint(outFile);
 }

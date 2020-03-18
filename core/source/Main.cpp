@@ -25,10 +25,10 @@ struct Launcher : tw::Thread
 {
 	Simulation *tw;
 	tw::Int numOMPThreads;
-	Launcher(tw::Int rank,tw::Int c,const std::string& fileName) : tw::Thread(rank)
+	Launcher(tw::Int rank,tw::Int c,const std::string& inputFileName,const std::string& restartFileName) : tw::Thread(rank)
 	{
 		numOMPThreads=c;
-		tw = new Simulation(fileName);
+		tw = new Simulation(inputFileName,restartFileName);
 	}
 	virtual ~Launcher()
 	{
@@ -79,7 +79,7 @@ void TW_Interactive::Run()
 int main(int argc,char *argv[])
 {
 	int numOMPThreads=0; // indicates -c argument was not given
-	std::string initMessage,arg,inputFileName("stdin");
+	std::string initMessage,arg,inputFileName("stdin"),restartFileName("tw::none");
 	std::set_new_handler(&out_of_store);
 	tw::Int bitsPerFloat = sizeof(tw::Float)*8;
 
@@ -92,8 +92,8 @@ int main(int argc,char *argv[])
 		{
 			arg = std::string(argv[idx]);
 
-			if (arg!="--input-file" && arg!="--no-interactive" && arg!="--version" && arg!="--help" && arg!="-c")
-				throw tw::FatalError("Unrecognized argument");
+			if (arg!="--input-file" && arg!="--no-interactive" && arg!="--version" && arg!="--help" && arg!="-c" && arg!="--restart")
+				throw tw::FatalError("Unrecognized argument <"+arg+">");
 
 			if (arg=="--version")
 			{
@@ -105,7 +105,7 @@ int main(int argc,char *argv[])
 			if (arg=="--help")
 			{
 				std::cout << "This is turboWAVE, a PIC/hydro/quantum simulation code." << std::endl;
-				std::cout << "Usage: <launcher> -np <procs> tw3d [-c <threads>] [--input-file <path>] [--version] [--help] [--no-interactive]" << std::endl;
+				std::cout << "Usage: <launcher> -np <procs> tw3d [optional arguments...]" << std::endl;
 				std::cout << "<launcher>             MPI launcher such as mpirun, mpiexec, etc.." << std::endl;
 				std::cout << "-np <procs>            Launch <procs> MPI processes (flag may vary with launcher program)." << std::endl;
 				std::cout << "-c <threads>           Fork <threads> OpenMP threads per MPI process." << std::endl;
@@ -113,6 +113,7 @@ int main(int argc,char *argv[])
 				std::cout << "--version              Display the version number (no simulation if only argument)." << std::endl;
 				std::cout << "--help                 Display this message (no simulation if only argument)." << std::endl;
 				std::cout << "--no-interactive       Suppress the interactive thread." << std::endl;
+				std::cout << "--restart              Load checkpoint data." << std::endl;
 				std::cout << "Full documentation can be found at https://turbowave.readthedocs.io" << std::endl;
 				if (argc==2)
 					exit(0);
@@ -124,6 +125,10 @@ int main(int argc,char *argv[])
 					inputFileName = std::string(argv[idx]);
 				else
 					throw tw::FatalError("Incomplete arguments");
+			}
+			if (arg=="--restart")
+			{
+				restartFileName = "dump";
 			}
 			if (arg=="-c")
 			{
@@ -148,7 +153,7 @@ int main(int argc,char *argv[])
 		exit(1);
 	}
 
-	Simulation *tw = new Simulation(inputFileName);
+	Simulation *tw = new Simulation(inputFileName,restartFileName);
 	initMessage = tw->InputFileFirstPass();
 	*tw->tw_out << std::endl << "*** Starting turboWAVE Session ***" << std::endl;
 	*tw->tw_out << "Floating point precision = " << bitsPerFloat << " bits" << std::endl;
@@ -183,7 +188,7 @@ int main(int argc,char *argv[])
 	int numMPIThreads=1,numOMPThreads=1;
 	bool interactive = true;
 	tw::Int i,numCompleted=0;
-	std::string arg,inputFileName("stdin");
+	std::string arg,inputFileName("stdin"),restartFileName("tw::none");
 	std::set_new_handler(&out_of_store);
 	tw::Int bitsPerFloat = sizeof(tw::Float)*8;
 
@@ -206,7 +211,7 @@ int main(int argc,char *argv[])
 		{
 			arg = std::string(argv[idx]);
 
-			if (arg!="-n" && arg!="-c" && arg!="--no-interactive" && arg!="--version" && arg!="--help" && arg!="--input-file")
+			if (arg!="-n" && arg!="-c" && arg!="--no-interactive" && arg!="--version" && arg!="--help" && arg!="--input-file" && arg!="--restart")
 				throw tw::FatalError("Unrecognized argument");
 
 			if (arg=="--input-file")
@@ -216,6 +221,11 @@ int main(int argc,char *argv[])
 					inputFileName = std::string(argv[idx]);
 				else
 					throw tw::FatalError("Incomplete arguments");
+			}
+
+			if (arg=="--restart")
+			{
+				restartFileName = "dump";
 			}
 
 			if (arg=="--version")
@@ -235,6 +245,7 @@ int main(int argc,char *argv[])
 				std::cout << "--version              Display the version number (no simulation if only argument)." << std::endl;
 				std::cout << "--help                 Display this message (no simulation if only argument)." << std::endl;
 				std::cout << "--no-interactive       Suppress the interactive thread." << std::endl;
+				std::cout << "--restart              Load checkpoint data." << std::endl;
 				std::cout << "Full documentation can be found at https://turbowave.readthedocs.io" << std::endl;
 				if (argc==2)
 					exit(0);
@@ -292,7 +303,7 @@ int main(int argc,char *argv[])
 
 	std::vector<tw::Thread*> launcher(numMPIThreads);
 	for (i=0;i<numMPIThreads;i++)
-		launcher[i] = new Launcher(i,numOMPThreads,inputFileName);
+		launcher[i] = new Launcher(i,numOMPThreads,inputFileName,restartFileName);
 	TW_MPI_Launch(launcher);
 
 	std::cout << "Internal MPI Startup Complete" << std::endl;

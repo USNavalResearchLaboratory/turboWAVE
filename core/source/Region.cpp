@@ -138,60 +138,6 @@ Region* Region::CreateObjectFromString(std::vector<Region*>& ml,const std::strin
 	return new EntireRegion(ml);
 }
 
-Region* Region::CreateObjectFromFile(std::vector<Region*>& ml,std::ifstream& inFile)
-{
-	Region *ans;
-	regionSpec rgnType;
-	inFile.read((char *)&rgnType,sizeof(regionSpec));
-	switch (rgnType)
-	{
-		case baseRegion:
-			ans = new Region(ml);
-			break;
-		case entireRegion:
-			ans = new EntireRegion(ml);
-			break;
-		case rectRegion:
-			ans = new RectRegion(ml);
-			break;
-		case prismRegion:
-			ans = new PrismRegion(ml);
-			break;
-		case circRegion:
-			ans = new CircRegion(ml);
-			break;
-		case cylinderRegion:
-			ans = new CylinderRegion(ml);
-			break;
-		case roundedCylinderRegion:
-			ans = new RoundedCylinderRegion(ml);
-			break;
-		case ellipsoidRegion:
-			ans = new EllipsoidRegion(ml);
-			break;
-		case trueSphereRegion:
-			ans = new TrueSphere(ml);
-			break;
-		case boxArrayRegion:
-			ans = new BoxArrayRegion(ml);
-			break;
-		case torusRegion:
-			ans = new TorusRegion(ml);
-			break;
-		case coneRegion:
-			ans = new ConeRegion(ml);
-			break;
-		case tangentOgiveRegion:
-			ans = new TangentOgiveRegion(ml);
-			break;
-		case cylindricalShellRegion:
-			ans = new CylindricalShellRegion(ml);
-			break;
-	}
-	ans->ReadCheckpoint(inFile);
-	return ans;
-}
-
 Region* Region::FindRegion(std::vector<Region*>& ml,const std::string& name)
 {
 	tw::Int i;
@@ -305,21 +251,11 @@ void Region::ReadCheckpoint(std::ifstream& inFile)
 	inFile.read((char *)&complement,sizeof(bool));
 	inFile.read((char *)&intersection,sizeof(bool));
 	inFile.read((char *)&moveWithWindow,sizeof(bool));
-	tw::Int num,idx;
-	inFile.read((char *)&num,sizeof(tw::Int));
-
-	for (tw::Int i=0;i<num;i++)
-	{
-		inFile.read((char *)&idx,sizeof(tw::Int));
-		composite.push_back(masterList[idx]);
-	}
-	inFile >> name;
-	inFile.ignore();
 }
 
 void Region::WriteCheckpoint(std::ofstream& outFile)
 {
-	outFile.write((char *)&rgnType,sizeof(regionSpec));
+	outFile << name << " ";
 	outFile.write((char *)&center,sizeof(center));
 	outFile.write((char *)&rbox,sizeof(rbox));
 	outFile.write((char *)&orientation,sizeof(orientation));
@@ -330,15 +266,6 @@ void Region::WriteCheckpoint(std::ofstream& outFile)
 	outFile.write((char *)&complement,sizeof(bool));
 	outFile.write((char *)&intersection,sizeof(bool));
 	outFile.write((char *)&moveWithWindow,sizeof(bool));
-	tw::Int num,idx;
-	num = composite.size();
-	outFile.write((char *)&num,sizeof(tw::Int));
-	for (tw::Int i=0;i<num;i++)
-	{
-		idx = std::find(masterList.begin(),masterList.end(),composite[i]) - masterList.begin();
-		outFile.write((char *)&idx,sizeof(tw::Int));
-	}
-	outFile << name << " ";
 }
 
 bool TrueSphere::Inside(const tw::vec3& pos,const MetricSpace& ds) const

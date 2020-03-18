@@ -78,7 +78,6 @@ struct Module:DiscreteSpace
 	static bool QuasitoolNeedsModule(const tw::input::Preamble& preamble);
 	static tw::module_type CreateTypeFromInput(const tw::input::Preamble& preamble);
 	static Module* CreateObjectFromType(const std::string& name,tw::module_type theType,Simulation* sim);
-	static Module* CreateObjectFromFile(std::ifstream& inFile,Simulation* sim);
 };
 
 struct ModuleComparator

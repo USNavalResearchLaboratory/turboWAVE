@@ -39,6 +39,7 @@ Diagnostic::Diagnostic(const std::string& name,MetricSpace *ms,Task *tsk) : Comp
 	typeCode = tw::tool_type::none;
 	skip[0] = 0;
 	skip[1] = skip[2] = skip[3] = 1;
+	t = 0.0;
 	t0 = 0.0;
 	t1 = tw::big_pos;
 	tRef = tw::big_neg;
@@ -57,6 +58,8 @@ Diagnostic::Diagnostic(const std::string& name,MetricSpace *ms,Task *tsk) : Comp
 
 bool Diagnostic::WriteThisStep(tw::Float elapsedTime,tw::Float dt,tw::Int stepNow)
 {
+	t = elapsedTime; // save for use in reports
+
 	if (timePeriod!=0.0)
 	{
 		if (tRef==elapsedTime)
@@ -72,8 +75,8 @@ bool Diagnostic::WriteThisStep(tw::Float elapsedTime,tw::Float dt,tw::Int stepNo
 
 	if (skip[0]!=0)
 	{
-		tw::Int startStep = tw::Int((t0+dt)/dt);
-		if ( (elapsedTime>=t0) && (elapsedTime<=t1) && ((stepNow - startStep + 1) % skip[0] == 0) )
+		tw::Int startStep = tw::Int(t0/dt);
+		if ( (elapsedTime>=t0) && (elapsedTime<=t1) && ((stepNow - startStep) % skip[0] == 0) )
 			return true;
 		else
 			return false;
@@ -134,33 +137,30 @@ void Diagnostic::Field(const std::string& fieldName,const struct Field& F,const 
 {
 }
 
-void Diagnostic::Particle(const struct Particle& par,tw::Float m0,tw::Float t)
+void Diagnostic::Particle(const struct Particle& par,tw::Float m0,tw::Float tp)
 {
 }
 
 void Diagnostic::ReadCheckpoint(std::ifstream& inFile)
 {
-	inFile.read((char *)&skip[0],sizeof(skip));
+	ComputeTool::ReadCheckpoint(inFile);
 	inFile.read((char *)&timePeriod,sizeof(tw::Float));
+	inFile.read((char *)&t,sizeof(tw::Float));
 	inFile.read((char *)&tRef,sizeof(tw::Float));
 	inFile.read((char *)&t0,sizeof(tw::Float));
 	inFile.read((char *)&t1,sizeof(tw::Float));
 	inFile.read((char *)&headerWritten,sizeof(headerWritten));
-	inFile.read((char *)&vGalileo,sizeof(vGalileo));
-	inFile >> filename;
-	inFile.ignore();
 }
 
 void Diagnostic::WriteCheckpoint(std::ofstream& outFile)
 {
-	outFile.write((char *)&skip[0],sizeof(skip));
+	ComputeTool::WriteCheckpoint(outFile);
 	outFile.write((char *)&timePeriod,sizeof(tw::Float));
+	outFile.write((char *)&t,sizeof(tw::Float));
 	outFile.write((char *)&tRef,sizeof(tw::Float));
 	outFile.write((char *)&t0,sizeof(tw::Float));
 	outFile.write((char *)&t1,sizeof(tw::Float));
 	outFile.write((char *)&headerWritten,sizeof(headerWritten));
-	outFile.write((char *)&vGalileo,sizeof(vGalileo));
-	outFile << filename << " ";
 }
 
 TextTableBase::TextTableBase(const std::string& name,MetricSpace *ms,Task *tsk) : Diagnostic(name,ms,tsk)
@@ -225,18 +225,6 @@ void TextTableBase::Float(const std::string& label,tw::Float val,bool average)
 	avg.push_back(average);
 }
 
-void TextTableBase::ReadCheckpoint(std::ifstream& inFile)
-{
-	Diagnostic::ReadCheckpoint(inFile);
-	inFile.read((char *)&numSigFigs,sizeof(tw::Int));
-}
-
-void TextTableBase::WriteCheckpoint(std::ofstream& outFile)
-{
-	Diagnostic::WriteCheckpoint(outFile);
-	outFile.write((char *)&numSigFigs,sizeof(tw::Int));
-}
-
 VolumeDiagnostic::VolumeDiagnostic(const std::string& name,MetricSpace *ms,Task *tsk) : TextTableBase(name,ms,tsk)
 {
 	typeCode = tw::tool_type::volumeDiagnostic;
@@ -271,7 +259,7 @@ PointDiagnostic::PointDiagnostic(const std::string& name,MetricSpace *ms,Task *t
 
 void PointDiagnostic::Field(const std::string& fieldName,const struct Field& F,const tw::Int c)
 {
-	tw::vec3 r = thePoint;
+	tw::vec3 r = thePoint + vGalileo*t;
 	if (space->IsPointValid(r)) // assumes uniform grid
 	{
 		std::valarray<tw::Float> ans(1);
@@ -464,18 +452,6 @@ void BoxDiagnostic::Finish()
 	headerWritten = true;
 }
 
-void BoxDiagnostic::ReadCheckpoint(std::ifstream& inFile)
-{
-	Diagnostic::ReadCheckpoint(inFile);
-	inFile.read((char *)&average,sizeof(bool));
-}
-
-void BoxDiagnostic::WriteCheckpoint(std::ofstream& outFile)
-{
-	Diagnostic::WriteCheckpoint(outFile);
-	outFile.write((char *)&average,sizeof(bool));
-}
-
 ParticleOrbits::ParticleOrbits(const std::string& name,MetricSpace *ms,Task *tsk) : Diagnostic(name,ms,tsk)
 {
 	typeCode = tw::tool_type::particleOrbits;
@@ -532,18 +508,18 @@ void ParticleOrbits::Finish()
 	}
 }
 
-void ParticleOrbits::Particle(const struct Particle& par,tw::Float m0,tw::Float t)
+void ParticleOrbits::Particle(const struct Particle& par,tw::Float m0,tw::Float tp)
 {
 	tw::vec3 position = space->PositionFromPrimitive(par.q);
 	if (theRgn->Inside(position,*space))
 		if (sqrt(1.0 + Norm(par.p/m0)) >= minGamma)
 		{
 			space->CurvilinearToCartesian(&position);
-			parData.push_back(position.x - vGalileo.x*t);
+			parData.push_back(position.x - vGalileo.x*tp);
 			parData.push_back(par.p.x);
-			parData.push_back(position.y - vGalileo.y*t);
+			parData.push_back(position.y - vGalileo.y*tp);
 			parData.push_back(par.p.y);
-			parData.push_back(position.z - vGalileo.z*t);
+			parData.push_back(position.z - vGalileo.z*tp);
 			parData.push_back(par.p.z);
 			parData.push_back(par.aux1);
 			parData.push_back(par.aux2);
@@ -626,7 +602,7 @@ void PhaseSpaceDiagnostic::Finish()
 	}
 }
 
-void PhaseSpaceDiagnostic::Particle(const struct Particle& par,tw::Float m0,tw::Float t)
+void PhaseSpaceDiagnostic::Particle(const struct Particle& par,tw::Float m0,tw::Float tp)
 {
 	weights_3D weights;
 	tw::vec3 r = space->PositionFromPrimitive(par.q);
@@ -635,8 +611,8 @@ void PhaseSpaceDiagnostic::Particle(const struct Particle& par,tw::Float m0,tw::
 	if (theRgn->Inside(r,*space))
 	{
 		space->CurvilinearToCartesian(&r);
-		r -= vGalileo*t;
-		std::map<tw::grid::axis,tw::Float> m = {{tw::grid::t,t},{tw::grid::x,r.x},{tw::grid::y,r.y},{tw::grid::z,r.z},
+		r -= vGalileo*tp;
+		std::map<tw::grid::axis,tw::Float> m = {{tw::grid::t,tp},{tw::grid::x,r.x},{tw::grid::y,r.y},{tw::grid::z,r.z},
 			{tw::grid::mass,sqrt(m0*m0+Norm(p))},{tw::grid::px,p.x},{tw::grid::py,p.y},{tw::grid::pz,p.z},
 			{tw::grid::g,sqrt(1+Norm(p)/(m0*m0))},{tw::grid::gbx,p.x/m0},{tw::grid::gby,p.y/m0},{tw::grid::gbz,p.z/m0}};
 		tw::vec3 q(m[ax[1]],m[ax[2]],m[ax[3]]);
@@ -649,22 +625,6 @@ void PhaseSpaceDiagnostic::Particle(const struct Particle& par,tw::Float m0,tw::
 			fxp.InterpolateOnto( par.number/dV, weights );
 		}
 	}
-}
-
-void PhaseSpaceDiagnostic::ReadCheckpoint(std::ifstream& inFile)
-{
-	Diagnostic::ReadCheckpoint(inFile);
-	inFile.read((char *)&bounds[0],sizeof(bounds));
-	inFile.read((char *)&ax[0],sizeof(ax));
-	inFile.read((char *)&dims[0],sizeof(dims));
-}
-
-void PhaseSpaceDiagnostic::WriteCheckpoint(std::ofstream& outFile)
-{
-	Diagnostic::WriteCheckpoint(outFile);
-	outFile.write((char *)&bounds[0],sizeof(bounds));
-	outFile.write((char *)&ax[0],sizeof(ax));
-	outFile.write((char *)&dims[0],sizeof(dims));
 }
 
 
@@ -775,7 +735,7 @@ void PhaseSpaceDiagnostic::WriteCheckpoint(std::ofstream& outFile)
 // 	std::stringstream fileName;
 // 	tw::Int master = 0;
 //
-// 	if (owner->IsFirstStep() && !owner->restarted && owner->strip[0].Get_rank()==master)
+// 	if (owner->IsFirstStep() && owner->strip[0].Get_rank()==master)
 // 	{
 // 		for (s=0;s<farFieldDetector.size();s++)
 // 		{

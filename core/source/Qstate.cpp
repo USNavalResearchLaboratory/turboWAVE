@@ -34,21 +34,6 @@ tw::Complex QState::Amplitude(const HamiltonianParameters& H,const tw::vec3& r,c
 	return tw::Complex(0.0,0.0);
 }
 
-void QState::ReadCheckpoint(std::ifstream& inFile)
-{
-	ComputeTool::ReadCheckpoint(inFile);
-	inFile.read((char*)&amplitude,sizeof(tw::Complex));
-	inFile.read((char*)&cylindricalAtom,sizeof(bool));
-}
-
-void QState::WriteCheckpoint(std::ofstream& outFile)
-{
-	ComputeTool::WriteCheckpoint(outFile);
-	outFile.write((char*)&amplitude,sizeof(tw::Complex));
-	outFile.write((char*)&cylindricalAtom,sizeof(bool));
-}
-
-
 RandomState::RandomState(const std::string& name,MetricSpace *ms,Task *tsk) : QState(name,ms,tsk)
 {
 	typeCode = tw::tool_type::randomState;
@@ -61,18 +46,6 @@ tw::Complex RandomState::Amplitude(const HamiltonianParameters& H,const tw::vec3
 	ans = task->uniformDeviate->Next() * exp( -sqr(r.x/size.x) - sqr(r.y/size.y) - sqr(r.z/size.z) );
 	ans *= amplitude * std::exp( ii*task->uniformDeviate->Next()*two*pi );
 	return ans;
-}
-
-void RandomState::ReadCheckpoint(std::ifstream& inFile)
-{
-	QState::ReadCheckpoint(inFile);
-	inFile.read((char*)&size,sizeof(tw::vec3));
-}
-
-void RandomState::WriteCheckpoint(std::ofstream& outFile)
-{
-	QState::WriteCheckpoint(outFile);
-	outFile.write((char*)&size,sizeof(tw::vec3));
 }
 
 
@@ -112,22 +85,6 @@ tw::Complex FreeState::Amplitude(const HamiltonianParameters& H,const tw::vec3& 
 		ans *= u[comp];
 	}
 	return ans;
-}
-
-void FreeState::ReadCheckpoint(std::ifstream& inFile)
-{
-	QState::ReadCheckpoint(inFile);
-	inFile.read((char*)&k4,sizeof(tw::vec4));
-	inFile.read((char*)&size,sizeof(tw::vec3));
-	inFile.read((char*)&spin,sizeof(spin));
-}
-
-void FreeState::WriteCheckpoint(std::ofstream& outFile)
-{
-	QState::WriteCheckpoint(outFile);
-	outFile.write((char*)&k4,sizeof(tw::vec4));
-	outFile.write((char*)&size,sizeof(tw::vec3));
-	outFile.write((char*)&spin,sizeof(spin));
 }
 
 
@@ -329,24 +286,6 @@ tw::Complex BoundState::Amplitude(const HamiltonianParameters& H,const tw::vec3&
 	return normalizationConstant*amplitude*std::exp(-ii*energy*t)*ans;
 }
 
-void BoundState::ReadCheckpoint(std::ifstream& inFile)
-{
-	QState::ReadCheckpoint(inFile);
-	inFile.read((char*)&Lam,sizeof(tw::Float));
-	inFile.read((char*)&Jam,sizeof(tw::Float));
-	inFile.read((char*)&jzam,sizeof(tw::Float));
-	inFile.read((char*)&nr,sizeof(tw::Float));
-}
-
-void BoundState::WriteCheckpoint(std::ofstream& outFile)
-{
-	QState::WriteCheckpoint(outFile);
-	outFile.write((char*)&Lam,sizeof(tw::Float));
-	outFile.write((char*)&Jam,sizeof(tw::Float));
-	outFile.write((char*)&jzam,sizeof(tw::Float));
-	outFile.write((char*)&nr,sizeof(tw::Float));
-}
-
 
 TabulatedState::TabulatedState(const std::string& name,MetricSpace *ms,Task *tsk) : QState(name,ms,tsk)
 {
@@ -446,17 +385,4 @@ tw::Complex TabulatedState::Amplitude(const HamiltonianParameters& H,const tw::v
 		}
 	}
 	return amplitude*std::exp(-ii*energy*t)*ans;
-}
-
-void TabulatedState::ReadCheckpoint(std::ifstream& inFile)
-{
-	QState::ReadCheckpoint(inFile);
-	inFile >> filename;
-	inFile.ignore();
-}
-
-void TabulatedState::WriteCheckpoint(std::ofstream& outFile)
-{
-	QState::WriteCheckpoint(outFile);
-	outFile << filename << " ";
 }

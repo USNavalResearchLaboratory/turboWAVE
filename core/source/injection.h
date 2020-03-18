@@ -59,8 +59,6 @@ struct UniformProfile:Profile
 
 	UniformProfile(const std::string& name,MetricSpace *m,Task *tsk);
 	virtual tw::Float GetValue(const tw::vec3& pos,const MetricSpace& ds);
-	virtual void ReadCheckpoint(std::ifstream& inFile);
-	virtual void WriteCheckpoint(std::ofstream& outFile);
 };
 
 struct GaussianProfile:Profile
@@ -70,8 +68,6 @@ struct GaussianProfile:Profile
 
 	GaussianProfile(const std::string& name,MetricSpace *m,Task *tsk);
 	virtual tw::Float GetValue(const tw::vec3& pos,const MetricSpace& ds);
-	virtual void ReadCheckpoint(std::ifstream& inFile);
-	virtual void WriteCheckpoint(std::ofstream& outFile);
 };
 
 struct ChannelProfile:Profile
@@ -113,8 +109,6 @@ struct CorrugatedProfile:Profile
 
 	CorrugatedProfile(const std::string& name,MetricSpace *m,Task *tsk);
 	virtual tw::Float GetValue(const tw::vec3& pos,const MetricSpace& ds);
-	virtual void ReadCheckpoint(std::ifstream& inFile);
-	virtual void WriteCheckpoint(std::ofstream& outFile);
 };
 
 struct PulseShape
@@ -186,9 +180,6 @@ struct Wave : ComputeTool
 		ToBoostedFrame(&A4);
 		return A4.spatial(); // For certain boost geometries we will need to keep scalar potential
 	}
-
-	virtual void ReadCheckpoint(std::ifstream& inFile);
-	virtual void WriteCheckpoint(std::ofstream& outFile);
 };
 
 struct PlaneWave : Wave
@@ -247,9 +238,6 @@ struct Conductor : ComputeTool
 	tw::Float VoltageRate(tw::Float t);
 	tw::vec3 PolarizationDensity(const tw::vec3& pos,tw::Float t);
 	void DepositSources(Field& j4,tw::Float t,tw::Float dt);
-
-	virtual void ReadCheckpoint(std::ifstream& inFile);
-	virtual void WriteCheckpoint(std::ofstream& outFile);
 };
 
 struct LindmanBoundary

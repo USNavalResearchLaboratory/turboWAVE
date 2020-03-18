@@ -10,7 +10,7 @@ struct Diagnostic : ComputeTool
 {
 	std::string filename;
 	tw::Int skip[4];
-	tw::Float tRef,t0,t1,timePeriod;
+	tw::Float t,tRef,t0,t1,timePeriod;
 	tw::vec3 vGalileo;
 	bool headerWritten;
 
@@ -22,7 +22,7 @@ struct Diagnostic : ComputeTool
 	virtual void Field(const std::string& fieldName,const struct Field& F,const tw::Int c);
 	virtual tw::Float VolumeIntegral(const std::string& fieldName,const struct Field& F,const tw::Int c);
 	virtual tw::Float FirstMoment(const std::string& fieldName,const struct Field& F,const tw::Int c,const tw::vec3& r0,const tw::grid::axis axis);
-	virtual void Particle(const struct Particle& par,tw::Float m0,tw::Float t);
+	virtual void Particle(const struct Particle& par,tw::Float m0,tw::Float tp);
 	virtual void ReadCheckpoint(std::ifstream& inFile);
 	virtual void WriteCheckpoint(std::ofstream& outFile);
 };
@@ -38,8 +38,6 @@ struct TextTableBase : Diagnostic
 	virtual void Start();
 	virtual void Finish();
 	virtual void Float(const std::string& label,tw::Float val,bool avg);
-	virtual void ReadCheckpoint(std::ifstream& inFile);
-	virtual void WriteCheckpoint(std::ofstream& outFile);
 };
 
 struct VolumeDiagnostic : TextTableBase
@@ -68,8 +66,6 @@ struct BoxDiagnostic : Diagnostic
 	void GetLocalIndexing(const tw::Int pts[4],const tw::Int glb[6],tw::Int loc[6],const tw::Int coords[4]);
 	void GetGlobalIndexing(tw::Int pts[4],tw::Int glb[6]);
 	virtual void Field(const std::string& fieldName,const struct Field& F,const tw::Int c);
-	virtual void ReadCheckpoint(std::ifstream& inFile);
-	virtual void WriteCheckpoint(std::ofstream& outFile);
 };
 
 struct PhaseSpaceDiagnostic : Diagnostic
@@ -83,9 +79,7 @@ struct PhaseSpaceDiagnostic : Diagnostic
 	PhaseSpaceDiagnostic(const std::string& name,MetricSpace *ms,Task *tsk);
 	virtual void Start();
 	virtual void Finish();
-	virtual void Particle(const struct Particle& par,tw::Float m0,tw::Float t);
-	virtual void ReadCheckpoint(std::ifstream& inFile);
-	virtual void WriteCheckpoint(std::ofstream& outFile);
+	virtual void Particle(const struct Particle& par,tw::Float m0,tw::Float tp);
 };
 
 struct ParticleOrbits : Diagnostic
@@ -96,7 +90,7 @@ struct ParticleOrbits : Diagnostic
 	ParticleOrbits(const std::string& name,MetricSpace *ms,Task *tsk);
 	virtual void Start();
 	virtual void Finish();
-	virtual void Particle(const struct Particle& par,tw::Float m0,tw::Float t);
+	virtual void Particle(const struct Particle& par,tw::Float m0,tw::Float tp);
 	virtual void ReadCheckpoint(std::ifstream& inFile);
 	virtual void WriteCheckpoint(std::ofstream& outFile);
 };

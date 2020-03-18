@@ -83,9 +83,6 @@ bool Module::InspectResource(void* resource,const std::string& description)
 
 void Module::Initialize()
 {
-	if (!owner->restarted)
-		for (auto p : profile)
-			p->Initialize();
 }
 
 void Module::ReadCheckpoint(std::ifstream& inFile)
@@ -93,48 +90,15 @@ void Module::ReadCheckpoint(std::ifstream& inFile)
 	DiscreteSpace::ReadCheckpoint(inFile);
 	inFile.read((char *)&dt,sizeof(dt));
 	inFile.read((char *)&dth,sizeof(dth));
-	inFile.read((char *)&smoothing[0],sizeof(smoothing));
-	inFile.read((char *)&compensation[0],sizeof(compensation));
 	dti = 1.0/dt;
-
-	// Populate the ComputeTool list
-	// This relies on all ComputeTools being loaded first.
-	tw::Int num;
-	inFile.read((char *)&num,sizeof(num));
-	for (tw::Int i=0;i<num;i++)
-		moduleTool.push_back(owner->GetRestartedTool(inFile));
-
-	// Find supermodule and setup containment
-	std::string super_name;
-	inFile >> super_name;
-	inFile.ignore();
-	if (super_name!="NULL")
-		owner->GetModule(super_name)->AddSubmodule(this);
 }
 
 void Module::WriteCheckpoint(std::ofstream& outFile)
 {
-	outFile.write((char *)&typeCode,sizeof(typeCode));
 	outFile << name << " ";
 	DiscreteSpace::WriteCheckpoint(outFile);
 	outFile.write((char *)&dt,sizeof(dt));
 	outFile.write((char *)&dth,sizeof(dth));
-	outFile.write((char *)&smoothing[0],sizeof(smoothing));
-	outFile.write((char *)&compensation[0],sizeof(compensation));
-
-	// Save the ComputeTool list
-	tw::Int num = moduleTool.size();
-	outFile.write((char *)&num,sizeof(num));
-	for (tw::Int i=0;i<num;i++)
-		moduleTool[i]->SaveToolReference(outFile);
-
-	// Write the name of the supermodule
-	// This can be used to reconstruct the whole hierarchy, assuming modules are sorted correctly
-	if (super==NULL)
-		outFile << "NULL";
-	else
-		outFile << super->name;
-	outFile << " ";
 }
 
 void Module::VerifyInput()
@@ -341,19 +305,5 @@ Module* Module::CreateObjectFromType(const std::string& name,tw::module_type the
 			ans = new PopulationDiagnostic(name,sim);
 			break;
 	}
-	return ans;
-}
-
-Module* Module::CreateObjectFromFile(std::ifstream& inFile,Simulation* sim)
-{
-	// This might work, but the containment hierarchy better be sorted.
-	tw::module_type theType;
-	std::string name;
-	Module *ans;
-	inFile.read((char*)&theType,sizeof(tw::module_type));
-	inFile >> name;
-	inFile.ignore();
-	ans = CreateObjectFromType(name,theType,sim);
-	ans->ReadCheckpoint(inFile);
 	return ans;
 }

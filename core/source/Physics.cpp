@@ -83,36 +83,6 @@ void Ionizer::Initialize()
 	lstar = nstar - 1;
 }
 
-void Ionizer::ReadCheckpoint(std::ifstream& inFile)
-{
-	ComputeTool::ReadCheckpoint(inFile);
-	inFile.read((char *)&ionizationPotential,sizeof(ionizationPotential));
-	inFile.read((char *)&electrons,sizeof(electrons));
-	inFile.read((char *)&protons,sizeof(protons));
-	inFile.read((char *)&multiplier,sizeof(multiplier));
-	inFile.read((char *)&max_rate,sizeof(max_rate));
-	inFile.read((char *)&ionSpecies,sizeof(ionSpecies));
-	inFile.read((char *)&electronSpecies,sizeof(electronSpecies));
-	inFile.read((char *)&hi,sizeof(hi));
-	inFile.read((char *)&he,sizeof(he));
-	inFile.read((char *)&hgas,sizeof(hgas));
-}
-
-void Ionizer::WriteCheckpoint(std::ofstream& outFile)
-{
-	ComputeTool::WriteCheckpoint(outFile);
-	outFile.write((char *)&ionizationPotential,sizeof(ionizationPotential));
-	outFile.write((char *)&electrons,sizeof(electrons));
-	outFile.write((char *)&protons,sizeof(protons));
-	outFile.write((char *)&multiplier,sizeof(multiplier));
-	outFile.write((char *)&max_rate,sizeof(max_rate));
-	outFile.write((char *)&ionSpecies,sizeof(ionSpecies));
-	outFile.write((char *)&electronSpecies,sizeof(electronSpecies));
-	outFile.write((char *)&hi,sizeof(hi));
-	outFile.write((char *)&he,sizeof(he));
-	outFile.write((char *)&hgas,sizeof(hgas));
-}
-
 MPI::MPI(const std::string& name,MetricSpace *m,Task *tsk) : Ionizer(name,m,tsk)
 {
 	typeCode = tw::tool_type::mpi;
@@ -129,18 +99,6 @@ tw::Float MPI::AverageRate(tw::Float w0,tw::Float E)
 	const tw::Float wa = space->units->SimToAtomic(angular_frequency_dim,w0); // laser freq. in a.u.
 	const tw::Float photons = MyFloor(Uion/wa + 1);
 	return multiplier*two*pi*w0*pow(fabs(E)/E_MPI,two*photons) / Factorial(photons-1);
-}
-
-void MPI::ReadCheckpoint(std::ifstream& inFile)
-{
-	Ionizer::ReadCheckpoint(inFile);
-	inFile.read((char *)&E_MPI,sizeof(E_MPI));
-}
-
-void MPI::WriteCheckpoint(std::ofstream& outFile)
-{
-	Ionizer::WriteCheckpoint(outFile);
-	outFile.write((char *)&E_MPI,sizeof(E_MPI));
 }
 
 ADK::ADK(const std::string& name,MetricSpace *m,Task *tsk) : Ionizer(name,m,tsk)
@@ -218,19 +176,6 @@ tw::Float PPT::AverageRate(tw::Float w0,tw::Float E)
 	ans *= A1;
 	return ans;
 }
-
-void PPT::ReadCheckpoint(std::ifstream& inFile)
-{
-	Ionizer::ReadCheckpoint(inFile);
-	inFile.read((char *)&terms,sizeof(terms));
-}
-
-void PPT::WriteCheckpoint(std::ofstream& outFile)
-{
-	Ionizer::WriteCheckpoint(outFile);
-	outFile.write((char *)&terms,sizeof(terms));
-}
-
 
 // ASHER_MOD
 
@@ -349,18 +294,6 @@ void EOSSimpleMieGruneisen::AddPKV(ScalarField& IE, ScalarField& nm, ScalarField
 	}
 }
 
-void EOSSimpleMieGruneisen::ReadCheckpoint(std::ifstream& inFile)
-{
-	// DFG - now tools can have ReadCheckpoint/WriteCheckpoint to support their own restarts
-	EOSComponent::ReadCheckpoint(inFile);
-	inFile.read((char*)&GRUN,sizeof(GRUN));
-}
-
-void EOSSimpleMieGruneisen::WriteCheckpoint(std::ofstream& outFile)
-{
-	EOSComponent::WriteCheckpoint(outFile);
-	outFile.write((char*)&GRUN,sizeof(GRUN));
-}
 
 /////////////////////////
 //                     //
@@ -411,23 +344,6 @@ void EOSLinearMieGruneisen::AddPKV(ScalarField& IE, ScalarField& nm, ScalarField
 	}
 }
 
-void EOSLinearMieGruneisen::ReadCheckpoint(std::ifstream& inFile)
-{
-	EOSComponent::ReadCheckpoint(inFile);
-	inFile.read((char*)&GRUN,sizeof(GRUN));
-	inFile.read((char*)&n0,sizeof(n0));
-	inFile.read((char*)&c0,sizeof(c0));
-	inFile.read((char*)&S1,sizeof(S1));
-}
-
-void EOSLinearMieGruneisen::WriteCheckpoint(std::ofstream& outFile)
-{
-	EOSComponent::WriteCheckpoint(outFile);
-	outFile.write((char*)&GRUN,sizeof(GRUN));
-	outFile.write((char*)&n0,sizeof(n0));
-	outFile.write((char*)&c0,sizeof(c0));
-	outFile.write((char*)&S1,sizeof(S1));
-}
 
 ///////////////////////////////////////
 //                                   //

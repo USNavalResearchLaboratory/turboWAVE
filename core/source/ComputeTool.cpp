@@ -77,22 +77,10 @@ void ComputeTool::WarningMessage(std::ostream *theStream)
 
 void ComputeTool::ReadCheckpoint(std::ifstream& inFile)
 {
-	// Get the region name.  Finding the Region object is deferred to owning Module.
-	inFile >> region_name;
-	inFile.ignore();
 }
 
 void ComputeTool::WriteCheckpoint(std::ofstream& outFile)
 {
-	outFile.write((char *)&typeCode,sizeof(tw::tool_type));
-	outFile << name << " ";
-	// Save the region name.  The Region itself is managed (and saved) by Simulation.
-	outFile << region_name << " ";
-}
-
-void ComputeTool::SaveToolReference(std::ofstream& outFile)
-{
-	// Parent object should call this to save reference to tool in restart file
 	outFile << name << " ";
 }
 
@@ -301,18 +289,5 @@ ComputeTool* ComputeTool::CreateObjectFromType(const std::string& name,tw::tool_
 			ans = new TabulatedState(name,ms,tsk);
 			break;
 	}
-	return ans;
-}
-
-ComputeTool* ComputeTool::CreateObjectFromFile(std::ifstream& inFile,MetricSpace *ms,Task *tsk)
-{
-	tw::tool_type theType;
-	std::string name;
-	ComputeTool *ans;
-	inFile.read((char*)&theType,sizeof(tw::tool_type));
-	inFile >> name;
-	inFile.ignore();
-	ans = CreateObjectFromType(name,theType,ms,tsk);
-	ans->ReadCheckpoint(inFile);
 	return ans;
 }

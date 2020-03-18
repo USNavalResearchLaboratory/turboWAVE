@@ -56,6 +56,8 @@ struct Schroedinger:AtomicPhysics
 	virtual void ExchangeResources();
 	virtual void Update();
 	virtual void VerifyInput();
+	virtual void ReadCheckpoint(std::ifstream& inFile);
+	virtual void WriteCheckpoint(std::ofstream& outFile);
 
 	virtual void UpdateJ4();
 	virtual void Normalize();
@@ -75,6 +77,8 @@ struct Pauli:AtomicPhysics
 	virtual void Initialize();
 	virtual void Update();
 	virtual void VerifyInput();
+	virtual void ReadCheckpoint(std::ifstream& inFile);
+	virtual void WriteCheckpoint(std::ofstream& outFile);
 
 	//virtual void UpdateJ4();
 	virtual void Normalize();

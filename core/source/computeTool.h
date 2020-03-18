@@ -72,10 +72,8 @@ struct ComputeTool
 	virtual void WriteCheckpoint(std::ofstream& outFile);
 
 	void InitializeCLProgram(const std::string& filename);
-	void SaveToolReference(std::ofstream& outFile);
 
 	static std::map<std::string,tw::tool_type> Map();
 	static tw::tool_type CreateTypeFromInput(const tw::input::Preamble& preamble);
 	static ComputeTool* CreateObjectFromType(const std::string& name,tw::tool_type theType,MetricSpace *ms,Task *tsk);
-	static ComputeTool* CreateObjectFromFile(std::ifstream& inFile,MetricSpace *ms,Task *tsk);
 };

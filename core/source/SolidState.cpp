@@ -82,9 +82,6 @@ void BoundElectrons::Initialize()
 	crystalBasis.v.RotateY(theta);
 	crystalBasis.w.RotateY(theta);
 
-	if (owner->restarted)
-		return;
-
 	for (auto cell : InteriorCellRange(*this))
 	{
 		for (s=0;s<3;s++)
@@ -319,20 +316,6 @@ void BoundElectrons::ReadInputFileDirective(std::stringstream& inputString,const
 void BoundElectrons::ReadCheckpoint(std::ifstream& inFile)
 {
 	Module::ReadCheckpoint(inFile);
-	inFile.read((char*)&q0,sizeof(tw::Float));
-	inFile.read((char*)&m0,sizeof(tw::Float));
-	inFile.read((char*)&theta,sizeof(tw::Float));
-	inFile.read((char*)&phi,sizeof(tw::Float));
-	inFile.read((char*)&crystalBasis,sizeof(crystalBasis));
-	inFile.read((char*)&resFreq,sizeof(tw::vec3));
-	inFile.read((char*)&dampFreq,sizeof(tw::vec3));
-	inFile.read((char*)&oscStrength,sizeof(tw::vec3));
-	inFile.read((char *)&a1[1],sizeof(tw::Float)*6);
-	inFile.read((char *)&a2[1],sizeof(tw::Float)*6);
-	inFile.read((char *)&a3[1],sizeof(tw::Float)*6);
-	inFile.read((char *)&b,sizeof(tw::Float));
-	inFile.read((char *)&d,sizeof(tw::Float));
-
 	R0.ReadCheckpoint(inFile);
 	R1.ReadCheckpoint(inFile);
 	dens.ReadCheckpoint(inFile);
@@ -341,20 +324,6 @@ void BoundElectrons::ReadCheckpoint(std::ifstream& inFile)
 void BoundElectrons::WriteCheckpoint(std::ofstream& outFile)
 {
 	Module::WriteCheckpoint(outFile);
-	outFile.write((char*)&q0,sizeof(tw::Float));
-	outFile.write((char*)&m0,sizeof(tw::Float));
-	outFile.write((char*)&theta,sizeof(tw::Float));
-	outFile.write((char*)&phi,sizeof(tw::Float));
-	outFile.write((char*)&crystalBasis,sizeof(crystalBasis));
-	outFile.write((char*)&resFreq,sizeof(tw::vec3));
-	outFile.write((char*)&dampFreq,sizeof(tw::vec3));
-	outFile.write((char*)&oscStrength,sizeof(tw::vec3));
-	outFile.write((char *)&a1[1],sizeof(tw::Float)*6);
-	outFile.write((char *)&a2[1],sizeof(tw::Float)*6);
-	outFile.write((char *)&a3[1],sizeof(tw::Float)*6);
-	outFile.write((char *)&b,sizeof(tw::Float));
-	outFile.write((char *)&d,sizeof(tw::Float));
-
 	R0.WriteCheckpoint(outFile);
 	R1.WriteCheckpoint(outFile);
 	dens.WriteCheckpoint(outFile);

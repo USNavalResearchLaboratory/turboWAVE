@@ -47,8 +47,7 @@ void Electrostatic::Initialize()
 		ellipticSolver->FixPotential(phi,c->theRgn,c->Voltage(owner->elapsedTime));
 	SetupInitialPotential();
 
-	if (!owner->restarted)
-		Update();
+	Update();
 }
 
 void Electrostatic::ExchangeResources()

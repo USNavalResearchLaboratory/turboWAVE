@@ -119,7 +119,6 @@ To support restarting a module, carry out the following steps.
 	#. Override the ``ReadCheckpoint`` method.  Call the superclass ``ReadCheckpoint`` method first.  Then read any necessary data from the restart file.
 	#. Override the ``WriteCheckpoint`` method.  Call the superclass ``WriteCheckpoint`` method first.  Then write any necessary data to the restart file.
 	#. Verify that ``ReadCheckpoint`` and ``WriteCheckpoint`` access the data in the same order.
-	#. Carefully check that the ``Initialize`` function does not overwrite any restarted data.  You may need to enclose some code in a conditional that tests ``owner->restarted``.
 
 Glossary
 --------

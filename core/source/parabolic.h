@@ -31,8 +31,6 @@ struct EigenmodePropagator:LaserPropagator
 	virtual void Initialize();
 	virtual void SetData(tw::Float w0,tw::Float dt,tw_polarization_type pol,bool mov);
 	virtual void Advance(ComplexField& a0,ComplexField& a1,ComplexField& chi);
-	virtual void ReadCheckpoint(std::ifstream& inFile);
-	virtual void WriteCheckpoint(std::ofstream& outFile);
 };
 
 struct ADIPropagator:LaserPropagator

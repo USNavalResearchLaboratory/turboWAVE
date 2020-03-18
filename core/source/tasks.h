@@ -242,9 +242,6 @@ struct Task
 		return domains[1]*domains[2]*domains[3];
 	}
 
-	void ReadCheckpoint(std::ifstream& inFile);
-	void WriteCheckpoint(std::ofstream& outFile);
-
 	void Lock()
 	{
 		#ifdef USING_TW_MPI

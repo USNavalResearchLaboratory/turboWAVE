@@ -460,11 +460,8 @@ void Species::Initialize()
 		ionizer->electronSpecies = owner->FindModule(ionizer->electron_name);
 		ionizer->ionSpecies = owner->FindModule(ionizer->ion_name);
 	}
-	if (!owner->restarted)
-	{
-		GenerateParticles(true);
-		CleanParticleList();
-	}
+	GenerateParticles(true);
+	CleanParticleList();
 	if (!owner->neutralize)
 		CopyFieldData(*sources,0,*rho00,0); // accepting redundant operations
 }
@@ -1132,43 +1129,30 @@ void Species::ReadInputFileDirective(std::stringstream& inputString,const std::s
 void Species::ReadCheckpoint(std::ifstream& inFile)
 {
 	Module::ReadCheckpoint(inFile);
-	inFile.read((char *)&restMass,sizeof(tw::Float));
-	inFile.read((char *)&charge,sizeof(tw::Float));
-	inFile.read((char *)&emissionTemp,sizeof(tw::vec3));
-	inFile.read((char *)&targetDensity,sizeof(tw::Float));
-	inFile.read((char *)&minimumDensity,sizeof(tw::Float));
-	inFile.read((char *)&accelerationImpulse,sizeof(tw::Float));
-	inFile.read((char *)&accelerationTime,sizeof(tw::Float));
 	inFile.read((char *)&accelerationForceNow,sizeof(tw::Float));
 	inFile.read((char *)&count,sizeof(tw::Int));
-	inFile.read((char *)&sortPeriod,sizeof(tw::Int));
-	inFile.read((char *)&distributionInCell,sizeof(tw::vec3));
-	inFile.read((char *)bc0,sizeof(tw::bc::par)*4);
-	inFile.read((char *)bc1,sizeof(tw::bc::par)*4);
-	inFile.read((char *)&mobile,sizeof(bool));
-	inFile.read((char *)&radiationDamping,sizeof(bool));
-	inFile.read((char *)&meanFreePath,sizeof(tw::Float));
+
+	particle.clear();
+
+	tw::Int num;
+	inFile.read((char *)&num,sizeof(tw::Int));
+	for (tw::Int i=0;i<num;i++)
+	{
+		particle.emplace_back(tw::vec3(0.0),Primitive(0,0.0,0.0,0.0),0.0,0.0,0.0);
+		particle.back().ReadCheckpoint(inFile);
+	}
 }
 
 void Species::WriteCheckpoint(std::ofstream& outFile)
 {
 	Module::WriteCheckpoint(outFile);
-	outFile.write((char *)&restMass,sizeof(tw::Float));
-	outFile.write((char *)&charge,sizeof(tw::Float));
-	outFile.write((char *)&emissionTemp,sizeof(tw::vec3));
-	outFile.write((char *)&targetDensity,sizeof(tw::Float));
-	outFile.write((char *)&minimumDensity,sizeof(tw::Float));
-	outFile.write((char *)&accelerationImpulse,sizeof(tw::Float));
-	outFile.write((char *)&accelerationTime,sizeof(tw::Float));
 	outFile.write((char *)&accelerationForceNow,sizeof(tw::Float));
 	outFile.write((char *)&count,sizeof(tw::Int));
-	outFile.write((char *)&sortPeriod,sizeof(tw::Int));
-	outFile.write((char *)&distributionInCell,sizeof(tw::vec3));
-	outFile.write((char *)bc0,sizeof(tw::bc::par)*4);
-	outFile.write((char *)bc1,sizeof(tw::bc::par)*4);
-	outFile.write((char *)&mobile,sizeof(bool));
-	outFile.write((char *)&radiationDamping,sizeof(bool));
-	outFile.write((char *)&meanFreePath,sizeof(tw::Float));
+
+	tw::Int num = particle.size();
+	outFile.write((char *)&num,sizeof(tw::Int));
+	for (auto p : particle)
+		p.WriteCheckpoint(outFile);
 }
 
 

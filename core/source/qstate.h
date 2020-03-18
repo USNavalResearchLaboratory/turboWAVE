@@ -24,8 +24,6 @@ public:
 	virtual bool GoodQuantumNumbers(const HamiltonianParameters& H) const;
 	virtual tw::Float Energy(const HamiltonianParameters& H) const;
 	virtual tw::Float NormalizationConstant(const HamiltonianParameters& H) const;
-	virtual void ReadCheckpoint(std::ifstream& inFile);
-	virtual void WriteCheckpoint(std::ofstream& outFile);
 };
 
 class RandomState : public QState
@@ -34,8 +32,6 @@ class RandomState : public QState
 public:
 	RandomState(const std::string& name,MetricSpace *ms,Task *tsk);
 	virtual tw::Complex Amplitude(const HamiltonianParameters& H,const tw::vec3& r,const tw::Float& t,const tw::Int& comp) const;
-	virtual void ReadCheckpoint(std::ifstream& inFile);
-	virtual void WriteCheckpoint(std::ofstream& outFile);
 };
 
 class FreeState : public QState
@@ -46,8 +42,6 @@ class FreeState : public QState
 public:
 	FreeState(const std::string& name,MetricSpace *ms,Task *tsk);
 	virtual tw::Complex Amplitude(const HamiltonianParameters& H,const tw::vec3& r,const tw::Float& t,const tw::Int& comp) const;
-	virtual void ReadCheckpoint(std::ifstream& inFile);
-	virtual void WriteCheckpoint(std::ofstream& outFile);
 };
 
 class BoundState : public QState
@@ -68,8 +62,6 @@ public:
 	virtual bool GoodQuantumNumbers(const HamiltonianParameters& H) const;
 	virtual tw::Float Energy(const HamiltonianParameters& H) const;
 	virtual tw::Float NormalizationConstant(const HamiltonianParameters& H) const;
-	virtual void ReadCheckpoint(std::ifstream& inFile);
-	virtual void WriteCheckpoint(std::ofstream& outFile);
 };
 
 class TabulatedState : public QState
@@ -83,6 +75,4 @@ public:
 	TabulatedState(const std::string& name,MetricSpace *ms,Task *tsk);
 	virtual void Initialize();
 	virtual tw::Complex Amplitude(const HamiltonianParameters& H,const tw::vec3& r,const tw::Float& t,const tw::Int& comp) const;
-	virtual void ReadCheckpoint(std::ifstream& inFile);
-	virtual void WriteCheckpoint(std::ofstream& outFile);
 };

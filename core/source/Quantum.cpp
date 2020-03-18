@@ -247,11 +247,6 @@ void AtomicPhysics::ReadInputFileDirective(std::stringstream& inputString,const 
 void AtomicPhysics::ReadCheckpoint(std::ifstream& inFile)
 {
 	Module::ReadCheckpoint(inFile);
-	inFile.read((char *)&H,sizeof(H));
-	inFile.read((char *)&keepA2Term,sizeof(bool));
-	inFile.read((char *)&dipoleApproximation,sizeof(bool));
-	inFile.read((char *)&timeRelaxingToGround,sizeof(tw::Float));
-
 	psi_r.ReadCheckpoint(inFile);
 	psi_i.ReadCheckpoint(inFile);
 	J4.ReadCheckpoint(inFile);
@@ -262,11 +257,6 @@ void AtomicPhysics::ReadCheckpoint(std::ifstream& inFile)
 void AtomicPhysics::WriteCheckpoint(std::ofstream& outFile)
 {
 	Module::WriteCheckpoint(outFile);
-	outFile.write((char *)&H,sizeof(H));
-	outFile.write((char *)&keepA2Term,sizeof(bool));
-	outFile.write((char *)&dipoleApproximation,sizeof(bool));
-	outFile.write((char *)&timeRelaxingToGround,sizeof(tw::Float));
-
 	psi_r.WriteCheckpoint(outFile);
 	psi_i.WriteCheckpoint(outFile);
 	J4.WriteCheckpoint(outFile);
@@ -381,33 +371,30 @@ void Schroedinger::Initialize()
 	psi1.SetBoundaryConditions(tw::grid::y,psiDefaultBC,psiDefaultBC);
 	psi1.SetBoundaryConditions(tw::grid::z,psiDefaultBC,psiDefaultBC);
 
-	if (!owner->restarted)
-	{
-		// Solve for the lowest energy s-state on a spherical grid.
-		// This is used only to print the numerical ground state energy level.
-		const tw::Float maxR = owner->SphericalRadius(GlobalCorner(*owner)+GlobalPhysicalSize(*owner));
-		const tw::Float dr = dx(*owner) * owner->ScaleFactor(1,tw::vec3(tw::small_pos,0.0,0.0));
-		const tw::Float r = maxR>30.0 ? 30.0 : maxR;
-		const tw::Int dim = MyCeil(r/dr);
-		std::valarray<tw::Float> eigenvector(dim),phi_r(dim);
-		for (tw::Int i=0;i<dim;i++)
-			phi_r[i] = GetSphericalPotential((tw::Float(i)+0.5)*dr);
-		tw::Float groundStateEnergy = GetSphericalGroundState(eigenvector,phi_r,dr);
-		(*owner->tw_out) << "Numerical ground state energy = " << groundStateEnergy << std::endl;
+	// Solve for the lowest energy s-state on a spherical grid.
+	// This is used only to print the numerical ground state energy level.
+	const tw::Float maxR = owner->SphericalRadius(GlobalCorner(*owner)+GlobalPhysicalSize(*owner));
+	const tw::Float dr = dx(*owner) * owner->ScaleFactor(1,tw::vec3(tw::small_pos,0.0,0.0));
+	const tw::Float r = maxR>30.0 ? 30.0 : maxR;
+	const tw::Int dim = MyCeil(r/dr);
+	std::valarray<tw::Float> eigenvector(dim),phi_r(dim);
+	for (tw::Int i=0;i<dim;i++)
+		phi_r[i] = GetSphericalPotential((tw::Float(i)+0.5)*dr);
+	tw::Float groundStateEnergy = GetSphericalGroundState(eigenvector,phi_r,dr);
+	(*owner->tw_out) << "Numerical ground state energy = " << groundStateEnergy << std::endl;
 
-		#pragma omp parallel
-		{
-			for (auto cell : EntireCellRange(*this))
-				for (auto w : waveFunction)
-					psi1(cell) += w->Amplitude(H,owner->Pos(cell),0.0,0);
-		}
-		Normalize();
-		psi0 = psi1;
-		#pragma omp parallel
-		{
-			for (auto cell : EntireCellRange(*this))
-				J4(cell,0) = norm(psi1(cell));
-		}
+	#pragma omp parallel
+	{
+		for (auto cell : EntireCellRange(*this))
+			for (auto w : waveFunction)
+				psi1(cell) += w->Amplitude(H,owner->Pos(cell),0.0,0);
+	}
+	Normalize();
+	psi0 = psi1;
+	#pragma omp parallel
+	{
+		for (auto cell : EntireCellRange(*this))
+			J4(cell,0) = norm(psi1(cell));
 	}
 
 	FormPotentials(owner->elapsedTime);
@@ -416,6 +403,20 @@ void Schroedinger::Initialize()
 	psi1.SendToComputeBuffer();
 	A4.SendToComputeBuffer();
 	#endif
+}
+
+void Schroedinger::ReadCheckpoint(std::ifstream& inFile)
+{
+	AtomicPhysics::ReadCheckpoint(inFile);
+	psi0.ReadCheckpoint(inFile);
+	psi1.ReadCheckpoint(inFile);
+}
+
+void Schroedinger::WriteCheckpoint(std::ofstream& outFile)
+{
+	AtomicPhysics::WriteCheckpoint(outFile);
+	psi0.WriteCheckpoint(outFile);
+	psi1.WriteCheckpoint(outFile);
 }
 
 #ifdef USE_OPENCL
@@ -694,6 +695,24 @@ void Pauli::Initialize()
 	AtomicPhysics::Initialize();
 }
 
+void Pauli::ReadCheckpoint(std::ifstream& inFile)
+{
+	AtomicPhysics::ReadCheckpoint(inFile);
+	psi0.ReadCheckpoint(inFile);
+	psi1.ReadCheckpoint(inFile);
+	chi0.ReadCheckpoint(inFile);
+	chi1.ReadCheckpoint(inFile);
+}
+
+void Pauli::WriteCheckpoint(std::ofstream& outFile)
+{
+	AtomicPhysics::WriteCheckpoint(outFile);
+	psi0.WriteCheckpoint(outFile);
+	psi1.WriteCheckpoint(outFile);
+	chi0.WriteCheckpoint(outFile);
+	chi1.WriteCheckpoint(outFile);
+}
+
 #ifdef USE_OPENCL
 void Pauli::Update()
 {
@@ -899,26 +918,23 @@ void KleinGordon::Initialize()
 {
 	AtomicPhysics::Initialize();
 
-	if (!owner->restarted)
+	for (auto cell : InteriorCellRange(*this))
 	{
-		for (auto cell : InteriorCellRange(*this))
+		const tw::vec3 pos = owner->Pos(cell);
+		for (auto w : waveFunction)
 		{
-			const tw::vec3 pos = owner->Pos(cell);
-			for (auto w : waveFunction)
-			{
-				psi_r(cell,0) += real(w->Amplitude(H,pos,0.0,0));
-				psi_i(cell,0) += imag(w->Amplitude(H,pos,0.0,0));
-				psi_r(cell,1) += real(w->Amplitude(H,pos,dth,1));
-				psi_i(cell,1) += imag(w->Amplitude(H,pos,dth,1));
-			}
+			psi_r(cell,0) += real(w->Amplitude(H,pos,0.0,0));
+			psi_i(cell,0) += imag(w->Amplitude(H,pos,0.0,0));
+			psi_r(cell,1) += real(w->Amplitude(H,pos,dth,1));
+			psi_i(cell,1) += imag(w->Amplitude(H,pos,dth,1));
 		}
-
-		psi_r.CopyFromNeighbors();
-		psi_i.CopyFromNeighbors();
-		FormPotentials(owner->elapsedTime);
-		Normalize();
-		UpdateJ4();
 	}
+
+	psi_r.CopyFromNeighbors();
+	psi_i.CopyFromNeighbors();
+	FormPotentials(owner->elapsedTime);
+	Normalize();
+	UpdateJ4();
 
 	#ifdef USE_OPENCL
 
@@ -1201,33 +1217,30 @@ void Dirac::Initialize()
 	psi_r.SetBoundaryConditions(tw::grid::x,fld::neumannWall,fld::none);
 	psi_i.SetBoundaryConditions(tw::grid::x,fld::neumannWall,fld::none);
 
-	if (!owner->restarted)
+	#pragma omp parallel
 	{
-		#pragma omp parallel
+		for (auto cell : InteriorCellRange(*this))
 		{
-			for (auto cell : InteriorCellRange(*this))
+			tw::vec3 pos = owner->Pos(cell);
+			for (auto w : waveFunction)
 			{
-				tw::vec3 pos = owner->Pos(cell);
-				for (auto w : waveFunction)
-				{
-					psi_r(cell,0) += real(w->Amplitude(H,pos,0.0,0));
-					psi_r(cell,1) += real(w->Amplitude(H,pos,0.0,1));
-					psi_r(cell,2) += real(w->Amplitude(H,pos,dth,2));
-					psi_r(cell,3) += real(w->Amplitude(H,pos,dth,3));
-					psi_i(cell,0) += imag(w->Amplitude(H,pos,0.0,0));
-					psi_i(cell,1) += imag(w->Amplitude(H,pos,0.0,1));
-					psi_i(cell,2) += imag(w->Amplitude(H,pos,dth,2));
-					psi_i(cell,3) += imag(w->Amplitude(H,pos,dth,3));
-				}
+				psi_r(cell,0) += real(w->Amplitude(H,pos,0.0,0));
+				psi_r(cell,1) += real(w->Amplitude(H,pos,0.0,1));
+				psi_r(cell,2) += real(w->Amplitude(H,pos,dth,2));
+				psi_r(cell,3) += real(w->Amplitude(H,pos,dth,3));
+				psi_i(cell,0) += imag(w->Amplitude(H,pos,0.0,0));
+				psi_i(cell,1) += imag(w->Amplitude(H,pos,0.0,1));
+				psi_i(cell,2) += imag(w->Amplitude(H,pos,dth,2));
+				psi_i(cell,3) += imag(w->Amplitude(H,pos,dth,3));
 			}
 		}
-
-		psi_r.CopyFromNeighbors();
-		psi_i.CopyFromNeighbors();
-		FormPotentials(owner->elapsedTime);
-		Normalize();
-		UpdateJ4();
 	}
+
+	psi_r.CopyFromNeighbors();
+	psi_i.CopyFromNeighbors();
+	FormPotentials(owner->elapsedTime);
+	Normalize();
+	UpdateJ4();
 
 	#ifdef USE_OPENCL
 

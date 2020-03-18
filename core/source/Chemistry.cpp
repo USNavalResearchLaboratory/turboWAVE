@@ -6,62 +6,6 @@
 // Subreaction class serves as an element of the Reaction quasitool
 // No need to write chemical names into restart file.  We have the indices into the state array.
 
-void SubReaction::ReadCheckpoint(std::ifstream& inFile)
-{
-	tw::Int i,num;
-	sparc::hydro_set htemp;
-	sparc::material mtemp;
-
-	reactants.clear();
-	mat_r.clear();
-	inFile.read((char *)&num,sizeof(tw::Int));
-	for (int i=0;i<num;i++)
-	{
-		inFile.read((char *)&htemp,sizeof(sparc::hydro_set));
-		reactants.push_back(htemp);
-		inFile.read((char *)&mtemp,sizeof(sparc::material));
-		mat_r.push_back(mtemp);
-	}
-
-	products.clear();
-	mat_p.clear();
-	inFile.read((char *)&num,sizeof(tw::Int));
-	for (int i=0;i<num;i++)
-	{
-		inFile.read((char *)&htemp,sizeof(sparc::hydro_set));
-		products.push_back(htemp);
-		inFile.read((char *)&mtemp,sizeof(sparc::material));
-		mat_p.push_back(mtemp);
-	}
-
-	inFile.read((char *)&heat,sizeof(tw::Float));
-	inFile.read((char *)&vheat,sizeof(tw::Float));
-}
-
-void SubReaction::WriteCheckpoint(std::ofstream& outFile)
-{
-	tw::Int i,num;
-
-	num = reactants.size();
-	outFile.write((char *)&num,sizeof(tw::Int));
-	for (i=0;i<num;i++)
-	{
-		outFile.write((char*)&reactants[i],sizeof(sparc::hydro_set));
-		outFile.write((char*)&mat_r[i],sizeof(sparc::material));
-	}
-
-	num = products.size();
-	outFile.write((char *)&num,sizeof(tw::Int));
-	for (i=0;i<num;i++)
-	{
-		outFile.write((char*)&products[i],sizeof(sparc::hydro_set));
-		outFile.write((char*)&mat_p[i],sizeof(sparc::material));
-	}
-
-	outFile.write((char *)&heat,sizeof(tw::Float));
-	outFile.write((char *)&vheat,sizeof(tw::Float));
-}
-
 tw::Float PrimitiveReaction::PrimitiveRate(tw::Float T)
 {
 	tw::Float rate;
@@ -81,30 +25,6 @@ tw::Float PrimitiveReaction::PrimitiveRate(tw::Float T)
 		rate = c1 * pow(T,c2) * exp(-c3/T);
 
 	return rate;
-}
-
-void PrimitiveReaction::ReadCheckpoint(std::ifstream& inFile)
-{
-	inFile.read((char *)&unit_T_eV,sizeof(tw::Float));
-	inFile.read((char *)&unit_rate_cgs,sizeof(tw::Float));
-	inFile.read((char *)&c1,sizeof(tw::Float));
-	inFile.read((char *)&c2,sizeof(tw::Float));
-	inFile.read((char *)&c3,sizeof(tw::Float));
-	inFile.read((char *)&T0,sizeof(tw::Float));
-	inFile.read((char *)&T1,sizeof(tw::Float));
-	inFile.read((char *)b,sizeof(tw::Float)*9);
-}
-
-void PrimitiveReaction::WriteCheckpoint(std::ofstream& outFile)
-{
-	outFile.write((char *)&unit_T_eV,sizeof(tw::Float));
-	outFile.write((char *)&unit_rate_cgs,sizeof(tw::Float));
-	outFile.write((char *)&c1,sizeof(tw::Float));
-	outFile.write((char *)&c2,sizeof(tw::Float));
-	outFile.write((char *)&c3,sizeof(tw::Float));
-	outFile.write((char *)&T0,sizeof(tw::Float));
-	outFile.write((char *)&T1,sizeof(tw::Float));
-	outFile.write((char *)b,sizeof(tw::Float)*9);
 }
 
 void Reaction::ReadInputFile(std::stringstream& inputString,tw::Float unitDensityCGS)
@@ -201,32 +121,6 @@ void Reaction::ReadInputFile(std::stringstream& inputString,tw::Float unitDensit
 	T1 = uc.eV_to_sim(T1);
 }
 
-void Reaction::ReadCheckpoint(std::ifstream& inFile)
-{
-	tw::Int i,num;
-	PrimitiveReaction::ReadCheckpoint(inFile);
-	inFile.read((char *)&catalyst,sizeof(catalyst));
-	inFile.read((char *)&numBodies,sizeof(numBodies));
-	inFile.read((char *)&num,sizeof(tw::Int));
-	for (i=0;i<num;i++)
-	{
-		sub.push_back(new SubReaction);
-		sub.back()->ReadCheckpoint(inFile);
-	}
-}
-
-void Reaction::WriteCheckpoint(std::ofstream& outFile)
-{
-	tw::Int i,num;
-	PrimitiveReaction::WriteCheckpoint(outFile);
-	outFile.write((char *)&catalyst,sizeof(catalyst));
-	outFile.write((char *)&numBodies,sizeof(numBodies));
-	num = sub.size();
-	outFile.write((char *)&num,sizeof(tw::Int));
-	for (i=0;i<num;i++)
-		sub[i]->WriteCheckpoint(outFile);
-}
-
 void Excitation::ReadInputFile(std::stringstream& inputString,tw::Float unitDensityCGS)
 {
 	std::string word;
@@ -256,30 +150,6 @@ void Excitation::ReadInputFile(std::stringstream& inputString,tw::Float unitDens
 			inputString >> b[i];
 		// janev coefficients are left in eV-cgs
 	}
-}
-
-void Excitation::ReadCheckpoint(std::ifstream& inFile)
-{
-	PrimitiveReaction::ReadCheckpoint(inFile);
-	inFile.read((char *)&h1,sizeof(h1));
-	inFile.read((char *)&h2,sizeof(h2));
-	inFile.read((char *)&e1,sizeof(e1));
-	inFile.read((char *)&e2,sizeof(e2));
-	inFile.read((char *)&m1,sizeof(m1));
-	inFile.read((char *)&m2,sizeof(m2));
-	inFile.read((char *)&level,sizeof(tw::Float));
-}
-
-void Excitation::WriteCheckpoint(std::ofstream& outFile)
-{
-	PrimitiveReaction::WriteCheckpoint(outFile);
-	outFile.write((char *)&h1,sizeof(h1));
-	outFile.write((char *)&h2,sizeof(h2));
-	outFile.write((char *)&e1,sizeof(e1));
-	outFile.write((char *)&e2,sizeof(e2));
-	outFile.write((char *)&m1,sizeof(m1));
-	outFile.write((char *)&m2,sizeof(m2));
-	outFile.write((char *)&level,sizeof(tw::Float));
 }
 
 void Collision::ReadInputFile(std::stringstream& inputString,tw::Float unitDensityCGS)
@@ -321,34 +191,4 @@ void Collision::ReadInputFile(std::stringstream& inputString,tw::Float unitDensi
 		inputString >> word >> word >> n_ref;
 		T_ref *= uc.eV_to_sim(1.0);
 	}
-}
-
-void Collision::ReadCheckpoint(std::ifstream& inFile)
-{
-	inFile.read((char *)&type,sizeof(sparc::collisionType));
-	inFile.read((char *)&h1,sizeof(h1));
-	inFile.read((char *)&h2,sizeof(h2));
-	inFile.read((char *)&e1,sizeof(e1));
-	inFile.read((char *)&e2,sizeof(e2));
-	inFile.read((char *)&m1,sizeof(m1));
-	inFile.read((char *)&m2,sizeof(m2));
-	inFile.read((char *)&crossSection,sizeof(tw::Float));
-	inFile.read((char *)&ks,sizeof(tw::Float));
-	inFile.read((char *)&T_ref,sizeof(tw::Float));
-	inFile.read((char *)&n_ref,sizeof(tw::Float));
-}
-
-void Collision::WriteCheckpoint(std::ofstream& outFile)
-{
-	outFile.write((char *)&type,sizeof(sparc::collisionType));
-	outFile.write((char *)&h1,sizeof(h1));
-	outFile.write((char *)&h2,sizeof(h2));
-	outFile.write((char *)&e1,sizeof(e1));
-	outFile.write((char *)&e2,sizeof(e2));
-	outFile.write((char *)&m1,sizeof(m1));
-	outFile.write((char *)&m2,sizeof(m2));
-	outFile.write((char *)&crossSection,sizeof(tw::Float));
-	outFile.write((char *)&ks,sizeof(tw::Float));
-	outFile.write((char *)&T_ref,sizeof(tw::Float));
-	outFile.write((char *)&n_ref,sizeof(tw::Float));
 }

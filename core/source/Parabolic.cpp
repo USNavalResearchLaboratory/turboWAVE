@@ -225,24 +225,6 @@ void EigenmodePropagator::Advance(ComplexField& a0,ComplexField& a1,ComplexField
 			a1(s,space->UFG(3)) = a0(s,space->UFG(3));
 }
 
-void EigenmodePropagator::ReadCheckpoint(std::ifstream& inFile)
-{
-	ComputeTool::ReadCheckpoint(inFile);
-	inFile.read((char*)&modes,sizeof(modes));
-	inFile.read((char*)&layers,sizeof(layers));
-	inFile.read((char*)&causality,sizeof(causality));
-	inFile.read((char*)&dampingTime,sizeof(dampingTime));
-}
-
-void EigenmodePropagator::WriteCheckpoint(std::ofstream& outFile)
-{
-	ComputeTool::WriteCheckpoint(outFile);
-	outFile.write((char*)&modes,sizeof(modes));
-	outFile.write((char*)&layers,sizeof(layers));
-	outFile.write((char*)&causality,sizeof(causality));
-	outFile.write((char*)&dampingTime,sizeof(dampingTime));
-}
-
 
 ////////////////////////
 //                    //

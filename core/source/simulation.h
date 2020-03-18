@@ -7,7 +7,7 @@ struct Simulation;
 
 struct Simulation:Task,MetricSpace
 {
-	std::string inputFileName;
+	std::string inputFileName,restartFileName;
 	std::ostream *tw_out;
 	tw::input::DirectiveReader outerDirectives,gridDirectives;
 
@@ -18,7 +18,7 @@ struct Simulation:Task,MetricSpace
 	tw::Float unitDensityCGS;
 
 	bool neutralize,movingWindow,adaptiveTimestep,adaptiveGrid;
-	bool restarted,completed;
+	bool completed;
 	tw::Int outputLevel,errorCheckingLevel;
 
 	tw::Int stepsToTake,stepNow;
@@ -33,7 +33,7 @@ struct Simulation:Task,MetricSpace
 	std::vector<Module*> module;
 	std::vector<tw::module_type> createdModuleTypes;
 
-	Simulation(const std::string& inputFileName);
+	Simulation(const std::string& inputFileName,const std::string& restartFileName);
 	virtual ~Simulation();
 	virtual void Run();
 	void SetupGeometry();
@@ -50,8 +50,7 @@ struct Simulation:Task,MetricSpace
 
 	bool MangleToolName(std::string& name);
 	ComputeTool* CreateTool(const std::string& basename,tw::tool_type theType);
-	ComputeTool* GetTool(const std::string& name);
-	ComputeTool* GetRestartedTool(std::ifstream& inFile);
+	ComputeTool* GetTool(const std::string& name,bool attaching);
 	void ToolFromDirective(std::vector<ComputeTool*>& tool,std::stringstream& inputString,const std::string& command);
 	bool RemoveTool(ComputeTool *theTool);
 
@@ -107,11 +106,14 @@ struct Simulation:Task,MetricSpace
 
 	bool IsFirstStep()
 	{
-		return stepNow == 1;
+		return stepNow == 0;
 	}
 
 	bool IsLastStep()
 	{
+		// Actual steps taken = stepsToTake+1
+		// This allows us to write both the initial condition and the last available data.
+		// If there is a restart the initial step is stepsToTake+1 and 1 less step is taken.
 		return stepNow == stepsToTake;
 	}
 

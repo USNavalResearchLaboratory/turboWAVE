@@ -275,17 +275,3 @@ void Task::InitializeCLProgram(cl_program& program,const std::string& fileName,s
 }
 
 #endif
-
-void Task::ReadCheckpoint(std::ifstream& inFile)
-{
-	inFile.read((char*)globalCells,sizeof(tw::Int)*4);
-	inFile.read((char*)domains,sizeof(tw::Int)*4);
-	inFile.read((char*)periodic,sizeof(tw::Int)*4);
-}
-
-void Task::WriteCheckpoint(std::ofstream& outFile)
-{
-	outFile.write((char*)globalCells,sizeof(tw::Int)*4);
-	outFile.write((char*)domains,sizeof(tw::Int)*4);
-	outFile.write((char*)periodic,sizeof(tw::Int)*4);
-}

@@ -236,8 +236,6 @@ void Electromagnetic::ForceQuasistaticVectorPotential(Field& A4,ScalarField& DtP
 
 void Electromagnetic::ReadCheckpoint(std::ifstream& inFile)
 {
-	tw::Int i,num;
-
 	FieldSolver::ReadCheckpoint(inFile);
 	inFile.read((char*)&dipoleCenter,sizeof(tw::vec3));
 	inFile.read((char*)&gammaBeam,sizeof(tw::Float));
@@ -246,8 +244,6 @@ void Electromagnetic::ReadCheckpoint(std::ifstream& inFile)
 
 void Electromagnetic::WriteCheckpoint(std::ofstream& outFile)
 {
-	tw::Int i;
-
 	FieldSolver::WriteCheckpoint(outFile);
 	outFile.write((char*)&dipoleCenter,sizeof(tw::vec3));
 	outFile.write((char*)&gammaBeam,sizeof(tw::Float));
@@ -321,9 +317,6 @@ void CoulombSolver::Initialize()
 
 	SetExteriorBoundaryConditionsE(A4,Element(1),Element(2),Element(3));
 	SetExteriorBoundaryConditionsE(A4,Element(5),Element(6),Element(7));
-
-	if (owner->restarted)
-		return;
 
 	// Initialize radiation fields
 
@@ -651,9 +644,6 @@ void DirectSolver::Initialize()
 	SetExteriorBoundaryConditionsE(A,Element(0,1),Element(2,3),Element(4,5));
 	SetExteriorBoundaryConditionsB(A,Element(6,7),Element(8,9),Element(10,11));
 
-	if (owner->restarted)
-		return;
-
 	// Setup PML media
 
 	SetupPML(PMLx,owner->GlobalCellIndex(0,1),owner->globalCells[1],layerThickness[0],layerThickness[1],reflectionCoefficient[0],reflectionCoefficient[1],spacing.x);
@@ -843,9 +833,6 @@ void CurvilinearDirectSolver::Initialize()
 		A.SetBoundaryConditions(Element(3),tw::grid::x,fld::dirichletWall,fld::dirichletCell);
 		A.SetBoundaryConditions(Element(4,5),tw::grid::x,fld::none,fld::none);
 	}
-
-	if (owner->restarted)
-		return;
 
 	// Initialize radiation fields
 

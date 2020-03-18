@@ -97,9 +97,6 @@ void Fluid::Initialize()
 {
 	Module::Initialize();
 
-	if (owner->restarted)
-		return;
-
 	tw::bc::fld xNormal,xParallel,other;
 	xNormal = owner->bc0[1]==par::axisymmetric || owner->bc0[1]==par::reflecting ? fld::dirichletWall : fld::neumannWall;
 	xParallel = fld::neumannWall;
@@ -522,13 +519,6 @@ void Fluid::Update()
 void Fluid::ReadCheckpoint(std::ifstream& inFile)
 {
 	Module::ReadCheckpoint(inFile);
-	inFile.read((char *)&charge,sizeof(tw::Float));
-	inFile.read((char *)&mass,sizeof(tw::Float));
-	inFile.read((char *)&thermalMomentum,sizeof(tw::Float));
-	inFile.read((char *)&enCrossSection,sizeof(tw::Float));
-	inFile.read((char *)&initialIonizationFraction,sizeof(tw::Float));
-	inFile.read((char *)&coulombCollisions,sizeof(bool));
-
 	state0.ReadCheckpoint(inFile);
 	state1.ReadCheckpoint(inFile);
 	gas.ReadCheckpoint(inFile);
@@ -538,13 +528,6 @@ void Fluid::ReadCheckpoint(std::ifstream& inFile)
 void Fluid::WriteCheckpoint(std::ofstream& outFile)
 {
 	Module::WriteCheckpoint(outFile);
-	outFile.write((char *)&charge,sizeof(tw::Float));
-	outFile.write((char *)&mass,sizeof(tw::Float));
-	outFile.write((char *)&thermalMomentum,sizeof(tw::Float));
-	outFile.write((char *)&enCrossSection,sizeof(tw::Float));
-	outFile.write((char *)&initialIonizationFraction,sizeof(tw::Float));
-	outFile.write((char *)&coulombCollisions,sizeof(bool));
-
 	state0.WriteCheckpoint(outFile);
 	state1.WriteCheckpoint(outFile);
 	gas.WriteCheckpoint(outFile);
@@ -750,20 +733,6 @@ void Chemical::VerifyInput()
 	}
 }
 
-void Chemical::ReadCheckpoint(std::ifstream& inFile)
-{
-	Module::ReadCheckpoint(inFile);
-	inFile.read((char *)&mat,sizeof(mat));
-	inFile.read((char *)&indexInState,sizeof(indexInState));
-}
-
-void Chemical::WriteCheckpoint(std::ofstream& outFile)
-{
-	Module::WriteCheckpoint(outFile);
-	outFile.write((char *)&mat,sizeof(mat));
-	outFile.write((char *)&indexInState,sizeof(indexInState));
-}
-
 
 /////////////////////
 //                 //
@@ -825,26 +794,6 @@ void EquilibriumGroup::Initialize()
 		matset.AddMaterial(chemical[i]->mat,i);
 
 	eosMixData->SetupIndexing(hidx,eidx,matset);
-}
-
-void EquilibriumGroup::ReadCheckpoint(std::ifstream& inFile)
-{
-	Module::ReadCheckpoint(inFile);
-	inFile.read((char *)&mobile,sizeof(mobile));
-	inFile.read((char *)&forceFilter,sizeof(tw::Float));
-	inFile.read((char *)&hidx,sizeof(hidx));
-	inFile.read((char *)&eidx,sizeof(eidx));
-	// material set will be created in Initialize
-}
-
-void EquilibriumGroup::WriteCheckpoint(std::ofstream& outFile)
-{
-	Module::WriteCheckpoint(outFile);
-	outFile.write((char *)&mobile,sizeof(mobile));
-	outFile.write((char *)&forceFilter,sizeof(tw::Float));
-	outFile.write((char *)&hidx,sizeof(hidx));
-	outFile.write((char *)&eidx,sizeof(eidx));
-	// material set will be created in Initialize
 }
 
 
@@ -1079,19 +1028,16 @@ void sparc::HydroManager::Initialize()
 	// Find number of state variables characterizing the whole system
 	// DFG - now we have a static variable to help keep count of these more reliably
 	// For more see sparc::hydro_set and sparc::eos_set in physics.h
-	if (!owner->restarted)
-	{
-		tw::Int hydroElements = 0;
-		for (auto grp : group)
-			hydroElements += grp->submodule.size() + sparc::hydro_set::count;
-		tw::Int eosElements = submodule.size()*sparc::eos_set::count;
-		state0.Initialize(hydroElements,*this,owner);
-		state1.Initialize(hydroElements,*this,owner);
-		creationRate.Initialize(hydroElements,*this,owner);
-		destructionRate.Initialize(hydroElements,*this,owner);
-		eos0.Initialize(eosElements,*this,owner);
-		eos1.Initialize(eosElements,*this,owner);
-	}
+	tw::Int hydroElements = 0;
+	for (auto grp : group)
+		hydroElements += grp->submodule.size() + sparc::hydro_set::count;
+	tw::Int eosElements = submodule.size()*sparc::eos_set::count;
+	state0.Initialize(hydroElements,*this,owner);
+	state1.Initialize(hydroElements,*this,owner);
+	creationRate.Initialize(hydroElements,*this,owner);
+	destructionRate.Initialize(hydroElements,*this,owner);
+	eos0.Initialize(eosElements,*this,owner);
+	eos1.Initialize(eosElements,*this,owner);
 
 	// variables defining normal component boundary conditions
 	tw::bc::fld bc0[4],bc1[4];
@@ -1140,8 +1086,7 @@ void sparc::HydroManager::Initialize()
 	nu_e.SetBoundaryConditions(tw::grid::y,fld::neumannWall,fld::neumannWall);
 	nu_e.SetBoundaryConditions(tw::grid::z,fld::neumannWall,fld::neumannWall);
 
-	if (!owner->restarted)
-		SetupIndexing();
+	SetupIndexing();
 
 	// Take care of vector boundary conditions
 	for (auto grp : group)
@@ -2095,91 +2040,20 @@ bool sparc::HydroManager::ReadQuasitoolBlock(const tw::input::Preamble& preamble
 
 void sparc::HydroManager::ReadCheckpoint(std::ifstream& inFile)
 {
-	tw::Int i,num,hydro_size,eos_size;
 	Module::ReadCheckpoint(inFile);
-
-	inFile.read((char *)&radModel,sizeof(sparc::radiationModel));
-	inFile.read((char *)&lasModel,sizeof(sparc::laserModel));
-	inFile.read((char *)&plasModel,sizeof(sparc::plasmaModel));
-	inFile.read((char *)&epsilonFactor,sizeof(tw::Float));
-	inFile.read((char *)&dipoleCenter,sizeof(tw::vec3));
-
-	// This block is needed to allocate space for variable size arrays
-	inFile.read((char *)&hydro_size,sizeof(tw::Int));
-	inFile.read((char *)&eos_size,sizeof(tw::Int));
-	state0.Initialize(hydro_size,*this,owner);
-	state1.Initialize(hydro_size,*this,owner);
-	creationRate.Initialize(hydro_size,*this,owner);
-	destructionRate.Initialize(hydro_size,*this,owner);
-	eos0.Initialize(eos_size,*this,owner);
-	eos1.Initialize(eos_size,*this,owner);
-
 	eos1.ReadCheckpoint(inFile);
 	state1.ReadCheckpoint(inFile);
 	rho.ReadCheckpoint(inFile);
 	phi.ReadCheckpoint(inFile);
-
-	inFile.read((char *)&num,sizeof(tw::Int));
-	for (i=0;i<num;i++)
-	{
-		(*owner->tw_out) << "Add Reaction" << std::endl;
-		reaction.push_back(new Reaction);
-		reaction.back()->ReadCheckpoint(inFile);
-	}
-
-	inFile.read((char *)&num,sizeof(tw::Int));
-	for (i=0;i<num;i++)
-	{
-		(*owner->tw_out) << "Add Excitation" << std::endl;
-		excitation.push_back(new Excitation);
-		excitation.back()->ReadCheckpoint(inFile);
-	}
-
-	inFile.read((char *)&num,sizeof(tw::Int));
-	for (i=0;i<num;i++)
-	{
-		(*owner->tw_out) << "Add Collision" << std::endl;
-		collision.push_back(new Collision);
-		collision.back()->ReadCheckpoint(inFile);
-	}
 }
 
 void sparc::HydroManager::WriteCheckpoint(std::ofstream& outFile)
 {
-	tw::Int i;
 	Module::WriteCheckpoint(outFile);
-
-	outFile.write((char *)&radModel,sizeof(sparc::radiationModel));
-	outFile.write((char *)&lasModel,sizeof(sparc::laserModel));
-	outFile.write((char *)&plasModel,sizeof(sparc::plasmaModel));
-	outFile.write((char *)&epsilonFactor,sizeof(tw::Float));
-	outFile.write((char *)&dipoleCenter,sizeof(tw::vec3));
-
-	// Have to save number of components in variable sized arrays
-	i = state1.Components();
-	outFile.write((char *)&i,sizeof(tw::Int));
-	i = eos1.Components();
-	outFile.write((char *)&i,sizeof(tw::Int));
-
 	eos1.WriteCheckpoint(outFile);
 	state1.WriteCheckpoint(outFile);
 	rho.WriteCheckpoint(outFile);
 	phi.WriteCheckpoint(outFile);
-
-	i = reaction.size();
-	outFile.write((char *)&i,sizeof(tw::Int));
-	for (i=0;i<reaction.size();i++)
-		reaction[i]->WriteCheckpoint(outFile);
-
-	i = excitation.size();
-	outFile.write((char *)&i,sizeof(tw::Int));
-	for (i=0;i<excitation.size();i++)
-		excitation[i]->WriteCheckpoint(outFile);
-
-	i = collision.size();
-	outFile.write((char *)&i,sizeof(tw::Int));
-	for (i=0;i<collision.size();i++)
-		collision[i]->WriteCheckpoint(outFile);
 }
 
 void sparc::HydroManager::Report(Diagnostic& diagnostic)

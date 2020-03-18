@@ -1063,10 +1063,8 @@ void Field::Smooth(const Element& e,const MetricSpace& ds,tw::Int smoothPasses[4
 
 void Field::ReadCheckpoint(std::ifstream& inFile)
 {
-	DiscreteSpace ds;
-	ds.ReadCheckpoint(inFile);
+	DiscreteSpace::ReadCheckpoint(inFile);
 	inFile.read((char*)&packedAxis,sizeof(tw::Int));
-	Initialize(num[0],ds,task,tw::grid::enumaxis(packedAxis));
 	inFile.read((char*)&bc0(0,0),sizeof(BoundaryCondition)*num[0]*4);
 	inFile.read((char*)&bc1(0,0),sizeof(BoundaryCondition)*num[0]*4);
 	inFile.read((char *)&array[0],sizeof(tw::Float)*totalCells*num[0]);
