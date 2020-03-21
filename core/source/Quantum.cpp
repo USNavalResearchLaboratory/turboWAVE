@@ -1463,6 +1463,7 @@ void Dirac::StartDiagnostics()
 
 PopulationDiagnostic::PopulationDiagnostic(const std::string& name,Simulation *sim) : Module(name,sim)
 {
+	updateSequencePriority = tw::priority::diagnostic;
 	H = NULL;
 	psi = NULL;
 }

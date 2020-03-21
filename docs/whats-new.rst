@@ -22,20 +22,20 @@ Comprehensive Error Checking
 
 The tuboWAVE parser is much more sophisticated, providing useful error messages for almost any input file error.  This functionality is also provided for free to developers of ``Module`` and ``ComputeTool`` objects.  Internally, the code to setup input file interactions is much more streamlined.
 
-Input File Syntax
------------------
+Input Files
+-----------
 
-the TurboWAVE input file now has a strict syntax definition, called the :ref:`little language <little_lang>`.  All internal objects now support the object creation and association semantics that the little language provides.  This enhances the scope of relationships the user can create between modules and tools.
+the TurboWAVE input file now has a strict language definition, and all internal objects conform to consistent semantics.  This enhances the scope and predictability of relationships the user can create between modules and tools.
 
 Better Diagnostics
 ------------------
 
-Diagnostics generally benefit from universal support for little language semantics.  Any diagnostic can now be associated (or not) with any number of modules.  The phase space diagnostic is more versatile, supporting up to three dimensions, and twelve possible axes.  This system encourages the development of new, sophisticated diagnostic modules.
+Diagnostics generally benefit from consistent input file semantics.  Any diagnostic can now be associated (or not) with any number of modules.  The phase space diagnostic is more versatile, supporting up to three dimensions, and twelve possible axes.  This system encourages the development of new, sophisticated diagnostic modules.
 
 C++11 and C++17
 ------------------
 
-For most of its history turboWAVE was a C++98 code. We have been gradually incorporating C++11 style coding.  With release 4.0.0 almost the whole code has been updated to use C++11, especially in terms of utilizing standard containers and range based loops.  Improved special function support comes from C++17, although internal special functions are still kept around until compiler support is more consistent.
+TurboWAVE started as a C++98 code. We have been gradually incorporating C++11 style coding.  With release 4.0.0 the code is solidly C++11.  Improved special function support comes from C++17, although internal special functions are still kept around until compiler support is more consistent.
 
 .. Note::
 

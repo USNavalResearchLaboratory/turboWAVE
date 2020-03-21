@@ -6,9 +6,7 @@ Input File: Base
 Little Language Quick Start
 ---------------------------
 
-TurboWAVE input files are written using an intuitive "little language."  The strict syntax is defined in :download:`grammar.js`, which conforms to the `Tree-sitter <https://tree-sitter.github.io/tree-sitter/>`_ language syntax format.  The turboWAVE parser currently uses a relaxed interpretation of the strict syntax.
-
-The little language serves three fundamental purposes:
+TurboWAVE input files are written using an intuitive "little language" which provides three basic functions:
 
 	#. Create objects
 	#. Associate objects
@@ -62,8 +60,8 @@ If you are familiar with C++ syntax you will recognize comments as preceded by `
 	#. Create a uniform profile tool and associate with the species 'electrons'.  This illustrates the **generate** keyword, which is merely syntactic sugar that can be used in place of the **new**-**for** combination.
 	#. The macro key ``$dens`` is used to achieve the effect of a user-defined constant.
 
-Little Language Terminology
----------------------------
+A Little More Little Language
+-----------------------------
 
 The input file is a sequence of **directives**.  The directives are one of the following: **preprocessor-directives**, **statements**, or **assignments**.
 
@@ -72,6 +70,8 @@ Preprocessor directives are a limited and slightly modified version of C languag
 Statements start with **new**, **get**, or **generate**.  The **new** and **generate** statements are usually terminated by a curly-brace delimited **block** that may contain a further sequence of directives.  Blocks of directives can be nested in this way with arbitrary depth.
 
 Assignments copy a value in the input file to a simulation parameter.  These values can be decimal numbers, physical quantities with units, or **identifiers** (usual meaning).
+
+The strict syntax is defined in :download:`grammar.js`, which conforms to the `Tree-sitter <https://tree-sitter.github.io/tree-sitter/>`_ language syntax format.  The turboWAVE parser currently uses a relaxed interpretation of the strict syntax.
 
 .. _preprocessor:
 
@@ -904,10 +904,18 @@ The following directives may be used with any diagnostic
 
 	:param float duration: simulated time between write-outs, overrides ``period`` if specified.  If an adaptive time step is in use, this can approximate uniform spacing of write-outs.
 
+.. py:function:: galilean velocity = (vx,vy,vz)
+
+	Transform output to a Galilean frame, i.e., :math:`{\bf r}' = {\bf r} - {\bf v}t`.
+
+	:param float vx: x-component of the galilean transformation velocity
+	:param float vy: y-component of the galilean transformation velocity
+	:param float vz: z-component of the galilean transformation velocity
+
 Specific Diagnostics
 ,,,,,,,,,,,,,,,,,,,,
 
-.. py:function:: new box diagnostic { directives }
+.. py:function:: new box diagnostic <name> { directives }
 
 	Write out grid data as sequence of frames.  Clipping region must be a simple box.
 	This diagnostic produces several files per module.
@@ -929,7 +937,7 @@ Specific Diagnostics
 			:param int sz: advance this many cells in the z-direction between writes
 
 
-.. py:function:: new energy series { directives }
+.. py:function:: new energy diagnostic <name> { directives }
 
 	Diagnostic of volume integrated quantities.  Normalization includes the unit of particle number.
 
@@ -942,7 +950,7 @@ Specific Diagnostics
 		 	:param int digits: number of digits used to represent each result
 
 
-.. py:function:: new point series { directives }
+.. py:function:: new point diagnostic <name> { directives }
 
 	Diagnostic to write out grid data at a specific point.
 
@@ -961,37 +969,35 @@ Specific Diagnostics
 
 .. py:function:: new phase space plot for <species_name> { directives }
 
-	Diagnostic to write out 2D phase space projections.
-	Phase space variables include ``x``, ``y``, ``z``, ``px``, ``py``, ``pz``, ``mass``, ``energy``
-	Here, ``mass`` is the total relativistic energy, ``energy`` is the kinetic part.
+	Diagnostic to write out up to 3D phase space projections.  Lower dimensions can be used by using a single cell along a given axis.
 
 	:param str species_name: the name of the species to diagnose
 	:param block directives: The following directives are supported:
 
 		Shared directives: see :ref:`diagnostics-shared`
 
-		.. py:function:: abcissa = var
+		.. py:function:: axes = (ax1,ax2,ax3)
 
-			:param enum var: the phase space variable to associate with the x axis
+			Determines the axes of the phase space.  Valid axes are enumerated above.
 
-		.. py:function:: ordinate = var
+			:param enum ax1: the phase space variable to associate with axis 1
+			:param enum ax2: the phase space variable to associate with axis 2
+			:param enum ax3: the phase space variable to associate with axis 3
 
-			:param enum var: the phase space variable to associate with the y axis
+		.. py:function:: dimensions = (N1,N2,N3)
 
-		.. py:function:: minimum = (xmin,ymin)
+			:param int N1: cells along axis 1
+			:param int N2: cells along axis 2
+			:param int N3: cells along axis 3
 
-			:param float xmin: the lower bound of the x axis
-			:param float ymin: the lower bound of the y axis
+		.. py:function:: bounds = (x0,x1,y0,y1,z0,z1)
 
-		.. py:function:: maximum = (xmax,ymax)
-
-			:param float xmax: the upper bound of the x axis
-			:param float ymax: the upper bound of the y axis
-
-		.. py:function:: dimensions = (Nx,Ny)
-
-			:param int Nx: the number of cells in the x direction for the phase space grid
-			:param int Ny: the number of cells in the y direction for the phase space grid
+			:param float x0: lower bound for axis 1
+			:param float x1: upper bound for axis 1
+			:param float y0: lower bound for axis 2
+			:param float y1: upper bound for axis 2
+			:param float z0: lower bound for axis 3
+			:param float z1: upper bound for axis 3
 
 
 .. py:function:: new orbit diagnostic for <species_name>

@@ -145,3 +145,22 @@ void Electromagnetic::CleanDivergence(Field& A,tw::Float charge_multiplier)
 	A.CopyFromNeighbors(Element(X,Z));
 	A.ApplyBoundaryCondition(Element(X,Z));
 }
+
+struct FarFieldDiagnostic : Module
+{
+	// In the far field space the index space goes like (t,theta,phi)
+	tw::Float radius,bounds[6];
+	tw::Int dims[3];
+	tw::Int period;
+
+	Vec3Field A;
+	Field *J4;
+
+	FarFieldDiagnostic(const std::string& name,Simulation *sim);
+	virtual void Initialize();
+	virtual bool InspectResource(void *resource,const std::string& description);
+	virtual void ReadCheckpoint(std::ifstream& inFile);
+	virtual void WriteCheckpoint(std::ofstream& outFile);
+	virtual void Update();
+	void SpecialReport();
+};

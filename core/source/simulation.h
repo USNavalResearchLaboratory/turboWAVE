@@ -26,6 +26,7 @@ struct Simulation:Task,MetricSpace
 
 	tw::Int dumpPeriod;
 
+	tw::vec3 cornerSet[2][2][2]; // only used for input
 	tw::bc::par bc0[4],bc1[4];
 
 	std::vector<Region*> clippingRegion;

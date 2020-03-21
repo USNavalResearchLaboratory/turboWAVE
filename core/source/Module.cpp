@@ -201,6 +201,7 @@ std::map<std::string,tw::module_type> Module::Map()
 		{"direct",tw::module_type::directSolver},
 		{"curvilinear direct",tw::module_type::curvilinearDirectSolver},
 		{"coulomb",tw::module_type::coulombSolver},
+		{"far field diagnostic",tw::module_type::farFieldDiagnostic},
 		{"electrostatic",tw::module_type::electrostatic},
 		{"quasistatic",tw::module_type::qsLaser},
 		{"pgc",tw::module_type::pgcLaser},
@@ -252,6 +253,9 @@ Module* Module::CreateObjectFromType(const std::string& name,tw::module_type the
 			break;
 		case tw::module_type::directSolver:
 			ans = new DirectSolver(name,sim);
+			break;
+		case tw::module_type::farFieldDiagnostic:
+			ans = new FarFieldDiagnostic(name,sim);
 			break;
 		case tw::module_type::qsLaser:
 			ans = new QSSolver(name,sim);

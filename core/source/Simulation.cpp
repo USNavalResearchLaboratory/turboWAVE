@@ -76,7 +76,6 @@ Simulation::Simulation(const std::string& file_name,const std::string& restart_n
 	outerDirectives.Add("error checking level",new tw::input::Int(&errorCheckingLevel),false);
 
 	// allow user to choose any of 8 corners with strings like corner001, corner010, etc.
-	tw::vec3 corner[2][2][2];
 	auto corner_str = [&] (tw::Int i,tw::Int j,tw::Int k)
 	{
 		return "corner" + std::to_string(i) + std::to_string(j) + std::to_string(k);
@@ -84,7 +83,7 @@ Simulation::Simulation(const std::string& file_name,const std::string& restart_n
 	for (tw::Int i=0;i<2;i++)
 		for (tw::Int j=0;j<2;j++)
 			for (tw::Int k=0;k<2;k++)
-				gridDirectives.Add(corner_str(i,j,k),new tw::input::Numbers<tw::Float>(&corner[i][j][k][0],3),false);
+				gridDirectives.Add(corner_str(i,j,k),new tw::input::Numbers<tw::Float>(&cornerSet[i][j][k][0],3),false);
 	gridDirectives.Add("corner",new tw::input::Numbers<tw::Float>(&globalCorner[0],3),false);
 	gridDirectives.Add("cell size",new tw::input::Numbers<tw::Float>(&spacing[0],3));
 	gridDirectives.Add("adaptive timestep",new tw::input::Bool(&adaptiveTimestep),false);
@@ -128,8 +127,9 @@ void Simulation::SetCellWidthsAndLocalSize()
 		if (w)
 		{
 			tw::Int ax = tw::grid::naxis(w->ax);
+			w->Initialize(); // needs an explicit call due to order of events
 			for (tw::Int i=lfg[ax];i<=ufg[ax];i++)
-				dX(i,ax) = spacing[ax-1] + w->AddedCellWidth(cornerCell[ax]-1+i);
+				dX(i,ax) += w->AddedCellWidth(cornerCell[ax]-1+i);
 		}
 	}
 
@@ -820,7 +820,6 @@ std::string Simulation::InputFileFirstPass()
 						foundGrid = true;
 						corner = globalCorner = size = globalSize = tw::vec3(0.0,0.0,0.0);
 						// allow user to choose any of 8 corners with strings like corner001, corner010, etc.
-						tw::vec3 corner[2][2][2];
 						auto corner_str = [&] (tw::Int i,tw::Int j,tw::Int k)
 						{
 							return "corner" + std::to_string(i) + std::to_string(j) + std::to_string(k);
@@ -844,13 +843,21 @@ std::string Simulation::InputFileFirstPass()
 										corners_given++;
 										if (corners_given>1)
 											throw tw::FatalError("Grid geometry is overspecified.");
-										globalCorner.x = corner[i][j][k].x - globalCells[1]*spacing.x*i;
-										globalCorner.y = corner[i][j][k].y - globalCells[2]*spacing.y*j;
-										globalCorner.z = corner[i][j][k].z - globalCells[3]*spacing.z*k;
+										globalCorner.x = cornerSet[i][j][k].x - globalCells[1]*spacing.x*i;
+										globalCorner.y = cornerSet[i][j][k].y - globalCells[2]*spacing.y*j;
+										globalCorner.z = cornerSet[i][j][k].z - globalCells[3]*spacing.z*k;
 									}
 								}
 					}
-					else
+					if (preamble.words[0]=="warp")
+					{
+						MangleToolName(preamble.obj_name);
+						messageOut << "Creating Tool <" << preamble.obj_name << ">..." << std::endl;
+						// Do not use CreateTool, do not want to increase refCount
+						computeTool.push_back(ComputeTool::CreateObjectFromType(preamble.obj_name,tw::tool_type::warp,this,this));
+						computeTool.back()->ReadInputFileBlock(inputString);
+					}
+					if (preamble.words[0]!="grid" && preamble.words[0]!="warp")
 						tw::input::ExitInputFileBlock(inputString,true);
 				}
 			}
@@ -1066,6 +1073,20 @@ void Simulation::ReadInputFile()
 			// Get the preamble = words that come between "new" and the opening token, and derived information
 			tw::input::Preamble preamble = tw::input::EnterInputFileBlock(com1,inputString,"{=");
 
+			// Intercept items processed during the first pass
+			if (preamble.words[0]=="grid")
+			{
+				preamble.words[0] = "tw::none";
+				processed = true;
+				tw::input::ExitInputFileBlock(inputString,true);
+			}
+			if (preamble.words[0]=="warp")
+			{
+				preamble.words[0] = "tw::none";
+				processed = true;
+				tw::input::ExitInputFileBlock(inputString,true);
+			}
+
 			// Install a pre or post declared tool
 			tw::tool_type whichTool = ComputeTool::CreateTypeFromInput(preamble);
 			if (whichTool!=tw::tool_type::none)
@@ -1141,12 +1162,6 @@ void Simulation::ReadInputFile()
 				clippingRegion.push_back(Region::CreateObjectFromString(clippingRegion,preamble.words[1]));
 				clippingRegion.back()->name = preamble.obj_name;
 				clippingRegion.back()->ReadInputFileBlock(inputString);
-			}
-
-			if (preamble.words[0]=="grid") // drop out of grid block, it was already processed during first pass.
-			{
-				processed = true;
-				tw::input::ExitInputFileBlock(inputString,true);
 			}
 
 			if (!processed)

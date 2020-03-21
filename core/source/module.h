@@ -2,7 +2,7 @@ namespace tw
 {
 	enum class module_type {	none,
 					electrostatic,
-					coulombSolver,directSolver,curvilinearDirectSolver,
+					coulombSolver,directSolver,curvilinearDirectSolver,farFieldDiagnostic,
 					qsLaser,pgcLaser,
 					kinetics,species,fluidFields,equilibriumGroup,chemical,sparcHydroManager,
 					boundElectrons,schroedinger,pauli,kleinGordon,dirac,populationDiagnostic};

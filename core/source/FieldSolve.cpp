@@ -1024,3 +1024,136 @@ void CurvilinearDirectSolver::Update()
 		}
 	}
 }
+
+
+FarFieldDiagnostic::FarFieldDiagnostic(const std::string& name,Simulation *sim) : Module(name,sim)
+{
+	J4 = NULL;
+	directives.Add("radius",new tw::input::Float(&radius));
+	directives.Add("bounds",new tw::input::Numbers<tw::Float>(&bounds[0],6));
+	directives.Add("dims",new tw::input::Numbers<tw::Int>(&dims[0],3));
+	directives.Add("period",new tw::input::Int(&period));
+}
+
+void FarFieldDiagnostic::Initialize()
+{
+	if (J4==NULL)
+		throw tw::FatalError("Far field diagnostic did not find a source field.");
+	tw::vec3 corner(bounds[0],bounds[2],bounds[4]);
+	tw::vec3 size(bounds[1]-bounds[0],bounds[3]-bounds[2],bounds[5]-bounds[4]);
+	DiscreteSpace layout(1.0,dims[0],dims[1],dims[2],corner,size,1);
+	A.Initialize(layout,owner);
+}
+
+bool FarFieldDiagnostic::InspectResource(void *resource,const std::string& description)
+{
+	if (description=="electromagnetic:sources")
+	{
+		J4 = (Field*)resource;
+		return true;
+	}
+	return false;
+}
+
+void FarFieldDiagnostic::ReadCheckpoint(std::ifstream& inFile)
+{
+	Module::ReadCheckpoint(inFile);
+	A.ReadCheckpoint(inFile);
+}
+
+void FarFieldDiagnostic::WriteCheckpoint(std::ofstream& outFile)
+{
+	Module::WriteCheckpoint(outFile);
+	A.WriteCheckpoint(outFile);
+}
+
+void FarFieldDiagnostic::Update()
+{
+	// Integrate over a plane in the source region for each interrogation cell in the far field
+	const tw::Float zmin = owner->X(1,3) - 0.5*owner->dX(1,3);
+	const tw::Float zmax = owner->X(Dim(3),3) + 0.5*owner->dX(Dim(3),3);
+	const tw::Float tp = owner->elapsedTime;
+	const tw::Float dtau = dt * tw::Float(period);
+
+	if (owner->stepNow % period==0)
+		for (auto farCell : InteriorCellRange(A))
+		{
+			const tw::Float tNow = bounds[0] + dx(A)*tw::Float(farCell.dcd1());
+			const tw::Float thetaNow = bounds[2] + dy(A)*tw::Float(farCell.dcd2());
+			const tw::Float phiNow = bounds[4] + dz(A)*tw::Float(farCell.dcd3());
+			const tw::vec3 n(sin(thetaNow)*cos(phiNow),sin(thetaNow)*sin(phiNow),cos(thetaNow));
+			#pragma omp parallel
+			{
+				for (auto s : StripRange(*this,3,strongbool::no))
+				{
+					std::valarray<tw::Float> j4(4);
+					tw::vec3 rp = owner->Pos(s,1);
+					rp.z = ((tp - tNow) - rp.x*n.x - rp.y*n.y)/n.z;
+					const tw::Float dS = owner->dS(s,1,3)/n.z;
+					if (rp.z > zmin && rp.z < zmax)
+					{
+						weights_3D w;
+						owner->GetWeights(&w,rp);
+						J4->Interpolate(j4,w);
+						A(farCell) += tw::vec3(j4[1],j4[2],j4[3]) * dS * dtau / radius;
+					}
+				}
+			}
+		}
+
+	if (owner->IsLastStep())
+		SpecialReport();
+}
+
+void FarFieldDiagnostic::SpecialReport()
+{
+	std::string fileName;
+	std::ofstream AthetaFile,AphiFile;
+	tw::Int master = 0;
+	tw::Int curr = owner->strip[0].Get_rank();
+
+	// Each node has different contributions to the same far field grid.
+	// We merely need to form the superposition of all these grids.
+	Vec3Field accum;
+	accum.Initialize(A,owner);
+	owner->strip[0].Sum(&A(0,0,0),&accum(0,0,0),sizeof(tw::vec3)*accum.TotalCells(),master);
+
+	if (curr==master)
+	{
+		// put vector potential in coulomb gauge and spherical coordinates
+		for (auto farCell : InteriorCellRange(accum))
+		{
+			const tw::Float theta = bounds[2] + dy(A)*tw::Float(farCell.dcd2());
+			const tw::Float phi = bounds[4] + dz(A)*tw::Float(farCell.dcd3());
+			const tw::vec3 nr( sin(theta)*cos(phi) , sin(theta)*sin(phi) , cos(theta) );
+			const tw::vec3 nq( cos(theta)*cos(phi) , cos(theta)*sin(phi) , -sin(theta) );
+			const tw::vec3 nf( -sin(phi) , cos(phi) , 0.0 );
+			const tw::vec3 ACG = nr | (accum(farCell) | nr); // form coulomb gauge A
+			accum(farCell) = tw::vec3( ACG^nr , ACG^nq , ACG^nf ); // put in spherical coordinates
+		}
+
+		fileName = name + "-Atheta.dvdat";
+		AthetaFile.open(fileName.c_str(),std::ios::binary);
+		WriteDVHeader(AthetaFile,2,dims[0],dims[1],dims[2],bounds[0],bounds[1],bounds[2],bounds[3],bounds[4],bounds[5]);
+		for (tw::Int k=1;k<=dims[2];k++)
+			for (tw::Int j=1;j<=dims[1];j++)
+				for (tw::Int i=1;i<=dims[0];i++)
+				{
+					const float data = accum(i,j,k).y;
+					WriteBigEndian((char *)&data,sizeof(float),0,AthetaFile);
+				}
+		AthetaFile.close();
+
+		fileName = name + "-Aphi.dvdat";
+		AphiFile.open(fileName.c_str(),std::ios::binary);
+		WriteDVHeader(AphiFile,2,dims[0],dims[1],dims[2],bounds[0],bounds[1],bounds[2],bounds[3],bounds[4],bounds[5]);
+		for (tw::Int k=1;k<=dims[2];k++)
+			for (tw::Int j=1;j<=dims[1];j++)
+				for (tw::Int i=1;i<=dims[0];i++)
+				{
+					const float data = accum(i,j,k).z;
+					WriteBigEndian((char *)&data,sizeof(float),0,AphiFile);
+				}
+		AphiFile.close();
+	}
+}

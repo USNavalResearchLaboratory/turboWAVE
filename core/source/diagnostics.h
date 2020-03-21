@@ -94,16 +94,3 @@ struct ParticleOrbits : Diagnostic
 	virtual void ReadCheckpoint(std::ifstream& inFile);
 	virtual void WriteCheckpoint(std::ofstream& outFile);
 };
-
-// struct FarFieldDetector : Diagnostic
-// {
-// 	tw::Float radius,theta0,theta1,phi0,phi1;
-// 	tw::Int thetaPts,phiPts,timePts;
-// 	std::ofstream AthetaFile,AphiFile;
-// 	Vec3Field A; // index as (t,theta,phi)
-//
-// 	FarFieldDetector(const std::string& name,MetricSpace *ms,Task *tsk);
-// 	virtual void ReadCheckpoint(std::ifstream& inFile);
-// 	virtual void WriteCheckpoint(std::ofstream& outFile);
-// 	void AccumulateField(const tw::Float& elapsedTime,Field& J4);
-// };
