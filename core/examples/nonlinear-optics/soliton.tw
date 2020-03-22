@@ -100,7 +100,6 @@ generate uniform 'osc3'
 
 new box diagnostic
 {
-	filename = full
 	skip = 1 1 4
 	period = 10000
 }

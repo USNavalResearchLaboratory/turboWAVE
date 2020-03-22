@@ -92,7 +92,6 @@ generate uniform 'e'
 
 new box diagnostic
 {
-	filename = full
 	period = 8
 }
 

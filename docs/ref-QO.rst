@@ -1,12 +1,119 @@
 Input File: Quantum
 ===================
 
+
+.. _qstate:
+
+Quantum State Tools
+-------------------
+
+.. _qstate-shared:
+
+Quantum State Shared Directives
+,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+
+The following may be used in any quantum state tool.
+
+		.. py:function:: amplitude = ( re , im )
+
+			:param float re: real part of amplitude to use for relative scaling and phasing
+			:param float im: imaginary part of amplitude to use for relative scaling and phasing
+
+		.. py:function:: cylindrical = tst
+
+		 	:param bool tst: if true use bound states appropriate for cylindrical atoms.
+
+Specific Quantum State Tools
+,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+
+.. py:function:: new qstate free [<name>] [for <module>] { <directives> }
+
+	Create a free state.
+
+	:param string module: Name of the module that will use the quantum state.
+	:param block directives: The following directives are supported:
+
+		Shared directives: see :ref:`qstate-shared`
+
+		.. py:function:: k4 = ( E , kx , ky , kz )
+
+			The four-momentum of the free state.
+
+			:param float kx: x-component of momentum
+			:param float ky: y-component of momentum
+			:param float kz: z-component of momentum
+			:param float E: Energy of the free state, only the sign is used.  The magnitude of the energy is always computed from the momentum.  Ignored for non-relativistic equations.
+
+		.. py:function:: spin = ( sx , sy , sz )
+
+			Define the orientation of the spin.  The magnitude of the vector is ignored.  Spin 1/2 is always assumed.
+
+			:param float sx: x-component of the spin direction
+			:param float sy: y-component of the spin direction
+			:param float sz: z-component of the spin direction
+
+		.. py:function:: size = ( Lx , Ly , Lz )
+
+			Size of the wave packet envelope.
+
+.. py:function:: new qstate random [<name>] [for <module>] { <directives> }
+
+	Create a random state.
+
+	:param string module: Name of the module that will use the quantum state.
+	:param block directives: The following directives are supported:
+
+		Shared directives: see :ref:`qstate-shared`
+
+		.. py:function:: size = ( Lx , Ly , Lz )
+
+			Size of the wave packet envelope.
+
+.. py:function:: new qstate bound [<name>] [for <module>] { <directives> }
+
+	Create a bound state.
+
+	:param string module: Name of the module that will use the quantum state.
+	:param block directives: The following directives are supported:
+
+		Shared directives: see :ref:`qstate-shared`
+
+		.. py:function:: nr_j_l_m = ( nr, j, l, m )
+
+			Set quantum numbers defining a bound state, see :doc:`bak-quantum` for full discussion.
+
+		 	:param int nr: radial quantum number
+			:param float j: total angular momentum quantum number
+			:param int l: parity quantum number
+			:param float m: angular momentum projection
+
+			.. tip::
+				The principle quantum number from Schroedinger theory is
+
+				:math:`n = n_r + l + 1`
+
+.. py:function:: new qstate tabulated [<name>] [for <module>] { <directives> }
+
+	Create a state using data from a file.
+
+	:param string module: Name of the module that will use the quantum state.
+	:param block directives: The following directives are supported:
+
+		Shared directives: see :ref:`qstate-shared`
+
+		.. py:function:: filename = fname`
+
+			Name of the file containing the data describing the state.  The format is given :ref:`here <state-file>`.
+
+Quantum Modules
+---------------
+
 .. _quantum-shared:
 
-Quantum Shared Directives
--------------------------
+Quantum Module Shared Directives
+,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
 
-The following may be used in any quantum optics module.
+The following may be used in any quantum propagation module.
 
 .. py:function:: orbiting charge = q0
 
@@ -25,83 +132,8 @@ The following may be used in any quantum optics module.
 	:param float Q: charge associated with the soft core potential
 	:param float dr: radius associated with the soft core potential
 
-.. py:function:: bachelet potential = c1 , c2 , a1 , a2 , 0 0 0 0 0 0 0 0 0
-
-	This is a more elaborate model for the effective potential in the single electron approximation.
-
-
-.. _wavefunction:
-
-.. py:function:: new wavefunction { directives }
-
-	Create an initial state.  Can be repeated to form a superposition state.
-
-	:param block directives: The following directives are supported:
-
-		.. py:function:: type = wv_type
-
-			:param enum wv_type: selected from the following:
-
-				:samp:`lookup` --- read the wavefunction from a file.  See :ref:`state-file`.
-
-				:samp:`free` --- use a wave packet that is nearly a definite momentum state, with definite spin in the rest frame.
-
-				:samp:`helicity` --- use a wave packet that is nearly a definite momentum state, with definite helicity.
-
-				:samp:`bound` --- use a stationary state solution assuming a Coulomb potential.
-
-				:samp:`random` --- use a random wavefunction with a given maximum amplitude and spatial envelope.
-
-		.. py:function:: file = fname
-
-			:param str fname: name of the file to use if :samp:`type = lookup`
-
-		.. py:function:: amplitude = ( re , im )
-
-			:param float re: real part of amplitude to use for relative scaling and phasing
-			:param float im: imaginary part of amplitude to use for relative scaling and phasing
-
-		.. py:function:: k_e_s = ( kx , ky , kz , E , sz )
-
-			Set quantum numbers defining a free state.
-
-			:param float kx: x-component of momentum
-			:param float ky: y-component of momentum
-			:param float kz: z-component of momentum
-			:param float E: Energy of the free state, only the sign is used.  The magnitude of the energy is always computed from the momentum.  Ignored for non-relativistic equations.
-			:param float sz: If :samp:`type=helicity`, this sets the spin projected onto the momentum axis, which must be either -0.5 or 0.5.  If :samp:`type=free`, this sets the z-component of the spin in the rest frame, which must also be either -0.5 or 0.5.  Ignored for scalar equations.
-
-		.. py:function:: size = ( sx , sy , sz )
-
-			Determines the size of the wave packet envelope in the cases :samp:`type=free`, :samp:`type=helicity`, and :samp:`type=random`.
-
-		.. py:function:: cylindrical = tst
-
-		 	:param bool tst: if true use bound states appropriate for cylindrical atoms.
-
-		.. py:function:: nr_j_l_m = nr j l m
-
-			Set quantum numbers defining a bound state, see :doc:`bak-quantum` for full discussion.
-
-		 	:param int nr: radial quantum number
-			:param float j: total angular momentum quantum number
-			:param int l: parity quantum number
-			:param float m: angular momentum projection
-
-			.. tip::
-				The principle quantum number from Schroedinger theory is
-
-				:math:`n = n_r + l + 1`
-
-
-.. py:function:: new reference { directives }
-
-	Create a wavefunction to use as a reference state.  Directives are exactly as in :ref:`wavefunction <wavefunction>`.
-
-
-
-Quantum Propagation Modules
----------------------------
+Specific Quantum Propagation Modules
+,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
 
 .. py:function:: new schroedinger equation module { directives }
 
@@ -110,6 +142,8 @@ Quantum Propagation Modules
 	:param block directives: The following directives are supported:
 
 		Shared directives: see :ref:`quantum-shared`
+
+		Installable tools: :ref:`qstate`, :ref:`radiation`
 
 		.. py:function:: keep a2 term = tst
 
@@ -132,9 +166,7 @@ Quantum Propagation Modules
 
 		Shared directives: see :ref:`quantum-shared`
 
-		.. py:function:: dipole approximation = tst
-
-		 	:param bool tst: if true, vector potential is uniform (always evaluated at origin)
+		Installable tools: :ref:`qstate`, :ref:`radiation`
 
 
 .. py:function:: new dirac equation module { directives }
@@ -144,8 +176,20 @@ Quantum Propagation Modules
 	:param block directives: The following directives are supported:
 
 		Shared directives: see :ref:`quantum-shared`
+		
+		Installable tools: :ref:`qstate`, :ref:`radiation`
 
+Quantum Diagnostics
+-------------------
 
+There is a diagnostic module for performing overlap integrals against reference states.  This is useful for tracking occupation probabilities.
+
+.. py:function:: new population diagnostic <name> { <directives> }
+
+	Creates the quantum population diagnostic.  This diagnostic module uses an ``energy diagnostic`` tool to report the real and imaginary part of an overlap integral as a function of time.
+
+	:param string name: The name of the diagnostic
+	:param block directives: The directives block may contain declarations of quantum state tools or energy diagnostic tools.  These tools can also be attached using any little language syntax.
 
 Bohmian Trajectories
 --------------------

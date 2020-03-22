@@ -56,7 +56,7 @@ The following directives may be used with any type of region.
 Basic Region Types
 ------------------
 
-.. py:function:: new region rect name { directives }
+.. py:function:: new region rect <name> { <directives> }
 
 	Creates a rectangular box.
 
@@ -69,7 +69,7 @@ Basic Region Types
 
 			Defines the limits of the rectangular box. This implies a translation transformation, so **ordering with respect to other transformations matters**.
 
-.. py:function:: new region circ name { directives }
+.. py:function:: new region circ <name> { <directives> }
 
 	Creates a circle or sphere in parameter space.
 
@@ -82,7 +82,7 @@ Basic Region Types
 
 			:param float R: defines the radius of the circle
 
-.. py:function:: new region true_sphere name { directives }
+.. py:function:: new region true_sphere <name> { <directives> }
 
 	Creates a sphere in real space.
 
@@ -95,7 +95,7 @@ Basic Region Types
 
 			:param float R: defines the radius of the sphere
 
-.. py:function:: new region prism name { directives }
+.. py:function:: new region prism <name> { <directives> }
 
 	Creates a prism in parameter space.
 
@@ -109,7 +109,7 @@ Basic Region Types
 			Defines the limits of the bounding rectangular box. This implies a translation transformation, so **ordering with respect to other transformations matters**.
 			The tip points in the +x direction.
 
-.. py:function:: new region ellipsoid name { directives }
+.. py:function:: new region ellipsoid <name> { <directives> }
 
 	Creates an ellipsoid in parameter space.
 
@@ -122,7 +122,7 @@ Basic Region Types
 
 			Defines the limits of the bounding rectangular box. This implies a translation transformation, so **ordering with respect to other transformations matters**.
 
-.. py:function:: new region cylinder name { directives }
+.. py:function:: new region cylinder <name> { <directives> }
 
 	Creates a cylinder in parameter space. Default orientation is centered on the z-axis.
 
@@ -140,7 +140,7 @@ Basic Region Types
 			:param float L: length of cylinder
 
 
-.. py:function:: new region rounded_cylinder name { directives }
+.. py:function:: new region rounded_cylinder <name> { <directives> }
 
 	Creates a cylinder in parameter space, with hemispherical end-caps. Default orientation is centered on the z-axis.
 
@@ -158,7 +158,7 @@ Basic Region Types
 			:param float L: length of cylinder, does not count the end-caps
 
 
-.. py:function:: new region cylindrical_shell name { directives }
+.. py:function:: new region cylindrical_shell <name> { <directives> }
 
 	Creates a cylindrical shell, or "tube", in parameter space. Default orientation is centered on the z-axis.
 
@@ -180,7 +180,7 @@ Basic Region Types
 			:param float L: length of tube
 
 
-.. py:function:: new region torus name { directives }
+.. py:function:: new region torus <name> { <directives> }
 
 	Creates a torus in parameter space. Default orientation is centered on the z-axis.
 
@@ -198,7 +198,7 @@ Basic Region Types
 			:param float R2: distance from the torus center to the tube center
 
 
-.. py:function:: new region cone name { directives }
+.. py:function:: new region cone <name> { <directives> }
 
 	Creates a cone in parameter space. Default orientation is centered on the z-axis, i.e., the origin is mid-way between the base and the tip.
 
@@ -219,7 +219,7 @@ Basic Region Types
 
 			:param float L: distance between base and tip
 
-.. py:function:: new region tangent_ogive name { directives }
+.. py:function:: new region tangent_ogive <name> { <directives> }
 
 	Creates a spherically blunted tangent ogive in parameter space. Default orientation is centered on the z-axis, with the tip on the +z side.
 
@@ -241,7 +241,7 @@ Basic Region Types
 			:param float L: distance between base and spherical tip
 
 
-.. py:function:: new region box_array name { directives }
+.. py:function:: new region box_array <name> { <directives> }
 
 	Creates an infinite array of box shaped regions.
 
@@ -262,7 +262,7 @@ Basic Region Types
 Compound Regions
 ----------------
 
-.. py:function:: new region union name { directives }
+.. py:function:: new region union <name> { <directives> }
 
 	Create the union of several other regions.  This is the *boolean or*, i.e., if the union has elements A, B, and C, then a point in the union must be in A or in B or in C.  If C is the complement of D, then the point must be in A or in B or not in D.
 
@@ -275,7 +275,7 @@ Compound Regions
 
 			variable length list of names of regions forming the union
 
-.. py:function:: new region intersection name { directives }
+.. py:function:: new region intersection <name> { <directives> }
 
 	Create the intersection of several other regions.  This is the *boolean and*, i.e., if the intersection has elements A, B, and C, then a point in the intersection must be in A and in B and in C.  If C is the complement of D, then the point must be in A and in B and not in D.
 

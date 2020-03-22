@@ -69,7 +69,7 @@ Error Handling
 
 It is important to pay attention to the output file if you are having problems.  If the code stops without reporting an error in the terminal window, you may still be able to get some feedback.  The procedure is as follows.
 
-	#. In the input file, add the line :samp:`stdout = full`
+	#. In the input file, add the line :samp:`output level = 1`
 	#. This line can go anywhere except within a :samp:`new` block or :samp:`generate` block
 	#. Run the problem again
 	#. If the error is not reported on the console, try :samp:`grep ERROR *stdout*`

@@ -106,8 +106,8 @@ ifeq ($(PLATFORM),OSX)
 	RELEASE_FLAGS = $(BASE_FLAGS) -O3 -march=native
 	PROFILE_FLAGS = $(BASE_FLAGS) -O3 -march=native -Rpass-analysis=loop-vectorize
 	DEBUG_FLAGS = $(BASE_FLAGS) -g -O0
-	BINARY_PATH = ~/bin
-	WORK_PATH = ~/Run
+	BINARY_PATH = ~/bin/
+	WORK_PATH = ~/Run/
 	TW_MPI = yes
 endif
 
@@ -123,8 +123,8 @@ ifeq ($(PLATFORM),WIN)
 	RELEASE_FLAGS = $(BASE_FLAGS) -O3 -march=native
 	PROFILE_FLAGS = $(BASE_FLAGS) -O3 -march=native -Rpass-analysis=loop-vectorize
 	DEBUG_FLAGS = $(BASE_FLAGS) -g -O0
-	BINARY_PATH = $(HOMEPATH)\bin
-	WORK_PATH = $(HOMEPATH)\Run
+	BINARY_PATH = $(HOMEPATH)\bin\$(strip)
+	WORK_PATH = $(HOMEPATH)\Run\$(strip)
 	TW_MPI = yes
 endif
 
@@ -166,8 +166,8 @@ ifeq ($(PLATFORM),LINUX)
 	RELEASE_FLAGS = $(BASE_FLAGS) -O3 -march=native
 	PROFILE_FLAGS = $(BASE_FLAGS) -O3 -march=native -Rpass-analysis=loop-vectorize
 	DEBUG_FLAGS = $(BASE_FLAGS) -g -O0
-	BINARY_PATH = ~/bin
-	WORK_PATH = ~/Run
+	BINARY_PATH = ~/bin/
+	WORK_PATH = ~/Run/
 	TW_MPI = yes
 endif
 
@@ -325,7 +325,7 @@ tw3d: 3dfields.cl particles.cl elliptic.cl hyperbolic.cl quantum.cl $(OBJ_LIST)
 copy_files:
 ifdef BINARY_PATH
 ifeq ($(PLATFORM),WIN)
-	copy tw3d $(BINARY_PATH)\tw3d.exe
+	copy tw3d $(BINARY_PATH)tw3d.exe
 else
 	cp tw3d $(BINARY_PATH)
 endif

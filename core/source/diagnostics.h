@@ -60,6 +60,7 @@ struct PointDiagnostic : TextTableBase
 struct BoxDiagnostic : Diagnostic
 {
 	bool average;
+	std::vector<std::string> reports;
 
 	BoxDiagnostic(const std::string& name,MetricSpace *ms,Task *tsk);
 	virtual void Finish();

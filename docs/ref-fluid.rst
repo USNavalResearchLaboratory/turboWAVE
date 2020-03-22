@@ -4,16 +4,14 @@ Input File: Fluids
 Relativistic Cold Fluid
 -----------------------
 
-The cold fluid module has priority 1 in the update sequence.
-
 The following object generates a module that computes the motion of a cold, relativistic, electron fluid.  It is assumed there is an immobile background of ions.  Temperature only comes into the computation of the Coulomb collision frequency.  The electron temperature is controlled by the last ``generate`` block (see :ref:`matter-loading`).  There can only be one cold fluid module in a simulation.  Electron, ion, and neutral density are tracked in this one module.  Any profiles installed for the fluid refer to a gas with constant fractional ionization.
 
-.. py:function:: new fluid name { directives }
+.. py:function:: new fluid <name> { <directives> }
 
 	:param str name: assigns a name to the fluid
 	:param block directives: The following directives are supported:
 
-		Shared directives: see :ref:`ionization`
+		Installable tools: :ref:`ionization`
 
 		.. py:function:: charge = q
 
@@ -42,11 +40,14 @@ The following object generates a module that computes the motion of a cold, rela
 SPARC Hydro Modules
 -------------------
 
-.. py:function:: new hydrodynamics { directives }
+.. py:function:: new hydrodynamics <name> { <directives> }
 
 	This is the top level SPARC module.  Internally it contains and manages all other SPARC modules.  The key may also be ``hydro`` or the legacy identifier ``chemistry``.
 
+	:param str name: name given to the hydro manager
 	:param block directives: The following directives are supported:
+
+		Installable tools: :ref:`elliptic`
 
 		.. py:function:: epsilon factor = eps
 
@@ -68,32 +69,15 @@ SPARC Hydro Modules
 
 		 	Reference point for dipole moment diagnostic
 
-		.. py:function:: external potential = ( V1 , V2 )
-
-			:param float V1: fixed potential at lower z boundary
-			:param float V2: fixed potential at upper z boundary
-
-		.. py:function:: tolerance = tol
-
-		 	:param float tol: Elliptical solver error tolerance
-
-		.. py:function:: overrelaxation = w
-
-		 	:param float w: overrelaxation parameter
-
-		.. py:function:: iterations = N
-
-		 	:param int N: elliptical solver maximum iterations
-
 
 .. _chemical:
 
-.. py:function:: new chemical name { directives }
+.. py:function:: new chemical <name> { <directives> }
 
 	:param str name: name given to the chemical species
 	:param block directives: The following directives are supported:
 
-		Shared directives: see :ref:`ionization`, :ref:`eos`
+		Installable tools: :ref:`ionization`, :ref:`eos`
 
 		.. py:function:: mass = m0
 
@@ -152,13 +136,15 @@ SPARC Hydro Modules
 SPARC Collision Directives
 --------------------------
 
-SPARC collisions broadly include elastic and inelastic collisions, as well as chemical reactions.  All such processes have to explicitly resolved.
+SPARC collisions broadly include elastic and inelastic collisions, as well as chemical reactions.  All such processes have to explicitly resolved.  These directives are special in that they use a compact, ordered declaration (without the usual parameter block), and use dimensional numbers in CGS-eV units.  This is due to the potentially large number of such constructs that may appear in an input file.  **Unit conversion macros should not be used**.
+
+SPARC collision directives should appear at the root level in the input file.  They find their parent modules automatically.  This makes it more straightforward to ``#include`` reaction data from separate files.
 
 .. py:function:: new collision = sp1 <-> sp2 , cross section = sigma
 
 	:param str sp1: name of chemical species 1 in two-body collision
 	:param str sp2: name of chemical species 2 in two-body collision
-	:param float sigma: cross section normalized to :math:`\omega_p/n_1c`
+	:param float sigma: cross section in square centimeters
 
 .. py:function:: new collision = sp1 <-> sp1 , coulomb
 
@@ -171,9 +157,9 @@ SPARC collisions broadly include elastic and inelastic collisions, as well as ch
 
 	Uses the harmonic mean of electron-phonon and coulomb collision rates
 
-	:param float ks0: some lattice constant, see K. Eidmann et al., Phys. Rev. E 62, 1202 (2000)
+	:param float ks0: dimensionless, see K. Eidmann et al., Phys. Rev. E 62, 1202 (2000)
 	:param float ef: the Fermi energy in eV
-	:param float nref: the density at which the formula directly applies
+	:param float nref: the density at which the formula directly applies in particles per cubic centimeter
 
 .. py:function:: new reaction = { eq1 : eq2 : eq3 : ... } rate = c0 c1 c2 cat(range)
 

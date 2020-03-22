@@ -54,9 +54,9 @@ Simulation::Simulation(const std::string& file_name,const std::string& restart_n
 	bc0[3] = tw::bc::par::absorbing;
 	bc1[3] = tw::bc::par::absorbing;
 
-	outerDirectives.Add("affinity",new tw::input::List<std::valarray<tw::Int>,tw::Int>(&affinityMask),false);
+	outerDirectives.Add("affinity",new tw::input::List<std::valarray<tw::Int>>(&affinityMask),false);
 	outerDirectives.Add("hardware acceleration device string",new tw::input::String(&deviceSearchString),false);
-	outerDirectives.Add("hardware acceleration device numbers",new tw::input::List<std::valarray<tw::Int>,tw::Int>(&deviceIDList),false);
+	outerDirectives.Add("hardware acceleration device numbers",new tw::input::List<std::valarray<tw::Int>>(&deviceIDList),false);
 	outerDirectives.Add("hardware acceleration platform string",new tw::input::String(&platformSearchString),false);
 	outerDirectives.Add("timestep",new tw::input::Float(&dt0));
 	outerDirectives.Add("output level",new tw::input::Int(&outputLevel),false);
@@ -324,6 +324,20 @@ void Simulation::PrepareSimulation()
 				m->moduleTool.push_back(tool);
 				tool->refCount++;
 			}
+
+	// Check for duplicate filenames
+	std::vector<std::string> fileName;
+	for (auto tool : computeTool)
+	{
+		Diagnostic *d = dynamic_cast<Diagnostic*>(tool);
+		if (d)
+		{
+			if (std::find(fileName.begin(),fileName.end(),d->filename)==fileName.end())
+				fileName.push_back(d->filename);
+			else
+				throw tw::FatalError("Duplicate file name used in diagnostic <"+d->name+">.");
+		}
+	}
 
 	// The Task and MetricSpace inherited members are initialized during input file reading,
 	// because Module constructors are allowed to assume the grid is fully specified.
@@ -656,14 +670,8 @@ void Simulation::ReadCheckpoint(std::ifstream& inFile)
 	inFile.read((char *)&stepNow,sizeof(tw::Int));
 	stepNow++;
 	stepsToTake += stepNow-1;
-	inFile.read((char *)&dt0,sizeof(tw::Float));
-	inFile.read((char *)&dtCritical,sizeof(tw::Float));
-	inFile.read((char *)&dtMin,sizeof(tw::Float));
-	inFile.read((char *)&dtMax,sizeof(tw::Float));
 	inFile.read((char *)&elapsedTime,sizeof(tw::Float));
-	inFile.read((char *)&elapsedTimeMax,sizeof(tw::Float));
 	inFile.read((char *)&signalPosition,sizeof(tw::Float));
-	inFile.read((char *)&signalSpeed,sizeof(tw::Float));
 	inFile.read((char *)&windowPosition,sizeof(tw::Float));
 	inFile.read((char *)&antiSignalPosition,sizeof(tw::Float));
 	inFile.read((char *)&antiWindowPosition,sizeof(tw::Float));
@@ -709,14 +717,8 @@ void Simulation::WriteCheckpoint(std::ofstream& outFile)
 {
 	MetricSpace::WriteCheckpoint(outFile);
 	outFile.write((char *)&stepNow,sizeof(tw::Int));
-	outFile.write((char *)&dt0,sizeof(tw::Float));
-	outFile.write((char *)&dtCritical,sizeof(tw::Float));
-	outFile.write((char *)&dtMin,sizeof(tw::Float));
-	outFile.write((char *)&dtMax,sizeof(tw::Float));
 	outFile.write((char *)&elapsedTime,sizeof(tw::Float));
-	outFile.write((char *)&elapsedTimeMax,sizeof(tw::Float));
 	outFile.write((char *)&signalPosition,sizeof(tw::Float));
-	outFile.write((char *)&signalSpeed,sizeof(tw::Float));
 	outFile.write((char *)&windowPosition,sizeof(tw::Float));
 	outFile.write((char *)&antiSignalPosition,sizeof(tw::Float));
 	outFile.write((char *)&antiWindowPosition,sizeof(tw::Float));
@@ -769,7 +771,6 @@ std::string Simulation::InputFileFirstPass()
 		Lock();
 
 		bool foundGrid = false;
-		bool foundRestart = false;
 		std::stringstream messageOut,fileName;
 
 		int numRanksProvided,worldRank;
@@ -875,8 +876,8 @@ std::string Simulation::InputFileFirstPass()
 		periodic[2] = bc0[2]==tw::bc::par::periodic ? 1 : 0;
 		periodic[3] = bc0[3]==tw::bc::par::periodic ? 1 : 0;
 
-		if (!foundGrid && !foundRestart)
-			throw tw::FatalError("neither a grid directive nor a restart file was found");
+		if (!foundGrid)
+			throw tw::FatalError("Grid directive was not found.");
 
 		if (outerDirectives.TestKey("unit density"))
 			AttachUnits(unitDensityCGS);

@@ -69,7 +69,6 @@ generate piecewise 'e'
 
 new box diagnostic
 {
-	filename = full
 	period = 2000
 }
 

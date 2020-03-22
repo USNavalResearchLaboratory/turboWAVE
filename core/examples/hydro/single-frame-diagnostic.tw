@@ -68,7 +68,7 @@ new group heavies
 }
 
 new collision = e <-> Ar[+] , coulomb
-new collision = e <-> Ar , cross section = 1.0 // This cross section is fictitious
+new collision = e <-> Ar , cross section = 1e-16 // appropriate for 1 eV
 new collision = e <-> Ar2[+] , coulomb
 
 // detailed balanced impact ionization and 3-body recombination

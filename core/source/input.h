@@ -69,30 +69,38 @@ namespace tw
 		{
 			Vec4(tw::vec4 *v) : Numbers<tw::Float>(&((*v)[0]),4) { ; }
 		};
-		template <class T,class N>
+		template <class T>
 		struct List : Directive
 		{
-			// T is a container type and N is a number type.
-			// The container has to support the resize method, and be subscriptable.
+			// T has to support the resize method, and be subscriptable.
+			// The contained type has to support input streams.
 			T *dat;
 			List(T *d) { dat=d; }
 			virtual void Read(std::stringstream& in,const std::string& key)
 			{
-				std::vector<N> temp;
 				Directive::Read(in,key);
 				std::string word;
 				in >> word;
 				if (word!="{")
 					throw tw::FatalError("Expected curly-brace at start of list.");
+				// First put the string-data on a temporary stream and count.
+				// We are using streams to convert strings to data polymorphically.
+				std::stringstream temp;
+				tw::Int count = 0;
 				do
 				{
 					in >> word;
 					if (word!="}")
-						temp.push_back(std::stod(word));
+					{
+						count++;
+						temp << word << " ";
+					}
 				} while (word!="}");
-				dat->resize(temp.size());
-				for (tw::Int i=0;i<temp.size();i++)
-					(*dat)[i] = temp[i];
+				temp.seekg(0,temp.beg);
+				dat->resize(count);
+				for (tw::Int i=0;i<count;i++)
+					if (!(temp >> (*dat)[i]))
+						throw tw::FatalError("Invalid data type for key <"+key+">");
 			}
 		};
 		template <class T>

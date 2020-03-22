@@ -75,7 +75,6 @@ generate piecewise 'gas'
 
 new box diagnostic
 {
-	filename = full
 	period = 2000
 }
 

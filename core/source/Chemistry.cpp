@@ -155,13 +155,13 @@ void Excitation::ReadInputFile(std::stringstream& inputString,tw::Float unitDens
 void Collision::ReadInputFile(std::stringstream& inputString,tw::Float unitDensityCGS)
 {
 	// hard sphere example
-	// new collision = e <-> N , cross section = 5.0
+	// new collision = e <-> N , cross section = 1e-15
 
 	// coulomb collision example
 	// new collision = e <-> N[+] , coulomb
 
 	// metallic collision example
-	// new collision = e <-> Cu[+] , metallic , ks = 2.4 , fermi_energy_ev = 7.0 , ref_density = 3000
+	// new collision = e <-> Cu[+] , metallic , ks = 2.4 , fermi_energy_ev = 7.0 , ref_density = 1e23
 
 	tw::Int i;
 	std::string word,species;
@@ -176,6 +176,7 @@ void Collision::ReadInputFile(std::stringstream& inputString,tw::Float unitDensi
 	{
 		type = sparc::hard_sphere;
 		inputString >> word >> word >> crossSection;
+		crossSection = uc.CGSToSim(cross_section_dim,crossSection);
 	}
 
 	if (word=="coulomb")
@@ -189,6 +190,7 @@ void Collision::ReadInputFile(std::stringstream& inputString,tw::Float unitDensi
 		inputString >> word >> word >> ks;
 		inputString >> word >> word >> T_ref;
 		inputString >> word >> word >> n_ref;
-		T_ref *= uc.eV_to_sim(1.0);
+		T_ref = uc.eV_to_sim(T_ref);
+		n_ref = uc.CGSToSim(density_dim,n_ref);
 	}
 }

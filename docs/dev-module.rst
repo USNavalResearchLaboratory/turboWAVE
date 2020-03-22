@@ -114,7 +114,7 @@ If your module needs to share data through the publisher-consumer mechanism, fol
 Restart File Support
 ,,,,,,,,,,,,,,,,,,,,
 
-As of version 4.0.0, only time varying quantities need to be checkpointed (no need to store constants or structural information).  To support restarting a module, carry out the following steps.
+As of version 4.0, only time varying quantities need to be checkpointed (no need to store constants or structural information).  To support restarting a module, carry out the following steps.
 
 	#. Override the ``ReadCheckpoint`` method.  Call the superclass ``ReadCheckpoint`` method first.  Then read any necessary data from the restart file.
 	#. Override the ``WriteCheckpoint`` method.  Call the superclass ``WriteCheckpoint`` method first.  Then write any necessary data to the restart file.

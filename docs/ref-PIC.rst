@@ -25,9 +25,7 @@ Any field solver or particle species module can accept the following smoothing d
 Field Solvers
 -------------
 
-Field solver modules have priority 3 in the update sequence.
-
-.. py:function:: new electrostatic field solver { directives }
+.. py:function:: new electrostatic [field solver] [<name>] { <directives> }
 
 	Installs a general electrostatic field solver.  Inhomogeneous boundary conditions are imposed using
 	:ref:`Conductor <conductor>` objects.  Conductor objects may fill either ghost cells or interior cells.
@@ -36,16 +34,16 @@ Field solver modules have priority 3 in the update sequence.
 
 	:param block directives: The following directives are supported:
 
-		.. py:function:: get = name
-
-			:param str name: name of a previously defined elliptic solver
+		Installable tools: :ref:`elliptic`
 
 .. _coulomb-solver:
-.. py:function:: new coulomb electromagnetic module { directives }
+.. py:function:: new coulomb [field solver] [<name>] { <directives> }
 
 	Installs a Coulomb gauge electromagnetic field solver.  Similar to WAVE field solver, but assumes continuity of sources (no divergence cleaning structure).  Cartesian coordinates only.  An elliptic solver tool is required.  At present only the ``facr`` elliptic solver is recommended.
 
 	:param block directives: The following directives are supported:
+
+		Installable tools: :ref:`elliptic`, :ref:`radiation`
 
 		.. py:function::	dipole center = (x,y,z)
 
@@ -57,11 +55,13 @@ Field solver modules have priority 3 in the update sequence.
 
 
 .. _direct-solver:
-.. py:function:: new direct electromagnetic module { directives }
+.. py:function:: new direct [field solver] [<name>] { <directives> }
 
 	Create an EM module that advances Maxwell's curl equations directly, relying on continuity of sources to preserve divergence conditions.  An elliptical solver is used for initialization.  Cartesian only.
 
 	:param block directives: The following directives are supported:
+
+		Installable tools: :ref:`elliptic`, :ref:`radiation`
 
 		.. py:function::	dipole center = (x,y,z)
 
@@ -77,15 +77,17 @@ Field solver modules have priority 3 in the update sequence.
 
 		 	:param float Rx0: Desired fraction of AMPLITUDE reflected from lower x boundary.  If actual reflection is larger than requested, try increasing the number of layers. Other 5 parameters are analogous.
 
-.. py:function:: new curvilinear direct module { directives }
+.. py:function:: new curvilinear direct [field solver] [<name>] { <directives> }
 
 	Same as :ref:`direct electromagnetic module <direct-solver>` except for arbitrary coordinate system. Elliptical solver should be ``eigenmode``.
 
-.. py:function:: new pgc laser module { directives }
+.. py:function:: new pgc [laser solver] [<name>] { <directives> }
 
-	Create an enveloped field solver suitable for use with ponderomotive guiding center simulations.  Requires a laser propagator tool.
+	Create an enveloped field solver suitable for use with ponderomotive guiding center simulations.
 
 	:param block directives: The following directives are supported:
+
+		Installable tools: :ref:`propagator`, :ref:`radiation`
 
 		.. py:function:: carrier frequency = f
 
@@ -101,12 +103,14 @@ Particle Species
 
 Particle species can be used in electromagnetic PIC or as Bohmian particles in :doc:`bak-quantum`.
 
-.. py:function:: new species name { directives }
+.. py:function:: new species <name> { <directives> }
 
 	:param str name: name given to the species
 	:param block directives: The following directives are supported:
 
-		Shared directives: see :ref:`boundaries <boundaries>`, :ref:`ionization`
+		Shared directives: see :ref:`boundaries <boundaries>`
+		
+		Installable tools: :ref:`ionization`
 
 		.. py:function:: mass = m0
 
@@ -146,7 +150,7 @@ Nonlinear Optics
 
 Bound particles treated as anharmonic oscillators can be used in the electromagnetic PIC environment.
 
-.. py:function:: new bound name { directives }
+.. py:function:: new bound <name> { <directives> }
 
 	:param str name: name given to the bound species
 	:param block directives: The following directives are supported:

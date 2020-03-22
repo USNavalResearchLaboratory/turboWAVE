@@ -249,7 +249,7 @@ void tw::input::UnitMacros(std::stringstream& in,std::stringstream& out)
 	auto IsUnitMacro = [&] (const std::string& s)
 	{
 		if (word.size()>1)
-			if (word[0]=='%' || word[0]=='-' && word[1]=='%')
+			if (word[0]=='%' || (word[0]=='-' && word[1]=='%'))
 				return true;
 		return false;
 	};

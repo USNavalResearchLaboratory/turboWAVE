@@ -67,7 +67,7 @@ If you want the tool to be accessible from the input file, carry out the followi
 Restart File Support
 ,,,,,,,,,,,,,,,,,,,,
 
-As of version 4.0.0, only time varying quantities need to be checkpointed (no need to store constants or structural information).  To support restarting a tool, carry out the following steps.
+As of version 4.0, only time varying quantities need to be checkpointed (no need to store constants or structural information).  To support restarting a tool, carry out the following steps.
 
 	#. Override the tool's ``ReadCheckpoint`` method.  Call the inherited ``ReadCheckpoint`` method first.  Then read any necessary data from the restart file.
 	#. Override the tool's ``WriteCheckpoint`` method.  Call the inherited ``WriteCheckpoint`` method first.  Then write any necessary data to the restart file.

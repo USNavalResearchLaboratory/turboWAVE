@@ -289,8 +289,9 @@ void PointDiagnostic::WriteCheckpoint(std::ofstream& outFile)
 BoxDiagnostic::BoxDiagnostic(const std::string& name,MetricSpace *ms,Task *tsk) : Diagnostic(name,ms,tsk)
 {
 	average = false;
-	filename = "full";
+	filename = "tw::none";
 	directives.Add("average",new tw::input::Bool(&average),false);
+	directives.Add("reports",new tw::input::List<std::vector<std::string>>(&reports),false);
 }
 
 void BoxDiagnostic::GetGlobalIndexing(tw::Int pts[4],tw::Int glb[6])
@@ -337,6 +338,10 @@ void BoxDiagnostic::GetLocalIndexing(const tw::Int pts[4],const tw::Int glb[6],t
 
 void BoxDiagnostic::Field(const std::string& fieldName,const struct Field& F,const tw::Int c)
 {
+	if (reports.size()>0)
+		if (std::find(reports.begin(),reports.end(),fieldName)==reports.end())
+			return;
+
 	tw::Int buffSize,ready,i0,i1;
 	std::valarray<float> buffer,gData;
 	std::ofstream outFile;
@@ -347,7 +352,7 @@ void BoxDiagnostic::Field(const std::string& fieldName,const struct Field& F,con
 	thisNode = task->strip[0].Get_rank();
 	master = 0;
 
-	if (filename=="full")
+	if (filename=="tw::none")
 		xname = fieldName + ".dvdat";
 	else
 		xname = filename + "_" + fieldName + ".dvdat";
@@ -444,6 +449,52 @@ void BoxDiagnostic::Field(const std::string& fieldName,const struct Field& F,con
 
 void BoxDiagnostic::Finish()
 {
+	const tw::Int curr = task->strip[0].Get_rank();
+	const tw::Int master = 0;
+
+	// Write out the grid warp and time level information
+
+	if (curr==master)
+	{
+		std::ofstream warpFile;
+		std::string xname;
+		if (filename=="tw::none")
+			xname = "grid_warp.txt";
+		else
+			xname = filename + "_grid_warp.txt";
+		if (headerWritten)
+			warpFile.open(xname.c_str(),std::ios::app);
+		else
+			warpFile.open(xname.c_str());
+		warpFile << "t = " << t << std::endl;
+		for (tw::Int ax=1;ax<=3;ax++)
+		{
+			std::valarray<tw::Float> X;
+			X.resize(task->globalCells[ax]);
+			const tw::Int offset = space->Dim(ax)*task->strip[ax].Get_rank();
+			for (tw::Int i=1;i<=space->Dim(ax);i++)
+				X[i-1+offset] = space->X(i,ax);
+			task->strip[ax].Gather(&X[offset],&X[offset],task->localCells[ax]*sizeof(tw::Float),master);
+			warpFile << "axis" << ax << " = ";
+			for (tw::Int i=0;i<X.size()-1;i++)
+				warpFile << X[i] << " ";
+			warpFile << X[X.size()-1] << std::endl;
+		}
+		warpFile.close();
+	}
+	else
+	{
+		for (tw::Int ax=1;ax<=3;ax++)
+		{
+			std::valarray<tw::Float> X;
+			X.resize(task->globalCells[ax]);
+			const tw::Int offset = space->Dim(ax)*task->strip[ax].Get_rank();
+			for (tw::Int i=1;i<=space->Dim(ax);i++)
+				X[i-1+offset] = space->X(i,ax);
+			task->strip[ax].Gather(&X[offset],&X[offset],task->localCells[ax]*sizeof(tw::Float),master);
+		}
+	}
+
 	headerWritten = true;
 }
 

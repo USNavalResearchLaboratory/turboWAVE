@@ -93,6 +93,5 @@ generate uniform 'osc3'
 
 new box diagnostic
 {
-	filename = full
 	period = 500
 }

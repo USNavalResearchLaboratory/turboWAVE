@@ -101,10 +101,9 @@ You will learn the most by studying the examples.  They can be found in :samp:`{
 TurboWAVE Reference
 -------------------
 
-Detailed exposition of the input file elements are in:
+Detailed exposition of the input file elements are in the reference pages.  Highlights include:
 
-	* :doc:`ref-input`
-	* :doc:`ref-geometry`
-	* :doc:`ref-PIC`
-	* :doc:`ref-fluid`
-	* :doc:`ref-QO`
+	* :doc:`ref-input` describes the input file "little language"
+	* :doc:`ref-tools` describes some important tools that can be used in various modules
+	* :doc:`ref-PIC` describes modules used for PIC simulations
+	* :doc:`ref-fluid` describes modules used for fluid simulations
