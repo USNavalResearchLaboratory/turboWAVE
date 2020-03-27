@@ -34,7 +34,7 @@ new coulomb electromagnetic module 'coul'
 
 new facr elliptic solver for 'coul'
 {
-	poisson boundary condition = ( open , open )
+	zboundary = ( open , open )
 }
 
 new pgc laser module 'pgc'

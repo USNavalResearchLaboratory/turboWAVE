@@ -36,7 +36,7 @@ new pgc laser module 'pgc'
 
 new facr elliptic solver for 'em'
 {
-	poisson boundary condition z = ( open , open )
+	zboundary = ( open , open )
 }
 
 new hermite gauss pulse for 'pgc'

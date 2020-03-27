@@ -109,18 +109,17 @@ new reaction = { N + N + N -> N2A + N + 3.58 } rate = 2.4e-33 -1.5 0 N2(:)
 new reaction = { N + N2[+] -> N[+] + N2 + 1.04 } rate = 1.0e-12 0 0 N(:)
 
 // electronically excited vibrations
+// need to put rates in standard form
 
-new excitation = e -> N2  level = 1  rate = -4.04e-9,1.85e-8,-7.21e-9,1.43e-9,1.1
-new excitation = e -> N2  level = 2  rate = -2.84e-9,1.2e-8,-4.57e-9,8.76e-10,1.08
-new excitation = e -> N2  level = 3  rate = -1.75e-9,7.46e-9,-2.89e-9,5.55e-10,1.09
-new excitation = e -> N2  level = 4  rate = -1.25e-9,5.13e-9,-1.94e-9,3.64e-10,1.07
-new excitation = e -> N2  level = 5  rate = -9.69e-10,3.82e-9,-1.38e-9,2.51e-10,1.04
-new excitation = e -> N2  level = 6  rate = -7.64e-10,2.89e-9,-1.01e-9,1.74e-10,0.992
-new excitation = e -> N2  level = 7  rate = -5.64e-10,2.1e-9,-7.22e-10,1.24e-10,0.983
-new excitation = e -> N2  level = 8  rate = -1.82e-10,6.33e-10,-2.04e-10,3.26e-11,0.909
+//new excitation = e -> N2  level = 1  rate = -4.04e-9,1.85e-8,-7.21e-9,1.43e-9,1.1
+//new excitation = e -> N2  level = 2  rate = -2.84e-9,1.2e-8,-4.57e-9,8.76e-10,1.08
+//new excitation = e -> N2  level = 3  rate = -1.75e-9,7.46e-9,-2.89e-9,5.55e-10,1.09
+//new excitation = e -> N2  level = 4  rate = -1.25e-9,5.13e-9,-1.94e-9,3.64e-10,1.07
+//new excitation = e -> N2  level = 5  rate = -9.69e-10,3.82e-9,-1.38e-9,2.51e-10,1.04
+//new excitation = e -> N2  level = 6  rate = -7.64e-10,2.89e-9,-1.01e-9,1.74e-10,0.992
+//new excitation = e -> N2  level = 7  rate = -5.64e-10,2.1e-9,-7.22e-10,1.24e-10,0.983
+//new excitation = e -> N2  level = 8  rate = -1.82e-10,6.33e-10,-2.04e-10,3.26e-11,0.909
 
 // heavy particle excited vibrations
 
-new excitation = N2 -> N2  level = 0  rate = 8.5e-7 , 12.06
-
-
+//new excitation = N2 -> N2  level = 0  rate = 8.5e-7 , 12.06

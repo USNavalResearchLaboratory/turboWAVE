@@ -15,9 +15,9 @@ EllipticSolver::EllipticSolver(const std::string& name,MetricSpace *m,Task *tsk)
 	coeff = NULL;
 	x0 = x1 = y0 = y1 = z0 = z1 = tw::bc::fld::natural;
 	gammaBeam = 1.0;
-	directives.Add("poisson boundary condition x",new tw::input::Enums<tw::bc::fld>(tw::bc::fld_map(),&x0,&x1),false);
-	directives.Add("poisson boundary condition y",new tw::input::Enums<tw::bc::fld>(tw::bc::fld_map(),&y0,&y1),false);
-	directives.Add("poisson boundary condition z",new tw::input::Enums<tw::bc::fld>(tw::bc::fld_map(),&z0,&z1),false);
+	directives.Add("xboundary",new tw::input::Enums<tw::bc::fld>(tw::bc::fld_map(),&x0,&x1),false);
+	directives.Add("yboundary",new tw::input::Enums<tw::bc::fld>(tw::bc::fld_map(),&y0,&y1),false);
+	directives.Add("zboundary",new tw::input::Enums<tw::bc::fld>(tw::bc::fld_map(),&z0,&z1),false);
 }
 
 void EllipticSolver::FormOperatorStencil(std::valarray<tw::Float>& D,tw::Int i,tw::Int j,tw::Int k)
@@ -133,30 +133,6 @@ void EllipticSolver::ZeroModeGhostCellValues(tw::Float *phi0,tw::Float *phiN1,Sc
 	}
 }
 
-void EllipticSolver::ReadCheckpoint(std::ifstream& inFile)
-{
-	ComputeTool::ReadCheckpoint(inFile);
-	inFile.read((char*)&x0,sizeof(x0));
-	inFile.read((char*)&x1,sizeof(x1));
-	inFile.read((char*)&y0,sizeof(y0));
-	inFile.read((char*)&y1,sizeof(y1));
-	inFile.read((char*)&z0,sizeof(z0));
-	inFile.read((char*)&z1,sizeof(z1));
-	inFile.read((char*)&gammaBeam,sizeof(gammaBeam));
-}
-
-void EllipticSolver::WriteCheckpoint(std::ofstream& outFile)
-{
-	ComputeTool::WriteCheckpoint(outFile);
-	outFile.write((char*)&x0,sizeof(x0));
-	outFile.write((char*)&x1,sizeof(x1));
-	outFile.write((char*)&y0,sizeof(y0));
-	outFile.write((char*)&y1,sizeof(y1));
-	outFile.write((char*)&z0,sizeof(z0));
-	outFile.write((char*)&z1,sizeof(z1));
-	outFile.write((char*)&gammaBeam,sizeof(gammaBeam));
-}
-
 
 /////////////////////////////////
 //                             //
@@ -231,9 +207,9 @@ void EllipticSolver1D::Solve(ScalarField& phi,ScalarField& source,tw::Float mul)
 		src[s-1] = mul*source(s*di,s*dj,s*dk);
 	}
 	if (task->n0[ax]==MPI_PROC_NULL)
-		phi.AdjustTridiagonalForBoundaries(axis,tw::grid::low,T1,T2,T3,src,phi(strip,-1));
+		phi.AdjustTridiagonalForBoundaries(axis,tw::grid::low,T1,T2,T3,src,phi(strip,space->LFG(ax)));
 	if (task->n1[ax]==MPI_PROC_NULL)
-		phi.AdjustTridiagonalForBoundaries(axis,tw::grid::high,T1,T2,T3,src,phi(strip,sDim+2));
+		phi.AdjustTridiagonalForBoundaries(axis,tw::grid::high,T1,T2,T3,src,phi(strip,space->UFG(ax)));
 	TriDiagonal<tw::Float,tw::Float>(ans,src,T1,T2,T3);
 	for (s=1;s<=sDim;s++)
 		phi(strip,s) = ans[s-1];
@@ -458,20 +434,6 @@ void IterativePoissonSolver::StatusMessage(std::ostream *theStream)
 	*theStream << "   Overrelaxation = " << overrelaxation << std::endl;
 	*theStream << "   Norm[source] = " << normSource << std::endl;
 	*theStream << "   Norm[residual] = " << normResidualAchieved << std::endl;
-}
-
-void IterativePoissonSolver::ReadCheckpoint(std::ifstream& inFile)
-{
-	EllipticSolver::ReadCheckpoint(inFile);
-	inFile.read((char*)&tolerance,sizeof(tolerance));
-	inFile.read((char*)&overrelaxation,sizeof(overrelaxation));
-}
-
-void IterativePoissonSolver::WriteCheckpoint(std::ofstream& outFile)
-{
-	EllipticSolver::WriteCheckpoint(outFile);
-	outFile.write((char*)&tolerance,sizeof(tolerance));
-	outFile.write((char*)&overrelaxation,sizeof(overrelaxation));
 }
 
 

@@ -34,8 +34,8 @@ new curvilinear direct solver 'em'
 {
 	new eigenmode elliptic solver 'eig-poisson'
 	{
-		poisson boundary condition x = neumann dirichlet
-		poisson boundary condition z = open open
+		xboundary = neumann dirichlet
+		zboundary = open open
 	}
 }
 

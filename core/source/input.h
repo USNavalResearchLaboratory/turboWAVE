@@ -189,5 +189,7 @@ namespace tw
 		void ExitInputFileBlock(std::stringstream& inputString,bool alreadyEntered);
 
 		std::string GetPhrase(const std::vector<std::string>& words,tw::Int num_words);
+
+		void PopExpectedWord(std::stringstream& inputString,const std::string& word,const std::string& obj);
 	}
 }

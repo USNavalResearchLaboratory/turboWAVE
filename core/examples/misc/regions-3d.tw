@@ -1,7 +1,7 @@
 // Keep the following line for generating twtest reports
 // TWTEST matplotlib zxyt=64,0 air.dvdat
 
-steps = 2
+steps = 1
 timestep = 0.005
 dump period = 0
 moving window = no
@@ -111,5 +111,5 @@ generate uniform 'air'
 
 new box diagnostic
 {
-	period = 2
+	period = 1
 }

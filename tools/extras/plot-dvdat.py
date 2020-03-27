@@ -15,11 +15,12 @@ from scipy import constants as C
 if len(sys.argv)<3:
 	print('Usage: python plot-dvdat.py slicing=slices/... file1,... [panels=a,b,...] [mult=1.0,1.0,1.0/...]')
 	print('    [range=low,high/...] [layout=2x2] [dr=0.0,...] [color=viridis,...] [roi=h0,h1,v0,v1/...]')
-	print('    [[tex]labels=hlab,vlab,clab/...]')
+	print('    [space=hlab,vlab/...] [[tex]labels=hlab,vlab,clab/...]')
 	print('------------------Examples----------------')
-	print('2D plot: python plot-dvdat.py zxyt=0,0 rho.dvdat')
-	print('1D plot: python plot-dvdat.py xyzt=0,0,0 Ex.dvdat')
+	print('2D zx-plot: python plot-dvdat.py zxyt=0,0 rho.dvdat')
+	print('1D x-plot: python plot-dvdat.py xyzt=0,0,0 Ex.dvdat')
 	print('Hybrid: python plot-dvdat.py zxyt=0,0/zxyt=0,0,0 rho.dvdat,Ex.dvdat panels=a,b layout=1x2')
+	print('2D zx-movie over all time slices: python plot-dvdat.py zxyt=0,: Ex.dvdat')
 	print('-------------------General Notes--------------------')
 	print('Extra spaces (e.g. around commas or equals) are not allowed.')
 	print('Displays any number of panels.')
@@ -35,11 +36,10 @@ if len(sys.argv)<3:
 	print('range: explicit setting of the low and high bounds of plotting range.')
 	print('layout: layout of the grid on which to put multiple plots.')
 	print('dr: 0.0 signals full range on linear scale, any other float is the number of decades spanned.')
-	print('color: viridis,magma,plasma,inferno,Spectral,bwr,seismic,prism,ocean,rainbow,jet,nipy_spectral')
-	print('   Color maps may be inverted by adding "_r" to the name')
-	print('   Note any Matplotlib color maps can be used.')
+	print('color: any Matplotlib color map, search internet for list (e.g., viridis, jet, inferno, etc.)')
 	print('roi: select a subdomain to plot, otherwise the full domain is plotted.')
-	print('[tex]labels: labels for axes and colorbar.')
+	print('space: choose standard axis labels (x0,x1,x2,x3,t,x,y,z,z-t,r,rho,phi,theta,mass,px,py,pz,gamma,gbx,gby,gbz)')
+	print('[tex]labels: fully customizable labels for axes and colorbar.')
 	print('   Including prefix tex causes each string to be automatically enclosed in $ tokens')
 	print('   Some characters require special treatment if you want to use them in a label.')
 	print('   Enter SPACE,COMMA,SEMICOLON,or SLASH to get the corresponding character.')
@@ -54,18 +54,28 @@ if len(sys.argv)<3:
 def format_label(l):
 	return l.replace('SPACE',' ').replace('COMMA',',').replace('SEMICOLON',';').replace('SLASH','/')
 
-cartesian = {
- 'Axis0' : r'$\omega_p t$',
- 'Axis1' : r'$\omega_p x/c$' ,
- 'Axis2' : r'$\omega_p y/c$' ,
- 'Axis3' : r'$\omega_p(z/c-t)$' }
-cylindrical = {
- 'Axis0' : r'$\omega_p t$',
- 'Axis1' : r'$\omega_p\rho/c$' ,
- 'Axis2' : r'$\varphi$' ,
- 'Axis3' : r'$\omega_p(z/c-t)$' }
-
-lab_dict = cylindrical
+std_axes = {
+ 'x0' : r'$x_0$',
+ 'x1' : r'$x_1$',
+ 'x2' : r'$x_2$',
+ 'x3' : r'$x_3$',
+ 't' : r'$\omega t$',
+ 'x' : r'$\omega x/c$',
+ 'y' : r'$\omega y/c$',
+ 'z' : r'$\omega z/c$',
+ 'z-t' : r'$\omega (z/c-t)$',
+ 'r' : r'$\omega r/c$',
+ 'rho' : r'$\omega \rho/c$',
+ 'phi' : r'$\varphi$',
+ 'theta' : r'$\theta$',
+ 'mass' : r'$E/m_ec^2$',
+ 'px' : r'$p_x/m_ec$',
+ 'py' : r'$p_y/m_ec$',
+ 'pz' : r'$p_z/m_ec$',
+ 'gamma' : r'$\gamma$',
+ 'gbx' : r'$\gamma\beta_x$',
+ 'gby' : r'$\gamma\beta_y$',
+ 'gbz' : r'$\gamma\beta_z$' }
 
 # Normalization constants in mks
 
@@ -152,10 +162,11 @@ color = []
 roi = []
 val_range = []
 mult = []
+space = []
 labels=[]
 texlabels=[]
 ask = 'yes'
-keylist = ['panels','layout','dr','color','roi','range','mult','labels','texlabels']
+keylist = ['panels','layout','dr','color','roi','range','mult','space','labels','texlabels']
 for keyval in sys.argv[3:]:
 	key = keyval.split('=')[0]
 	arg = keyval.split('=')[1]
@@ -177,6 +188,8 @@ for keyval in sys.argv[3:]:
 		val_range = arg.split('/')
 	if key=='mult':
 		mult = arg.split('/')
+	if key=='space':
+		space = arg.split('/')
 	if key=='labels':
 		labels = arg.split('/')
 	if key=='texlabels':
@@ -302,9 +315,12 @@ for file_idx in range(len(slice_tuples[0])):
 				plt.xlabel(format_label(r'$'+texlabels[i].split(',')[0]+r'$'),size=12)
 				plt.ylabel(format_label(r'$'+texlabels[i].split(',')[1]+r'$'),size=12)
 				b.set_label(format_label(r'$'+texlabels[i].split(',')[2]+r'$'),size=12)
-			if labels[i]=='' and texlabels[i]=='':
-				plt.xlabel(lab_dict[plot_dict['xlabel']],size=12)
-				plt.ylabel(lab_dict[plot_dict['ylabel']],size=12)
+			if len(space)>i:
+				plt.xlabel(std_axes[space[i].split(',')[0]],size=12)
+				plt.ylabel(std_axes[space[i].split(',')[1]],size=12)
+			if labels[i]=='' and texlabels[i]=='' and len(space)<=i:
+				plt.xlabel(plot_dict['xlabel'],size=12)
+				plt.ylabel(plot_dict['ylabel'],size=12)
 			if roi[i]=='':
 				roi_i = plot_dict['extent']
 			else:
@@ -324,8 +340,11 @@ for file_idx in range(len(slice_tuples[0])):
 			if not texlabels[i]=='':
 				plt.xlabel(format_label(r'$'+texlabels[i].split(',')[0]+r'$'),size=12)
 				plt.ylabel(format_label(r'$'+texlabels[i].split(',')[1]+r'$'),size=12)
-			if labels[i]=='' and texlabels[i]=='':
-				plt.xlabel(lab_dict[plot_dict['xlabel']],size=12)
+			if len(space)>i:
+				plt.xlabel(std_axes[space[i].split(',')[0]],size=12)
+				plt.ylabel(std_axes[space[i].split(',')[1]],size=12)
+			if labels[i]=='' and texlabels[i]=='' and len(space)<=i:
+				plt.xlabel(plot_dict['xlabel'],size=12)
 			if roi[i]=='':
 				roi_i = [abcissa[0],abcissa[-1],global_min[i],global_max[i]]
 			else:

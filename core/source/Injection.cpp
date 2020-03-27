@@ -798,9 +798,9 @@ Conductor::Conductor(const std::string& name,MetricSpace *m,Task *tsk) : Compute
 	affectsA = true;
 	currentType = EM::current::electric;
 	pulseShape.delay = 0.0;
-	pulseShape.risetime = tw::small_pos;
-	pulseShape.holdtime = tw::big_pos;
-	pulseShape.falltime = tw::small_pos;
+	pulseShape.risetime = 0.01*timestep(*m);
+	pulseShape.holdtime = 1e10*timestep(*m);
+	pulseShape.falltime = 0.01*timestep(*m);
 	gaussianRadius = tw::big_pos;
 	f = tw::big_pos;
 	ks = 0.0;
@@ -881,18 +881,16 @@ void Conductor::Initialize()
 
 tw::Float Conductor::Voltage(tw::Float t)
 {
-	tw::Int i;
 	tw::Float ans = 0.0;
-	for (i=0;i<potential.size();i++)
+	for (tw::Int i=0;i<potential.size();i++)
 		ans += pulseShape.PulseShapeFactor(t)*potential[i]*cos(angFreq[i]*t + phase[i]);
 	return ans;
 }
 
 tw::Float Conductor::VoltageRate(tw::Float t)
 {
-	tw::Int i;
 	tw::Float ans = 0.0;
-	for (i=0;i<potential.size();i++)
+	for (tw::Int i=0;i<potential.size();i++)
 	{
 		ans -= pulseShape.PulseShapeFactor(t)*angFreq[i]*potential[i]*sin(angFreq[i]*t + phase[i]);
 		ans += pulseShape.D1Amplitude(t)*potential[i]*cos(angFreq[i]*t + phase[i]);
@@ -902,12 +900,11 @@ tw::Float Conductor::VoltageRate(tw::Float t)
 
 tw::vec3 Conductor::PolarizationDensity(const tw::vec3& pos,tw::Float t)
 {
-	tw::Int i;
 	tw::vec3 P0;
 	tw::vec3 ans(0.0,0.0,0.0);
 	tw::vec3 rc = pos - theRgn->center;
 	theRgn->orientation.ExpressInBasis(&rc);
-	for (i=0;i<potential.size();i++)
+	for (tw::Int i=0;i<potential.size();i++)
 	{
 		P0 = tw::vec3(Px[i],Py[i],Pz[i]);
 		ans += P0*sin(angFreq[i]*t + phase[i] + (0.5*angFreq[i]/f)*(rc.x*rc.x + rc.y*rc.y) + (ks^rc));

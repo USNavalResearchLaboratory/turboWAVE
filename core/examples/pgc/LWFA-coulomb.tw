@@ -30,7 +30,7 @@ new coulomb electromagnetic module 'em'
 
 new facr elliptic solver for 'em'
 {
-	poisson boundary condition z = open open
+	zboundary = open open
 }
 
 new pgc laser module 'pgc'

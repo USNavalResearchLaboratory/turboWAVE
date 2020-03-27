@@ -30,7 +30,7 @@ new coulomb electromagnetic module 'coul'
 
 new facr elliptic solver for 'coul'
 {
-	poisson boundary condition z = ( open , open )
+	zboundary = ( open , open )
 }
 
 new hermite gauss for 'coul'

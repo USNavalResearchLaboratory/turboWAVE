@@ -21,6 +21,7 @@ struct PrimitiveReaction
 	tw::Float unit_T_eV,unit_rate_cgs; // normalization help for janev
 
 	tw::Float PrimitiveRate(tw::Float T);
+	void ReadRate(std::stringstream& inputString,tw::Int numBodies,UnitConverter& uc);
 };
 
 struct Reaction : PrimitiveReaction

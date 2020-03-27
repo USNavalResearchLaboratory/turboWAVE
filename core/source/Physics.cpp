@@ -81,17 +81,17 @@ void Ionizer::Initialize()
 	lstar = nstar - 1;
 }
 
-MPI::MPI(const std::string& name,MetricSpace *m,Task *tsk) : Ionizer(name,m,tsk)
+Multiphoton::Multiphoton(const std::string& name,MetricSpace *m,Task *tsk) : Ionizer(name,m,tsk)
 {
 	directives.Add("reference field",new tw::input::Float(&E_MPI));
 }
 
-void MPI::Initialize()
+void Multiphoton::Initialize()
 {
 	A3 = space->units->SimToAtomic(electric_field_dim,E_MPI);
 }
 
-tw::Float MPI::AverageRate(tw::Float w0,tw::Float E)
+tw::Float Multiphoton::AverageRate(tw::Float w0,tw::Float E)
 {
 	const tw::Float wa = space->units->SimToAtomic(angular_frequency_dim,w0); // laser freq. in a.u.
 	const tw::Float photons = MyFloor(Uion/wa + 1);

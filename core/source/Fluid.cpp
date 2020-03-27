@@ -998,6 +998,11 @@ void sparc::HydroManager::VerifyInput()
 			ellipticSolver = (EllipticSolver*)owner->CreateTool("default_elliptic_solver",tw::tool_type::ellipticSolver1D);
 		else
 			ellipticSolver = (EllipticSolver*)owner->CreateTool("default_elliptic_solver",tw::tool_type::iterativePoissonSolver);
+		// Default tool needs some default boundaries; if a tool was attached the user will have specified them.
+		tw::bc::fld x0 = owner->bc0[1]==par::axisymmetric ? fld::neumannWall : fld::dirichletCell;
+		tw::bc::fld z0 = fld::dirichletCell;
+		tw::bc::fld z1 = fld::neumannWall;
+		ellipticSolver->SetBoundaryConditions(x0,z0,z0,z0,z0,z1);
 	}
 
 	if (laserPropagator==NULL)
@@ -1009,7 +1014,7 @@ void sparc::HydroManager::Initialize()
 	Module::Initialize();
 
 	for (auto c : conductor)
-		ellipticSolver->FixPotential(phi,c->theRgn,0.0);
+		ellipticSolver->FixPotential(phi,c->theRgn,c->Voltage(owner->elapsedTime));
 
 	// Initialize laser frequency and refractive index
 	if (wave.size())
@@ -1021,8 +1026,6 @@ void sparc::HydroManager::Initialize()
 	}
 	refractiveIndex = tw::Complex(1.0,0.0);
 
-	// Electrostatic boundary conditions - override the tool (should we still?)
-	ellipticSolver->SetBoundaryConditions(owner->bc0[1]==par::axisymmetric ? fld::neumannWall : fld::dirichletCell,fld::dirichletCell,fld::dirichletCell,fld::dirichletCell,fld::dirichletCell,fld::neumannWall);
 	ellipticSolver->SetBoundaryConditions(phi);
 	rho.SetBoundaryConditions(tw::grid::x,fld::neumannWall,fld::neumannWall);
 	rho.SetBoundaryConditions(tw::grid::y,fld::neumannWall,fld::neumannWall);
@@ -1361,10 +1364,21 @@ void sparc::HydroManager::ComputeRadiativeSources()
 	{
 		const UnitConverter& uc = *owner->units;
 
-		// Ohmic heating due to laser fields
+		// Ohmic heating due to static and laser fields
 		if (electrons)
+		{
 			for (auto cell : InteriorCellRange(*this))
-				CreateTotalEnergy(cell,0.5*nu_e(cell)*state1(cell,ie)*norm(laserAmplitude(cell))/(sqr(laserFrequency) + sqr(nu_e(cell))),electrons->group->hidx);
+			{
+				const tw::Float sig_AC = nu_e(cell)*state1(cell,ie)/(sqr(laserFrequency) + sqr(nu_e(cell)));
+				const tw::Float sig_DC = state1(cell,ie)/nu_e(cell);
+				const tw::Float E2_AC = 0.5*norm(laserAmplitude(cell));
+				const tw::Float E2_DC = sqr((phi.fwd(cell,0,1) - phi.bak(cell,0,1))/owner->dL(cell,1)) +
+					sqr((phi.fwd(cell,0,2) - phi.bak(cell,0,2))/owner->dL(cell,2)) +
+					sqr((phi.fwd(cell,0,3) - phi.bak(cell,0,3))/owner->dL(cell,3));
+				CreateTotalEnergy(cell,sig_AC*E2_AC,electrons->group->hidx);
+				CreateTotalEnergy(cell,sig_DC*E2_DC,electrons->group->hidx);
+			}
+		}
 
 		// Photoionization
 		for (auto cell : InteriorCellRange(*this))
@@ -1829,6 +1843,8 @@ void sparc::HydroManager::FieldAdvance(tw::Float dt)
 	scratch.ApplyBoundaryCondition();
 
 	// Solve the elliptical equation --- div(scratch*grad(phi)) = -rho_eff
+	for (auto c : conductor)
+		ellipticSolver->FixPotential(phi,c->theRgn,c->Voltage(owner->elapsedTime));
 	ellipticSolver->SetCoefficients(&scratch);
 	ellipticSolver->Solve(phi,rho,-1.0);
 

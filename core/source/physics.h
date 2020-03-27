@@ -106,10 +106,10 @@ struct Ionizer : ComputeTool
 	tw::Float ThresholdEstimate() { return space->units->AtomicToSim(electric_field_dim,A3); }
 };
 
-struct MPI : Ionizer
+struct Multiphoton : Ionizer
 {
 	tw::Float E_MPI;
-	MPI(const std::string& name,MetricSpace *m,Task *tsk);
+	Multiphoton(const std::string& name,MetricSpace *m,Task *tsk);
 	virtual void Initialize();
 	virtual tw::Float AverageRate(tw::Float w0,tw::Float E);
 };

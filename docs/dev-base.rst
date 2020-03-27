@@ -32,15 +32,15 @@ Regardless of the launch mechanism, it results in the creation of a ``Simulation
 
 It is important to remember that each MPI process has its own unique instance of the ``Task`` object, even though this object describes the entire domain.  For example, the ``Task`` object stores the ranks of neighboring domains.  This data is different on each running process.
 
-Immediately upon launch, ``Simulation`` makes a first pass through the input file using the ``InputFileFirstPass`` method, and then executes the ``Run`` method.  The ``InputFileFirstPass`` method is used primarily to setup the domain decomposition using information in the input file.
+Immediately upon launch, ``Simulation`` makes a first pass through the input file using the ``InputFileFirstPass`` method, and then executes the ``Run`` method.  The ``InputFileFirstPass`` method is used primarily to setup the grid and the domain decomposition using information in the input file.
 
 The ``Run`` method executes the following sequence:
 
 	#. Create status file
 	#. Execute ``PrepareSimulation`` method
 
-		#. Construct grid using input file
-		#. Construct other objects using input file
+		#. Construct all objects using input file
+		#. Verify all ``Module`` objects
 		#. Initialize ``Region`` objects
 		#. Initialize ``ComputeTool`` objects
 		#. Initialize ``Module`` objects
@@ -57,7 +57,7 @@ The ``Run`` method executes the following sequence:
 
 .. Tip::
 
-	In turboWAVE constructing and initializing objects are two different operations.  All objects are constructed while processing the input file.  Initialization of objects happens only after all objects are constructed.
+	In turboWAVE constructing and initializing objects are two different operations.  All objects are constructed while processing the input file.  Initialization of objects happens only after all objects are constructed.  Modules also have an intermediate verification stage.
 
 .. Warning::
 

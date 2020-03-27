@@ -375,10 +375,15 @@ void tw::input::PythonRange(std::string& source,tw::Float *v0,tw::Float *v1)
 	std::string sub;
 	colonPos = source.find(':');
 
+	if (colonPos==std::string::npos)
+		throw tw::FatalError("Missing colon while reading python style range.");
 	if (colonPos>0)
 	{
 		sub = source.substr(0,colonPos);
-		*v0 = std::stod(sub,NULL);
+		try {
+			*v0 = std::stod(sub,NULL); }
+		catch (std::invalid_argument) {
+			throw tw::FatalError("Invalid number while reading python style range."); }
 	}
 	else
 		*v0 = 0.0;
@@ -386,7 +391,10 @@ void tw::input::PythonRange(std::string& source,tw::Float *v0,tw::Float *v1)
 	if (source.length() > colonPos+1)
 	{
 		sub = source.substr(colonPos+1,source.length()-colonPos-1);
-		*v1 = std::stod(sub,NULL);
+		try {
+			*v1 = std::stod(sub,NULL); }
+		catch (std::invalid_argument) {
+			throw tw::FatalError("Invalid number while reading python style range."); }
 	}
 	else
 		*v1 = tw::big_pos;
@@ -604,4 +612,12 @@ void tw::input::ExitInputFileBlock(std::stringstream& inputString,bool alreadyEn
 		if (word=="}")
 			rightCount++;
 	} while (leftCount==0 || leftCount>rightCount);
+}
+
+void tw::input::PopExpectedWord(std::stringstream& inputString,const std::string& word,const std::string& obj)
+{
+	std::string found;
+	inputString >> found;
+	if (found!=word)
+		throw tw::FatalError("Encountered <"+found+"> instead of <"+word+"> while reading <"+obj+">.");
 }

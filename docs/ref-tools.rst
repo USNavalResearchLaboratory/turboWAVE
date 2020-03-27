@@ -422,7 +422,7 @@ Elliptic Solvers
 
 All elliptic solvers share the following directives:
 
-.. py:function:: poisson boundary condition <coord> = ( <bc1> , <bc2> )
+.. py:function:: <coord>boundary = ( <bc1> , <bc2> )
 
 	:param enum coord: can be ``x``, ``y``, ``z``
 	:param enum bc1: boundary condition on lower side, can be ``open``, ``dirichlet``, ``neumann``.

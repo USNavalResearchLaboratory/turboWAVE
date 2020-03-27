@@ -73,6 +73,8 @@ Statements start with **new**, **get**, or **generate**.  The **new** and **gene
 
 Assignments copy a value in the input file to a simulation parameter.  These values can be decimal numbers, physical quantities with units, or **identifiers**.  Identifiers are used to select from choices, for example, ``periodic`` is an identifier corresponding to a boundary condition.
 
+To allow for chemistry-friendly notation, identifiers are relaxed compared to other languages.  In particular, ``[``, ``]``, ``+``, and ``-`` are allowed.  Thus, ``Ar[18+]`` is a valid little language identifier, even without using quotes.
+
 .. _preprocessor:
 
 Input Preprocessor
@@ -256,7 +258,7 @@ The second form allows the new object to be associated with a parent object with
 
 When optional names are not given, the turboWAVE parser will automatically choose a unique name for the object.
 
-The strict little language syntax requires that the user-assigned name should be in quotes, and that the quoted string satisfy the usual rules for naming an identifier (no white space or special characters except ``_``).  At present the turboWAVE parser does not strictly enforce this, but is likely to do so in the future.
+Quoting user assigned names is not required, but helps with readability, particularly if syntax highlights are used.  Quoting chemical names in SPARC reactions and collisions is discouraged due to the potential for high multiplicity.
 
 Objects which may have a high multiplicity use a more compact form with ordered directives.  The form is typically
 
@@ -382,7 +384,7 @@ Grid warps allow the user to ramp the cell size up or down, along a given axis, 
 
 .. py:function:: new warp { <directives> }
 
-	Ramp the cell sizes along a given axis through the given range of cell indices.  The form of the ramp is a quintic polynomial that has continuous first and second derivatives.
+	Ramp the cell sizes along a given axis through the given range of cell indices.  The form of the ramp is a quintic polynomial that can be matched to either a constant or another quintic polynomial, such that the overall function is :math:`{\cal C}^2` continuous.
 
 	:param block directives: The following directives are supported:
 

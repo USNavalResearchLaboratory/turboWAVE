@@ -449,14 +449,13 @@ void BoxDiagnostic::Field(const std::string& fieldName,const struct Field& F,con
 
 void BoxDiagnostic::Finish()
 {
-	const tw::Int curr = task->strip[0].Get_rank();
-	const tw::Int master = 0;
-
 	// Write out the grid warp and time level information
 
-	if (curr==master)
+	std::ofstream warpFile;
+	const tw::Int master = 0;
+	const tw::Int curr_global = task->strip[0].Get_rank();
+	if (curr_global==master)
 	{
-		std::ofstream warpFile;
 		std::string xname;
 		if (filename=="tw::none")
 			xname = "grid_warp.txt";
@@ -467,34 +466,25 @@ void BoxDiagnostic::Finish()
 		else
 			warpFile.open(xname.c_str());
 		warpFile << "t = " << t << std::endl;
-		for (tw::Int ax=1;ax<=3;ax++)
+	}
+	for (tw::Int ax=1;ax<=3;ax++)
+	{
+		// Message passing is needed to get the spatial points
+		std::valarray<tw::Float> X(task->globalCells[ax]);
+		const tw::Int offset = space->Dim(ax)*task->strip[ax].Get_rank();
+		for (tw::Int i=1;i<=space->Dim(ax);i++)
+			X[i-1+offset] = space->X(i,ax);
+		task->strip[ax].Gather(&X[offset],&X[offset],task->localCells[ax]*sizeof(tw::Float),master);
+		if (curr_global==master)
 		{
-			std::valarray<tw::Float> X;
-			X.resize(task->globalCells[ax]);
-			const tw::Int offset = space->Dim(ax)*task->strip[ax].Get_rank();
-			for (tw::Int i=1;i<=space->Dim(ax);i++)
-				X[i-1+offset] = space->X(i,ax);
-			task->strip[ax].Gather(&X[offset],&X[offset],task->localCells[ax]*sizeof(tw::Float),master);
 			warpFile << "axis" << ax << " = ";
 			for (tw::Int i=0;i<X.size()-1;i++)
 				warpFile << X[i] << " ";
 			warpFile << X[X.size()-1] << std::endl;
 		}
+	}
+	if (curr_global==master)
 		warpFile.close();
-	}
-	else
-	{
-		for (tw::Int ax=1;ax<=3;ax++)
-		{
-			std::valarray<tw::Float> X;
-			X.resize(task->globalCells[ax]);
-			const tw::Int offset = space->Dim(ax)*task->strip[ax].Get_rank();
-			for (tw::Int i=1;i<=space->Dim(ax);i++)
-				X[i-1+offset] = space->X(i,ax);
-			task->strip[ax].Gather(&X[offset],&X[offset],task->localCells[ax]*sizeof(tw::Float),master);
-		}
-	}
-
 	headerWritten = true;
 }
 

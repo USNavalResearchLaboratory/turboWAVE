@@ -8,7 +8,7 @@ Communication between modules can be accomplished in two ways.
 	1. Publisher-consumer mechanism
 	2. Containment hierarchy
 
-The preferred turboWAVE style is to use the horizontal publisher-consumer model, with modules containing only lower level constructs.  Ideally these lower level constructs are formal ``ComputeTool`` objects, but there are still elements (as of this writing) that fall outside this convention.  In order to handle these there is also a quasi-tool protocol.
+The preferred turboWAVE style is to use the horizontal publisher-consumer model, with modules containing only lower level constructs.  Ideally these lower level constructs are formal ``ComputeTool`` objects.
 
 In principle the publisher-consumer model can handle most of the inter-module relationships one needs, but in some cases a containment structure is irresistible.  The longest-standing such relationship is the containment of ``Species`` modules within the ``Kinetics`` module.  The SPARC hydrodynamics modules actually have two levels of containment, the ``HydroManager`` module contains ``EquilibriumGroup`` modules, and the ``EquilibriumGroup`` modules contain ``Chemical`` modules.
 
@@ -56,7 +56,7 @@ The ``Module`` objects use a simple tree structure.  Each ``Module`` has referen
 	#. ``submodule`` - a ``std::vector`` of pointers to submodules.
 	#. ``moduleTool`` - a ``std::vector`` of pointers to ``ComputeTool`` objects the user associated with the module.
 
-The containment hierarchy is created either while reading the input file, or while reading a restart file.
+The containment hierarchy is created while reading the input file.
 
 Implementing a Module
 ---------------------
@@ -98,7 +98,7 @@ Input file semantics automatically establish the containment tree.  However, the
 
 #. If your module is intended as a supermodule:
 
- 	* If you need strongly typed pointers to submodules, use ``Module::VerifyInput`` to search the ``submodule`` vector for the desired modules.  Use ``dynamic_cast`` to identify the module type, and to create the strongly typed pointer.
+	* If you need strongly typed pointers to submodules, use ``Module::VerifyInput`` to search the ``submodule`` vector for the desired modules.  Use ``dynamic_cast`` to identify the module type, and to create the strongly typed pointer.
 
 #. If your module is intended as a submodule:
 
@@ -109,7 +109,7 @@ Input file semantics automatically establish the containment tree.  However, the
 Intermodule Processing
 ,,,,,,,,,,,,,,,,,,,,,,
 
-If your module needs to share data through the publisher-consumer mechanism, follow the guidance :ref:`above <pub-cons>`.  If you want to use the containment hierarchy to orchestrate more complex interactions, you may want to store explicitly typed pointers to the supermodule or certain submodules.  This should be done in the ``Initialize`` method.
+If your module needs to share data through the publisher-consumer mechanism, follow the guidance :ref:`above <pub-cons>`.  If you want to use the containment hierarchy to orchestrate more complex interactions, you may want to store explicitly typed pointers to the supermodule or certain submodules.  This should be done in the ``VerifyInput`` method.
 
 Restart File Support
 ,,,,,,,,,,,,,,,,,,,,

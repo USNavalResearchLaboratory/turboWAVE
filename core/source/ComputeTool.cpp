@@ -252,7 +252,7 @@ ComputeTool* ComputeTool::CreateObjectFromType(const std::string& name,tw::tool_
 			ans = new EOSLinearMieGruneisen(name,ms,tsk);
 			break;
 		case tw::tool_type::mpi:
-			ans = new MPI(name,ms,tsk);
+			ans = new Multiphoton(name,ms,tsk);
 			break;
 		case tw::tool_type::adk:
 			ans = new ADK(name,ms,tsk);

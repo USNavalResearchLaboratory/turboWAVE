@@ -30,8 +30,8 @@ new eigenmode elliptic solver for 'es'
 	// Because we will put a charged electrode on the lower z-boundary,
 	// it is necessary to use a neumann condition on the outer radial boundary.
 	// Otherwise we would have a discontinuity in potential at the corner.
-	poisson boundary condition x = ( neumann, neumann )
-	poisson boundary condition z = ( dirichlet , dirichlet )
+	xboundary = ( neumann, neumann )
+	zboundary = ( dirichlet , dirichlet )
 }
 
 new species 'e'
