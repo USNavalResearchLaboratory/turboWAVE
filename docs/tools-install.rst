@@ -9,6 +9,10 @@ Most of the tools are built on Python 3, except for the native MacOS DataViewer 
 
 We do not cover installing the tools on HPC.
 
+.. note::
+
+	Tool versions are synchronized with core.  For the best results, keep the installed version numbers consistent.
+
 Tools Install by OS
 -------------------
 

@@ -16,6 +16,7 @@ struct Diagnostic : ComputeTool
 
 	Diagnostic(const std::string& name,MetricSpace *ms,Task *tsk);
 	bool WriteThisStep(tw::Float elapsedTime,tw::Float dt,tw::Int stepNow);
+	void StartGridFile(std::ofstream& grid);
 	virtual void Start();
 	virtual void Finish();
 	virtual void Float(const std::string& label,tw::Float val,bool avg);

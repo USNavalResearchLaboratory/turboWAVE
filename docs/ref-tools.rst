@@ -4,7 +4,7 @@ Input File: Tools
 General Information
 -------------------
 
-TurboWAVE objects come in two flavors, Modules and Tools.  Modules are the high level objects that orchestrate a simulation.  Tools are lower level objects dedicated to specific computations. Tools are intended to be attached to one or more modules (modules can share the same tool).  Modules can be placed in a hierarchy.  Tools can only be attached to a module.
+TurboWAVE objects come in two flavors, Modules and Tools (not to be confused with post-processing tools).  Modules are the high level objects that orchestrate a simulation.  Tools (internally called ``ComputeTool`` objects) are lower level objects dedicated to specific computations. Tools are intended to be attached to one or more modules (modules can share the same tool).  Modules can be placed in a hierarchy.  Tools can only be attached to a module.
 
 Tools are created like any object, see :doc:`ref-input`.
 
@@ -18,10 +18,10 @@ Radiation Injection
 To inject radiation, you specify a type of electromagnetic mode, directives defining its particular parameters, and attach it to a field solver.  For an in depth description of the available radiation modes see :doc:`bak-em-modes`. If the wave starts inside the box, an elliptical solver may be used to refine the initial divergence. If the wave starts outside the box, it will be coupled in, provided the field solver supports this. Each wave object has its own basis vectors :math:`({\bf u},{\bf v},{\bf w})`, with :math:`{\bf u}` the electric field polarization direction and :math:`{\bf w}` the propagation direction. All the available modes respond to the same set of directives. These are as follows:
 
 .. _wave-obj:
-.. py:function:: new <key> for <field_solver_name> { directives }
+.. py:function:: new <key> [<name>] [for <module_name>] { <directives> }
 
 	:param str key: The key determines the type of mode.  Valid keys are ``plane wave``, ``hermite gauss``, ``laguerre gauss``, ``bessel beam``, ``airy disc``, and ``multipole``.
-	:param str field_solver_name: Name given to a previously defined field solver module.
+	:param str module_name: Name given to a previously defined field solver module.
 	:param block directives: The following directives are supported:
 
 		.. py:function:: direction = ( nx , ny, nz )
@@ -191,7 +191,7 @@ The following directives may be used with any profile type
 Specific Matter Loading Profiles
 ,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
 
-.. py:function:: generate uniform <name> { directives }
+.. py:function:: generate uniform <name> { <directives> }
 
 	Generate uniform density within the clipping region.
 
@@ -205,7 +205,7 @@ Specific Matter Loading Profiles
 			:param float n0: density to load
 
 
-.. py:function:: generate piecewise <name> { directives }
+.. py:function:: generate piecewise <name> { <directives> }
 
 	Generate piecewise varying density within the clipping region.  The total density is the product of 3 piecewise functions:
 
@@ -252,7 +252,7 @@ Specific Matter Loading Profiles
 
 		 	Multiply final profile by :math:`\left[\cos(n_x x/2)\cos(n_y y/2)\cos(n_z z/2)\right]^2`
 
-.. py:function:: generate channel <name> { directives }
+.. py:function:: generate channel <name> { <directives> }
 
 	Generate density channel within the clipping region.  The defining formula is
 
@@ -290,7 +290,7 @@ Specific Matter Loading Profiles
 			:param float n6: see :math:`n_6` in defining formula
 
 
-.. py:function:: generate column <name> { directives }
+.. py:function:: generate column <name> { <directives> }
 
 	Generate density column within the clipping region.
 
@@ -312,7 +312,7 @@ Specific Matter Loading Profiles
 			:param float sy: radius of column, per :math:`\sigma_y` in defining formula.
 			:param float sz: ignored.
 
-.. py:function:: generate gaussian <name> { directives }
+.. py:function:: generate gaussian <name> { <directives> }
 
 	Generate a Gaussian ellipsoid within the clipping region.
 
@@ -346,7 +346,7 @@ Conducting regions serve the following purposes:
 	3. Impermeable objects filling arbitrary cells in hydrodynamic simulations
 	4. Fixed potential objects filling arbitrary cells in electrostatic simulations
 
-.. py:function:: new conductor <name> { directives }
+.. py:function:: new conductor [<name>] [for <module_name>] { <directives> }
 
 	The electrostatic potential can be fixed within the conductor as
 
@@ -431,7 +431,7 @@ All elliptic solvers share the following directives:
 Iterative Solver
 ,,,,,,,,,,,,,,,,
 
-.. py:function:: new iterative elliptic [<optional keys>] [for] <name> { directives }
+.. py:function:: new iterative elliptic [<name>] [for <module_name>] { <directives> }
 
 	Uses successive over-relaxation to iteratively solve the elliptic equation.  This solver is slow, but flexible.  There is no limit on the topology of the boundary conditions, and arbitrary coordinates are supported.  The following directives are supported:
 
@@ -448,7 +448,7 @@ Iterative Solver
 FACR Solver
 ,,,,,,,,,,,,,,,,
 
-.. py:function:: new facr elliptic [<optional keys>] [for] <name> { directives }
+.. py:function:: new facr elliptic [<name>] [for <module_name>] { <directives> }
 
 	Uses Fourier analysis is in the transverse directions.  This solver is fast, but boundary conditions can only be imposed on constant z-surfaces, and Cartesian coordinates are required.  The following directives are supported:
 
@@ -457,7 +457,7 @@ FACR Solver
 Eigenmode Solver
 ,,,,,,,,,,,,,,,,
 
-.. py:function:: new eigenmode elliptic [<optional keys>] [for] <name> { directives }
+.. py:function:: new eigenmode elliptic [<name>] [for <module_name>] { <directives> }
 
 	Uses generalized spectral resolution of the transverse coordinates.  This solver works in arbitrary coordinates, and is fast as long as the transverse modes are truncated.  Boundary conditions can only be imposed on constant z-surfaces.  The following directives are supported:
 
@@ -475,7 +475,7 @@ Laser Propagator
 Eigenmode Propagator
 ,,,,,,,,,,,,,,,,,,,,
 
-.. py:function:: new eigenmode propagator [<optional keys>] [for] <name> { directives }
+.. py:function:: new eigenmode propagator [<name>] [for <module_name>] { <directives> }
 
 	Uses generalized spectral resolution of the transverse coordinates.  This propagator works in arbitrary coordinates, and is fast as long as the transverse modes are truncated.  It has superior fidelity for highly dispersive systems.  The following directives are supported:
 
@@ -494,7 +494,7 @@ Eigenmode Propagator
 ADI Propagator
 ,,,,,,,,,,,,,,,,,,,,
 
-.. py:function:: new adi propagator [<optional keys>] [for] <name> { directives }
+.. py:function:: new adi propagator [<name>] [for <module_name>] { <directives> }
 
 	Uses alternating direction implicit method.  This is a fast propagator that works in arbitrary coordinates.  It has poor fidelity for highly dispersive systems.  There are no directives.
 
@@ -537,7 +537,7 @@ Multi-photon Ionization
 
 Model appropriate for low fields or high frequencies.
 
-.. py:function:: new mpi ionization [<optional keys>] [for] <name> { directives }
+.. py:function:: new mpi ionization [<name>] [for <module_name>] { <directives> }
 
 	The following directives are supported:
 
@@ -552,7 +552,7 @@ ADK Tunneling Ionization
 
 Model appropriate for high fields or low frequencies.
 
-.. py:function:: new adk ionization [<optional keys>] [for] <name> { directives }
+.. py:function:: new adk ionization [<name>] [for <module_name>] { <directives> }
 
 	The following directives are supported:
 
@@ -563,7 +563,7 @@ PPT Photoionization
 
 Cycle-averaged model that works across multi-photon and tunneling regimes.  Cannot be used for ionization due to carrier-resolved fields, i.e., must be used with an enveloped field solver.
 
-.. py:function:: new ppt ionization [<optional keys>] [for] <name> { directives }
+.. py:function:: new ppt ionization [<name>] [for <module_name>] { <directives> }
 
 	The following directives are supported:
 
@@ -580,15 +580,15 @@ Equation of State Tools
 
 :doc:`Equation of State <bak-eos>` (EOS) models are needed for hydrodynamics simulation.  EOS models are encapsulated in tool objects that can be attached to appropriate modules in the usual way.
 
-.. py:function:: new eos ideal gas tool [for] <name> { <directives> }
+.. py:function:: new eos ideal gas tool [<name>] [for <module_name>] { <directives> }
 
 	Directs a module to use the ideal gas equation of state.  No directives.
 
-.. py:function:: new eos hot electrons [for] <name> { <directives> }
+.. py:function:: new eos hot electrons [<name>] [for <module_name>] { <directives> }
 
 	Directs a module to use the ideal gas equation of state along with Braginskii electron transport coefficients.  No directives.
 
-.. py:function:: new eos simple mie gruneisen [for] <name> { <directives> }
+.. py:function:: new eos simple mie gruneisen [<name>] [for <module_name>] { <directives> }
 
 	Directs a module to use the simplified mie-gruneisen equation of state.  The following directives are supported:
 
@@ -596,7 +596,7 @@ Equation of State Tools
 
 			:param float grun: the gruneisen parameter relating density, temperature, and pressure
 
-.. py:function:: new eos linear mie gruneisen [for] <name> { <directives> }
+.. py:function:: new eos linear mie gruneisen [<name>] [for <module_name>] { <directives> }
 
 	Directs a module to use the linear Hugoniot-based mie-gruneisen equation of state.
 
@@ -621,6 +621,10 @@ Equation of State Tools
 Diagnostics
 ------------
 
+.. Note::
+
+	If a diagnostic tool is not explicitly attached to any module, it will be automatically attached to all modules.  This is an optimization based on the observation that one would often like a similar type of output from all modules.
+
 Diagnostic Formats
 ,,,,,,,,,,,,,,,,,,
 
@@ -632,7 +636,7 @@ TurboWAVE uses simple text and binary formats.  Text files are generally tab del
 
 .. highlight:: none
 
-DataViewer Box Diagnostic Format::
+The DataViewer Box Diagnostic Format (extension ``.dvdat``) is the workhorse::
 
 	The string "DataViewer 2.0.0"
 	32 bit integer : x dimension
@@ -648,7 +652,17 @@ DataViewer Box Diagnostic Format::
 	3D array of 32 bit floats: frame 2, written in FORTRAN order
 	...more frames (size of files allows reader to determine frames)
 
-DataViewer Orbit Diagnostic Format::
+As of version 4.0 each set of compatible ``.dvdat`` files is paired with a text file (``*_grid_warp.txt``) containing the mesh point and time level information::
+
+	t = <t0>
+	axis1 = <x1> <x2> ... <xN>
+	axis2 = <y1> <y2> ... <yN>
+	axis3 = <z1> <z2> ... <zN>
+	<...more frames>
+
+For static grids, the additional frames only have the line giving the elapsed time.
+
+The DataViewer Orbit Diagnostic (extension ``.dvpar``) contains the detailed particle information::
 
 	Particle record 1 at time level 1
 	Particle record 2 at time level 1
@@ -713,7 +727,7 @@ The following directives may be used with any diagnostic
 Specific Diagnostics
 ,,,,,,,,,,,,,,,,,,,,
 
-.. py:function:: new box diagnostic <name> { directives }
+.. py:function:: new box diagnostic [<name>] [for <module_name>] { <directives> }
 
 	Write out grid data as sequence of frames.  Clipping region must be a simple box.
 	This diagnostic produces several files per module, by default.
@@ -739,7 +753,7 @@ Specific Diagnostics
 			:param list fields: Put a list of fields to get restricted output.  If omitted then all available fields are written.
 
 
-.. py:function:: new energy diagnostic <name> { directives }
+.. py:function:: new energy diagnostic [<name>] [for <module_name>] { <directives> }
 
 	Diagnostic of volume integrated quantities.  Normalization includes the unit of particle number.
 
@@ -752,7 +766,7 @@ Specific Diagnostics
 		 	:param int digits: number of digits used to represent each result
 
 
-.. py:function:: new point diagnostic <name> { directives }
+.. py:function:: new point diagnostic [<name>] [for <module_name>] { <directives> }
 
 	Diagnostic to write out grid data at a specific point.
 
@@ -764,7 +778,7 @@ Specific Diagnostics
 
 			Coordinates of the point to diagnose.  This is subject to the Galilean transformation (see :ref:`diagnostics-shared`).
 
-.. py:function:: new phase space diagnostic for <species_name> { directives }
+.. py:function:: new phase space diagnostic [<name>] [for <module_name>] { <directives> }
 
 	Diagnostic to write out up to 3D phase space projections.  Setting a dimension to 1 produces a lower dimensional projection.
 
@@ -797,7 +811,7 @@ Specific Diagnostics
 			:param float z1: upper bound for axis 3
 
 
-.. py:function:: new orbit diagnostic for <species_name>
+.. py:function:: new orbit diagnostic [<name>] [for <module_name>]
 
 	Diagnostic to write out full phase space data of the particles.
 

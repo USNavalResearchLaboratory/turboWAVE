@@ -62,7 +62,7 @@ new region rect 'right'
 new conductor 'cathode' for 'hydro'
 {
 	clipping region = 'left'
-	potential = { %0eV }
+	potential = { %0V }
 	risetime = %1fs
 	holdtime = %1us
 	falltime = %1fs
@@ -71,7 +71,7 @@ new conductor 'cathode' for 'hydro'
 new conductor 'anode' for 'hydro'
 {
 	clipping region = 'right'
-	potential = { %30eV }
+	potential = { %30V }
 	risetime = %1fs
 	holdtime = %1us
 	falltime = %1fs

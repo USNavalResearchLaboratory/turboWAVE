@@ -40,9 +40,9 @@ The following object generates a module that computes the motion of a cold, rela
 SPARC Hydro Modules
 -------------------
 
-.. py:function:: new hydrodynamics <name> { <directives> }
+.. py:function:: new hydrodynamics [<name>] { <directives> }
 
-	This is the top level SPARC module.  Internally it contains and manages all other SPARC modules.  The key may also be ``hydro`` or the legacy identifier ``chemistry``.
+	This is the top level SPARC module.  Internally it contains and manages all other SPARC modules.
 
 	:param str name: name given to the hydro manager
 	:param block directives: The following directives are supported:
@@ -72,7 +72,9 @@ SPARC Hydro Modules
 
 .. _chemical:
 
-.. py:function:: new chemical <name> { <directives> }
+.. py:function:: new chemical [<name>] [for <name>] { <directives> }
+
+	The ``chemical`` module uses automatic attachment, i.e., if a ``chemical`` is created at the root level without the ``for`` clause a new equilibrium group module is created for it automatically.  As a result, ``chemical`` modules should never be attached using ``get`` statements.
 
 	:param str name: name given to the chemical species
 	:param block directives: The following directives are supported:
@@ -117,16 +119,14 @@ SPARC Hydro Modules
 		 	:param float epsi: imaginary part of permittivity relative to free space permittivity
 
 
-.. py:function:: new group name { directives }
+.. py:function:: new group [<name>] [for <name>] { directives }
 
-	Create an equilibrium group module.  This is a container for chemical species that are assumed to be in equilibrium with one another, and therefore have a common temperature and velocity.  All chemicals are part of a group.  If a chemical is declared outside any group, one is automatically created.
+	Create an equilibrium group module.  This is a container for chemical species that are assumed to be in equilibrium with one another, and therefore have a common temperature and velocity.  All chemicals are part of a group.
+
+	The ``group`` module uses automatic attachment, i.e., if created at the root level without the ``for`` clause it is automatically attached to ``hydrodynamics``. The ``hydrodynamics`` module is automatically created, if necessary.
 
 	:param str name: name given to the group
 	:param block directives: The following directives are supported:
-
-		.. py:function:: new chemical name { directives }
-
-			see :ref:`chemical <chemical>` for description of parameters.  Can be repeated to associate multiple chemicals with the group.
 
 		.. py:function:: mobile = tst
 

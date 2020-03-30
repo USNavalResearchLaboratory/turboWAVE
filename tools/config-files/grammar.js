@@ -2,7 +2,7 @@ module.exports = grammar(
 {
 	name: 'turbowave',
 
-	extras: $ => [/\s|\\\r?\n/,',',$.comment,],
+	extras: $ => [/\s|,/,$.comment,],
 
 	rules:
 	{
@@ -22,7 +22,7 @@ module.exports = grammar(
 
 		assignment: $ => seq($.identifier_sequence,'=',choice($.value,$.tuple,$.list)),
 
-		_statement: $ => choice($.new,$.associative_new,$.generate),
+		_statement: $ => choice($.new,$.associative_new,$.generate,$.reaction,$.collision,$.excitation),
 
 		_nested_statement: $ => choice($.get,$.new),
 
@@ -36,40 +36,60 @@ module.exports = grammar(
 			'new',
 			$.identifier_sequence,
 			optional($.string_literal),
-			seq('for',$.string_literal),
+			seq('for',choice($.string_literal,$.identifier)),
 			$.block),
 
 		generate: $ => seq(
 			'generate',
 			$.identifier_sequence,
-			$.string_literal,
+			optional($.string_literal),
 			$.block),
+
+		reaction: $ => seq('new','reaction','=',$.full_formula,$.rate,$.range),
+
+		collision: $ => seq(
+			'new','collision','=',
+			$.identifier,'<->',$.identifier,
+			choice('coulomb',seq('cross','section','=',$.decimal))),
+
+		excitation: $ => seq(
+			'new','excitation','=',
+			$.identifier,'->',$.identifier,
+			'level','=',$._integer,
+			$.rate),
 
 		get: $ => seq('get',choice($.identifier,$.string_literal)),
 
 		define_key: $ => /\$[a-zA-Z_]\w*/,
-		identifier: $ => /[a-zA-Z_]\w*/,
+		identifier: $ => /[a-zA-Z_][\w\[\]\+\-\^]*/,
 		identifier_sequence: $ => repeat1($.identifier),
-		string_literal: $ => /(\'[a-zA-Z_]\w*\'|\"[a-zA-Z_]\w*\")/,
-		decimal1: $ => /[0-9]+\.?[0-9]*[eE]?(\+|\-)?[0-9]*/,
-		decimal2: $ => /\.[0-9]+[eE]?(\+|\-)?[0-9]*/,
-
-		value: $ => choice($.identifier,$.decimal1,$.decimal2,$.unit_macro,$.define_key),
-
-		define_value: $ => choice($.identifier,$.decimal1,$.decimal2,$.unit_macro),
-
-		unit_macro: $ => seq(optional('-'),'%',choice($.decimal1,$.decimal2),$.unit),
-
-		unit: $ => choice('deg','rad','mrad','urad','cm2','m2','cm2s','m2s','um','mm','cm','m','fs','ps','ns','us','s','m-3','cm-3','Jm3','Jcm3','eV','K'),
-
+		string_literal: $ => seq('\'',$.identifier,'\''),
+		_integer: $ => /(\+|\-)?[0-9]+/,
+		_decimal1: $ => /(\+|\-)?[0-9]+\.?[0-9]*([eE](\+|\-)?[0-9]+)?/,
+		_decimal2: $ => /(\+|\-)?\.[0-9]+([eE](\+|\-)?[0-9]+)?/,
+		decimal: $ => choice($._decimal1,$._decimal2,$._integer),
+		value: $ => choice($.identifier,$.decimal,$.dimension,$.define_key,$.string_literal),
+		define_value: $ => choice($.identifier,$.decimal,$.dimension),
+		dimension: $ => seq(optional('-'),'%',$.decimal,$.unit),
+		unit: $ => choice('deg','rad','mrad','urad','cm2','m2','cm2s','m2s','um','mm','cm','m','fs','ps','ns','us','s','m-3','cm-3','Jm3','Jcm3','eV','K','V','Vm','Vcm','T'),
 		block: $ => seq('{',repeat($._nested),'}'),
-
 		tuple: $ => seq('(',repeat1($.value),')'),
-
 		list: $ => seq('{',repeat1($.value),'}'),
 
 		comment: $ => token(choice(
   			seq('//', /(\\(.|\r?\n)|[^\\\n])*/),
   			seq('/*',/[^*]*\*+([^/*][^*]*\*+)*/,'/'))),
+
+		// Reaction rule is complex, broken down into the following pieces:
+		_pterm: $ => seq(/\s+\+\s+/,choice($.identifier,$.decimal,$.define_key)),
+		_nterm: $ => seq(/\s+\-\s+/,choice($.decimal,$.define_key)),
+		chems: $ => seq(choice($.identifier,$.define_key),repeat(choice($._pterm,$._nterm))),
+		sub_formula: $ => seq($.chems,'->',$.chems),
+		full_formula: $ => seq('\{',$.sub_formula,repeat(seq(':',$.sub_formula)),'\}'),
+		arrhenius: $ => seq('rate','=',$.decimal,$.decimal,$.decimal),
+		janev: $ => seq('janev_rate','=',$.decimal,$.decimal,$.decimal,$.decimal,$.decimal,$.decimal,$.decimal,$.decimal,$.decimal),
+		rate: $=> choice($.arrhenius,$.janev),
+		range: $=> seq($.identifier,'(',optional($.decimal),':',optional($.decimal),')'),
+
 	}
 });

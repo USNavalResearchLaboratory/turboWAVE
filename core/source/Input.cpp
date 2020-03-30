@@ -485,6 +485,16 @@ void tw::input::NormalizeInput(const UnitConverter& uc,std::string& in_out)
 	if (units=="m2s")
 		nqty = uc.MKSToSim(diffusivity_dim,qty);
 
+	// EM Conversions
+	if (units=="V")
+		nqty = uc.MKSToSim(scalar_potential_dim,qty);
+	if (units=="Vm")
+		nqty = uc.MKSToSim(electric_field_dim,qty);
+	if (units=="Vcm")
+		nqty = uc.MKSToSim(electric_field_dim,100*qty);
+	if (units=="T")
+		nqty = uc.MKSToSim(magnetic_field_dim,qty);
+
 	if (nqty==tw::small_pos)
 		throw tw::FatalError("Unrecognized Units " + in_out);
 	else

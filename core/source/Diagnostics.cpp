@@ -84,6 +84,20 @@ bool Diagnostic::WriteThisStep(tw::Float elapsedTime,tw::Float dt,tw::Int stepNo
 	return false;
 }
 
+void Diagnostic::StartGridFile(std::ofstream& grid)
+{
+	std::string xname;
+	if (filename=="tw::none")
+		xname = "grid_warp.txt";
+	else
+		xname = filename + "_grid_warp.txt";
+	if (headerWritten)
+		grid.open(xname.c_str(),std::ios::app);
+	else
+		grid.open(xname.c_str());
+	grid << "t = " << t << std::endl;
+}
+
 void Diagnostic::Start()
 {
 }
@@ -449,42 +463,38 @@ void BoxDiagnostic::Field(const std::string& fieldName,const struct Field& F,con
 
 void BoxDiagnostic::Finish()
 {
-	// Write out the grid warp and time level information
+	// Write out the grid data
 
-	std::ofstream warpFile;
+	std::ofstream gridFile;
 	const tw::Int master = 0;
 	const tw::Int curr_global = task->strip[0].Get_rank();
+	tw::Int pts[4],glb[6];
+	GetGlobalIndexing(pts,glb);
 	if (curr_global==master)
+		StartGridFile(gridFile);
+	if (!headerWritten) // assuming static grid no need to keep writing spatial points
 	{
-		std::string xname;
-		if (filename=="tw::none")
-			xname = "grid_warp.txt";
-		else
-			xname = filename + "_grid_warp.txt";
-		if (headerWritten)
-			warpFile.open(xname.c_str(),std::ios::app);
-		else
-			warpFile.open(xname.c_str());
-		warpFile << "t = " << t << std::endl;
-	}
-	for (tw::Int ax=1;ax<=3;ax++)
-	{
-		// Message passing is needed to get the spatial points
-		std::valarray<tw::Float> X(task->globalCells[ax]);
-		const tw::Int offset = space->Dim(ax)*task->strip[ax].Get_rank();
-		for (tw::Int i=1;i<=space->Dim(ax);i++)
-			X[i-1+offset] = space->X(i,ax);
-		task->strip[ax].Gather(&X[offset],&X[offset],task->localCells[ax]*sizeof(tw::Float),master);
-		if (curr_global==master)
+		for (tw::Int ax=1;ax<=3;ax++)
 		{
-			warpFile << "axis" << ax << " = ";
-			for (tw::Int i=0;i<X.size()-1;i++)
-				warpFile << X[i] << " ";
-			warpFile << X[X.size()-1] << std::endl;
+			// Message passing is needed to get the spatial points
+			std::valarray<tw::Float> X(task->globalCells[ax]);
+			const tw::Int offset = space->Dim(ax)*task->strip[ax].Get_rank();
+			for (tw::Int i=1;i<=space->Dim(ax);i++)
+				X[i-1+offset] = space->X(i,ax);
+			task->strip[ax].Gather(&X[offset],&X[offset],task->localCells[ax]*sizeof(tw::Float),master);
+			if (curr_global==master)
+			{
+				const tw::Int lb = glb[2*ax-2];
+				const tw::Int ub = glb[2*ax-1];
+				gridFile << "axis" << ax << " = ";
+				for (tw::Int i=lb;i<ub;i+=skip[ax])
+					gridFile << X[i-1] << " ";
+				gridFile << X[ub-1] << std::endl;
+			}
 		}
 	}
 	if (curr_global==master)
-		warpFile.close();
+		gridFile.close();
 	headerWritten = true;
 }
 
@@ -602,7 +612,7 @@ void PhaseSpaceDiagnostic::Start()
 		outFile.open(fileName.c_str(),std::ios::binary);
 		WriteDVHeader(outFile,2,dims[1],dims[2],dims[3],bounds[0],bounds[1],bounds[2],bounds[3],bounds[4],bounds[5]);
 		outFile.close();
-		headerWritten = true;
+		// don't set headerWritten until end of Finish() due to grid file
 	}
 
 	tw::vec3 phaseSpaceMin(bounds[0],bounds[2],bounds[4]);
@@ -634,6 +644,30 @@ void PhaseSpaceDiagnostic::Finish()
 		}
 		outFile.close();
 	}
+
+	// Write out the phase space grid data
+
+	std::ofstream gridFile;
+	if (task->strip[0].Get_rank()==0)
+	{
+		StartGridFile(gridFile);
+		if (!headerWritten) // assuming static grid no need to keep writing spatial points
+		{
+			for (tw::Int ax=1;ax<=3;ax++)
+			{
+				// Unlike box diagnostic the grid is always uniform, no message passing needed
+				gridFile << "axis" << ax << " = ";
+				const tw::Float ds = (bounds[2*ax-1] - bounds[2*ax-2])/tw::Float(dims[ax]);
+				const tw::Float s1 = bounds[2*ax-2] + 0.5*ds;
+				const tw::Float sN = bounds[2*ax-1] - 0.5*ds;
+				for (tw::Int i=0;i<dims[ax]-1;i++)
+					gridFile << s1 + ds*tw::Float(i) << " ";
+				gridFile << sN << std::endl;
+			}
+		}
+		gridFile.close();
+	}
+	headerWritten = true;
 }
 
 void PhaseSpaceDiagnostic::Particle(const struct Particle& par,tw::Float m0,tw::Float tp)

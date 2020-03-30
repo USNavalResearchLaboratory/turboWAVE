@@ -20,16 +20,8 @@ Running an Example
 #. Submit the script according to the instructions for your machine.
 #. As the problem runs, you can monitor the progress by examining the contents of the file :samp:`twstat`.
 #. When the run is finished, you should have several files with the extension :samp:`dvdat`.  This is a simple binary format.  The twutils Python package has a function to read data into numpy arrays from this type of file.  If you want to see an example of how to read this file from C++, you can look in :samp:`{twroot}/tools/twpost`.
-#. Bring one or more data files over to your desktop computer (e.g., using :samp:`scp`).  For this example, retrieve :samp:`phi.dvdat`.
-#. Let us plot the results using DataViewer.  If you have the native MacOS version, double-click on :samp:`phi.dvdat` and advance the "Frame" slider.  You may like to go to the "View" menu and select "Autoscale Plot" to get a better color contrast.
-#. If you do not have a native DataViewer, you can run the python version.  Open a terminal window and navigate to :samp:`~/bin`, or wherever :samp:`DataViewer.ipynb` is.
-#. Activate your virtual environment (see :doc:`tools-install`)
-#. :samp:`jupyter notebook`
-#. Click on :samp:`DataViewer.ipynb`
-#. Locate the path variable in the source, and change to the directory where you downloaded the data.
-#. Click on the button to run the notebook
-#. Use the File dropdown to select :samp:`phi.dvdat`.
-#. Advance the Frame slider to examine the frames
+
+We do not cover remote visualization of data in this documentation.  Of course you can transfer the data to your desktop and follow the guidance in :doc:`run-desktop`.
 
 Command line arguments
 ----------------------

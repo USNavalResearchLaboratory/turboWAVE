@@ -33,8 +33,6 @@ new hydrodynamics
 	epsilon factor = 1e-4
 	radiation model = none
 	plasma model = neutral
-	// If using quasineutral model, the following sets the tolerance
-	tolerance = 1e-3
 }
 
 new chemical e

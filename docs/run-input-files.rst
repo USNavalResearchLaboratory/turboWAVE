@@ -55,34 +55,7 @@ It can be useful to identify, in this connection, a unit of particle number, per
 Unit Conversion Macros
 -----------------------
 
-In order to allow the use of conventional units in the input file, there is a simple notation that causes the parser to automatically perform a conversion.  The macro is formed by prepending a decimal value with the :samp:`%` symbol, and postpending it with a string identifying the unit.  As an example, enter :samp:`%10ps` to indicate a value of 10 picoseconds.  During pre-processing of the input file, the macro will be replaced with the decimal value of the quantity in normalized units.  The supported unit identifiers are given in Table II.
-
-.. csv-table:: Table II. Unit Conversion Macro Identifiers.
-	:header: "Quantity", "Identifier"
-
-	"Femtoseconds", :samp:`fs`
-	"Picoseconds", :samp:`ps`
-	"Nanoseconds", :samp:`ns`
-	"Microseconds", :samp:`us`
-	"Seconds", :samp:`s`
-	"Micrometers", :samp:`um`
-	"Millimeters", :samp:`mm`
-	"Centimeters", :samp:`cm`
-	"Meters", :samp:`m`
-	"Degrees", :samp:`deg`
-	"Radians", :samp:`rad`
-	"Milliradians", :samp:`mrad`
-	"Microradians", :samp:`urad`
-	"Particles per Cubic Meter", :samp:`m-3`
-	"Particles per Cubic Centimeter", :samp:`cm-3`
-	"Joules per Cubic Meter", :samp:`Jm3`
-	"Joules per Cubic Centimeter", :samp:`Jcm3`
-	"Electron Volts", :samp:`eV`
-	"Kelvin", :samp:`K`
-	"CGS Cross Section", :samp:`cm2`
-	"MKS Cross Section", :samp:`m2`
-	"CGS Diffusivity", :samp:`cm2s`
-	"MKS Diffusivity", :samp:`m2s`
+In order to allow the use of conventional units in the input file, there is a simple notation that causes the parser to automatically perform a conversion.  The macro is formed by prepending a decimal value with the :samp:`%` symbol, and postpending it with a string identifying the unit.  As an example, enter :samp:`%10ps` to indicate a value of 10 picoseconds.  During pre-processing of the input file, the macro will be replaced with the decimal value of the quantity in normalized units.  For the full list of available conversions see :ref:`unit-conv`.
 
 TurboWAVE Example Files
 -----------------------

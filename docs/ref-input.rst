@@ -108,34 +108,44 @@ The analogy with the C preprocessor is limited.  Function-like macros are not su
 
 User macros can be defined at any point in an input file, except where they would interrupt another directive. Attempting to redefine a macro throws an error.
 
+.. _unit-conv:
+
 Unit Conversion
 ,,,,,,,,,,,,,,,
 
 Almost all input parameters are in normalized units.  However, there are several pre-defined macros that make it simple to use physical units.  These are triggered by the ``%`` character. The format is :samp:`%{n}{u}`, where :samp:`{n}` is a number and :samp:`{u}` is a string identifying the units.  An example is :samp:`%10ps`, which means 10 picoseconds. No spaces may appear in the macro.  Supported units and identifier string are:
 
-	* micrometers = um
-	* millimeters = mm
-	* centimeters = cm
-	* meters = m
-	* femtoseconds = fs
-	* picoseconds = ps
-	* nanoseconds = ns
-	* microseconds = us
-	* seconds = s
-	* degrees = deg
-	* radians = rad
-	* milliradians = mrad
-	* microradians = urad
-	* Particles per cubic meter = m-3
-	* Particles per cubic centimeter = cm-3
-	* Joules per cubic centimeter = Jcm3
-	* Joules per cubit meter = Jm3
-	* electron volts = eV
-	* Kelvin = K
-	* CGS cross section = cm2
-	* MKS cross section = m2
-	* CGS diffusivity = cm2s
-	* MKS diffusivity = m2s
+.. csv-table:: Unit Conversion Macro Identifiers.
+	:header: "Quantity", "Identifier"
+
+	"Femtoseconds", :samp:`fs`
+	"Picoseconds", :samp:`ps`
+	"Nanoseconds", :samp:`ns`
+	"Microseconds", :samp:`us`
+	"Seconds", :samp:`s`
+	"Micrometers", :samp:`um`
+	"Millimeters", :samp:`mm`
+	"Centimeters", :samp:`cm`
+	"Meters", :samp:`m`
+	"Degrees", :samp:`deg`
+	"Radians", :samp:`rad`
+	"Milliradians", :samp:`mrad`
+	"Microradians", :samp:`urad`
+	"Particles per Cubic Meter", :samp:`m-3`
+	"Particles per Cubic Centimeter", :samp:`cm-3`
+	"Joules per Cubic Meter", :samp:`Jm3`
+	"Joules per Cubic Centimeter", :samp:`Jcm3`
+	"Electron Volts", :samp:`eV`
+	"Kelvin", :samp:`K`
+	"CGS Cross Section", :samp:`cm2`
+	"MKS Cross Section", :samp:`m2`
+	"CGS Diffusivity", :samp:`cm2s`
+	"MKS Diffusivity", :samp:`m2s`
+	"Volts", :samp:`V`
+	"Volts per Meter", :samp:`Vm`
+	"Volts per Centimeter", :samp:`Vcm`
+	"Tesla", :samp:`T`
+
 
 Preprocessor Order
 ,,,,,,,,,,,,,,,,,,

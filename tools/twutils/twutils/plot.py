@@ -57,7 +57,11 @@ def get_mesh_pts(data_file_name,dims):
     If the file is found return [tmesh,xmesh,ymesh,zmesh].
     Each element is a list of the mesh points along the given axis.
     If the file is not found return None."""
-    frags = data_file_name.split('_')
+    if data_file_name[-6:]==".dvdat":
+        basename = data_file_name[:-6]
+    else:
+        basename = data_file_name
+    frags = basename.split('_')
     # Strategy is to try matching the most complicated names first
     for i in range(len(frags),-1,-1):
         test = ''

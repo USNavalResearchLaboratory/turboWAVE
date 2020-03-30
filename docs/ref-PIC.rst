@@ -4,7 +4,7 @@ Input File: PIC
 Smoothing
 ---------
 
-Any field solver or particle species module can accept the following smoothing directives.  If applied to a field solver, sources are smoothed prior to advancing the fields, and the physics is affected.  If applied to a particle species, only the single species density diagnostic is affected (not that the sources may be smoothed, even if the density diagnostic is not).  The original WAVE smoother used ``smoothing=(4,4,4)`` and ``compensation=(1,1,1)``.
+Any field solver or particle species module can accept the following smoothing directives.  If applied to a field solver, sources are smoothed prior to advancing the fields, and the physics is affected.  If applied to a particle species, only the single species density diagnostic is affected (note that the sources may be smoothed, even if the density diagnostic is not).  The original WAVE smoother used ``smoothing=(4,4,4)`` and ``compensation=(1,1,1)``.
 
 .. py:function:: smoothing = (smx,smy,smz)
 
@@ -103,13 +103,13 @@ Particle Species
 
 Particle species can be used in electromagnetic PIC or as Bohmian particles in :doc:`bak-quantum`.
 
-.. py:function:: new species <name> { <directives> }
+.. py:function:: new species [<name>] { <directives> }
 
 	:param str name: name given to the species
 	:param block directives: The following directives are supported:
 
 		Shared directives: see :ref:`boundaries <boundaries>`
-		
+
 		Installable tools: :ref:`ionization`
 
 		.. py:function:: mass = m0
@@ -150,7 +150,7 @@ Nonlinear Optics
 
 Bound particles treated as anharmonic oscillators can be used in the electromagnetic PIC environment.
 
-.. py:function:: new bound <name> { <directives> }
+.. py:function:: new bound [<name>] { <directives> }
 
 	:param str name: name given to the bound species
 	:param block directives: The following directives are supported:

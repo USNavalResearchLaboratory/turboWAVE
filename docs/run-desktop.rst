@@ -21,12 +21,17 @@ Running an Example
 #. The above command runs the problem with 4 MPI processes and 1 thread per process.  Of course this choice may not be optimal for your system, method of compiling, etc., but it should suffice for this example.
 #. As the problem runs, you can press the enter key to prompt turboWAVE to report the current step.  Enter :samp:`help` to get the full list of interactive commands.
 #. When the run is finished, you should have several files with the extension :samp:`dvdat`.  This is a simple binary format.  The twutils Python package has a function to read data into numpy arrays from this type of file.  If you want to see an example of how to read this file from C++, you can look in :samp:`{twroot}/tools/twpost`.
-#. Let us plot the results using DataViewer.  If you have the native MacOS or Windows version, double-click on :samp:`phi.dvdat` and advance the "Frame" slider.  You may like to go to the "View" menu and select "Autoscale Plot" to get a better color contrast.
-#. If you do not have a native DataViewer, you can run the python version.  Open a terminal window and navigate to :samp:`~/bin`, or wherever :samp:`DataViewer.ipynb` is.
+
+Interactive DataViewer
+----------------------
+
+Let us plot the results using the interactive Python DataViewer.
+
+#. Open a terminal window and navigate to :samp:`~/bin`, or wherever :samp:`DataViewer.ipynb` is.
 #. Activate your virtual environment (see :doc:`tools-install`)
 #. :samp:`jupyter notebook`
 #. Click on :samp:`DataViewer.ipynb`
-#. Locate the path variable in the source, and change to your own Run directory. Prefixing the string with ``u`` allows forward slashes to be used as directory separators irrespective of operating system.
+#. Locate the path variable in the source, and change to your own Run directory.
 #. Click on the button to run the notebook
 #. Use the File dropdown to select :samp:`phi.dvdat`.
 #. Advance the Frame slider to the last frame
@@ -37,12 +42,70 @@ Running an Example
 
 	Fig. 1 --- Python DataViewer output of the scalar potential produced by the :file:`LWFA-coulomb.tw` example.
 
+Command Line Plotter Tutorial
+-----------------------------
+
+The command line interface (CLI) plotter allows you to generate animations and publication quality, multi-panel, plots.  The arguments may seem intimidating, but this tool is quite handy once you get the hang of it.  In the following we will start with a simple plot and work toward more complex ones.
+
+#. Copy :samp:`{twroot}/tools/extras/plot-dvdat.py` to some convenient location, for this demonstration we will assume :samp:`~/bin`.
+#. Activate your virtual environment.
+#. :samp:`cd ~/Run`
+#. Display the arguments by entering :samp:`python ~/bin/plot-dvdat.py`
+
+The last step should display the full range of arguments for the CLI plotter command.  You can examine these later.
+
+The simplest way to invoke the plotter is to use the required arguments only.  For example::
+
+	python ~/bin/plot-dvdat.py zxyt=0,-1 phi.dvdat
+
+Execute this command, taking care not to add spaces.  You should get something like Fig. 2.  The key is to understand the slicing argument.  The first two characters to the left of ``=`` are the axes to plot.  The next two characters are the slicing axes.  The two numbers to the right of ``=`` are matched up with the slicing axes, and determine the slice to select.  Negative slices count from the back, i.e., ``-1`` selects the last slice (in this example the last time index).
+
+.. figure:: cli-plotter-ex1.png
+	:figwidth: 80%
+
+	Fig. 1 --- Simplest CLI plot for the :file:`LWFA-coulomb.tw` example.
+
+You can make better labels in two ways, one easy, one involved.  First the easy way::
+
+	python ~/bin/plot-dvdat.py zxyt=0,-1 phi.dvdat space=z,x,y,t
+
+.. tip::
+
+	Don't forget your shell's capability to recall the last command (typically the up-arrow).  As you build a plot, adding options one at a time, this is invaluable.
+
+This should label the axes with typical Cartesian coordinates multiplied by normalizing factors.  You can also take full control of the labels as follows (n.b. the particulars of escaping special characters may depend on your shell, the following works in ``bash``)::
+
+	python ~/bin/plot-dvdat.py zxyt=0,-1 phi.dvdat texlabels=\\omega_pz,\\omega_px,e\\phiSLASHmc
+
+Notice (i) LaTeX works since we are simply forwarding strings to Matplotlib, and (ii) we have to use ``SLASH`` to get ``/``.  The latter is because, as we will see, the CLI plotter uses ``/`` as a separator.  Next let us animate this plot.  Creating an animation is quite simple, you just use a Python style range as one of the slices.  For example, to animate every time slice::
+
+	python ~/bin/plot-dvdat.py zxyt=0,: phi.dvdat texlabels=\\omega_pz,\\omega_px,e\\phiSLASHmc
+
+This should generate a file called ``mov.gif``.  You can view the movie using standard software.  From Linux you can try ``eog mov.gif``.  From Windows PowerShell you can try ``Start mov.gif``.
+
+Finally let's make a multi-panel animation.  We will show the scalar potential alongside a lineout of the axial electric field::
+
+	python ~/bin/plot-dvdat.py zxyt=0,:/zxyt=64,0,: phi.dvdat,Ez.dvdat \
+	texlabels=\\omega_pz,\\omega_px,e\\phiSLASHmc/\\omega_pz,eE_zSLASHmc \
+	roi=0,25,-16,16/0,25,-0.1,0.1
+
+In this case, each argument is repeated for the new panel.  The panel separator is either ``,`` or ``/``, depending on the argument.  We also used the ``\`` separator to continue the long argument list onto a new line (may be shell dependent).  Finally, the ``roi`` argument is used to fix the vertical scale on the lineout (without this the scale would change from frame to frame).  If everything is working you should get something like Fig. 2.
+
+.. tip::
+
+	The type of plot is inferred from the slices.  Two slices give a 2D plot, three give a lineout.  This documentation does not cover 3D plots, but as a starting point see :samp:`{twroot}/tools/extras/maya-dvdat.py`.
+
+.. figure:: cli-plotter-ex2.gif
+	:figwidth: 80%
+
+	Fig. 2 --- Two-panel movie for the :file:`LWFA-coulomb.tw` example.
+
 .. _args:
 
 Command line arguments
 ----------------------
 
-For desktop installations the command line specification is
+For desktop installations the turboWAVE command line specification is
 
 .. py:function:: tw3d [-n <procs>] [-c <threads>] [--input-file <file>] [--no-interactive] [--restart] [--version] [--help]
 

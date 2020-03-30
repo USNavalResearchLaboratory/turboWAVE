@@ -34,8 +34,8 @@ new curvilinear direct solver 'em'
 {
 	new eigenmode elliptic solver 'eig-poisson'
 	{
-		xboundary = neumann dirichlet
-		zboundary = open open
+		xboundary = ( neumann dirichlet )
+		zboundary = ( open open )
 	}
 }
 
@@ -52,7 +52,7 @@ new pgc laser module 'pgc'
 
 new hermite gauss pulse for 'pgc'
 {
-	a = 5.0 0.0 0.0
+	a = ( 5.0 0.0 0.0 )
 	w = 80
 	r0 = ( 5 , 5 )
 	delay = 1
@@ -65,7 +65,7 @@ new species 'He'
 {
 	charge = 0.0
 	mass = 7344
-	particles per cell = 4 1 4 when density = 1.0
+	particles per cell = ( 4 1 4 ) when density = 1.0
 	xboundary = ( reflecting , reflecting )
 }
 
@@ -73,7 +73,7 @@ new species 'He[+]'
 {
 	charge = 1.0
 	mass = 7343
-	particles per cell = 4 1 4 when density = 1.0
+	particles per cell = ( 4 1 4 ) when density = 1.0
 	xboundary = ( reflecting , reflecting )
 }
 
@@ -81,13 +81,13 @@ new species 'He[2+]'
 {
 	charge = 2.0
 	mass = 7342
-	particles per cell = 4 1 4 when density = 1.0
+	particles per cell = ( 4 1 4 ) when density = 1.0
 	xboundary = ( reflecting , reflecting )
 }
 
 new species 'e'
 {
-	particles per cell = 4 1 4 when density = 1.0
+	particles per cell = ( 4 1 4 ) when density = 1.0
 	xboundary = ( reflecting , reflecting )
 }
 
