@@ -559,6 +559,7 @@ Chemical::Chemical(const std::string& name,Simulation* sim):Module(name,sim)
 	mat.eps[1] = 0.0;
 	eosData = NULL;
 	ionizer = NULL;
+	background = NULL;
 	mat.AddDirectives(directives);
 }
 
@@ -598,6 +599,13 @@ void Chemical::VerifyInput()
 			eosData = (EOSComponent*)owner->CreateTool("default_hot_electrons",tw::tool_type::eosHotElectrons);
 		else
 			eosData = (EOSComponent*)owner->CreateTool("default_ideal_gas",tw::tool_type::eosIdealGas);
+	}
+	// Add a uniform profile for the automatic background fluid.
+	sparc::HydroManager *hydro = dynamic_cast<sparc::HydroManager*>(super->super);
+	if (hydro->backgroundDensity > 0.0)
+	{
+		background = (UniformProfile*)owner->CreateTool("auto_background",tw::tool_type::uniformProfile);
+		profile.push_back(background);
 	}
 }
 
@@ -818,6 +826,7 @@ sparc::HydroManager::HydroManager(const std::string& name,Simulation* sim):Modul
 {
 	epsilonFactor = 1e-4;
 	laserFrequency = 1.0;
+	backgroundDensity = backgroundTemperature = 0.0;
 
 	// some arrays must be initialized later since we don't know how many elements they have yet
 	scratch.Initialize(*this,owner);
@@ -851,6 +860,8 @@ sparc::HydroManager::HydroManager(const std::string& name,Simulation* sim):Modul
 	std::map<std::string,sparc::plasmaModel> plas = {{"neutral",sparc::neutral},{"quasineutral",sparc::quasineutral}};
 	directives.Add("plasma model",new tw::input::Enums<sparc::plasmaModel>(plas,&plasModel),false);
 	directives.Add("dipole center",new tw::input::Vec3(&dipoleCenter),false);
+	directives.Add("background density",new tw::input::Float(&backgroundDensity),false);
+	directives.Add("background temperature",new tw::input::Float(&backgroundTemperature),false);
 }
 
 sparc::HydroManager::~HydroManager()
@@ -957,6 +968,13 @@ void sparc::HydroManager::VerifyInput()
 
 	if (owner->units==NULL)
 		throw tw::FatalError("Hydro module requires units (set unit density).");
+	if (backgroundDensity!=0.0)
+	{
+		if (backgroundDensity<=0.0)
+			throw tw::FatalError("Hydro module background density must be positive.");
+		if (backgroundTemperature<=0.0)
+			throw tw::FatalError("Hydro module background temperature must be positive.");
+	}
 
 	// Search submodule list for EquilibriumGroup modules
 
@@ -1013,9 +1031,6 @@ void sparc::HydroManager::Initialize()
 {
 	Module::Initialize();
 
-	for (auto c : conductor)
-		ellipticSolver->FixPotential(phi,c->theRgn,c->Voltage(owner->elapsedTime));
-
 	// Initialize laser frequency and refractive index
 	if (wave.size())
 	{
@@ -1026,7 +1041,7 @@ void sparc::HydroManager::Initialize()
 	}
 	refractiveIndex = tw::Complex(1.0,0.0);
 
-	ellipticSolver->SetBoundaryConditions(phi);
+	ellipticSolver->SetFieldsBoundaryConditions(phi,Element(0));
 	rho.SetBoundaryConditions(tw::grid::x,fld::neumannWall,fld::neumannWall);
 	rho.SetBoundaryConditions(tw::grid::y,fld::neumannWall,fld::neumannWall);
 	rho.SetBoundaryConditions(tw::grid::z,fld::neumannWall,fld::neumannWall);
@@ -1072,7 +1087,7 @@ void sparc::HydroManager::Initialize()
 				fluxMask(strip,ufg[ax]) = fluxMask(strip,ung[ax]) = 0.0;
 		}
 
-	// Non-vector boundary conditions; vector elements are modified after setting up indexing.
+	// Default boundary conditions, refine after setting up indexing.
 	state0.SetBoundaryConditions(tw::grid::x,fld::neumannWall,fld::neumannWall);
 	state0.SetBoundaryConditions(tw::grid::y,fld::neumannWall,fld::neumannWall);
 	state0.SetBoundaryConditions(tw::grid::z,fld::neumannWall,fld::neumannWall);
@@ -1095,34 +1110,60 @@ void sparc::HydroManager::Initialize()
 	nu_e.SetBoundaryConditions(tw::grid::y,fld::neumannWall,fld::neumannWall);
 	nu_e.SetBoundaryConditions(tw::grid::z,fld::neumannWall,fld::neumannWall);
 
+	// Loading of fluid quantities from profiles.
+	// The whole hydro tree needs to be indexed before this can be done.
 	SetupIndexing();
+	// First setup the automatic background profiles
+	if (backgroundDensity!=0.0)
+	{
+		tw::Int Nminus=0,Nplus=0;
+		for (auto grp : group)
+			for (auto chem : grp->chemical)
+			{
+				if (chem->mat.charge < tw::small_neg) Nminus++;
+				if (chem->mat.charge > tw::small_pos) Nplus++;
+			}
+		for (auto grp : group)
+			for (auto chem : grp->chemical)
+			{
+				chem->background->density = backgroundDensity;
+				chem->background->temperature = backgroundTemperature;
+				const tw::Float Q = chem->mat.charge;
+				if (Q < tw::small_neg) chem->background->density /= -Q*Nminus;
+				if (Q > tw::small_pos) chem->background->density /= Q*Nplus;
+			}
+	}
+	// Add fluid from all profiles
 	for (auto grp : group)
 		for (auto chem : grp->chemical)
-			// Following depends on complete indexing through the whole hydro tree
 			chem->GenerateFluid(state1,eos1);
 
-	// Take care of vector boundary conditions
+	// Refine boundary conditions for particular quantities
 	for (auto grp : group)
 	{
-		Element np;
+		Element e;
+		// Temperature
+		e = Element(grp->eidx.T);
+		parabolicSolver->SetFieldsBoundaryConditions(eos0,e);
+		parabolicSolver->SetFieldsBoundaryConditions(eos1,e);
 		// X-Component
-		np = Element(grp->hidx.npx);
-		state0.SetBoundaryConditions(np,tw::grid::x,bc0[1],bc1[1]);
-		state1.SetBoundaryConditions(np,tw::grid::x,bc0[1],bc1[1]);
-		creationRate.SetBoundaryConditions(np,tw::grid::x,bc0[1],bc1[1]);
-		destructionRate.SetBoundaryConditions(np,tw::grid::x,bc0[1],bc1[1]);
+		e = Element(grp->hidx.npx);
+		state0.SetBoundaryConditions(e,tw::grid::x,bc0[1],bc1[1]);
+		state1.SetBoundaryConditions(e,tw::grid::x,bc0[1],bc1[1]);
+		creationRate.SetBoundaryConditions(e,tw::grid::x,bc0[1],bc1[1]);
+		destructionRate.SetBoundaryConditions(e,tw::grid::x,bc0[1],bc1[1]);
 		// Y-Component
-		np = Element(grp->hidx.npy);
-		state0.SetBoundaryConditions(np,tw::grid::y,bc0[2],bc1[2]);
-		state1.SetBoundaryConditions(np,tw::grid::y,bc0[2],bc1[2]);
-		creationRate.SetBoundaryConditions(np,tw::grid::y,bc0[2],bc1[2]);
-		destructionRate.SetBoundaryConditions(np,tw::grid::y,bc0[2],bc1[2]);
+		e = Element(grp->hidx.npy);
+		state0.SetBoundaryConditions(e,tw::grid::y,bc0[2],bc1[2]);
+		state1.SetBoundaryConditions(e,tw::grid::y,bc0[2],bc1[2]);
+		creationRate.SetBoundaryConditions(e,tw::grid::y,bc0[2],bc1[2]);
+		destructionRate.SetBoundaryConditions(e,tw::grid::y,bc0[2],bc1[2]);
 		// Z-Component
-		np = Element(grp->hidx.npz);
-		state0.SetBoundaryConditions(np,tw::grid::z,bc0[3],bc1[3]);
-		state1.SetBoundaryConditions(np,tw::grid::z,bc0[3],bc1[3]);
-		creationRate.SetBoundaryConditions(np,tw::grid::z,bc0[3],bc1[3]);
-		destructionRate.SetBoundaryConditions(np,tw::grid::z,bc0[3],bc1[3]);
+		e = Element(grp->hidx.npz);
+		state0.SetBoundaryConditions(e,tw::grid::z,bc0[3],bc1[3]);
+		state1.SetBoundaryConditions(e,tw::grid::z,bc0[3],bc1[3]);
+		creationRate.SetBoundaryConditions(e,tw::grid::z,bc0[3],bc1[3]);
+		destructionRate.SetBoundaryConditions(e,tw::grid::z,bc0[3],bc1[3]);
 	}
 
 	// DFG - no longer find electrons here.
@@ -1363,6 +1404,11 @@ void sparc::HydroManager::ComputeRadiativeSources()
 	#pragma omp parallel
 	{
 		const UnitConverter& uc = *owner->units;
+		const tw::Float stef_boltz = 5.67e-8; // W/m^2/K^4
+		const tw::vec3 R = GlobalPhysicalSize(*owner);
+		const tw::vec3 Rmks(uc.SimToMKS(length_dim,R.x),uc.SimToMKS(length_dim,R.y),uc.SimToMKS(length_dim,R.z));
+		const tw::Float Vmks = owner->car*Rmks.x*Rmks.y*Rmks.z + owner->cyl*pi*sqr(Rmks.x)*Rmks.z + owner->sph*1.33*pi*cub(Rmks.x);
+		const tw::Float Smks = owner->car*2*(Rmks.x*Rmks.y + Rmks.y*Rmks.z + Rmks.z*Rmks.x) + owner->cyl*(2*pi*sqr(Rmks.x)+2*pi*Rmks.x*Rmks.z) + owner->sph*4*pi*sqr(Rmks.x);
 
 		// Ohmic heating due to static and laser fields
 		if (electrons)
@@ -1397,26 +1443,29 @@ void sparc::HydroManager::ComputeRadiativeSources()
 					}
 
 		// Compute radiative losses
-		// Assume optically thin, estimate mean free path from Zel'dovich table 5.2
-		// Strictly the formula only works in LTE, but when it is significant we probably are in LTE anyway
-		// Hence we form equilibrium temperature from (total pressure / total density)
-		if (radModel==sparc::thin)
+		// For optically thin, estimate mean free path from Zel'dovich table 5.2
+		// Strictly these formulae only work in LTE, we hope effect is small when this is violated.
+		// The effective LTE temperature is estimated from (total pressure / total density)
+		if (radModel!=sparc::noRadiation)
 		{
 			for (auto cell : InteriorCellRange(*this))
 			{
-				tw::Float stef_boltz = 5.67e-8; // W/m^2/K^4
-				tw::Float Ptot=0.0,ntot=0.0,TK,lossNow,meanFreePath;
+				tw::Float Ptot=tw::small_pos, ntot=tw::small_pos;
 				for (auto grp : group)
 				{
 					Ptot += eos1(cell,grp->eidx.P);
 					ntot += grp->DensitySum(state1,cell);
 				}
-				TK = uc.SimToMKS(temperature_dim,Ptot/(tw::small_pos + ntot));
-				meanFreePath = 8.0e-14 * sqr(TK); // m
-				radiativeLosses(cell) = uc.MKSToSim(power_density_dim,4.0*stef_boltz*pow(TK,tw::Float(4.0))/(tw::small_pos + meanFreePath));
+				const tw::Float TKelvin = uc.SimToMKS(temperature_dim,Ptot/ntot);
+				const tw::Float Lmks = tw::small_pos + 8.0e-14 * sqr(TKelvin); // mean free path in meters
+				const tw::Float Imks = 4.0*stef_boltz*pow(TKelvin,4);
+				if (radModel==sparc::thin)
+					radiativeLosses(cell) = uc.MKSToSim(power_density_dim,Imks/Lmks);
+				if (radModel==sparc::thick)
+					radiativeLosses(cell) = uc.MKSToSim(power_density_dim,Imks*Smks/Vmks);
 				for (auto grp : group)
 				{
-					lossNow = eos1(cell,grp->eidx.P)*radiativeLosses(cell)/(tw::small_pos + Ptot);
+					const tw::Float lossNow = eos1(cell,grp->eidx.P)*radiativeLosses(cell)/Ptot;
 					DestroyTotalEnergy(cell,lossNow,grp->hidx);
 				}
 			}
@@ -1779,6 +1828,8 @@ void sparc::HydroManager::DiffusionAdvance(tw::Float dt)
 	{
 		// HEAT CONDUCTION
 
+		for (auto c : conductor)
+			parabolicSolver->FixTemperature(eos1,Element(g->eidx.T),c->theRgn,c->Temperature(owner->elapsedTime));
 		g->LoadMassDensity(scratch,state1);
 		CopyFieldData(scratch2,Element(0),eos1,Element(g->eidx.T));
 		parabolicSolver->Advance(eos1,g->eidx.T,fluxMask,&eos1,g->eidx.nmcv,&eos1,g->eidx.K,dt);
@@ -1807,7 +1858,7 @@ void sparc::HydroManager::DiffusionAdvance(tw::Float dt)
 
 void sparc::HydroManager::FieldAdvance(tw::Float dt)
 {
-	if (!electrons || plasModel==sparc::neutral)
+	if (!electrons)
 		return;
 
 	const tw::Float q0 = electrons->mat.charge;
@@ -1815,34 +1866,43 @@ void sparc::HydroManager::FieldAdvance(tw::Float dt)
 	const tw::Int Pe = electrons->group->eidx.P;
 
 	// set up source and coefficient
-	#pragma omp parallel
+	if (plasModel==sparc::quasineutral)
 	{
-		tw::Float D1,D2,P0,P1,mu0,mu1,dV,dS0,dS1,dl0,dl1;
-		for (auto cell : InteriorCellRange(*this))
+		#pragma omp parallel
 		{
-			rho(cell) = rho0(cell);
-			for (tw::Int ax=1;ax<=3;ax++)
+			tw::Float D1,D2,P0,P1,mu0,mu1,dV,dS0,dS1,dl0,dl1;
+			for (auto cell : InteriorCellRange(*this))
 			{
-				owner->GetCellMetrics(cell,ax,&dV,&dS0,&dS1,&dl0,&dl1);
-				P0 = eos1.bak(cell,Pe,ax);
-				P1 = eos1.fwd(cell,Pe,ax);
-				mu0 = 2.0*(q0/m0)/(nu_e(cell)+nu_e.bak(cell,0,ax));
-				mu1 = 2.0*(q0/m0)/(nu_e(cell)+nu_e.fwd(cell,0,ax));
-				// Laplacian coefficients weighted by mobility
-				// ( for calculation of div(mu*grad(P)) )
-				D1 = mu0*dS0/(dl0*dV);
-				D2 = mu1*dS1/(dl1*dV);
-				// re-use rho to hold rho_eff  = rho(t=0) + dt*div(mu*grad(P))
-				rho(cell) += dt*(D1*P0 - (D1+D2)*eos1(cell,Pe) + D2*P1);
+				rho(cell) = rho0(cell);
+				for (tw::Int ax=1;ax<=3;ax++)
+				{
+					owner->GetCellMetrics(cell,ax,&dV,&dS0,&dS1,&dl0,&dl1);
+					P0 = eos1.bak(cell,Pe,ax);
+					P1 = eos1.fwd(cell,Pe,ax);
+					mu0 = 2.0*(q0/m0)/(nu_e(cell)+nu_e.bak(cell,0,ax));
+					mu1 = 2.0*(q0/m0)/(nu_e(cell)+nu_e.fwd(cell,0,ax));
+					// Laplacian coefficients weighted by mobility
+					// ( for calculation of div(mu*grad(P)) )
+					D1 = mu0*dS0/(dl0*dV);
+					D2 = mu1*dS1/(dl1*dV);
+					// re-use rho to hold rho_eff  = rho(t=0) + dt*div(mu*grad(P))
+					rho(cell) += dt*(D1*P0 - (D1+D2)*eos1(cell,Pe) + D2*P1);
+				}
+				// coefficients multiplying grad(phi) go into scratch array
+				scratch(cell) = 1.0 + dt*q0*state1(cell,ie)*(q0/m0)/nu_e(cell);
 			}
-			// coefficients multiplying grad(phi) go into scratch array
-			scratch(cell) = 1.0 + dt*q0*state1(cell,ie)*(q0/m0)/nu_e(cell);
 		}
+		scratch.CopyFromNeighbors();
+		scratch.ApplyBoundaryCondition();
 	}
-	scratch.CopyFromNeighbors();
-	scratch.ApplyBoundaryCondition();
+	else
+	{
+		rho = 0.0;
+		scratch = 1.0;
+	}
 
 	// Solve the elliptical equation --- div(scratch*grad(phi)) = -rho_eff
+	// Even if plasma model is neutral, still do this to allow for external fields
 	for (auto c : conductor)
 		ellipticSolver->FixPotential(phi,c->theRgn,c->Voltage(owner->elapsedTime));
 	ellipticSolver->SetCoefficients(&scratch);

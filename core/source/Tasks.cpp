@@ -155,15 +155,32 @@ void Task::Initialize(tw::Int *doms,tw::Int *gcells,tw::Int *cyclic)
 	devices.resize(num);
 	clGetDeviceIDs(platforms[whichPlatform],CL_DEVICE_TYPE_ALL,num,&devices[0],NULL);
 
-	// If device ID list is given, device map is directly supplied in input file
-	if (deviceIDList.size()>0)
+	// First try to interpret search string as a device number list
+	std::string deviceList(deviceSearchString);
+	do
 	{
-		for ( i=0 ; i<deviceIDList.size() ; i++ )
-			deviceMap.push_back(deviceIDList[i]);
-	}
-	// Otherwise, form a device map based on searching device names
-	else
+		if (deviceList.find(",")!=std::string::npos)
+			deviceList.replace(deviceList.find(","),1," ");
+	} while (deviceList.find(",")!=std::string::npos);
+	std::stringstream deviceStream(deviceList);
+	do
 	{
+		tw::Int deviceNum;
+		if (deviceStream >> deviceNum)
+		{
+			if (deviceNum>=0 && deviceNum<devices.size())
+				deviceMap.push_back(deviceNum);
+			else
+				deviceMap.push_back(-1);
+		}
+		else
+			deviceMap.push_back(-1);
+	} while(deviceStream.good());
+	if (deviceMap.back()==-1)
+		deviceMap.clear();
+
+	// If it didn't work assume we are looking for a name
+	if (deviceMap.size()==0)
 		for ( i=0 ; i<devices.size() ; i++ )
 		{
 			clGetDeviceInfo(devices[i],CL_DEVICE_NAME,sizeof(buff),&buff,&buffSize);
@@ -173,13 +190,11 @@ void Task::Initialize(tw::Int *doms,tw::Int *gcells,tw::Int *cyclic)
 			if (name.find(deviceSearchString)!=std::string::npos)
 				deviceMap.push_back(i);
 		}
-	}
 
 	if (deviceMap.size()==0)
 	{
 		messg << "WARNING: could not form a device map." << std::endl;
 		messg << "Search string was '" << deviceSearchString << "'" << std::endl;
-		messg << "Size of device ID list was " << deviceIDList.size() << std::endl;
 		messg << "    (will try to use device number = MPI rank)" << std::endl;
 		whichDevice = strip[0].Get_rank();
 	}

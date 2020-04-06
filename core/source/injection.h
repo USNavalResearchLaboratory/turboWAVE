@@ -230,10 +230,11 @@ struct Conductor : ComputeTool
 	bool affectsPhi,affectsA;
 	EM::current currentType;
 	tw::vec3 gaussianRadius,ks;
-	tw::Float f;
+	tw::Float f,temperature;
 
 	Conductor(const std::string& name,MetricSpace *m,Task *tsk);
 	virtual void Initialize();
+	tw::Float Temperature(tw::Float t) { return temperature; }
 	tw::Float Voltage(tw::Float t);
 	tw::Float VoltageRate(tw::Float t);
 	tw::vec3 PolarizationDensity(const tw::vec3& pos,tw::Float t);

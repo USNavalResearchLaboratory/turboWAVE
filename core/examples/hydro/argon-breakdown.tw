@@ -1,15 +1,20 @@
 // Keep the following line for generating twtest reports
-// TWTEST matplotlib ztxy=0,0 e.dvdat
+// TWTEST matplotlib txyz=0,0,500 e.dvdat
 
 // SPARC input file to model breakdown of argon plasma
 // Breakdown voltage = Bpd/( ln(Apd)-ln(ln(1+1/gam)) )
 // A = 12 (cm*torr)^-1 , B = 180 V/(cm*torr) , gam = .005 (depends on electrodes)
 // Plugging in d=.1 cm and p=7.6 torr gives 252 volts
 
+// Global losses are from blackbody and spontaneous de-excitation of the lumped 4s state
+// Assume electrodes are perfect thermal insulators
+
+#define $T0 %300K
+
 steps = 20000
 timestep = %1ps
 dtmax = %1ns
-maxtime = %10ns
+maxtime = %400ns
 dump period = 0
 moving window = no
 neutralize = yes
@@ -25,9 +30,9 @@ zboundary = ( absorbing  absorbing )
 
 new grid
 {
-	corner = ( -0.5 , -0.5 , 0.0 )
+	corner = ( -500 , -500 , 0.0 )
 	dimensions = ( 1 1 1000 )
-	cell size = ( 1.0 1.0 1.0 )
+	cell size = ( 1000.0 1000.0 1.0 )
 	decomposition = ( 1  1  1 )
 	geometry = cartesian
 	adaptive timestep = on
@@ -36,8 +41,11 @@ new grid
 new hydrodynamics 'hydro'
 {
 	epsilon factor = 1e-4
-	radiation model = none
-	plasma model = quasineutral
+	radiation model = thick
+	// quasineutral model may have problems with fixed temperature boundaries
+	plasma model = neutral
+	background density = 1e-8
+	background temperature = $T0
 }
 
 new 1d elliptic solver for 'hydro'
@@ -45,17 +53,27 @@ new 1d elliptic solver for 'hydro'
 	zboundary = ( dirichlet , dirichlet )
 }
 
+new parabolic propagator for 'hydro'
+{
+	// Explicitly declaring the parabolic propagator allows control of heat equation
+	// boundary conditions: neumann = perfect insulator, dirichlet = perfect heat sink.
+	// Perfect heat sinks prevent breakdown no matter the field, because
+	// the electron heat conductivity is a strong function of temperature.
+	zboundary = ( neumann , neumann )
+//	zboundary = ( dirichlet , dirichlet )
+}
+
 new region rect 'left'
 {
 	// N.b. we only want to fill only the far ghost cell for fixing the potential.
-	// Otherwise this would act as an impermable wall as well.
+	// Otherwise this would act as an impermeable wall as well.
 	bounds = ( -1 , 1 , -1 , 1 , -2 , -1 )
 }
 
 new region rect 'right'
 {
 	// N.b. we only want to fill only the far ghost cell for fixing the potential.
-	// Otherwise this would act as an impermable wall as well.
+	// Otherwise this would act as an impermeable wall as well.
 	bounds = ( -1 , 1 , -1 , 1 , 1001 , 1002 )
 }
 
@@ -63,92 +81,33 @@ new conductor 'cathode' for 'hydro'
 {
 	clipping region = 'left'
 	potential = { %0V }
-	risetime = %1fs
+	risetime = %10ns
 	holdtime = %1us
-	falltime = %1fs
+	falltime = %10ns
+	temperature = $T0
 }
 
 new conductor 'anode' for 'hydro'
 {
 	clipping region = 'right'
-	potential = { %30V }
-	risetime = %1fs
+	potential = { %250V }
+	risetime = %10ns
 	holdtime = %1us
-	falltime = %1fs
+	falltime = %10ns
+	temperature = $T0
 }
 
-new chemical e
-{
-	charge = -1.0
-	mass = 1.0
-	cv = 1.5
-}
-
-new group heavies
-{
-	new chemical Ar
-	{
-		charge = 0.0
-		mass = 73440
-		cv = 1.5
-	}
-	new chemical Ar[+]
-	{
-		charge = 1.0
-		mass = 73439
-		cv = 1.5
-	}
-	new chemical Ar2[+]
-	{
-		charge = 1.0
-		mass = 146879
-		cv = 2.5
-	}
-	mobile = true
-}
-
-new collision = e <-> Ar[+] , coulomb
-new collision = e <-> Ar , cross section = 1e-16 // appropriate for 1 eV
-new collision = e <-> Ar2[+] , coulomb
-
-// detailed balanced impact ionization and 3-body recombination
-new reaction = { Ar -> Ar[+] : e -> e + e - 15.76 } rate = 5.33e-5 -3.0 15.76 e(:)
-new reaction = { Ar[+] + e + e -> Ar + e + 15.76 } rate = 8.75e-27 -4.5 0.0 e(:)
-
-// radiative recombination, photon is assumed to leave system
-new reaction = { Ar[+] + e -> Ar } rate = 2.7e-13 -0.5 0.0 e(:)
-
-// molecular argon
-new reaction = { Ar[+] + Ar + Ar -> Ar2[+] + Ar + 2.61 } rate = 2.55e-31 0.0 0.0 e(:)
-new reaction = { Ar2[+] + e -> Ar + Ar + 13.15 } rate = 5.4e-8 -0.667 0.0 e(:)
+#include "argon-1.tw"
 
 generate uniform Ar
 {
 	density = 0.01
-	temperature = %300K
-}
-
-generate uniform Ar[+]
-{
-	density = 1e-8
-	temperature = %300K
-}
-
-generate uniform Ar2[+]
-{
-	density = 1e-8
-	temperature = %300K
-}
-
-generate uniform e
-{
-	density = 2e-8
-	temperature = %300K
+	temperature = $T0
 }
 
 new box diagnostic
 {
-	time period = %100ps
+	time period = %1ns
 }
 
 new energy diagnostic

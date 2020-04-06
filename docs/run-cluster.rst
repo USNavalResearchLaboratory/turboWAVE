@@ -33,21 +33,29 @@ Command line arguments
 
 For cluster installations the command line specification is
 
-.. py:function:: <launcher> -np <procs> [--hostfile <nodes>] tw3d [-c <threads>] [--input-file <file>] [--restart] [--no-interactive] [--version] [--help]
+.. py:function:: <launcher> -np <procs> [--hostfile <nodes>] tw3d [optional arguments...]
 
 	:param command launcher: Command provided by the external MPI implementation to launch parallel processes, e.g., ``mpirun``.
 	:param int procs: number of MPI processes to launch
 	:param str nodes: name of the file listing the hosts to be used in case of a multi-node run
-	:param int threads: Sets the number of OpenMP threads to fork for each MPI process.  If not specified, the number of threads is chosen according to the usual OpenMP rules.
-	:param str file: name or path of the file to use as the input file (default=stdin)
 
-	The :samp:`--restart` argument, if present, causes the initial data to be loaded from a checkpoint.
+	Optional arguments to ``tw3d`` are as follows:
 
-	The :samp:`--no-interactive` argument, if present, suppresses the interactive thread (currently ignored in cluster mode).
+		:samp:`-c <threads>` : number of OpenMP threads
 
-	The :samp:`--version` argument, if present, prints the version number.  If this is the only argument, no simulation is attempted.
+		:samp:`--input-file <file>` : name or path of the file to use as the input file (default=stdin)
 
-	The :samp:`--help` argument, if present, prints the command line arguments and the link to the online documentation.  If this is the only argument, no simulation is attempted.
+		:samp:`--platform <search_string>` : select an OpenCL platform with the search string in its name
+
+		:samp:`--device <search_string>` : select an OpenCL device with the search string in its name.  This can also be a comma-delimited list of device numbers.
+
+		:samp:`--restart` : if present, causes initial data to be loaded from a checkpoint.
+
+		:samp:`--no-interactive` : if present, suppresses the interactive thread.
+
+		:samp:`--version` : if present, prints the version number.  If this is the only argument, no simulation is attempted.
+
+		:samp:`--help` : if present, prints the command line arguments and the link to the online documentation.  If this is the only argument, no simulation is attempted.
 
 Error Handling
 --------------

@@ -53,9 +53,17 @@ SPARC Hydro Modules
 
 			:param float eps: error tolerance for adaptive time step
 
+		.. py:function:: background density = n0
+
+			:param float n0: automatically create a uniform background density ``n0`` for every chemical species.  Charged species are automatically weighted such that neutrality is maintained.  Defaults to zero, in which case the user is responsible for explicitly loading every chemical species.
+
+		.. py:function:: background temperature = T0
+
+			:param float T0: temperature to use for the background fluid. If the background density is nonzero this must be set to a positive value.
+
 		.. py:function:: radiation model = rad
 
-		 	:param enum rad: takes values ``thin``, ``none``
+		 	:param enum rad: takes values ``thick``, ``thin``, ``none``
 
 		.. py:function:: laser model = las
 

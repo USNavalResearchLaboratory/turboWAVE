@@ -21,8 +21,6 @@ dump period = 0
 moving window = no
 neutralize = yes
 
-hardware acceleration device string = firepro
-
 xboundary = ( absorbing , absorbing )
 yboundary = ( periodic , periodic )
 zboundary = ( periodic , periodic )

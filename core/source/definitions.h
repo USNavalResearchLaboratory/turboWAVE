@@ -267,11 +267,6 @@ inline bool LittleEndian()
 	return true;
 }
 
-inline std::string InputPathName()
-{
-	return "";
-}
-
 static const bool parallelFileSystem = false;
 
 #endif
@@ -292,11 +287,6 @@ static const bool parallelFileSystem = false;
 inline tw::Int GetSeconds()
 {
 	return tw::Int(MPI_Wtime());
-}
-
-inline std::string InputPathName()
-{
-	return "";
 }
 
 inline bool LittleEndian()

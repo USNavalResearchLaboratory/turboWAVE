@@ -209,8 +209,9 @@ struct Task
 	tw::Int cornerCell[4],localCells[4],localCells2[4],domainIndex[4]; // blank,x,y,z
 	tw::Int n0[4],n1[4]; // low and high neighbors : blank,x,y,z
 
+	std::string inputFileName,restartFileName; // keep with task so ComputeTool can access
+
 	std::string deviceSearchString,platformSearchString,initMessage;
-	std::valarray<tw::Int> deviceIDList; // accelerator devices such as GPGPU
 	std::valarray<tw::Int> affinityMask; // IDs of logical processors for thread binding
 
 	UniformDeviate *uniformDeviate;

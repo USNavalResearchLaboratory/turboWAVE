@@ -629,7 +629,7 @@ void SchroedingerPropagator::UpdateSpin(ComplexField& psi,ComplexField& chi,Fiel
 //////////////////////////////////////////
 
 
-ParabolicSolver::ParabolicSolver(const std::string& name,MetricSpace *m,Task *tsk) : ComputeTool(name,m,tsk)
+ParabolicSolver::ParabolicSolver(const std::string& name,MetricSpace *m,Task *tsk) : BoundedTool(name,m,tsk)
 {
 	globalIntegrator.assign(4,NULL);
 
@@ -648,6 +648,17 @@ ParabolicSolver::~ParabolicSolver()
 	for (auto g : globalIntegrator)
 		if (g!=NULL)
 			delete g;
+}
+
+void ParabolicSolver::FixTemperature(Field& T,const Element& e,Region* theRegion,const tw::Float& T0)
+{
+	#pragma omp parallel
+	{
+		for (auto cell : EntireCellRange(*space))
+			if (theRegion->Inside(space->Pos(cell),*space))
+				for (tw::Int c=e.low;c<=e.high;c++)
+					T(cell,c) = T0;
+	}
 }
 
 inline void ParabolicSolver::FormOperatorStencil(tw::Float *D1,tw::Float *D2,const ScalarField& fluxMask,Field *coeff,tw::Int c,const tw::strip& s,tw::Int i)
@@ -697,9 +708,9 @@ void ParabolicSolver::Advance(const tw::grid::axis& axis,ScalarField& psi,Scalar
 			}
 
 			if (task->n0[ax]==MPI_PROC_NULL)
-				psi.AdjustTridiagonalForBoundaries(axis,tw::grid::low,T1,T2,T3,src,0.0);
+				psi.AdjustTridiagonalForBoundaries(axis,tw::grid::low,T1,T2,T3,src,psi(s,space->LFG(ax)));
 			if (task->n1[ax]==MPI_PROC_NULL)
-				psi.AdjustTridiagonalForBoundaries(axis,tw::grid::high,T1,T2,T3,src,0.0);
+				psi.AdjustTridiagonalForBoundaries(axis,tw::grid::high,T1,T2,T3,src,psi(s,space->UFG(ax)));
 
 			TriDiagonal(ans,src,T1,T2,T3);
 			for (tw::Int i=1;i<=sDim;i++)
@@ -711,7 +722,7 @@ void ParabolicSolver::Advance(const tw::grid::axis& axis,ScalarField& psi,Scalar
 	}
 
 	globalIntegrator[ax]->Parallelize();
-	psi.ApplyBoundaryCondition();
+	psi.ApplyBoundaryCondition(false);
 	// Leaving ghost cells in orthogonal directions unspecified.
 	// They will be set when those axes are propagated.
 }
@@ -771,9 +782,9 @@ void ParabolicSolver::Advance(	const tw::grid::axis& axis,
 			}
 
 			if (task->n0[ax]==MPI_PROC_NULL)
-				psi.AdjustTridiagonalForBoundaries(Element(psi_idx),axis,tw::grid::low,T1,T2,T3,src,0.0);
+				psi.AdjustTridiagonalForBoundaries(Element(psi_idx),axis,tw::grid::low,T1,T2,T3,src,psi(s,space->LFG(ax),psi_idx));
 			if (task->n1[ax]==MPI_PROC_NULL)
-				psi.AdjustTridiagonalForBoundaries(Element(psi_idx),axis,tw::grid::high,T1,T2,T3,src,0.0);
+				psi.AdjustTridiagonalForBoundaries(Element(psi_idx),axis,tw::grid::high,T1,T2,T3,src,psi(s,space->UFG(ax),psi_idx));
 
 			TriDiagonal(ans,src,T1,T2,T3);
 			for (tw::Int i=1;i<=sDim;i++)
@@ -785,7 +796,7 @@ void ParabolicSolver::Advance(	const tw::grid::axis& axis,
 	}
 
 	globalIntegrator[ax]->Parallelize();
-	psi.ApplyBoundaryCondition();
+	psi.ApplyBoundaryCondition(Element(psi_idx),false);
 	// Leaving ghost cells in orthogonal directions unspecified.
 	// They will be set when those axes are propagated.
 }

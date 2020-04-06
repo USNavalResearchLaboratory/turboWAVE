@@ -171,6 +171,11 @@ bool Module::SingularType(tw::module_type theType)
 	return theType==tw::module_type::kinetics || theType==tw::module_type::sparcHydroManager;
 }
 
+bool Module::AutoModuleType(tw::module_type theType)
+{
+	return theType==tw::module_type::kinetics || theType==tw::module_type::equilibriumGroup;
+}
+
 tw::module_type Module::RequiredSupermoduleType(const tw::module_type submoduleType)
 {
 	std::map<tw::module_type,tw::module_type> containmentMap =

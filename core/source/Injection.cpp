@@ -804,6 +804,7 @@ Conductor::Conductor(const std::string& name,MetricSpace *m,Task *tsk) : Compute
 	gaussianRadius = tw::big_pos;
 	f = tw::big_pos;
 	ks = 0.0;
+	temperature = 0.0;
 	directives.Add("px",new tw::input::List<std::valarray<tw::Float>>(&Px),false);
 	directives.Add("py",new tw::input::List<std::valarray<tw::Float>>(&Py),false);
 	directives.Add("pz",new tw::input::List<std::valarray<tw::Float>>(&Pz),false);
@@ -823,6 +824,7 @@ Conductor::Conductor(const std::string& name,MetricSpace *m,Task *tsk) : Compute
 	directives.Add("gaussian size",new tw::input::Vec3(&gaussianRadius),false);
 	directives.Add("f",new tw::input::Float(&f),false);
 	directives.Add("ks",new tw::input::Vec3(&ks),false);
+	directives.Add("temperature",new tw::input::Float(&temperature),false);
 }
 
 void Conductor::Initialize()

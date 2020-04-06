@@ -8,24 +8,18 @@
 // BC Type          Explicit BC
 // -------------    ------------
 // dirichletCell    phi(i,j,0) = V0
-// neumannWall      phi(i,j,1) - phi(i,j,0) = V0
+// neumannWall      phi(i,j,1) - phi(i,j,0) = 0
 // dirichletWall    phi(i,j,0)/2 + phi(i,j,1)/2 = V0
 
 // N.b. the BC handling assumes at least 2 ghost cell layers in the field
 
-struct EllipticSolver:ComputeTool
+struct EllipticSolver:BoundedTool
 {
 	ScalarField *coeff;
-	tw::bc::fld x0,x1,y0,y1,z0,z1;
-	tw::bc::fld x0s,x1s,y0s,y1s,z0s,z1s; // saved BC's
 	tw::Float gammaBeam;
 
 	EllipticSolver(const std::string& name,MetricSpace *m,Task *tsk);
 	virtual void SetCoefficients(ScalarField *coefficients);
-	virtual void SetBoundaryConditions(ScalarField& phi);
-	virtual void SetBoundaryConditions(tw::bc::fld x0,tw::bc::fld x1,tw::bc::fld y0,tw::bc::fld y1,tw::bc::fld z0,tw::bc::fld z1);
-	virtual void SaveBoundaryConditions();
-	virtual void RestoreBoundaryConditions();
 	virtual void FixPotential(ScalarField& phi,Region* theRegion,const tw::Float& thePotential);
 	virtual void ZeroModeGhostCellValues(tw::Float *phi0,tw::Float *phiN1,ScalarField& rho,tw::Float mul);
 	virtual void Solve(ScalarField& phi,ScalarField& source,tw::Float mul) = 0;

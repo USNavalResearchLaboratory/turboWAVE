@@ -69,3 +69,5 @@ Gotchas for 3.x Users
 #. Ionization models are now attached to modules using tools.  See :ref:`ionization` and the examples (search for ``ionization`` in examples folder).
 
 #. Equation of state tools use standard syntax and semantics, see :ref:`eos`.
+
+#. OpenCL platforms and devices are specified on the command line rather than in the input file.

@@ -166,19 +166,29 @@ namespace tw
 		};
 		struct Preamble
 		{
+			// encapsulates information about how an object is being created in the input file
 			bool attaching;
 			std::string str,obj_name,owner_name,end_token,err_prefix;
 			std::vector<std::string> words;
 		};
+		struct FileEnv
+		{
+			// encapsulates finding and opening files
+			std::string inputFileName;
+			std::vector<std::string> searchPaths;
+			FileEnv(const std::string& inputFileName);
+			bool OpenDeck(std::ifstream& inFile) const;
+			bool FindAndOpen(const std::string& fileName,std::ifstream& inFile) const;
+		};
 
 		tw::Float GetUnitDensityCGS(std::stringstream& in);
-		tw::Int IncludeFiles(std::stringstream& in,std::stringstream& out);
+		tw::Int IncludeFiles(const FileEnv& file_env,std::stringstream& in,std::stringstream& out);
 		void StripComments(std::ifstream& inputFile,std::stringstream& out);
 		void StripDecorations(std::stringstream& in,std::stringstream& out);
 		void InsertWhitespace(std::stringstream& in,std::stringstream& out);
 		void UserMacros(std::stringstream& in,std::stringstream& out);
 		void UnitMacros(std::stringstream& in,std::stringstream& out);
-		void PreprocessInputFile(std::ifstream& inputFile,std::stringstream& out);
+		void PreprocessInputFile(const FileEnv& file_env,std::stringstream& out);
 
 		void PythonRange(std::string& source,tw::Float *v0,tw::Float *v1);
 

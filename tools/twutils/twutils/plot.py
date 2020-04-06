@@ -162,7 +162,7 @@ class plotter:
         if not self.buffered:
             tpos = slicing_spec.find('t')
             if tpos<2:
-                raise ValueError('Time cannot be a plotting axis unless the plotter is buffered.')
+                raise ValueError('Time cannot be position 0 or 1, unless the plotter is buffered.')
             spos = 5-tpos # evalutes to 2 or 3 if tpos does
             frame = slice_to_plot[tpos-2]
             slc = slice_to_plot[spos-2]

@@ -38,6 +38,9 @@ void BoundaryCondition::Set(tw::bc::fld theBoundaryCondition,tw::grid::side whic
 	// Namely, 0 is the outer ghost cell layer, 1 is the inner, 2 is the edge cell, etc.
 	// When BC is applied, negative strides are used to produce mirror image indexing on high side
 
+	// Inhomogeneous boundary conditions are only enabled for dirichlet variants.
+	// If we enabled it for neumann it would lead to unfriendly results in many cases.
+
 	Reset();
 	switch (whichSide)
 	{
@@ -59,7 +62,7 @@ void BoundaryCondition::Set(tw::bc::fld theBoundaryCondition,tw::grid::side whic
 				fold[3][1] = -1.0;
 				force[1][1] = 0.0;
 				force[2][2] = 0.0;
-				coeff[2] = 1.0;
+				coeff[2] = 0.0; // set to 1 to enable inhomogeneous
 			}
 			else
 			{
@@ -67,7 +70,7 @@ void BoundaryCondition::Set(tw::bc::fld theBoundaryCondition,tw::grid::side whic
 				//force[0][0] = 0.0;
 				fold[2][0] = -1.0;
 				force[1][1] = 0.0;
-				coeff[1] = 1.0;
+				coeff[1] = 0.0; // set to 1 to enable inhomogeneous
 			}
 			break;
 		case tw::bc::fld::neumannWall:
@@ -79,7 +82,7 @@ void BoundaryCondition::Set(tw::bc::fld theBoundaryCondition,tw::grid::side whic
 			//coeff[0] = -1.0;
 			force[1][1] = 0.0;
 			force[1][2] = 1.0;
-			coeff[1] = -1.0;
+			coeff[1] = 0.0; // set to -1 to enable inhomogeneous
 			break;
 		case tw::bc::fld::dirichletWall:
 			// quantities known at cell centers which are fixed on cell walls

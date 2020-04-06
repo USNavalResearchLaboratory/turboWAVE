@@ -1,0 +1,67 @@
+// Not an input file, intended to be #include(d)
+// Argon plasma chemistry suitable for moderate pressures
+// Full discussion in G.M. Petrov internal note 03-30-2020
+
+new chemical e
+{
+	charge = -1.0
+	mass = 1.0
+	cv = 1.5
+}
+
+new group heavies
+{
+	new chemical Ar
+	{
+		charge = 0.0
+		mass = 73440
+		cv = 1.5
+		thermometric conductivity = %1cm2s
+	}
+	new chemical Ar[4s]
+	{
+		charge = 0.0
+		mass = 73440
+		cv = 1.5
+		thermometric conductivity = %1cm2s
+	}
+	new chemical Ar[+]
+	{
+		charge = 1.0
+		mass = 73439
+		cv = 1.5
+		thermometric conductivity = %1cm2s
+	}
+	new chemical Ar2[+]
+	{
+		charge = 1.0
+		mass = 146879
+		cv = 2.5
+		thermometric conductivity = %1cm2s
+	}
+	mobile = true
+}
+
+new collision = e <-> Ar[+] , coulomb
+new collision = e <-> Ar , cross section = 1e-16 // appropriate for 1 eV
+new collision = e <-> Ar[4s] , cross section = 1e-16 // likely not important
+new collision = e <-> Ar2[+] , coulomb
+
+// excitation into lumped excited state with detail balanced de-excitation
+new reaction = { Ar -> Ar[4s] : e -> e - 11.55 } rate = 4e-8 .08 12.5 e(:)
+new reaction = { Ar[4s] -> Ar + 11.55 : e -> e } rate = 1.33e-8 .08 0.0 e(:)
+
+// impact ionization and 3-body recombination channels
+new reaction = { Ar -> Ar[+] : e -> e + e - 15.76 } rate = 5.0e-8 0.35 17.2 e(:)
+new reaction = { Ar[4s] -> Ar[+] : e -> e + e - 4.21 } rate = 1.8e-7 0.0 4.65 e(:)
+new reaction = { Ar[+] -> Ar[4s] + 4.21 : e + e -> e } rate = 5.4e-27 -4.5 0.0 e(:)
+new reaction = { Ar[+] + Ar + e -> Ar[4s] + Ar + 4.21 } rate = 2.5e-29 -1.5 0.0 e(:)
+
+// radiative losses, photon is assumed to leave system
+//new reaction = { Ar[+] + e -> Ar } rate = 2.7e-13 -0.5 0.0 e(:)
+// following rate has sqrt(D[cm]) buried in denominator; for D=1 c0=2.4e5
+new reaction = { Ar[4s] -> Ar } rate = 7.2e5 0.0 0.0 Ar(:)
+
+// molecular argon ion
+new reaction = { Ar[+] + Ar + Ar -> Ar2[+] + Ar + 2.61 } rate = 5.2e-32 -0.4 0.0 Ar(:)
+new reaction = { Ar2[+] + e -> Ar[4s] + Ar + 1.6 } rate = 7.3e-8 -0.67 0.0 e(:)

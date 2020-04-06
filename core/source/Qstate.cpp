@@ -294,8 +294,9 @@ void TabulatedState::Initialize()
 	tw::Int num;
 	std::string word;
 	tw::Float realAmplitude,imagAmplitude;
-	std::ifstream inFile(filename.c_str());
-	if (inFile.rdstate() & std::ios::failbit)
+	std::ifstream inFile;
+	tw::input::FileEnv file_env(task->inputFileName);
+	if (!file_env.FindAndOpen(filename,inFile))
 		throw tw::FatalError("couldn't open state file <" + filename + ">");
 	do
 	{

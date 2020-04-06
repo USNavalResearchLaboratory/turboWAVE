@@ -41,7 +41,7 @@ Electrostatic::Electrostatic(const std::string& name,Simulation* sim):FieldSolve
 void Electrostatic::Initialize()
 {
 	FieldSolver::Initialize();
-	ellipticSolver->SetBoundaryConditions(phi);
+	ellipticSolver->SetFieldsBoundaryConditions(phi,Element(0));
 	for (auto c : conductor)
 		ellipticSolver->FixPotential(phi,c->theRgn,c->Voltage(owner->elapsedTime));
 	SetupInitialPotential();

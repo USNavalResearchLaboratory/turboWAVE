@@ -59,7 +59,7 @@ struct BoundaryCondition
 	// Setting a particular boundary condition consists of defining the matrices.
 	// To apply forcing, the caller must pass a value for BC.
 
-	// Handling of inhomogeneous boundary conditions:
+	// Handling of inhomogeneous boundary conditions (only enabled for dirichlet):
 	// Each boundary condition object has to be fed a value of BC for each strip.
 	// Where this comes from is entirely up to the caller of ForcingOperation.
 	// The primary caller in turboWAVE is Field::ApplyBoundaryCondition.

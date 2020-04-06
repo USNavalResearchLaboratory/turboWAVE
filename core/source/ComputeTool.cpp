@@ -290,3 +290,52 @@ ComputeTool* ComputeTool::CreateObjectFromType(const std::string& name,tw::tool_
 	}
 	return ans;
 }
+
+// BoundedTool derived class
+// Expect that many tools will want basic access to boundary conditions.
+// Therefore provide a derived class at a low level to provide this.
+
+BoundedTool::BoundedTool(const std::string& name,MetricSpace *m,Task *tsk) : ComputeTool(name,m,tsk)
+{
+	x0 = x1 = y0 = y1 = z0 = z1 = tw::bc::fld::neumannWall;
+	directives.Add("xboundary",new tw::input::Enums<tw::bc::fld>(tw::bc::fld_map(),&x0,&x1),false);
+	directives.Add("yboundary",new tw::input::Enums<tw::bc::fld>(tw::bc::fld_map(),&y0,&y1),false);
+	directives.Add("zboundary",new tw::input::Enums<tw::bc::fld>(tw::bc::fld_map(),&z0,&z1),false);
+}
+
+void BoundedTool::SetBoundaryConditions(tw::bc::fld x0,tw::bc::fld x1,tw::bc::fld y0,tw::bc::fld y1,tw::bc::fld z0,tw::bc::fld z1)
+{
+	this->x0 = x0;
+	this->y0 = y0;
+	this->z0 = z0;
+	this->x1 = x1;
+	this->y1 = y1;
+	this->z1 = z1;
+}
+
+void BoundedTool::SaveBoundaryConditions()
+{
+	x0s = x0;
+	x1s = x1;
+	y0s = y0;
+	y1s = y1;
+	z0s = z0;
+	z1s = z1;
+}
+
+void BoundedTool::RestoreBoundaryConditions()
+{
+	x0 = x0s;
+	x1 = x1s;
+	y0 = y0s;
+	y1 = y1s;
+	z0 = z0s;
+	z1 = z1s;
+}
+
+void BoundedTool::SetFieldsBoundaryConditions(Field& F,const Element& e)
+{
+	F.SetBoundaryConditions(e,tw::grid::x,x0,x1);
+	F.SetBoundaryConditions(e,tw::grid::y,y0,y1);
+	F.SetBoundaryConditions(e,tw::grid::z,z0,z1);
+}

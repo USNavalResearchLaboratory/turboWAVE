@@ -7,7 +7,6 @@ struct Simulation;
 
 struct Simulation:Task,MetricSpace
 {
-	std::string inputFileName,restartFileName;
 	std::ostream *tw_out;
 	tw::input::DirectiveReader outerDirectives,gridDirectives;
 
@@ -35,7 +34,7 @@ struct Simulation:Task,MetricSpace
 	// Map of the most recently created module of a given type
 	std::map<tw::module_type,Module*> module_map;
 
-	Simulation(const std::string& inputFileName,const std::string& restartFileName);
+	Simulation(const std::string& inputFileName,const std::string& restartFileName,const std::string& platform,const std::string& device);
 	virtual ~Simulation();
 	virtual void Run();
 	void SetupGeometry();
@@ -65,7 +64,6 @@ struct Simulation:Task,MetricSpace
 	template <class T,class U>
 	U ValueOnLightGrid(T& A,tw::strip s,tw::Int k,tw::Float relativeTime);
 
-	void OpenInputFile(std::ifstream& inFile);
 	std::string InputFileFirstPass();
 	void SetupLocalGrid();
 	void NestedDeclaration(const std::string& com,std::stringstream& inputString,Module *sup);

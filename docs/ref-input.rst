@@ -73,7 +73,7 @@ Statements start with **new**, **get**, or **generate**.  The **new** and **gene
 
 Assignments copy a value in the input file to a simulation parameter.  These values can be decimal numbers, physical quantities with units, or **identifiers**.  Identifiers are used to select from choices, for example, ``periodic`` is an identifier corresponding to a boundary condition.
 
-To allow for chemistry-friendly notation, identifiers are relaxed compared to other languages.  In particular, ``[``, ``]``, ``+``, and ``-`` are allowed.  Thus, ``Ar[18+]`` is a valid little language identifier, even without using quotes.
+To allow for chemistry-friendly notation, identifiers are relaxed compared to other languages.  In particular, ``.``, ``[``, ``]``, ``+``, and ``-`` are allowed.  Thus, ``Ar[18+]`` and ``O2[+].H2O`` are valid little language identifiers.
 
 .. _preprocessor:
 
@@ -89,9 +89,11 @@ While preprocessing the input file, the contents of another file can be inserted
 
 .. code-block:: c
 
-	#include myfile.tw
+	#include "myfile.tw"
 
 would substitute the contents of ``myfile.tw`` at the point in the file where the ``#include`` directive appears.  This can be done recursively. The ``#include`` directive may appear anywhere in the input file, except where it would interrupt another directive.
+
+The file can be specified using a path. If no path is given, the file should be in the working directory, or the directory of the input file.  Using quotes is optional. The angle-brackets used in C for system headers have no meaning and should not be used.
 
 User Defined Macros
 ,,,,,,,,,,,,,,,,,,,
@@ -169,24 +171,6 @@ Top Level Directives
 
 Top level directives may include statements to create modules or tools, as well as assignments to parameters that are associated with the root ``Simulation`` object.  The ``Simulation`` parameter assignments are as follows.
 
-.. py:function:: hardware acceleration device string = dev
-
-	Use hardware accelerators having the given substring in their name
-
-	:param str dev: the substring to search for in the device name, e.g., ``radeon``.  Case doesn't matter.
-
-.. py:function:: hardware acceleration device numbers = dev_list
-
-	Optional specification of preferred OpenCL device numbers.  If specified these take precedence over name search.
-
-	:param list dev_list: variable length list of integers, e.g., ``{ 0 , 1 , 2 }``
-
-.. py:function:: hardware acceleration platform string = platform
-
-	Use only OpenCL platforms having the given substring in their name
-
-	:param str platform: the substring to search for in the platform name, e.g., ``cuda``.  Case doesn't matter.
-
 .. py:function:: unit density = CGS_density
 
 	Sets the unit density and fixes the system of normalized units.
@@ -199,7 +183,7 @@ Top level directives may include statements to create modules or tools, as well 
 
 .. py:function:: timestep = dt
 
-	:param float dt: the timestep in units of :math:`\omega_p^{-1}`
+	:param float dt: the timestep, or if adaptive timestep in use, the starting timestep
 
 .. py:function:: dtmin = dtm
 

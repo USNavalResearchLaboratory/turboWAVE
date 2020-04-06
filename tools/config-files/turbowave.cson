@@ -46,6 +46,11 @@
 		'name': 'string.quoted.single.tw'
 	},
 	{
+		'begin': '\"'
+		'end': '\"'
+		'name': 'string.quoted.double.tw'
+	},
+	{
 		'begin': '\\s\\$'
 		'end': '\\s'
 		'name': 'variable.other.tw'

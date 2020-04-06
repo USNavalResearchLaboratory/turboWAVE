@@ -44,6 +44,7 @@ struct Chemical:Module
 	EquilibriumGroup *group; // explictly typed super
 	EOSComponent *eosData;
 	Ionizer *ionizer;
+	UniformProfile *background;
 	sparc::material mat;
 	tw::Int indexInState;
 
@@ -136,6 +137,7 @@ struct HydroManager:Module
 	IsotropicPropagator *laserPropagator;
 	tw::vec3 dipoleCenter;
 	tw::Float laserFrequency; // derived from pulse list during initialization
+	tw::Float backgroundDensity,backgroundTemperature;
 
 	sparc::radiationModel radModel;
 	sparc::laserModel lasModel;

@@ -13,10 +13,12 @@
 ////////////////////////
 
 
-Simulation::Simulation(const std::string& file_name,const std::string& restart_name)
+Simulation::Simulation(const std::string& file_name,const std::string& restart_name,const std::string& platform,const std::string& device)
 {
 	inputFileName = file_name;
 	restartFileName = restart_name;
+	platformSearchString = platform;
+	deviceSearchString = device;
 	clippingRegion.push_back(new EntireRegion(clippingRegion));
 
 	gridGeometry = tw::grid::cartesian;
@@ -54,12 +56,7 @@ Simulation::Simulation(const std::string& file_name,const std::string& restart_n
 	bc0[3] = tw::bc::par::absorbing;
 	bc1[3] = tw::bc::par::absorbing;
 
-	outerDirectives.Add("affinity",new tw::input::List<std::valarray<tw::Int>>(&affinityMask),false);
-	outerDirectives.Add("hardware acceleration device string",new tw::input::String(&deviceSearchString),false);
-	outerDirectives.Add("hardware acceleration device numbers",new tw::input::List<std::valarray<tw::Int>>(&deviceIDList),false);
-	outerDirectives.Add("hardware acceleration platform string",new tw::input::String(&platformSearchString),false);
 	outerDirectives.Add("timestep",new tw::input::Float(&dt0));
-	outerDirectives.Add("output level",new tw::input::Int(&outputLevel),false);
 	outerDirectives.Add("xboundary",new tw::input::Enums<tw::bc::par>(tw::bc::par_map(),&bc0[1],&bc1[1]));
 	outerDirectives.Add("yboundary",new tw::input::Enums<tw::bc::par>(tw::bc::par_map(),&bc0[2],&bc1[2]));
 	outerDirectives.Add("zboundary",new tw::input::Enums<tw::bc::par>(tw::bc::par_map(),&bc0[3],&bc1[3]));
@@ -73,6 +70,7 @@ Simulation::Simulation(const std::string& file_name,const std::string& restart_n
 	outerDirectives.Add("neutralize",new tw::input::Bool(&neutralize),false);
 	outerDirectives.Add("window speed",new tw::input::Float(&signalSpeed),false);
 	outerDirectives.Add("moving window",new tw::input::Bool(&movingWindow),false);
+	outerDirectives.Add("output level",new tw::input::Int(&outputLevel),false);
 	outerDirectives.Add("error checking level",new tw::input::Int(&errorCheckingLevel),false);
 
 	// allow user to choose any of 8 corners with strings like corner001, corner010, etc.
@@ -303,6 +301,10 @@ void Simulation::PrepareSimulation()
 
 	ReadInputFile();
 
+	// The following is where Modules process the ComputeTool instances attached by the user.
+	for (auto m : module)
+		m->VerifyInput();
+
 	// Attach clipping regions to tools
 	for (auto tool : computeTool)
 	{
@@ -311,10 +313,6 @@ void Simulation::PrepareSimulation()
 		else
 			tool->theRgn = Region::FindRegion(clippingRegion,tool->region_name);
 	}
-
-	// The following is where Modules process the ComputeTool instances attached by the user.
-	for (auto m : module)
-		m->VerifyInput();
 
 	// If a diagnostic tool is not attached to any module attach it to all modules
 	for (auto tool : computeTool)
@@ -386,7 +384,7 @@ void Simulation::PrepareSimulation()
 	{
 		std::stringstream fileName;
 		std::ifstream restartFile;
-		fileName << InputPathName() << strip[0].Get_rank() << "_dump.chk";
+		fileName << strip[0].Get_rank() << "_dump.chk";
 		(*tw_out) << std::endl << "Reading restart file " << fileName.str() << "..." << std::endl << std::endl;
 		restartFile.open(fileName.str().c_str());
 		ReadCheckpoint(restartFile);
@@ -753,15 +751,6 @@ void Simulation::WriteCheckpoint(std::ofstream& outFile)
 //  Read the Input File  //
 ///////////////////////////
 
-void Simulation::OpenInputFile(std::ifstream& inFile)
-{
-	std::string inputPath;
-	inputPath = InputPathName() + inputFileName;
-	inFile.open(inputPath.c_str());
-	if (inFile.rdstate() & std::ios::failbit)
-		throw tw::FatalError("couldn't open input file " + inputPath);
-}
-
 std::string Simulation::InputFileFirstPass()
 {
 	// The first pass is used to fully initialize the task
@@ -779,13 +768,9 @@ std::string Simulation::InputFileFirstPass()
 		// world rank is suitable for reading task data from restart file
 		// because this data is the same in every restart file
 
-		std::ifstream inFile;
 		std::stringstream inputString;
 
-		OpenInputFile(inFile);
-
-		tw::input::PreprocessInputFile(inFile,inputString);
-		inFile.close();
+		tw::input::PreprocessInputFile(tw::input::FileEnv(inputFileName),inputString);
 
 		inputString.seekg(0);
 		outerDirectives.Reset();
@@ -1025,6 +1010,8 @@ Module* Simulation::RecursiveAutoSuper(tw::module_type reqType,const std::string
 			return module_map[reqType];
 
 	// Automatic creation of supermodule
+	if (!Module::AutoModuleType(reqType))
+		throw tw::FatalError("Module <"+basename+"> requires a supermodule that cannot be created automatically.");
 	std::string super_module_name = basename + "_sup";
 	MangleModuleName(super_module_name);
 	(*tw_out) << "Installing supermodule triggered by <" << basename << ">..." << std::endl;
@@ -1048,14 +1035,11 @@ void Simulation::ReadInputFile()
 
 	std::string com1,word;
 	Profile* theProfile;
-	std::ifstream inFile;
 	std::stringstream inputString;
 
 	(*tw_out) << std::endl << "Reading Input File..." << std::endl << std::endl;
 
-	OpenInputFile(inFile);
-	tw::input::PreprocessInputFile(inFile,inputString);
-	inFile.close();
+	tw::input::PreprocessInputFile(tw::input::FileEnv(inputFileName),inputString);
 
 	inputString.seekg(0);
 	outerDirectives.Reset();

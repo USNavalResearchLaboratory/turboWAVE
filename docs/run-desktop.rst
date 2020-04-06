@@ -89,6 +89,10 @@ Finally let's make a multi-panel animation.  We will show the scalar potential a
 	texlabels=\\omega_pz,\\omega_px,e\\phiSLASHmc/\\omega_pz,eE_zSLASHmc \
 	roi=0,25,-16,16/0,25,-0.1,0.1
 
+.. tip::
+
+		If you find yourself repeatedly typing the same labels, it may be useful to define a shell variable.  For example, in the ``bash`` shell, we could defined ``phi=\\omega_pz,\\omega_px,e\\phiSLASHmc``, and used ``$phi`` as shorthand for this label thereafter.
+
 In this case, each argument is repeated for the new panel.  The panel separator is either ``,`` or ``/``, depending on the argument.  We also used the ``\`` separator to continue the long argument list onto a new line (may be shell dependent).  Finally, the ``roi`` argument is used to fix the vertical scale on the lineout (without this the scale would change from frame to frame).  If everything is working you should get something like Fig. 2.
 
 .. tip::
@@ -107,19 +111,25 @@ Command line arguments
 
 For desktop installations the turboWAVE command line specification is
 
-.. py:function:: tw3d [-n <procs>] [-c <threads>] [--input-file <file>] [--no-interactive] [--restart] [--version] [--help]
+.. py:function:: tw3d [optional arguments...]
 
-	:param int procs: number of MPI processes (default=1, desktop only)
-	:param int threads: number of OpenMP threads (see below for default)
-	:param str file: name or path of the file to use as the input file (default=stdin)
+	:samp:`-n <procs>` : number of MPI processes (default=1, desktop only)
 
-	The :samp:`--restart` argument, if present, causes initial data to be loaded from a checkpoint.
+	:samp:`-c <threads>` : number of OpenMP threads (see below for default)
 
-	The :samp:`--no-interactive` argument, if present, suppresses the interactive thread.
+	:samp:`--input-file <file>` : name or path of the file to use as the input file (default=stdin)
 
-	The :samp:`--version` argument, if present, prints the version number.  If this is the only argument, no simulation is attempted.
+	:samp:`--platform <search_string>` : select an OpenCL platform with the search string in its name
 
-	The :samp:`--help` argument, if present, prints the command line arguments and the link to the online documentation.  If this is the only argument, no simulation is attempted.
+	:samp:`--device <search_string>` : select an OpenCL device with the search string in its name.  This can also be a comma-delimited list of device numbers.
+
+	:samp:`--restart` : if present, causes initial data to be loaded from a checkpoint.
+
+	:samp:`--no-interactive` : if present, suppresses the interactive thread.
+
+	:samp:`--version` : if present, prints the version number.  If this is the only argument, no simulation is attempted.
+
+	:samp:`--help` : if present, prints the command line arguments and the link to the online documentation.  If this is the only argument, no simulation is attempted.
 
 If you enter only :samp:`tw3d` with no arguments, turboWAVE will use a single MPI processes, and will fork as many threads as there are logical cores on the system.  If you enter :samp:`tw3d -n {procs}`, turboWAVE will use the requested number of MPI processes, but only a single thread.  Finally, if you enter :samp:`tw3d -n {procs} -c {threads}`, turboWAVE will use the requested number for both processes and threads.
 

@@ -345,6 +345,7 @@ Conducting regions serve the following purposes:
 	2. Antenna objects in electromagnetic simulations
 	3. Impermeable objects filling arbitrary cells in hydrodynamic simulations
 	4. Fixed potential objects filling arbitrary cells in electrostatic simulations
+	5. Fixed temperature objects filling arbitrary cells in hydrodynamic simulations
 
 .. py:function:: new conductor [<name>] [for <module_name>] { <directives> }
 
@@ -369,6 +370,10 @@ Conducting regions serve the following purposes:
 			Rotation of clipping region also rotates current distribution
 
 			:param str name: name of geometric region to use
+
+		.. py:function:: temperature = T
+
+			:param float T: The temperature of the conductor can be fixed at T, serving as a dirichlet boundary condition for heat equations. Note that parabolic solver tools default to a homogeneous neumann condition (no heat flow).
 
 		.. py:function:: enable electrostatic = tst
 
@@ -427,6 +432,8 @@ All elliptic solvers share the following directives:
 	:param enum coord: can be ``x``, ``y``, ``z``
 	:param enum bc1: boundary condition on lower side, can be ``open``, ``dirichlet``, ``neumann``.
 	:param enum bc2: boundary condition on lower side, can be ``open``, ``dirichlet``, ``neumann``.
+
+Inhomogeneous boundary conditions are implemented by using conductor tools to fix the potential.  For external boundaries, the conductor must occupy the far ghost cells.
 
 Iterative Solver
 ,,,,,,,,,,,,,,,,

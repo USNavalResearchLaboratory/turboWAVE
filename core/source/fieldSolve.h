@@ -135,7 +135,7 @@ void Electromagnetic::CleanDivergence(Field& A,tw::Float charge_multiplier)
 
 	ellipticSolver->SaveBoundaryConditions();
 	ellipticSolver->SetBoundaryConditions(fld::neumannWall,fld::neumannWall,fld::neumannWall,fld::neumannWall,fld::natural,fld::natural);
-	ellipticSolver->SetBoundaryConditions(scratch2);
+	ellipticSolver->SetFieldsBoundaryConditions(scratch2,Element(0));
 	ellipticSolver->Solve(scratch2,scratch1,1.0);
 	scratch2.ApplyBoundaryCondition();
 	ellipticSolver->RestoreBoundaryConditions();

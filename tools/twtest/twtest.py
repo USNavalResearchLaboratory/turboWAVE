@@ -1,6 +1,6 @@
 import os
-import shutil
 import glob
+import ntpath
 import sys
 import traceback
 import subprocess
@@ -223,7 +223,6 @@ try:
 	cleanup('*.gif')
 	cleanup('*.png')
 	cleanup('*.dvdat')
-	cleanup('*.txt')
 
 	compl = subprocess.run(["git","status"],stdout=subprocess.PIPE,universal_newlines=True)
 	html_doc += '<p>Git status:</p>'
@@ -247,10 +246,10 @@ except:
 
 try:
 	category_path_list = glob.glob(tw_root+'/core/examples/*')
-	category_path_list = sorted(category_path_list,key=lambda s: s.split('/')[-1][0])
+	category_path_list = sorted(category_path_list,key=lambda s: ntpath.basename(s)[0])
 	category_list = []
 	for s in category_path_list:
-		category_list.append(s.split('/')[-1])
+		category_list.append(ntpath.basename(s))
 	if len(req_categories)>0:
 		for req in req_categories:
 			if req not in category_list:
@@ -262,13 +261,10 @@ try:
 		print('Category',cat)
 		html_doc += '\n\n<h2 style="background-color:rgb(0,20,100);color:white;">"' + cat + '" Subdirectory</h2>\n\n'
 		ex_path_list = glob.glob(tw_root+'/core/examples/'+cat+'/*')
-		ex_path_list = sorted(ex_path_list,key=lambda s: s.split('/')[-1][0])
+		ex_path_list = sorted(ex_path_list,key=lambda s: ntpath.basename(s)[0])
 		ex_list = []
 		for s in ex_path_list:
-			# Copy all the txt files in case some are required data
-			if s[-4:]=='.txt':
-				shutil.copy(s,os.getcwd())
-			ex_list.append(s.split('/')[-1])
+			ex_list.append(ntpath.basename(s))
 		for i,ex_path in enumerate(ex_path_list):
 			print('--------------------------------------')
 			print('Example',ex_list[i])
@@ -326,7 +322,6 @@ try:
 			if len(glob.glob('twstat'))==1:
 				os.remove('twstat')
 
-		cleanup('*.txt')
 except:
 	traceback.print_exc()
 	print('Unrecoverable error, attempting to close report...')

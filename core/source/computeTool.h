@@ -76,3 +76,15 @@ struct ComputeTool
 	static tw::tool_type CreateTypeFromInput(const tw::input::Preamble& preamble);
 	static ComputeTool* CreateObjectFromType(const std::string& name,tw::tool_type theType,MetricSpace *ms,Task *tsk);
 };
+
+struct BoundedTool : ComputeTool
+{
+	tw::bc::fld x0,x1,y0,y1,z0,z1;
+	tw::bc::fld x0s,x1s,y0s,y1s,z0s,z1s; // saved BC's
+
+	BoundedTool(const std::string& name,MetricSpace *ms,Task *tsk);
+	void SetBoundaryConditions(tw::bc::fld x0,tw::bc::fld x1,tw::bc::fld y0,tw::bc::fld y1,tw::bc::fld z0,tw::bc::fld z1);
+	void SaveBoundaryConditions();
+	void RestoreBoundaryConditions();
+	void SetFieldsBoundaryConditions(Field& F,const Element& e);
+};

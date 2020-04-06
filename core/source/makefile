@@ -120,6 +120,12 @@ ifeq ($(PLATFORM),WIN)
 		BASE_FLAGS += -DUSE_OPENMP -fopenmp
 		LIBS += -fopenmp
 	endif
+	ifeq ($(HARDWARE_ACCEL),CUDA)
+		CL_INCLUDE = /Program Files/NVIDIA GPU Computing Toolkit/CUDA/v10.0/include
+		CL_LIB = /Program Files/NVIDIA GPU Computing Toolkit/CUDA/v10.0/lib/x64
+		BASE_FLAGS += -DUSE_OPENCL -I'$(CL_INCLUDE)'
+		LIBS +=  -L'$(CL_LIB)' -lOpenCL
+	endif
 	RELEASE_FLAGS = $(BASE_FLAGS) -O3 -march=native
 	PROFILE_FLAGS = $(BASE_FLAGS) -O3 -march=native -Rpass-analysis=loop-vectorize
 	DEBUG_FLAGS = $(BASE_FLAGS) -g -O0

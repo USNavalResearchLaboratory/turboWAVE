@@ -99,6 +99,38 @@ void tw::input::DirectiveReader::ThrowErrorIfMissingKeys(const std::string& src)
 //                                   //
 ///////////////////////////////////////
 
+tw::input::FileEnv::FileEnv(const std::string& inputFilename)
+{
+	// Purpose of this class is mainly to encapsulate file searches
+	this->inputFileName = inputFilename;
+	searchPaths.push_back("");
+	std::size_t sep_pos = inputFileName.find_last_of("/\\");
+	searchPaths.push_back(inputFileName.substr(0,sep_pos+1)); // keep separator so we have the right one later
+}
+
+bool tw::input::FileEnv::OpenDeck(std::ifstream& inFile) const
+{
+	inFile.open(inputFileName);
+	return inFile.good();
+}
+
+bool tw::input::FileEnv::FindAndOpen(const std::string& fileName,std::ifstream& inFile) const
+{
+	std::ifstream *temp;
+	for (auto it=searchPaths.begin();it!=searchPaths.end();++it)
+	{
+		temp = new std::ifstream(*it + fileName);
+		if (temp->good())
+		{
+			delete temp;
+			inFile.open(*it + fileName);
+			return inFile.good();
+		}
+		delete temp;
+	}
+	return false;
+}
+
 tw::Float tw::input::GetUnitDensityCGS(std::stringstream& in)
 {
 	tw::Float ans = 0.0;
@@ -283,10 +315,9 @@ void tw::input::UnitMacros(std::stringstream& in,std::stringstream& out)
 	}
 }
 
-tw::Int tw::input::IncludeFiles(std::stringstream& in,std::stringstream& out)
+tw::Int tw::input::IncludeFiles(const FileEnv& file_env,std::stringstream& in,std::stringstream& out)
 {
 	tw::Int count = 0;
-	std::ifstream *includedFile;
 	std::string word;
 	while (!in.eof())
 	{
@@ -296,11 +327,11 @@ tw::Int tw::input::IncludeFiles(std::stringstream& in,std::stringstream& out)
 			if (word=="#include")
 			{
 				in >> word;
-				includedFile = new std::ifstream(word.c_str());
-				if (includedFile->rdstate() & std::ios::failbit)
+				StripQuotes(word);
+				std::ifstream includedFile;
+				if (!file_env.FindAndOpen(word,includedFile))
 					throw tw::FatalError("couldn't open " + word);
-				StripComments(*includedFile,out);
-				delete includedFile;
+				StripComments(includedFile,out);
 				count++;
 			}
 			else
@@ -312,11 +343,14 @@ tw::Int tw::input::IncludeFiles(std::stringstream& in,std::stringstream& out)
 	return count;
 }
 
-void tw::input::PreprocessInputFile(std::ifstream& inFile,std::stringstream& out)
+void tw::input::PreprocessInputFile(const FileEnv& file_env,std::stringstream& out)
 {
+	std::ifstream inFile;
 	std::stringstream temp;
 	std::string word;
 	tw::Float unitDensityCGS;
+	if (!file_env.OpenDeck(inFile))
+		throw tw::FatalError("couldn't open input file " + file_env.inputFileName);
 
 	auto reset_in = [&] (std::stringstream& ss)
 	{
@@ -337,7 +371,7 @@ void tw::input::PreprocessInputFile(std::ifstream& inFile,std::stringstream& out
 	// Handle included files, strip comments
 	tw::input::StripComments(inFile,temp);
 	reset_in(temp);
-	while (tw::input::IncludeFiles(temp,out))
+	while (tw::input::IncludeFiles(file_env,temp,out))
 		reset_in_out(temp,out);
 	// std::cout << out.str();
 	// std::cout << std::endl << std::endl;
@@ -363,6 +397,7 @@ void tw::input::PreprocessInputFile(std::ifstream& inFile,std::stringstream& out
 	tw::input::UnitMacros(temp,out);
 	// std::cout << out.str();
 	// std::cout << std::endl << std::endl;
+	inFile.close();
 }
 
 

@@ -12,7 +12,7 @@ module.exports = grammar(
 
 		_nested: $ => choice($.include,$.define,$._nested_directive),
 
-		include: $ => seq('#include',$.identifier),
+		include: $ => seq('#include',choice($.identifier,$.string_literal)),
 
 		define: $ => seq('#define',$.define_key,$.define_value),
 
@@ -61,9 +61,11 @@ module.exports = grammar(
 		get: $ => seq('get',choice($.identifier,$.string_literal)),
 
 		define_key: $ => /\$[a-zA-Z_]\w*/,
-		identifier: $ => /[a-zA-Z_][\w\[\]\+\-\^]*/,
+		identifier: $ => /[a-zA-Z_][\w\[\]\+\-\^\.]*/,
 		identifier_sequence: $ => repeat1($.identifier),
-		string_literal: $ => seq('\'',$.identifier,'\''),
+		_string_literal_single: $ => seq('\'',$.identifier,'\''),
+		_string_literal_double: $ => seq('\"',$.identifier,'\"'),
+		string_literal: $ => choice($._string_literal_double,$._string_literal_single),
 		_integer: $ => /(\+|\-)?[0-9]+/,
 		_decimal1: $ => /(\+|\-)?[0-9]+\.?[0-9]*([eE](\+|\-)?[0-9]+)?/,
 		_decimal2: $ => /(\+|\-)?\.[0-9]+([eE](\+|\-)?[0-9]+)?/,

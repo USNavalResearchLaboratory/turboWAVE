@@ -1,5 +1,5 @@
 #include "simulation.h"
-#define TW_VERSION_STRING "4.0.0b2"
+#define TW_VERSION_STRING "4.0.0rc"
 
 ////////////////////
 // ERROR HANDLING //
@@ -11,6 +11,24 @@ void out_of_store()
 {
 	std::cout << "operator new failed: out of memory" << std::endl;
 	exit(1);
+}
+
+std::map<std::string,std::string> arg_map(bool tw_mpi)
+{
+	std::map<std::string,std::string> args;
+	if (tw_mpi)
+	{
+		args["-n"] = "<threads> : Start <threads> MPI threads.";
+		args["--no-interactive"] = ": Suppress the interactive thread.";
+	}
+	args["-c"] = "<threads> : Fork <threads> OpenMP threads per MPI thread.";
+	args["--input-file"] = "<path> : Use <path> as the input file.";
+	args["--version"] = ": Display the version number (no simulation if only argument).";
+	args["--help"] = ": Display this message (no simulation if only argument).";
+	args["--restart"] = ": Load checkpoint data.";
+	args["--platform"] = "<plat_str> : OpenCL platform search string.";
+	args["--device"] = "<dev_str> : OpenCL device search string.";
+	return args;
 }
 
 //////////////////////////////
@@ -25,10 +43,13 @@ struct Launcher : tw::Thread
 {
 	Simulation *tw;
 	tw::Int numOMPThreads;
-	Launcher(tw::Int rank,tw::Int c,const std::string& inputFileName,const std::string& restartFileName) : tw::Thread(rank)
+	Launcher(tw::Int rank,tw::Int c,const std::string& inputFileName,
+		const std::string& restartFileName,
+		const std::string& platform,
+		const std::string& device) : tw::Thread(rank)
 	{
 		numOMPThreads=c;
-		tw = new Simulation(inputFileName,restartFileName);
+		tw = new Simulation(inputFileName,restartFileName,platform,device);
 	}
 	virtual ~Launcher()
 	{
@@ -79,9 +100,10 @@ void TW_Interactive::Run()
 int main(int argc,char *argv[])
 {
 	int numOMPThreads=0; // indicates -c argument was not given
-	std::string initMessage,arg,inputFileName("stdin"),restartFileName("tw::none");
+	std::string initMessage,arg,inputFileName("stdin"),restartFileName("tw::none"),platform("cuda"),device("tesla");
 	std::set_new_handler(&out_of_store);
 	tw::Int bitsPerFloat = sizeof(tw::Float)*8;
+	std::map<std::string,std::string> args = arg_map(true);
 
 	MPI_Init(&argc,&argv);
 
@@ -92,7 +114,7 @@ int main(int argc,char *argv[])
 		{
 			arg = std::string(argv[idx]);
 
-			if (arg!="--input-file" && arg!="--no-interactive" && arg!="--version" && arg!="--help" && arg!="-c" && arg!="--restart")
+			if (args.find(arg)==args.end())
 				throw tw::FatalError("Unrecognized argument <"+arg+">");
 
 			if (arg=="--version")
@@ -106,23 +128,38 @@ int main(int argc,char *argv[])
 			{
 				std::cout << "This is turboWAVE, a PIC/hydro/quantum simulation code." << std::endl;
 				std::cout << "Usage: <launcher> -np <procs> tw3d [optional arguments...]" << std::endl;
-				std::cout << "<launcher>             MPI launcher such as mpirun, mpiexec, etc.." << std::endl;
-				std::cout << "-np <procs>            Launch <procs> MPI processes (flag may vary with launcher program)." << std::endl;
-				std::cout << "-c <threads>           Fork <threads> OpenMP threads per MPI process." << std::endl;
-				std::cout << "--input-file <path>    Use <path> as the input file." << std::endl;
-				std::cout << "--version              Display the version number (no simulation if only argument)." << std::endl;
-				std::cout << "--help                 Display this message (no simulation if only argument)." << std::endl;
-				std::cout << "--no-interactive       Suppress the interactive thread." << std::endl;
-				std::cout << "--restart              Load checkpoint data." << std::endl;
+				std::cout << "<launcher> : MPI launcher such as mpirun, mpiexec, etc.." << std::endl;
+				std::cout << "-np <procs> : Launch <procs> MPI processes (flag may vary with launcher program)." << std::endl;
+				for (auto it=args.begin();it!=args.end();++it)
+					std::cout << it->first << " " << it->second << std::endl;
 				std::cout << "Full documentation can be found at https://turbowave.readthedocs.io" << std::endl;
 				if (argc==2)
 					exit(0);
 			}
+
 			if (arg=="--input-file")
 			{
 				idx++;
 				if (idx<argc)
 					inputFileName = std::string(argv[idx]);
+				else
+					throw tw::FatalError("Incomplete arguments");
+			}
+
+			if (arg=="--platform")
+			{
+				idx++;
+				if (idx<argc)
+					platform = std::string(argv[idx]);
+				else
+					throw tw::FatalError("Incomplete arguments");
+			}
+
+			if (arg=="--device")
+			{
+				idx++;
+				if (idx<argc)
+					device = std::string(argv[idx]);
 				else
 					throw tw::FatalError("Incomplete arguments");
 			}
@@ -153,7 +190,7 @@ int main(int argc,char *argv[])
 		exit(1);
 	}
 
-	Simulation *tw = new Simulation(inputFileName,restartFileName);
+	Simulation *tw = new Simulation(inputFileName,restartFileName,platform,device);
 	initMessage = tw->InputFileFirstPass();
 	*tw->tw_out << std::endl << "*** Starting turboWAVE Session ***" << std::endl;
 	*tw->tw_out << "Floating point precision = " << bitsPerFloat << " bits" << std::endl;
@@ -188,9 +225,10 @@ int main(int argc,char *argv[])
 	int numMPIThreads=1,numOMPThreads=1;
 	bool interactive = true;
 	tw::Int i,numCompleted=0;
-	std::string arg,inputFileName("stdin"),restartFileName("tw::none");
+	std::string arg,inputFileName("stdin"),restartFileName("tw::none"),platform("cuda"),device("tesla");
 	std::set_new_handler(&out_of_store);
 	tw::Int bitsPerFloat = sizeof(tw::Float)*8;
+	std::map<std::string,std::string> args = arg_map(true);
 
 	std::cout << std::endl << "*** Starting turboWAVE Session ***" << std::endl;
 	std::cout << "Floating point precision = " << bitsPerFloat << " bits" << std::endl;
@@ -210,8 +248,7 @@ int main(int argc,char *argv[])
 		while (idx<argc)
 		{
 			arg = std::string(argv[idx]);
-
-			if (arg!="-n" && arg!="-c" && arg!="--no-interactive" && arg!="--version" && arg!="--help" && arg!="--input-file" && arg!="--restart")
+			if (args.find(arg)==args.end())
 				throw tw::FatalError("Unrecognized argument");
 
 			if (arg=="--input-file")
@@ -219,6 +256,24 @@ int main(int argc,char *argv[])
 				idx++;
 				if (idx<argc)
 					inputFileName = std::string(argv[idx]);
+				else
+					throw tw::FatalError("Incomplete arguments");
+			}
+
+			if (arg=="--platform")
+			{
+				idx++;
+				if (idx<argc)
+					platform = std::string(argv[idx]);
+				else
+					throw tw::FatalError("Incomplete arguments");
+			}
+
+			if (arg=="--device")
+			{
+				idx++;
+				if (idx<argc)
+					device = std::string(argv[idx]);
 				else
 					throw tw::FatalError("Incomplete arguments");
 			}
@@ -238,14 +293,9 @@ int main(int argc,char *argv[])
 			if (arg=="--help")
 			{
 				std::cout << "This is turboWAVE, a PIC/hydro/quantum simulation code." << std::endl;
-				std::cout << "Usage: tw3d [-n <threads>] [-c <threads>] [--input-file <path>] [--version] [--help] [--no-interactive]" << std::endl;
-				std::cout << "-n <threads>           Start <threads> MPI threads." << std::endl;
-				std::cout << "-c <threads>           Fork <threads> OpenMP threads per MPI thread." << std::endl;
-				std::cout << "--input-file <path>    Use <path> as the input file." << std::endl;
-				std::cout << "--version              Display the version number (no simulation if only argument)." << std::endl;
-				std::cout << "--help                 Display this message (no simulation if only argument)." << std::endl;
-				std::cout << "--no-interactive       Suppress the interactive thread." << std::endl;
-				std::cout << "--restart              Load checkpoint data." << std::endl;
+				std::cout << "Usage: tw3d [optional arguments...]" << std::endl;
+				for (auto it=args.begin();it!=args.end();++it)
+					std::cout << it->first << " " << it->second << std::endl;
 				std::cout << "Full documentation can be found at https://turbowave.readthedocs.io" << std::endl;
 				if (argc==2)
 					exit(0);
@@ -303,7 +353,7 @@ int main(int argc,char *argv[])
 
 	std::vector<tw::Thread*> launcher(numMPIThreads);
 	for (i=0;i<numMPIThreads;i++)
-		launcher[i] = new Launcher(i,numOMPThreads,inputFileName,restartFileName);
+		launcher[i] = new Launcher(i,numOMPThreads,inputFileName,restartFileName,platform,device);
 	TW_MPI_Launch(launcher);
 
 	std::cout << "Internal MPI Startup Complete" << std::endl;

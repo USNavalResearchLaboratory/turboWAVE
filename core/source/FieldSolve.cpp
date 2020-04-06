@@ -312,7 +312,7 @@ void CoulombSolver::Initialize()
 
 	// Overrides the boundary conditions set by the tool
 	ellipticSolver->SetBoundaryConditions(fld::periodic,fld::periodic,fld::periodic,fld::periodic,fld::natural,fld::natural);
-	ellipticSolver->SetBoundaryConditions(scratch2);
+	ellipticSolver->SetFieldsBoundaryConditions(scratch2,Element(0));
 
 	SetExteriorBoundaryConditionsE(A4,Element(1),Element(2),Element(3));
 	SetExteriorBoundaryConditionsE(A4,Element(5),Element(6),Element(7));

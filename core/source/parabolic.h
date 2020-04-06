@@ -62,13 +62,15 @@ struct SchroedingerPropagator:ComputeTool
 	virtual void UpdateSpin(ComplexField& psi,ComplexField& chi,Field& A4,tw::Float adt);
 };
 
-struct ParabolicSolver:ComputeTool
+struct ParabolicSolver:BoundedTool
 {
+	// inhomogeneous boundary conditions are handled as described in elliptic.h
 	std::vector<GlobalIntegrator<tw::Float>*> globalIntegrator;
 
 	ParabolicSolver(const std::string& name,MetricSpace *m,Task *tsk);
 	virtual ~ParabolicSolver();
 
+	void FixTemperature(Field& T,const Element& e,Region* theRegion,const tw::Float& T0);
 	void FormOperatorStencil(tw::Float *D1,tw::Float *D2,const ScalarField& fluxMask,Field *coeff,tw::Int c,const tw::strip& s,tw::Int i);
 	virtual void Advance(const tw::grid::axis& axis,ScalarField& psi,ScalarField& fluxMask,tw::Float coeff,tw::Float dt);
 	virtual void Advance(ScalarField& psi,ScalarField& fluxMask,tw::Float coeff,tw::Float dt);
