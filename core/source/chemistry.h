@@ -31,6 +31,7 @@ struct Reaction : PrimitiveReaction
 	sparc::eos_set catalyst;
 	tw::Int numBodies;
 
+	~Reaction();
 	virtual void ReadInputFile(std::stringstream& inputString,tw::Float unitDensityCGS);
 };
 

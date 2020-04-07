@@ -52,6 +52,12 @@ void PrimitiveReaction::ReadRate(std::stringstream& inputString,tw::Int numBodie
 	}
 }
 
+Reaction::~Reaction()
+{
+	for (auto s : sub)
+		delete s;
+}
+
 void Reaction::ReadInputFile(std::stringstream& inputString,tw::Float unitDensityCGS)
 {
 	UnitConverter uc(unitDensityCGS);

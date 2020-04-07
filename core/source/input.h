@@ -9,6 +9,9 @@ namespace tw
 		void StripQuotes(std::string& str);
 		struct Directive
 		{
+			virtual ~Directive()
+			{
+			}
 			virtual void Read(std::stringstream& in,const std::string& key)
 			{
 				std::string word;
@@ -107,11 +110,16 @@ namespace tw
 		struct Enums : Directive
 		{
 			T *dat1,*dat2,*dat3;
-			std::map<std::string,T> emap;
-			Enums(const std::map<std::string,T>& m,T* d1,T* d2=NULL,T* d3=NULL) : emap(m)
+			std::map<std::string,T> *emap; // has to be pointer for polymorphic destruction
+			Enums(const std::map<std::string,T>& m,T* d1,T* d2=NULL,T* d3=NULL)
 			{
 				// must specify at least 1 data element, may specify up to 3.
 				dat1=d1; dat2=d2; dat3=d3;
+				emap = new std::map<std::string,T>(m);
+			}
+			virtual ~Enums()
+			{
+				delete emap;
 			}
 			virtual void Read(std::stringstream& in,const std::string& key)
 			{
@@ -122,9 +130,9 @@ namespace tw
 					if (d!=NULL)
 					{
 						in >> word;
-						if (emap.find(word)==emap.end())
+						if (emap->find(word)==emap->end())
 							throw tw::FatalError("Invalid type <"+word+"> while reading key <"+key+">");
-						*d = emap[word];
+						*d = (*emap)[word];
 					}
 				};
 				read_one(dat1);
