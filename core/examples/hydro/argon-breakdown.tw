@@ -90,7 +90,7 @@ new conductor 'cathode' for 'hydro'
 new conductor 'anode' for 'hydro'
 {
 	clipping region = 'right'
-	potential = { %250V }
+	potential = { %100V }
 	risetime = %10ns
 	holdtime = %1us
 	falltime = %10ns

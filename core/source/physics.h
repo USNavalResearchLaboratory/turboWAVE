@@ -23,7 +23,7 @@ namespace sparc
 			last = x;
 			return last+1;
 		}
-		tw::Float DensitySum(const Field& f,const tw::cell& cell)
+		tw::Float DensitySum(const Field& f,const tw::cell& cell) const
 		{
 			tw::Float ans = 0.0;
 			for (tw::Int i=0;i<num;i++)
@@ -270,5 +270,4 @@ struct EOSIdealGasMix:EOSMixture
 	// However, see comments in UpdateEnergy.
 	EOSIdealGasMix(const std::string& name,MetricSpace *m,Task *tsk);
 	virtual void ComputeTemperature(ScalarField& IE,ScalarField& nm,Field& hydroRef,Field& hydro,Field& eosRef,Field& eos);
-	virtual void UpdateEnergy(ScalarField& nm,ScalarField& T0,Field& hydro,Field& eos);
 };

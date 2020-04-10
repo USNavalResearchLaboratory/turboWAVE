@@ -1,0 +1,101 @@
+// Keep the following line for generating twtest reports
+// TWTEST matplotlib txyz=0,0,0 T_e_sup.dvdat
+
+// SPARC input file to model multi-pulse laser excitation of an Argon plasma
+// This includes photo and collisional ionization
+// Illustrates adaptive timestep awareness of laser pulses.
+
+steps = 40000
+timestep = %1fs
+dtmax = %50ps
+maxtime = %200ns
+dump period = 0
+moving window = no
+neutralize = yes
+unit density = 2.8e+19
+
+xboundary = ( axisymmetric  absorbing )
+yboundary = ( periodic  periodic )
+zboundary = ( absorbing  absorbing )
+
+// wp^-1 = 3.350 fs
+// c/wp = 1.004 um
+// E_br = 5.088e6 kV/cm
+
+new grid
+{
+	corner = ( 0.0 , -3.1416 , -0.5 )
+	dimensions = ( 2000 1 1 )
+	cell size = ( 0.2 6.2832 1.0 )
+	decomposition = ( 1  1  1 )
+	geometry = cylindrical
+	adaptive timestep = on
+}
+
+new warp
+{
+	axis = x
+	increasing = true
+	index range = ( 1 , 2000 )
+	length = 4000.0
+}
+
+new hydrodynamics 'hydro'
+{
+	epsilon factor = 1e-4
+	radiation model = none
+	laser model = vacuum
+	plasma model = neutral
+	background density = 1e-8
+	background temperature = %300K
+}
+
+new bessel beam for 'hydro'
+{
+	a = .005 0 0
+	w = 10
+	r0 = 10 10
+	delay = 0
+	risetime = %100fs
+	holdtime = 0
+	falltime = %100fs
+}
+
+new bessel beam for 'hydro'
+{
+	a = .005 0 0
+	w = 10
+	r0 = 10 10
+	delay = %100ns
+	risetime = %100fs
+	holdtime = 0
+	falltime = %100fs
+}
+
+#include "argon-1.tw"
+
+new ppt ionization for Ar
+{
+	ionization potential = %15.76eV
+	protons = 18
+	electrons = 18
+	ion species = Ar[+]
+	electron species = e
+	terms = 4
+}
+
+generate uniform Ar
+{
+	density = 1.0
+	temperature = %300K
+}
+
+new box diagnostic
+{
+	time period = %100ps
+}
+
+new energy diagnostic
+{
+	time period = %100ps
+}

@@ -67,7 +67,7 @@ std::string tw::input::DirectiveReader::ReadNext(std::stringstream& in)
 			key += " " + word;
 		}
 	} while(word_count<maxKeyWords);
-	throw tw::FatalError("Unexpected directive: "+key);
+	throw tw::FatalError("Unexpected directive: <"+key+">.");
 	return key;
 }
 

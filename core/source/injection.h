@@ -45,9 +45,11 @@ public:
 	Profile(const std::string& name,MetricSpace *m,Task *tsk);
 	virtual void Initialize();
 	tw::vec3 DriftMomentum(const tw::Float& mass);
+	tw::Float Temperature(const tw::Float& mass);
 	tw::vec3 Boost(const tw::vec3& pos);
 	tw::vec3 Translate_Rotate(const tw::vec3& pos);
 	virtual tw::Float GetValue(const tw::vec3& pos,const MetricSpace& ds);
+	bool TimeGate(tw::Float t,tw::Float *add);
 	virtual void ReadInputFileDirective(std::stringstream& inputString,const std::string& command);
 	virtual void ReadCheckpoint(std::ifstream& inFile);
 	virtual void WriteCheckpoint(std::ofstream& outFile);

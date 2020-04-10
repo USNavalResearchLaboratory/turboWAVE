@@ -124,6 +124,14 @@ tw::vec3 Profile::DriftMomentum(const tw::Float& mass)
 	return mass*v4.spatial();
 }
 
+tw::Float Profile::Temperature(const tw::Float& mass)
+{
+	if (temperature!=0.0)
+		return temperature;
+	else
+	 	return sqr(thermalMomentum.x)/mass; // appropriate for exp(-v^2/(2*vth^2)) convention
+}
+
 tw::vec3 Profile::Boost(const tw::vec3& pos)
 {
 	// Here the boost only works if the profile is constant in time.
@@ -147,6 +155,24 @@ tw::vec3 Profile::Translate_Rotate(const tw::vec3& pos)
 tw::Float Profile::GetValue(const tw::vec3& pos,const MetricSpace& ds)
 {
 	return theRgn->Inside(Boost(pos),ds) ? 1.0 : 0.0;
+}
+
+bool Profile::TimeGate(tw::Float t,tw::Float *add)
+{
+	bool gateOpen = false;
+	switch (timingMethod)
+	{
+		case tw::profile::timing::triggered:
+			*add = 1.0;
+			gateOpen = t>=t0 && !wasTriggered;
+			break;
+		case tw::profile::timing::maintained:
+			*add = 0.0;
+			gateOpen = t>=t0 && t<=t1;
+			break;
+	}
+	wasTriggered = wasTriggered || gateOpen;
+	return gateOpen;
 }
 
 UniformProfile::UniformProfile(const std::string& name,MetricSpace *m,Task *tsk):Profile(name,m,tsk)

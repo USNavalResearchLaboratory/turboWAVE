@@ -170,14 +170,18 @@ struct ParticleBundlePGC : ParticleBundle3D
 
 struct LoadingData
 {
-	tw::Int i,j,k;
-	tw::Float densToAdd,densNow,particleDensity;
+	tw::cell cell;
+	tw::Float C0,C1,C2,densToAdd,densNow,particleDensity;
 	tw::vec3 thermalMomentum,driftMomentum;
 	std::valarray<tw::vec3> subGrid;
 	tw::Int pointsInSubGrid;
 	bool neutralize;
 
-	LoadingData(const tw::vec3& distributionInCell);
+	LoadingData(const Simulation& sim,const tw::vec3& distributionInCell,const tw::cell& c);
+	tw::Float GeometryFactor(tw::Float r,tw::Float r0) const
+	{
+		return fabs(C0 + SafeDiv(C1*r,r0) + sqr(SafeDiv(sqrt(C2)*r,r0)));
+	}
 };
 
 struct Species:Module

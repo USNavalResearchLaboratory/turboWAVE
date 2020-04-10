@@ -48,11 +48,14 @@ Gotchas for 3.x Users
 
 #. First the good news, improved error checking will help you correct most input file errors.
 
-#. The bad news is now that units are treated in a consistent way, version 3.x input files, which have inconsistent treatment of units, can silently break.
+#. Various directives are changed or retired.  If you get ``Unexpected directive`` or ``keys were not understood`` you must consult this documentation, or the examples, and find the appropriate replacement.  The parser is, by design, not as forgiving as before.
+
+#. Now that units are treated in a consistent way, version 3.x input files, which have inconsistent treatment of units, can silently break.
 
 	* Angular dimensions are radians by default, if you want degrees use a dimensional number, e.g., ``%45deg``.
 	* Diffusivity units in SPARC are normalized by default, if you want to use dimensional numbers, you must do so explicitly, e.g., put ``%1.0cm2s``.
-	* SPARC reactions and collisions are an exception.  The raw numbers are expected to be in CGS-eV and always will be.  **Your collisions need to be edited** because in version 3.x the cross section was taken as normalized.  Put it in CGS.  **Do not use unit conversion macros** in reactions or collisions.
+	* Due to their high multiplicity, SPARC reactions and collisions are an exception.  The raw numbers are expected to be in CGS-eV and always will be.  **Your collisions need to be edited** because in version 3.x the cross section was taken as normalized.  Put it in CGS.  **Do not use unit conversion macros** in reactions or collisions.
+
 
 #. The ``open`` keyword for reading checkpoint data is retired.  To restart a simulation use the command line argument ``--restart`` and leave the input file the same.  The ``dump period`` parameter works the same as before.
 

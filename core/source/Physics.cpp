@@ -397,7 +397,6 @@ void EOSMixture::UpdateEnergy(ScalarField& nm,ScalarField& T0,Field& hydro,Field
 {
 	// Add energy corresponding to a change in temperature only.
 	// Not centered, because cv is not updated.
-	// Must not assume hydro field has complete data, because of Chemical::GenerateFluid
 	#pragma omp parallel
 	{
 		for (auto cell : EntireCellRange(*space))
@@ -437,22 +436,4 @@ void EOSIdealGasMix::ComputeTemperature(ScalarField& IE, ScalarField& nm, Field&
 			IE(cell) = IE1;
 		}
 	}
-}
-
-void EOSIdealGasMix::UpdateEnergy(ScalarField& nm,ScalarField& T0,Field& hydro,Field& eos)
-{
-	// DFG - polytropic ideal gas caloric EOS in the original SPARC mode of calculation.  Ignores reference states.
-	// CANNOT USE: incompatible with generalized Chemical::GenerateFluid
-	// Therefore call the inherited function and comment out the rest.
-	EOSMixture::UpdateEnergy(nm,T0,hydro,eos);
-	// #pragma omp parallel
-	// {
-	// 	for (auto cell : EntireCellRange(*space))
-	// 	{
-	// 		hydro(cell,hidx.u) = eos(cell,eidx.nmcv) * eos(cell,eidx.T);
-	// 		hydro(cell,hidx.u) += 0.5*sqr(hydro(cell,hidx.npx))/(tw::small_pos + nm(cell));
-	// 		hydro(cell,hidx.u) += 0.5*sqr(hydro(cell,hidx.npy))/(tw::small_pos + nm(cell));
-	// 		hydro(cell,hidx.u) += 0.5*sqr(hydro(cell,hidx.npz))/(tw::small_pos + nm(cell));
-	// 	}
-	// }
 }

@@ -632,34 +632,19 @@ void Chemical::SetupIndexing()
 	{
 		sparc::HydroManager *master = (sparc::HydroManager*)(super->super);
 		master->ie = indexInState;
-	}
-}
-
-void Chemical::Initialize()
-{
-	Module::Initialize();
-	// DFG - check to see if this Chemical is electrons.
-	// If it is, notify HydroManager and EquilibriumGroup.
-	if (mat.mass==1.0)
-	{
-		sparc::HydroManager *master = (sparc::HydroManager*)(super->super);
 		master->electrons = this;
 		group->forceFilter = 0.0;
 	}
 }
 
-bool Chemical::GenerateFluid(Field& hydro,Field& eos)
+bool Chemical::LoadFluid(Field& hydro)
 {
-	// Load the hydro data only (not eos).
-	// We need EOS information because the user will typically ask for a temperature.
-	// In this process the eos Field is used as a scratch array.
-	// Therefore this routine is destructive to the eos Field.
+	// Load the mass, momentum, kinetic energy, and explicitly loaded internal energy.
+	// Implicit internal energy is handled in a subsequent sweep.
+	// Explicitly tracked vibrational energy is added here.
 
-	sparc::HydroManager *master = (sparc::HydroManager*)(super->super);
-	tw::vec3 p0;
-	tw::Float add,kT,dens,kinetic,vibrational;
-
-	bool timeGate,didGenerate=false;
+	bool massLoaded = false;
+	tw::Float add = 0.0;
 
 	// DFG - indices into the state vector are encapsulated in hidx
 	// the type of hidx is sparc::hydro_set defined in physics.h
@@ -673,43 +658,24 @@ bool Chemical::GenerateFluid(Field& hydro,Field& eos)
 
 	for (auto prof : profile)
 	{
-		switch (prof->timingMethod)
+		if ( prof->TimeGate(owner->elapsedTime,&add) )
 		{
-			case tw::profile::timing::triggered:
-				timeGate = owner->elapsedTime>=prof->t0 && !prof->wasTriggered;
-				add = 1.0;
-				break;
-			case tw::profile::timing::maintained:
-				timeGate = owner->elapsedTime>=prof->t0 && owner->elapsedTime<=prof->t1;
-				add = 0.0;
-				break;
-			default:
-				timeGate = false;
-		}
-		if ( timeGate )
-		{
-			prof->wasTriggered = true;
-			didGenerate = true;
-			kT = sqr(prof->thermalMomentum.x)/mat.mass; // appropriate for exp(-v^2/(2*vth^2)) convention
-			if (prof->temperature!=0.0)
-				kT = prof->temperature;
-			p0.x = prof->DriftMomentum(mat.mass).x;
-			p0.y = prof->DriftMomentum(mat.mass).y;
-			p0.z = prof->DriftMomentum(mat.mass).z;
+			const tw::vec3 p0 = prof->DriftMomentum(mat.mass);
 			for (auto cell : EntireCellRange(*this))
 			{
-				dens = prof->GetValue(owner->Pos(cell),*owner);
+				const tw::Float dens = prof->GetValue(owner->Pos(cell),*owner);
 				if (prof->whichQuantity==tw::profile::quantity::density && dens>0.0)
 				{
-					kinetic = 0.5*Norm(dens*p0)/(tw::small_pos + mat.mass*dens);
-					vibrational = dens*mat.excitationEnergy/(fabs(exp(mat.excitationEnergy/kT) - 1.0) + tw::small_pos);
+					massLoaded = true;
+					const tw::Float kT = prof->Temperature(mat.mass);
+					const tw::Float kinetic = 0.5*Norm(dens*p0)/(tw::small_pos + mat.mass*dens);
+					const tw::Float vibrational = dens*mat.excitationEnergy/(fabs(exp(mat.excitationEnergy/kT) - 1.0) + tw::small_pos);
 					hydro(cell,ns) = add*hydro(cell,ns) + dens;
 					hydro(cell,npx) = add*hydro(cell,npx) + dens*p0.x;
 					hydro(cell,npy) = add*hydro(cell,npy) + dens*p0.y;
 					hydro(cell,npz) = add*hydro(cell,npz) + dens*p0.z;
-					hydro(cell,U) = add*hydro(cell,U) + kinetic + vibrational; // internal energy added below
+					hydro(cell,U) = add*hydro(cell,U) + kinetic + vibrational; // internal energy added in subsequent sweep
 					hydro(cell,Xi) = add*hydro(cell,Xi) + vibrational;
-					master->scratch(cell) = dens*mat.mass; // save nm for use below
 				}
 				if (prof->whichQuantity==tw::profile::quantity::energy)
 				{
@@ -728,18 +694,45 @@ bool Chemical::GenerateFluid(Field& hydro,Field& eos)
 					hydro(cell,npz) = add*hydro(cell,npz) + dens;
 				}
 			}
-			// DFG - Add the partial internal energy into the hydro state
-			// Cannot assume anything about what has been accumulated in hydro Field.
-			// OK to use eos as scratch at this point (see also HydroManager::Reset)
-			master->scratch2 = kT;
-			CopyFieldData(eos,Element(group->eidx.T),master->scratch2,0); // put desired kT in EOS
-			master->scratch2 = 0.0; // reference temperature is zero
-			eosData->SetHeatCapacity(master->scratch,eos);
-			group->eosMixData->UpdateEnergy(master->scratch,master->scratch2,hydro,eos);
 		}
 	}
 	hydro.ApplyBoundaryCondition(Element(ns,Xi));
-	return didGenerate;
+	return massLoaded;
+}
+
+void Chemical::LoadInternalEnergy(Field& hydro,Field& eos)
+{
+	// Load internal energy, attempting to respect profile targets.
+	// In this process the eos array is overwritten with temporary data.
+	// Therefore eos has to be rebuilt after calling this routine.
+
+	sparc::HydroManager *master = (sparc::HydroManager*)(super->super);
+	tw::Float add;
+
+	for (auto prof : profile)
+	{
+		if (prof->whichQuantity==tw::profile::quantity::density)
+		{
+			// Get the target temperature for this profile
+			const tw::Float kT = prof->Temperature(mat.mass);
+			for (auto cell : EntireCellRange(*this))
+			{
+				// Put the target mass density in the scratch array
+				master->scratch(cell) = mat.mass * prof->GetValue(owner->Pos(cell),*owner);
+				// Put the target temperature into the eos array
+				eos(cell,group->eidx.T) = kT;
+				// Use scratch2 to store the reference temperature, currently hard coded to zero
+				master->scratch2(cell) = 0.0;
+			}
+			// Set heat capacity based on the target mass density and the target temperature
+			eosData->SetHeatCapacity(master->scratch,eos);
+			// Add internal energy based on target mass density, reference temperature, heat capacity, and target temperature
+			// The hydro array is already loaded with the totals for the mass and momentum densities.
+			// The tool can access everything via its own indexing data.
+			group->eosMixData->UpdateEnergy(master->scratch,master->scratch2,hydro,eos);
+		}
+	}
+	hydro.ApplyBoundaryCondition(Element(group->hidx.u));
 }
 
 
@@ -808,10 +801,18 @@ void EquilibriumGroup::VerifyInput()
 		eosMixData = (EOSMixture *)owner->CreateTool("default_eos_mix",tw::tool_type::eosMixture);
 }
 
-void EquilibriumGroup::Initialize()
+bool EquilibriumGroup::GenerateFluid(Field& hydro,Field& eos)
 {
-	Module::Initialize();
-	forceFilter = mobile ? 1.0 : 0.0;
+	bool didGenerate = false;
+	std::vector<bool> massLoaded(chemical.size());
+	for (tw::Int i=0;i<chemical.size();i++)
+		massLoaded[i] = chemical[i]->LoadFluid(hydro);
+	for (tw::Int i=0;i<chemical.size();i++)
+		if (massLoaded[i])
+			chemical[i]->LoadInternalEnergy(hydro,eos);
+	for (auto loaded : massLoaded)
+		didGenerate += loaded;
+	return didGenerate;
 }
 
 
@@ -1110,10 +1111,12 @@ void sparc::HydroManager::Initialize()
 	nu_e.SetBoundaryConditions(tw::grid::y,fld::neumannWall,fld::neumannWall);
 	nu_e.SetBoundaryConditions(tw::grid::z,fld::neumannWall,fld::neumannWall);
 
-	// Loading of fluid quantities from profiles.
-	// The whole hydro tree needs to be indexed before this can be done.
+	// Prepare for loading fluid: indexing, background profiles, and refined boundary conditions
+
+	// This function indexes the entire hydro tree
 	SetupIndexing();
-	// First setup the automatic background profiles
+
+	// Setup the automatic background profiles
 	if (backgroundDensity!=0.0)
 	{
 		tw::Int Nminus=0,Nplus=0;
@@ -1133,10 +1136,6 @@ void sparc::HydroManager::Initialize()
 				if (Q > tw::small_pos) chem->background->density /= Q*Nplus;
 			}
 	}
-	// Add fluid from all profiles
-	for (auto grp : group)
-		for (auto chem : grp->chemical)
-			chem->GenerateFluid(state1,eos1);
 
 	// Refine boundary conditions for particular quantities
 	for (auto grp : group)
@@ -1166,10 +1165,20 @@ void sparc::HydroManager::Initialize()
 		destructionRate.SetBoundaryConditions(e,tw::grid::z,bc0[3],bc1[3]);
 	}
 
-	// DFG - no longer find electrons here.
-	// Instead, electrons notify supermodules of their presence.
-	me_eff = 1.0;
-	nu_e = 1.0;
+	// Add fluid from all profiles
+	for (auto grp : group)
+	{
+		grp->forceFilter = grp->mobile ? 1.0 : 0.0;
+		grp->GenerateFluid(state1,eos1);
+	}
+
+	me_eff = 1.0; // effective mass reserved for future use
+	nu_e = 1.0; // put arbitrary value so initial transport coefficients don't blow up
+
+	// Initialize EOS quantities
+	EOSAdvance(0.0); // gets eos0 using state1 only
+	eos1 = eos0;
+	ComputeElectronCollisionFrequency();
 }
 
 void sparc::HydroManager::Reset()
@@ -1178,19 +1187,13 @@ void sparc::HydroManager::Reset()
 	eos0 = eos1;
 	rho0 = rho;
 
-	if (owner->IsFirstStep())
-	{
-		EOSAdvance(0.0); // gets eos0 using state1 only
-		eos1 = eos0;
-	}
-	else
+	if (!owner->IsFirstStep())
 	{
 		// Generate new fluid due to sources
-		// N.b. Chemical::GenerateFluid is destructive to the eos field that is passed in.
+		// N.b. EquilibriumGroup::GenerateFluid is destructive to the eos field that is passed in.
 		bool didGenerate = false;
 		for (auto grp : group)
-			for (auto chem : grp->chemical)
-				didGenerate += chem->GenerateFluid(state1,eos1);
+			didGenerate += grp->GenerateFluid(state1,eos1);
 		if (didGenerate)
 		{
 			EOSAdvance(dt); // gets eos0 using state0 and state1
@@ -1434,11 +1437,32 @@ void sparc::HydroManager::ComputeRadiativeSources()
 					{
 						if (chem->ionizer!=NULL)
 						{
+							const hydro_set& r = chem->ionizer->hgas;
+							const hydro_set& he = chem->ionizer->he;
+							const hydro_set& hi = chem->ionizer->hi;
+
 							const tw::Float Emag = sqrt(norm(laserAmplitude(cell)));
-							const tw::Float photoRate = state1(cell,chem->ionizer->hgas.ni)*chem->ionizer->AverageRate(laserFrequency,Emag);
-							DestroyMass(cell,photoRate,chem->ionizer->hgas);
-							CreateMass(cell,photoRate,chem->ionizer->hi);
-							CreateMass(cell,photoRate,chem->ionizer->he);
+							const tw::Float photoRate = state1(cell,r.ni)*chem->ionizer->AverageRate(laserFrequency,Emag);
+							const tw::Float V = 1.0/(tw::small_pos + r.DensitySum(state1,cell)); // specific volume of reactant's EquilibriumGroup
+							const tw::Float nFx = V*photoRate*state1(cell,r.npx);
+							const tw::Float nFy = V*photoRate*state1(cell,r.npy);
+							const tw::Float nFz = V*photoRate*state1(cell,r.npz);
+							const tw::Float nP = V*photoRate*state1(cell,r.u);
+							const tw::Float nPv = V*photoRate*state1(cell,r.x);
+
+							DestroyMass(cell,photoRate,r);
+							DestroyMomentum(cell,1,nFx,r);
+							DestroyMomentum(cell,2,nFy,r);
+							DestroyMomentum(cell,3,nFz,r);
+							DestroyTotalEnergy(cell,nP,r);
+							DestroyVibrations(cell,nPv,r);
+							CreateMass(cell,photoRate,hi);
+							CreateMomentum(cell,1,nFx,hi);
+							CreateMomentum(cell,2,nFy,hi);
+							CreateMomentum(cell,3,nFz,hi);
+							CreateTotalEnergy(cell,0.5*nP,hi); // half energy to ions
+							CreateMass(cell,photoRate,he);
+							CreateTotalEnergy(cell,0.5*nP,he); // half energy to electrons
 						}
 					}
 
@@ -1812,6 +1836,31 @@ tw::Float sparc::HydroManager::EstimateTimeStep()
 	dtMaxAllThreads = *std::min_element(std::begin(dtMax),std::end(dtMax));
 	// Choose the smallest maximum step from all the nodes
 	dtMaxAllNodes = owner->strip[0].GetMin(dtMaxAllThreads);
+
+	// Ensure that step size is sufficently small to resolve each laser pulse.
+	tw::Float dtMaxAllPulses = owner->dtMax;
+	for (auto pulse : wave)
+	{
+		const PulseShape& shape = pulse->pulseShape;
+		const tw::Float pulseDuration = shape.t4 - shape.t1;
+		// For upcoming pulses...
+		if ( owner->elapsedTime < shape.delay )
+		{
+			// Find closest pulse
+			if ( dtMaxAllPulses > shape.delay - owner->elapsedTime )
+				dtMaxAllPulses = shape.delay - owner->elapsedTime;
+		}
+		// While inside a pulse
+		if (owner->elapsedTime>=shape.delay && owner->elapsedTime<shape.delay+pulseDuration)
+		{
+			// Ensure Step resolves shortest pulse
+			if ( dtMaxAllPulses > sqrt(epsilonFactor)*pulseDuration )
+				dtMaxAllPulses = sqrt(epsilonFactor)*pulseDuration;
+		}
+		if ( dtMaxAllNodes > dtMaxAllPulses )
+			dtMaxAllNodes = dtMaxAllPulses;
+	}
+
 	// If the critical time step is reached, switch to fixed time step and hope for the best!
 	if (dtMaxAllNodes < owner->dtCritical)
 	{
@@ -2154,15 +2203,6 @@ void sparc::HydroManager::Report(Diagnostic& diagnostic)
 		scratch *= fluxMask;
 		diagnostic.Field(filename,scratch,0);
 	};
-
-	// If first step we need to apply EOS so that EquilibriumGroups can write out T
-
-	if (owner->IsFirstStep())
-	{
-		EOSAdvance(0.0);
-		eos1 = eos0;
-		ComputeElectronCollisionFrequency();
-	}
 
 	// Mass, Charge, Energy
 

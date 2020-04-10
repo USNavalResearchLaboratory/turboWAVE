@@ -51,11 +51,10 @@ struct Chemical:Module
 	Chemical(const std::string& name,Simulation* sim);
 	virtual ~Chemical();
 	void SetupIndexing();
-	virtual void Initialize();
-
-	bool GenerateFluid(Field& hydro,Field& eos);
-
 	virtual void VerifyInput();
+
+	bool LoadFluid(Field& hydro);
+	void LoadInternalEnergy(Field& hydro,Field& eos);
 };
 
 struct EquilibriumGroup:Module
@@ -117,9 +116,8 @@ struct EquilibriumGroup:Module
 	EquilibriumGroup(const std::string& name,Simulation* sim);
 	virtual ~EquilibriumGroup(); // ASHER_MOD
 	void SetupIndexing();
-	virtual void Initialize();
-
 	virtual void VerifyInput();
+	bool GenerateFluid(Field& hydro,Field& eos);
 };
 
 namespace sparc

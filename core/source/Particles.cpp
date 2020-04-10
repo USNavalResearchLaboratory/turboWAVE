@@ -767,75 +767,60 @@ void Species::DepositInitialCharge(const tw::vec3& pos,tw::Float macroCharge)
 
 void Species::GenerateParticles(bool init)
 {
-	tw::Int i,j,k,s;
-	bool timeGate;
+	tw::Float add;
+	for (auto prof : profile)
+		if ( prof->TimeGate(owner->elapsedTime,&add) )
+			for (auto cell : InteriorCellRange(*this))
+			{
+				LoadingData loadingData(*owner,distributionInCell,cell);
+				loadingData.densToAdd = prof->GetValue(owner->Pos(cell),*owner);
+				loadingData.driftMomentum = prof->DriftMomentum(restMass);
+				loadingData.neutralize = owner->neutralize;
+				loadingData.thermalMomentum = prof->thermalMomentum;
 
-	LoadingData loadingData(distributionInCell);
-
-	for (s=0;s<profile.size();s++)
-	{
-		if (profile[s]->timingMethod==tw::profile::timing::triggered)
-			timeGate = owner->elapsedTime>=profile[s]->t0 && !profile[s]->wasTriggered;
-		if (profile[s]->timingMethod==tw::profile::timing::maintained)
-			timeGate = owner->elapsedTime>=profile[s]->t0 && owner->elapsedTime<=profile[s]->t1;
-		if ( timeGate )
-		{
-			profile[s]->wasTriggered = true;
-			loadingData.driftMomentum = profile[s]->DriftMomentum(restMass);
-			loadingData.neutralize = owner->neutralize;
-			loadingData.thermalMomentum = profile[s]->thermalMomentum;
-			for (i=1;i<=owner->Dim(1);i++)
-				for (j=1;j<=owner->Dim(2);j++)
-					for (k=1;k<=owner->Dim(3);k++)
+				if (loadingData.densToAdd>0.0)
+				{
+					if (prof->timingMethod==tw::profile::timing::maintained && !init)
 					{
-						loadingData.i = i;
-						loadingData.j = j;
-						loadingData.k = k;
-						loadingData.densToAdd = profile[s]->GetValue(owner->Pos(i,j,k),*owner);
-
-						if (loadingData.densToAdd>0.0)
-						{
-							if (profile[s]->timingMethod==tw::profile::timing::maintained && !init)
-							{
-								// Hold a constant charge
-								// (comment out for constant current)
-								if (owner->neutralize) // don't test loadingData.neutralize
-									loadingData.densToAdd = -(*sources)(i,j,k,0)/charge; // hold this region neutral
-								else
-									loadingData.densToAdd -= (*sources)(i,j,k,0)/charge; // hold at target density (assumes no other species)
-								loadingData.neutralize = false;
-							}
-							if (qo_j4!=NULL && profile[s]->loadingMethod==tw::profile::loading::statistical && !profile[s]->variableCharge)
-							{
-								loadingData.densToAdd = fabs((*qo_j4)(i,j,k,0));
-							}
-
-							if (loadingData.densToAdd < 0.0) // constant charge block may lead to n<0
-								loadingData.densToAdd = 0.0;
-
-							// INJECT
-
-							if (profile[s]->variableCharge)
-								loadingData.particleDensity = loadingData.densToAdd/(distributionInCell.x*distributionInCell.y*distributionInCell.z);
-							else
-								loadingData.particleDensity = targetDensity;
-							if (profile[s]->loadingMethod==tw::profile::loading::deterministic)
-								AddDensity(loadingData);
-							else
-								AddDensityRandom(loadingData);
-						}
+						// Hold a constant charge
+						// (comment out for constant current)
+						if (owner->neutralize) // don't test loadingData.neutralize
+							loadingData.densToAdd = -(*sources)(cell,0)/charge; // hold this region neutral
+						else
+							loadingData.densToAdd -= (*sources)(cell,0)/charge; // hold at target density (assumes no other species)
+						loadingData.neutralize = false;
 					}
-		}
-	}
+					if (qo_j4!=NULL && prof->loadingMethod==tw::profile::loading::statistical && !prof->variableCharge)
+					{
+						loadingData.densToAdd = fabs((*qo_j4)(cell,0));
+					}
+
+					if (loadingData.densToAdd < 0.0) // constant charge block may lead to n<0
+						loadingData.densToAdd = 0.0;
+
+					// INJECT
+
+					if (prof->variableCharge)
+						loadingData.particleDensity = loadingData.densToAdd/(distributionInCell.x*distributionInCell.y*distributionInCell.z);
+					else
+						loadingData.particleDensity = targetDensity;
+					if (prof->loadingMethod==tw::profile::loading::deterministic)
+						AddDensity(loadingData);
+					else
+						AddDensityRandom(loadingData);
+				}
+			}
 }
 
-LoadingData::LoadingData(const tw::vec3& distribution)
+LoadingData::LoadingData(const Simulation& sim,const tw::vec3& distribution,const tw::cell& c) : cell(c)
 {
-	i = j = k = 1;
 	densToAdd = 0.0;
 	densNow = 0.0;
 	particleDensity = 0.0;
 	neutralize = true;
+	C0 = 1.0;
+	C1 = 0.0;
+	C2 = 0.0;
 
 	tw::Int nx = tw::Int(distribution.x);
 	tw::Int ny = tw::Int(distribution.y);
@@ -843,23 +828,57 @@ LoadingData::LoadingData(const tw::vec3& distribution)
 
 	pointsInSubGrid = nx*ny*nz;
 	subGrid.resize(pointsInSubGrid);
-	tw::Int ii,jj,kk;
-	for (kk=0;kk<nz;kk++)
-		for (jj=0;jj<ny;jj++)
-			for (ii=0;ii<nx;ii++)
-				subGrid[kk*nx*ny + jj*nx + ii] = tw::vec3
+	for (tw::Int k=0;k<nz;k++)
+		for (tw::Int j=0;j<ny;j++)
+			for (tw::Int i=0;i<nx;i++)
+				subGrid[k*nx*ny + j*nx + i] = tw::vec3
 					(
-						-0.5 + 0.5/tw::Float(nx) + tw::Float(ii)/tw::Float(nx),
-						-0.5 + 0.5/tw::Float(ny) + tw::Float(jj)/tw::Float(ny),
-						-0.5 + 0.5/tw::Float(nz) + tw::Float(kk)/tw::Float(nz)
+						-0.5 + 0.5/tw::Float(nx) + tw::Float(i)/tw::Float(nx),
+						-0.5 + 0.5/tw::Float(ny) + tw::Float(j)/tw::Float(ny),
+						-0.5 + 0.5/tw::Float(nz) + tw::Float(k)/tw::Float(nz)
 					);
+
+	const tw::Float Nr2 = nx*nx;
+	if (sim.gridGeometry==tw::grid::cylindrical)
+	{
+		const tw::Int x = cell.dcd1();
+		C0 = 0.0;
+		C1 = 1.0;
+		C2 = 0.0;
+		if (sim.n0[1]==MPI_PROC_NULL)
+		{
+			if (Nr2==1.0)
+			{
+				C0 = 1.0;
+				C1 = 0.0;
+				if (x==1)
+					C0 = 4208.0/5951.0;
+				if (x==2)
+					C0 = 18152.0/17853.0;
+				if (x==3)
+					C0 = 29704.0/29755.0;
+				if (x==4)
+					C0 = 5952.0/5951.0;
+
+			}
+			else
+			{
+				if (x==1)
+				{
+					C0 = 0.0;
+					C1 = (7.0 - 22.0*Nr2)/(24.0*Nr2*(Nr2-1.0));
+					C2 = (5.0/8.0) * (4.0*Nr2*Nr2-1.0) / ((Nr2-1.0)*(4.0*Nr2-1.0));
+				}
+			}
+		}
+	}
 }
 
 tw::Float Species::AddDensity(const LoadingData& theData)
 {
-	const tw::vec3 cellCenter = owner->Pos(theData.i,theData.j,theData.k);
-	const tw::vec3 cellSize = owner->dPos(theData.i,theData.j,theData.k);
-	const tw::Float cellVolume = owner->dS(theData.i,theData.j,theData.k,0);
+	const tw::vec3 cellCenter = owner->Pos(theData.cell);
+	const tw::vec3 cellSize = owner->dPos(theData.cell);
+	const tw::Float cellVolume = owner->dS(theData.cell,0);
 	const tw::Float densToAdd = theData.densToAdd;
 	const tw::Float densNow = theData.densNow;
 	const tw::vec3 thermalMomentum = theData.thermalMomentum;
@@ -867,10 +886,9 @@ tw::Float Species::AddDensity(const LoadingData& theData)
 	const bool neutralize = theData.neutralize;
 	const tw::Int pointsInSubGrid = theData.pointsInSubGrid;
 
-	tw::Int i,j;
 	tw::vec3 r_primitive,r,p;
 	Primitive q;
-	tw::Float particleDensity,geometryFactor,C0=1.0,C1=0.0,C2=0.0,Nr2;
+	tw::Float particleDensity;
 	tw::Int numToAdd,numNow;
 	std::valarray<tw::vec3> initialMomenta;
 
@@ -885,7 +903,7 @@ tw::Float Species::AddDensity(const LoadingData& theData)
 
 	p = tw::vec3(0,0,0);
 	initialMomenta.resize(numToAdd);
-	for (i=0;i<numToAdd;i++)
+	for (tw::Int i=0;i<numToAdd;i++)
 	{
 		initialMomenta[i].x = thermalMomentum.x*owner->gaussianDeviate->Next();
 		initialMomenta[i].y = thermalMomentum.y*owner->gaussianDeviate->Next();
@@ -895,56 +913,21 @@ tw::Float Species::AddDensity(const LoadingData& theData)
 	p /= tw::Float(numToAdd);
 	initialMomenta -= p - driftMomentum;
 
-	Nr2 = sqr(distributionInCell.x);
-	if (owner->gridGeometry==tw::grid::cylindrical)
+	for (tw::Int i=0;i<numToAdd;i++)
 	{
-		C0 = 0.0;
-		C1 = 1.0;
-		C2 = 0.0;
-		if (owner->n0[1]==MPI_PROC_NULL)
-		{
-			if (Nr2==1.0)
-			{
-				C0 = 1.0;
-				C1 = 0.0;
-				if (theData.i==1)
-					C0 = 4208.0/5951.0;
-				if (theData.i==2)
-					C0 = 18152.0/17853.0;
-				if (theData.i==3)
-					C0 = 29704.0/29755.0;
-				if (theData.i==4)
-					C0 = 5952.0/5951.0;
-
-			}
-			else
-			{
-				if (theData.i==1)
-				{
-					C0 = 0.0;
-					C1 = (7.0 - 22.0*Nr2)/(24.0*Nr2*(Nr2-1.0));
-					C2 = (5.0/8.0) * (4.0*Nr2*Nr2-1.0) / ((Nr2-1.0)*(4.0*Nr2-1.0));
-				}
-			}
-		}
-	}
-
-	for (i=0;i<numToAdd;i++)
-	{
-		j = numNow + i;
+		tw::Int j = numNow + i;
 		while (j>=pointsInSubGrid) j -= pointsInSubGrid;
 		r_primitive = theData.subGrid[j];
 		r = r_primitive*cellSize + cellCenter;
 		p = initialMomenta[i];
 
-		geometryFactor = fabs(C0 + SafeDiv(C1*r.x,cellCenter.x) + sqr(SafeDiv(sqrt(C2)*r.x,cellCenter.x)));
-
 		q.x[0] = r_primitive.x;
 		q.x[1] = r_primitive.y;
 		q.x[2] = r_primitive.z;
-		q.cell = EncodeCell(theData.i,theData.j,theData.k);
-		AddParticle(p,q,geometryFactor*particleDensity*cellVolume);
-		DepositInitialCharge(r,geometryFactor*particleDensity*cellVolume*charge);
+		q.cell = EncodeCell(theData.cell.dcd1(),theData.cell.dcd2(),theData.cell.dcd3());
+		const tw::Float N = theData.GeometryFactor(r.x,cellCenter.x)*particleDensity*cellVolume;
+		AddParticle(p,q,N);
+		DepositInitialCharge(r,N*charge);
 	}
 
 	return particleDensity*tw::Float(numToAdd);
@@ -952,18 +935,17 @@ tw::Float Species::AddDensity(const LoadingData& theData)
 
 tw::Float Species::AddDensityRandom(const LoadingData& theData)
 {
-	const tw::vec3 cellCenter = owner->Pos(theData.i,theData.j,theData.k);
-	const tw::vec3 cellSize = owner->dPos(theData.i,theData.j,theData.k);
-	const tw::Float cellVolume = owner->dS(theData.i,theData.j,theData.k,0);
+	const tw::vec3 cellCenter = owner->Pos(theData.cell);
+	const tw::vec3 cellSize = owner->dPos(theData.cell);
+	const tw::Float cellVolume = owner->dS(theData.cell,0);
 	const tw::Float densToAdd = theData.densToAdd;
 	const tw::vec3 thermalMomentum = theData.thermalMomentum;
 	const tw::vec3 driftMomentum = theData.driftMomentum;
 	const bool neutralize = theData.neutralize;
 
-	tw::Int i;
 	tw::vec3 r_primitive,r,p;
 	Primitive q;
-	tw::Float particleDensity,fractionalNum,geometryFactor,C0=1.0,C1=0.0,C2=0.0,Nr2;
+	tw::Float particleDensity,fractionalNum;
 	tw::Int numToAdd;
 
 	particleDensity = theData.particleDensity;
@@ -977,41 +959,7 @@ tw::Float Species::AddDensityRandom(const LoadingData& theData)
 
 	if (numToAdd<1) return 0.0;
 
-	Nr2 = sqr(distributionInCell.x);
-	if (owner->gridGeometry==tw::grid::cylindrical)
-	{
-		C0 = 0.0;
-		C1 = 1.0;
-		C2 = 0.0;
-		if (owner->n0[1]==MPI_PROC_NULL)
-		{
-			if (Nr2==1.0)
-			{
-				C0 = 1.0;
-				C1 = 0.0;
-				if (theData.i==1)
-					C0 = 4208.0/5951.0;
-				if (theData.i==2)
-					C0 = 18152.0/17853.0;
-				if (theData.i==3)
-					C0 = 29704.0/29755.0;
-				if (theData.i==4)
-					C0 = 5952.0/5951.0;
-
-			}
-			else
-			{
-				if (theData.i==1)
-				{
-					C0 = 0.0;
-					C1 = (7.0 - 22.0*Nr2)/(24.0*Nr2*(Nr2-1.0));
-					C2 = (5.0/8.0) * (4.0*Nr2*Nr2-1.0) / ((Nr2-1.0)*(4.0*Nr2-1.0));
-				}
-			}
-		}
-	}
-
-	for (i=0;i<numToAdd;i++)
+	for (tw::Int i=0;i<numToAdd;i++)
 	{
 		r_primitive.x = owner->uniformDeviate->Next() - 0.5;
 		r_primitive.y = owner->uniformDeviate->Next() - 0.5;
@@ -1023,14 +971,13 @@ tw::Float Species::AddDensityRandom(const LoadingData& theData)
 		p.z = thermalMomentum.z*owner->gaussianDeviate->Next();
 		p += driftMomentum;
 
-		geometryFactor = fabs(C0 + SafeDiv(C1*r.x,cellCenter.x) + sqr(SafeDiv(sqrt(C2)*r.x,cellCenter.x)));
-
 		q.x[0] = r_primitive.x;
 		q.x[1] = r_primitive.y;
 		q.x[2] = r_primitive.z;
-		q.cell = EncodeCell(theData.i,theData.j,theData.k);
-		AddParticle(p,q,geometryFactor*particleDensity*cellVolume);
-		DepositInitialCharge(r,geometryFactor*particleDensity*cellVolume*charge);
+		q.cell = EncodeCell(theData.cell.dcd1(),theData.cell.dcd2(),theData.cell.dcd3());
+		const tw::Float N = theData.GeometryFactor(r.x,cellCenter.x)*particleDensity*cellVolume;
+		AddParticle(p,q,N);
+		DepositInitialCharge(r,N*charge);
 	}
 
 	return particleDensity*tw::Float(numToAdd);
@@ -1042,11 +989,9 @@ void Species::MoveWindow()
 
 void Species::BeginMoveWindow()
 {
-	tw::Int i;
-
 	// Throw out and transfer particles leaving on the left
 
-	for (i=0;i<particle.size();i++)
+	for (tw::Int i=0;i<particle.size();i++)
 	{
 		particle[i].q.x[2] -= 1.0;
 		MinimizePrimitive(particle[i].q);
@@ -1063,9 +1008,7 @@ void Species::BeginMoveWindow()
 
 void Species::FinishMoveWindow()
 {
-	tw::Int i,j,s;
-
-	for (i=0;i<transfer.size();i++)
+	for (tw::Int i=0;i<transfer.size();i++)
 	{
 		if (transfer[i].dst[0]==owner->strip[0].Get_rank())
 			AddParticle(transfer[i]);
@@ -1075,31 +1018,24 @@ void Species::FinishMoveWindow()
 	// Create new particles on the right
 
 	if (owner->n1[3]==MPI_PROC_NULL)
-	{
-		LoadingData loadingData(distributionInCell);
-		for (s=0;s<profile.size();s++)
-		{
-			loadingData.neutralize = owner->neutralize;
-			loadingData.thermalMomentum = profile[s]->thermalMomentum;
-			loadingData.driftMomentum = profile[s]->DriftMomentum(restMass);
-			for (j=1;j<=dim[2];j++)
-				for (i=1;i<=dim[1];i++)
+		for (auto prof : profile)
+			for (tw::Int j=1;j<=dim[2];j++)
+				for (tw::Int i=1;i<=dim[1];i++)
 				{
-					loadingData.i = i;
-					loadingData.j = j;
-					loadingData.k = dim[3];
-					loadingData.densToAdd = profile[s]->GetValue(owner->Pos(i,j,dim[3]),*owner);
-					if (profile[s]->variableCharge)
+					LoadingData loadingData(*owner,distributionInCell,tw::cell(*this,i,j,dim[3]));
+					loadingData.densToAdd = prof->GetValue(owner->Pos(i,j,dim[3]),*owner);
+					loadingData.neutralize = owner->neutralize;
+					loadingData.thermalMomentum = prof->thermalMomentum;
+					loadingData.driftMomentum = prof->DriftMomentum(restMass);
+					if (prof->variableCharge)
 						loadingData.particleDensity = loadingData.densToAdd/(distributionInCell.x*distributionInCell.y*distributionInCell.z);
 					else
 						loadingData.particleDensity = targetDensity;
-					if (profile[s]->loadingMethod==tw::profile::loading::deterministic)
+					if (prof->loadingMethod==tw::profile::loading::deterministic)
 						AddDensity(loadingData);
 					else
 						AddDensityRandom(loadingData);
 				}
-		}
-	}
 }
 
 void Species::ReadInputFileDirective(std::stringstream& inputString,const std::string& command)
