@@ -334,6 +334,71 @@ void EOSLinearMieGruneisen::AddPKV(ScalarField& IE, ScalarField& nm, ScalarField
 	}
 }
 
+//////////////////////
+//                  //
+//  EOS Tillotson   //
+//                  //
+//////////////////////
+// EOS for shock, vaporization, and cavitation 
+// for materials such as water
+
+EOSTillotson::EOSTillotson(const std::string& name,MetricSpace *m, Task *tsk) : EOSComponent(name,m,tsk)
+{
+	// arbitrary normalization value I used when testing this EOS
+	unitDensityCGS = 2.8e19; 
+
+	// Tillotson parameters for H20
+	tw:: Float n0 = 1192.0;
+
+	tw::Float a = 0.7;   // Tillotson Coefficient
+	tw::Float b = 0.15;   // Tillotson Coefficient
+	tw::Float A = 21.8;   // Tillotson Coefficient
+	tw::Float B = 132.5;   // Tillotson Coefficient
+	tw::Float alpha = 10.0;   // Tillotson Coefficient
+	tw::Float beta = 5.0;   // Tillotson Coefficient
+
+	tw::Float RhoIV = 0.958;   // vaporization density [g/cm3]
+	tw::Float E0 = 0.007e12;   // Reference energy density [erg/g]
+	tw::Float EIV = 0.00419e12;   // Vaporization Energy [erg/g]
+	tw::Float ECV = 0.025e12;   // Cavitation Energy [erg/g]
+
+	directives.Add("unit density",new tw::input::Float(&unitDensityCGS));
+	directives.Add("reference density",new tw::input::Float(&n0));
+
+	directives.Add("parameter a",new tw::input::Float(&a));
+	directives.Add("parameter b",new tw::input::Float(&b));
+	directives.Add("parameter A",new tw::input::Float(&A));
+	directives.Add("parameter B",new tw::input::Float(&B));
+	directives.Add("parameter alpha",new tw::input::Float(&alpha));
+	directives.Add("parameter beta",new tw::input::Float(&beta));
+
+	directives.Add("vaporization density",new tw::input::Float(&RhoIV));
+	directives.Add("energy density",new tw::input::Float(&E0));
+	directives.Add("vaporization energy",new tw::input::Float(&EIV));
+	directives.Add("cavitation energy",new tw::input::Float(&ECV));
+
+}
+
+// There are four regions in the revised Tillotson EOS
+// [A.L. Brundage, Procedia Engineering (2013)]
+//
+// (1) Compressed States           : (\rho > \rho_0 & E > 0)
+// (2) Cold Expanded States        : (\rho_0 > \rho > \rho_IV & E < E_{IV})
+// (3) Hot Expanded States         : (\rho_0 > \rho & E < E_{IV})
+// (4) Low Energy Expansion States : (\rho < \rho_IV & E < E_{CV})
+void EOSTillotson::AddPKV(ScalarField& IE, ScalarField& nm, ScalarField& nu_e, Field& hydro, Field& eos)
+{
+	#pragma omp parallel
+	{
+		for (auto cell : EntireCellRange(*space))
+		{
+			const tw::Float ngas = hydro(cell,hidx.ni);
+			eos(cell,eidx.P) += ngas*eos(cell,eidx.T);
+			eos(cell,eidx.K) += mat.thermometricConductivity * mat.cvm * ngas;
+			eos(cell,eidx.visc) += mat.kinematicViscosity * mat.mass * ngas;
+		}
+	}
+}
 
 ///////////////////////////////////////
 //                                   //

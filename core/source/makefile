@@ -23,9 +23,9 @@ profile: tw3d_profile copy_files
 
 # Uncomment exactly one platform
 
-#PLATFORM = OSX
+PLATFORM = OSX
 #PLATFORM = WIN
-PLATFORM = LINUX
+#PLATFORM = LINUX
 #PLATFORM = OPENMPI
 #PLATFORM = INTELMPI
 #PLATFORM = CRAY
@@ -48,8 +48,8 @@ COMPILER_PREF = GNU
 
 # Specify a package manager preference (ignored in some cases)
 
-#PACKAGE_PREF = HOMEBREW
-PACKAGE_PREF = MACPORTS
+PACKAGE_PREF = HOMEBREW
+#PACKAGE_PREF = MACPORTS
 
 # END INPUT VARIABLES BLOCK
 #################################################

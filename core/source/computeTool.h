@@ -30,6 +30,7 @@ namespace tw
 		yeePropagatorPML, lorentzPropagator,
 		// Equation of state
 		eosData, eosIdealGas, eosHotElectrons, eosMixture, eosIdealGasMix, eosSimpleMieGruneisen, eosLinearMieGruneisen,
+		eosTillotson,
 		// Ionization
 		mpi, adk, ppt,
 		// Diagnostics

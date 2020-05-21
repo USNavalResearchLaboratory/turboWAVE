@@ -206,6 +206,29 @@ struct EOSLinearMieGruneisen:EOSComponent
 	virtual void AddPKV(ScalarField& IE,ScalarField& nm,ScalarField& nu_e,Field& hydro,Field& eos);
 };
 
+// Tillotson EOS for modeling vaporization, cavitation, and shocks.
+// Coefficients for water can be found at [A.L. Brundage, Procedia Engineering (2013)]
+struct EOSTillotson:EOSComponent
+{
+	tw::Float unitDensityCGS; // unit CGS density specified if needed for conversion 
+	tw::Float n0;   // Reference density
+
+	tw::Float a;   // Tillotson Coefficient
+	tw::Float b;   // Tillotson Coefficient
+	tw::Float A;   // Tillotson Coefficient
+	tw::Float B;   // Tillotson Coefficient
+	tw::Float alpha;   // Tillotson Coefficient
+	tw::Float beta;   // Tillotson Coefficient
+
+	tw::Float RhoIV;   // Vaporization Pressure
+	tw::Float E0;   // Reference energy density
+	tw::Float EIV;   // Vaporization Energy
+	tw::Float ECV;   // Cavitation Energy
+
+	EOSTillotson(const std::string& name,MetricSpace *m,Task *tsk);
+	virtual void AddPKV(ScalarField& IE,ScalarField& nm,ScalarField& nu_e,Field& hydro,Field& eos);
+};
+
 // DFG - the role of the mixture is still the same, it computes non-additive things like temperature.
 // The components are then called at higher levels to add in additive things like pressure.
 struct EOSMixture:ComputeTool
