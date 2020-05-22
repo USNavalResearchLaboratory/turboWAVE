@@ -215,10 +215,13 @@ struct EOSTillotson:EOSComponent
 
 	tw::Float a;   // Tillotson Coefficient
 	tw::Float b;   // Tillotson Coefficient
-	tw::Float A;   // Tillotson Coefficient
-	tw::Float B;   // Tillotson Coefficient
+	tw::Float A;   // Bulk Modulus [kbar]
+	tw::Float B;   // Tillotson Parameter [kbar]
 	tw::Float alpha;   // Tillotson Coefficient
 	tw::Float beta;   // Tillotson Coefficient
+
+	tw::Float A_sim;   // Bulk Modulus [sim]
+	tw::Float B_sim;   // Tillotson Parameter [sim]
 
 	tw::Float RhoIV;   // Vaporization Pressure
 	tw::Float E0;   // Reference energy density

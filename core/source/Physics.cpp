@@ -339,7 +339,7 @@ void EOSLinearMieGruneisen::AddPKV(ScalarField& IE, ScalarField& nm, ScalarField
 //  EOS Tillotson   //
 //                  //
 //////////////////////
-// EOS for shock, vaporization, and cavitation 
+// EOS for shock and cavitation 
 // for materials such as water
 
 EOSTillotson::EOSTillotson(const std::string& name,MetricSpace *m, Task *tsk) : EOSComponent(name,m,tsk)
@@ -348,19 +348,21 @@ EOSTillotson::EOSTillotson(const std::string& name,MetricSpace *m, Task *tsk) : 
 	unitDensityCGS = 2.8e19; 
 
 	// Tillotson parameters for H20
-	tw:: Float n0 = 1192.0;
+	n0 = 1193.0;
 
-	tw::Float a = 0.7;   // Tillotson Coefficient
-	tw::Float b = 0.15;   // Tillotson Coefficient
-	tw::Float A = 21.8;   // Tillotson Coefficient
-	tw::Float B = 132.5;   // Tillotson Coefficient
-	tw::Float alpha = 10.0;   // Tillotson Coefficient
-	tw::Float beta = 5.0;   // Tillotson Coefficient
+	a = 0.7;   // Tillotson Coefficient
+	b = 0.15;   // Tillotson Coefficient
+	A = 21.8;   // Tillotson Coefficient
+	B = 132.5;   // Tillotson Coefficient
+	alpha = 10.0;   // Tillotson Coefficient
+	beta = 5.0;   // Tillotson Coefficient
 
-	tw::Float RhoIV = 0.958;   // vaporization density [g/cm3]
-	tw::Float E0 = 0.007e12;   // Reference energy density [erg/g]
-	tw::Float EIV = 0.00419e12;   // Vaporization Energy [erg/g]
-	tw::Float ECV = 0.025e12;   // Cavitation Energy [erg/g]
+	RhoIV = 0.958;   // vaporization density [g/cm3]
+	E0 = 0.07e12;   // Reference energy density [erg/g]
+	EIV = 0.00419e12;   // Vaporization Energy [erg/g]
+	ECV = 0.025e12;   // Cavitation Energy [erg/g]
+
+	// std::cout << "Start Creating Till tool" << std::endl;
 
 	directives.Add("unit density",new tw::input::Float(&unitDensityCGS));
 	directives.Add("reference density",new tw::input::Float(&n0));
@@ -379,25 +381,89 @@ EOSTillotson::EOSTillotson(const std::string& name,MetricSpace *m, Task *tsk) : 
 
 }
 
-// There are four regions in the revised Tillotson EOS
+// There are four (arguably 5) regions in the revised Tillotson EOS
 // [A.L. Brundage, Procedia Engineering (2013)]
 //
 // (1) Compressed States           : (\rho > \rho_0 & E > 0)
 // (2) Cold Expanded States        : (\rho_0 > \rho > \rho_IV & E < E_{IV})
-// (3) Hot Expanded States         : (\rho_0 > \rho & E < E_{IV})
+// (3) Hot Expanded States         : (\rho_0 > \rho & E >= E_{CV})
 // (4) Low Energy Expansion States : (\rho < \rho_IV & E < E_{CV})
+// (5) Mixed Region                : ( \rho_0 > \rho > \rho_IV & E_{CV} > E > E_{IV} )
 void EOSTillotson::AddPKV(ScalarField& IE, ScalarField& nm, ScalarField& nu_e, Field& hydro, Field& eos)
 {
+
+	UnitConverter uc(unitDensityCGS);
+
+	// convert physical unit Tillotson Parameters to sim units
+	//
+	// A, B given in kbar; 1kbar = 1.0e8 Pa
+	A_sim = uc.MKSToSim(energy_density_dim,A*1.0e8);
+	B_sim = uc.MKSToSim(energy_density_dim,B*1.0e8);
+
 	#pragma omp parallel
 	{
 		for (auto cell : EntireCellRange(*space))
 		{
-			const tw::Float ngas = hydro(cell,hidx.ni);
-			eos(cell,eidx.P) += ngas*eos(cell,eidx.T);
-			eos(cell,eidx.K) += mat.thermometricConductivity * mat.cvm * ngas;
-			eos(cell,eidx.visc) += mat.kinematicViscosity * mat.mass * ngas;
+			const tw::Float ndens = hydro(cell,hidx.ni);
+			const tw::Float udens = hydro(cell,hidx.u);
+			const tw::Float rho_cgs = uc.SimToCGS(mass_dim,mat.mass)*uc.SimToCGS(density_dim,ndens);
+			const tw::Float u_cgs = uc.SimToCGS(energy_density_dim,udens);
+
+			const tw::Float rho0_cgs = uc.SimToCGS(mass_dim,mat.mass)*uc.SimToCGS(density_dim,n0);
+			const tw::Float u0_cgs = rho_cgs*E0 + tw::small_pos; // U [etg/cm3] = rho [g/cm3] * E [erg/g]
+
+			const tw::Float eta = ndens/n0; // compression
+			const tw::Float mew = eta - 1.0; // strain
+
+			// Determine Region
+			tw::Int region = 0; // 1, 2, 3, 4, or 5 : 0 is for error detection
+			if ( rho_cgs >= rho0_cgs ) region = 1;
+			if ( ((rho_cgs >= RhoIV) and (rho_cgs < rho0_cgs)) and (u_cgs <= rho_cgs*EIV) ) region = 2;
+			if ((rho_cgs < rho0_cgs) and (u_cgs >= rho_cgs*ECV)) region = 3;
+			if ((rho_cgs < RhoIV) and (u_cgs < rho_cgs*ECV)) region = 4;
+			if (((rho_cgs > RhoIV) and (rho_cgs < rho0_cgs)) and ((u_cgs > rho_cgs*EIV) and (u_cgs < rho_cgs*ECV))) {
+				region = 5;
+			}
+			if (region == 0) {
+				std::cout << "ERROR: Unrecognized Region Detected in Tillotson EOS." << std::endl;
+				std::cout << "rho_cgs = " << rho_cgs << std::endl;
+				std::cout << "E_cgs = " << (u_cgs/rho_cgs) << std::endl;
+				exit(1); 
+			}
+
+			// Pressure Calculation
+			// eos(cell,eidx.P) += ndens*eos(cell,eidx.T);
+			tw::Float denom = (u_cgs/(u0_cgs*sqr(eta))) + 1.0; // this quantity is repeated in expressions
+			tw::Float expo, P3, P2, P_sim; // might be used depending on state
+			switch (region)
+			{
+				case 1:
+					eos(cell,eidx.P) += (a + b/denom)*udens + A_sim*mew + B_sim*sqr(mew);
+					break;
+				case 2:
+					eos(cell,eidx.P) += (a + b/denom)*udens + A_sim*mew + B_sim*sqr(mew);
+					break;
+				case 3:
+					expo = (rho0_cgs/rho_cgs) - 1.0;
+					eos(cell,eidx.P) += a*udens + ((b*udens/denom) + A_sim*mew*exp(-beta*expo))*exp(-alpha*sqr(expo));
+					break;
+				case 4:
+					eos(cell,eidx.P) += (a + b/denom)*udens + A_sim*mew;
+					break;
+				case 5: // this is an interpolation of region 2 and 3
+					P2 = (a + b/denom)*udens + A_sim*mew + B_sim*sqr(mew);
+					expo = (rho0_cgs/rho_cgs) - 1.0;
+					P3 = a*udens + ((b*udens/denom) + A_sim*mew*exp(-beta*expo))*exp(-alpha*sqr(expo));
+					eos(cell,eidx.P) += ((u_cgs - rho_cgs*EIV)*P3 + (rho_cgs*ECV - u_cgs)*P2)/(rho_cgs*(ECV-EIV));
+					break;
+			}
+
+			// keep rest of EOS the same
+			eos(cell,eidx.K) += mat.thermometricConductivity * mat.cvm * ndens;
+			eos(cell,eidx.visc) += mat.kinematicViscosity * mat.mass * ndens;
 		}
 	}
+
 }
 
 ///////////////////////////////////////
