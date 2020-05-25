@@ -140,6 +140,7 @@ struct HydroManager:Module
 	sparc::radiationModel radModel;
 	sparc::laserModel lasModel;
 	sparc::plasmaModel plasModel;
+	bool electrostaticHeating;
 	Chemical *electrons; // pointer to electron species, if present
 	tw::Int ie; // index to electron density in state vector
 	ScalarField scratch,scratch2,fluxMask;
@@ -207,9 +208,6 @@ struct HydroManager:Module
 	virtual bool ReadQuasitoolBlock(const tw::input::Preamble& preamble,std::stringstream& inputString);
 	virtual void ReadCheckpoint(std::ifstream& inFile);
 	virtual void WriteCheckpoint(std::ofstream& outFile);
-	void ParseReaction(std::stringstream& inputString);
-	void ParseExcitation(std::stringstream& inputString);
-	void ParseCollision(std::stringstream& inputString);
 
 	virtual void Report(Diagnostic&);
 	virtual void StatusMessage(std::ostream *theStream);

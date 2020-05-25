@@ -1,7 +1,7 @@
 Core Install for Local Clusters
 ===============================
 
-In referring to a local cluster, we have in mind a modest scale system maintained by the user, without any job queuing system.  This document assumes that OpenMPI is used as the message passing library.  For other MPI implementations the procedure should be similar.
+In referring to a local cluster, we have in mind a modest scale system maintained by the user, without any job queuing system.  This document assumes that OpenMPI is used as the message passing library.  For other MPI implementations the procedure should be similar.  The makefile has a provision for Intel MPI as well.
 
 This type of installation differs from a desktop installation in at least two ways:
 

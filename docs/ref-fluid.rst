@@ -73,6 +73,10 @@ SPARC Hydro Modules
 
 			:param enum plas: takes values ``neutral``, ``quasineutral``
 
+		.. py:function:: electrostatic heating = esh
+
+			:param bool esh: If ``on``, electrons are heated by self-consistent electrostatic fields. Default is ``off``.
+
 		.. py:function:: dipole center = Dx Dy Dz
 
 		 	Reference point for dipole moment diagnostic

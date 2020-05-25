@@ -101,7 +101,7 @@ Specific Quantum State Tools
 
 		Shared directives: see :ref:`qstate-shared`
 
-		.. py:function:: filename = fname`
+		.. py:function:: filename = fname
 
 			Name of the file containing the data describing the state.  The format is given :ref:`here <state-file>`.
 
@@ -176,7 +176,7 @@ Specific Quantum Propagation Modules
 	:param block directives: The following directives are supported:
 
 		Shared directives: see :ref:`quantum-shared`
-		
+
 		Installable tools: :ref:`qstate`, :ref:`radiation`
 
 Quantum Diagnostics

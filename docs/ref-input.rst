@@ -75,6 +75,8 @@ Assignments copy a value in the input file to a simulation parameter.  These val
 
 To allow for chemistry-friendly notation, identifiers are relaxed compared to other languages.  In particular, ``.``, ``[``, ``]``, ``+``, and ``-`` are allowed.  Thus, ``Ar[18+]`` and ``O2[+].H2O`` are valid little language identifiers.
 
+There is a ``Tree-Sitter`` parser available for turboWAVE input files.  For details see the `tree-sitter-turbowave <https://www.npmjs.com/package/tree-sitter-turbowave>`_ Node.js package.
+
 .. _preprocessor:
 
 Input Preprocessor

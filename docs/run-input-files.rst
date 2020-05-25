@@ -1,11 +1,9 @@
 Input Files
 ===========
 
-Everything about a turboWAVE simulation is determined by the input file.  With version 3.4 the following changes were introduced in the handling of input files:
+Everything about a turboWAVE simulation is determined by the input file.  The input file can have any name, though it is best to not use spaces.  The ``.tw`` extension can be made to trigger syntax highlights in certain editors.  If no input file name is specified turboWAVE assumes it is ``stdin``.
 
-	* The file extension :samp:`.tw` was introduced in order to better support syntax highlights.
-	* The name or path of the input file can be given as a command line argument.
-	* The default behavior remains almost the same.  Namely, if :samp:`stdin` (no extension) is in the working directory, it will be used as the input file, unless another input file is specified.  The difference is that :samp:`stdin.txt` will no longer be loaded as a default input file.
+The turboWAVE input file is written in what amounts to a "little language", which is described further in :doc:`ref-input`.  Fortunately this language is very simple and does not impose a significant learning curve.
 
 This tutorial discusses simulation units, and then points you to the example files and the reference pages.
 

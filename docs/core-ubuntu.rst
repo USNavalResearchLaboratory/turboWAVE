@@ -1,8 +1,6 @@
 Core Install for Ubuntu 18.04
 =============================
 
-In the following, one can choose to install either GCC, LLVM, or both.
-
 Install GCC
 -----------
 

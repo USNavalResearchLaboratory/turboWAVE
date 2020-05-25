@@ -27,7 +27,7 @@
 		'name': 'keyword.control.directive.define.tw'
 	},
 	{
-		'match': '\\b(new|generate|get|open|for)\\b'
+		'match': '\\b(new|generate|get|for)\\b'
 		'name': 'keyword.control.tw'
 	},
 	{

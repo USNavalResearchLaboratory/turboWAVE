@@ -852,6 +852,7 @@ sparc::HydroManager::HydroManager(const std::string& name,Simulation* sim):Modul
 	lasModel = sparc::vacuum;
 	plasModel = sparc::neutral;
 	electrons = NULL;
+	electrostaticHeating = false;
 
 	directives.Add("epsilon factor",new tw::input::Float(&epsilonFactor),false);
 	std::map<std::string,sparc::radiationModel> rad = {{"none",sparc::noRadiation},{"thin",sparc::thin},{"thick",sparc::thick}};
@@ -863,6 +864,7 @@ sparc::HydroManager::HydroManager(const std::string& name,Simulation* sim):Modul
 	directives.Add("dipole center",new tw::input::Vec3(&dipoleCenter),false);
 	directives.Add("background density",new tw::input::Float(&backgroundDensity),false);
 	directives.Add("background temperature",new tw::input::Float(&backgroundTemperature),false);
+	directives.Add("electrostatic heating",new tw::input::Bool(&electrostaticHeating),false);
 }
 
 sparc::HydroManager::~HydroManager()
@@ -1425,7 +1427,8 @@ void sparc::HydroManager::ComputeRadiativeSources()
 					sqr((phi.fwd(cell,0,2) - phi.bak(cell,0,2))/owner->dL(cell,2)) +
 					sqr((phi.fwd(cell,0,3) - phi.bak(cell,0,3))/owner->dL(cell,3));
 				CreateTotalEnergy(cell,sig_AC*E2_AC,electrons->group->hidx);
-				CreateTotalEnergy(cell,sig_DC*E2_DC,electrons->group->hidx);
+				if (electrostaticHeating)
+					CreateTotalEnergy(cell,sig_DC*E2_DC,electrons->group->hidx);
 			}
 		}
 

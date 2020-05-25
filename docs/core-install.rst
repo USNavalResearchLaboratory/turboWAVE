@@ -16,6 +16,12 @@ If you want to dive right in, select your operating system or configuration belo
 	core-cluster
 	core-hpc
 
+
+Basic Approach
+---------------
+
+The basic installation workflow is build from source, and copy files into user space directories.  This workflow is managed using GNU ``make``.  The ``makefile`` is configured to build and copy files in one step.  This is distinct from the usual practice of separating ``make``, which builds the binaries, from ``make install`` which copies them to standard locations.  The philosophy behind this is that some runtime workflows involve frequently tweaking source code, and in this setting, combining ``make`` and ``make install`` is less error prone.  The more typical approach can be applied by using ``make tw3d_release`` followed by ``make install``.
+
 Compiler Notes
 --------------
 
@@ -24,8 +30,8 @@ We support several compilers for desktop turboWAVE.  Explicit instructions are g
 .. csv-table:: Table I. Desktop C++ Compilers.
 	:header: "Umbrella", "Compiler Command", "Operating Systems"
 
-	"GNU", ``g++``, "Linux"
-	"LLVM", ``clang++``, "Linux, MacOS, Windows"
+	"GNU", ``g++``, "Linux, MacOS"
+	"LLVM", ``clang++``, "Linux, Windows"
 	"Intel Parallel Studio", ``icl``, "Windows"
 	"Microsoft Visual Studio", ``cl``, "Windows"
 

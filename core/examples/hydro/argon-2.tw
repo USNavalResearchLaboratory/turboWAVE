@@ -1,0 +1,90 @@
+// Not an input file, intended to be #include(d)
+// Argon plasma chemistry suitable for moderate pressures
+// Full discussion in G.M. Petrov internal note 04-07-2020v3
+
+new chemical e
+{
+	charge = -1.0
+	mass = 1.0
+	cv = 1.5
+}
+
+new group heavies
+{
+	new chemical Ar
+	{
+		charge = 0.0
+		mass = 73440
+		cv = 1.5
+		thermometric conductivity = %1cm2s
+	}
+	new chemical Ar[4s]
+	{
+		charge = 0.0
+		mass = 73440
+		cv = 1.5
+		thermometric conductivity = %1cm2s
+	}
+	new chemical Ar[4p]
+	{
+		charge = 0.0
+		mass = 73440
+		cv = 1.5
+		thermometric conductivity = %1cm2s
+	}
+	new chemical Ar[+]
+	{
+		charge = 1.0
+		mass = 73439
+		cv = 1.5
+		thermometric conductivity = %1cm2s
+	}
+	new chemical Ar2[+]
+	{
+		charge = 1.0
+		mass = 146879
+		cv = 2.5
+		thermometric conductivity = %1cm2s
+	}
+	mobile = true
+}
+
+new collision = e <-> Ar[+] , coulomb
+new collision = e <-> Ar , cross section = 1e-16 // appropriate for 1 eV
+new collision = e <-> Ar[4s] , cross section = 1e-16 // likely not important
+new collision = e <-> Ar[4p] , cross section = 1e-16 // likely not important
+new collision = e <-> Ar2[+] , coulomb
+
+// excitation into lumped excited state with detail balanced de-excitation
+new reaction = { Ar -> Ar[4s] : e -> e - 11.55 } rate = 1.5e-8 0.0 13.2 e(:) //2
+new reaction = { Ar[4s] -> Ar + 11.55 : e -> e } rate = 0.5e-8 0.0 1.65 e(:) //3
+new reaction = { Ar -> Ar[4p] : e -> e - 12.91 } rate = 4.5e-8 -0.04 14 e(:) //4
+new reaction = { Ar[4p] -> Ar + 12.91 : e -> e } rate = 1.25e-8 -0.04 1.09 e(:) //5
+new reaction = { Ar[4s] -> Ar[4p] : e -> e - 1.36 } rate = 2.63e-7 0.15 1.5 e(:) //6
+new reaction = { Ar[4p] -> Ar[4s] + 1.36 : e -> e } rate = 2.2e-7 0.15 0.14 e(:) //7
+new reaction = { Ar[4s] + Ar + Ar -> Ar + Ar + Ar + 11.55} rate = 1.0e-32 0.0 0.0 Ar[4s](:) //17
+new reaction = { Ar[4p] + Ar + Ar -> Ar[4s] + Ar + Ar - 1.36 } rate = 5.0e-32 0.0 0.0 Ar[4s](:) //18
+
+// impact ionization and 3-body recombination channels
+new reaction = { Ar -> Ar[+] : e -> e + e - 15.75 } rate = 4.0e-8 0.36 18.0 e(:) //8
+new reaction = { Ar[4s] -> Ar[+] : e -> e + e - 4.2 } rate = 1.6e-7 0.03 4.5 e(:) //9
+new reaction = { Ar[4p] -> Ar[+] : e -> e + e - 2.84 } rate = 3.0e-7 0.03 3.0 e(:) //10
+new reaction = { Ar[+] -> Ar[4s] + 4.2 : e + e -> e } rate = 7.2e-27 -4.5 0.0 e(:) //15
+new reaction = { Ar[+] + Ar + e -> Ar[4s] + Ar + 4.2 } rate = 2.5e-29 -1.5 0.0 e(:) //16
+new reaction = { Ar[4s] + Ar[4s] -> Ar[+] + Ar + e + 7.35 } rate = 5.0e-10 0.0 0.0 Ar[4s](:) //19
+new reaction = { Ar[4s] + Ar[4p] -> Ar[+] + Ar + e + 8.71 } rate = 5.0e-10 0.0 0.0 Ar[4s](:) //20
+new reaction = { Ar[4p] + Ar[4p] -> Ar[+] + Ar + e + 10.07 } rate = 5.0e-10 0.0 0.0 Ar[4s](:) //21
+new reaction = { Ar[4s] + Ar[4s] -> Ar2[+] + e + 8.57 } rate = 6.0e-10 0.0 0.0 Ar[4s](:) //22
+
+
+// radiative losses, photon is assumed to leave system
+//new reaction = { Ar[+] + e -> Ar } rate = 2.7e-13 -0.5 0.0 e(:)
+// following rate has sqrt(R[cm]) buried in denominator; for R=1cm c0=8.5e4
+new reaction = { Ar[4s] -> Ar } rate = 7.8e4 0.0 0.0 Ar(:) //11
+// following rate is dependent on n4s; for n4s = 2.8e14 c0=2.6e4
+new reaction = { Ar[4p] -> Ar[4s] } rate = 2.6e4 0.0 0.0 Ar[4s](:) //12
+
+// molecular argon ion
+new reaction = { Ar[+] + Ar + Ar -> Ar2[+] + Ar + 1.22 } rate = 5.2e-32 -0.4 0.0 Ar(:) //13
+new reaction = { Ar2[+] + e -> Ar[4s] + Ar + 2.98 } rate = 7.3e-8 -0.67 0.0 e(:) //14
+

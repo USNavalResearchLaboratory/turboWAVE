@@ -6,8 +6,14 @@
 // A = 12 (cm*torr)^-1 , B = 180 V/(cm*torr) , gam = .005 (depends on electrodes)
 // Plugging in d=.1 cm and p=7.6 torr gives 252 volts
 
-// Global losses are from blackbody and spontaneous de-excitation of the lumped 4s state
+// Global losses are from blackbody and spontaneous de-excitation of excited states
 // Assume electrodes are perfect thermal insulators
+
+// The include directive below can be used to select from the 3 chemistry models,
+// which in order of increasing complexity, are argon-0.tw, argon-1.tw, and argon-2.tw.
+// The simplest one, argon-0.tw, has the advantage of detailed balancing of impact
+// ionization and 3-body recombination.  This may be why the more complex models fail to
+// converge in the very hot gas limit.
 
 #define $T0 %300K
 
@@ -46,6 +52,7 @@ new hydrodynamics 'hydro'
 	plasma model = neutral
 	background density = 1e-8
 	background temperature = $T0
+	electrostatic heating = true
 }
 
 new 1d elliptic solver for 'hydro'
@@ -97,7 +104,7 @@ new conductor 'anode' for 'hydro'
 	temperature = $T0
 }
 
-#include "argon-1.tw"
+#include "argon-2.tw"
 
 generate uniform Ar
 {
