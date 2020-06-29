@@ -210,18 +210,14 @@ struct EOSLinearMieGruneisen:EOSComponent
 // Coefficients for water can be found at [A.L. Brundage, Procedia Engineering (2013)]
 struct EOSTillotson:EOSComponent
 {
-	tw::Float unitDensityCGS; // unit CGS density specified if needed for conversion 
 	tw::Float n0;   // Reference density
 
 	tw::Float a;   // Tillotson Coefficient
 	tw::Float b;   // Tillotson Coefficient
-	tw::Float A;   // Bulk Modulus [kbar]
-	tw::Float B;   // Tillotson Parameter [kbar]
+	tw::Float A;   // Bulk Modulus [sim]
+	tw::Float B;   // Tillotson Parameter [sim]
 	tw::Float alpha;   // Tillotson Coefficient
 	tw::Float beta;   // Tillotson Coefficient
-
-	tw::Float A_sim;   // Bulk Modulus [sim]
-	tw::Float B_sim;   // Tillotson Parameter [sim]
 
 	tw::Float RhoIV;   // Vaporization Pressure
 	tw::Float E0;   // Reference energy density

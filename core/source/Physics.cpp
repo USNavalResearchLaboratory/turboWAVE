@@ -345,7 +345,7 @@ void EOSLinearMieGruneisen::AddPKV(ScalarField& IE, ScalarField& nm, ScalarField
 EOSTillotson::EOSTillotson(const std::string& name,MetricSpace *m, Task *tsk) : EOSComponent(name,m,tsk)
 {
 	// arbitrary normalization value I used when testing this EOS
-	unitDensityCGS = 2.8e19; 
+	//unitDensityCGS = 2.8e19; 
 
 	// Tillotson parameters for H20
 	n0 = 1193.0;
@@ -364,7 +364,7 @@ EOSTillotson::EOSTillotson(const std::string& name,MetricSpace *m, Task *tsk) : 
 
 	// std::cout << "Start Creating Till tool" << std::endl;
 
-	directives.Add("unit density",new tw::input::Float(&unitDensityCGS));
+	//directives.Add("unit density",new tw::input::Float(&unitDensityCGS));
 	directives.Add("reference density",new tw::input::Float(&n0));
 
 	directives.Add("parameter a",new tw::input::Float(&a));
@@ -392,13 +392,7 @@ EOSTillotson::EOSTillotson(const std::string& name,MetricSpace *m, Task *tsk) : 
 void EOSTillotson::AddPKV(ScalarField& IE, ScalarField& nm, ScalarField& nu_e, Field& hydro, Field& eos)
 {
 
-	UnitConverter uc(unitDensityCGS);
-
-	// convert physical unit Tillotson Parameters to sim units
-	//
-	// A, B given in kbar; 1kbar = 1.0e8 Pa
-	A_sim = uc.MKSToSim(energy_density_dim,A*1.0e8);
-	B_sim = uc.MKSToSim(energy_density_dim,B*1.0e8);
+	UnitConverter *uc = space->units;
 
 	#pragma omp parallel
 	{
@@ -406,10 +400,10 @@ void EOSTillotson::AddPKV(ScalarField& IE, ScalarField& nm, ScalarField& nu_e, F
 		{
 			const tw::Float ndens = hydro(cell,hidx.ni);
 			const tw::Float udens = hydro(cell,hidx.u);
-			const tw::Float rho_cgs = uc.SimToCGS(mass_dim,mat.mass)*uc.SimToCGS(density_dim,ndens);
-			const tw::Float u_cgs = uc.SimToCGS(energy_density_dim,udens);
+			const tw::Float rho_cgs = uc->SimToCGS(mass_dim,mat.mass)*uc->SimToCGS(density_dim,ndens);
+			const tw::Float u_cgs = uc->SimToCGS(energy_density_dim,udens);
 
-			const tw::Float rho0_cgs = uc.SimToCGS(mass_dim,mat.mass)*uc.SimToCGS(density_dim,n0);
+			const tw::Float rho0_cgs = uc->SimToCGS(mass_dim,mat.mass)*uc->SimToCGS(density_dim,n0);
 			const tw::Float u0_cgs = rho_cgs*E0 + tw::small_pos; // U [etg/cm3] = rho [g/cm3] * E [erg/g]
 
 			const tw::Float eta = ndens/n0; // compression
@@ -438,22 +432,22 @@ void EOSTillotson::AddPKV(ScalarField& IE, ScalarField& nm, ScalarField& nu_e, F
 			switch (region)
 			{
 				case 1:
-					eos(cell,eidx.P) += (a + b/denom)*udens + A_sim*mew + B_sim*sqr(mew);
+					eos(cell,eidx.P) += (a + b/denom)*udens + A*mew + B*sqr(mew);
 					break;
 				case 2:
-					eos(cell,eidx.P) += (a + b/denom)*udens + A_sim*mew + B_sim*sqr(mew);
+					eos(cell,eidx.P) += (a + b/denom)*udens + A*mew + B*sqr(mew);
 					break;
 				case 3:
 					expo = (rho0_cgs/rho_cgs) - 1.0;
-					eos(cell,eidx.P) += a*udens + ((b*udens/denom) + A_sim*mew*exp(-beta*expo))*exp(-alpha*sqr(expo));
+					eos(cell,eidx.P) += a*udens + ((b*udens/denom) + A*mew*exp(-beta*expo))*exp(-alpha*sqr(expo));
 					break;
 				case 4:
-					eos(cell,eidx.P) += (a + b/denom)*udens + A_sim*mew;
+					eos(cell,eidx.P) += (a + b/denom)*udens + A*mew;
 					break;
 				case 5: // this is an interpolation of region 2 and 3
-					P2 = (a + b/denom)*udens + A_sim*mew + B_sim*sqr(mew);
+					P2 = (a + b/denom)*udens + A*mew + B*sqr(mew);
 					expo = (rho0_cgs/rho_cgs) - 1.0;
-					P3 = a*udens + ((b*udens/denom) + A_sim*mew*exp(-beta*expo))*exp(-alpha*sqr(expo));
+					P3 = a*udens + ((b*udens/denom) + A*mew*exp(-beta*expo))*exp(-alpha*sqr(expo));
 					eos(cell,eidx.P) += ((u_cgs - rho_cgs*EIV)*P3 + (rho_cgs*ECV - u_cgs)*P2)/(rho_cgs*(ECV-EIV));
 					break;
 			}
