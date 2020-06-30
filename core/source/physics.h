@@ -219,8 +219,8 @@ struct EOSTillotson:EOSComponent
 	tw::Float alpha;   // Tillotson Coefficient
 	tw::Float beta;   // Tillotson Coefficient
 
-	tw::Float RhoIV;   // Vaporization Pressure
-	tw::Float E0;   // Reference energy density
+	tw::Float nIV;   // Vaporization Pressure
+	tw::Float E0;   // Reference energy 
 	tw::Float EIV;   // Vaporization Energy
 	tw::Float ECV;   // Cavitation Energy
 

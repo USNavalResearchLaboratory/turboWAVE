@@ -352,15 +352,15 @@ EOSTillotson::EOSTillotson(const std::string& name,MetricSpace *m, Task *tsk) : 
 
 	a = 0.7;   // Tillotson Coefficient
 	b = 0.15;   // Tillotson Coefficient
-	A = 21.8;   // Tillotson Coefficient
-	B = 132.5;   // Tillotson Coefficient
+	A = 0.000950973;   // Tillotson Coefficient [sim - pressure unit]
+	B = 0.00577999;   // Tillotson Coefficient [sim - pressure unit]
 	alpha = 10.0;   // Tillotson Coefficient
 	beta = 5.0;   // Tillotson Coefficient
 
-	RhoIV = 0.958;   // vaporization density [g/cm3]
-	E0 = 0.07e12;   // Reference energy density [erg/g]
-	EIV = 0.00419e12;   // Vaporization Energy [erg/g]
-	ECV = 0.025e12;   // Cavitation Energy [erg/g]
+	nIV = 1144.06;   // vaporization density 
+	E0 = 2.55698e-06;   // Reference energy  
+	EIV = 1.53054e-07;   // Vaporization Energy 
+	ECV = 9.13208e-07;   // Cavitation Energy 
 
 	// std::cout << "Start Creating Till tool" << std::endl;
 
@@ -374,8 +374,8 @@ EOSTillotson::EOSTillotson(const std::string& name,MetricSpace *m, Task *tsk) : 
 	directives.Add("parameter alpha",new tw::input::Float(&alpha));
 	directives.Add("parameter beta",new tw::input::Float(&beta));
 
-	directives.Add("vaporization density",new tw::input::Float(&RhoIV));
-	directives.Add("energy density",new tw::input::Float(&E0));
+	directives.Add("vaporization density",new tw::input::Float(&nIV));
+	directives.Add("reference energy",new tw::input::Float(&E0));
 	directives.Add("vaporization energy",new tw::input::Float(&EIV));
 	directives.Add("cavitation energy",new tw::input::Float(&ECV));
 
@@ -394,6 +394,12 @@ void EOSTillotson::AddPKV(ScalarField& IE, ScalarField& nm, ScalarField& nu_e, F
 
 	UnitConverter *uc = space->units;
 
+	// threshold parameters in cgs units
+	tw::Float RhoIV_cgs = uc->SimToCGS(mass_dim,mat.mass)*uc->SimToCGS(density_dim,nIV); // Vaporization Pressure [g/cm3]
+	tw::Float E0_cgs = uc->SimToCGS(energy_dim,E0)/uc->SimToCGS(mass_dim,mat.mass); // Reference energy density [erg/g]
+	tw::Float EIV_cgs = uc->SimToCGS(energy_dim,EIV)/uc->SimToCGS(mass_dim,mat.mass); // Vaporization Energy [erg/g]
+	tw::Float ECV_cgs = uc->SimToCGS(energy_dim,ECV)/uc->SimToCGS(mass_dim,mat.mass); // Cavitation Energy [erg/g]
+
 	#pragma omp parallel
 	{
 		for (auto cell : EntireCellRange(*space))
@@ -404,7 +410,7 @@ void EOSTillotson::AddPKV(ScalarField& IE, ScalarField& nm, ScalarField& nu_e, F
 			const tw::Float u_cgs = uc->SimToCGS(energy_density_dim,udens);
 
 			const tw::Float rho0_cgs = uc->SimToCGS(mass_dim,mat.mass)*uc->SimToCGS(density_dim,n0);
-			const tw::Float u0_cgs = rho_cgs*E0 + tw::small_pos; // U [etg/cm3] = rho [g/cm3] * E [erg/g]
+			const tw::Float u0_cgs = rho_cgs*E0_cgs + tw::small_pos; // U [etg/cm3] = rho [g/cm3] * E [erg/g]
 
 			const tw::Float eta = ndens/n0; // compression
 			const tw::Float mew = eta - 1.0; // strain
@@ -412,10 +418,10 @@ void EOSTillotson::AddPKV(ScalarField& IE, ScalarField& nm, ScalarField& nu_e, F
 			// Determine Region
 			tw::Int region = 0; // 1, 2, 3, 4, or 5 : 0 is for error detection
 			if ( rho_cgs >= rho0_cgs ) region = 1;
-			if ( ((rho_cgs >= RhoIV) and (rho_cgs < rho0_cgs)) and (u_cgs <= rho_cgs*EIV) ) region = 2;
-			if ((rho_cgs < rho0_cgs) and (u_cgs >= rho_cgs*ECV)) region = 3;
-			if ((rho_cgs < RhoIV) and (u_cgs < rho_cgs*ECV)) region = 4;
-			if (((rho_cgs > RhoIV) and (rho_cgs < rho0_cgs)) and ((u_cgs > rho_cgs*EIV) and (u_cgs < rho_cgs*ECV))) {
+			if ( ((rho_cgs >= RhoIV_cgs) and (rho_cgs < rho0_cgs)) and (u_cgs <= rho_cgs*EIV_cgs) ) region = 2;
+			if ((rho_cgs < rho0_cgs) and (u_cgs >= rho_cgs*ECV_cgs)) region = 3;
+			if ((rho_cgs < RhoIV_cgs) and (u_cgs < rho_cgs*ECV_cgs)) region = 4;
+			if (((rho_cgs > RhoIV_cgs) and (rho_cgs < rho0_cgs)) and ((u_cgs > rho_cgs*EIV_cgs) and (u_cgs < rho_cgs*ECV_cgs))) {
 				region = 5;
 			}
 			if (region == 0) {
@@ -448,7 +454,7 @@ void EOSTillotson::AddPKV(ScalarField& IE, ScalarField& nm, ScalarField& nu_e, F
 					P2 = (a + b/denom)*udens + A*mew + B*sqr(mew);
 					expo = (rho0_cgs/rho_cgs) - 1.0;
 					P3 = a*udens + ((b*udens/denom) + A*mew*exp(-beta*expo))*exp(-alpha*sqr(expo));
-					eos(cell,eidx.P) += ((u_cgs - rho_cgs*EIV)*P3 + (rho_cgs*ECV - u_cgs)*P2)/(rho_cgs*(ECV-EIV));
+					eos(cell,eidx.P) += ((u_cgs - rho_cgs*EIV_cgs)*P3 + (rho_cgs*ECV_cgs - u_cgs)*P2)/(rho_cgs*(ECV_cgs-EIV_cgs));
 					break;
 			}
 
