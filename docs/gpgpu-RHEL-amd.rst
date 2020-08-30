@@ -8,7 +8,17 @@ AMD GPGPU on RHEL/CentOS 8
 Driver
 -------
 
-Waiting for ROCm for RHEL/CentOS 8.
+#. Install AMD ROCm
+
+	* Perform internet search to find the installation instructions and carry out.
+	* Be sure to test the installation per the installation instructions.
+	* This may involve multiple restarts.
+
+#. Create a symbolic link to the ROCm installation
+
+	* :samp:`cd /opt && ls`
+	* The output should include a directory in the form :samp:`rocm-{x.y.z}`.
+	* If there is no symbolic link :samp:`rocm` create it using :samp:`sudo ln -s rocm-{x.y.z} rocm`
 
 Compile with OpenCL
 -------------------

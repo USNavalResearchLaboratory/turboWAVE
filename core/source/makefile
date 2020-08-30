@@ -191,8 +191,10 @@ $(warning No accelerator, at least OMP is recommended)
 		BASE_FLAGS += -DUSE_OPENCL
 		LIBS += -lOpenCL -pthread
 	else ifeq ($(HARDWARE_ACCEL),RADEON_PRO)
-		BASE_FLAGS += -DUSE_OPENCL
-		LIBS += -lOpenCL -pthread
+		CL_INCLUDE = /opt/rocm/opencl/include
+		CL_LIB = /opt/rocm/opencl/lib
+		BASE_FLAGS += -DCL_TARGET_OPENCL_VERSION=200 -DUSE_OPENCL -I'$(CL_INCLUDE)'
+		LIBS += -L'$(CL_LIB)' -Wl,-rpath='$(CL_LIB)' -lOpenCL -pthread
 	else
 $(error Accelerator $(HARDWARE_ACCEL) not supported on Linux)
 	endif

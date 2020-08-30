@@ -9,11 +9,7 @@
 // Global losses are from blackbody and spontaneous de-excitation of excited states
 // Assume electrodes are perfect thermal insulators
 
-// The include directive below can be used to select from the 3 chemistry models,
-// which in order of increasing complexity, are argon-0.tw, argon-1.tw, and argon-2.tw.
-// The simplest one, argon-0.tw, has the advantage of detailed balancing of impact
-// ionization and 3-body recombination.  This may be why the more complex models fail to
-// converge in the very hot gas limit.
+// The include directive below can be used to select from the 4 chemistry models
 
 #define $T0 %300K
 
@@ -104,7 +100,7 @@ new conductor 'anode' for 'hydro'
 	temperature = $T0
 }
 
-#include "argon-2.tw"
+#include "argon-3.tw"
 
 generate uniform Ar
 {

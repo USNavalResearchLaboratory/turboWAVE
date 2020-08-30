@@ -22,7 +22,7 @@ Python 3 via Anaconda
 
 #. :samp:`conda update conda`
 #. Choose a name for your environment, denoted :samp:`{NAME}`
-#. :samp:`conda create -n {NAME} scipy matplotlib pillow jupyter`
+#. :samp:`conda create -n {NAME} scipy matplotlib pillow jupyter ipympl`
 #. :samp:`conda activate {NAME}`
 #. You are now in an isolated conda environment.  The environment must be activated each time you open a new terminal window.
 #. If there are problems with Jupyter notebooks any or all of the following may be tried:
@@ -70,9 +70,4 @@ You can add syntax highlights for ``vim`` and ``Atom`` editors.  Syntax highligh
 	* Copy :samp:`{twroot}/tools/config-files/turbowave.vim` to :samp:`~/vimfiles/syntax/`
 	* Files with extension ``.tw`` or the name ``stdin`` will be highlighted
 
-#. To enable turboWAVE input file syntax highlights with the :samp:`Atom` editor
-
-	* Create directory :samp:`~/.atom/packages/language-turbowave/grammars/` and copy :samp:`{twroot}/tools/config-files/turbowave.cson` to the new directory
-	* Create directory :samp:`~/.atom/packages/language-turbowave/` and copy :samp:`{twroot}/tools/config-files/package.json` to the new directory
-	* Restart Atom
-	* Files with the extension ``.tw`` will be highlighted.  Using the ``Select Grammar`` menu item and choosing ``turbowave`` allows any file to be highlighted.
+#. To enable turboWAVE input file syntax highlights with the :samp:`Atom` editor, go to the package installation screen and search for the :samp:`language-turbowave` package.  Press the button to install the package.

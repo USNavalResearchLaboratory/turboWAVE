@@ -1,6 +1,6 @@
 // Not an input file, intended to be #include(d)
 // Argon plasma chemistry suitable for moderate pressures
-// Full discussion in G.M. Petrov internal note 04-07-2020v3
+// Full discussion in G.M. Petrov internal note 2020-04-07-v3
 
 new chemical e
 {
@@ -55,7 +55,7 @@ new collision = e <-> Ar[4s] , cross section = 1e-16 // likely not important
 new collision = e <-> Ar[4p] , cross section = 1e-16 // likely not important
 new collision = e <-> Ar2[+] , coulomb
 
-// excitation into lumped excited state with detail balanced de-excitation
+// excitation into lumped excited state
 new reaction = { Ar -> Ar[4s] : e -> e - 11.55 } rate = 1.5e-8 0.0 13.2 e(:) //2
 new reaction = { Ar[4s] -> Ar + 11.55 : e -> e } rate = 0.5e-8 0.0 1.65 e(:) //3
 new reaction = { Ar -> Ar[4p] : e -> e - 12.91 } rate = 4.5e-8 -0.04 14 e(:) //4
@@ -77,8 +77,6 @@ new reaction = { Ar[4p] + Ar[4p] -> Ar[+] + Ar + e + 10.07 } rate = 5.0e-10 0.0 
 new reaction = { Ar[4s] + Ar[4s] -> Ar2[+] + e + 8.57 } rate = 6.0e-10 0.0 0.0 Ar[4s](:) //22
 
 
-// radiative losses, photon is assumed to leave system
-//new reaction = { Ar[+] + e -> Ar } rate = 2.7e-13 -0.5 0.0 e(:)
 // following rate has sqrt(R[cm]) buried in denominator; for R=1cm c0=8.5e4
 new reaction = { Ar[4s] -> Ar } rate = 7.8e4 0.0 0.0 Ar(:) //11
 // following rate is dependent on n4s; for n4s = 2.8e14 c0=2.6e4
@@ -87,4 +85,3 @@ new reaction = { Ar[4p] -> Ar[4s] } rate = 2.6e4 0.0 0.0 Ar[4s](:) //12
 // molecular argon ion
 new reaction = { Ar[+] + Ar + Ar -> Ar2[+] + Ar + 1.22 } rate = 5.2e-32 -0.4 0.0 Ar(:) //13
 new reaction = { Ar2[+] + e -> Ar[4s] + Ar + 2.98 } rate = 7.3e-8 -0.67 0.0 e(:) //14
-
