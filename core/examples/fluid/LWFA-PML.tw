@@ -1,5 +1,5 @@
 // Keep the following line for generating twtest reports
-// TWTEST matplotlib zxyt=0,: By.dvdat range=-0.002,0.002 color=bwr
+// TWTEST matplotlib zxyt=0,: By.npy range=-0.002,0.002 color=bwr
 
 steps = 1000
 timestep = 0.08

@@ -1,5 +1,5 @@
 // Keep the following line for generating twtest reports
-// TWTEST matplotlib zxyt=0,: phi.dvdat
+// TWTEST matplotlib zxyt=0,: phi.npy
 
 #define $a0 0.2
 #define $r0 6.0

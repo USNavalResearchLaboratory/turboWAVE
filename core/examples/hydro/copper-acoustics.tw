@@ -1,5 +1,5 @@
 // Keep the following line for generating twtest reports
-// TWTEST matplotlib xtyz=0,0 Cu.dvdat
+// TWTEST matplotlib xtyz=0,0 Cu.npy units=cgs
 
 // SPARC acoustic wave in solid copper
 // Suitable application of FFT should give acoustic dispersion relation

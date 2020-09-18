@@ -35,9 +35,9 @@ MetricSpace::~MetricSpace()
 	#endif
 }
 
-void MetricSpace::AttachUnits(tw::Float unitDensityCGS)
+void MetricSpace::AttachUnits(tw::units sys,tw::Float unitDensityCGS)
 {
-	units = new UnitConverter(unitDensityCGS);
+	units = new UnitConverter(sys,unitDensityCGS);
 }
 
 #ifdef USE_OPENCL

@@ -42,17 +42,10 @@ TurboWAVE Python Packages
 #. :samp:`pip install .`
 #. Your python programs should now have access to twutils and sub-packages.
 
-Native DataViewer
------------------
-
-#. For MacOS there is a native DataViewer application
-#. Double-click on :samp:`{twroot}/tools/DataViewer.dmg`
-#. Open the disk image and copy the DataViewer application to :samp:`Applications` or wherever you like.
-
 Python DataViewer
 -----------------
 
-#. The Python DataViewer may also be useful since you can modify the source
+#. The Python DataViewer is run in a Jupyter notebook.
 #. Copy :samp:`{twroot}/tools/DataViewer.ipynb` to :samp:`~/bin`
 #. Create a directory :samp:`~/.jupyter/custom/` and copy :samp:`{twroot}/tools/config-files/custom.css` to the new directory.
 

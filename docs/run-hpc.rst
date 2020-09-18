@@ -19,7 +19,7 @@ Running an Example
 #. Create a batch script according to the instructions for your machine.  Note the decomposition in the example input file.  The product of the three integers is the number of MPI processes you should request.  Assuming you don't fork threads, the number of cores you request should be the same as the number of MPI processes.  If you fork threads, then you must multiply the total cores by the number of threads you fork from each MPI process.  When forming your batch script, be careful to note whether a parameter refers to the cores per node, or the total cores for the entire job.
 #. Submit the script according to the instructions for your machine.
 #. As the problem runs, you can monitor the progress by examining the contents of the file :samp:`twstat`.
-#. When the run is finished, you should have several files with the extension :samp:`dvdat`.  This is a simple binary format.  The twutils Python package has a function to read data into numpy arrays from this type of file.  If you want to see an example of how to read this file from C++, you can look in :samp:`{twroot}/tools/twpost`.
+#. When the run is finished, you should have several files with the extension :samp:`npy`.  This is a simple binary format often used with numerical Python.
 
 We do not cover remote visualization of data in this documentation.  Of course you can transfer the data to your desktop and follow the guidance in :doc:`run-desktop`.
 

@@ -1,5 +1,5 @@
 #include "simulation.h"
-#define TW_VERSION_STRING "4.0.1"
+#define TW_VERSION_STRING "4.1.0b"
 
 ////////////////////
 // ERROR HANDLING //

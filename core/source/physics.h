@@ -103,7 +103,7 @@ struct Ionizer : ComputeTool
 	virtual void Initialize();
 	virtual tw::Float InstantRate(tw::Float w0,tw::Float E) { return 0.0; }
 	virtual tw::Float AverageRate(tw::Float w0,tw::Float E) { return 0.0; }
-	tw::Float ThresholdEstimate() { return space->units->AtomicToSim(electric_field_dim,A3); }
+	tw::Float ThresholdEstimate() { return space->units->ConvertToNative(A3,tw::dimensions::electric_field,tw::units::atomic); }
 };
 
 struct Multiphoton : Ionizer

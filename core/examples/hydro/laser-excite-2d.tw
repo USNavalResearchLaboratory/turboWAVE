@@ -1,5 +1,5 @@
 // Keep the following line for generating twtest reports
-// TWTEST matplotlib zxyt=0,: Ar2[+].dvdat dr=2.0
+// TWTEST matplotlib zxyt=0,: Ar2[+].npy dr=2.0 units=cgs
 
 // SPARC input file to model 2D axisymmetric laser excitation of an Argon plasma
 // This includes photo and collisional ionization

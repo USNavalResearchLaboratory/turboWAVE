@@ -5,18 +5,16 @@ Everything about a turboWAVE simulation is determined by the input file.  The in
 
 The turboWAVE input file is written in what amounts to a "little language", which is described further in :doc:`ref-input`.  Fortunately this language is very simple and does not impose a significant learning curve.
 
-This tutorial discusses simulation units, and then points you to the example files and the reference pages.
+This tutorial discusses units, and then points you to the example files and the reference pages.
 
-Simulation Units
-----------------
+Normalized Plasma Units
+-----------------------
 
-There is a normalization scheme used throughout most of turboWAVE (quantum modules use atomic or natural units).  Most of the input file parameters are given in the normalized units, although some conventional units can be used by means of simple macros.  Output files are written in normalized units without exception.
+Although turboWAVE's internal comprehension of units insulates the user from the necessity of understanding normalizations, it is useful to appreciate their significance.  TurboWAVE supports three normalization systems: natural units, atomic units, and plasma units.  Plasma units are discussed here.  Natural and atomic units are in :doc:`bak-quantum`.
 
 The normalization scheme can be thought of in many ways.  The fundamental observation is that any solution of the Vlasov equation can be scaled up or down to produce a family of solutions.  We may as well express all quantities in a way that does not commit to which particular member of the family we are talking about.  No particular scale is any better than another.
 
-On the other hand, if an atomic process like ionization comes into the problem, then we must commit to a definite physical scale.  For this reason, turboWAVE input files allow you to specify a unit of density that fixes the physical scale.
-
-If you prefer to think in terms of physical scales, then specify a unit density.  To normalize some quantity given in physical units, divide by the unit given in Table I.
+On the other hand, if an atomic process like ionization comes into the problem, then we must commit to a definite physical scale.  For this reason, turboWAVE input files allow you to specify a unit of density that fixes the physical scale.  Once this is chosen, to normalize some quantity given in physical units, divide by the unit given in Table I.
 
 .. csv-table:: Table I. Simulation Units to Gaussian or SI Units
 	:header: "Quantity", "Unit", "cgs Symbol", "mks Symbol"

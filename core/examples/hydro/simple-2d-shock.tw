@@ -1,5 +1,5 @@
 // Keep the following line for generating twtest reports
-// TWTEST matplotlib xyzt=0,: air.dvdat
+// TWTEST matplotlib xyzt=0,: air.npy units=cgs
 
 // Same physical problem as 1d shock example (numerical parameters coarsened somewhat)
 // Asymmetries intentionally put into wall boundary conditions and initial conditions

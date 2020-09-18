@@ -7,12 +7,10 @@ from mayavi import mlab
 import twutils.plot as twplot
 
 # This program must operate in a turboWAVE tools environment with mayavi installed as well.
-# To install mayavi into a conda environment use pip:
-# execute: pip install mayavi
-# As of this writing do NOT use conda for installing mayavi (but you can operate in a conda environment).
+# Historically it has been found that matplotlib and mayavi do not play together in the same environment.
 
 if len(sys.argv)<3:
-	print('Usage: maya-dvdat.py [slicing=slices] [file] [type=1] [dr=0.0] [ask=yes]')
+	print('Usage: twmaya.py [slicing=slices] [file] [type=1] [dr=0.0] [ask=yes] [units=mks]')
 	print('slicing,slices, and file are positional arguments, the rest are key/value pairs.')
 	print('slicing = 4-character string, such as xyzt.')
 	print('  First axes appearing are plotted, remaining are sliced.')
@@ -22,25 +20,13 @@ if len(sys.argv)<3:
 	print('type = 1 or 2, 1 gives 2d-falsecolor or 3d-isosurface, 2 gives 2d-surface or 3d-volume')
 	print('dr = dynamic range (0 signals linear scale)')
 	print('ask = yes or no , whether to ask before overwriting temporary image files')
+	print('units = mks, cgs, or normalized')
 	exit()
 
 # note that changing to log plot will likely require changing volume_contrast
 small_pos = 1e-25
 my_contours = [0.3,0.6,0.9]
-volume_contrast = [0.8,0.9]
-
-def uniform_grid_metrics(extent):
-	low = np.array(extent[0::2])
-	high = np.array(extent[1::2])
-	origin = 0.5*(low+high)
-	sizes = high-low
-	return origin.astype(np.double),sizes.astype(np.double)
-
-def uniform_grid(ax,dims,extent):
-	low = np.array(extent[0::2])
-	high = np.array(extent[1::2])
-	ds = (high[ax]-low[ax]) / dims[ax]
-	return np.linspace(low[ax]+0.5*ds,high[ax]-0.5*ds,dims[ax])
+volume_contrast = [0.0,0.99]
 
 # Process command line arguments
 
@@ -55,9 +41,11 @@ file_to_plot = sys.argv[2]
 plot_type = 1
 dyn_range = 0.0
 ask = 'yes'
+units = 'plasma'
+
 for arg in sys.argv[3:]:
 	akey = arg.split('=')[0]
-	if akey not in ['type','dr','ask']:
+	if akey not in ['type','dr','ask','units']:
 		raise KeyError('Invalide key '+akey+' in arguments')
 	aval = arg.split('=')[1]
 	if akey=='type':
@@ -66,13 +54,15 @@ for arg in sys.argv[3:]:
 		dyn_range = np.double(aval)
 	if akey=='ask':
 		ask = aval
+	if akey=='units':
+		units = aval
 
 if plot_type!=1 and plot_type!=2:
 	raise ValueError('Plot type must be 1 or 2')
 if ask not in ['yes','no']:
 	raise ValueError('ask key must have value of yes or no')
 
-plotter = twplot.plotter(file_to_plot,buffered=True)
+plotter = twplot.plotter(file_to_plot,units=units,buffered=True)
 plotter.display_info()
 
 # Set up animation slices
@@ -113,23 +103,16 @@ if num_slice_axes==2:
 			print('Rendering slice point',s0,',',s1,'...')
 			data_slice,plot_dict = plotter.falsecolor2d(slicing_spec,(s0,s1),dyn_range,lib='mayavi')
 			data_slice = data_slice.astype(np.double)
-			if len(slices[0])>1 or len(slices[1])>1:
-				v0,v1 = plotter.get_global_minmax(dyn_range)
-			else:
-				v0 = plot_dict['vmin']
-				v1 = plot_dict['vmax']
+			v0 = plot_dict['vmin']
+			v1 = plot_dict['vmax']
 			if dyn_range!=0.0:
 				data_slice[np.where(data_slice<v0)] = v0
-			ext = np.concatenate((plot_dict['extent'],[v0,v1]))
-			origin,sizes = uniform_grid_metrics(ext)
-			warp_factor = np.max(sizes[:2])/sizes[2]
-			ext[4] *= warp_factor
-			ext[5] *= warp_factor
-			data_slice *= warp_factor
-			origin,sizes = uniform_grid_metrics(ext)
 			dims = plot_dict['dims']
-			x1 = uniform_grid(0,dims,ext)
-			x2 = uniform_grid(1,dims,ext)
+			x1 = plot_dict['xpts']
+			x2 = plot_dict['ypts']
+			cent = lambda x : 0.5*(np.min(x)+np.max(x))
+			sizes = [np.max(x1)-np.min(x1),np.max(x2)-np.min(x2)]
+			origin = [cent(x1),cent(x2),0.0]
 			mlab.clf()
 			src = mlab.pipeline.array2d_source(x1,x2,data_slice)
 			# Plot a slice as a falsecolor image
@@ -138,14 +121,18 @@ if num_slice_axes==2:
 				mlab.view(azimuth=0,elevation=0,distance=2*np.max(sizes),focalpoint=origin)
 			# Plot a slice as a 3D surface
 			if plot_type==2:
-				warp = mlab.pipeline.warp_scalar(src,warp_scale=1.0)
+				ws = np.max(sizes)/(v1-v0)
+				warp = mlab.pipeline.warp_scalar(src,warp_scale=ws)
 				normals = mlab.pipeline.poly_data_normals(warp)
 				obj = mlab.pipeline.surface(normals,colormap='gist_ncar')
-				mlab.outline(extent=ext)
+				mlab.outline(extent=[np.min(x1),np.max(x1),np.min(x2),np.max(x2),v0,v1])
 				#WARNING: the z-axis will include the warp factor and is highly misleading
 				#mlab.axes(src,z_axis_visibility=False,extent=ext,xlabel=plot_dict['xlabel'],ylabel=plot_dict['ylabel'],zlabel=plotter.name)
 				mlab.view(azimuth=90,elevation=60,distance=5*np.max(sizes),focalpoint=origin)
 			s = s0*len(slices[1])+s1
+			mlab.xlabel(plot_dict['xlabel'])
+			mlab.ylabel(plot_dict['ylabel'])
+			mlab.zlabel(plot_dict['blabel'])
 			mlab.savefig('tempfile{:03d}.png'.format(s))
 
 # 3D PLOTS
@@ -157,10 +144,14 @@ if num_slice_axes==1:
 		data_slice = data_slice.astype(np.double)
 		ext = plot_dict['extent']
 		dims = plot_dict['dims']
-		origin,sizes = uniform_grid_metrics(ext)
-		x1 = np.einsum('i,j,k',uniform_grid(0,dims,ext),np.ones(dims[1]),np.ones(dims[2])).astype(np.double)
-		x2 = np.einsum('i,j,k',np.ones(dims[0]),uniform_grid(1,dims,ext),np.ones(dims[2])).astype(np.double)
-		x3 = np.einsum('i,j,k',np.ones(dims[0]),np.ones(dims[1]),uniform_grid(2,dims,ext)).astype(np.double)
+		x1 = np.einsum('i,j,k',plot_dict['xpts'],np.ones(dims[1]),np.ones(dims[2])).astype(np.double)
+		x2 = np.einsum('i,j,k',np.ones(dims[0]),plot_dict['ypts'],np.ones(dims[2])).astype(np.double)
+		x3 = np.einsum('i,j,k',np.ones(dims[0]),np.ones(dims[1]),plot_dict['zpts']).astype(np.double)
+		cent = lambda x : 0.5*(np.min(x)+np.max(x))
+		size = lambda x : np.max(x) - np.min(x)
+		sizes = [size(x1),size(x2),size(x3)]
+		origin = [cent(x1),cent(x2),cent(x3)]
+		sizes = [np.max(x1)-np.min(x1),np.max(x2)-np.min(x2),np.max(x3)-np.min(x3)]
 		v0 = plot_dict['vmin']
 		v1 = plot_dict['vmax']
 		dv = v1-v0
@@ -176,6 +167,10 @@ if num_slice_axes==1:
 			obj = mlab.pipeline.volume(src,vmin=v0+volume_contrast[0]*dv,vmax=v0+volume_contrast[1]*dv)
 		mlab.outline(extent=ext)
 		mlab.view(azimuth=-80,elevation=30,distance=3*np.max(sizes),focalpoint=origin)
+		mlab.xlabel(plot_dict['xlabel'])
+		mlab.ylabel(plot_dict['ylabel'])
+		mlab.zlabel(plot_dict['zlabel'])
+		mlab.colorbar(title=plot_dict['blabel'],orientation='vertical')
 		mlab.savefig('tempfile{:03d}.png'.format(s))
 
 # Produce animation

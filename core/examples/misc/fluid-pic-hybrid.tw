@@ -1,5 +1,5 @@
 // Keep the following line for generating twtest reports
-// TWTEST matplotlib zxyt=0,: beam.dvdat
+// TWTEST matplotlib zxyt=0,: beam.npy
 
 steps = 500
 timestep = 0.08

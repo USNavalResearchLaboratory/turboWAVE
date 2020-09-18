@@ -6,15 +6,13 @@ namespace tw
 		enum class par {none,periodic,reflecting,absorbing,emitting,axisymmetric};
 		inline std::map<std::string,par> par_map()
 		{
-			std::map<std::string,par> ans = {{"periodic",par::periodic},{"reflecting",par::reflecting},{"absorbing",par::absorbing},{"open",par::absorbing},{"emitting",par::emitting},{"axisymmetric",par::axisymmetric}};
-			return ans;
+			return {{"periodic",par::periodic},{"reflecting",par::reflecting},{"absorbing",par::absorbing},{"open",par::absorbing},{"emitting",par::emitting},{"axisymmetric",par::axisymmetric}};
 		}
 		// boundary conditions for fields
 		enum class fld	{none,periodic,normalFluxFixed,dirichletWall,neumannWall,dirichletCell,natural};
 		inline std::map<std::string,fld> fld_map()
 		{
-			std::map<std::string,fld> ans = {{"periodic",fld::periodic},{"neumann",fld::neumannWall},{"dirichlet",fld::dirichletCell},{"open",fld::natural}};
-			return ans;
+			return {{"periodic",fld::periodic},{"neumann",fld::neumannWall},{"dirichlet",fld::dirichletCell},{"open",fld::natural}};
 		}
 	}
 	namespace grid
@@ -24,8 +22,12 @@ namespace tw
 		enum side { low , high };
 		inline std::map<std::string,axis> axis_map()
 		{
-			std::map<std::string,axis> ans = {{"t",t},{"x",x},{"y",y},{"z",z},{"mass",mass},{"px",px},{"py",py},{"pz",pz},{"g",g},{"gbx",gbx},{"gby",gby},{"gbz",gbz}};
-			return ans;
+			return {{"t",t},{"x",x},{"y",y},{"z",z},{"mass",mass},{"px",px},{"py",py},{"pz",pz},{"g",g},{"gbx",gbx},{"gby",gby},{"gbz",gbz}};
+		}
+		inline std::string pretty_axis_label(const tw::grid::axis& axis)
+		{
+			std::map<tw::grid::axis,std::string> m = {{t,"$t$"},{x,"$x$"},{y,"$y$"},{z,"$z$"},{mass,"$\\gamma m$"},{px,"$p_x$"},{py,"$p_y$"},{pz,"$p_z$"},{g,"$\\gamma$"},{gbx,"$\\gamma\\beta_x$"},{gby,"$\\gamma\\beta_y$"},{gbz,"$\\gamma\\beta_z$"}};
+			return m[axis];
 		}
 		inline tw::Int naxis(const tw::grid::axis& axis)
 		{

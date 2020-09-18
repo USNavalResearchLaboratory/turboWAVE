@@ -6,10 +6,10 @@
 //                         //
 /////////////////////////////
 
-UnitConverter::UnitConverter(tw::Float unitDensityCGS)
+UnitConverter::UnitConverter(tw::units sys,tw::Float unitDensityCGS)
 {
-	n1 = unitDensityCGS*1e6;
-	wp = sqrt(n1*sqr(mks::qe)/(mks::eps0*mks::me));
+	native = sys;
+	// set up mks constants
 	c = mks::c;
 	qe = mks::qe;
 	me = mks::me;
@@ -17,173 +17,208 @@ UnitConverter::UnitConverter(tw::Float unitDensityCGS)
 	kB = mks::kB;
 	hbar = mks::hbar;
 	alpha = qe*qe/(4*pi*eps0*hbar*c);
+	// setup plasma normalization
+	ne = unitDensityCGS*1e6;
+	wp = sqrt(ne*sqr(mks::qe)/(mks::eps0*mks::me));
 }
 
-tw::Float UnitConverter::AtomicValue(tw_dimensions dim) const
+tw::Float UnitConverter::FactorizedMKSValue(tw::dimensions dim,tw::Float m1,tw::Float w1,tw::Float l1,tw::Float u1,tw::Float q1,tw::Float a1,tw::Float T1) const
 {
+	const tw::Float v1 = l1*w1;
 	switch (dim)
 	{
-		case angular_frequency_dim:
-			return hbar*wp/(me*sqr(alpha*c));
-		case time_dim:
-			return me*sqr(alpha*c)/(hbar*wp);
-		case length_dim:
-			return me*alpha*c*c/(hbar*wp);
-		case mass_dim:
+		case tw::dimensions::none:
 			return 1.0;
-		case energy_dim:
-			return 1.0/alpha/alpha;
-		case momentum_dim:
-			return 1.0/alpha;
-		case charge_dim:
+		case tw::dimensions::angular_frequency:
+			return w1;
+		case tw::dimensions::frequency:
+			return w1;
+		case tw::dimensions::time:
+			return 1.0/w1;
+		case tw::dimensions::length:
+			return l1;
+		case tw::dimensions::velocity:
+			return v1;
+		case tw::dimensions::number:
 			return 1.0;
-		case electric_field_dim:
-			return hbar*wp/(me*c*c*cub(alpha));
-		case scalar_potential_dim:
-			return 1.0/alpha/alpha;
+		case tw::dimensions::mass:
+			return m1;
+		case tw::dimensions::energy:
+			return u1;
+		case tw::dimensions::momentum:
+			return m1*v1;
+		case tw::dimensions::angular_momentum:
+			return m1*l1*v1;
+		case tw::dimensions::density:
+			return pow(l1,-3.0);
+		case tw::dimensions::power:
+			return u1*w1;
+		case tw::dimensions::fluence:
+			return u1/(l1*l1);
+		case tw::dimensions::intensity:
+			return u1*w1/(l1*l1);
+		case tw::dimensions::mass_density:
+			return m1*pow(l1,-3.0);
+		case tw::dimensions::energy_density:
+			return u1*pow(l1,-3.0);
+		case tw::dimensions::power_density:
+			return u1*w1*pow(l1,-3.0);
+		case tw::dimensions::charge:
+			return q1;
+		case tw::dimensions::current:
+			return q1*w1;
+		case tw::dimensions::charge_density:
+			return q1*pow(l1,-3.0);
+		case tw::dimensions::current_density:
+			return q1*w1/(l1*l1);
+		case tw::dimensions::scalar_potential:
+			return u1/q1;
+		case tw::dimensions::vector_potential:
+			return a1;
+		case tw::dimensions::electric_field:
+			return u1/(q1*l1);
+		case tw::dimensions::magnetic_field:
+			return a1/l1;
+		case tw::dimensions::diffusivity: // If diffusing heat, this assumes temperature is in joules
+			return v1*v1/w1;
+		case tw::dimensions::thermal_conductivity:
+			return u1*w1/(l1*T1);
+		case tw::dimensions::conductivity:
+			return (q1*w1/(l1*l1))/(u1/(q1*l1)); // j/E
+		case tw::dimensions::rate_coefficient_2:
+			return w1*pow(l1,3.0);
+		case tw::dimensions::rate_coefficient_3:
+			return w1*pow(l1,6.0);
+		case tw::dimensions::mobility:
+			return v1/(u1/(q1*l1)); // v/E
+		case tw::dimensions::temperature:
+			return T1;
+		case tw::dimensions::pressure:
+			return u1*pow(l1,-3.0);
+		case tw::dimensions::cross_section:
+			return l1*l1;
 		default:
-			return 0.0;
+			throw tw::FatalError("Unit could not be converted ("+tw::mks_label(dim)+")");
+			return 1.0;
 	}
+	return 1.0;
 }
 
-tw::Float UnitConverter::MKSValue(tw_dimensions dim) const
+tw::Float UnitConverter::MKSValue(tw::dimensions dim,tw::units sys) const
 {
-	switch (dim)
+	// This routine answers the question:
+	// What is the mks value of the unit of <dim> in the <sys> system of units?
+	// For example, if dim=length and sys=cgs, we get .01 meters.
+	tw::Float m1,u1,l1,q1,w1,a1,T1;
+	switch (sys)
 	{
-		case angular_frequency_dim:
-			return wp;
-		case time_dim:
-			return 1.0/wp;
-		case length_dim:
-			return c/wp;
-		case number_dim:
-			return n1*cub(c/wp);
-		case mass_dim:
-			return me;
-		case energy_dim:
-			return me*c*c;
-		case momentum_dim:
-			return me*c;
-		case angular_momentum_dim:
-			return me*c*c/wp;
-		case density_dim:
-			return n1;
-		case power_dim:
-			return me*c*c*wp;
-		case fluence_dim:
-			return sqr(me*c*wp/qe)*c*eps0/wp; // E^2/eta0/wp
-		case intensity_dim:
-			return sqr(me*c*wp/qe)*c*eps0; // E^2/eta0
-		case energy_density_dim:
-			return me*c*c*n1;
-		case power_density_dim:
-			return me*c*c*n1*wp;
-		case charge_dim:
-			return qe;
-		case current_dim:
-			return n1*qe*c*sqr(c/wp);
-		case current_density_dim:
-			return n1*qe*c;
-		case charge_density_dim:
-			return n1*qe;
-		case electric_field_dim:
-			return me*c*wp/qe;
-		case magnetic_field_dim:
-			return me*wp/qe;
-		case scalar_potential_dim:
-			return me*c*c/qe;
-		case diffusivity_dim:
-			return c*c/wp;
-		case conductivity_dim:
-			return (n1*qe*c)/(me*c*wp/qe); // j/E
-		case rate_coefficient_2_dim:
-			return wp/n1;
-		case rate_coefficient_3_dim:
-			return wp/(n1*n1);
-		case mobility_dim:
-			return c/(me*c*wp/qe); // c/E
-		case temperature_dim:
-			return me*c*c/kB;
-		case cross_section_dim:
-			return wp/(n1*c);
-		case susceptibility_dim:
+		case tw::units::mks:
 			return 1.0;
-		case susceptibility_2_dim:
-			return 1.0/(me*c*wp/qe); // 1/E
-		case susceptibility_3_dim:
-			return 1.0/sqr(me*c*wp/qe); // 1/E^2
-		default:
-			return 0.0;
+		case tw::units::cgs:
+			m1 = .001;
+			u1 = 1e-7;
+			l1 = 0.01;
+			w1 = 1.0;
+			q1 = 0.1/c;
+			a1 = 1e-6;
+			T1 = qe/kB;
+			return FactorizedMKSValue(dim,m1,w1,l1,u1,q1,a1,T1);
+		case tw::units::atomic:
+			m1 = me;
+			u1 = me*sqr(alpha*c);
+			l1 = hbar/(me*alpha*c);
+			w1 = u1/hbar;
+			q1 = qe;
+			a1 = u1/(q1*l1*w1);
+			T1 = u1/kB;
+			return FactorizedMKSValue(dim,m1,w1,l1,u1,q1,a1,T1);
+		case tw::units::natural:
+			m1 = me;
+			u1 = me*c*c;
+			l1 = hbar/(me*c);
+			w1 = u1/hbar;
+			q1 = qe/sqrt(alpha);
+			a1 = u1/(q1*l1*w1);
+			T1 = u1/kB;
+			return FactorizedMKSValue(dim,m1,w1,l1,u1,q1,a1,T1);
+		case tw::units::plasma:
+			switch (dim)
+			{
+				case tw::dimensions::none:
+					return 1.0;
+				case tw::dimensions::angular_frequency:
+					return wp;
+				case tw::dimensions::frequency:
+					return wp;
+				case tw::dimensions::time:
+					return 1.0/wp;
+				case tw::dimensions::length:
+					return c/wp;
+				case tw::dimensions::velocity:
+					return c;
+				case tw::dimensions::number:
+					return ne*cub(c/wp);
+				case tw::dimensions::mass:
+					return me;
+				case tw::dimensions::energy:
+					return me*c*c;
+				case tw::dimensions::momentum:
+					return me*c;
+				case tw::dimensions::angular_momentum:
+					return me*c*c/wp;
+				case tw::dimensions::density:
+					return ne;
+				case tw::dimensions::power:
+					return me*c*c*wp;
+				case tw::dimensions::fluence:
+					return sqr(me*c*wp/qe)*c*eps0/wp; // E^2/eta0/wp
+				case tw::dimensions::intensity:
+					return sqr(me*c*wp/qe)*c*eps0; // E^2/eta0
+				case tw::dimensions::mass_density:
+					return me*ne;
+				case tw::dimensions::energy_density:
+					return me*c*c*ne;
+				case tw::dimensions::power_density:
+					return me*c*c*ne*wp;
+				case tw::dimensions::charge:
+					return qe;
+				case tw::dimensions::current:
+					return ne*qe*c*sqr(c/wp);
+				case tw::dimensions::current_density:
+					return ne*qe*c;
+				case tw::dimensions::charge_density:
+					return ne*qe;
+				case tw::dimensions::electric_field:
+					return me*c*wp/qe;
+				case tw::dimensions::magnetic_field:
+					return me*wp/qe;
+				case tw::dimensions::scalar_potential:
+					return me*c*c/qe;
+				case tw::dimensions::vector_potential:
+					return me*c/qe;
+				case tw::dimensions::diffusivity:
+					return c*c/wp;
+				case tw::dimensions::thermal_conductivity:
+					return c*c*ne*kB/wp;
+				case tw::dimensions::conductivity:
+					return (ne*qe*c)/(me*c*wp/qe); // j/E
+				case tw::dimensions::rate_coefficient_2:
+					return wp/ne;
+				case tw::dimensions::rate_coefficient_3:
+					return wp/(ne*ne);
+				case tw::dimensions::mobility:
+					return c/(me*c*wp/qe); // c/E
+				case tw::dimensions::temperature:
+					return me*c*c/kB;
+				case tw::dimensions::pressure:
+					return me*c*c*ne;
+				case tw::dimensions::cross_section:
+					return wp/(ne*c);
+				default:
+					throw tw::FatalError("Plasma unit could not be converted ("+tw::plasma_label(dim)+")");
+					return 1.0;
+			}
+			return 1.0;
 	}
-}
-
-tw::Float UnitConverter::CGSValue(tw_dimensions dim) const
-{
-	switch (dim)
-	{
-		case angular_frequency_dim:
-			return wp;
-		case time_dim:
-			return 1.0/wp;
-		case length_dim:
-			return 1e2*c/wp;
-		case number_dim:
-			return n1*cub(c/wp);
-		case mass_dim:
-			return 1e3*me;
-		case energy_dim:
-			return 1e7*me*c*c;
-		case momentum_dim:
-			return 1e5*me*c;
-		case angular_momentum_dim:
-			return 1e7*me*c*c/wp;
-		case density_dim:
-			return 1e-6*n1;
-		case power_dim:
-			return 1e7*me*c*c*wp;
-		case fluence_dim:
-			return 1e3*sqr(me*c*wp/qe)*c*eps0/wp; // E^2/eta0/wp
-		case intensity_dim:
-			return 1e3*sqr(me*c*wp/qe)*c*eps0; // E^2/eta0
-		case energy_density_dim:
-			return 1e1*me*c*c*n1;
-		case power_density_dim:
-			return 1e1*me*c*c*n1*wp;
-		case charge_dim:
-			return 3e9*qe;
-		case current_dim:
-			return 3e9*n1*qe*c*sqr(c/wp);
-		case current_density_dim:
-			return 3e5*n1*qe*c;
-		case charge_density_dim:
-			return 3e3*n1*qe;
-		case electric_field_dim:
-			return 0.333333e-4*me*c*wp/qe;
-		case magnetic_field_dim:
-			return 1e4*me*wp/qe;
-		case scalar_potential_dim:
-			return 0.333333e-2*me*c*c/qe;
-		case diffusivity_dim:
-			return 1e4*c*c/wp;
-		case conductivity_dim:
-			return 9e9*(n1*qe*c)/(me*c*wp/qe); // j/E
-		case rate_coefficient_2_dim:
-			return 1e6*wp/n1;
-		case rate_coefficient_3_dim:
-			return 1e12*wp/(n1*n1);
-		case mobility_dim:
-			return 1e2*c/(0.333333e-4*me*c*wp/qe); // c/E
-		case temperature_dim:
-			return me*c*c/kB;
-		case cross_section_dim:
-			return 1e4*wp/(n1*c);
-		case susceptibility_dim:
-			return 1.0/(4.0*pi);
-		case susceptibility_2_dim:
-			return 1.0/(4.0*pi*0.333333e-4*me*c*wp/qe); // 1/4*pi*E
-		case susceptibility_3_dim:
-			return 1.0/sqr(4.0*pi*0.333333e-4*me*c*wp/qe); // 1/4*pi*E^2
-		default:
-			return 0.0;
-	}
+	return 1.0;
 }

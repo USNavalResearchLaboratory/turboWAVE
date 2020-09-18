@@ -1,5 +1,5 @@
 // Keep the following line for generating twtest reports
-// TWTEST matplotlib txyz=0,0,500 e.dvdat
+// TWTEST matplotlib txyz=0,0,500 e.npy units=cgs
 
 // SPARC input file to model breakdown of argon plasma
 // Breakdown voltage = Bpd/( ln(Apd)-ln(ln(1+1/gam)) )

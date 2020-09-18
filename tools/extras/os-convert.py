@@ -3,11 +3,10 @@ import glob
 import subprocess
 import numpy as np
 import h5py
-import twutils.dvdat as dv
 
 if len(sys.argv)<2:
     print('Usage: os-convert.py component[,modifier] [mode=m,part] [frame=:] [root=MS]')
-    print('Extracts data from OSIRIS directory tree and consolidates into dvdat file.')
+    print('Extracts data from OSIRIS directory tree and consolidates into npy file.')
     print('1D coordinate label mapping: 1->z')
     print('2D coordinate label mapping: 1->z, 2->x')
     print('3D coordinate label mapping: 1->z, 2->y, 3->x')
@@ -101,7 +100,7 @@ ax = f['AXIS']
 dset = f[component]
 
 # Set up the coordinate range along each axis.
-# At present .dvdat files don't allow for this to change each frame.
+# At present we do not account for changing coordinate range over time.
 # Hence there will be a disparity in cases of moving window.
 data_ext = []
 data_ext += [ax['AXIS1'][0],ax['AXIS1'][1]]
@@ -128,12 +127,14 @@ if frame_range[1]<0:
 else:
     last = frame_range[1]
 step = frame_range[2]
+total_frames = int((last-first)/step)
 
 if len(part)>0:
-    new_file = component+'-'+str(mode)+'-'+part+'.dvdat'
+    new_file = component+'-'+str(mode)+'-'+part+'.npy'
 else:
-    new_file = component+'.dvdat'
+    new_file = component+'.npy'
 full_path_prefix = file_list[0][:-9]
+
 
 for n in range(first,last,step):
     fullpath = full_path_prefix + '{:06d}.h5'.format(n)
@@ -153,7 +154,7 @@ for n in range(first,last,step):
     if n==frame_range[0]:
         print('Create',new_file)
         print('New shape',data_slice.shape)
-        dv.Create(new_file,data_slice,data_ext,True)
+        #dv.Create(new_file,data_slice,data_ext,True)
     else:
         print('Append',n)
-        dv.Append(new_file,data_slice,True)
+        #dv.Append(new_file,data_slice,True)

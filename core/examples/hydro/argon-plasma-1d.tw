@@ -1,5 +1,5 @@
 // Keep the following line for generating twtest reports
-// TWTEST matplotlib xtyz=0,0 e.dvdat dr=4.0
+// TWTEST matplotlib xtyz=0,0 e.npy dr=4.0 units=cgs
 
 // SPARC input file to model relaxation of an Argon plasma
 steps = 20000

@@ -1,5 +1,5 @@
 // Keep the following line for generating twtest reports
-// TWTEST matplotlib txyz=0,0,0 T_e_sup.dvdat
+// TWTEST matplotlib txyz=0,0,0 T_e_sup.npy units=cgs
 
 // SPARC input file to model multi-pulse laser excitation of an Argon plasma
 // This includes photo and collisional ionization

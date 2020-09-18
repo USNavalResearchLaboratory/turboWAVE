@@ -21,7 +21,7 @@ struct PrimitiveReaction
 	tw::Float unit_T_eV,unit_rate_cgs; // normalization help for janev
 
 	tw::Float PrimitiveRate(tw::Float T);
-	void ReadRate(std::stringstream& inputString,tw::Int numBodies,UnitConverter& uc);
+	void ReadRate(std::stringstream& inputString,tw::Int numBodies,UnitConverter *uc);
 };
 
 struct Reaction : PrimitiveReaction
@@ -32,7 +32,7 @@ struct Reaction : PrimitiveReaction
 	tw::Int numBodies;
 
 	~Reaction();
-	virtual void ReadInputFile(std::stringstream& inputString,tw::Float unitDensityCGS);
+	virtual void ReadInputFile(std::stringstream& inputString,UnitConverter *uc);
 };
 
 struct Excitation : PrimitiveReaction
@@ -43,7 +43,7 @@ struct Excitation : PrimitiveReaction
 	sparc::material m1,m2;
 	tw::Float level;
 
-	virtual void ReadInputFile(std::stringstream& inputString,tw::Float unitDensityCGS);
+	virtual void ReadInputFile(std::stringstream& inputString,UnitConverter *uc);
 };
 
 struct Collision
@@ -56,5 +56,5 @@ struct Collision
 	tw::Float crossSection;
 	tw::Float ks,T_ref,n_ref;
 
-	virtual void ReadInputFile(std::stringstream& inputString,tw::Float unitDensityCGS);
+	virtual void ReadInputFile(std::stringstream& inputString,UnitConverter *uc);
 };

@@ -24,10 +24,10 @@ tw::Float PrimitiveReaction::PrimitiveRate(tw::Float T)
 	return rate;
 }
 
-void PrimitiveReaction::ReadRate(std::stringstream& inputString,tw::Int numBodies,UnitConverter& uc)
+void PrimitiveReaction::ReadRate(std::stringstream& inputString,tw::Int numBodies,UnitConverter *uc)
 {
-	unit_T_eV = uc.sim_to_eV(1.0);
-	unit_rate_cgs = std::pow(uc.CGSValue(density_dim),tw::Float(1-numBodies)) / uc.CGSValue(time_dim);
+	unit_T_eV = uc->ConvertFromNative(1.0,tw::dimensions::temperature,tw::units::cgs);
+	unit_rate_cgs = std::pow(uc->ConvertFromNative(1.0,tw::dimensions::density,tw::units::cgs),tw::Float(1-numBodies)) / uc->ConvertFromNative(1.0,tw::dimensions::time,tw::units::cgs);
 	std::string word;
 	inputString >> word;
 	if (word!="rate" && word!="janev_rate")
@@ -39,7 +39,7 @@ void PrimitiveReaction::ReadRate(std::stringstream& inputString,tw::Int numBodie
 			throw tw::FatalError("Invalid number while reading rate coefficients for reaction.");
 		c1 *= pow(unit_T_eV,c2);
 		c1 /= unit_rate_cgs;
-		c3 = uc.eV_to_sim(c3);
+		c3 = uc->ConvertToNative(c3,tw::dimensions::temperature,tw::units::cgs);
 	}
 	if (word=="janev_rate")
 	{
@@ -58,9 +58,8 @@ Reaction::~Reaction()
 		delete s;
 }
 
-void Reaction::ReadInputFile(std::stringstream& inputString,tw::Float unitDensityCGS)
+void Reaction::ReadInputFile(std::stringstream& inputString,UnitConverter *uc)
 {
-	UnitConverter uc(unitDensityCGS);
 	std::string word;
 	tw::Float sign,energy;
 	bool rhs;
@@ -90,7 +89,7 @@ void Reaction::ReadInputFile(std::stringstream& inputString,tw::Float unitDensit
 				try
 				{
 					size_t pos;
-					energy = uc.eV_to_sim(std::stod(word,&pos));
+					energy = uc->ConvertToNative(std::stod(word,&pos),tw::dimensions::temperature,tw::units::cgs);
 					if (pos<word.size()-1 || (pos==word.size()-1 && word.back()!='v'))
 						throw tw::FatalError("Heat of reaction is ill-formed.");
 					if (word.back()=='v')
@@ -123,14 +122,13 @@ void Reaction::ReadInputFile(std::stringstream& inputString,tw::Float unitDensit
 	// Get temperature range and catalyst
 	inputString >> catalyst_name >> word;
 	tw::input::PythonRange(word,&T0,&T1);
-	T0 = uc.eV_to_sim(T0);
-	T1 = uc.eV_to_sim(T1);
+	T0 = uc->ConvertToNative(T0,tw::dimensions::temperature,tw::units::cgs);
+	T1 = uc->ConvertToNative(T1,tw::dimensions::temperature,tw::units::cgs);
 }
 
-void Excitation::ReadInputFile(std::stringstream& inputString,tw::Float unitDensityCGS)
+void Excitation::ReadInputFile(std::stringstream& inputString,UnitConverter *uc)
 {
 	std::string word;
-	UnitConverter uc(unitDensityCGS);
 
 	inputString >> name1;
 	tw::input::StripQuotes(name1);
@@ -146,7 +144,7 @@ void Excitation::ReadInputFile(std::stringstream& inputString,tw::Float unitDens
 	ReadRate(inputString,2,uc);
 }
 
-void Collision::ReadInputFile(std::stringstream& inputString,tw::Float unitDensityCGS)
+void Collision::ReadInputFile(std::stringstream& inputString,UnitConverter *uc)
 {
 	// hard sphere example
 	// new collision = e <-> N , cross section = 1e-15
@@ -159,7 +157,6 @@ void Collision::ReadInputFile(std::stringstream& inputString,tw::Float unitDensi
 
 	tw::Int i;
 	std::string word,species;
-	UnitConverter uc(unitDensityCGS);
 
 	inputString >> name1;
 	tw::input::StripQuotes(name1);
@@ -179,7 +176,7 @@ void Collision::ReadInputFile(std::stringstream& inputString,tw::Float unitDensi
 		tw::input::PopExpectedWord(inputString,"=","hard sphere collision");
 		if (!(inputString >> crossSection))
 			throw tw::FatalError("Invalid number encountered while reading collision cross section.");
-		crossSection = uc.CGSToSim(cross_section_dim,crossSection);
+		crossSection = uc->ConvertToNative(crossSection,tw::dimensions::cross_section,tw::units::cgs);
 	}
 
 	if (word=="coulomb")
@@ -202,7 +199,7 @@ void Collision::ReadInputFile(std::stringstream& inputString,tw::Float unitDensi
 		tw::input::PopExpectedWord(inputString,"=","metallic collision");
 		if (!(inputString >> n_ref))
 			throw tw::FatalError("Invalid number encountered while reading metallic collision.");
-		T_ref = uc.eV_to_sim(T_ref);
-		n_ref = uc.CGSToSim(density_dim,n_ref);
+		T_ref = uc->ConvertToNative(T_ref,tw::dimensions::temperature,tw::units::cgs);
+		n_ref = uc->ConvertToNative(n_ref,tw::dimensions::density,tw::units::cgs);
 	}
 }

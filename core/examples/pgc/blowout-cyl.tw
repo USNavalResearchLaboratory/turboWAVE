@@ -1,6 +1,6 @@
 // Example of a blowout wakefield with ionization and minimal resolution
 // Keep the following line for generating twtest reports
-// TWTEST matplotlib zxyt=0,: e.dvdat dr=5.0
+// TWTEST matplotlib zxyt=0,: e.npy dr=5.0
 
 // The following illustrates unit conversions and user variables.
 // Note a length can be used as a time between diagnostics.

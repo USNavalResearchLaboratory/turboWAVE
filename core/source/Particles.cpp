@@ -12,6 +12,9 @@ using namespace tw::bc;
 
 Kinetics::Kinetics(const std::string& name,Simulation* sim) : Module(name,sim)
 {
+	if (sim->units->native!=tw::units::plasma && sim->units->native!=tw::units::atomic)
+		throw tw::FatalError("Kinetics module requires <native units = plasma> or <native units = atomic>.");
+
 	rho00.Initialize(*this,owner);
 	sources = NULL;
 	chi = NULL;
@@ -385,6 +388,9 @@ void Particle::WriteCheckpoint(std::ofstream& outFile)
 
 Species::Species(const std::string& name,Simulation* sim) : Module(name,sim)
 {
+	if (sim->units->native!=tw::units::plasma && sim->units->native!=tw::units::atomic)
+		throw tw::FatalError("Species module requires <native units = plasma> or <native units = atomic>.");
+
 	restMass = 1.0;
 	charge = -1.0;
 	distributionInCell = tw::vec3(2.0,2.0,2.0);
@@ -1121,7 +1127,7 @@ void Species::Report(Diagnostic& diagnostic)
 
 	diagnostic.Float("N_"+name,particle.size(),false);
 	CalculateDensity(temp);
-	diagnostic.Field(name,temp,0);
+	diagnostic.Field(name,temp,0,tw::dimensions::density,"$n_{\\rm "+name+"}$");
 
 	if (qo_j4!=NULL)
 	{

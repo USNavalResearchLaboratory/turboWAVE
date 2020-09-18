@@ -1,5 +1,5 @@
 // Keep the following line for generating twtest reports
-// TWTEST matplotlib zxyt=0,11 phi.dvdat
+// TWTEST matplotlib zxyt=0,11 phi.npy
 
 steps = 7500
 timestep = 0.04

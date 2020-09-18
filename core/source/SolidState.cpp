@@ -10,6 +10,9 @@
 
 BoundElectrons::BoundElectrons(const std::string& name,Simulation* sim) : Module(name,sim)
 {
+	if (sim->units->native!=tw::units::plasma)
+		throw tw::FatalError("BoundElectrons module requires <native units = plasma>");
+
 	updateSequencePriority = tw::priority::source;
 	subSequencePriority = 1;
 	q0 = -1.0;
@@ -354,8 +357,8 @@ void BoundElectrons::Report(Diagnostic& diagnostic)
 		temp(cell) = 0.5*m0*dens(cell)*Norm(resFreq*R1.Vec3(cell,0));
 	diagnostic.VolumeIntegral("bound-PE",temp,0);
 
-	diagnostic.Field(name,dens,0);
-	diagnostic.Field(name+"_x",R1,0);
-	diagnostic.Field(name+"_y",R1,1);
-	diagnostic.Field(name+"_z",R1,2);
+	diagnostic.Field(name,dens,0,tw::dimensions::density,"$n_{\\rm "+name+"}$");
+	diagnostic.Field(name+"_x",R1,0,tw::dimensions::length,"$\\delta x$["+name+"]");
+	diagnostic.Field(name+"_y",R1,1,tw::dimensions::length,"$\\delta y$["+name+"]");
+	diagnostic.Field(name+"_z",R1,2,tw::dimensions::length,"$\\delta z$["+name+"]");
 }

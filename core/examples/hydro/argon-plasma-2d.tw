@@ -1,5 +1,5 @@
 // Keep the following line for generating twtest reports
-// TWTEST matplotlib zxyt=0,: e.dvdat dr=4.0
+// TWTEST matplotlib zxyt=0,: e.npy dr=4.0 units=cgs
 
 // SPARC input file to model relaxation of a 2D axisymmetric Argon plasma
 // if you want electrostatic field, set plasma model = quasineutral

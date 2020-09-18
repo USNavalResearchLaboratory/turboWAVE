@@ -7,7 +7,6 @@ import subprocess
 import datetime
 import numpy as np
 import re
-import twutils.dvdat as dv
 import twutils.plot as twplot
 import matplotlib as mpl
 import matplotlib.pyplot as plt
@@ -47,12 +46,10 @@ def gen_plot(img_file,plotter,slicing_spec,slices,dyn_range=0.0,val_range=(0.0,0
 			vmin=minval,
 			vmax=maxval,
 			cmap=my_color_map)
-		if dyn_range==0.0:
-			plt.colorbar(label=plotter.name.split('.')[-2])
-		else:
-			plt.colorbar(label=r'$\log_{10}$'+plotter.name.split('.')[-2])
+		bar = plt.colorbar()
 		plt.xlabel(plot_dict['xlabel'],fontsize=18)
 		plt.ylabel(plot_dict['ylabel'],fontsize=18)
+		bar.set_label(plot_dict['blabel'],fontsize=18)
 	if len(slices)==3:
 		abcissa,ordinate,plot_dict = plotter.lineout(slicing_spec,slices,dyn_range)
 		plt.plot(abcissa,ordinate)
@@ -85,7 +82,7 @@ def gen_viz(primitive_file,fig_dict):
 	dyn_range = fig_dict['dyn_range']
 	val_range = fig_dict['val_range']
 	my_color_map = fig_dict['color']
-	plotter = twplot.plotter(file_to_plot)
+	plotter = twplot.plotter(file_to_plot,units=fig_dict['units'])
 	c = slicing_spec.find('t')
 	if (c==2 or c==3) and slices[c-2]==':':
 		gen_movie(primitive_file+'.gif',plotter,slicing_spec,slices,dyn_range,val_range,my_color_map)
@@ -129,6 +126,7 @@ def parse_input_file(ex_path):
 				fig_dict['dyn_range'] = 0.0
 				fig_dict['val_range'] = (0.0,0.0)
 				fig_dict['color'] = 'viridis'
+				fig_dict['units'] = 'plasma'
 				if len(args)>4:
 					for keyval in args[4:]:
 						key = keyval.split('=')[0]
@@ -140,6 +138,8 @@ def parse_input_file(ex_path):
 							fig_dict['val_range'] = ( np.float(r[0]) , np.float(r[1]) )
 						if key=='color':
 							fig_dict['color'] = val
+						if key=='units':
+							fig_dict['units'] = val
 	with open(ex_path) as f:
 		data = f.read()
 		data = comment_remover(data)
@@ -222,7 +222,7 @@ html_doc += '<p>Requested OMP threads = ' + str(omp_threads) + '</p>'
 try:
 	cleanup('*.gif')
 	cleanup('*.png')
-	cleanup('*.dvdat')
+	cleanup('*.npy')
 
 	compl = subprocess.run(["git","status"],stdout=subprocess.PIPE,universal_newlines=True)
 	html_doc += '<p>Git status:</p>'
@@ -318,7 +318,7 @@ try:
 				print('  Test not requested, or not a TW input file.')
 				html_doc += '<p>Test not requested, or not a TW input file.</p>'
 
-			cleanup('*.dvdat')
+			cleanup('*.npy')
 			if len(glob.glob('twstat'))==1:
 				os.remove('twstat')
 

@@ -4,7 +4,24 @@
 // The Module::Report function makes a call to a method of Diagnostic for each data set it would like to report.
 // The Diagnostic object is responsible for interpreting the data set, extracting relevant subsets, and writing to disk.
 
-void WriteDVHeader(std::ofstream& outFile,tw::Int version,tw::Int xDim,tw::Int yDim,tw::Int zDim,float x0,float x1,float y0,float y1,float z0,float z1);
+class meta_writer
+{
+	UnitConverter *units;
+public:
+	meta_writer(UnitConverter *units);
+	void create_entry(const std::string& name);
+	void define_axis(const std::string& name,tw::Int ax,const std::string& label,tw::dimensions units);
+	void define_grid(const std::string& diagnostic_name,const std::string& name);
+};
+
+class npy_writer
+{
+public:
+	std::string form_header(tw::Int shape[4]);
+	void write_header(const std::string& name,tw::Int shape[4]);
+	void update_shape(const std::string& name,tw::Int shape[4]);
+	void add_frame(const std::string& name,const char *gData,tw::Int shape[4]);
+};
 
 struct Diagnostic : ComputeTool
 {
@@ -20,7 +37,7 @@ struct Diagnostic : ComputeTool
 	virtual void Start();
 	virtual void Finish();
 	virtual void Float(const std::string& label,tw::Float val,bool avg);
-	virtual void Field(const std::string& fieldName,const struct Field& F,const tw::Int c);
+	virtual void Field(const std::string& fieldName,const struct Field& F,const tw::Int c,const tw::dimensions unit = tw::dimensions::none,const std::string& pretty = "tw::none");
 	virtual tw::Float VolumeIntegral(const std::string& fieldName,const struct Field& F,const tw::Int c);
 	virtual tw::Float FirstMoment(const std::string& fieldName,const struct Field& F,const tw::Int c,const tw::vec3& r0,const tw::grid::axis axis);
 	virtual void Particle(const struct Particle& par,tw::Float m0,tw::Float tp);
@@ -53,7 +70,7 @@ struct PointDiagnostic : TextTableBase
 	tw::vec3 thePoint;
 
 	PointDiagnostic(const std::string& name,MetricSpace *ms,Task *tsk);
-	virtual void Field(const std::string& fieldName,const struct Field& F,const tw::Int c);
+	virtual void Field(const std::string& fieldName,const struct Field& F,const tw::Int c,const tw::dimensions unit = tw::dimensions::none,const std::string& pretty = "tw::none");
 	virtual void ReadCheckpoint(std::ifstream& inFile);
 	virtual void WriteCheckpoint(std::ofstream& outFile);
 };
@@ -67,7 +84,7 @@ struct BoxDiagnostic : Diagnostic
 	virtual void Finish();
 	void GetLocalIndexing(const tw::Int pts[4],const tw::Int glb[6],tw::Int loc[6],const tw::Int coords[4]);
 	void GetGlobalIndexing(tw::Int pts[4],tw::Int glb[6]);
-	virtual void Field(const std::string& fieldName,const struct Field& F,const tw::Int c);
+	virtual void Field(const std::string& fieldName,const struct Field& F,const tw::Int c,const tw::dimensions unit = tw::dimensions::none,const std::string& pretty = "tw::none");
 };
 
 struct PhaseSpaceDiagnostic : Diagnostic

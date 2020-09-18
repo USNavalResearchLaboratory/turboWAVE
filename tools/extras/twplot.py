@@ -6,21 +6,20 @@ import numpy as np
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import twutils.plot as twplot
-import twutils.dvdat as dv
 import twutils.pre as twpre
 from scipy import constants as C
 
 # Plotter for publication quality figures or presentation quality movies
 
 if len(sys.argv)<3:
-	print('Usage: python plot-dvdat.py slicing=slices/... file1,... [panels=a,b,...] [mult=1.0,1.0,1.0/...]')
+	print('Usage: python twplot.py slicing=slices/... file1,... [panels=a,b,...] [mult=1.0,1.0,1.0/...]')
 	print('    [range=low,high/...] [layout=2x2] [dr=0.0,...] [color=viridis,...] [roi=h0,h1,v0,v1/...]')
-	print('    [space=hlab,vlab/...] [[tex]labels=hlab,vlab,clab/...]')
+	print('    [units=mks,...] [[tex]labels=hlab,vlab,clab/...]')
 	print('------------------Examples----------------')
-	print('2D zx-plot: python plot-dvdat.py zxyt=0,0 rho.dvdat')
-	print('1D x-plot: python plot-dvdat.py xyzt=0,0,0 Ex.dvdat')
-	print('Hybrid: python plot-dvdat.py zxyt=0,0/zxyt=0,0,0 rho.dvdat,Ex.dvdat panels=a,b layout=1x2')
-	print('2D zx-movie over all time slices: python plot-dvdat.py zxyt=0,: Ex.dvdat')
+	print('2D zx-plot: python twplot.py zxyt=0,0 rho.npy')
+	print('1D x-plot: python twplot.py xyzt=0,0,0 Ex.npy')
+	print('Hybrid: python twplot.py zxyt=0,0/zxyt=0,0,0 rho.npy,Ex.npy panels=a,b layout=1x2')
+	print('2D zx-movie over all time slices: python twplot.py zxyt=0,: Ex.npy')
 	print('-------------------General Notes--------------------')
 	print('Extra spaces (e.g. around commas or equals) are not allowed.')
 	print('Displays any number of panels.')
@@ -38,7 +37,7 @@ if len(sys.argv)<3:
 	print('dr: 0.0 signals full range on linear scale, any other float is the number of decades spanned.')
 	print('color: any Matplotlib color map, search internet for list (e.g., viridis, jet, inferno, etc.)')
 	print('roi: select a subdomain to plot, otherwise the full domain is plotted.')
-	print('space: choose standard axis labels (x0,x1,x2,x3,t,x,y,z,z-t,r,rho,phi,theta,mass,px,py,pz,gamma,gbx,gby,gbz)')
+	print('units: select from plasma,atomic,natural,mks,cgs')
 	print('[tex]labels: fully customizable labels for axes and colorbar.')
 	print('   Including prefix tex causes each string to be automatically enclosed in $ tokens')
 	print('   Some characters require special treatment if you want to use them in a label.')
@@ -53,39 +52,6 @@ if len(sys.argv)<3:
 
 def format_label(l):
 	return l.replace('SPACE',' ').replace('COMMA',',').replace('SEMICOLON',';').replace('SLASH','/')
-
-std_axes = {
- 'x0' : r'$x_0$',
- 'x1' : r'$x_1$',
- 'x2' : r'$x_2$',
- 'x3' : r'$x_3$',
- 't' : r'$\omega t$',
- 'x' : r'$\omega x/c$',
- 'y' : r'$\omega y/c$',
- 'z' : r'$\omega z/c$',
- 'z-t' : r'$\omega (z/c-t)$',
- 'r' : r'$\omega r/c$',
- 'rho' : r'$\omega \rho/c$',
- 'phi' : r'$\varphi$',
- 'theta' : r'$\theta$',
- 'mass' : r'$E/m_ec^2$',
- 'px' : r'$p_x/m_ec$',
- 'py' : r'$p_y/m_ec$',
- 'pz' : r'$p_z/m_ec$',
- 'gamma' : r'$\gamma$',
- 'gbx' : r'$\gamma\beta_x$',
- 'gby' : r'$\gamma\beta_y$',
- 'gbz' : r'$\gamma\beta_z$' }
-
-# Normalization constants in mks
-
-n1 = 2.8e19*1e6
-su = twpre.SimUnits(n1*1e-6)
-t1 = su.t1
-x1 = su.x1
-E1 = su.E1
-U1 = C.m_e*C.c*C.c
-N1 = n1*x1**3
 
 # Matplotlib setup
 
@@ -162,11 +128,11 @@ color = []
 roi = []
 val_range = []
 mult = []
-space = []
+units = []
 labels=[]
 texlabels=[]
 ask = 'yes'
-keylist = ['panels','layout','dr','color','roi','range','mult','space','labels','texlabels']
+keylist = ['panels','layout','dr','color','roi','range','mult','units','labels','texlabels']
 for keyval in sys.argv[3:]:
 	key = keyval.split('=')[0]
 	arg = keyval.split('=')[1]
@@ -188,8 +154,8 @@ for keyval in sys.argv[3:]:
 		val_range = arg.split('/')
 	if key=='mult':
 		mult = arg.split('/')
-	if key=='space':
-		space = arg.split('/')
+	if key=='units':
+		units = arg.split(',')
 	if key=='labels':
 		labels = arg.split('/')
 	if key=='texlabels':
@@ -211,15 +177,17 @@ for i in range(N-len(roi)):
 for i in range(N-len(mult)):
 	mult.append('1.0,1.0,1.0')
 for i in range(N-len(labels)):
-	labels.append('')
+	labels.append(',,')
 for i in range(N-len(texlabels)):
-	texlabels.append('')
+	texlabels.append(',,')
+for i in range(N-len(units)):
+	units.append('plasma')
 
 plotter = []
 for i,f in enumerate(file_to_plot):
 	needs_buffer = slicing_spec[i][0]=='t' or (slicing_spec[i][1]=='t' and len(primitive_slices[i])==2)
-	plotter.append(twplot.plotter(f,buffered=needs_buffer))
-plotter[0].display_info()
+	plotter.append(twplot.plotter(f,buffered=needs_buffer,units=units[i]))
+	plotter[-1].display_info()
 
 # Set up animation slices
 
@@ -307,20 +275,30 @@ for file_idx in range(len(slice_tuples[0])):
 				vmax=global_max[i],
 				cmap=color[i])
 			b = plt.colorbar()
-			if not labels[i]=='':
-				plt.xlabel(format_label(labels[i].split(',')[0]),size=12)
-				plt.ylabel(format_label(labels[i].split(',')[1]),size=12)
-				b.set_label(format_label(labels[i].split(',')[2]),size=12)
-			if not texlabels[i]=='':
-				plt.xlabel(format_label(r'$'+texlabels[i].split(',')[0]+r'$'),size=12)
-				plt.ylabel(format_label(r'$'+texlabels[i].split(',')[1]+r'$'),size=12)
-				b.set_label(format_label(r'$'+texlabels[i].split(',')[2]+r'$'),size=12)
-			if len(space)>i:
-				plt.xlabel(std_axes[space[i].split(',')[0]],size=12)
-				plt.ylabel(std_axes[space[i].split(',')[1]],size=12)
-			if labels[i]=='' and texlabels[i]=='' and len(space)<=i:
+			l = labels[i].split(',')
+			tl = texlabels[i].split(',')
+
+			if l[0]=='' and tl[0]=='':
 				plt.xlabel(plot_dict['xlabel'],size=12)
+			if not l[0]=='':
+				plt.xlabel(format_label(l[0]),size=12)
+			if not tl[0]=='':
+				plt.xlabel(format_label(r'$'+tl[0]+r'$'),size=12)
+
+			if l[1]=='' and tl[1]=='':
 				plt.ylabel(plot_dict['ylabel'],size=12)
+			if not l[1]=='':
+				plt.ylabel(format_label(l[1]),size=12)
+			if not tl[1]=='':
+				plt.ylabel(format_label(r'$'+tl[1]+r'$'),size=12)
+
+			if l[2]=='' and tl[2]=='':
+				b.set_label(plot_dict['blabel'],size=12)
+			if not l[2]=='':
+				b.set_label(format_label(l[2]),size=12)
+			if not tl[2]=='':
+				b.set_label(format_label(r'$'+tl[2]+r'$'),size=12)
+
 			if roi[i]=='':
 				roi_i = plot_dict['extent']
 			else:
@@ -334,17 +312,23 @@ for file_idx in range(len(slice_tuples[0])):
 		if len(primitive_slices[i])==3:
 			abcissa,ordinate,plot_dict = p.lineout(slicing_spec[i],slice_now,float(dyn_range[i]))
 			plt.plot(abcissa*exm[0],ordinate*exm[2])
-			if not labels[i]=='':
-				plt.xlabel(format_label(labels[i].split(',')[0]),size=12)
-				plt.ylabel(format_label(labels[i].split(',')[1]),size=12)
-			if not texlabels[i]=='':
-				plt.xlabel(format_label(r'$'+texlabels[i].split(',')[0]+r'$'),size=12)
-				plt.ylabel(format_label(r'$'+texlabels[i].split(',')[1]+r'$'),size=12)
-			if len(space)>i:
-				plt.xlabel(std_axes[space[i].split(',')[0]],size=12)
-				plt.ylabel(std_axes[space[i].split(',')[1]],size=12)
-			if labels[i]=='' and texlabels[i]=='' and len(space)<=i:
+			l = labels[i].split(',')
+			tl = texlabels[i].split(',')
+
+			if l[0]=='' and tl[0]=='':
 				plt.xlabel(plot_dict['xlabel'],size=12)
+			if not l[0]=='':
+				plt.xlabel(format_label(l[0]),size=12)
+			if not tl[0]=='':
+				plt.xlabel(format_label(r'$'+tl[0]+r'$'),size=12)
+
+			if l[1]=='' and tl[1]=='':
+				plt.ylabel(plot_dict['ylabel'],size=12)
+			if not l[1]=='':
+				plt.ylabel(format_label(l[1]),size=12)
+			if not tl[1]=='':
+				plt.ylabel(format_label(r'$'+tl[1]+r'$'),size=12)
+
 			if roi[i]=='':
 				roi_i = [abcissa[0],abcissa[-1],global_min[i],global_max[i]]
 			else:

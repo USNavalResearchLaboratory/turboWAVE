@@ -13,8 +13,8 @@ if len(sys.argv)<3:
 	print('Usage: python wigner.py slicing=slices real_file,imag_file [panels=a,b] [layout=1x2]')
 	print('   [dr=0.0,0.0] [color=viridis,jet] [roi=h0,h1,v0,v1/h0,h1,v0,v1]')
 	print('------------------Examples----------------')
-	print('Envelope: python wigner.py xyzt=0,0,0 e_real.dvdat,e_imag.dvdat')
-	print('Carrier resolved: python wigner.py xyzt=0,0,0 Ex.dvdat,1.0')
+	print('Envelope: python wigner.py xyzt=0,0,0 e_real.npy,e_imag.npy')
+	print('Carrier resolved: python wigner.py xyzt=0,0,0 Ex.npy,1.0')
 	print('-------------------General Notes--------------------')
 	print('Extra spaces (e.g. around commas, semicolons, or equals) are not allowed.')
 	print('Displays two panels, the field in real space, and the field in Wigner phase space.')
@@ -213,7 +213,7 @@ def extract_plot_data(plotter_r,plotter_i,slice_now):
 		abcissa,imag1d,dict1d = plotter_i.lineout(slicing_spec,slice_now,dyn_range[1])
 		envelope2d = E1*(real2d + 1j*imag2d)
 		envelope1d = E1*(real1d + 1j*imag1d)
-	z_extent = list(dict1d['extent'][:2])
+	z_extent = [abcissa[0],abcissa[-1]]
 	dz = (z_extent[1]-z_extent[0]) / envelope1d.shape[0]
 	k_extent = [-np.pi/dz,np.pi/dz]
 	wig_ext = z_extent + k_extent

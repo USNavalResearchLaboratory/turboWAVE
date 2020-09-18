@@ -1,5 +1,5 @@
 // Keep the following line for generating twtest reports
-// TWTEST matplotlib xtyz=0,0 air.dvdat
+// TWTEST matplotlib xtyz=0,0 air.npy units=cgs
 
 // SPARC simulation illustrating 1D cylindrical shock
 // Approach is to create uniform air and deposit energy on axis

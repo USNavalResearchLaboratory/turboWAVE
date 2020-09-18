@@ -15,6 +15,7 @@ struct Simulation:Task,MetricSpace
 	tw::Float signalPosition,windowPosition,signalSpeed;
 	tw::Float antiSignalPosition,antiWindowPosition;
 	tw::Float unitDensityCGS;
+	tw::units nativeUnits;
 
 	bool neutralize,movingWindow,adaptiveTimestep,adaptiveGrid;
 	bool completed;

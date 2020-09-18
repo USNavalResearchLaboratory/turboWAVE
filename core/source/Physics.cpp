@@ -19,14 +19,16 @@ void sparc::material::AddDirectives(tw::input::DirectiveReader& directives)
 tw::Float sparc::CoulombCrossSection(const UnitConverter& uc,tw::Float q1,tw::Float q2,tw::Float m12,tw::Float v12,tw::Float N1,tw::Float N2,tw::Float T1,tw::Float T2)
 {
 	tw::Float rmin,rmax,rmin_alt,coulombLog,hbar;
-	hbar = uc.hbar / (uc.MKSValue(time_dim) * uc.MKSValue(energy_dim));
-	rmin = fabs(q1*q2)/(tw::small_pos + 4*pi*m12*v12*v12*uc.MKSValue(number_dim));
+	const tw::Float Npar = uc.ConvertFromNative(1.0,tw::dimensions::number,tw::units::mks);
+	hbar = uc.ConvertToNative(uc.hbar,tw::dimensions::time,tw::units::mks);
+	hbar = uc.ConvertToNative(uc.hbar,tw::dimensions::energy,tw::units::mks);
+	rmin = fabs(q1*q2)/(tw::small_pos + 4*pi*m12*v12*v12*Npar);
 	rmin_alt = hbar/(tw::small_pos + 2*m12*v12);
 	if (rmin_alt<rmin) rmin = rmin_alt;
 	rmax = 1/sqrt(tw::small_pos + N1*q1*q1/T1 + N2*q2*q2/T2);
 	coulombLog = log(rmax/rmin);
 	if (coulombLog<1.0) coulombLog = 1.0;
-	return (32/pi)*pow(v12,-4)*sqr(q1*q2/(4*pi*m12))*coulombLog/uc.MKSValue(number_dim);
+	return (32/pi)*pow(v12,-4)*sqr(q1*q2/(4*pi*m12))*coulombLog/Npar;
 }
 
 tw::Float sparc::ElectronPhononRateCoeff(const UnitConverter& uc,tw::Float Ti,tw::Float EFermi,tw::Float ks,tw::Float nref)
@@ -35,13 +37,13 @@ tw::Float sparc::ElectronPhononRateCoeff(const UnitConverter& uc,tw::Float Ti,tw
 	// this allows us to multiply away the collisions in regions where the metallic density is at "background level"
 	// get quantities into cgs
 	tw::Float vF = uc.c*100*sqrt(2*EFermi);
-	tw::Float qe = uc.SimToCGS(charge_dim,1);
-	tw::Float kB_Ti = uc.SimToCGS(energy_dim,Ti);
+	tw::Float qe = uc.ConvertFromNative(1.0,tw::dimensions::charge,tw::units::cgs);
+	tw::Float kB_Ti = uc.ConvertFromNative(Ti,tw::dimensions::energy,tw::units::cgs);
 	tw::Float hbar = 1e7 * uc.hbar;
 	// collision frequency in real units
 	tw::Float nu = 2*ks*qe*qe*kB_Ti/(sqr(hbar)*vF);
 	// return normalized rate coefficient
-	return (uc.CGSValue(time_dim)/nref) * nu;
+	return uc.ConvertToNative(nu,tw::dimensions::frequency,tw::units::cgs)/nref;
 }
 
 //////////////////////////
@@ -73,10 +75,8 @@ Ionizer::Ionizer(const std::string& name,MetricSpace *m,Task *tsk) : ComputeTool
 void Ionizer::Initialize()
 {
 	ComputeTool::Initialize();
-	if (space->units==NULL)
-		throw tw::FatalError("Ionizer tool requires units (set unit density).");
 	Z = protons - electrons + 1;
-	Uion = space->units->SimToAtomic(energy_dim,ionizationPotential);
+	Uion = space->units->ConvertFromNative(ionizationPotential,tw::dimensions::energy,tw::units::atomic);
 	nstar = Z / sqrt(2*Uion);
 	lstar = nstar - 1;
 }
@@ -88,12 +88,12 @@ Multiphoton::Multiphoton(const std::string& name,MetricSpace *m,Task *tsk) : Ion
 
 void Multiphoton::Initialize()
 {
-	A3 = space->units->SimToAtomic(electric_field_dim,E_MPI);
+	A3 = space->units->ConvertFromNative(E_MPI,tw::dimensions::electric_field,tw::units::atomic);
 }
 
 tw::Float Multiphoton::AverageRate(tw::Float w0,tw::Float E)
 {
-	const tw::Float wa = space->units->SimToAtomic(angular_frequency_dim,w0); // laser freq. in a.u.
+	const tw::Float wa = space->units->ConvertFromNative(w0,tw::dimensions::angular_frequency,tw::units::atomic); // laser freq. in a.u.
 	const tw::Float photons = MyFloor(Uion/wa + 1);
 	return multiplier*two*pi*w0*pow(fabs(E)/E_MPI,two*photons) / Factorial(photons-1);
 }
@@ -111,19 +111,19 @@ void ADK::Initialize()
 	A1 = I1 * sqrt(3*cub(nstar)/(pi*cub(Z)));
 	A2 = I2 + tw::Float(0.5);
 	A3 = I3;
-	I1 = space->units->AtomicToSim(angular_frequency_dim,I1);
-	A1 = space->units->AtomicToSim(angular_frequency_dim,A1);
+	I1 = space->units->ConvertToNative(I1,tw::dimensions::angular_frequency,tw::units::atomic);
+	A1 = space->units->ConvertToNative(A1,tw::dimensions::angular_frequency,tw::units::atomic);
 }
 
 tw::Float ADK::InstantRate(tw::Float w0,tw::Float E)
 {
-	const tw::Float Ea = space->units->SimToAtomic(electric_field_dim,fabs(E)) + 0.01;
+	const tw::Float Ea = space->units->ConvertFromNative(fabs(E),tw::dimensions::electric_field,tw::units::atomic) + 0.01;
 	return I1*pow(Ea,I2)*exp(-I3/Ea);
 }
 
 tw::Float ADK::AverageRate(tw::Float w0,tw::Float E)
 {
-	const tw::Float Ea = space->units->SimToAtomic(electric_field_dim,fabs(E)) + 0.01;
+	const tw::Float Ea = space->units->ConvertFromNative(fabs(E),tw::dimensions::electric_field,tw::units::atomic) + 0.01;
 	return A1*pow(Ea,A2)*exp(-A3/Ea);
 }
 
@@ -146,14 +146,14 @@ void PPT::Initialize()
 	const tw::Float F0 = pow(2*Uion,tw::Float(1.5));
 	A1 =  multiplier * Uion * (4/sqrt(3*pi)) * sqrt(6/pi) * pow(2,2*nstar) / (nstar*tgamma(nstar+lstar+1)*tgamma(nstar-lstar));
 	A3 = 2*F0/3;
-	A1 = space->units->AtomicToSim(angular_frequency_dim,A1);
+	A1 = space->units->ConvertToNative(A1,tw::dimensions::angular_frequency,tw::units::atomic);
 }
 
 tw::Float PPT::AverageRate(tw::Float w0,tw::Float E)
 {
 	tw::Float ans = 0.0;
-	const tw::Float wa = space->units->SimToAtomic(angular_frequency_dim,w0);
-	const tw::Float Ea = space->units->SimToAtomic(electric_field_dim,fabs(E)) + 0.01;
+	const tw::Float wa = space->units->ConvertFromNative(w0,tw::dimensions::angular_frequency,tw::units::atomic);
+	const tw::Float Ea = space->units->ConvertFromNative(fabs(E),tw::dimensions::electric_field,tw::units::atomic) + 0.01;
 	const tw::Float F0 = pow(2*Uion,tw::Float(1.5));
 	const tw::Float gam = sqrt(2*Uion)*wa/Ea;
 	const tw::Float gam2 = gam*gam;

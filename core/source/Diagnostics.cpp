@@ -1,32 +1,142 @@
 #include "simulation.h"
+#include <iomanip>
 
-void WriteDVHeader(std::ofstream& outFile,tw::Int version,tw::Int xDim,tw::Int yDim,tw::Int zDim,float x0,float x1,float y0,float y1,float z0,float z1)
+////////////////////////////////////////////////////////////////
+// Dictionary for storing metadata associated with .npy files //
+////////////////////////////////////////////////////////////////
+
+meta_writer::meta_writer(UnitConverter *units)
 {
-	int32_t xDim32 = xDim;
-	int32_t yDim32 = yDim;
-	int32_t zDim32 = zDim;
+	this->units = units;
+}
 
-	switch (version)
+void meta_writer::create_entry(const std::string& name)
+{
+	std::ofstream outFile("tw_metadata.py",std::ios::app);
+	outFile << "files['" << name << "'] = {}" << std::endl;
+	switch (units->native)
 	{
-		case 1:
-			WriteBigEndian((char *)&xDim32,sizeof(int32_t),0,outFile);
-			WriteBigEndian((char *)&yDim32,sizeof(int32_t),0,outFile);
-			WriteBigEndian((char *)&zDim32,sizeof(int32_t),0,outFile);
+		case tw::units::mks:
+			outFile << "files['" << name << "']['native units'] = 'mks'" << std::endl;
 			break;
-		case 2:
-			const char buffer[17] = "DataViewer 2.0.0";
-			outFile.write(buffer,16);
-			WriteBigEndian((char *)&xDim32,sizeof(int32_t),0,outFile);
-			WriteBigEndian((char *)&yDim32,sizeof(int32_t),0,outFile);
-			WriteBigEndian((char *)&zDim32,sizeof(int32_t),0,outFile);
-			WriteBigEndian((char*)&x0,sizeof(float),0,outFile);
-			WriteBigEndian((char*)&x1,sizeof(float),0,outFile);
-			WriteBigEndian((char*)&y0,sizeof(float),0,outFile);
-			WriteBigEndian((char*)&y1,sizeof(float),0,outFile);
-			WriteBigEndian((char*)&z0,sizeof(float),0,outFile);
-			WriteBigEndian((char*)&z1,sizeof(float),0,outFile);
+		case tw::units::cgs:
+			outFile << "files['" << name << "']['native units'] = 'cgs'" << std::endl;
+			break;
+		case tw::units::plasma:
+			outFile << "files['" << name << "']['native units'] = 'plasma'" << std::endl;
+			break;
+		case tw::units::atomic:
+			outFile << "files['" << name << "']['native units'] = 'atomic'" << std::endl;
+			break;
+		case tw::units::natural:
+			outFile << "files['" << name << "']['native units'] = 'natural'" << std::endl;
 			break;
 	}
+	outFile << "files['" << name << "']['axes'] = {}" << std::endl;
+	outFile.close();
+}
+
+void meta_writer::define_axis(const std::string& name,tw::Int ax,const std::string& label,tw::dimensions d)
+{
+	std::ofstream outFile("tw_metadata.py",std::ios::app);
+	outFile << "files['" << name << "']['axes'][" << ax << "] = {}" << std::endl;
+	outFile << "files['" << name << "']['axes'][" << ax << "]['label'] = r'" << label << "'" << std::endl;
+	outFile << "files['" << name << "']['axes'][" << ax << "]['mks label'] = r'" << tw::mks_label(d) << "'" << std::endl;
+	outFile << "files['" << name << "']['axes'][" << ax << "]['mks multiplier'] = " << units->ConvertFromNative(1.0,d,tw::units::mks) << std::endl;
+	outFile << "files['" << name << "']['axes'][" << ax << "]['cgs label'] = r'" << tw::cgs_label(d) << "'" << std::endl;
+	outFile << "files['" << name << "']['axes'][" << ax << "]['cgs multiplier'] = " << units->ConvertFromNative(1.0,d,tw::units::cgs) << std::endl;
+	outFile << "files['" << name << "']['axes'][" << ax << "]['plasma label'] = r'" << tw::plasma_label(d) << "'" << std::endl;
+	outFile << "files['" << name << "']['axes'][" << ax << "]['plasma multiplier'] = " << units->ConvertFromNative(1.0,d,tw::units::plasma) << std::endl;
+	outFile << "files['" << name << "']['axes'][" << ax << "]['atomic label'] = r'" << tw::atomic_label(d) << "'" << std::endl;
+	outFile << "files['" << name << "']['axes'][" << ax << "]['atomic multiplier'] = " << units->ConvertFromNative(1.0,d,tw::units::atomic) << std::endl;
+	outFile << "files['" << name << "']['axes'][" << ax << "]['natural label'] = r'" << tw::natural_label(d) << "'" << std::endl;
+	outFile << "files['" << name << "']['axes'][" << ax << "]['natural multiplier'] = " << units->ConvertFromNative(1.0,d,tw::units::natural) << std::endl;
+	outFile.close();
+}
+
+void meta_writer::define_grid(const std::string& diagnostic_name,const std::string& name)
+{
+	std::ofstream outFile("tw_metadata.py",std::ios::app);
+	if (diagnostic_name=="tw::none")
+		outFile << "files['" << name << "']['grid'] = " << "'grid_warp.txt'" << std::endl;
+	else
+		outFile << "files['" << name << "']['grid'] = " << "'" << diagnostic_name << "_grid_warp.txt'";
+}
+
+//////////////////////////////////////////////////
+// Writer class for four dimensional .npy files //
+//////////////////////////////////////////////////
+
+std::string npy_writer::form_header(tw::Int shape[4])
+{
+	// Form a string containing the header for a standard .npy file.
+	// Shape elements are padded so we get the same length header every time.
+	uint32_t HEADER_LEN;
+	const size_t type_size = sizeof(HEADER_LEN);
+	std::string vers("\x93NUMPY\x02");
+	vers += '\0'; // null character cannot be put in the C-string above
+	std::stringstream dict;
+	dict << "{'descr': '<f4', 'fortran_order': False, 'shape': (";
+	for (tw::Int i=0;i<4;i++)
+		dict << std::setw(10) << std::setfill(' ') << shape[i] << ",";
+	dict << "), }";
+	HEADER_LEN = dict.str().size();
+	while ((HEADER_LEN+8+type_size+1)%64)
+	{
+		HEADER_LEN++;
+		dict << " ";
+	}
+	HEADER_LEN++;
+	dict << "\n";
+	// Form bytes for the little endian integer giving the header length
+	char hbuff[type_size];
+	memcpy(hbuff,(char*)&HEADER_LEN,type_size);
+	BufferLittleEndian(hbuff,type_size);
+	// Now put it all together in a string
+	std::stringstream ans;
+	ans << vers;
+	for (tw::Int i=0;i<type_size;i++)
+		ans << hbuff[i];
+	ans << dict.str();
+	return ans.str();
+}
+
+void npy_writer::write_header(const std::string& name,tw::Int shape[4])
+{
+	// Write the header for a standard .npy file.
+	std::ofstream outFile;
+	outFile.open(name.c_str(),std::ios::binary | std::ios::trunc);
+	std::string header(form_header(shape));
+	outFile.write(header.data(),header.size());
+	outFile.close();
+}
+
+void npy_writer::update_shape(const std::string& name,tw::Int shape[4])
+{
+	// Updates the time dimension by evaluating the size of the current file.
+	std::ifstream inFile;
+	std::string header;
+	inFile.open(name.c_str(),std::ios::binary);
+	inFile.seekg(0,std::ios::end);
+	size_t length = inFile.tellg();
+	inFile.close();
+	header = form_header(shape);
+	shape[0] = (length - header.size())/(sizeof(float)*shape[1]*shape[2]*shape[3]);
+	header = form_header(shape);
+	// Now write the changes by simply overwriting the whole header
+	std::fstream outFile; // we have to use input and output mode to avoid default truncation
+	outFile.open(name.c_str(),std::ios::binary | std::ios::out | std::ios::in);
+	outFile.seekp(0,std::ios::beg);
+	outFile.write(header.data(),header.size());
+	outFile.close();
+}
+
+void npy_writer::add_frame(const std::string& name,const char *gData,tw::Int shape[4])
+{
+	std::ofstream outFile;
+	outFile.open(name.c_str(),std::ios::binary | std::ios::app);
+	WriteLittleEndian(gData,sizeof(float)*shape[1]*shape[2]*shape[3],sizeof(float),outFile);
+	outFile.close();
 }
 
 //////////////////////
@@ -146,7 +256,7 @@ tw::Float Diagnostic::FirstMoment(const std::string& fieldName,const struct Fiel
 	return ans;
 }
 
-void Diagnostic::Field(const std::string& fieldName,const struct Field& F,const tw::Int c)
+void Diagnostic::Field(const std::string& fieldName,const struct Field& F,const tw::Int c,tw::dimensions unit,const std::string& pretty)
 {
 }
 
@@ -267,7 +377,7 @@ PointDiagnostic::PointDiagnostic(const std::string& name,MetricSpace *ms,Task *t
 	directives.Add("point",new tw::input::Vec3(&thePoint));
 }
 
-void PointDiagnostic::Field(const std::string& fieldName,const struct Field& F,const tw::Int c)
+void PointDiagnostic::Field(const std::string& fieldName,const struct Field& F,const tw::Int c,tw::dimensions unit,const std::string& pretty)
 {
 	tw::vec3 r = thePoint + vGalileo*t;
 	if (space->IsPointValid(r)) // assumes uniform grid
@@ -350,7 +460,7 @@ void BoxDiagnostic::GetLocalIndexing(const tw::Int pts[4],const tw::Int glb[6],t
 	}
 }
 
-void BoxDiagnostic::Field(const std::string& fieldName,const struct Field& F,const tw::Int c)
+void BoxDiagnostic::Field(const std::string& fieldName,const struct Field& F,const tw::Int c,tw::dimensions unit,const std::string& pretty)
 {
 	if (reports.size()>0)
 		if (std::find(reports.begin(),reports.end(),fieldName)==reports.end())
@@ -358,8 +468,9 @@ void BoxDiagnostic::Field(const std::string& fieldName,const struct Field& F,con
 
 	tw::Int buffSize,ready,i0,i1;
 	std::valarray<float> buffer,gData;
-	std::ofstream outFile;
 	std::string xname;
+	meta_writer meta(space->units);
+	npy_writer writer;
 	tw::Int coords[4],pts[4],loc[6],glb[6],dim[4],s[4];
 	tw::Int thisNode,curr,master;
 
@@ -367,9 +478,9 @@ void BoxDiagnostic::Field(const std::string& fieldName,const struct Field& F,con
 	master = 0;
 
 	if (filename=="tw::none")
-		xname = fieldName + ".dvdat";
+		xname = fieldName + ".npy";
 	else
-		xname = filename + "_" + fieldName + ".dvdat";
+		xname = filename + "_" + fieldName + ".npy";
 
 	GetGlobalIndexing(pts,glb);
 	for (tw::Int i=1;i<=3;i++) dim[i] = space->Dim(i);
@@ -396,9 +507,9 @@ void BoxDiagnostic::Field(const std::string& fieldName,const struct Field& F,con
 								for (tw::Int j=loc[2];j<=loc[3];j+=s[2])
 									for (tw::Int i=loc[0];i<=loc[1];i+=s[1])
 									{
-										i0 = (task->GlobalCellIndex(i,1) - glb[0])/s[1];
-										i0 += pts[1]*(task->GlobalCellIndex(j,2) - glb[2])/s[2];
-										i0 += pts[1]*pts[2]*(task->GlobalCellIndex(k,3) - glb[4])/s[3];
+										i0 = pts[2]*pts[3]*(task->GlobalCellIndex(i,1) - glb[0])/s[1];
+										i0 += pts[3]*(task->GlobalCellIndex(j,2) - glb[2])/s[2];
+										i0 += (task->GlobalCellIndex(k,3) - glb[4])/s[3];
 										gData[i0] = F(i,j,k,c);
 									}
 						}
@@ -411,9 +522,9 @@ void BoxDiagnostic::Field(const std::string& fieldName,const struct Field& F,con
 								for (tw::Int j=loc[2];j<=loc[3];j+=s[2])
 									for (tw::Int i=loc[0];i<=loc[1];i+=s[1])
 									{
-										i0 = (i - loc[0])/s[1];
-										i0 += (loc[1]-loc[0]+s[1])*(j - loc[2])/(s[1]*s[2]);
-										i0 += (loc[1]-loc[0]+s[1])*(loc[3]-loc[2]+s[2])*(k - loc[4])/(s[1]*s[2]*s[3]);
+										i0 = (loc[3]-loc[2]+s[2])*(loc[5]-loc[4]+s[3])*(i - loc[0])/(s[1]*s[2]*s[3]);
+										i0 += (loc[5]-loc[4]+s[3])*(j - loc[2])/(s[2]*s[3]);
+										i0 += (k - loc[4])/s[3];
 										buffer[i0] = F(i,j,k,c);
 									}
 							task->strip[0].Send(&buffer[0],sizeof(float)*buffSize,master);
@@ -429,12 +540,12 @@ void BoxDiagnostic::Field(const std::string& fieldName,const struct Field& F,con
 							for (tw::Int j=loc[2];j<=loc[3];j+=s[2])
 								for (tw::Int i=loc[0];i<=loc[1];i+=s[1])
 								{
-									i0 = (i - loc[0])/s[1];
-									i0 += (loc[1]-loc[0]+s[1])*(j - loc[2])/(s[1]*s[2]);
-									i0 += (loc[1]-loc[0]+s[1])*(loc[3]-loc[2]+s[2])*(k - loc[4])/(s[1]*s[2]*s[3]);
-									i1 = (coords[1]*task->localCells[1]+i - glb[0])/s[1];
-									i1 += pts[1]*(coords[2]*task->localCells[2]+j - glb[2])/s[2];
-									i1 += pts[1]*pts[2]*(coords[3]*task->localCells[3]+k - glb[4])/s[3];
+									i0 = (loc[3]-loc[2]+s[2])*(loc[5]-loc[4]+s[3])*(i - loc[0])/(s[1]*s[2]*s[3]);
+									i0 += (loc[5]-loc[4]+s[3])*(j - loc[2])/(s[2]*s[3]);
+									i0 += (k - loc[4])/s[3];
+									i1 = pts[2]*pts[3]*(coords[1]*task->localCells[1]+i - glb[0])/s[1];
+									i1 += pts[3]*(coords[2]*task->localCells[2]+j - glb[2])/s[2];
+									i1 += (coords[3]*task->localCells[3]+k - glb[4])/s[3];
 									gData[i1] = buffer[i0];
 								}
 					}
@@ -445,19 +556,24 @@ void BoxDiagnostic::Field(const std::string& fieldName,const struct Field& F,con
 	{
 		if (!headerWritten)
 		{
-			outFile.open(xname.c_str(),std::ios::binary);
-			WriteDVHeader(outFile,2,pts[1],pts[2],pts[3],
-			GlobalCorner(*space).x + dx(*space)*(glb[0]-0.5-0.5*skip[1]),
-			GlobalCorner(*space).x + dx(*space)*(glb[1]-0.5+0.5*skip[1]),
-			GlobalCorner(*space).y + dy(*space)*(glb[2]-0.5-0.5*skip[2]),
-			GlobalCorner(*space).y + dy(*space)*(glb[3]-0.5+0.5*skip[2]),
-			GlobalCorner(*space).z + dz(*space)*(glb[4]-0.5-0.5*skip[3]),
-			GlobalCorner(*space).z + dz(*space)*(glb[5]-0.5+0.5*skip[3]));
-			outFile.close();
+			pts[0] = 0;
+			writer.write_header(xname,pts);
+			meta.create_entry(xname);
+			meta.define_axis(xname,0,"$t$",tw::dimensions::time);
+			meta.define_axis(xname,1,"$x$",tw::dimensions::length);
+			meta.define_axis(xname,2,"$y$",tw::dimensions::length);
+			if (vGalileo.z==0.0)
+				meta.define_axis(xname,3,"$z$",tw::dimensions::length);
+			else
+				meta.define_axis(xname,3,"$\\zeta$",tw::dimensions::length);
+			if (pretty=="tw::none")
+				meta.define_axis(xname,4,fieldName,unit);
+			else
+				meta.define_axis(xname,4,pretty,unit);
+			meta.define_grid(filename,xname);
 		}
-		outFile.open(xname.c_str(),std::ios::app | std::ios::binary);
-		WriteBigEndian((char*)&gData[0],sizeof(float)*pts[1]*pts[2]*pts[3],sizeof(float),outFile);
-		outFile.close();
+		writer.add_frame(xname,(char*)&gData[0],pts);
+		writer.update_shape(xname,pts);
 	}
 }
 
@@ -526,16 +642,17 @@ void ParticleOrbits::Finish()
 	}
 	if (task->strip[0].Get_rank()==master)
 	{
-		std::string fileName = filename + ".dvpar";
-		std::ofstream outFile;
+		npy_writer writer;
+		tw::Int shape[4] = { 0 , 1 , 1 , 8 };
+		tw::Int false_shape[4] = { 0 , 1 , 1 , 8 };
+		std::string fileName = filename + ".npy";
 		if (!headerWritten)
 		{
-			outFile.open(fileName.c_str(),std::ios::binary);
+			writer.write_header(fileName,shape);
 			headerWritten = true;
 		}
-		else
-			outFile.open(fileName.c_str(),std::ios::binary | std::ios::app);
-		WriteBigEndian((char*)&parBuffer[0],sizeof(float)*pts,sizeof(float),outFile);
+		false_shape[2] = pts;
+		writer.add_frame(fileName,(char*)&parBuffer[0],false_shape);
 		for (tw::Int i=0;i<task->strip[0].Get_size();i++)
 		{
 			if (i!=master)
@@ -543,13 +660,13 @@ void ParticleOrbits::Finish()
 				task->strip[0].Recv(&pts,sizeof(tw::Int),i);
 				parBuffer.resize(pts);
 				task->strip[0].Recv(&parBuffer[0],sizeof(float)*pts,i);
-				WriteBigEndian((char*)&parBuffer[0],sizeof(float)*pts,sizeof(float),outFile);
+				false_shape[2] = pts;
+				writer.add_frame(fileName,(char*)&parBuffer[0],false_shape);
 			}
 		}
-		float zero = 0.0;
-		for (tw::Int i=0;i<8;i++)
-			WriteBigEndian((char*)&zero,sizeof(float),sizeof(float),outFile);
-		outFile.close();
+		float separator[8] = {0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0};
+		writer.add_frame(fileName,(char*)&separator[0],shape);
+		writer.update_shape(fileName,shape);
 	}
 }
 
@@ -607,11 +724,20 @@ void PhaseSpaceDiagnostic::Start()
 
 	if (!headerWritten && task->strip[0].Get_rank()==0)
 	{
-		std::string fileName = filename + ".dvdat";
-		std::ofstream outFile;
-		outFile.open(fileName.c_str(),std::ios::binary);
-		WriteDVHeader(outFile,2,dims[1],dims[2],dims[3],bounds[0],bounds[1],bounds[2],bounds[3],bounds[4],bounds[5]);
-		outFile.close();
+		std::map<tw::grid::axis,tw::dimensions> m = {{tw::grid::t,tw::dimensions::time},{tw::grid::x,tw::dimensions::length},{tw::grid::y,tw::dimensions::length},{tw::grid::z,tw::dimensions::length},
+			{tw::grid::mass,tw::dimensions::energy},{tw::grid::px,tw::dimensions::momentum},{tw::grid::py,tw::dimensions::momentum},{tw::grid::pz,tw::dimensions::momentum},
+			{tw::grid::g,tw::dimensions::none},{tw::grid::gbx,tw::dimensions::none},{tw::grid::gby,tw::dimensions::none},{tw::grid::gbz,tw::dimensions::none}};
+		npy_writer writer;
+		std::string fileName = filename + ".npy";
+		writer.write_header(fileName,dims);
+		meta_writer meta(space->units);
+		meta.create_entry(fileName);
+		meta.define_axis(fileName,0,tw::grid::pretty_axis_label(ax[0]),m[ax[0]]);
+		meta.define_axis(fileName,1,tw::grid::pretty_axis_label(ax[1]),m[ax[1]]);
+		meta.define_axis(fileName,2,tw::grid::pretty_axis_label(ax[2]),m[ax[2]]);
+		meta.define_axis(fileName,3,tw::grid::pretty_axis_label(ax[3]),m[ax[3]]);
+		meta.define_axis(fileName,4,"$f({\\bf r},{\\bf p})$ (arb.)",tw::dimensions::none);
+		meta.define_grid(filename,fileName);
 		// don't set headerWritten until end of Finish() due to grid file
 	}
 
@@ -630,19 +756,16 @@ void PhaseSpaceDiagnostic::Finish()
 	task->strip[0].Sum(&fxp(0,0,0),&fxp(0,0,0),fxp.TotalBytes(),master);
 	if (task->strip[0].Get_rank()==master)
 	{
+		npy_writer writer;
 		fxp.ApplyBoundaryCondition();
-		std::string fileName = filename + ".dvdat";
-		std::ofstream outFile;
-		outFile.open(fileName.c_str(),std::ios::binary | std::ios::app);
-		// Convention is to write in FORTRAN order, so need an explicit nested loop
-		for (tw::Int k=1;k<=dims[3];k++)
+		std::string fileName = filename + ".npy";
+		std::valarray<float> gData(dims[1]*dims[2]*dims[3]);
+		for (tw::Int i=1;i<=dims[1];i++)
 			for (tw::Int j=1;j<=dims[2];j++)
-				for (tw::Int i=1;i<=dims[1];i++)
-				{
-					float data = fxp(i,j,k);
-					WriteBigEndian((char *)&data,sizeof(float),0,outFile);
-		}
-		outFile.close();
+				for (tw::Int k=1;k<=dims[3];k++)
+					gData[(i-1)*dims[2]*dims[3] + (j-1)*dims[3] + (k-1)] = fxp(i,j,k);
+		writer.add_frame(fileName,(char*)&gData[0],dims);
+		writer.update_shape(fileName,dims);
 	}
 
 	// Write out the phase space grid data

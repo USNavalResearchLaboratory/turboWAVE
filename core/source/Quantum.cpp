@@ -277,6 +277,42 @@ void AtomicPhysics::WriteCheckpoint(std::ofstream& outFile)
 	A4.WriteCheckpoint(outFile);
 }
 
+void AtomicPhysics::Report(Diagnostic& diagnostic)
+{
+	tw::vec3 ENow,ANow;
+	for (auto w : wave)
+	{
+		ANow += w->VectorPotential(owner->elapsedTime,tw::vec3(0,0,0));
+		ENow -= dti*w->VectorPotential(owner->elapsedTime+0.5*dt,tw::vec3(0,0,0));
+		ENow += dti*w->VectorPotential(owner->elapsedTime-0.5*dt,tw::vec3(0,0,0));
+	}
+	diagnostic.Float("Ex",ENow.x,true);
+	diagnostic.Float("Ey",ENow.y,true);
+	diagnostic.Float("Ez",ENow.z,true);
+	diagnostic.Float("Ax",ANow.x,true);
+	diagnostic.Float("Ay",ANow.y,true);
+	diagnostic.Float("Az",ANow.z,true);
+
+	diagnostic.Field("rho",J4,0,tw::dimensions::charge_density,"$\\rho$");
+	diagnostic.Field("Jx",J4,1,tw::dimensions::current_density,"$j_x$");
+	diagnostic.Field("Jy",J4,2,tw::dimensions::current_density,"$j_y$");
+	diagnostic.Field("Jz",J4,3,tw::dimensions::current_density,"$j_z$");
+
+	diagnostic.Field("phi",A4,0,tw::dimensions::scalar_potential,"$\\phi$");
+	diagnostic.Field("Ax",A4,1,tw::dimensions::vector_potential,"$A_x$");
+	diagnostic.Field("Ay",A4,2,tw::dimensions::vector_potential,"$A_y$");
+	diagnostic.Field("Az",A4,3,tw::dimensions::vector_potential,"$A_z$");
+
+	// ScalarField temp;
+	// temp.Initialize(*this,owner);
+	// for (tw::Int k=1;k<=dim[3];k++)
+	// 	for (tw::Int j=1;j<=dim[2];j++)
+	// 		for (tw::Int i=1;i<=dim[1];i++)
+	// 			temp(i,j,k) = div<1,2,3>(J4,i,j,k,*owner);
+	// diagnostic.Field("divJ",temp,0,tw::dimensions::none,"$\\nabla\\cdot {\\bf j}$");
+}
+
+
 
 ///////////////////////////////////////
 //                                   //
@@ -287,6 +323,9 @@ void AtomicPhysics::WriteCheckpoint(std::ofstream& outFile)
 
 Schroedinger::Schroedinger(const std::string& name,Simulation* sim):AtomicPhysics(name,sim)
 {
+	if (sim->units->native!=tw::units::atomic)
+		throw tw::FatalError("Schroedinger module requires <native units = atomic>");
+
 	// Should move OpenCL stuff into the propagator tool
 	H.form = qo::schroedinger;
 	#ifndef USE_OPENCL
@@ -606,49 +645,19 @@ void Schroedinger::Report(Diagnostic& diagnostic)
 {
 	AtomicPhysics::Report(diagnostic);
 
-	tw::vec3 r0,ENow,ANow;
+	const tw::vec3 r0 = 0.0;
 	ScalarField temp;
 	temp.Initialize(*this,owner);
-
-	r0 = 0.0;
-	for (auto w : wave)
-	{
-		ANow += w->VectorPotential(owner->elapsedTime,tw::vec3(0,0,0));
-		ENow -= dti*w->VectorPotential(owner->elapsedTime+0.5*dt,tw::vec3(0,0,0));
-		ENow += dti*w->VectorPotential(owner->elapsedTime-0.5*dt,tw::vec3(0,0,0));
-	}
 
 	for (auto cell : InteriorCellRange(*this))
 		temp(cell) = norm(psi1(cell));
 	diagnostic.VolumeIntegral("TotalProb",temp,0);
-	diagnostic.Float("Ex",ENow.x,true);
-	diagnostic.Float("Ey",ENow.y,true);
-	diagnostic.Float("Ez",ENow.z,true);
-	diagnostic.Float("Ax",ANow.x,true);
-	diagnostic.Float("Ay",ANow.y,true);
-	diagnostic.Float("Az",ANow.z,true);
 	diagnostic.FirstMoment("Dx",temp,0,r0,tw::grid::x);
 	diagnostic.FirstMoment("Dy",temp,0,r0,tw::grid::y);
 	diagnostic.FirstMoment("Dz",temp,0,r0,tw::grid::z);
 
-	diagnostic.Field("psi_r",psi1,0);
-	diagnostic.Field("psi_i",psi1,1);
-
-	diagnostic.Field("rho",J4,0);
-	diagnostic.Field("Jx",J4,1);
-	diagnostic.Field("Jy",J4,2);
-	diagnostic.Field("Jz",J4,3);
-
-	diagnostic.Field("phi",A4,0);
-	diagnostic.Field("Ax",A4,1);
-	diagnostic.Field("Ay",A4,2);
-	diagnostic.Field("Az",A4,3);
-
-	for (tw::Int k=1;k<=dim[3];k++)
-		for (tw::Int j=1;j<=dim[2];j++)
-			for (tw::Int i=1;i<=dim[1];i++)
-				temp(i,j,k) = div<1,2,3>(J4,i,j,k,*owner);
-	diagnostic.Field("divJ",temp,0);
+	diagnostic.Field("psi_r",psi1,0,tw::dimensions::none,"$\\Re\\psi$");
+	diagnostic.Field("psi_i",psi1,1,tw::dimensions::none,"$\\Im\\psi$");
 }
 
 void Schroedinger::StartDiagnostics()
@@ -669,6 +678,8 @@ void Schroedinger::StartDiagnostics()
 Pauli::Pauli(const std::string& name,Simulation* sim):AtomicPhysics(name,sim)
 {
 	throw tw::FatalError("Pauli module is not supported in this version of TW.");
+	if (sim->units->native!=tw::units::plasma)
+		throw tw::FatalError("Pauli module requires <native units = atomic>");
 	H.form = qo::pauli;
 	#ifndef USE_OPENCL
 	propagator = NULL;
@@ -828,51 +839,21 @@ void Pauli::Report(Diagnostic& diagnostic)
 {
 	AtomicPhysics::Report(diagnostic);
 
-	tw::vec3 r0,ENow,ANow;
+	const tw::vec3 r0 = 0.0;
 	ScalarField temp;
 	temp.Initialize(*this,owner);
-
-	r0 = 0.0;
-	for (auto w : wave)
-	{
-		ANow += w->VectorPotential(owner->elapsedTime,tw::vec3(0,0,0));
-		ENow -= dti*w->VectorPotential(owner->elapsedTime+0.5*dt,tw::vec3(0,0,0));
-		ENow += dti*w->VectorPotential(owner->elapsedTime-0.5*dt,tw::vec3(0,0,0));
-	}
 
 	for (auto cell : InteriorCellRange(*this))
 		temp(cell) = norm(psi1(cell)) + norm(chi1(cell));
 	diagnostic.VolumeIntegral("TotalProb",temp,0);
-	diagnostic.Float("Ex",ENow.x,true);
-	diagnostic.Float("Ey",ENow.y,true);
-	diagnostic.Float("Ez",ENow.z,true);
-	diagnostic.Float("Ax",ANow.x,true);
-	diagnostic.Float("Ay",ANow.y,true);
-	diagnostic.Float("Az",ANow.z,true);
 	diagnostic.FirstMoment("Dx",temp,0,r0,tw::grid::x);
 	diagnostic.FirstMoment("Dy",temp,0,r0,tw::grid::y);
 	diagnostic.FirstMoment("Dz",temp,0,r0,tw::grid::z);
 
-	diagnostic.Field("psi_r",psi1,0);
-	diagnostic.Field("psi_i",psi1,1);
-	diagnostic.Field("chi_r",chi1,0);
-	diagnostic.Field("chi_i",chi1,1);
-
-	diagnostic.Field("rho",J4,0);
-	diagnostic.Field("Jx",J4,1);
-	diagnostic.Field("Jy",J4,2);
-	diagnostic.Field("Jz",J4,3);
-
-	diagnostic.Field("phi",A4,0);
-	diagnostic.Field("Ax",A4,1);
-	diagnostic.Field("Ay",A4,2);
-	diagnostic.Field("Az",A4,3);
-
-	for (tw::Int k=1;k<=dim[3];k++)
-		for (tw::Int j=1;j<=dim[2];j++)
-			for (tw::Int i=1;i<=dim[1];i++)
-				temp(i,j,k) = div<1,2,3>(J4,i,j,k,*owner);
-	diagnostic.Field("divJ",temp,0);
+	diagnostic.Field("psi_r",psi1,0,tw::dimensions::none,"$\\Re\\psi$");
+	diagnostic.Field("psi_i",psi1,1,tw::dimensions::none,"$\\Im\\psi$");
+	diagnostic.Field("chi_r",chi1,0,tw::dimensions::none,"$\\Re\\chi$");
+	diagnostic.Field("chi_i",chi1,1,tw::dimensions::none,"$\\Im\\chi$");
 
 	for (auto cell : InteriorCellRange(*this))
 		temp(cell) = norm(psi1(cell)) - norm(chi1(cell));
@@ -908,6 +889,10 @@ KleinGordon::KleinGordon(const std::string& name,Simulation* sim) : AtomicPhysic
 	// In this representation, component 0 is the usual scalar wavefunction.
 	// Component 1 is psi1 = (id/dt - q*phi)*psi0/m
 	// The symmetric form is obtained from (psi0+psi1)/sqrt(2) , (psi0-psi1)/sqrt(2)
+
+	if (sim->units->native!=tw::units::natural)
+		throw tw::FatalError("KleinGordon module requires <native units = natural>");
+
 	H.form = qo::klein_gordon;
 	H.morb = 1.0;
 	H.qorb = -sqrt(alpha);
@@ -1156,41 +1141,14 @@ void KleinGordon::Report(Diagnostic& diagnostic)
 {
 	AtomicPhysics::Report(diagnostic);
 
-	tw::vec3 r0,ENow,ANow;
-	ScalarField temp;
-	temp.Initialize(*this,owner);
-
-	r0 = 0.0;
-	for (auto w : wave)
-	{
-		ANow += w->VectorPotential(owner->elapsedTime,tw::vec3(0,0,0));
-		ENow -= dti*w->VectorPotential(owner->elapsedTime+0.5*dt,tw::vec3(0,0,0));
-		ENow += dti*w->VectorPotential(owner->elapsedTime-0.5*dt,tw::vec3(0,0,0));
-	}
-
+	const tw::vec3 r0 = 0.0;
 	diagnostic.VolumeIntegral("TotalCharge",J4,0);
-	diagnostic.Float("Ex",ENow.x,true);
-	diagnostic.Float("Ey",ENow.y,true);
-	diagnostic.Float("Ez",ENow.z,true);
-	diagnostic.Float("Ax",ANow.x,true);
-	diagnostic.Float("Ay",ANow.y,true);
-	diagnostic.Float("Az",ANow.z,true);
 	diagnostic.FirstMoment("Dx",J4,0,r0,tw::grid::x);
 	diagnostic.FirstMoment("Dy",J4,0,r0,tw::grid::y);
 	diagnostic.FirstMoment("Dz",J4,0,r0,tw::grid::z);
 
-	diagnostic.Field("psi0_r",psi_r,0);
-	diagnostic.Field("psi1_r",psi_r,1);
-
-	diagnostic.Field("rho",J4,0);
-	diagnostic.Field("Jx",J4,1);
-	diagnostic.Field("Jy",J4,2);
-	diagnostic.Field("Jz",J4,3);
-
-	diagnostic.Field("phi",A4,0);
-	diagnostic.Field("Ax",A4,1);
-	diagnostic.Field("Ay",A4,2);
-	diagnostic.Field("Az",A4,3);
+	diagnostic.Field("psi0_r",psi_r,0,tw::dimensions::none,"$\\Re\\psi_0$");
+	diagnostic.Field("psi1_r",psi_r,1,tw::dimensions::none,"$\\Re\\psi_1$");
 }
 
 void KleinGordon::StartDiagnostics()
@@ -1215,6 +1173,10 @@ Dirac::Dirac(const std::string& name,Simulation* sim) : AtomicPhysics(name,sim)
 {
 	// Wavefunction is in standard representation
 	// i.e., gamma^0 = diag(1,1,-1,-1)
+
+	if (sim->units->native!=tw::units::natural)
+		throw tw::FatalError("Dirac module requires <native units = natural>");
+
 	H.form = qo::dirac;
 	H.morb = 1.0;
 	H.qorb = -sqrt(alpha);
@@ -1412,43 +1374,16 @@ void Dirac::Report(Diagnostic& diagnostic)
 {
 	AtomicPhysics::Report(diagnostic);
 
-	tw::vec3 r0,ENow,ANow;
-	ScalarField temp;
-	temp.Initialize(*this,owner);
-
-	r0 = 0.0;
-	for (auto w : wave)
-	{
-		ANow += w->VectorPotential(owner->elapsedTime,tw::vec3(0,0,0));
-		ENow -= dti*w->VectorPotential(owner->elapsedTime+0.5*dt,tw::vec3(0,0,0));
-		ENow += dti*w->VectorPotential(owner->elapsedTime-0.5*dt,tw::vec3(0,0,0));
-	}
-
+	const tw::vec3 r0 = 0.0;
 	diagnostic.VolumeIntegral("TotalCharge",J4,0);
-	diagnostic.Float("Ex",ENow.x,true);
-	diagnostic.Float("Ey",ENow.y,true);
-	diagnostic.Float("Ez",ENow.z,true);
-	diagnostic.Float("Ax",ANow.x,true);
-	diagnostic.Float("Ay",ANow.y,true);
-	diagnostic.Float("Az",ANow.z,true);
 	diagnostic.FirstMoment("Dx",J4,0,r0,tw::grid::x);
 	diagnostic.FirstMoment("Dy",J4,0,r0,tw::grid::y);
 	diagnostic.FirstMoment("Dz",J4,0,r0,tw::grid::z);
 
-	diagnostic.Field("psi0_r",psi_r,0);
-	diagnostic.Field("psi1_r",psi_r,1);
-	diagnostic.Field("psi2_r",psi_r,2);
-	diagnostic.Field("psi3_r",psi_r,3);
-
-	diagnostic.Field("rho",J4,0);
-	diagnostic.Field("Jx",J4,1);
-	diagnostic.Field("Jy",J4,2);
-	diagnostic.Field("Jz",J4,3);
-
-	diagnostic.Field("phi",A4,0);
-	diagnostic.Field("Ax",A4,1);
-	diagnostic.Field("Ay",A4,2);
-	diagnostic.Field("Az",A4,3);
+	diagnostic.Field("psi0_r",psi_r,0,tw::dimensions::none,"$\\Re\\psi_0$");
+	diagnostic.Field("psi1_r",psi_r,1,tw::dimensions::none,"$\\Re\\psi_1$");
+	diagnostic.Field("psi2_r",psi_r,2,tw::dimensions::none,"$\\Re\\psi_2$");
+	diagnostic.Field("psi3_r",psi_r,3,tw::dimensions::none,"$\\Re\\psi_3$");
 }
 
 void Dirac::StartDiagnostics()

@@ -11,6 +11,9 @@ using namespace tw::bc;
 
 FieldSolver::FieldSolver(const std::string& name,Simulation* sim):Module(name,sim)
 {
+	if (sim->units->native!=tw::units::plasma)
+		throw tw::FatalError("FieldSolver module requires <native units = plasma>");
+
 	updateSequencePriority = tw::priority::field;
 	ellipticSolver = NULL;
 }
@@ -273,16 +276,16 @@ void Electromagnetic::Report(Diagnostic& diagnostic)
 	diagnostic.FirstMoment("Dx",sources,0,dipoleCenter,tw::grid::x);
 	diagnostic.FirstMoment("Dy",sources,0,dipoleCenter,tw::grid::y);
 	diagnostic.FirstMoment("Dz",sources,0,dipoleCenter,tw::grid::z);
-	diagnostic.Field("Ex",F,0);
-	diagnostic.Field("Ey",F,1);
-	diagnostic.Field("Ez",F,2);
-	diagnostic.Field("Bx",F,3);
-	diagnostic.Field("By",F,4);
-	diagnostic.Field("Bz",F,5);
-	diagnostic.Field("rho",sources,0);
-	diagnostic.Field("Jx",sources,1);
-	diagnostic.Field("Jy",sources,2);
-	diagnostic.Field("Jz",sources,3);
+	diagnostic.Field("Ex",F,0,tw::dimensions::electric_field,"$E_x$");
+	diagnostic.Field("Ey",F,1,tw::dimensions::electric_field,"$E_y$");
+	diagnostic.Field("Ez",F,2,tw::dimensions::electric_field,"$E_z$");
+	diagnostic.Field("Bx",F,3,tw::dimensions::magnetic_field,"$B_x$");
+	diagnostic.Field("By",F,4,tw::dimensions::magnetic_field,"$B_y$");
+	diagnostic.Field("Bz",F,5,tw::dimensions::magnetic_field,"$B_z$");
+	diagnostic.Field("rho",sources,0,tw::dimensions::charge_density,"$\\rho$");
+	diagnostic.Field("Jx",sources,1,tw::dimensions::current_density,"$j_x$");
+	diagnostic.Field("Jy",sources,2,tw::dimensions::current_density,"$j_y$");
+	diagnostic.Field("Jz",sources,3,tw::dimensions::current_density,"$j_z$");
 }
 
 
@@ -476,7 +479,7 @@ void CoulombSolver::Report(Diagnostic& diagnostic)
 	// Upon entry : A0(-1/2) , A1(1/2) , phi0(-1) , phi1(0)
 	Electromagnetic::Report(diagnostic);
 
-	diagnostic.Field("phi",A4,4);
+	diagnostic.Field("phi",A4,4,tw::dimensions::scalar_potential,"$\\phi$");
 
 	std::map<tw::Int,std::string> xyz = {{1,"x"},{2,"y"},{3,"z"}};
 
@@ -485,12 +488,12 @@ void CoulombSolver::Report(Diagnostic& diagnostic)
 		scratch1 = 0.0;
 		AddMulFieldData(scratch1,Element(0),A4,Element(ax),0.5);
 		AddMulFieldData(scratch1,Element(0),A4,Element(ax+4),0.5);
-		diagnostic.Field("A"+xyz[ax],scratch1,0);
+		diagnostic.Field("A"+xyz[ax],scratch1,0,tw::dimensions::vector_potential,"$A_"+xyz[ax]+"$");
 
 		scratch1 = 0.0;
 		AddMulFieldData(scratch1,Element(0),A4,Element(ax),-1.0/dt);
 		AddMulFieldData(scratch1,Element(0),A4,Element(ax+4),1.0/dt);
-		diagnostic.Field("A"+xyz[ax]+"Dot",scratch1,0);
+		diagnostic.Field("A"+xyz[ax]+"Dot",scratch1,0,tw::dimensions::electric_field,"$\\dot{A}_"+xyz[ax]+"$");
 	}
 }
 
@@ -1108,7 +1111,6 @@ void FarFieldDiagnostic::Update()
 void FarFieldDiagnostic::SpecialReport()
 {
 	std::string fileName;
-	std::ofstream AthetaFile,AphiFile;
 	tw::Int master = 0;
 	tw::Int curr = owner->strip[0].Get_rank();
 
@@ -1132,28 +1134,24 @@ void FarFieldDiagnostic::SpecialReport()
 			accum(farCell) = tw::vec3( ACG^nr , ACG^nq , ACG^nf ); // put in spherical coordinates
 		}
 
-		fileName = name + "-Atheta.dvdat";
-		AthetaFile.open(fileName.c_str(),std::ios::binary);
-		WriteDVHeader(AthetaFile,2,dims[0],dims[1],dims[2],bounds[0],bounds[1],bounds[2],bounds[3],bounds[4],bounds[5]);
-		for (tw::Int k=1;k<=dims[2];k++)
-			for (tw::Int j=1;j<=dims[1];j++)
-				for (tw::Int i=1;i<=dims[0];i++)
-				{
-					const float data = accum(i,j,k).y;
-					WriteBigEndian((char *)&data,sizeof(float),0,AthetaFile);
-				}
-		AthetaFile.close();
+		npy_writer writer;
+		tw::Int shape[4] = { 1 , dims[0] , dims[1] , dims[2] };
+		std::valarray<float> gData(shape[1]*shape[2]*shape[3]);
 
-		fileName = name + "-Aphi.dvdat";
-		AphiFile.open(fileName.c_str(),std::ios::binary);
-		WriteDVHeader(AphiFile,2,dims[0],dims[1],dims[2],bounds[0],bounds[1],bounds[2],bounds[3],bounds[4],bounds[5]);
-		for (tw::Int k=1;k<=dims[2];k++)
-			for (tw::Int j=1;j<=dims[1];j++)
-				for (tw::Int i=1;i<=dims[0];i++)
-				{
-					const float data = accum(i,j,k).z;
-					WriteBigEndian((char *)&data,sizeof(float),0,AphiFile);
-				}
-		AphiFile.close();
+		fileName = name + "-Atheta.npy";
+		writer.write_header(fileName,shape);
+		for (tw::Int i=1;i<=shape[1];i++)
+			for (tw::Int j=1;j<=shape[2];j++)
+				for (tw::Int k=1;k<=shape[3];k++)
+					gData[(i-1)*shape[2]*shape[3] + (j-1)*shape[3] + (k-1)] = accum(i,j,k).y;
+		writer.add_frame(fileName,(char*)&gData[0],shape);
+
+		fileName = name + "-Aphi.npy";
+		writer.write_header(fileName,shape);
+		for (tw::Int i=1;i<=shape[1];i++)
+			for (tw::Int j=1;j<=shape[2];j++)
+				for (tw::Int k=1;k<=shape[3];k++)
+					gData[(i-1)*shape[2]*shape[3] + (j-1)*shape[3] + (k-1)] = accum(i,j,k).z;
+		writer.add_frame(fileName,(char*)&gData[0],shape);
 	}
 }

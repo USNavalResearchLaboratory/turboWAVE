@@ -23,6 +23,7 @@ Simulation::Simulation(const std::string& file_name,const std::string& restart_n
 
 	gridGeometry = tw::grid::cartesian;
 
+	nativeUnits = tw::units::plasma;
 	dt0 = 0.1;
 	SetupTimeInfo(dt0);
 	dtCritical = tw::small_pos;
@@ -56,11 +57,12 @@ Simulation::Simulation(const std::string& file_name,const std::string& restart_n
 	bc0[3] = tw::bc::par::absorbing;
 	bc1[3] = tw::bc::par::absorbing;
 
+	outerDirectives.Add("native units",new tw::input::Enums<tw::units>(tw::get_unit_map(),&nativeUnits),false);
+	outerDirectives.Add("unit density",new tw::input::Float(&unitDensityCGS));
 	outerDirectives.Add("timestep",new tw::input::Float(&dt0));
 	outerDirectives.Add("xboundary",new tw::input::Enums<tw::bc::par>(tw::bc::par_map(),&bc0[1],&bc1[1]));
 	outerDirectives.Add("yboundary",new tw::input::Enums<tw::bc::par>(tw::bc::par_map(),&bc0[2],&bc1[2]));
 	outerDirectives.Add("zboundary",new tw::input::Enums<tw::bc::par>(tw::bc::par_map(),&bc0[3],&bc1[3]));
-	outerDirectives.Add("unit density",new tw::input::Float(&unitDensityCGS),false);
 	outerDirectives.Add("dtmin",new tw::input::Float(&dtMin),false);
 	outerDirectives.Add("dtmax",new tw::input::Float(&dtMax),false);
 	outerDirectives.Add("dtcrit",new tw::input::Float(&dtCritical),false);
@@ -312,6 +314,14 @@ void Simulation::PrepareSimulation()
 			tool->theRgn = clippingRegion[0];
 		else
 			tool->theRgn = Region::FindRegion(clippingRegion,tool->region_name);
+	}
+
+	// Start the metadata Python dictionary
+	if (strip[0].Get_rank()==0)
+	{
+		std::ofstream metadata_file("tw_metadata.py");
+		metadata_file << "files = {}" << std::endl;
+		metadata_file.close();
 	}
 
 	// If a diagnostic tool is not attached to any module attach it to all modules
@@ -852,20 +862,15 @@ std::string Simulation::InputFileFirstPass()
 				tw::input::ExitInputFileBlock(inputString,false);
 
 		} while (!inputString.eof());
-
-		if (outerDirectives.TestKey("timestep"))
-			UpdateTimestep(dt0);
-		else
-			throw tw::FatalError("Could not find timestep directive.");
-		periodic[1] = bc0[1]==tw::bc::par::periodic ? 1 : 0;
-		periodic[2] = bc0[2]==tw::bc::par::periodic ? 1 : 0;
-		periodic[3] = bc0[3]==tw::bc::par::periodic ? 1 : 0;
-
+		outerDirectives.ThrowErrorIfMissingKeys("Simulation");
 		if (!foundGrid)
 			throw tw::FatalError("Grid directive was not found.");
 
-		if (outerDirectives.TestKey("unit density"))
-			AttachUnits(unitDensityCGS);
+		UpdateTimestep(dt0);
+		periodic[1] = bc0[1]==tw::bc::par::periodic ? 1 : 0;
+		periodic[2] = bc0[2]==tw::bc::par::periodic ? 1 : 0;
+		periodic[3] = bc0[3]==tw::bc::par::periodic ? 1 : 0;
+		AttachUnits(nativeUnits,unitDensityCGS);
 
 		// Check integer viability
 		int64_t totalCellsPerRank = int64_t(globalCells[1])*int64_t(globalCells[2])*int64_t(globalCells[3])/int64_t(numRanksProvided);

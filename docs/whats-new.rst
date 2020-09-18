@@ -1,5 +1,36 @@
-What's New
-============
+What's New in 4.1
+=================
+
+Python Friendly Outputs
+-----------------------
+
+Binaries are now written as ``numpy`` arrays using the standard ``.npy`` format. These can be read into your Python scripts directly, using ``numpy.load``.  The old turboWAVE specific ``.dvdat`` format is retired.
+
+Metadata (units, axis information, labels, etc.) associated with each binary file is kept in a single Python file, ``tw_metadata.py``, which contains a single Python dictionary.  This file can be directly imported into your Python scripts.
+
+Further Improvements in Units
+-----------------------------
+
+TurboWAVE's internal comprehension of several systems of units is more fully integrated.  Input files can now specify a native system of units, subject to possible veto by individual modules.  This improvement allows information on the units to be reliably incorporated into the metadata, and allows visualization tools to perform unit translations very easily.
+
+Better Jupyter DataViewer
+-------------------------
+
+The Jupyter DataViewer is greatly improved.  Axes are labeled clearly and units can be selected on the fly.  Animation is smoother, and interactions through ``ipympl`` are supported.  The native MacOS and Windows DataViewers are retired.
+
+Gotchas
+-------
+
+#. Since the ``.dvdat`` format is retired, the CLI plotter ``plot-dvdat.py`` is renamed ``twplot.py``.  Similarly ``maya-dvdat.py`` is renamed ``twmaya.py``.
+
+#. The metadata file ``tw_metadata.py`` must be kept with the simulation outputs in order for post-processing tools to perform optimally.
+
+#. Your Python environment needs to add the ``ipympl`` package for the Jupyter DataViewer.  Also don't forget to install the new ``twutils`` package.
+
+#. Using explicitly dimensional numbers (unit macros) in SPARC reactions/collisions is still forbidden, although the latest improvements open a path to removing this exception.
+
+What's new in 4.0
+=================
 
 TurboWAVE 4.0 is a major upgrade with many internal improvements and modernizations.  Internally it is streamlined, using 10% fewer lines of code while providing enhanced functionality.
 

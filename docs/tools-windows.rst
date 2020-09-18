@@ -44,17 +44,10 @@ TurboWAVE Python Packages
 #. :samp:`pip install .`
 #. Your python programs should now have access to twutils and sub-packages.
 
-Native DataViewer
------------------
-
-#. For Windows there is a native DataViewer application
-#. You should be able to immediately run the :samp:`DataViewer.exe` application in :samp:`{twroot}/tools`.
-#. This was written for Windows XP and we have lost the source, but it mostly still works.
-
 Python DataViewer
 -----------------
 
-#. The Python DataViewer may also be useful since you can modify the source
+#. The Python DataViewer has to be run in a Jupyter notebook.
 #. Copy :samp:`{twroot}/tools/DataViewer.ipynb` to :samp:`~/bin`.
 #. Create a directory :samp:`~/.jupyter/custom/` and copy :samp:`{twroot}/tools/config-files/custom.css` to the new directory.
 

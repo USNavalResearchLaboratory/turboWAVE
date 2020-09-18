@@ -1,5 +1,5 @@
 // Keep the following line for generating twtest reports
-// TWTEST matplotlib xyzt=0,: rho.dvdat dr=5.0
+// TWTEST matplotlib xyzt=0,: rho.npy dr=5.0 units=natural
 
 ////////////////////////////////
 // BEGIN INPUT FILE FOR Z = 92.0
@@ -14,6 +14,9 @@
 // Keldysh param = 0.281489036024
 // Barrier width = 7.20645734836
 ///////////////////////////////
+
+unit density = 2.8e19 // only used if post-processing wants to display plasma units
+native units = natural
 
 steps = 8000
 timestep = 0.02655350991

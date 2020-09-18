@@ -190,6 +190,7 @@ namespace tw
 		};
 
 		tw::Float GetUnitDensityCGS(std::stringstream& in);
+		tw::units GetNativeUnits(std::stringstream& in);
 		tw::Int IncludeFiles(const FileEnv& file_env,std::stringstream& in,std::stringstream& out);
 		void StripComments(std::ifstream& inputFile,std::stringstream& out);
 		void StripDecorations(std::stringstream& in,std::stringstream& out);

@@ -3,6 +3,7 @@
 *.obj
 *.pyc
 *.dvdat
+*.npy
 *.egg-info
 tw3d
 tw3d.exe

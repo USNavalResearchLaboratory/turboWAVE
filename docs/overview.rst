@@ -16,7 +16,7 @@ TurboWAVE consists of the following software components:
 
 	#.	:samp:`twutils`---Distribution of python modules useful for pre and post processing
 	#.	:samp:`twcad`---CAD rendering program to visualize turboWAVE geometries
-	#.	:samp:`DataViewer`---A graphical application for viewing data
+	#.	:samp:`DataViewer`---A Jupyter notebook for viewing and animating the data
 	#.	:samp:`SPARC database`---chemical reactions for use in SPARC
 	#.	:samp:`tw3d`---The executable file
 

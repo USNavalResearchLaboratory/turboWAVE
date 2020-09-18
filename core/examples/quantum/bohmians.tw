@@ -1,5 +1,5 @@
 // Keep the following line for generating twtest reports
-// TWTEST matplotlib zxyt=0,: test.dvdat dr=2.0
+// TWTEST matplotlib zxyt=0,: test.npy dr=2.0 units=atomic
 
 // Bohmian particles in a Rabi oscillation
 // The Rabi frequency is 0.0137 a.u.
@@ -8,6 +8,9 @@
 // This also illustrates the population diagnostic which computes the occupation
 // probability of a given reference state.
 
+unit density = 2.8e19 // only used if post-processing wants to display plasma units
+native units = atomic
+
 steps = 24000
 timestep = 0.01
 dump period = 0
@@ -15,8 +18,6 @@ dump period = 0
 xboundary = ( axisymmetric , absorbing )
 yboundary = ( periodic , periodic )
 zboundary = ( absorbing , absorbing )
-
-// Atomic Units
 
 new grid
 {

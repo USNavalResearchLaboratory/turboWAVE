@@ -635,31 +635,15 @@ Diagnostics
 Diagnostic Formats
 ,,,,,,,,,,,,,,,,,,
 
-TurboWAVE uses simple text and binary formats.  Text files are generally tab delimited tables of ASCII data, with a one-line header containing column labels.  There are two binary formats.
+TurboWAVE binaries are in numerical Python (numpy) format (extension ``.npy``).  They can be easily read into a Python program using ``numpy.load``.
 
-.. note::
+All metadata is in the file ``tw_metadata.py``, which can be imported directly into any Python code to expose the ``files`` dictionary.  One then looks up the file of interest (e.g. ``tw_metadata.files['Ex.npy']``) to expose further dictionaries pertaining to the file.
 
-	A correctly compiled TurboWAVE executable always writes binary data in big-endian format.  All data readers should assume every turboWAVE binary is big-endian.
+Text files are generally tab delimited tables of ASCII data, with a one-line header containing column labels.
 
 .. highlight:: none
 
-The DataViewer Box Diagnostic Format (extension ``.dvdat``) is the workhorse::
-
-	The string "DataViewer 2.0.0"
-	32 bit integer : x dimension
-	32 bit integer : y dimension
-	32 bit integer : z dimension
-	32 bit float : coordinate of lower bound in x
-	32 bit float : coordinate of upper bound in x
-	32 bit float : coordinate of lower bound in y
-	32 bit float : coordinate of upper bound in y
-	32 bit float : coordinate of lower bound in z
-	32 bit float : coordinate of upper bound in z
-	3D array of 32 bit floats: frame 1, written in FORTRAN order
-	3D array of 32 bit floats: frame 2, written in FORTRAN order
-	...more frames (size of files allows reader to determine frames)
-
-As of version 4.0 each set of compatible ``.dvdat`` files is paired with a text file (``*_grid_warp.txt``) containing the mesh point and time level information::
+Box diagnostics produce a ``.npy`` file containing a four-dimensional array with axes (t,x,y,z).  Phase space diagnostics write a similar array, but the axes can have different meanings.  The grid data is found by looking up the ``'grid'`` key.  This returns a string with the name of the grid file containing the mesh point and time level information::
 
 	t = <t0>
 	axis1 = <x1> <x2> ... <xN>
@@ -669,7 +653,7 @@ As of version 4.0 each set of compatible ``.dvdat`` files is paired with a text 
 
 For static grids, the additional frames only have the line giving the elapsed time.
 
-The DataViewer Orbit Diagnostic (extension ``.dvpar``) contains the detailed particle information::
+The orbit diagnostic produces a ``.npy`` file containing the detailed particle information::
 
 	Particle record 1 at time level 1
 	Particle record 2 at time level 1
@@ -697,7 +681,7 @@ The following directives may be used with any diagnostic
 
 .. py:function:: filename = f
 
-	:param str f: name of the file to write. Actual file names may be prepended with the name of some subset of the overall data associated with the diagnostic (some diagnostics write multiple files).  This may be postpended with a filename extension such as ``.txt``, ``.dvdat`` or ``.dvpar``.  The special name ``full`` causes the files to have only the prepended string and the extension in their names.  This is the default.
+	:param str f: name of the file to write. Actual file names may be prepended with the name of some subset of the overall data associated with the diagnostic (some diagnostics write multiple files).  This may be postpended with a filename extension such as ``.txt`` or ``.npy``.  The special name ``full`` causes the files to have only the prepended string and the extension in their names.  This is the default.
 
 .. py:function:: clipping region = name
 

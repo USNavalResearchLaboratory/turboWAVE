@@ -142,10 +142,34 @@ tw::Float tw::input::GetUnitDensityCGS(std::stringstream& in)
 		{
 			in >> word;
 			if (word=="density")
+			{
 				in >> word >> ans;
+				return ans;
+			}
 		}
 	}
+	throw tw::FatalError("The <unit density> parameter is missing.");
 	return ans;
+}
+
+tw::units tw::input::GetNativeUnits(std::stringstream& in)
+{
+	std::string word;
+	while (!in.eof())
+	{
+		in >> word;
+		if (word=="native")
+		{
+			in >> word;
+			if (word=="units")
+			{
+				in >> word >> word;
+				return tw::get_unit_map()[word];
+			}
+		}
+	}
+	// throw tw::FatalError("The <native units> parameter is missing.");
+	return tw::units::plasma;
 }
 
 void tw::input::StripComments(std::ifstream& inFile,std::stringstream& out)
@@ -275,7 +299,6 @@ void tw::input::UserMacros(std::stringstream& in,std::stringstream& out)
 
 void tw::input::UnitMacros(std::stringstream& in,std::stringstream& out)
 {
-	bool unitMacrosPresent = false;
 	std::string word;
 
 	auto IsUnitMacro = [&] (const std::string& s)
@@ -286,20 +309,13 @@ void tw::input::UnitMacros(std::stringstream& in,std::stringstream& out)
 		return false;
 	};
 
-	while (!in.eof())
-	{
-		in >> word;
-		if (!in.eof())
-			if (IsUnitMacro(word))
-				unitMacrosPresent = true;
-	}
-
 	in.clear();
 	in.seekg(0,in.beg);
 	tw::Float unitDensityCGS = tw::input::GetUnitDensityCGS(in);
-	if (unitDensityCGS==0.0 && unitMacrosPresent)
-		throw tw::FatalError("Dimensional numbers found, but unit density parameter is missing.");
-	UnitConverter uc(unitDensityCGS);
+	in.clear();
+	in.seekg(0,in.beg);
+	tw::units nativeUnits = tw::input::GetNativeUnits(in);
+	UnitConverter uc(nativeUnits,unitDensityCGS);
 
 	in.clear();
 	in.seekg(0,in.beg);
@@ -470,65 +486,65 @@ void tw::input::NormalizeInput(const UnitConverter& uc,std::string& in_out)
 
 	// Length Conversions
 	if (units=="um")
-		nqty = uc.MKSToSim(length_dim,1e-6*qty);
+		nqty = uc.MKSToSim(tw::dimensions::length,1e-6*qty);
 	if (units=="mm")
-		nqty = uc.MKSToSim(length_dim,1e-3*qty);
+		nqty = uc.MKSToSim(tw::dimensions::length,1e-3*qty);
 	if (units=="cm")
-		nqty = uc.MKSToSim(length_dim,1e-2*qty);
+		nqty = uc.MKSToSim(tw::dimensions::length,1e-2*qty);
 	if (units=="m")
-		nqty = uc.MKSToSim(length_dim,qty);
+		nqty = uc.MKSToSim(tw::dimensions::length,qty);
 
 	// Time Conversions
 	if (units=="fs")
-		nqty = uc.MKSToSim(time_dim,1e-15*qty);
+		nqty = uc.MKSToSim(tw::dimensions::time,1e-15*qty);
 	if (units=="ps")
-		nqty = uc.MKSToSim(time_dim,1e-12*qty);
+		nqty = uc.MKSToSim(tw::dimensions::time,1e-12*qty);
 	if (units=="ns")
-		nqty = uc.MKSToSim(time_dim,1e-9*qty);
+		nqty = uc.MKSToSim(tw::dimensions::time,1e-9*qty);
 	if (units=="us")
-		nqty = uc.MKSToSim(time_dim,1e-6*qty);
+		nqty = uc.MKSToSim(tw::dimensions::time,1e-6*qty);
 	if (units=="s")
-		nqty = uc.MKSToSim(time_dim,qty);
+		nqty = uc.MKSToSim(tw::dimensions::time,qty);
 
 	// Number Density Conversions
 	if (units=="m-3")
-		nqty = uc.MKSToSim(density_dim,qty);
+		nqty = uc.MKSToSim(tw::dimensions::density,qty);
 	if (units=="cm-3")
-		nqty = uc.CGSToSim(density_dim,qty);
+		nqty = uc.CGSToSim(tw::dimensions::density,qty);
 
 	// Energy Density Conversions
 	if (units=="Jm3")
-		nqty = uc.MKSToSim(energy_density_dim,qty);
+		nqty = uc.MKSToSim(tw::dimensions::energy_density,qty);
 	if (units=="Jcm3")
-		nqty = uc.MKSToSim(energy_density_dim,1e6*qty);
+		nqty = uc.MKSToSim(tw::dimensions::energy_density,1e6*qty);
 
 	// Temperature Conversions
 	if (units=="eV")
 		nqty = uc.eV_to_sim(qty);
 	if (units=="K")
-		nqty = uc.MKSToSim(temperature_dim,qty);
+		nqty = uc.MKSToSim(tw::dimensions::temperature,qty);
 
 	// Cross Section Conversions
 	if (units=="cm2")
-		nqty = uc.CGSToSim(cross_section_dim,qty);
+		nqty = uc.CGSToSim(tw::dimensions::cross_section,qty);
 	if (units=="m2")
-		nqty = uc.MKSToSim(cross_section_dim,qty);
+		nqty = uc.MKSToSim(tw::dimensions::cross_section,qty);
 
 	// Diffusivity Conversions
 	if (units=="cm2s")
-		nqty = uc.CGSToSim(diffusivity_dim,qty);
+		nqty = uc.CGSToSim(tw::dimensions::diffusivity,qty);
 	if (units=="m2s")
-		nqty = uc.MKSToSim(diffusivity_dim,qty);
+		nqty = uc.MKSToSim(tw::dimensions::diffusivity,qty);
 
 	// EM Conversions
 	if (units=="V")
-		nqty = uc.MKSToSim(scalar_potential_dim,qty);
+		nqty = uc.MKSToSim(tw::dimensions::scalar_potential,qty);
 	if (units=="Vm")
-		nqty = uc.MKSToSim(electric_field_dim,qty);
+		nqty = uc.MKSToSim(tw::dimensions::electric_field,qty);
 	if (units=="Vcm")
-		nqty = uc.MKSToSim(electric_field_dim,100*qty);
+		nqty = uc.MKSToSim(tw::dimensions::electric_field,100*qty);
 	if (units=="T")
-		nqty = uc.MKSToSim(magnetic_field_dim,qty);
+		nqty = uc.MKSToSim(tw::dimensions::magnetic_field,qty);
 
 	if (nqty==tw::small_pos)
 		throw tw::FatalError("Unrecognized Units " + in_out);

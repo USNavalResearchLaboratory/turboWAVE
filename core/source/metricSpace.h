@@ -29,7 +29,7 @@ struct MetricSpace:DiscreteSpace
 
 	MetricSpace();
 	~MetricSpace();
-	void AttachUnits(tw::Float unitDensityCGS);
+	void AttachUnits(tw::units sys,tw::Float unitDensityCGS);
 
 	void Resize(tw::Int x,tw::Int y,tw::Int z,const tw::vec3& corner,const tw::vec3& size,tw::Int ghostCellLayers);
 	void Resize(tw::Int x,tw::Int y,tw::Int z,const tw::vec3& corner,const tw::vec3& size);
