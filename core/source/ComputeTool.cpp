@@ -118,6 +118,7 @@ std::map<std::string,tw::tool_type> ComputeTool::Map()
 		{"eos ideal gas mix",tw::tool_type::eosIdealGasMix},
 		{"eos simple mie gruneisen",tw::tool_type::eosSimpleMieGruneisen},
 		{"eos linear mie gruneisen",tw::tool_type::eosLinearMieGruneisen},
+		{"eos tillotson",tw::tool_type::eosTillotson},
 		{"mpi ionization",tw::tool_type::mpi},
 		{"adk ionization",tw::tool_type::adk},
 		{"ppt ionization",tw::tool_type::ppt},
@@ -250,6 +251,9 @@ ComputeTool* ComputeTool::CreateObjectFromType(const std::string& name,tw::tool_
 			break;
 		case tw::tool_type::eosLinearMieGruneisen:
 			ans = new EOSLinearMieGruneisen(name,ms,tsk);
+			break;
+		case tw::tool_type::eosTillotson:
+			ans = new EOSTillotson(name,ms,tsk);
 			break;
 		case tw::tool_type::mpi:
 			ans = new Multiphoton(name,ms,tsk);
