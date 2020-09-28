@@ -23,9 +23,9 @@ profile: tw3d_profile install
 
 # Uncomment exactly one platform
 
-PLATFORM = OSX
+#PLATFORM = OSX
 #PLATFORM = WIN
-#PLATFORM = LINUX
+PLATFORM = LINUX
 #PLATFORM = OPENMPI
 #PLATFORM = INTELMPI
 #PLATFORM = CRAY

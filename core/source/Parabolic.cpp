@@ -126,7 +126,17 @@ void EigenmodePropagator::Advance(ComplexField& a0,ComplexField& a1,ComplexField
 	// Setup reference chi and explicit current
 	// Current goes into chi, destroying chi
 	if (space->car==1.0)
-		chi_ref = 0.0;
+	{
+		tw::Int i = task->LocalCellIndex(task->globalCells[1]/2,1) + 1;
+		tw::Int j = task->LocalCellIndex(task->globalCells[2]/2,2) + 1;
+		if (i>=1 && i<=xDim && j>=1 && j<=yDim)
+			for (tw::Int k=0;k<=zDim+1;k++)
+				chi_ref[k] = std::real(chi(i,j,k));
+		else
+			chi_ref = 0.0;
+		task->strip[1].AllSum(&chi_ref[0],&chi_ref[0],sizeof(tw::Float)*chi_ref.size(),0);
+		task->strip[2].AllSum(&chi_ref[0],&chi_ref[0],sizeof(tw::Float)*chi_ref.size(),0);
+	}
 	else
 	{
 		for (tw::Int k=0;k<=zDim+1;k++)

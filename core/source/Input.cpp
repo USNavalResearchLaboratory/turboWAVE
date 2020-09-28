@@ -453,9 +453,8 @@ void tw::input::PythonRange(std::string& source,tw::Float *v0,tw::Float *v1)
 
 void tw::input::NormalizeInput(const UnitConverter& uc,std::string& in_out)
 {
-	// To be used in preprocessing input file
-	// un-normalized quantities are signaled with percent,e.g. %1.0m
-	// signals to replace the string with normalized length corresponding to 1 meter
+	// Attempt to convert a word from a dimensional number into native units.
+	// Assumes the caller already found a dimensional number prefix (as of this writing, % or -%).
 	std::size_t endpos;
 	std::string dimensionalNumber,units;
 	std::stringstream temp;
@@ -471,80 +470,90 @@ void tw::input::NormalizeInput(const UnitConverter& uc,std::string& in_out)
 		sgn = 1.0;
 	}
 	try { qty = std::stod(dimensionalNumber,&endpos); }
-	catch (std::invalid_argument) { throw tw::FatalError("Invalid unit conversion macro : " + in_out); }
+	catch (std::invalid_argument) { throw tw::FatalError("Invalid dimensional number : " + in_out); }
 	units = dimensionalNumber.substr(endpos);
 
 	// Angle Conversions
-	if (units=="rad")
+	if (units=="rad" || units=="[rad]")
 		nqty = qty;
-	if (units=="mrad")
+	if (units=="mrad" || units=="[mrad]")
 		nqty = 1e-3*qty;
-	if (units=="urad")
+	if (units=="urad" || units=="[urad]")
 		nqty = 1e-6*qty;
-	if (units=="deg")
+	if (units=="deg" || units=="[deg]")
 		nqty = qty*pi/180.0;
 
-	// Length Conversions
-	if (units=="um")
-		nqty = uc.MKSToSim(tw::dimensions::length,1e-6*qty);
-	if (units=="mm")
-		nqty = uc.MKSToSim(tw::dimensions::length,1e-3*qty);
-	if (units=="cm")
-		nqty = uc.MKSToSim(tw::dimensions::length,1e-2*qty);
-	if (units=="m")
-		nqty = uc.MKSToSim(tw::dimensions::length,qty);
-
-	// Time Conversions
-	if (units=="fs")
-		nqty = uc.MKSToSim(tw::dimensions::time,1e-15*qty);
-	if (units=="ps")
-		nqty = uc.MKSToSim(tw::dimensions::time,1e-12*qty);
-	if (units=="ns")
-		nqty = uc.MKSToSim(tw::dimensions::time,1e-9*qty);
-	if (units=="us")
-		nqty = uc.MKSToSim(tw::dimensions::time,1e-6*qty);
-	if (units=="s")
-		nqty = uc.MKSToSim(tw::dimensions::time,qty);
-
-	// Number Density Conversions
-	if (units=="m-3")
-		nqty = uc.MKSToSim(tw::dimensions::density,qty);
-	if (units=="cm-3")
-		nqty = uc.CGSToSim(tw::dimensions::density,qty);
-
-	// Energy Density Conversions
-	if (units=="Jm3")
-		nqty = uc.MKSToSim(tw::dimensions::energy_density,qty);
-	if (units=="Jcm3")
-		nqty = uc.MKSToSim(tw::dimensions::energy_density,1e6*qty);
-
-	// Temperature Conversions
-	if (units=="eV")
-		nqty = uc.eV_to_sim(qty);
-	if (units=="K")
-		nqty = uc.MKSToSim(tw::dimensions::temperature,qty);
-
-	// Cross Section Conversions
-	if (units=="cm2")
-		nqty = uc.CGSToSim(tw::dimensions::cross_section,qty);
-	if (units=="m2")
-		nqty = uc.MKSToSim(tw::dimensions::cross_section,qty);
-
-	// Diffusivity Conversions
-	if (units=="cm2s")
-		nqty = uc.CGSToSim(tw::dimensions::diffusivity,qty);
-	if (units=="m2s")
-		nqty = uc.MKSToSim(tw::dimensions::diffusivity,qty);
-
-	// EM Conversions
-	if (units=="V")
-		nqty = uc.MKSToSim(tw::dimensions::scalar_potential,qty);
-	if (units=="Vm")
-		nqty = uc.MKSToSim(tw::dimensions::electric_field,qty);
-	if (units=="Vcm")
-		nqty = uc.MKSToSim(tw::dimensions::electric_field,100*qty);
-	if (units=="T")
-		nqty = uc.MKSToSim(tw::dimensions::magnetic_field,qty);
+	typedef std::tuple<tw::dimensions,tw::units,tw::Float> uinfo;
+	std::map<std::string,uinfo> umap = {
+		{"[um]",std::make_tuple(tw::dimensions::length,tw::units::mks,1e-6)},
+		{"[mm]",std::make_tuple(tw::dimensions::length,tw::units::mks,1e-3)},
+		{"[cm]",std::make_tuple(tw::dimensions::length,tw::units::mks,1e-2)},
+		{"[m]",std::make_tuple(tw::dimensions::length,tw::units::mks,1.0)},
+		{"[fs]",std::make_tuple(tw::dimensions::time,tw::units::mks,1e-15)},
+		{"[ps]",std::make_tuple(tw::dimensions::time,tw::units::mks,1e-12)},
+		{"[ns]",std::make_tuple(tw::dimensions::time,tw::units::mks,1e-9)},
+		{"[us]",std::make_tuple(tw::dimensions::time,tw::units::mks,1e-6)},
+		{"[s]",std::make_tuple(tw::dimensions::time,tw::units::mks,1.0)},
+		{"[/m3]",std::make_tuple(tw::dimensions::density,tw::units::mks,1.0)},
+		{"[/cm3]",std::make_tuple(tw::dimensions::density,tw::units::cgs,1.0)},
+		{"[J/m3]",std::make_tuple(tw::dimensions::energy_density,tw::units::mks,1.0)},
+		{"[J/cm3]",std::make_tuple(tw::dimensions::energy_density,tw::units::mks,1e6)},
+		{"[eV]",std::make_tuple(tw::dimensions::temperature,tw::units::cgs,1.0)},
+		{"[K]",std::make_tuple(tw::dimensions::temperature,tw::units::mks,1.0)},
+		{"[cm2]",std::make_tuple(tw::dimensions::cross_section,tw::units::cgs,1.0)},
+		{"[m2]",std::make_tuple(tw::dimensions::cross_section,tw::units::mks,1.0)},
+		{"[cm2/s]",std::make_tuple(tw::dimensions::diffusivity,tw::units::cgs,1.0)},
+		{"[m2/s]",std::make_tuple(tw::dimensions::diffusivity,tw::units::mks,1.0)},
+		{"[V]",std::make_tuple(tw::dimensions::scalar_potential,tw::units::mks,1.0)},
+		{"[webers/m]",std::make_tuple(tw::dimensions::vector_potential,tw::units::mks,1.0)},
+		{"[G*cm]",std::make_tuple(tw::dimensions::vector_potential,tw::units::cgs,1.0)},
+		{"[V/m]",std::make_tuple(tw::dimensions::electric_field,tw::units::mks,1.0)},
+		{"[V/cm]",std::make_tuple(tw::dimensions::electric_field,tw::units::mks,100.0)},
+		{"[T]",std::make_tuple(tw::dimensions::magnetic_field,tw::units::mks,1.0)},
+		{"[G]",std::make_tuple(tw::dimensions::magnetic_field,tw::units::cgs,1.0)}
+	};
+	std::map<std::string,uinfo> alt_umap = {
+		{"um",std::make_tuple(tw::dimensions::length,tw::units::mks,1e-6)},
+		{"mm",std::make_tuple(tw::dimensions::length,tw::units::mks,1e-3)},
+		{"cm",std::make_tuple(tw::dimensions::length,tw::units::mks,1e-2)},
+		{"m",std::make_tuple(tw::dimensions::length,tw::units::mks,1.0)},
+		{"fs",std::make_tuple(tw::dimensions::time,tw::units::mks,1e-15)},
+		{"ps",std::make_tuple(tw::dimensions::time,tw::units::mks,1e-12)},
+		{"ns",std::make_tuple(tw::dimensions::time,tw::units::mks,1e-9)},
+		{"us",std::make_tuple(tw::dimensions::time,tw::units::mks,1e-6)},
+		{"s",std::make_tuple(tw::dimensions::time,tw::units::mks,1.0)},
+		{"m-3",std::make_tuple(tw::dimensions::density,tw::units::mks,1.0)},
+		{"cm-3",std::make_tuple(tw::dimensions::density,tw::units::cgs,1.0)},
+		{"Jm3",std::make_tuple(tw::dimensions::energy_density,tw::units::mks,1.0)},
+		{"Jcm3",std::make_tuple(tw::dimensions::energy_density,tw::units::mks,1e6)},
+		{"eV",std::make_tuple(tw::dimensions::temperature,tw::units::cgs,1.0)},
+		{"K",std::make_tuple(tw::dimensions::temperature,tw::units::mks,1.0)},
+		{"cm2",std::make_tuple(tw::dimensions::cross_section,tw::units::cgs,1.0)},
+		{"m2",std::make_tuple(tw::dimensions::cross_section,tw::units::mks,1.0)},
+		{"cm2s",std::make_tuple(tw::dimensions::diffusivity,tw::units::cgs,1.0)},
+		{"m2s",std::make_tuple(tw::dimensions::diffusivity,tw::units::mks,1.0)},
+		{"V",std::make_tuple(tw::dimensions::scalar_potential,tw::units::mks,1.0)},
+		{"wm",std::make_tuple(tw::dimensions::vector_potential,tw::units::mks,1.0)},
+		{"Gcm",std::make_tuple(tw::dimensions::vector_potential,tw::units::cgs,1.0)},
+		{"Vm",std::make_tuple(tw::dimensions::electric_field,tw::units::mks,1.0)},
+		{"Vcm",std::make_tuple(tw::dimensions::electric_field,tw::units::mks,100.0)},
+		{"T",std::make_tuple(tw::dimensions::magnetic_field,tw::units::mks,1.0)},
+		{"G",std::make_tuple(tw::dimensions::magnetic_field,tw::units::cgs,1.0)}
+	};
+	if (umap.find(units)!=umap.end())
+	{
+		const tw::dimensions dim = std::get<0>(umap[units]);
+		const tw::units u = std::get<1>(umap[units]);
+		const tw::Float pre = std::get<2>(umap[units]);
+		nqty = uc.ConvertToNative(pre*qty,dim,u);
+	}
+	if (alt_umap.find(units)!=alt_umap.end())
+	{
+		const tw::dimensions dim = std::get<0>(alt_umap[units]);
+		const tw::units u = std::get<1>(alt_umap[units]);
+		const tw::Float pre = std::get<2>(alt_umap[units]);
+		nqty = uc.ConvertToNative(pre*qty,dim,u);
+	}
 
 	if (nqty==tw::small_pos)
 		throw tw::FatalError("Unrecognized Units " + in_out);

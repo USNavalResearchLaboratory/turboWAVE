@@ -346,8 +346,7 @@ void Fluid::Update()
 				nuColl[k] = gas(v,k) * enCrossSection * sqrt(kT_eff*m0i);
 				temp = coulomb * 1e-5 * uc.ConvertFromNative(fixed(v,k),tw::dimensions::density,tw::units::cgs);
 				temp *= pow(uc.ConvertFromNative(kT_eff,tw::dimensions::temperature,tw::units::cgs),-1.5);
-				temp *= uc.ConvertFromNative(1.0,tw::dimensions::time,tw::units::cgs);
-				nuColl[k] += temp;
+				nuColl[k] += uc.ConvertToNative(temp,tw::dimensions::frequency,tw::units::cgs);
 			}
 			#pragma omp simd
 			for (tw::Int k=1;k<=dim[3];k++)

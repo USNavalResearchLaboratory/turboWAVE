@@ -15,7 +15,7 @@ TurboWAVE input files are written using an intuitive "little language" which pro
 There are only four keywords, **new**, **get**, **generate**, and **for**.  You can often get by with only **new**.  The following short example illustrates almost the full range of little language syntax::
 
 	// For illustration only, do not try to run
-	#define $dens %1.0e18cm-3 // (1) variables and units
+	#define $dens %1.0e18[/cm3] // (1) variables and units
 	timestep = .01 // (2) floating point assignment
 
 	new plane wave 'pw1' // (3) creating a tool with name given in quotes
@@ -117,38 +117,41 @@ User macros can be defined at any point in an input file, except where they woul
 Unit Conversion
 ,,,,,,,,,,,,,,,
 
-Almost all input parameters are in normalized units.  However, there are several pre-defined macros that make it simple to use physical units.  These are triggered by the ``%`` character. The format is :samp:`%{n}{u}`, where :samp:`{n}` is a number and :samp:`{u}` is a string identifying the units.  An example is :samp:`%10ps`, which means 10 picoseconds. No spaces may appear in the macro.  Supported units and identifier string are:
+When a number is given without dimensions, it is assumed to be in native units (typically normalized to plasma parameters).  However, there are several pre-defined macros that make it simple to use conventional units.  These are triggered by the ``%`` character. The format is :samp:`%{n}{u}`, where :samp:`{n}` is a number and :samp:`{u}` is a string identifying the units.  An example is :samp:`%10[ps]`, which means 10 picoseconds. No spaces may appear in the macro.  Supported units and identifier string are:
 
 .. csv-table:: Unit Conversion Macro Identifiers.
-	:header: "Quantity", "Identifier"
+	:header: "Quantity", "Identifier", "Deprecated"
 
-	"Femtoseconds", :samp:`fs`
-	"Picoseconds", :samp:`ps`
-	"Nanoseconds", :samp:`ns`
-	"Microseconds", :samp:`us`
-	"Seconds", :samp:`s`
-	"Micrometers", :samp:`um`
-	"Millimeters", :samp:`mm`
-	"Centimeters", :samp:`cm`
-	"Meters", :samp:`m`
-	"Degrees", :samp:`deg`
-	"Radians", :samp:`rad`
-	"Milliradians", :samp:`mrad`
-	"Microradians", :samp:`urad`
-	"Particles per Cubic Meter", :samp:`m-3`
-	"Particles per Cubic Centimeter", :samp:`cm-3`
-	"Joules per Cubic Meter", :samp:`Jm3`
-	"Joules per Cubic Centimeter", :samp:`Jcm3`
-	"Electron Volts", :samp:`eV`
-	"Kelvin", :samp:`K`
-	"CGS Cross Section", :samp:`cm2`
-	"MKS Cross Section", :samp:`m2`
-	"CGS Diffusivity", :samp:`cm2s`
-	"MKS Diffusivity", :samp:`m2s`
-	"Volts", :samp:`V`
-	"Volts per Meter", :samp:`Vm`
-	"Volts per Centimeter", :samp:`Vcm`
-	"Tesla", :samp:`T`
+	"Femtoseconds", :samp:`[fs]`, :samp:`fs`
+	"Picoseconds", :samp:`[ps]`, :samp:`ps`
+	"Nanoseconds", :samp:`[ns]`, :samp:`ns`
+	"Microseconds", :samp:`[us]`, :samp:`us`
+	"Seconds", :samp:`[s]`, :samp:`s`
+	"Micrometers", :samp:`[um]`, :samp:`um`
+	"Millimeters", :samp:`[mm]`, :samp:`mm`
+	"Centimeters", :samp:`[cm]`, :samp:`cm`
+	"Meters", :samp:`[m]`, :samp:`m`
+	"Degrees", :samp:`[deg]`, :samp:`deg`
+	"Radians", :samp:`[rad]`, :samp:`rad`
+	"Milliradians", :samp:`[mrad]`, :samp:`mrad`
+	"Microradians", :samp:`[urad]`, :samp:`urad`
+	"Particles per Cubic Meter", :samp:`[/m3]`, :samp:`m-3`
+	"Particles per Cubic Centimeter", :samp:`[/cm3]`, :samp:`cm-3`
+	"Joules per Cubic Meter", :samp:`[J/m3]`, :samp:`Jm3`
+	"Joules per Cubic Centimeter", :samp:`[J/cm3]`, :samp:`Jcm3`
+	"Electron Volts", :samp:`[eV]`, :samp:`eV`
+	"Kelvin", :samp:`[K]`, :samp:`K`
+	"CGS Cross Section", :samp:`[cm2]`, :samp:`cm2`
+	"MKS Cross Section", :samp:`[m2]`, :samp:`m2`
+	"CGS Diffusivity", :samp:`[cm2/s]`, :samp:`cm2s`
+	"MKS Diffusivity", :samp:`[m2/s]`, :samp:`m2s`
+	"Volts", :samp:`[V]`, :samp:`V`
+	"Webers per Meter", :samp:`[webers/m]`, :samp:`wm`
+	"Gauss Centimeters", :samp:`[G*cm]`, :samp:`Gcm`
+	"Volts per Meter", :samp:`[V/m]`, :samp:`Vm`
+	"Volts per Centimeter", :samp:`[V/cm]`, :samp:`Vcm`
+	"Tesla", :samp:`[T]`, :samp:`T`
+	"Gauss", :samp:`[G]`, :samp:`G`
 
 
 Preprocessor Order
@@ -173,9 +176,13 @@ Top Level Directives
 
 Top level directives may include statements to create modules or tools, as well as assignments to parameters that are associated with the root ``Simulation`` object.  The ``Simulation`` parameter assignments are as follows.
 
+.. py:function:: native units = nu
+
+	:param str nu: the system of units native to the input file, can be ``mks``, ``cgs``, ``plasma``, ``atomic``, or ``natural``.  As of this writing, most modules will veto any choice other than ``plasma``.
+
 .. py:function:: unit density = CGS_density
 
-	Sets the unit density and fixes the system of normalized units.
+	Select the density that fixes the plasma normalization to a particular scale.
 
 	:param float CGS_density: the density in particles per cubic centimeter.  Unit conversion macros must **not** be used.
 

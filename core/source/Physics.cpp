@@ -339,13 +339,13 @@ void EOSLinearMieGruneisen::AddPKV(ScalarField& IE, ScalarField& nm, ScalarField
 //  EOS Tillotson   //
 //                  //
 //////////////////////
-// EOS for shock and cavitation 
+// EOS for shock and cavitation
 // for materials such as water
 
 EOSTillotson::EOSTillotson(const std::string& name,MetricSpace *m, Task *tsk) : EOSComponent(name,m,tsk)
 {
 	// arbitrary normalization value I used when testing this EOS
-	//unitDensityCGS = 2.8e19; 
+	//unitDensityCGS = 2.8e19;
 
 	// Tillotson parameters for H20
 	n0 = 1193.0;
@@ -357,10 +357,10 @@ EOSTillotson::EOSTillotson(const std::string& name,MetricSpace *m, Task *tsk) : 
 	alpha = 10.0;   // Tillotson Coefficient
 	beta = 5.0;   // Tillotson Coefficient
 
-	nIV = 1144.06;   // vaporization density 
-	E0 = 2.55698e-06;   // Reference energy  
-	EIV = 1.53054e-07;   // Vaporization Energy 
-	ECV = 9.13208e-07;   // Cavitation Energy 
+	nIV = 1144.06;   // vaporization density
+	E0 = 2.55698e-06;   // Reference energy
+	EIV = 1.53054e-07;   // Vaporization Energy
+	ECV = 9.13208e-07;   // Cavitation Energy
 
 	// std::cout << "Start Creating Till tool" << std::endl;
 
@@ -395,10 +395,10 @@ void EOSTillotson::AddPKV(ScalarField& IE, ScalarField& nm, ScalarField& nu_e, F
 	UnitConverter *uc = space->units;
 
 	// threshold parameters in cgs units
-	tw::Float RhoIV_cgs = uc->SimToCGS(mass_dim,mat.mass)*uc->SimToCGS(density_dim,nIV); // Vaporization Pressure [g/cm3]
-	tw::Float E0_cgs = uc->SimToCGS(energy_dim,E0)/uc->SimToCGS(mass_dim,mat.mass); // Reference energy density [erg/g]
-	tw::Float EIV_cgs = uc->SimToCGS(energy_dim,EIV)/uc->SimToCGS(mass_dim,mat.mass); // Vaporization Energy [erg/g]
-	tw::Float ECV_cgs = uc->SimToCGS(energy_dim,ECV)/uc->SimToCGS(mass_dim,mat.mass); // Cavitation Energy [erg/g]
+	tw::Float RhoIV_cgs = uc->SimToCGS(tw::dimensions::mass,mat.mass)*uc->SimToCGS(tw::dimensions::density,nIV); // Vaporization Pressure [g/cm3]
+	tw::Float E0_cgs = uc->SimToCGS(tw::dimensions::energy,E0)/uc->SimToCGS(tw::dimensions::mass,mat.mass); // Reference energy density [erg/g]
+	tw::Float EIV_cgs = uc->SimToCGS(tw::dimensions::energy,EIV)/uc->SimToCGS(tw::dimensions::mass,mat.mass); // Vaporization Energy [erg/g]
+	tw::Float ECV_cgs = uc->SimToCGS(tw::dimensions::energy,ECV)/uc->SimToCGS(tw::dimensions::mass,mat.mass); // Cavitation Energy [erg/g]
 
 	#pragma omp parallel
 	{
@@ -406,10 +406,10 @@ void EOSTillotson::AddPKV(ScalarField& IE, ScalarField& nm, ScalarField& nu_e, F
 		{
 			const tw::Float ndens = hydro(cell,hidx.ni);
 			const tw::Float udens = hydro(cell,hidx.u);
-			const tw::Float rho_cgs = uc->SimToCGS(mass_dim,mat.mass)*uc->SimToCGS(density_dim,ndens);
-			const tw::Float u_cgs = uc->SimToCGS(energy_density_dim,udens);
+			const tw::Float rho_cgs = uc->SimToCGS(tw::dimensions::mass,mat.mass)*uc->SimToCGS(tw::dimensions::density,ndens);
+			const tw::Float u_cgs = uc->SimToCGS(tw::dimensions::energy_density,udens);
 
-			const tw::Float rho0_cgs = uc->SimToCGS(mass_dim,mat.mass)*uc->SimToCGS(density_dim,n0);
+			const tw::Float rho0_cgs = uc->SimToCGS(tw::dimensions::mass,mat.mass)*uc->SimToCGS(tw::dimensions::density,n0);
 			const tw::Float u0_cgs = rho_cgs*E0_cgs + tw::small_pos; // U [etg/cm3] = rho [g/cm3] * E [erg/g]
 
 			const tw::Float eta = ndens/n0; // compression
@@ -425,10 +425,11 @@ void EOSTillotson::AddPKV(ScalarField& IE, ScalarField& nm, ScalarField& nu_e, F
 				region = 5;
 			}
 			if (region == 0) {
-				std::cout << "ERROR: Unrecognized Region Detected in Tillotson EOS." << std::endl;
-				std::cout << "rho_cgs = " << rho_cgs << std::endl;
-				std::cout << "E_cgs = " << (u_cgs/rho_cgs) << std::endl;
-				exit(1); 
+				std::stringstream err_mess;
+				err_mess << "Unrecognized Region Detected in Tillotson EOS." << std::endl;
+				err_mess << "rho_cgs = " << rho_cgs << std::endl;
+				err_mess << "E_cgs = " << (u_cgs/rho_cgs) << std::endl;
+				throw tw::FatalError(err_mess.str());
 			}
 
 			// Pressure Calculation

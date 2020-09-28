@@ -600,6 +600,7 @@ Wave::Wave(const std::string& name,MetricSpace *m,Task *tsk) : ComputeTool(name,
 	phase = 0.0;
 	randomPhase = 0.0;
 	gammaBoost = 1.0;
+	zones = 1;
 	modeData.order[0] = 0;
 	modeData.order[1] = 0;
 	modeData.scale[0] = 1.0;
@@ -623,6 +624,7 @@ Wave::Wave(const std::string& name,MetricSpace *m,Task *tsk) : ComputeTool(name,
 	directives.Add("mode",new tw::input::Numbers<tw::Int>(&modeData.order[0],2),false);
 	std::map<std::string,tw::profile::shape> shape = {{"quintic",tw::profile::shape::quintic},{"sech",tw::profile::shape::sech},{"sin2",tw::profile::shape::sin2}};
 	directives.Add("shape",new tw::input::Enums<tw::profile::shape>(shape,&pulseShape.whichProfile),false);
+	directives.Add("zones",new tw::input::Int(&zones),false);
 }
 
 void Wave::Initialize()

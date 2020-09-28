@@ -140,16 +140,27 @@ def parse_input_file(ex_path):
 							fig_dict['color'] = val
 						if key=='units':
 							fig_dict['units'] = val
+	if len(fig_dict)==0:
+		return fig_dict,input_dict
 	with open(ex_path) as f:
 		data = f.read()
 		data = comment_remover(data)
 		words = data.replace("="," ").replace(","," ").replace("("," ").replace(")"," ").split()
 		start_looking = False
+		user_vars = {}
 		for i,word in enumerate(words):
+			if word=="#define":
+				user_vars[words[i+1]] = words[i+2]
 			if word=='new' and words[i+1]=='grid':
 				start_looking = True
 			if start_looking and word=='dimensions':
-				input_dict['dims'] = (int(words[i+1]),int(words[i+2]),int(words[i+3]))
+				subs = []
+				for d in range(1,4):
+					if words[i+d] in user_vars:
+						subs += [user_vars[words[i+d]]]
+					else:
+						subs += [words[i+d]]
+				input_dict['dims'] = (int(subs[0]),int(subs[1]),int(subs[2]))
 				start_looking = False
 	return fig_dict,input_dict
 

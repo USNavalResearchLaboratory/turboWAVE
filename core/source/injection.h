@@ -135,6 +135,7 @@ struct Wave : ComputeTool
 	PulseShape pulseShape;
 	EM::mode_data modeData;
 	tw::basis laserFrame;
+	tw::Int zones;
 
 	GaussianDeviate *deviate;
 
@@ -176,9 +177,21 @@ struct Wave : ComputeTool
 	}
 	tw::vec3 VectorPotential(tw::Float time,const tw::vec3& pos) const
 	{
+		tw::vec3 A3(0.0);
 		tw::vec4 x4(time,pos);
+		tw::vec4 x4p(time,pos);
 		ToLaserFrame(&x4);
-		tw::vec4 A4(0.0,PrimitiveVector(x4));
+		const tw::Int xzones = task->globalCells[1]==1 ? 1 : zones;
+		const tw::Int yzones = task->globalCells[2]==1 ? 1 : zones;
+		for (tw::Int i=0;i<xzones;i++)
+			for (tw::Int j=0;j<yzones;j++)
+			{
+				x4p = x4;
+				x4p[1] += (i-0.5*xzones+0.5)*GlobalPhysicalSize(*space).x;
+				x4p[2] += (i-0.5*yzones+0.5)*GlobalPhysicalSize(*space).y;
+				A3 += PrimitiveVector(x4p);
+			}
+		tw::vec4 A4(0.0,A3);
 		ToBoostedFrame(&A4);
 		return A4.spatial(); // For certain boost geometries we will need to keep scalar potential
 	}

@@ -1,0 +1,134 @@
+// Keep the following line for generating twtest reports
+// TWTEST matplotlib zxyt=0,: Ex.npy
+
+// Run out to 3000 steps to see accelerated electrons
+
+#define $cgs_density 3.5672623557807795e+18
+// length_unit is 2.814 microns
+// time unit is 9.385 femtoseconds
+// electric field unit is 181.6 GV/m
+#define $steps 1000
+#define $dt 0.138 // magic timestep is crucial for stability
+#define $dx 0.4
+#define $dz 0.2
+#define $nx 256
+#define $nz 3000
+#define $L %0.3730072602495407[cm] // in lab frame
+#define $Lp %0.017768147544298254[cm] // in boosted frame
+#define $a0 4.547568062216178 // in lab frame
+#define $w0 22.097926659850522 // in lab frame
+#define $r0 %12.0[um]
+#define $t0 %38.90041493775934[fs] // in lab frame
+#define $zones 7
+#define $gamma 20.993030326857994
+
+native units = plasma
+unit density = $cgs_density
+
+steps = $steps
+timestep = $dt
+dump period = 0
+// The laser pulse is longer, so we keep it fixed in the box.
+// We are therefore looking at a Galilean boost on top of a Lorentz boost.
+// As a result the plasma sweeps past at twice the speed of light.
+moving window = yes
+// The immobile background cannot be used in a boosted frame.
+neutralize = no
+
+// Transverse periodicity is important in a boosted frame.
+// This is because the Rayleigh length of the radiation becomes short
+// compared to the pulse duration, so we have considerable pulse energy
+// extending beyond the transverse boundaries.  By creating a periodic array
+// of pulses we can make the pulse energy focus correctly in the
+// interacting region. The interference between zones is confined to
+// linear regions, where it is harmless.
+xboundary = ( periodic , periodic )
+yboundary = ( periodic , periodic )
+zboundary = ( absorbing , absorbing )
+
+new grid
+{
+	corner001 = ( -51.2 , -0.5 , $Lp )
+	dimensions = ( $nx , 1 , $nz )
+	cell size = ( $dx , 1.0 , $dz )
+	decomposition = ( 16 , 1 , 1 )
+}
+
+new direct field solver 'em'
+{
+	// Smoothing is needed to control numerical Cherenkov instability
+	smoothing = (4 4 4)
+	compensation = (1 1 1)
+}
+
+new hermite gauss pulse for 'em'
+{
+	// we choose to give lab frame pulse parameters, and use the <boosted frame gamma>
+	// parameter to automatically transform to the boosted frame.
+	a = ( $a0 0.0 0.0 )
+	w = $w0
+	r0 = ( $r0 , 1e5 )
+	delay = 0.0
+	risetime = $t0
+	holdtime = 0
+	falltime = $t0
+	boosted frame gamma = $gamma
+	focus position = (0 0 0)
+	// The following "zones" parameter is crucial in a boosted frame.
+	// This sets up the periodic array of pulses (see comments above).
+	// The number of repeated zones has to be large enough so that the
+	// missing zones contribute very little energy.
+	// The number of zones should be odd.
+	zones = $zones
+}
+
+new species 'p'
+{
+	charge = 1.0
+	mass = 1836
+	particles per cell = ( 4 1 4 ) when density = 1.0
+}
+
+new species 'e'
+{
+	particles per cell = ( 4 1 4 ) when density = 1.0
+}
+
+generate piecewise 'p'
+{
+	// The profile is created in the lab frame and automatically transformed
+	// by specifying the <boosted frame gamma> parameter.
+	zdensity = { 1 , 1 }
+	zpoints = { 0.0 , $L }
+	boosted frame gamma = $gamma
+}
+
+generate piecewise 'e'
+{
+	// The profile is created in the lab frame and automatically transformed
+	// by specifying the <boosted frame gamma> parameter.
+	zdensity = { 1 , 1 }
+	zpoints = { 0.0 , $L }
+	boosted frame gamma = $gamma
+}
+
+new energy diagnostic
+{
+	filename = energy
+	period = 200
+}
+
+new box diagnostic
+{
+	period = 200
+}
+
+new phase space diagnostic for 'e'
+{
+	filename = zpz
+	period = 200
+	galilean velocity = ( 0.0 , 0.0 , 1.0 )
+	axes = ( pz , y , z )
+	dimensions = ( 200 , 1 , 200 )
+	bounds = ( -400 , 100 , -0.5 , 0.5 , -600 , 0 )
+}

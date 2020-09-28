@@ -3,9 +3,9 @@
 
 // SPARC input file to model relaxation of an Argon plasma
 steps = 20000
-timestep = %0.1ns
-dtmax = %1ns
-maxtime = %100ns
+timestep = %0.1[ns]
+dtmax = %1[ns]
+maxtime = %100[ns]
 dump period = 0
 moving window = no
 neutralize = yes
@@ -35,7 +35,7 @@ new hydrodynamics
 	radiation model = none
 	plasma model = quasineutral
 	background density = 1e-8
-	background temperature = %300K
+	background temperature = %300[K]
 }
 
 #include "argon-1.tw"
@@ -44,14 +44,14 @@ generate piecewise Ar
 {
 	xdensity = { 0.9 1.0 1.0 }
 	xpoints = { 0.0 100.0 1e5 }
-	temperature = %300K
+	temperature = %300[K]
 }
 
 generate piecewise Ar[+]
 {
 	xdensity = { 1e-1 1e-5 1e-5 }
 	xpoints = { 0.0 100.0 1e5 }
-	temperature = %300K
+	temperature = %300[K]
 	shape = quintic
 }
 
@@ -59,16 +59,16 @@ generate piecewise e
 {
 	xdensity = { 1e-1 1e-5 1e-5 }
 	xpoints = { 0.0 100.0 1e5 }
-	temperature = %2.0eV
+	temperature = %2.0[eV]
 	shape = quintic
 }
 
 new box diagnostic
 {
-	time period = %1ns
+	time period = %1[ns]
 }
 
 new energy diagnostic
 {
-	time period = %1ns
+	time period = %1[ns]
 }

@@ -98,6 +98,10 @@ To inject radiation, you specify a type of electromagnetic mode, directives defi
 
 			:param float g: relativistic Lorentz factor of the boosted frame (default=1).  If g>1, turboWAVE will transform the wave into the boosted frame.  The parameters describing the wave should all be given in lab frame coordinates.  The grid coordinates are taken as the boosted frame.  At present this feature should only be used for paraxial modes propagating along the z-axis.
 
+		.. py:function:: zones = z
+
+			:param int z: create a superposition of transversely periodic modes across ``z`` zones in each dimension.  The number of zones should be odd, and large enough to span several spot sizes.  This is useful for boosted frame simulations where the Rayleigh length is much shorter than the pulse duration.
+
 .. note::
 
 	In the past there was a distinction between carrier resolved and enveloped radiation injection objects.  This distinction has been retired.  Envelope treatment is triggered automatically by attaching any radiation injection object to a enveloped field solver.
@@ -517,7 +521,7 @@ All the photoionization tools support the following directives:
 
 .. py:function:: ionization potential = ip
 
-	:param float ip: Ionization potential, units are specified as usual, e.g., ``ionization potential = %13.6eV``
+	:param float ip: Ionization potential, units are specified as usual, e.g., ``ionization potential = %13.6[eV]``
 
 .. py:function:: saturated rate = sr
 

@@ -51,7 +51,7 @@ It can be useful to identify, in this connection, a unit of particle number, per
 Unit Conversion Macros
 -----------------------
 
-In order to allow the use of conventional units in the input file, there is a simple notation that causes the parser to automatically perform a conversion.  The macro is formed by prepending a decimal value with the :samp:`%` symbol, and postpending it with a string identifying the unit.  As an example, enter :samp:`%10ps` to indicate a value of 10 picoseconds.  During pre-processing of the input file, the macro will be replaced with the decimal value of the quantity in normalized units.  For the full list of available conversions see :ref:`unit-conv`.
+In order to allow the use of conventional units in the input file, there is a simple notation that causes the parser to automatically perform a conversion.  The macro is formed by prepending a decimal value with the :samp:`%` symbol, and postpending it with a string identifying the unit.  As an example, enter :samp:`%10[ps]` to indicate a value of 10 picoseconds.  During pre-processing of the input file, the macro will be replaced with the decimal value of the quantity in normalized units.  For the full list of available conversions see :ref:`unit-conv`.
 
 TurboWAVE Example Files
 -----------------------

@@ -809,7 +809,7 @@ void Species::GenerateParticles(bool init)
 					if (prof->variableCharge)
 						loadingData.particleDensity = loadingData.densToAdd/(distributionInCell.x*distributionInCell.y*distributionInCell.z);
 					else
-						loadingData.particleDensity = targetDensity;
+						loadingData.particleDensity = targetDensity*prof->gammaBoost;
 					if (prof->loadingMethod==tw::profile::loading::deterministic)
 						AddDensity(loadingData);
 					else
@@ -1036,7 +1036,7 @@ void Species::FinishMoveWindow()
 					if (prof->variableCharge)
 						loadingData.particleDensity = loadingData.densToAdd/(distributionInCell.x*distributionInCell.y*distributionInCell.z);
 					else
-						loadingData.particleDensity = targetDensity;
+						loadingData.particleDensity = targetDensity*prof->gammaBoost;
 					if (prof->loadingMethod==tw::profile::loading::deterministic)
 						AddDensity(loadingData);
 					else

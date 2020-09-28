@@ -72,6 +72,9 @@ def get_mesh_pts(grid_file_path,dims):
                     ans[3] = [np.float(x) for x in l[2:]]
         if len(ans[0])==dims[0] and len(ans[1])==dims[1] and len(ans[2])==dims[2] and len(ans[3])==dims[3]:
             return [np.array(ans[0]),np.array(ans[1]),np.array(ans[2]),np.array(ans[3])]
+        else:
+            warnings.warn('Grid file found but wrong dimensions ('+grid_file_path+').')
+            return [np.linspace(0.0,1.0,dims[i]) for i in range(4)]
     except:
         warnings.warn('No grid file found ('+grid_file_path+').')
         return [np.linspace(0.0,1.0,dims[i]) for i in range(4)]

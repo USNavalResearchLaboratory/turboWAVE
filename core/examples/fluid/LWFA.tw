@@ -56,7 +56,7 @@ generate piecewise 'e'
 {
 	zdensity = { 0.0 1.0 1.0 }
 	zpoints = { 0.0 10.0 10000.0 }
-	temperature = %1.0eV
+	temperature = %1.0[eV]
 	shape = quintic
 }
 
