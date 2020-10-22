@@ -10,7 +10,7 @@ Driver
 
 #. Install AMD ROCm
 
-	* Perform internet search to find the installation instructions and carry out.
+	* Perform internet search to find the installation instructions and carry out.  As of this writing the simplest way appears to be to use the script ``rocminstall.py``, see `<https://github.com/srinivamd/rocminstaller>`_.
 	* Be sure to test the installation per the installation instructions.
 	* This may involve multiple restarts.
 

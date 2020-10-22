@@ -10,57 +10,60 @@ meta_writer::meta_writer(UnitConverter *units)
 	this->units = units;
 }
 
-void meta_writer::create_entry(const std::string& name)
+std::string meta_writer::s(const std::string& raw)
 {
-	std::ofstream outFile("tw_metadata.py",std::ios::app);
-	outFile << "files['" << name << "'] = {}" << std::endl;
-	switch (units->native)
-	{
-		case tw::units::mks:
-			outFile << "files['" << name << "']['native units'] = 'mks'" << std::endl;
-			break;
-		case tw::units::cgs:
-			outFile << "files['" << name << "']['native units'] = 'cgs'" << std::endl;
-			break;
-		case tw::units::plasma:
-			outFile << "files['" << name << "']['native units'] = 'plasma'" << std::endl;
-			break;
-		case tw::units::atomic:
-			outFile << "files['" << name << "']['native units'] = 'atomic'" << std::endl;
-			break;
-		case tw::units::natural:
-			outFile << "files['" << name << "']['native units'] = 'natural'" << std::endl;
-			break;
-	}
-	outFile << "files['" << name << "']['axes'] = {}" << std::endl;
-	outFile.close();
+	std::stringstream ans;
+	ans << "\"";
+	for (auto c : raw)
+		if (c=='\\')
+			ans << "\\\\";
+		else
+			ans << c;
+	ans << "\"";
+	return ans.str();
 }
 
-void meta_writer::define_axis(const std::string& name,tw::Int ax,const std::string& label,tw::dimensions d)
+void meta_writer::start_entry(const std::string& name,const std::string& diagnostic_name)
 {
-	std::ofstream outFile("tw_metadata.py",std::ios::app);
-	outFile << "files['" << name << "']['axes'][" << ax << "] = {}" << std::endl;
-	outFile << "files['" << name << "']['axes'][" << ax << "]['label'] = r'" << label << "'" << std::endl;
-	outFile << "files['" << name << "']['axes'][" << ax << "]['mks label'] = r'" << tw::mks_label(d) << "'" << std::endl;
-	outFile << "files['" << name << "']['axes'][" << ax << "]['mks multiplier'] = " << units->ConvertFromNative(1.0,d,tw::units::mks) << std::endl;
-	outFile << "files['" << name << "']['axes'][" << ax << "]['cgs label'] = r'" << tw::cgs_label(d) << "'" << std::endl;
-	outFile << "files['" << name << "']['axes'][" << ax << "]['cgs multiplier'] = " << units->ConvertFromNative(1.0,d,tw::units::cgs) << std::endl;
-	outFile << "files['" << name << "']['axes'][" << ax << "]['plasma label'] = r'" << tw::plasma_label(d) << "'" << std::endl;
-	outFile << "files['" << name << "']['axes'][" << ax << "]['plasma multiplier'] = " << units->ConvertFromNative(1.0,d,tw::units::plasma) << std::endl;
-	outFile << "files['" << name << "']['axes'][" << ax << "]['atomic label'] = r'" << tw::atomic_label(d) << "'" << std::endl;
-	outFile << "files['" << name << "']['axes'][" << ax << "]['atomic multiplier'] = " << units->ConvertFromNative(1.0,d,tw::units::atomic) << std::endl;
-	outFile << "files['" << name << "']['axes'][" << ax << "]['natural label'] = r'" << tw::natural_label(d) << "'" << std::endl;
-	outFile << "files['" << name << "']['axes'][" << ax << "]['natural multiplier'] = " << units->ConvertFromNative(1.0,d,tw::units::natural) << std::endl;
-	outFile.close();
-}
-
-void meta_writer::define_grid(const std::string& diagnostic_name,const std::string& name)
-{
-	std::ofstream outFile("tw_metadata.py",std::ios::app);
+	std::fstream outFile("tw_metadata.json",std::ios::out | std::ios::in); // we have to use input and output mode to avoid default truncation
+	std::map<tw::units,std::string> m = tw::get_unit_map_r();
+	// first back up and replace the closing brace with a comma
+	outFile.seekp(-1,std::ios::end);
+	outFile << "," << std::endl;
+	outFile << s(name) << ": {" << std::endl;
+	outFile << "\t\"native units\": " << s(m[units->native]) << "," << std::endl;
 	if (diagnostic_name=="tw::none")
-		outFile << "files['" << name << "']['grid'] = " << "'grid_warp.txt'" << std::endl;
+		outFile << "\t\"grid\": " << "\"grid_warp.txt\"," << std::endl;
 	else
-		outFile << "files['" << name << "']['grid'] = " << "'" << diagnostic_name << "_grid_warp.txt'";
+		outFile << "\t\"grid\": " << s(diagnostic_name + "_grid_warp.txt") << "," << std::endl;
+	outFile << "\t\"axes\": " << "{" << std::endl;
+	outFile.close();
+}
+
+void meta_writer::define_axis(const std::string& name,tw::Int ax,const std::string& label,tw::dimensions d,bool last)
+{
+	std::ofstream outFile("tw_metadata.json",std::ios::app);
+	outFile << "\t\t\"" << ax << "\": {" << std::endl;
+	outFile << "\t\t\t" << "\"label\" : " << s(label) << "," << std::endl;
+	outFile << "\t\t\t" << "\"mks label\" : " << s(tw::mks_label(d)) << "," << std::endl;
+	outFile << "\t\t\t" << "\"mks multiplier\" : " << units->ConvertFromNative(1.0,d,tw::units::mks) << "," << std::endl;
+	outFile << "\t\t\t" << "\"cgs label\" : " << s(tw::cgs_label(d)) << "," << std::endl;
+	outFile << "\t\t\t" << "\"cgs multiplier\" : " << units->ConvertFromNative(1.0,d,tw::units::cgs) << "," << std::endl;
+	outFile << "\t\t\t" << "\"plasma label\" : " << s(tw::plasma_label(d)) << "," << std::endl;
+	outFile << "\t\t\t" << "\"plasma multiplier\" : " << units->ConvertFromNative(1.0,d,tw::units::plasma) << "," << std::endl;
+	outFile << "\t\t\t" << "\"atomic label\" : " << s(tw::atomic_label(d)) << "," << std::endl;
+	outFile << "\t\t\t" << "\"atomic multiplier\" : " << units->ConvertFromNative(1.0,d,tw::units::atomic) << "," << std::endl;
+	outFile << "\t\t\t" << "\"natural label\" : " << s(tw::natural_label(d)) << "," << std::endl;
+	outFile << "\t\t\t" << "\"natural multiplier\" : " << units->ConvertFromNative(1.0,d,tw::units::natural) << std::endl;
+	outFile << "\t\t}" << (last==false ? "," : "") << std::endl;
+	outFile.close();
+}
+
+void meta_writer::finish_entry()
+{
+	std::ofstream outFile("tw_metadata.json",std::ios::app);
+	outFile << "\t}" << std::endl; // close axes dictionary
+	outFile << "}}"; // close file and main dictionary, n.b. whitespace would spoil append strategy
 }
 
 //////////////////////////////////////////////////
@@ -318,18 +321,18 @@ void TextTableBase::Finish()
 			values[i] = buff[i];
 		if (curr==master)
 		{
-			std::string fileName(filename+".txt");
+			std::string xname(filename+".txt");
 			std::ofstream file;
 			if (!headerWritten)
 			{
-				file.open(fileName.c_str());
+				file.open(xname.c_str());
 				for (auto s : labels)
 					file << s << " ";
 				file << std::endl;
 				headerWritten = true;
 			}
 			else
-				file.open(fileName.c_str(),std::ios::app);
+				file.open(xname.c_str(),std::ios::app);
 			file.precision(numSigFigs);
 			for (auto v : values)
 				file << v << " ";
@@ -558,7 +561,7 @@ void BoxDiagnostic::Field(const std::string& fieldName,const struct Field& F,con
 		{
 			pts[0] = 0;
 			writer.write_header(xname,pts);
-			meta.create_entry(xname);
+			meta.start_entry(xname,filename);
 			meta.define_axis(xname,0,"$t$",tw::dimensions::time);
 			meta.define_axis(xname,1,"$x$",tw::dimensions::length);
 			meta.define_axis(xname,2,"$y$",tw::dimensions::length);
@@ -567,10 +570,10 @@ void BoxDiagnostic::Field(const std::string& fieldName,const struct Field& F,con
 			else
 				meta.define_axis(xname,3,"$\\zeta$",tw::dimensions::length);
 			if (pretty=="tw::none")
-				meta.define_axis(xname,4,fieldName,unit);
+				meta.define_axis(xname,4,fieldName,unit,true);
 			else
-				meta.define_axis(xname,4,pretty,unit);
-			meta.define_grid(filename,xname);
+				meta.define_axis(xname,4,pretty,unit,true);
+			meta.finish_entry();
 		}
 		writer.add_frame(xname,(char*)&gData[0],pts);
 		writer.update_shape(xname,pts);
@@ -645,14 +648,14 @@ void ParticleOrbits::Finish()
 		npy_writer writer;
 		tw::Int shape[4] = { 0 , 1 , 1 , 8 };
 		tw::Int false_shape[4] = { 0 , 1 , 1 , 8 };
-		std::string fileName = filename + ".npy";
+		std::string xname = filename + ".npy";
 		if (!headerWritten)
 		{
-			writer.write_header(fileName,shape);
+			writer.write_header(xname,shape);
 			headerWritten = true;
 		}
 		false_shape[2] = pts;
-		writer.add_frame(fileName,(char*)&parBuffer[0],false_shape);
+		writer.add_frame(xname,(char*)&parBuffer[0],false_shape);
 		for (tw::Int i=0;i<task->strip[0].Get_size();i++)
 		{
 			if (i!=master)
@@ -661,12 +664,12 @@ void ParticleOrbits::Finish()
 				parBuffer.resize(pts);
 				task->strip[0].Recv(&parBuffer[0],sizeof(float)*pts,i);
 				false_shape[2] = pts;
-				writer.add_frame(fileName,(char*)&parBuffer[0],false_shape);
+				writer.add_frame(xname,(char*)&parBuffer[0],false_shape);
 			}
 		}
 		float separator[8] = {0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0};
-		writer.add_frame(fileName,(char*)&separator[0],shape);
-		writer.update_shape(fileName,shape);
+		writer.add_frame(xname,(char*)&separator[0],shape);
+		writer.update_shape(xname,shape);
 	}
 }
 
@@ -728,16 +731,16 @@ void PhaseSpaceDiagnostic::Start()
 			{tw::grid::mass,tw::dimensions::energy},{tw::grid::px,tw::dimensions::momentum},{tw::grid::py,tw::dimensions::momentum},{tw::grid::pz,tw::dimensions::momentum},
 			{tw::grid::g,tw::dimensions::none},{tw::grid::gbx,tw::dimensions::none},{tw::grid::gby,tw::dimensions::none},{tw::grid::gbz,tw::dimensions::none}};
 		npy_writer writer;
-		std::string fileName = filename + ".npy";
-		writer.write_header(fileName,dims);
+		std::string xname = filename + ".npy";
+		writer.write_header(xname,dims);
 		meta_writer meta(space->units);
-		meta.create_entry(fileName);
-		meta.define_axis(fileName,0,tw::grid::pretty_axis_label(ax[0]),m[ax[0]]);
-		meta.define_axis(fileName,1,tw::grid::pretty_axis_label(ax[1]),m[ax[1]]);
-		meta.define_axis(fileName,2,tw::grid::pretty_axis_label(ax[2]),m[ax[2]]);
-		meta.define_axis(fileName,3,tw::grid::pretty_axis_label(ax[3]),m[ax[3]]);
-		meta.define_axis(fileName,4,"$f({\\bf r},{\\bf p})$ (arb.)",tw::dimensions::none);
-		meta.define_grid(filename,fileName);
+		meta.start_entry(xname,filename);
+		meta.define_axis(xname,0,tw::grid::pretty_axis_label(ax[0]),m[ax[0]]);
+		meta.define_axis(xname,1,tw::grid::pretty_axis_label(ax[1]),m[ax[1]]);
+		meta.define_axis(xname,2,tw::grid::pretty_axis_label(ax[2]),m[ax[2]]);
+		meta.define_axis(xname,3,tw::grid::pretty_axis_label(ax[3]),m[ax[3]]);
+		meta.define_axis(xname,4,"$f({\\bf r},{\\bf p})$ (arb.)",tw::dimensions::none,true);
+		meta.finish_entry();
 		// don't set headerWritten until end of Finish() due to grid file
 	}
 
@@ -758,14 +761,14 @@ void PhaseSpaceDiagnostic::Finish()
 	{
 		npy_writer writer;
 		fxp.ApplyBoundaryCondition();
-		std::string fileName = filename + ".npy";
+		std::string xname = filename + ".npy";
 		std::valarray<float> gData(dims[1]*dims[2]*dims[3]);
 		for (tw::Int i=1;i<=dims[1];i++)
 			for (tw::Int j=1;j<=dims[2];j++)
 				for (tw::Int k=1;k<=dims[3];k++)
 					gData[(i-1)*dims[2]*dims[3] + (j-1)*dims[3] + (k-1)] = fxp(i,j,k);
-		writer.add_frame(fileName,(char*)&gData[0],dims);
-		writer.update_shape(fileName,dims);
+		writer.add_frame(xname,(char*)&gData[0],dims);
+		writer.update_shape(xname,dims);
 	}
 
 	// Write out the phase space grid data

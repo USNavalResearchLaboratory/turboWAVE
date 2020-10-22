@@ -1,4 +1,4 @@
-AMD GPGPU on Ubuntu 18.04
+AMD GPGPU on Ubuntu 20.04
 =========================
 
 .. caution::
@@ -6,15 +6,19 @@ AMD GPGPU on Ubuntu 18.04
 	We assume core turboWAVE **and** tools have already been installed according to the documentation, with no steps omitted.
 
 Driver
-------
+-------
 
-The MESA driver is available from default repositories:
+#. Install AMD ROCm
 
-	#. :samp:`sudo apt update`
-	#. :samp:`sudo apt install mesa-opencl-icd ocl-icd-opencl-dev`
-	#. :samp:`sudo apt update`
+	* Perform internet search to find the installation instructions and carry out.  As of this writing the simplest way appears to be to use the script ``rocminstall.py``, see `<https://github.com/srinivamd/rocminstaller>`_.
+	* Be sure to test the installation per the installation instructions.
+	* This may involve multiple restarts.
 
-Alternatively you can try to install AMD ROCm.
+#. Create a symbolic link to the ROCm installation
+
+	* :samp:`cd /opt && ls`
+	* The output should include a directory in the form :samp:`rocm-{x.y.z}`.
+	* If there is no symbolic link :samp:`rocm` create it using :samp:`sudo ln -s rocm-{x.y.z} rocm`
 
 Compile with OpenCL
 -------------------

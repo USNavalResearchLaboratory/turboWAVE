@@ -15,7 +15,7 @@ TurboWAVE input files are written using an intuitive "little language" which pro
 There are only four keywords, **new**, **get**, **generate**, and **for**.  You can often get by with only **new**.  The following short example illustrates almost the full range of little language syntax::
 
 	// For illustration only, do not try to run
-	#define $dens %1.0e18[/cm3] // (1) variables and units
+	#define $dens 1.0e18 [/cm3] // (1) variables and units
 	timestep = .01 // (2) floating point assignment
 
 	new plane wave 'pw1' // (3) creating a tool with name given in quotes
@@ -51,7 +51,7 @@ There are only four keywords, **new**, **get**, **generate**, and **for**.  You 
 
 If you are familiar with C++ syntax you will recognize comments as preceded by ``//``.  The C-style ``/*`` and ``*/`` comment delimiters are supported also.  Numbered highlights in the above example are as follows:
 
- 	#. C-style preprocessor macros are used to gain the effect of user defined constants.  Numbers can be given physical units using the % prefix followed by a unit specifier postfix.
+ 	#. C-style preprocessor macros are used to gain the effect of user defined constants.  Numbers can be given physical units with a postfix.
 	#. Simple assignment to a floating point parameter. Since no units are given, it is assumed dimensionless.
 	#. Creating a plane wave tool with the user assigned name 'pw1'.  This name can be used later in the input file.
 	#. Creating a field solver module; modules do the high level management of data.
@@ -112,12 +112,27 @@ The analogy with the C preprocessor is limited.  Function-like macros are not su
 
 User macros can be defined at any point in an input file, except where they would interrupt another directive. Attempting to redefine a macro throws an error.
 
+Preprocessor Order
+,,,,,,,,,,,,,,,,,,
+
+The order of preprocessor operations is as follows:
+
+	#. Strip comments
+	#. Recursive file substitution
+
+		* Comments are stripped at each level
+
+	#. Clean white space
+	#. Process user defined macros
+
+		* At present keys must be unique across all included files.
+
 .. _unit-conv:
 
 Unit Conversion
-,,,,,,,,,,,,,,,
+---------------
 
-When a number is given without dimensions, it is assumed to be in native units (typically normalized to plasma parameters).  However, there are several pre-defined macros that make it simple to use conventional units.  These are triggered by the ``%`` character. The format is :samp:`%{n}{u}`, where :samp:`{n}` is a number and :samp:`{u}` is a string identifying the units.  An example is :samp:`%10[ps]`, which means 10 picoseconds. No spaces may appear in the macro.  Supported units and identifier string are:
+When a number is given without dimensions, it is assumed to be in native units (typically normalized to plasma parameters).  Dimensional numbers can be specified using the form :samp:`{n} {u}`, where :samp:`{n}` is a number and :samp:`{u}` is a string identifying the unit.  An example is :samp:`10 [ps]`, which means 10 picoseconds. White space between the number and unit is optional.  Supported units and identifier string are:
 
 .. csv-table:: Unit Conversion Macro Identifiers.
 	:header: "Quantity", "Identifier", "Deprecated"
@@ -153,23 +168,9 @@ When a number is given without dimensions, it is assumed to be in native units (
 	"Tesla", :samp:`[T]`, :samp:`T`
 	"Gauss", :samp:`[G]`, :samp:`G`
 
+.. note::
 
-Preprocessor Order
-,,,,,,,,,,,,,,,,,,
-
-The order of preprocessor operations is as follows:
-
-	#. Strip comments
-	#. Recursive file substitution
-
-		* Comments are stripped at each level
-
-	#. Clean white space
-	#. Process user defined macros
-
-		* At present keys must be unique across all included files.
-
-	#. Process predefined macros
+	The old ``%`` prefix can still be used, but is considered deprecated.
 
 Top Level Directives
 --------------------

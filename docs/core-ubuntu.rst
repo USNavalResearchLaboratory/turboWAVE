@@ -1,4 +1,4 @@
-Core Install for Ubuntu 18.04
+Core Install for Ubuntu 20.04
 =============================
 
 Install GCC
@@ -13,7 +13,7 @@ Install LLVM
 
 #. Open a terminal window
 #. :samp:`sudo apt update`
-#. :samp:`sudo apt install llvm clang libc++-dev libc++abi-dev`
+#. :samp:`sudo apt install llvm clang`
 
 Configure File System
 ---------------------

@@ -391,14 +391,13 @@ EOSTillotson::EOSTillotson(const std::string& name,MetricSpace *m, Task *tsk) : 
 // (5) Mixed Region                : ( \rho_0 > \rho > \rho_IV & E_{CV} > E > E_{IV} )
 void EOSTillotson::AddPKV(ScalarField& IE, ScalarField& nm, ScalarField& nu_e, Field& hydro, Field& eos)
 {
-
-	UnitConverter *uc = space->units;
+	auto cgs = [&] (tw::dimensions d,tw::Float v) { return space->units->ConvertFromNative(v,d,tw::units::cgs); };
 
 	// threshold parameters in cgs units
-	tw::Float RhoIV_cgs = uc->SimToCGS(tw::dimensions::mass,mat.mass)*uc->SimToCGS(tw::dimensions::density,nIV); // Vaporization Pressure [g/cm3]
-	tw::Float E0_cgs = uc->SimToCGS(tw::dimensions::energy,E0)/uc->SimToCGS(tw::dimensions::mass,mat.mass); // Reference energy density [erg/g]
-	tw::Float EIV_cgs = uc->SimToCGS(tw::dimensions::energy,EIV)/uc->SimToCGS(tw::dimensions::mass,mat.mass); // Vaporization Energy [erg/g]
-	tw::Float ECV_cgs = uc->SimToCGS(tw::dimensions::energy,ECV)/uc->SimToCGS(tw::dimensions::mass,mat.mass); // Cavitation Energy [erg/g]
+	tw::Float RhoIV_cgs = cgs(tw::dimensions::mass,mat.mass)*cgs(tw::dimensions::density,nIV); // Vaporization Pressure [g/cm3]
+	tw::Float E0_cgs = cgs(tw::dimensions::energy,E0)/cgs(tw::dimensions::mass,mat.mass); // Reference energy density [erg/g]
+	tw::Float EIV_cgs = cgs(tw::dimensions::energy,EIV)/cgs(tw::dimensions::mass,mat.mass); // Vaporization Energy [erg/g]
+	tw::Float ECV_cgs = cgs(tw::dimensions::energy,ECV)/cgs(tw::dimensions::mass,mat.mass); // Cavitation Energy [erg/g]
 
 	#pragma omp parallel
 	{
@@ -406,10 +405,10 @@ void EOSTillotson::AddPKV(ScalarField& IE, ScalarField& nm, ScalarField& nu_e, F
 		{
 			const tw::Float ndens = hydro(cell,hidx.ni);
 			const tw::Float udens = hydro(cell,hidx.u);
-			const tw::Float rho_cgs = uc->SimToCGS(tw::dimensions::mass,mat.mass)*uc->SimToCGS(tw::dimensions::density,ndens);
-			const tw::Float u_cgs = uc->SimToCGS(tw::dimensions::energy_density,udens);
+			const tw::Float rho_cgs = cgs(tw::dimensions::mass,mat.mass)*cgs(tw::dimensions::density,ndens);
+			const tw::Float u_cgs = cgs(tw::dimensions::energy_density,udens);
 
-			const tw::Float rho0_cgs = uc->SimToCGS(tw::dimensions::mass,mat.mass)*uc->SimToCGS(tw::dimensions::density,n0);
+			const tw::Float rho0_cgs = cgs(tw::dimensions::mass,mat.mass)*cgs(tw::dimensions::density,n0);
 			const tw::Float u0_cgs = rho_cgs*E0_cgs + tw::small_pos; // U [etg/cm3] = rho [g/cm3] * E [erg/g]
 
 			const tw::Float eta = ndens/n0; // compression

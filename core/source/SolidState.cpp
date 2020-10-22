@@ -302,16 +302,21 @@ void BoundElectrons::Update()
 
 void BoundElectrons::ReadInputFileDirective(std::stringstream& inputString,const std::string& command)
 {
+	tw::dnum x,y,z;
 	std::string word;
 
 	Module::ReadInputFileDirective(inputString,command);
 
 	if (command=="basis")
 	{
+		auto native = [&] (const tw::dnum& d) { return owner->units->ConvertToNative(d); };
 		inputString >> word;
-		inputString >> crystalBasis.u.x >> crystalBasis.u.y >> crystalBasis.u.z;
-		inputString >> crystalBasis.v.x >> crystalBasis.v.y >> crystalBasis.v.z;
-		inputString >> crystalBasis.w.x >> crystalBasis.w.y >> crystalBasis.w.z;
+		inputString >> x >> y >> z;
+		crystalBasis.u = tw::vec3(native(x),native(y),native(z));
+		inputString >> x >> y >> z;
+		crystalBasis.v = tw::vec3(native(x),native(y),native(z));
+		inputString >> x >> y >> z;
+		crystalBasis.w = tw::vec3(native(x),native(y),native(z));
 	}
 }
 

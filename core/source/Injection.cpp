@@ -89,9 +89,10 @@ void Profile::ReadInputFileDirective(std::stringstream& inputString,const std::s
 	}
 	if (com=="euler angles") // eg, euler angles = ( %45deg %90deg %30deg )
 	{
-		tw::Float alpha,beta,gamma;
+		auto native = [&] (tw::dnum d) { return space->units->ConvertToNative(d); };
+		tw::dnum alpha,beta,gamma;
 		inputString >> alpha >> beta >> gamma;
-		orientation.SetWithEulerAngles(alpha,beta,gamma);
+		orientation.SetWithEulerAngles(native(alpha),native(beta),native(gamma));
 	}
 }
 

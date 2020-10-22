@@ -20,6 +20,7 @@ ComputeTool::ComputeTool(const std::string& name,MetricSpace *ms,Task *tsk)
 	theRgn = NULL;
 	programFilename = "";
 	buildLog = "";
+	directives.AttachUnits(ms->units);
 	directives.Add("clipping region",new tw::input::String(&region_name),false);
 }
 

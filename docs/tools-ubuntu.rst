@@ -1,4 +1,4 @@
-Tools Install for Ubuntu 18.04
+Tools Install for Ubuntu 20.04
 ==============================
 
 .. caution::

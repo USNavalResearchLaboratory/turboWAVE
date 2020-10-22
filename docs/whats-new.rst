@@ -6,12 +6,12 @@ Python Friendly Outputs
 
 Binaries are now written as ``numpy`` arrays using the standard ``.npy`` format. These can be read into your Python scripts directly, using ``numpy.load``.  The old turboWAVE specific ``.dvdat`` format is retired.
 
-Metadata (units, axis information, labels, etc.) associated with each binary file is kept in a single Python file, ``tw_metadata.py``, which contains a single Python dictionary.  This file can be directly imported into your Python scripts.
+Metadata (units, axis information, labels, etc.) associated with each binary file is kept in a single file, ``tw_metadata.json``.  This can be easily loaded into a Python dictionary.
 
 Further Improvements in Units
 -----------------------------
 
-TurboWAVE's internal comprehension of several systems of units is more fully integrated.  Input files can now specify a native system of units, subject to possible veto by individual modules.  This improvement allows information on the units to be reliably incorporated into the metadata, and allows visualization tools to perform unit translations very easily.
+TurboWAVE's internal comprehension of several systems of units is more fully integrated.  Unit conversion is taken out of the preprocessor and moved into the parser for better semantic control.  Input files can now specify a native system of units, subject to possible veto by individual modules.  This improvement allows information on the units to be reliably incorporated into the metadata, and allows visualization tools to perform unit translations very easily.
 
 Better Jupyter DataViewer
 -------------------------
@@ -23,7 +23,7 @@ Gotchas
 
 #. Since the ``.dvdat`` format is retired, the CLI plotter ``plot-dvdat.py`` is renamed ``twplot.py``.  Similarly ``maya-dvdat.py`` is renamed ``twmaya.py``.
 
-#. The metadata file ``tw_metadata.py`` must be kept with the simulation outputs in order for post-processing tools to perform optimally.
+#. The metadata file ``tw_metadata.json`` and the grid files must be kept with the simulation outputs in order for post-processing tools to perform optimally.
 
 #. Your Python environment needs to add the ``ipympl`` package for the Jupyter DataViewer.  Also don't forget to install the new ``twutils`` package.
 

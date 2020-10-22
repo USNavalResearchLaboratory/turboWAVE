@@ -9,9 +9,10 @@ class meta_writer
 	UnitConverter *units;
 public:
 	meta_writer(UnitConverter *units);
-	void create_entry(const std::string& name);
-	void define_axis(const std::string& name,tw::Int ax,const std::string& label,tw::dimensions units);
-	void define_grid(const std::string& diagnostic_name,const std::string& name);
+	std::string s(const std::string& raw);
+	void start_entry(const std::string& name,const std::string& diagnostic_name);
+	void define_axis(const std::string& name,tw::Int ax,const std::string& label,tw::dimensions units,bool last=false);
+	void finish_entry();
 };
 
 class npy_writer

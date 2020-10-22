@@ -227,19 +227,23 @@ void AtomicPhysics::VerifyInput()
 
 void AtomicPhysics::ReadInputFileDirective(std::stringstream& inputString,const std::string& command)
 {
+	tw::dnum q,r;
 	std::string word;
 	Module::ReadInputFileDirective(inputString,command);
 	// note: examples of charge are geared toward atomic units
 	// if using natural units, unit of charge is sqrt(alpha) ~ 0.085
 	if (command=="soft core potential charge") // eg, soft core potential , charge = 1.0 , radius = 0.01
 	{
-		inputString >> word >> H.qnuc >> word >> word >> H.rnuc;
+		inputString >> word >> q >> word >> word >> r;
+		H.qnuc = owner->units->ConvertToNative(q);
+		H.rnuc = owner->units->ConvertToNative(r);
 	}
 	if (command=="bachelet potential") // eg, bachelet potential = 1.0 1.0 1.0 0.1 0.5
 	{
 		inputString >> word;
-		inputString >> H.qnuc;
+		inputString >> q;
 		inputString >> H.c1 >> H.c2 >> H.a1 >> H.a2;
+		H.qnuc = owner->units->ConvertToNative(q);
 	}
 }
 

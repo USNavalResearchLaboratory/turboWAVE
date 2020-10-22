@@ -641,7 +641,7 @@ Diagnostic Formats
 
 TurboWAVE binaries are in numerical Python (numpy) format (extension ``.npy``).  They can be easily read into a Python program using ``numpy.load``.
 
-All metadata is in the file ``tw_metadata.py``, which can be imported directly into any Python code to expose the ``files`` dictionary.  One then looks up the file of interest (e.g. ``tw_metadata.files['Ex.npy']``) to expose further dictionaries pertaining to the file.
+All metadata is in the file ``tw_metadata.json``, which can easily be read into a Python dictionary.  One then looks up the file of interest to expose further dictionaries pertaining to the file.
 
 Text files are generally tab delimited tables of ASCII data, with a one-line header containing column labels.
 

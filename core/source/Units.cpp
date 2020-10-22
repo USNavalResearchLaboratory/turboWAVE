@@ -1,5 +1,89 @@
 #include "meta_base.h"
 
+//////////////////////////
+//                      //
+//  Dimensional Number  //
+//                      //
+//////////////////////////
+
+tw::dnum::dnum()
+{
+	prefix = 1.0;
+	value = 0.0;
+	unit_dimension = tw::dimensions::none;
+	unit_system = tw::units::mks;
+}
+
+tw::dnum::dnum(tw::dimensions dim,tw::units sys,tw::Float pre)
+{
+	prefix = pre;
+	value = 0.0;
+	unit_dimension = dim;
+	unit_system = sys;
+}
+
+tw::dnum::dnum(tw::Float v,const tw::dnum& d)
+{
+	*this = d;
+	value = v;
+}
+
+std::istream& tw::operator >> (std::istream& is,tw::dnum& d)
+{
+	// Function to read a dimensional number off the input stream.
+	// Accept several forms, e.g., -%1.0V, %-1.0[V], -1.0[V], -1.0 [V].
+	// The '%' prefix and unbracketed unit are deprecated.
+	std::size_t endpos;
+	std::string word,val,units;
+	std::map<std::string,tw::dnum> umap = tw::umap();
+	std::map<std::string,tw::dnum> umap_alt = tw::umap_alt();
+
+	is >> word;
+	val = word;
+	units = "";
+	// If there is a '%' prefix remove it
+	if (word.size()>1)
+	{
+		if (word[0]=='-' && word[1]=='%')
+		{
+			word[1] = '-';
+			val = word.substr(1);
+		}
+		if (word[0]=='%')
+		{
+			val = word.substr(1);
+		}
+	}
+	try { d.value = std::stod(val,&endpos); }
+	catch (std::invalid_argument) { throw tw::FatalError("Invalid number : " + word); }
+	if (endpos<val.size())
+		units = val.substr(endpos);
+	else
+	{
+		is >> units;
+		if (umap.find(units)==umap.end() && umap_alt.find(units)==umap_alt.end())
+		{
+			is.seekg(-units.size(),std::ios::cur);
+			units = "";
+		}
+	}
+	if (units=="")
+	{
+		d.unit_dimension = tw::dimensions::none;
+		d.unit_system = tw::units::mks;
+	}
+	else
+	{
+		if (umap.find(units)==umap.end() && umap_alt.find(units)==umap_alt.end())
+			throw tw::FatalError("Unrecognized Units " + units);
+		if (umap.find(units)!=umap.end())
+			d = dnum(d.value,umap[units]);
+		if (umap_alt.find(units)!=umap_alt.end())
+			d = dnum(d.value,umap_alt[units]);
+	}
+	return is;
+}
+
 /////////////////////////////
 //                         //
 //  Unit Conversion Tools  //
@@ -28,6 +112,8 @@ tw::Float UnitConverter::FactorizedMKSValue(tw::dimensions dim,tw::Float m1,tw::
 	switch (dim)
 	{
 		case tw::dimensions::none:
+			return 1.0;
+		case tw::dimensions::angle:
 			return 1.0;
 		case tw::dimensions::angular_frequency:
 			return w1;
@@ -145,6 +231,8 @@ tw::Float UnitConverter::MKSValue(tw::dimensions dim,tw::units sys) const
 			switch (dim)
 			{
 				case tw::dimensions::none:
+					return 1.0;
+				case tw::dimensions::angle:
 					return 1.0;
 				case tw::dimensions::angular_frequency:
 					return wp;

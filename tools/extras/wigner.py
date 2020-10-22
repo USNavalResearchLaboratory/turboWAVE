@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 import twutils.plot as twplot
 import twutils.pre as twpre
 from scipy import constants as C
+eta0 = np.sqrt(C.mu_0/C.epsilon_0)
 
 if len(sys.argv)<3:
 	print('Usage: python wigner.py slicing=slices real_file,imag_file [panels=a,b] [layout=1x2]')
@@ -105,17 +106,6 @@ def ParseSlices(dims,ax_list,slice_str_list):
 		slice_tuples.append(tup)
 	return slice_tuples,movie
 
-# normalization constants in mks
-
-n1 = 2.65e17*1e6
-su = twpre.SimUnits(n1*1e-6)
-t1 = su.t1
-x1 = su.x1
-E1 = su.E1
-U1 = C.m_e*C.c*C.c
-N1 = n1*x1**3
-eta0 = np.sqrt(C.mu_0/C.epsilon_0)
-
 # Matplotlib setup and default args
 
 mpl.rcParams.update({'text.usetex' : False , 'font.size' : 10})
@@ -158,13 +148,13 @@ for keyval in sys.argv[3:]:
 		for s in val.split('/')[1].split(','):
 			roi[1].append(int(s))
 
-plotter_r = twplot.plotter(real_data_file,buffered=False)
+plotter_r = twplot.plotter(real_data_file,buffered=False,units='mks')
 try:
 	carrier = float(imag_data_file)
 	plotter_i = 0.0
 except ValueError:
 	carrier = 0.0
-	plotter_i = twplot.plotter(imag_data_file,buffered=False)
+	plotter_i = twplot.plotter(imag_data_file,buffered=False,units='mks')
 plotter_r.display_info()
 
 # Set up animation slices
@@ -191,14 +181,14 @@ def form_envelope(real_field,carrier,dz,ax):
 	k = 2*np.pi*np.fft.fftfreq(real_field.shape[ax],dz)
 	dk = k[1]-k[0]
 	kc = -k[int(real_field.shape[ax]/2)]
-	carrier_idx = int(real_field.shape[ax] * carrier / (2*kc))
+	carrier_idx = int(real_field.shape[ax] * carrier / (2*C.c*kc))
 	env = np.fft.fft(real_field,axis=ax)
 	if ax==0:
 		env[int(env.shape[0]/2):,...] = 0.0
 	else:
 		env[...,int(env.shape[1]/2):] = 0.0
 	env = np.roll(env,-carrier_idx,axis=ax)
-	return 2*E1*np.fft.ifft(env,axis=ax)
+	return 2*np.fft.ifft(env,axis=ax)
 
 def extract_plot_data(plotter_r,plotter_i,slice_now):
 	if carrier!=0.0:
@@ -211,13 +201,14 @@ def extract_plot_data(plotter_r,plotter_i,slice_now):
 		imag2d,dict2d = plotter_i.falsecolor2d(slicing_spec,slice_now[1:],dyn_range[0])
 		abcissa,real1d,dict1d = plotter_r.lineout(slicing_spec,slice_now,dyn_range[1])
 		abcissa,imag1d,dict1d = plotter_i.lineout(slicing_spec,slice_now,dyn_range[1])
-		envelope2d = E1*(real2d + 1j*imag2d)
-		envelope1d = E1*(real1d + 1j*imag1d)
+		envelope2d = (real2d + 1j*imag2d)
+		envelope1d = (real1d + 1j*imag1d)
 	z_extent = [abcissa[0],abcissa[-1]]
 	dz = (z_extent[1]-z_extent[0]) / envelope1d.shape[0]
-	k_extent = [-np.pi/dz,np.pi/dz]
+	k_extent = [-np.pi*C.c/dz,np.pi*C.c/dz]
 	wig_ext = z_extent + k_extent
-	return envelope2d,dict2d['extent'],WignerTransform(envelope1d,dz*x1/C.c,eta0),wig_ext
+	print(np.max(np.abs(envelope2d)),np.max(np.abs(envelope1d)))
+	return envelope1d,abcissa,envelope2d,dict2d['extent'],WignerTransform(envelope1d,dz/C.c,eta0),wig_ext
 
 
 # Determine the global color scale bounds for both plots
@@ -229,7 +220,7 @@ global_max1 = -1e50
 global_min2 = 1e50
 global_max2 = -1e50
 for slice_now in slice_tuples:
-	envelope2d,ext1,wigner,ext2=extract_plot_data(plotter_r,plotter_i,slice_now)
+	envelope1d,abcissa,envelope2d,ext1,wigner,ext2=extract_plot_data(plotter_r,plotter_i,slice_now)
 	local_min = np.min(np.abs(envelope2d))
 	local_max = np.max(np.abs(envelope2d))
 	if local_min<global_min1:
@@ -252,7 +243,7 @@ for file_idx,slice_now in enumerate(slice_tuples):
 	else:
 		plt.figure(file_idx,figsize=(3.5,7),dpi=150)
 
-	envelope2d,ext1,wigner,ext2=extract_plot_data(plotter_r,plotter_i,slice_now)
+	envelope1d,abcissa,envelope2d,ext1,wigner,ext2=extract_plot_data(plotter_r,plotter_i,slice_now)
 	if layout=='1x2':
 		plt.subplot(121)
 	else:
@@ -260,7 +251,7 @@ for file_idx,slice_now in enumerate(slice_tuples):
 	plt.imshow(np.abs(envelope2d)*1e-12*1e-2,
 		origin='lower',
 		aspect=my_aspect,
-		extent=ext1,
+		extent=list(1e15*np.array(ext1[:2])/C.c) + list(1e6*np.array(ext1[2:])),
 		vmin=global_min1*1e-12*1e-2,
 		vmax=global_max1*1e-12*1e-2,
 		cmap=color[0])
@@ -271,8 +262,8 @@ for file_idx,slice_now in enumerate(slice_tuples):
 		plt.ylim(roi[0][2],roi[0][3])
 	else:
 		roi[0] = ext1
-	plt.xlabel(r'$\omega_p(z/c - t)$',size=12)
-	plt.ylabel(r'$\omega_p\rho/c$',size=12)
+	plt.xlabel(r'$z/c - t$ (fs)',size=12)
+	plt.ylabel(r'$\rho$ ($\mu$m)',size=12)
 	if not panels=='':
 		plt.text(roi[0][0],roi[0][3]+0.03*(roi[0][3]-roi[0][2]),'('+panels[0]+')')
 
@@ -283,7 +274,7 @@ for file_idx,slice_now in enumerate(slice_tuples):
 	plt.imshow(wigner.swapaxes(0,1)*1e-6*1e-4,
 		origin='lower',
 		aspect=my_aspect,
-		extent=ext2,
+		extent=list(1e15*np.array(ext2[:2])/C.c) + list(1e-15*np.array(ext2[2:])),
 		vmin=global_min2*1e-6*1e-4,
 		vmax=global_max2*1e-6*1e-4,
 		cmap=color[1])
@@ -294,8 +285,8 @@ for file_idx,slice_now in enumerate(slice_tuples):
 		plt.ylim(roi[1][2],roi[1][3])
 	else:
 		roi[1] = ext2
-	plt.xlabel(r'$\omega_p(z/c - t)$',size=12)
-	plt.ylabel(r'$\delta\omega/\omega_p$',size=12)
+	plt.xlabel(r'$z/c - t$ (fs)',size=12)
+	plt.ylabel(r'$\delta\omega$ (fs$^{-1}$)',size=12)
 	if not panels=='':
 		plt.text(roi[1][0],roi[1][3]+0.03*(roi[1][3]-roi[1][2]),'('+panels[1]+')')
 
@@ -306,6 +297,12 @@ for file_idx,slice_now in enumerate(slice_tuples):
 		print('saving',img_file,'...')
 		plt.savefig(img_file)
 		plt.close()
+
+	# Directly look at spectrum to verify Wigner calibrations
+	spectrum = np.abs(np.fft.fft(envelope1d))**2
+	dw = 2*np.pi*C.c*np.fft.fftfreq(envelope1d.shape[0],abcissa[1]-abcissa[0])
+	plt.figure()
+	plt.plot(np.fft.fftshift(dw*1e-15),np.fft.fftshift(spectrum))
 
 if movie:
 	print('Consolidating into movie file...')

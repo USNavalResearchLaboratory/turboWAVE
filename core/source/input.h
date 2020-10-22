@@ -2,17 +2,17 @@ namespace tw
 {
 	namespace input
 	{
-		// Directive is a base class for several child classes.
-		// Directive and its derivatives provide mainly the virtual function Read(...).
-		// Read(...) is invoked by the DirectiveReader class, which maintains a hash table of string-keys and pointers to Directive instances.
-		// This hash table is the basis for reading data from the input file.
 		void StripQuotes(std::string& str);
 		struct Directive
 		{
+			// Directive is a base class for several child classes.
+			// Directive and its derivatives provide mainly the virtual function Read(...).
+			// Read(...) is invoked by the DirectiveReader class, which maintains a hash table of string-keys and pointers to Directive instances.
+			// This hash table is the basis for reading data from the input file.
 			virtual ~Directive()
 			{
 			}
-			virtual void Read(std::stringstream& in,const std::string& key)
+			virtual void Read(std::stringstream& in,const std::string& key,const UnitConverter& uc)
 			{
 				std::string word;
 				in >> word;
@@ -22,7 +22,7 @@ namespace tw
 		};
 		struct Custom : Directive
 		{
-			virtual void Read(std::stringstream& in,const std::string& key)
+			virtual void Read(std::stringstream& in,const std::string& key,const UnitConverter& uc)
 			{
 				// Do not consume the equals sign or any other token.  Do nothing.
 			}
@@ -31,9 +31,9 @@ namespace tw
 		{
 			std::string *str;
 			String(std::string *s) { str=s; }
-			virtual void Read(std::stringstream& in,const std::string& key)
+			virtual void Read(std::stringstream& in,const std::string& key,const UnitConverter& uc)
 			{
-				Directive::Read(in,key);
+				Directive::Read(in,key,uc);
 				in >> *str;
 				StripQuotes(*str);
 			}
@@ -44,12 +44,23 @@ namespace tw
 			T *dat;
 			tw::Int num;
 			Numbers(T *d,tw::Int n) { num=n; dat=d; }
-			virtual void Read(std::stringstream& in,const std::string& key)
+			virtual void Read(std::stringstream& in,const std::string& key,const UnitConverter& uc)
 			{
-				Directive::Read(in,key);
+				Directive::Read(in,key,uc);
 				for (tw::Int i=0;i<num;i++)
-					if (!(in >> dat[i]))
-						throw tw::FatalError("Invalid number while reading data for key <"+key+">");
+				{
+					if (std::is_floating_point<T>::value)
+					{
+						tw::dnum dimensional_number;
+						in >> dimensional_number;
+						dat[i] = uc.ConvertToNative(dimensional_number);
+					}
+					else
+					{
+						if (!(in >> dat[i]))
+							throw tw::FatalError("Invalid data type for key <"+key+">");
+					}
+				}
 			}
 		};
 		struct Int : Numbers<tw::Int>
@@ -75,35 +86,39 @@ namespace tw
 		template <class T>
 		struct List : Directive
 		{
-			// T has to support the resize method, and be subscriptable.
+			// T is a standard container, or any class with resize, subscript, and value_type.
 			// The contained type has to support input streams.
 			T *dat;
 			List(T *d) { dat=d; }
-			virtual void Read(std::stringstream& in,const std::string& key)
+			virtual void Read(std::stringstream& in,const std::string& key,const UnitConverter& uc)
 			{
-				Directive::Read(in,key);
+				Directive::Read(in,key,uc);
 				std::string word;
 				in >> word;
 				if (word!="{")
 					throw tw::FatalError("Expected curly-brace at start of list.");
-				// First put the string-data on a temporary stream and count.
 				// We are using streams to convert strings to data polymorphically.
-				std::stringstream temp;
 				tw::Int count = 0;
-				do
+				while (!in.eof() && word!="}")
 				{
 					in >> word;
-					if (word!="}")
+					if (!in.eof() && word!="}")
 					{
-						count++;
-						temp << word << " ";
+						in.seekg(-word.size(),std::ios::cur);
+						dat->resize(++count);
+						if (std::is_floating_point<typename T::value_type>::value)
+						{
+							tw::dnum dimensional_number;
+							in >> dimensional_number;
+							(*dat)[count-1] = uc.ConvertToNative(dimensional_number);
+						}
+						else
+						{
+							if (!(in >> (*dat)[count-1]))
+								throw tw::FatalError("Invalid data type for key <"+key+">");
+						}
 					}
-				} while (word!="}");
-				temp.seekg(0,temp.beg);
-				dat->resize(count);
-				for (tw::Int i=0;i<count;i++)
-					if (!(temp >> (*dat)[i]))
-						throw tw::FatalError("Invalid data type for key <"+key+">");
+				}
 			}
 		};
 		template <class T>
@@ -121,9 +136,9 @@ namespace tw
 			{
 				delete emap;
 			}
-			virtual void Read(std::stringstream& in,const std::string& key)
+			virtual void Read(std::stringstream& in,const std::string& key,const UnitConverter& uc)
 			{
-				Directive::Read(in,key);
+				Directive::Read(in,key,uc);
 				std::string word;
 				auto read_one = [&] (T *d)
 				{
@@ -144,9 +159,9 @@ namespace tw
 		{
 			bool *dat;
 			Bool(bool *d) { dat=d; }
-			virtual void Read(std::stringstream& in,const std::string& key)
+			virtual void Read(std::stringstream& in,const std::string& key,const UnitConverter& uc)
 			{
-				Directive::Read(in,key);
+				Directive::Read(in,key,uc);
 				std::string word;
 				std::multimap<std::string,bool> m = {{"on",true},{"true",true},{"yes",true},{"off",false},{"false",false},{"no",false}};
 				in >> word;
@@ -162,9 +177,11 @@ namespace tw
 			std::vector<std::string> requiredKeys;
 			std::map<std::string,tw::Int> keysFound;
 			std::map<std::string,tw::input::Directive*> dmap;
+			UnitConverter *uc;
 		public:
 			DirectiveReader();
 			~DirectiveReader();
+			void AttachUnits(UnitConverter *uc);
 			void Reset();
 			void Add(const std::string& key,tw::input::Directive *dir,bool required=true);
 			std::string ReadNext(std::stringstream& in);
@@ -196,12 +213,9 @@ namespace tw
 		void StripDecorations(std::stringstream& in,std::stringstream& out);
 		void InsertWhitespace(std::stringstream& in,std::stringstream& out);
 		void UserMacros(std::stringstream& in,std::stringstream& out);
-		void UnitMacros(std::stringstream& in,std::stringstream& out);
 		void PreprocessInputFile(const FileEnv& file_env,std::stringstream& out);
 
 		void PythonRange(std::string& source,tw::Float *v0,tw::Float *v1);
-
-		void NormalizeInput(const UnitConverter& uc,std::string& in_out);
 
 		Preamble EnterInputFileBlock(const std::string& com,std::stringstream& inputString,const std::string& end_tokens);
 

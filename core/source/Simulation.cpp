@@ -316,11 +316,13 @@ void Simulation::PrepareSimulation()
 			tool->theRgn = Region::FindRegion(clippingRegion,tool->region_name);
 	}
 
-	// Start the metadata Python dictionary
+	// Start the metadata dictionary
 	if (strip[0].Get_rank()==0)
 	{
-		std::ofstream metadata_file("tw_metadata.py");
-		metadata_file << "files = {}" << std::endl;
+		std::ofstream metadata_file("tw_metadata.json");
+		metadata_file << "{" << std::endl;
+		metadata_file << "\"version\": \"" << TW_VERSION_STRING << "\"}";
+		// n.b. closing brace must not be followed by anything due to append strategy
 		metadata_file.close();
 	}
 
@@ -783,7 +785,9 @@ std::string Simulation::InputFileFirstPass()
 		tw::input::PreprocessInputFile(tw::input::FileEnv(inputFileName),inputString);
 
 		inputString.seekg(0);
+		outerDirectives.AttachUnits(units);
 		outerDirectives.Reset();
+		gridDirectives.AttachUnits(units);
 		gridDirectives.Reset();
 
 		std::string com1,com2,word;
@@ -1150,6 +1154,7 @@ void Simulation::ReadInputFile()
 			{
 				processed = true;
 				clippingRegion.push_back(Region::CreateObjectFromString(clippingRegion,preamble.words[1]));
+				clippingRegion.back()->directives.AttachUnits(units);
 				clippingRegion.back()->name = preamble.obj_name;
 				clippingRegion.back()->ReadInputFileBlock(inputString);
 			}

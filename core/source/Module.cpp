@@ -29,6 +29,7 @@ Module::Module(const std::string& name,Simulation* sim)
 	suppressNextUpdate = false;
 	DiscreteSpace::operator=(*sim);
 	// Any Module recognizes smoothing keys
+	directives.AttachUnits(sim->units);
 	directives.Add("smoothing",new tw::input::Numbers<tw::Int>(&smoothing[1],3),false);
 	directives.Add("compensation",new tw::input::Numbers<tw::Int>(&compensation[1],3),false);
 }

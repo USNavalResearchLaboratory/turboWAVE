@@ -3,6 +3,7 @@ Primary interaction is through the plotter class."""
 
 import sys
 import os
+import json
 import warnings
 import importlib
 import numpy as np
@@ -89,17 +90,20 @@ class plotter:
         self.units = units
         self.buffered = buffered
         try:
-            sys.path.insert(1,self.basepath)
-            if 'tw_metadata' in sys.modules:
-                tw_metadata = importlib.reload(sys.modules['tw_metadata'])
-            else:
-                import tw_metadata
+            with open(os.path.join(self.basepath,'tw_metadata.json'),'r') as f:
+                meta_str = f.read()
         except:
-            warnings.warn('Could not find tw_metadata.py ('+self.basepath+'), using arbitrary scales.')
+            warnings.warn('Could not read file '+os.path.join(self.basepath,'tw_metadata.json'))
         try:
-            self.axes = tw_metadata.files[self.name]['axes']
-        except KeyError:
-            warnings.warn('Could not retrieve axes from the metadata for '+self.name)
+            self.meta = json.loads(meta_str)
+        except:
+            warnings.warn('Could not decode tw_metadata.json.')
+        try:
+            self.axes = self.meta[self.name]['axes']
+            for i in range(5):
+                self.axes[i] = self.axes[str(i)]
+        except:
+            warnings.warn('Could not retrieve axes from the metadata for '+self.name+', using arbitrary scales.')
             self.axes = { 0 : {} , 1 : {} , 2 : {} , 3 : {} , 4 : {} }
             self.axes[0]['label'] = 't'
             self.axes[1]['label'] = 'x'
@@ -118,7 +122,7 @@ class plotter:
                 self.axes[i]['natural label'] = 'None'
                 self.axes[i]['natural multiplier'] = 1.0
         try:
-            grid_file_path = os.path.join(self.basepath,tw_metadata.files[self.name]['grid'])
+            grid_file_path = os.path.join(self.basepath,self.meta[self.name]['grid'])
         except:
             warnings.warn('Could not find a reference to a grid file in the metadata.')
             grid_file_path = ''

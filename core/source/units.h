@@ -1,3 +1,5 @@
+class UnitConverter;
+
 namespace tw
 {
 	enum class units
@@ -8,9 +10,14 @@ namespace tw
 	{
 		return {{"mks",tw::units::mks},{"cgs",tw::units::cgs},{"plasma",tw::units::plasma},{"atomic",tw::units::atomic},{"natural",tw::units::natural}};
 	}
+	inline std::map<tw::units,std::string> get_unit_map_r()
+	{
+		return {{tw::units::mks,"mks"},{tw::units::cgs,"cgs"},{tw::units::plasma,"plasma"},{tw::units::atomic,"atomic"},{tw::units::natural,"natural"}};
+	}
 	enum class dimensions
 	{
 		none,
+		angle,
 		angular_frequency,
 		frequency,
 		time,
@@ -47,6 +54,92 @@ namespace tw
 		cross_section
 	};
 
+	class dnum
+	{
+		// Dimensional number class, basis of reading numbers with units from the input file
+		tw::Float prefix,value;
+		tw::dimensions unit_dimension;
+		tw::units unit_system;
+	public:
+		dnum();
+		dnum(tw::dimensions dim,tw::units sys,tw::Float pre);
+		dnum(tw::Float v,const tw::dnum& d);
+		friend std::istream& operator >> (std::istream& is,tw::dnum& d);
+		friend class ::UnitConverter;
+	};
+
+	inline std::map<std::string,tw::dnum> umap()
+	{
+		return
+		{
+			{"[rad]",tw::dnum(tw::dimensions::angle,tw::units::mks,1.0)},
+			{"[mrad]",tw::dnum(tw::dimensions::angle,tw::units::mks,1e-3)},
+			{"[urad]",tw::dnum(tw::dimensions::angle,tw::units::mks,1e-6)},
+			{"[deg]",tw::dnum(tw::dimensions::angle,tw::units::mks,pi/180.0)},
+			{"[um]",tw::dnum(tw::dimensions::length,tw::units::mks,1e-6)},
+			{"[mm]",tw::dnum(tw::dimensions::length,tw::units::mks,1e-3)},
+			{"[cm]",tw::dnum(tw::dimensions::length,tw::units::mks,1e-2)},
+			{"[m]",tw::dnum(tw::dimensions::length,tw::units::mks,1.0)},
+			{"[fs]",tw::dnum(tw::dimensions::time,tw::units::mks,1e-15)},
+			{"[ps]",tw::dnum(tw::dimensions::time,tw::units::mks,1e-12)},
+			{"[ns]",tw::dnum(tw::dimensions::time,tw::units::mks,1e-9)},
+			{"[us]",tw::dnum(tw::dimensions::time,tw::units::mks,1e-6)},
+			{"[s]",tw::dnum(tw::dimensions::time,tw::units::mks,1.0)},
+			{"[/m3]",tw::dnum(tw::dimensions::density,tw::units::mks,1.0)},
+			{"[/cm3]",tw::dnum(tw::dimensions::density,tw::units::cgs,1.0)},
+			{"[J/m3]",tw::dnum(tw::dimensions::energy_density,tw::units::mks,1.0)},
+			{"[J/cm3]",tw::dnum(tw::dimensions::energy_density,tw::units::mks,1e6)},
+			{"[eV]",tw::dnum(tw::dimensions::temperature,tw::units::cgs,1.0)},
+			{"[K]",tw::dnum(tw::dimensions::temperature,tw::units::mks,1.0)},
+			{"[cm2]",tw::dnum(tw::dimensions::cross_section,tw::units::cgs,1.0)},
+			{"[m2]",tw::dnum(tw::dimensions::cross_section,tw::units::mks,1.0)},
+			{"[cm2/s]",tw::dnum(tw::dimensions::diffusivity,tw::units::cgs,1.0)},
+			{"[m2/s]",tw::dnum(tw::dimensions::diffusivity,tw::units::mks,1.0)},
+			{"[V]",tw::dnum(tw::dimensions::scalar_potential,tw::units::mks,1.0)},
+			{"[webers/m]",tw::dnum(tw::dimensions::vector_potential,tw::units::mks,1.0)},
+			{"[G*cm]",tw::dnum(tw::dimensions::vector_potential,tw::units::cgs,1.0)},
+			{"[V/m]",tw::dnum(tw::dimensions::electric_field,tw::units::mks,1.0)},
+			{"[V/cm]",tw::dnum(tw::dimensions::electric_field,tw::units::mks,100.0)},
+			{"[T]",tw::dnum(tw::dimensions::magnetic_field,tw::units::mks,1.0)},
+			{"[G]",tw::dnum(tw::dimensions::magnetic_field,tw::units::cgs,1.0)}
+		};
+	}
+	inline std::map<std::string,tw::dnum> umap_alt()
+	{
+		return
+		{
+			{"rad",tw::dnum(tw::dimensions::angle,tw::units::mks,1.0)},
+			{"mrad",tw::dnum(tw::dimensions::angle,tw::units::mks,1e-3)},
+			{"urad",tw::dnum(tw::dimensions::angle,tw::units::mks,1e-6)},
+			{"deg",tw::dnum(tw::dimensions::angle,tw::units::mks,pi/180.0)},
+			{"um",tw::dnum(tw::dimensions::length,tw::units::mks,1e-6)},
+			{"mm",tw::dnum(tw::dimensions::length,tw::units::mks,1e-3)},
+			{"cm",tw::dnum(tw::dimensions::length,tw::units::mks,1e-2)},
+			{"m",tw::dnum(tw::dimensions::length,tw::units::mks,1.0)},
+			{"fs",tw::dnum(tw::dimensions::time,tw::units::mks,1e-15)},
+			{"ps",tw::dnum(tw::dimensions::time,tw::units::mks,1e-12)},
+			{"ns",tw::dnum(tw::dimensions::time,tw::units::mks,1e-9)},
+			{"us",tw::dnum(tw::dimensions::time,tw::units::mks,1e-6)},
+			{"s",tw::dnum(tw::dimensions::time,tw::units::mks,1.0)},
+			{"m-3",tw::dnum(tw::dimensions::density,tw::units::mks,1.0)},
+			{"cm-3",tw::dnum(tw::dimensions::density,tw::units::cgs,1.0)},
+			{"Jm3",tw::dnum(tw::dimensions::energy_density,tw::units::mks,1.0)},
+			{"Jcm3",tw::dnum(tw::dimensions::energy_density,tw::units::mks,1e6)},
+			{"eV",tw::dnum(tw::dimensions::temperature,tw::units::cgs,1.0)},
+			{"K",tw::dnum(tw::dimensions::temperature,tw::units::mks,1.0)},
+			{"cm2",tw::dnum(tw::dimensions::cross_section,tw::units::cgs,1.0)},
+			{"m2",tw::dnum(tw::dimensions::cross_section,tw::units::mks,1.0)},
+			{"cm2s",tw::dnum(tw::dimensions::diffusivity,tw::units::cgs,1.0)},
+			{"m2s",tw::dnum(tw::dimensions::diffusivity,tw::units::mks,1.0)},
+			{"V",tw::dnum(tw::dimensions::scalar_potential,tw::units::mks,1.0)},
+			{"wm",tw::dnum(tw::dimensions::vector_potential,tw::units::mks,1.0)},
+			{"Gcm",tw::dnum(tw::dimensions::vector_potential,tw::units::cgs,1.0)},
+			{"Vm",tw::dnum(tw::dimensions::electric_field,tw::units::mks,1.0)},
+			{"Vcm",tw::dnum(tw::dimensions::electric_field,tw::units::mks,100.0)},
+			{"T",tw::dnum(tw::dimensions::magnetic_field,tw::units::mks,1.0)},
+			{"G",tw::dnum(tw::dimensions::magnetic_field,tw::units::cgs,1.0)}
+		};
+	}
 	inline std::string plasma_label(tw::dimensions dim)
 	{
 		// These labels are inverse dimensions, meant to be concatenated with a dimensional variable.
@@ -54,6 +147,7 @@ namespace tw
 		std::map<tw::dimensions,std::string> ans =
 		{
 			{dimensions::none,"None"},
+			{dimensions::angle,"None"},
 			{dimensions::angular_frequency,"$/\\omega$"},
 			{dimensions::frequency,"$/\\omega$"},
 			{dimensions::time,"$\\omega$"},
@@ -98,6 +192,7 @@ namespace tw
 		std::map<tw::dimensions,std::string> ans =
 		{
 			{dimensions::none,"None"},
+			{dimensions::angle,"rad"},
 			{dimensions::angular_frequency,"rad$/$s"},
 			{dimensions::frequency,"s$^{-1}$"},
 			{dimensions::time,"s"},
@@ -141,6 +236,7 @@ namespace tw
 		std::map<tw::dimensions,std::string> ans =
 		{
 			{dimensions::none,"None"},
+			{dimensions::angle,"rad"},
 			{dimensions::angular_frequency,"rad$/$s"},
 			{dimensions::frequency,"s$^{-1}$"},
 			{dimensions::time,"s"},
@@ -196,15 +292,19 @@ namespace tw
 	}
 }
 
-struct UnitConverter
+class UnitConverter
 {
+public:
 	tw::units native;
 	tw::Float ne,wp;
 	tw::Float c,qe,me,eps0,kB,hbar,alpha;
 
+public:
 	UnitConverter(tw::units sys,tw::Float unitDensityCGS);
 	tw::Float FactorizedMKSValue(tw::dimensions dim,tw::Float m1,tw::Float w1,tw::Float l1,tw::Float u1,tw::Float q1,tw::Float a1,tw::Float T1) const;
 	tw::Float MKSValue(tw::dimensions dim,tw::units sys) const;
+
+	// Convert ordinary floats
 	tw::Float Convert(tw::Float val,tw::dimensions dim,tw::units convert_from,tw::units convert_to) const
 	{
 		return val*MKSValue(dim,convert_from)/MKSValue(dim,convert_to);
@@ -216,6 +316,22 @@ struct UnitConverter
 	tw::Float ConvertFromNative(tw::Float val,tw::dimensions dim,tw::units convert_to) const
 	{
 		return val*MKSValue(dim,native)/MKSValue(dim,convert_to);
+	}
+
+	// Convert using dimensional number class
+	tw::Float ConvertToNative(tw::dnum d) const
+	{
+		return d.prefix*d.value*MKSValue(d.unit_dimension,d.unit_system)/MKSValue(d.unit_dimension,native);
+	}
+
+	// Helpers
+	tw::Float eV_to_native(tw::Float val) const
+	{
+		return ConvertToNative(val*qe,tw::dimensions::energy,tw::units::mks);
+	}
+	tw::Float native_to_eV(tw::Float val) const
+	{
+		return ConvertFromNative(val,tw::dimensions::energy,tw::units::mks)/qe;
 	}
 	[[deprecated]]
 	tw::Float eV_to_sim(tw::Float val) const

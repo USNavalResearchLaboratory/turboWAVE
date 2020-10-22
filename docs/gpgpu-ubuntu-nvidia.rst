@@ -1,4 +1,4 @@
-NVIDIA GPGPU on Ubuntu 18.04
+NVIDIA GPGPU on Ubuntu 20.04
 ============================
 
 .. caution::
@@ -9,7 +9,10 @@ Driver
 ------
 
 	#. :samp:`sudo apt update`
-	#. :samp:`sudo apt install nvidia-opencl-icd nvidia-opencl-dev`
+	#. :samp:`sudo apt install nvidia-driver-{XXX} libnvidia-compute-{XXX} nvidia-opencl-dev`
+
+		* Replace :samp:`{XXX}` with version number, e.g., 450
+
 	#. :samp:`sudo apt update`
 
 Compile with OpenCL

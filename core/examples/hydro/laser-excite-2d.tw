@@ -7,8 +7,8 @@
 // If you want electrostatic fields, set plasma model = quasineutral
 // (quasineutral model will be slow)
 steps = 2000
-timestep = %100fs
-dtmax = %100fs
+timestep = %100[fs]
+dtmax = %100[fs]
 dump period = 0
 moving window = no
 neutralize = yes
@@ -39,7 +39,7 @@ new hydrodynamics 'hydro'
 	laser model = vacuum
 	plasma model = neutral
 	background density = 1e-8
-	background temperature = %300K
+	background temperature = %300[K]
 }
 
 new iterative elliptic solver for 'hydro'
@@ -50,20 +50,20 @@ new iterative elliptic solver for 'hydro'
 
 new hermite gauss for 'hydro'
 {
-	a = .002 0 0
+	a = (.0015 0 0)
 	w = 10
-	r0 = 30 30
+	r0 = (30 30)
 	delay = 0
-	risetime = %100ps
+	risetime = %100[ps]
 	holdtime = 0
-	falltime = %100ps
+	falltime = %100[ps]
 }
 
-#include "argon-1.tw"
+#include "argon-2.tw"
 
 new ppt ionization for Ar
 {
-	ionization potential = %15.76eV
+	ionization potential = %15.76[eV]
 	protons = 18
 	electrons = 18
 	ion species = Ar[+]
@@ -74,15 +74,15 @@ new ppt ionization for Ar
 generate uniform Ar
 {
 	density = 1.0
-	temperature = %300K
+	temperature = %300[K]
 }
 
 new box diagnostic
 {
-	time period = %10ps
+	time period = %10[ps]
 }
 
 new energy diagnostic
 {
-	time period = %10ps
+	time period = %10[ps]
 }

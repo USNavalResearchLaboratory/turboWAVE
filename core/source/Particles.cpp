@@ -1047,17 +1047,22 @@ void Species::FinishMoveWindow()
 void Species::ReadInputFileDirective(std::stringstream& inputString,const std::string& command)
 {
 	std::string word;
+	tw::dnum density,momentum,time;
 	Module::ReadInputFileDirective(inputString,command);
 	if (command=="particles per cell") // eg, particles per cell = 3 3 1 when density = 1.0
 	{
 		inputString >> word;
 		inputString >> distributionInCell.x >> distributionInCell.y >> distributionInCell.z;
 		inputString >> word >> word >> word;
-		inputString >> targetDensity;
-		targetDensity /= distributionInCell.x*distributionInCell.y*distributionInCell.z;
+		inputString >> density;
+		targetDensity = owner->units->ConvertToNative(density)/(distributionInCell.x*distributionInCell.y*distributionInCell.z);
 	}
 	if (command=="accelerate to") // eg, accelerate to 100.0 in 10.0
-		inputString >> accelerationImpulse >> word >> accelerationTime;
+	{
+		inputString >> momentum >> word >> time;
+		accelerationImpulse = owner->units->ConvertToNative(momentum);
+		accelerationTime = owner->units->ConvertToNative(time);
+	}
 }
 
 void Species::ReadCheckpoint(std::ifstream& inFile)
