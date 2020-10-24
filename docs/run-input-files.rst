@@ -5,7 +5,10 @@ Everything about a turboWAVE simulation is determined by the input file.  The in
 
 The turboWAVE input file is written in what amounts to a "little language", which is described further in :doc:`ref-input`.  Fortunately this language is very simple and does not impose a significant learning curve.
 
-This tutorial discusses units, and then points you to the example files and the reference pages.
+Dimensional Numbers
+-----------------------
+
+The turboWAVE parser comprehends units and dimensions.  To write a dimensional number, simply add a postfix.  As an example, enter :samp:`10 [ps]` to indicate a value of 10 picoseconds.  For the full list of available conversions see :ref:`unit-conv`.
 
 Normalized Plasma Units
 -----------------------
@@ -47,11 +50,6 @@ On the Unit of Particle Number
 One thing that can be confusing in the normalization scheme is that the unit of density is not connected to the unit of length in the expected way.  This comes about because we are simultaneously demanding that the speed of light be unity, and that the unit of time be connected with the density.  This can lead to erroneous normalization of certain quantities with a density buried in them.  As an example, take current density.  The naive construction might be to take the unit as :math:`(c/\omega_p)^{-3}ec` (wrong).  The correct construction is :math:`n_1ec`.
 
 It can be useful to identify, in this connection, a unit of particle number, per Table I.  Take the unit of energy.  The normalization in table I refers to the energy of a real particle "within" a simulation macroparticle.  If we want the energy contained in the whole macroparticle, we must multiply by the unit of particle number.  In fact, any volume integrated energy that turboWAVE writes out must include this factor if you want to convert to conventional units.
-
-Unit Conversion Macros
------------------------
-
-In order to allow the use of conventional units in the input file, there is a simple notation that causes the parser to automatically perform a conversion.  The macro is formed by prepending a decimal value with the :samp:`%` symbol, and postpending it with a string identifying the unit.  As an example, enter :samp:`%10[ps]` to indicate a value of 10 picoseconds.  During pre-processing of the input file, the macro will be replaced with the decimal value of the quantity in normalized units.  For the full list of available conversions see :ref:`unit-conv`.
 
 TurboWAVE Example Files
 -----------------------

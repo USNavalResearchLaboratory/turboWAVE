@@ -1,4 +1,4 @@
-#define $theta %29.2deg
+#define $theta 29.2[deg]
 
 steps = 60000
 timestep = 0.038
@@ -54,7 +54,7 @@ new bound 'osc1'
 	a2 = ( -26007.56 26007.56 0 -1147.12 0 0 )
 	a3 = ( -604.85 -604.85 -889.87 0 0 0 )
 	theta = $theta
-	phi = %30deg
+	phi = 30[deg]
 }
 
 new bound 'osc2'
@@ -63,7 +63,7 @@ new bound 'osc2'
 	damping = (0 0 0)
 	strength = (2.55 2.55 3.85)
 	theta = $theta
-	phi = %30deg
+	phi = 30[deg]
 }
 
 generate uniform 'osc1'

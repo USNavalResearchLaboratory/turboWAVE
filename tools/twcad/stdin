@@ -16,10 +16,10 @@ new grid
 
 new region rect r1
 {
-	rotation about x = 45
+	rotation about x = 45[deg]
 	// note that bounds also performs an implicit translation,
 	// so placement with respect to other transformations matters.
-	bounds = %-1cm %.01m %-10mm %10000um 2 3
+	bounds = (-1[cm] .01[m] -10[mm] 10000[um] 2 3)
 }
 
 new region circ c1
@@ -45,8 +45,8 @@ new region cylinder cyl1
 {
 	radius = 1
 	length = 2
-	rotation about x = 30
-	rotation about z = 90
+	rotation about x = 30[deg]
+	rotation about z = 90[deg]
 	translation = 0 0 6.4
 }
 
@@ -54,7 +54,7 @@ new region rounded_cylinder rcyl1
 {
 	radius = 1
 	length = 3
-	rotation about y = 90
+	rotation about y = 90[deg]
 	translation = -3.0 -3.0 8.0
 }
 
@@ -70,7 +70,7 @@ new region cone cone1
 	length = 2.0
 	base radius = 2.0
 	tip radius = 0.25
-	rotation about y = 25
+	rotation about y = 25[deg]
 	translation = 3.0 -3.0 4.0
 }
 
@@ -96,6 +96,6 @@ new region torus tor2
 new region union u1
 {
 	elements = { cs1 , tor2 }
-	rotation about x = 30
+	rotation about x = 30[deg]
 	translation = -3 3 3
 }

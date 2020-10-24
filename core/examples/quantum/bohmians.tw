@@ -21,10 +21,10 @@ zboundary = ( absorbing , absorbing )
 
 new grid
 {
-	corner = ( 0 , -3.1416 , -20 )
-	dimensions = ( 800 , 1 , 2000 )
+	corner = ( 0 , -3.1416 , -10 )
+	dimensions = ( 400 , 1 , 1000 )
 	cell size = ( 0.02 , 6.2832 , 0.02 )
-	decomposition = ( 4 , 1 , 5 )
+	decomposition = ( 4 , 1 , 4 )
 	geometry = cylindrical
 }
 

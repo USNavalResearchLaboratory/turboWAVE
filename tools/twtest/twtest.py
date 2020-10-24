@@ -193,12 +193,8 @@ def optimize_parallel(num_procs,num_threads,dims):
 	if num_dims==1:
 		req_nodes = num_procs*num_threads
 		mpi_nodes = req_nodes
-		if dim1%(2*mpi_nodes)!=0:
-			# Try a power of 2
-			mpi_nodes = 2**int(np.log2(req_nodes))
-		if dim1%(2*mpi_nodes)!=0:
-			# Try a factor of 10
-			mpi_nodes = 10*int(req_nodes/10)
+		while dim1%(2*mpi_nodes)!=0:
+			mpi_nodes -= 1
 		return mpi_nodes,1
 	else:
 		return num_procs,num_threads

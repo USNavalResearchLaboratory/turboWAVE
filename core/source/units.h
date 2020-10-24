@@ -324,15 +324,6 @@ public:
 		return d.prefix*d.value*MKSValue(d.unit_dimension,d.unit_system)/MKSValue(d.unit_dimension,native);
 	}
 
-	// Helpers
-	tw::Float eV_to_native(tw::Float val) const
-	{
-		return ConvertToNative(val*qe,tw::dimensions::energy,tw::units::mks);
-	}
-	tw::Float native_to_eV(tw::Float val) const
-	{
-		return ConvertFromNative(val,tw::dimensions::energy,tw::units::mks)/qe;
-	}
 	[[deprecated]]
 	tw::Float eV_to_sim(tw::Float val) const
 	{

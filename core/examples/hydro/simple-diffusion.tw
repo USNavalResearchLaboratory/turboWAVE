@@ -43,8 +43,8 @@ new chemical M
 	charge = 0.0
 	mass = 50000
 	cv = 2.5
-	thermometric conductivity = %10.0cm2s
-	kinematic viscosity = %1.0cm2s
+	thermometric conductivity = 10.0[cm2/s]
+	kinematic viscosity = 1.0[cm2/s]
 }
 
 generate piecewise M
@@ -52,13 +52,13 @@ generate piecewise M
 	xpoints = { 0.0 100.0 1e5 }
 	xdensity = { 0.5 1.0 1.0 }
 	shape = quintic
-	temperature = %0.00001K // no energy here, add it uniformly below
+	temperature = 0.00001[K] // no energy here, add it uniformly below
 }
 
 generate uniform M
 {
 	type = energy
-	density = %0.23Jcm3
+	density = 0.23[J/cm3]
 }
 
 new box diagnostic

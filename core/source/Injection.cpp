@@ -87,7 +87,7 @@ void Profile::ReadInputFileDirective(std::stringstream& inputString,const std::s
 			throw tw::FatalError("Invalid type <"+word+"> while processing key <particle weight>.");
 		variableCharge = (word=="variable" ? true : false);
 	}
-	if (com=="euler angles") // eg, euler angles = ( %45deg %90deg %30deg )
+	if (com=="euler angles") // eg, euler angles = ( 45[deg] 90[deg] 30[deg] )
 	{
 		auto native = [&] (tw::dnum d) { return space->units->ConvertToNative(d); };
 		tw::dnum alpha,beta,gamma;

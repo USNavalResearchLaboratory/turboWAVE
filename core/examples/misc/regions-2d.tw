@@ -58,7 +58,7 @@ new region union u1
 new region intersection i1
 {
 	elements = { u1 , !c2 }
-	rotation about y = %20deg
+	rotation about y = 20[deg]
 }
 
 // the named region "i1" can now be included in any "generate" block

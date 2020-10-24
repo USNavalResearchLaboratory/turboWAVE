@@ -17,28 +17,28 @@ new group heavies
 		charge = 0.0
 		mass = 73440
 		cv = 1.5
-		thermometric conductivity = %1cm2s
+		thermometric conductivity = 1[cm2/s]
 	}
 	new chemical Ar[4s]
 	{
 		charge = 0.0
 		mass = 73440
 		cv = 1.5
-		thermometric conductivity = %1cm2s
+		thermometric conductivity = 1[cm2/s]
 	}
 	new chemical Ar[+]
 	{
 		charge = 1.0
 		mass = 73439
 		cv = 1.5
-		thermometric conductivity = %1cm2s
+		thermometric conductivity = 1[cm2/s]
 	}
 	new chemical Ar2[+]
 	{
 		charge = 1.0
 		mass = 146879
 		cv = 2.5
-		thermometric conductivity = %1cm2s
+		thermometric conductivity = 1[cm2/s]
 	}
 	mobile = true
 }

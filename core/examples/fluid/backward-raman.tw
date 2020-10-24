@@ -62,7 +62,7 @@ new plane wave for 'coul' // pump
 new fluid 'gas'
 {
 	initial ionization fraction = .99
-	neutral cross section = %1e-15[cm2]
+	neutral cross section = 1e-15[cm2]
 	coulomb collisions = true
 }
 
@@ -72,7 +72,7 @@ generate piecewise 'gas'
 	zpoints = { 0 10 190 200 }
 	zdensity = { .01 1.0 1.0 .01 }
 	shape = quintic
-	temperature = %1.0[eV]
+	temperature = 1.0[eV]
 }
 
 new box diagnostic

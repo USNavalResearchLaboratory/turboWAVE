@@ -13,12 +13,12 @@
 #define $dz 0.2
 #define $nx 256
 #define $nz 3000
-#define $L %0.3730072602495407[cm] // in lab frame
-#define $Lp %0.017768147544298254[cm] // in boosted frame
+#define $L 0.3730072602495407[cm] // in lab frame
+#define $Lp 0.017768147544298254[cm] // in boosted frame
 #define $a0 4.547568062216178 // in lab frame
 #define $w0 22.097926659850522 // in lab frame
-#define $r0 %12.0[um]
-#define $t0 %38.90041493775934[fs] // in lab frame
+#define $r0 12.0[um]
+#define $t0 38.90041493775934[fs] // in lab frame
 #define $zones 7
 #define $gamma 20.993030326857994
 

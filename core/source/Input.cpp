@@ -139,10 +139,11 @@ bool tw::input::FileEnv::FindAndOpen(const std::string& fileName,std::ifstream& 
 	return false;
 }
 
-tw::Float tw::input::GetUnitDensityCGS(std::stringstream& in)
+tw::Float tw::input::GetUnitDensityCGS(const std::stringstream& in0)
 {
 	tw::Float ans = 0.0;
 	std::string word;
+	std::stringstream in(in0.str());
 	while (!in.eof())
 	{
 		in >> word;
@@ -160,9 +161,10 @@ tw::Float tw::input::GetUnitDensityCGS(std::stringstream& in)
 	return ans;
 }
 
-tw::units tw::input::GetNativeUnits(std::stringstream& in)
+tw::units tw::input::GetNativeUnits(const std::stringstream& in0)
 {
 	std::string word;
+	std::stringstream in(in0.str());
 	while (!in.eof())
 	{
 		in >> word;
@@ -338,7 +340,6 @@ void tw::input::PreprocessInputFile(const FileEnv& file_env,std::stringstream& o
 	std::ifstream inFile;
 	std::stringstream temp;
 	std::string word;
-	tw::Float unitDensityCGS;
 	if (!file_env.OpenDeck(inFile))
 		throw tw::FatalError("couldn't open input file " + file_env.inputFileName);
 

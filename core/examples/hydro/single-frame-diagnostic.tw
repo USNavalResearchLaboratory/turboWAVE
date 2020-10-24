@@ -3,8 +3,8 @@
 // (see end of this file)
 // if you want electrostatic field, set plasma model = quasineutral
 steps = 3000
-timestep = %0.1ns
-dtmax = %1ns
+timestep = 0.1[ns]
+dtmax = 1[ns]
 dump period = 0
 moving window = no
 neutralize = yes
@@ -34,7 +34,7 @@ new hydrodynamics
 	radiation model = none
 	plasma model = neutral
 	background density = 1e-8
-	background temperature = %300K
+	background temperature = 300[K]
 }
 
 new chemical e
@@ -72,30 +72,30 @@ new group heavies
 generate uniform Ar
 {
 	density = 1
-	temperature = %300K
+	temperature = 300[K]
 }
 
 generate gaussian Ar[+]
 {
 	density = 0.1
-	size = 5 10 10
-	temperature = %300K
+	size = (5 10 10)
+	temperature = 300[K]
 }
 
 generate gaussian e
 {
 	density = 0.1
-	size = 5 10 10
-	temperature = %2.0eV
+	size = (5 10 10)
+	temperature = 2.0[eV]
 }
 
 new box diagnostic
 {
 	// start writing at 8 ns
-	t0 = %8ns
+	t0 = 8[ns]
 	// stop writing time: t1-t0 must exceed the maximum time step
-	t1 = %100ns
+	t1 = 100[ns]
 	// set period to go past t1 so we only get 1 write-out
 	// do not specify this in units of steps
-	time period = %100ns
+	time period = 100[ns]
 }

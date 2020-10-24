@@ -5,6 +5,8 @@
 *.dvdat
 *.npy
 *.egg-info
+.ipynb_checkpoints
+__pycache__
 tw3d
 tw3d.exe
 docs/_build/

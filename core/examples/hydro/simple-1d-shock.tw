@@ -44,20 +44,20 @@ new chemical air
 	charge = 0.0
 	mass = 51078.5
 	cv = 2.5
-	thermometric conductivity = %0.2[cm2/s]
-	kinematic viscosity = %0.15[cm2/s]
+	thermometric conductivity = 0.2[cm2/s]
+	kinematic viscosity = 0.15[cm2/s]
 }
 
 generate uniform air
 {
 	density = 1.0
-	temperature = %300[K]
+	temperature = 300[K]
 }
 
 generate gaussian air
 {
 	type = energy
-	density = %1.15e10[J/m3]
+	density = 1.15e10[J/m3]
 	size = (20 20 20)
 	// Integration over region gives 14.4 J/m
 }

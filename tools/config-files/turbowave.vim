@@ -16,8 +16,7 @@ syn match twDefine "#define"
 syn match twInclude "#include"
 syn keyword	twStatement	new generate get for
 
-syn match twUnit1 "\v(\s|\(|\{|\,|\=|\-|$)\%[0-9]+\.=[0-9]*[eE]=[\+\-]=[0-9]*\[(deg|rad|mrad|urad|cm2|m2|cm2/s|m2/s|um|mm|cm|m|fs|ps|ns|us|s|/m3|/cm3|J/m3|J/cm3|eV|K|V|webers/m|G\*cm|V/m|V/cm|T|G)\](\s|\)|\}|\,|\n)"hs=s+1,he=e-1,me=e-1
-syn match twUnit2 "\v(\s|\(|\{|\,|\=|\-|$)\%\.[0-9]+[eE]=[\+\-]=[0-9]*\[(deg|rad|mrad|urad|cm2|m2|cm2/s|m2/s|um|mm|cm|m|fs|ps|ns|us|s|/m3|/cm3|J/m3|J/cm3|eV|K|V|webers/m|G\*cm|V/m|V/cm|T|G)\](\s|\)|\}|\,|\n)"hs=s+1,he=e-1,me=e-1
+syn match twUnit "\v(\s|\(|\{|\,|\=|$)[\+\-]=([0-9]+\.=[0-9]*|\.[0-9]+)([eE][\+\-]=[0-9]+)=\s*\[(deg|rad|mrad|urad|cm2|m2|cm2/s|m2/s|um|mm|cm|m|fs|ps|ns|us|s|/m3|/cm3|J/m3|J/cm3|eV|K|V|webers/m|G\*cm|V/m|V/cm|T|G)\](\s|\)|\}|\,|\n)"hs=s+1,he=e-1,me=e-1
 syn region twUserMacro display start="\$" end="\v(\s|$)"he=s-1,re=s-1,me=s-1
 syn region twComment start="/\*" end="\*/"
 syn region twCommentL start="//" end="$" keepend
@@ -41,8 +40,7 @@ syn region twString2 start='"' end='"'
 hi def link twDefine	Define
 hi def link twInclude	Define
 hi def link twStatement		Statement
-hi def link twUnit1			Macro
-hi def link twUnit2			Macro
+hi def link twUnit			Macro
 hi def link twUserMacro		Macro
 hi def link twComment		Comment
 hi def link twCommentL		Comment

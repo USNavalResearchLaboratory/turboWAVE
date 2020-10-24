@@ -50,7 +50,7 @@ new chemical Cu
 	charge = 0.0
 	mass = 116680.0
 	cv = 2.92
-	thermometric conductivity = %1.17cm2s
+	thermometric conductivity = 1.17 [cm2/s]
 	kinematic viscosity = 0.0
 	get 'mg-eos'
 }
@@ -58,15 +58,15 @@ new chemical Cu
 generate uniform Cu
 {
 	density = 3011
-	temperature = %300K
+	temperature = 300 [K]
 }
 
 generate gaussian Cu
 {
 	type = energy
 	density = 0.0001 // ping material to produce broadband sound waves
-	size = 10 10 10
-	position = 0 0 0
+	size = (10 10 10)
+	position = (0 0 0)
 }
 
 new box diagnostic

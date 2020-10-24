@@ -42,9 +42,9 @@ new hydrodynamics 'hydro'
 
 new bessel beam for 'hydro'
 {
-	a = .0015 0 0
+	a = (.0015 0 0)
 	w = 10
-	r0 = 10 10
+	r0 = (10 10)
 	delay = 0
 	risetime = 100 [ps]
 	holdtime = 0

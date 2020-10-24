@@ -98,27 +98,31 @@ namespace tw
 				if (word!="{")
 					throw tw::FatalError("Expected curly-brace at start of list.");
 				// We are using streams to convert strings to data polymorphically.
-				tw::Int count = 0;
+				std::vector<typename T::value_type> temp;
+				std::vector<typename T::value_type> dummy(1);
 				while (!in.eof() && word!="}")
 				{
 					in >> word;
 					if (!in.eof() && word!="}")
 					{
 						in.seekg(-word.size(),std::ios::cur);
-						dat->resize(++count);
 						if (std::is_floating_point<typename T::value_type>::value)
 						{
 							tw::dnum dimensional_number;
 							in >> dimensional_number;
-							(*dat)[count-1] = uc.ConvertToNative(dimensional_number);
+							dummy[0] = uc.ConvertToNative(dimensional_number);
 						}
 						else
 						{
-							if (!(in >> (*dat)[count-1]))
+							if (!(in >> dummy[0]))
 								throw tw::FatalError("Invalid data type for key <"+key+">");
 						}
+						temp.push_back(dummy[0]);
 					}
 				}
+				dat->resize(temp.size());
+				for (tw::Int i=0;i<temp.size();i++)
+					(*dat)[i] = temp[i];
 			}
 		};
 		template <class T>
@@ -206,8 +210,8 @@ namespace tw
 			bool FindAndOpen(const std::string& fileName,std::ifstream& inFile) const;
 		};
 
-		tw::Float GetUnitDensityCGS(std::stringstream& in);
-		tw::units GetNativeUnits(std::stringstream& in);
+		tw::Float GetUnitDensityCGS(const std::stringstream& in0);
+		tw::units GetNativeUnits(const std::stringstream& in0);
 		tw::Int IncludeFiles(const FileEnv& file_env,std::stringstream& in,std::stringstream& out);
 		void StripComments(std::ifstream& inputFile,std::stringstream& out);
 		void StripDecorations(std::stringstream& in,std::stringstream& out);
@@ -215,14 +219,11 @@ namespace tw
 		void UserMacros(std::stringstream& in,std::stringstream& out);
 		void PreprocessInputFile(const FileEnv& file_env,std::stringstream& out);
 
-		void PythonRange(std::string& source,tw::Float *v0,tw::Float *v1);
-
 		Preamble EnterInputFileBlock(const std::string& com,std::stringstream& inputString,const std::string& end_tokens);
-
 		void ExitInputFileBlock(std::stringstream& inputString,bool alreadyEntered);
 
 		std::string GetPhrase(const std::vector<std::string>& words,tw::Int num_words);
-
 		void PopExpectedWord(std::stringstream& inputString,const std::string& word,const std::string& obj);
+		void PythonRange(std::string& source,tw::Float *v0,tw::Float *v1);
 	}
 }

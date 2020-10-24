@@ -521,7 +521,7 @@ All the photoionization tools support the following directives:
 
 .. py:function:: ionization potential = ip
 
-	:param float ip: Ionization potential, units are specified as usual, e.g., ``ionization potential = %13.6[eV]``
+	:param float ip: Ionization potential, units are specified as usual, e.g., ``ionization potential = 13.6 [eV]``
 
 .. py:function:: saturated rate = sr
 

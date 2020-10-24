@@ -783,6 +783,7 @@ std::string Simulation::InputFileFirstPass()
 		std::stringstream inputString;
 
 		tw::input::PreprocessInputFile(tw::input::FileEnv(inputFileName),inputString);
+		AttachUnits(tw::input::GetNativeUnits(inputString),tw::input::GetUnitDensityCGS(inputString));
 
 		inputString.seekg(0);
 		outerDirectives.AttachUnits(units);
@@ -874,7 +875,6 @@ std::string Simulation::InputFileFirstPass()
 		periodic[1] = bc0[1]==tw::bc::par::periodic ? 1 : 0;
 		periodic[2] = bc0[2]==tw::bc::par::periodic ? 1 : 0;
 		periodic[3] = bc0[3]==tw::bc::par::periodic ? 1 : 0;
-		AttachUnits(nativeUnits,unitDensityCGS);
 
 		// Check integer viability
 		int64_t totalCellsPerRank = int64_t(globalCells[1])*int64_t(globalCells[2])*int64_t(globalCells[3])/int64_t(numRanksProvided);

@@ -4,7 +4,7 @@
 
 // The following illustrates unit conversions and user variables.
 // Note a length can be used as a time between diagnostics.
-#define $diag_step %100um
+#define $diag_step 100[um]
 
 steps = 1000
 timestep = 0.05
@@ -93,7 +93,7 @@ new species 'e'
 
 new adk ionization for 'He'
 {
-	ionization potential = %24.587eV
+	ionization potential = 24.587 [eV]
 	protons = 2
 	electrons = 2
 	ion species = 'He[+]'
@@ -102,7 +102,7 @@ new adk ionization for 'He'
 
 new adk ionization for 'He[+]'
 {
-	ionization potential = %54.418eV
+	ionization potential = 54.418 [eV]
 	protons = 1
 	electrons = 1
 	ion species = 'He[2+]'

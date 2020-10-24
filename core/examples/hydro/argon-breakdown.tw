@@ -11,12 +11,12 @@
 
 // The include directive below can be used to select from the 4 chemistry models
 
-#define $T0 %300K
+#define $T0 300[K]
 
 steps = 20000
-timestep = %1ps
-dtmax = %1ns
-maxtime = %400ns
+timestep = 1 [ps]
+dtmax = 1 [ns]
+maxtime = 400 [ns]
 dump period = 0
 moving window = no
 neutralize = yes
@@ -83,20 +83,20 @@ new region rect 'right'
 new conductor 'cathode' for 'hydro'
 {
 	clipping region = 'left'
-	potential = { %0V }
-	risetime = %10ns
-	holdtime = %1us
-	falltime = %10ns
+	potential = { 0 [V] }
+	risetime = 10 [ns]
+	holdtime = 1 [us]
+	falltime = 10 [ns]
 	temperature = $T0
 }
 
 new conductor 'anode' for 'hydro'
 {
 	clipping region = 'right'
-	potential = { %100V }
-	risetime = %10ns
-	holdtime = %1us
-	falltime = %10ns
+	potential = { 100 [V] }
+	risetime = 10 [ns]
+	holdtime = 1 [us]
+	falltime = 10 [ns]
 	temperature = $T0
 }
 
@@ -110,10 +110,10 @@ generate uniform Ar
 
 new box diagnostic
 {
-	time period = %1ns
+	time period = 1 [ns]
 }
 
 new energy diagnostic
 {
-	time period = %100ps
+	time period = 100 [ps]
 }

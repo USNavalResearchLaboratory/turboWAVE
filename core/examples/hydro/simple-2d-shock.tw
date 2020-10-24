@@ -5,9 +5,9 @@
 // Asymmetries intentionally put into wall boundary conditions and initial conditions
 // Due to boundary conditions mass and energy can be lost
 steps = 5000
-timestep = %30ps
-dtmax = %100ps
-maxtime = %100ns
+timestep = 30 [ps]
+dtmax = 100 [ps]
+maxtime = 100 [ns]
 dump period = 0
 moving window = no
 neutralize = yes
@@ -42,30 +42,30 @@ new chemical air
 	charge = 0.0
 	mass = 51078.5
 	cv = 2.5
-	thermometric conductivity = %0.2cm2s
-	kinematic viscosity = %0.15cm2s
+	thermometric conductivity = 0.2[cm2/s]
+	kinematic viscosity = 0.15[cm2/s]
 }
 
 generate uniform air
 {
-	density = %2.8e19cm-3
-	temperature = %300K
+	density = 2.8e19[/cm3]
+	temperature = 300[K]
 }
 
 generate gaussian air
 {
 	type = energy
-	position = 100 -100 0
-	density = %11500Jcm3
-	size = 20 20 20
+	position = (100 -100 0)
+	density = 11500 [J/cm3]
+	size = (20 20 20)
 }
 
 new box diagnostic
 {
-	time period = %4ns
+	time period = 4[ns]
 }
 
 new energy diagnostic
 {
-	time period = %4ns
+	time period = 4[ns]
 }

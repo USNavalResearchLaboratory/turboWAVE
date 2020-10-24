@@ -55,7 +55,7 @@ generate piecewise 'e'
 	zdensity = { 0.0 1.0 1.0 0.0 }
 	zpoints = { 0.0 5.0 20.6 25.6 }
 	shape = quintic
-	temperature = %1.0[eV]
+	temperature = 1.0[eV]
 }
 
 new box diagnostic
