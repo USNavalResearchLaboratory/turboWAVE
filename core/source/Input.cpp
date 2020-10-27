@@ -1,4 +1,5 @@
 #include "meta_base.h"
+#include <regex>
 
 ////////////////////////
 //                    //
@@ -139,47 +140,30 @@ bool tw::input::FileEnv::FindAndOpen(const std::string& fileName,std::ifstream& 
 	return false;
 }
 
-tw::Float tw::input::GetUnitDensityCGS(const std::stringstream& in0)
+tw::Float tw::input::GetUnitDensityCGS(const std::string& in)
 {
-	tw::Float ans = 0.0;
-	std::string word;
-	std::stringstream in(in0.str());
-	while (!in.eof())
-	{
-		in >> word;
-		if (word=="unit")
-		{
-			in >> word;
-			if (word=="density")
-			{
-				in >> word >> ans;
-				return ans;
-			}
-		}
-	}
-	throw tw::FatalError("The <unit density> parameter is missing.");
-	return ans;
+	// Following regex has 6 capture groups.
+	// Group 2 is the mantissa, with 3,4,5 being alternatives within it.
+	// Group 6 is either the exponent or white space.
+	std::regex ex(R"((\bunit\s+density\s*=\s*)(([+-]?\d*\.\d+)|([+-]?\d+\.\d*)|([+-]?\d+))([eE][+-]?\d+|\s))");
+	std::smatch match;
+	if (std::regex_search(in,match,ex))
+		return std::stod(match[2].str()+match[6].str(),NULL);
+	else
+		throw tw::FatalError("The <unit density> parameter is missing or ill-formed.");
 }
 
-tw::units tw::input::GetNativeUnits(const std::stringstream& in0)
+tw::units tw::input::GetNativeUnits(const std::string& in)
 {
-	std::string word;
-	std::stringstream in(in0.str());
-	while (!in.eof())
-	{
-		in >> word;
-		if (word=="native")
-		{
-			in >> word;
-			if (word=="units")
-			{
-				in >> word >> word;
-				return tw::get_unit_map()[word];
-			}
-		}
-	}
-	// throw tw::FatalError("The <native units> parameter is missing.");
-	return tw::units::plasma;
+	std::map<std::string,tw::units> m = tw::get_unit_map();
+	std::regex ex(R"((\bnative\s+units\s*=\s*)(\w+))");
+	std::smatch match;
+	if (!std::regex_search(in,match,ex))
+		return tw::units::plasma;
+	else
+		if (m.find(match[2].str())==m.end())
+			throw tw::FatalError("Unkown system of units <"+match[2].str()+">.");
+	return m[match[2].str()];
 }
 
 void tw::input::StripComments(std::ifstream& inFile,std::stringstream& out)
@@ -267,7 +251,10 @@ void tw::input::UserMacros(std::stringstream& in,std::stringstream& out)
 {
 	std::map<std::string,std::string> macros;
 	std::map<std::string,std::string>::iterator it;
-	std::string word,key,val;
+	std::string word,key,val,stripped;
+	std::stringstream temp;
+	// First eat and save the key/value pairs
+	// Currently this process destroys line feeds
 	while (!in.eof())
 	{
 		in >> word;
@@ -275,62 +262,79 @@ void tw::input::UserMacros(std::stringstream& in,std::stringstream& out)
 		{
 			if (word=="#define")
 			{
-				in >> key >> val;
+				in >> key;
 				it = macros.find(key);
 				if (it==macros.end())
+				{
+					val = "";
+					char next;
+					do
+					{
+						next = in.get();
+						if (next!='\n' && next!='\r' && !in.eof())
+							val += next;
+					} while(next!='\n' && next!='\r' && !in.eof());
+					// eliminate leading white space
+					std::string::size_type i = val.find_first_not_of(" \t");
+					if (i!=std::string::npos)
+						val = val.substr(i,std::string::npos);
 					macros[key] = val;
+				}
 				else
 					throw tw::FatalError("Macro "+key+" was already used.");
 			}
 			else
 			{
-				char unaryOp = ' ';
-				key = word;
-				it = macros.find(key);
-				if (it==macros.end())
-				{
-					// If not a direct macro, check to see if there is a unary operator.
-					// At present negation is the only one.
-					if (word[0]=='-')
-					{
-						unaryOp = '-';
-						key = word.substr(1,std::string::npos);
-						it = macros.find(key);
-					}
-				}
-				if (it==macros.end())
-					out << word << " ";
-				else
-					out << unaryOp << macros[key] << " ";
+				temp << word << " ";
 			}
 		}
 	}
+	// Now replace all the key matches with the values.
+	// The key is only replaced if it is enclosed by white space.
+	// N.b. by this time delimiters are replaced with white space.
+	stripped = temp.str();
+	for (auto pair : macros)
+	{
+		// first escape any special regex characters in the key
+		std::regex special(R"([.^$|()\[\]{}*+?\\])");
+		std::string escaped = std::regex_replace(pair.first,special,R"(\$&)");
+		// now make the replacement
+		std::regex ex(R"(\s)"+escaped+R"(\s)");
+		stripped = std::regex_replace(stripped,ex," "+pair.second+" ");
+	}
+	// Finally put the result on the output stream
+	out.str(stripped);
 }
 
 tw::Int tw::input::IncludeFiles(const FileEnv& file_env,std::stringstream& in,std::stringstream& out)
 {
 	tw::Int count = 0;
-	std::string word;
+	std::string line_str,word;
 	while (!in.eof())
 	{
-		in >> word;
-		if (!in.eof())
+		std::getline(in,line_str);
+		std::stringstream line(line_str);
+		while (!line.eof())
 		{
-			if (word=="#include")
+			if (line >> word)
 			{
-				in >> word;
-				StripQuotes(word);
-				std::ifstream includedFile;
-				if (!file_env.FindAndOpen(word,includedFile))
-					throw tw::FatalError("couldn't open " + word);
-				StripComments(includedFile,out);
-				count++;
-			}
-			else
-			{
-				out << word << " ";
+				if (word=="#include")
+				{
+					line >> word;
+					StripQuotes(word);
+					std::ifstream includedFile;
+					if (!file_env.FindAndOpen(word,includedFile))
+						throw tw::FatalError("couldn't open " + word);
+					StripComments(includedFile,out);
+					count++;
+				}
+				else
+				{
+					out << word << " ";
+				}
 			}
 		}
+		out << std::endl;
 	}
 	return count;
 }

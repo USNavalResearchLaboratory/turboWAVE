@@ -210,8 +210,8 @@ namespace tw
 			bool FindAndOpen(const std::string& fileName,std::ifstream& inFile) const;
 		};
 
-		tw::Float GetUnitDensityCGS(const std::stringstream& in0);
-		tw::units GetNativeUnits(const std::stringstream& in0);
+		tw::Float GetUnitDensityCGS(const std::string& in);
+		tw::units GetNativeUnits(const std::string& in);
 		tw::Int IncludeFiles(const FileEnv& file_env,std::stringstream& in,std::stringstream& out);
 		void StripComments(std::ifstream& inputFile,std::stringstream& out);
 		void StripDecorations(std::stringstream& in,std::stringstream& out);

@@ -15,7 +15,7 @@ Normalized Plasma Units
 
 Although turboWAVE's internal comprehension of units insulates the user from the necessity of understanding normalizations, it is useful to appreciate their significance.  TurboWAVE supports three normalization systems: natural units, atomic units, and plasma units.  Plasma units are discussed here.  Natural and atomic units are in :doc:`bak-quantum`.
 
-The normalization scheme can be thought of in many ways.  The fundamental observation is that any solution of the Vlasov equation can be scaled up or down to produce a family of solutions.  We may as well express all quantities in a way that does not commit to which particular member of the family we are talking about.  No particular scale is any better than another.
+The plasma normalization is motivated by the observation that any solution of the Vlasov equation can be scaled up or down to produce a family of solutions.  We may as well express all quantities in a way that does not commit to which particular member of the family we are talking about.  No particular scale is any better than another.
 
 On the other hand, if an atomic process like ionization comes into the problem, then we must commit to a definite physical scale.  For this reason, turboWAVE input files allow you to specify a unit of density that fixes the physical scale.  Once this is chosen, to normalize some quantity given in physical units, divide by the unit given in Table I.
 

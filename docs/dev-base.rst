@@ -12,7 +12,7 @@ At the most basic level, a turboWAVE simulation consists of multiple independent
 Internal MPI launch
 ,,,,,,,,,,,,,,,,,,,
 
-If the code is compiled usng the internal implementation of MPI, then the MPI processes are treated as threads.  These threads are created and manipulated using the standard C++ library.
+If the code is compiled using the internal implementation of MPI, then the MPI processes are treated as threads.  These threads are created and manipulated using the standard C++ library.
 
 In the internal launch mode, MPI processes are launched by a master thread from within the ``tw3d`` executable.  The master thread is encapsulated in a ``Launcher`` class defined in ``Main.cpp``.  The ``Launcher`` inherits from ``tw::Thread``, which is a wrapper for ``std::thread``.
 

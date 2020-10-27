@@ -12,10 +12,8 @@ Operating System
 
 TurboWAVE can be readily installed on Linux, MacOS, or Windows.  The workflow tends to be UNIX-oriented, which is natural for Linux and MacOS, and thanks to PowerShell, fairly seamless even on Windows.
 
-MacOS and Windows have native applications to visualize turboWAVE output files.
-The native viewer for Windows is dated, however, and is not being updated.
-For Linux, visualization is accomplished using either command line Python scripts,
-or using interactive Python notebooks.
+Visualization tools are fairly universal, taking the form of command line Python scripts,
+or interactive Python notebooks.  Outputs are written in Python-friendly formats so you can readily create your own post-processing tools.
 
 Desktop OS's that are explicitly supported at the time of this writing include MacOS 10.15, RHEL 8.0 and clones, Ubuntu 18.04, and Windows 10.  Supercomputer platforms that are known to work well include Cray and SGI.
 

@@ -43,3 +43,7 @@ When you clone the repository the active files (the version you have checked out
 	#. :samp:`git tag --list`
 	#. Choose the latest tag without a letter suffix, :samp:`{latest_tag}`.
 	#. :samp:`git checkout {latest_tag}`.
+
+.. Note::
+
+	if you are viewing this documentation on ``readthedocs``, you are likely viewing the ``latest`` documentation which is not necessarily the ``stable`` documentation.  There should be a hovering dropdown to select between the two.

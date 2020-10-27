@@ -783,7 +783,7 @@ std::string Simulation::InputFileFirstPass()
 		std::stringstream inputString;
 
 		tw::input::PreprocessInputFile(tw::input::FileEnv(inputFileName),inputString);
-		AttachUnits(tw::input::GetNativeUnits(inputString),tw::input::GetUnitDensityCGS(inputString));
+		AttachUnits(tw::input::GetNativeUnits(inputString.str()),tw::input::GetUnitDensityCGS(inputString.str()));
 
 		inputString.seekg(0);
 		outerDirectives.AttachUnits(units);

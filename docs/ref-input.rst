@@ -52,7 +52,7 @@ There are only four keywords, **new**, **get**, **generate**, and **for**.  You 
 If you are familiar with C++ syntax you will recognize comments as preceded by ``//``.  The C-style ``/*`` and ``*/`` comment delimiters are supported also.  Numbered highlights in the above example are as follows:
 
  	#. C-style preprocessor macros are used to gain the effect of user defined constants.  Numbers can be given physical units with a postfix.
-	#. Simple assignment to a floating point parameter. Since no units are given, it is assumed dimensionless.
+	#. Simple assignment to a floating point parameter. Since no units are given, it is assumed in native units (usually normalized to plasma parameters).
 	#. Creating a plane wave tool with the user assigned name 'pw1'.  This name can be used later in the input file.
 	#. Creating a field solver module; modules do the high level management of data.
 	#. Assignment to a tuple, in this case a spatial 3-vector.  The strict syntax requires parenthesis, although the current parser ignores them.
@@ -75,7 +75,7 @@ Assignments copy a value in the input file to a simulation parameter.  These val
 
 To allow for chemistry-friendly notation, identifiers are relaxed compared to other languages.  In particular, ``.``, ``[``, ``]``, ``+``, and ``-`` are allowed.  Thus, ``Ar[18+]`` and ``O2[+].H2O`` are valid little language identifiers.
 
-There is a ``Tree-Sitter`` parser available for turboWAVE input files.  For details see the `tree-sitter-turbowave <https://www.npmjs.com/package/tree-sitter-turbowave>`_ Node.js package.
+There is a ``Tree-Sitter`` parser available for turboWAVE input files.  For details see the `tree-sitter-turbowave <https://www.npmjs.com/package/tree-sitter-turbowave>`_ Node.js package.  The strict language definition is the ``grammar.js`` file therein.
 
 .. _preprocessor:
 
@@ -104,11 +104,11 @@ The effect of user variables can be achieved via macro substitution.  The format
 
 .. code-block:: c
 
-	#define $r0 2.5
+	#define $r0 2.5 [cm]
 
-causes every subsequent occurrence of ``$r0`` to be replaced with ``2.5``.  The use of the ``$`` prefix is optional, but highly recommended, as it helps prevent unintended substitutions, and improves readability (including syntax highlights in supported editors).
+causes every subsequent occurrence of ``$r0`` to be replaced with ``2.5 [cm]``. The substitution value is terminated by a new line.  The use of the ``$`` prefix is optional, but highly recommended, as it helps prevent unintended substitutions, and improves readability (including syntax highlights in supported editors).
 
-The analogy with the C preprocessor is limited.  Function-like macros are not supported.  The substitution value cannot contain any white space characters.  The substitution is unconditional, e.g., if the key occurs as a word in a string it is replaced.
+The analogy with the C preprocessor is limited.  Function-like macros are not supported.  The keys are matched only to whole words, i.e. ``$r0`` would not match ``$r``.  Line continuation using ``\`` is not allowed, as of this writing.
 
 User macros can be defined at any point in an input file, except where they would interrupt another directive. Attempting to redefine a macro throws an error.
 
@@ -129,12 +129,12 @@ The order of preprocessor operations is as follows:
 
 .. _unit-conv:
 
-Unit Conversion
----------------
+Specifying Units
+----------------
 
-When a number is given without dimensions, it is assumed to be in native units (typically normalized to plasma parameters).  Dimensional numbers can be specified using the form :samp:`{n} {u}`, where :samp:`{n}` is a number and :samp:`{u}` is a string identifying the unit.  An example is :samp:`10 [ps]`, which means 10 picoseconds. White space between the number and unit is optional.  Supported units and identifier string are:
+When a number is given without dimensions, it is assumed to be in native units.  As of this writing, native units must be set globally (see :ref:`top-level`).  Dimensional numbers can be specified using the form :samp:`{n} {u}`, where :samp:`{n}` is a number and :samp:`{u}` is a string identifying the unit.  An example is :samp:`10 [ps]`, which means 10 picoseconds. White space between the number and unit is optional.  Supported units and identifier string are:
 
-.. csv-table:: Unit Conversion Macro Identifiers.
+.. csv-table:: Unit Identifiers.
 	:header: "Quantity", "Identifier", "Deprecated"
 
 	"Femtoseconds", :samp:`[fs]`, :samp:`fs`
@@ -172,6 +172,8 @@ When a number is given without dimensions, it is assumed to be in native units (
 
 	The old ``%`` prefix can still be used, but is considered deprecated.
 
+.. _top-level:
+
 Top Level Directives
 --------------------
 
@@ -179,7 +181,7 @@ Top level directives may include statements to create modules or tools, as well 
 
 .. py:function:: native units = nu
 
-	:param str nu: the system of units native to the input file, can be ``mks``, ``cgs``, ``plasma``, ``atomic``, or ``natural``.  As of this writing, most modules will veto any choice other than ``plasma``.
+	:param str nu: the system of units native to the input file, can be ``mks``, ``cgs``, ``plasma``, ``atomic``, or ``natural``.  Modules are allowed to veto the choice of native units by throwing an error.  As of this writing, most modules will veto any choice other than ``plasma``.
 
 .. py:function:: unit density = CGS_density
 
