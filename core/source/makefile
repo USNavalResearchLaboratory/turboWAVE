@@ -41,8 +41,8 @@ HARDWARE_ACCEL = OMP
 
 # Specify a preference for compiler
 
-#COMPILER_PREF = GNU
-COMPILER_PREF = LLVM_CLANG
+COMPILER_PREF = GNU
+#COMPILER_PREF = LLVM_CLANG
 #COMPILER_PREF = INTEL
 #COMPILER_PREF = CRAY
 
@@ -70,6 +70,9 @@ ifeq ($(COMPILER_PREF),LLVM_CLANG)
 endif
 ifeq ($(COMPILER_PREF),INTEL)
 	OMP_FLAG = -qopenmp
+endif
+ifeq ($(COMPILER_PREF),CRAY)
+	OMP_FLAG = -fopenmp
 endif
 
 ifeq ($(PLATFORM),OSX)
@@ -279,26 +282,24 @@ $(error Accelerator $(HARDWARE_ACCEL) not supported on Intel MPI cluster)
 endif
 
 ifeq ($(PLATFORM),CRAY)
-	BASE_FLAGS = -c -DUSE_HPC
-	ifeq ($(COMPILER_PREF),CRAY)
-$(warning Build mode limits special functions to low order)
-		BASE_FLAGS += -h std=c++17
+	BASE_FLAGS = -c -std=c++17 -DUSE_HPC
+	ifeq ($(COMPILER_PREF),CRAY) # assume this is the LLVM based Cray compiler
+		BASE_FLAGS += -DSF_STD -stdlib=libstdc++
 		TW_Compiler = CC
 		TW_Linker = CC
 		ifeq ($(HARDWARE_ACCEL),NONE)
 $(warning No accelerator, at least OMP is recommended)
-			BASE_FLAGS += -h noomp
 		else ifeq ($(HARDWARE_ACCEL),OMP)
-			BASE_FLAGS += -DUSE_OPENMP
+			BASE_FLAGS += -DUSE_OPENMP $(OMP_FLAG)
 		else
 $(error Accelerator $(HARDWARE_ACCEL) not supported on Cray HPC with Cray compiler)
 		endif
-		RELEASE_FLAGS = $(BASE_FLAGS) -O2
-		PROFILE_FLAGS = $(BASE_FLAGS) -O2 -hlist=m
+		RELEASE_FLAGS = $(BASE_FLAGS) -O3
+		PROFILE_FLAGS = $(BASE_FLAGS) -O3
 		DEBUG_FLAGS = $(BASE_FLAGS) -g -O0
 		LIBS =
 	else ifeq ($(COMPILER_PREF),INTEL)
-		BASE_FLAGS += -std=c++17 -DSF_STD
+		BASE_FLAGS += -DSF_STD
 		TW_Compiler = CC
 		TW_Linker = CC
 		ifeq ($(HARDWARE_ACCEL),NONE)

@@ -250,45 +250,41 @@ void tw::input::InsertWhitespace(std::stringstream& in,std::stringstream& out)
 void tw::input::UserMacros(std::stringstream& in,std::stringstream& out)
 {
 	std::map<std::string,std::string> macros;
-	std::map<std::string,std::string>::iterator it;
-	std::string word,key,val,stripped;
+	std::string line,key,val,stripped;
 	std::stringstream temp;
 	// First eat and save the key/value pairs
-	// Currently this process destroys line feeds
+	std::regex good_def(R"((^\s*#define\s+)(\S+)(\s+)(.*\S)\s*$)");
+	std::regex appearance(R"(.*#define.*)");
+	std::smatch match;
 	while (!in.eof())
 	{
-		in >> word;
+		std::getline(in,line);
 		if (!in.eof())
 		{
-			if (word=="#define")
+			if (std::regex_search(line,appearance))
 			{
-				in >> key;
-				it = macros.find(key);
-				if (it==macros.end())
+				temp << std::endl;
+				if (std::regex_search(line,match,good_def))
 				{
-					val = "";
-					char next;
-					do
-					{
-						next = in.get();
-						if (next!='\n' && next!='\r' && !in.eof())
-							val += next;
-					} while(next!='\n' && next!='\r' && !in.eof());
-					// eliminate leading white space
-					std::string::size_type i = val.find_first_not_of(" \t");
-					if (i!=std::string::npos)
-						val = val.substr(i,std::string::npos);
-					macros[key] = val;
+					key = match[2].str();
+					val = match[4].str();
+					if (key==val)
+						throw tw::FatalError("Macro cannot refer to itself ("+key+")");
+					if (macros.find(key)==macros.end())
+						macros[key] = val;
+					else
+						throw tw::FatalError("Macro "+key+" was already used.");
 				}
 				else
-					throw tw::FatalError("Macro "+key+" was already used.");
+					throw tw::FatalError("Macro badly formed: "+line);
 			}
 			else
 			{
-				temp << word << " ";
+				temp << line << std::endl;
 			}
 		}
 	}
+
 	// Now replace all the key matches with the values.
 	// The key is only replaced if it is enclosed by white space.
 	// N.b. by this time delimiters are replaced with white space.
@@ -299,8 +295,9 @@ void tw::input::UserMacros(std::stringstream& in,std::stringstream& out)
 		std::regex special(R"([.^$|()\[\]{}*+?\\])");
 		std::string escaped = std::regex_replace(pair.first,special,R"(\$&)");
 		// now make the replacement
-		std::regex ex(R"(\s)"+escaped+R"(\s)");
-		stripped = std::regex_replace(stripped,ex," "+pair.second+" ");
+		std::regex ex(R"((\s))"+escaped+R"((\s))");
+		while (std::regex_search(stripped,match,ex)) // need loop to account for adjacent repeated patterns
+			stripped = std::regex_replace(stripped,ex,match[1].str()+pair.second+match[2].str());
 	}
 	// Finally put the result on the output stream
 	out.str(stripped);
@@ -309,32 +306,36 @@ void tw::input::UserMacros(std::stringstream& in,std::stringstream& out)
 tw::Int tw::input::IncludeFiles(const FileEnv& file_env,std::stringstream& in,std::stringstream& out)
 {
 	tw::Int count = 0;
-	std::string line_str,word;
+	std::string line,expanded,filename;
+	// First eat and save the key/value pairs
+	std::regex good_def(R"((^\s*#include\s+)([^"']\S+[^"'\s]|".*"|'.*')\s*$)");
+	std::regex appearance(R"(.*#include.*)");
+	std::smatch match;
 	while (!in.eof())
 	{
-		std::getline(in,line_str);
-		std::stringstream line(line_str);
-		while (!line.eof())
+		std::getline(in,line);
+		if (!in.eof())
 		{
-			if (line >> word)
+			if (std::regex_search(line,appearance))
 			{
-				if (word=="#include")
+				if (std::regex_search(line,match,good_def))
 				{
-					line >> word;
-					StripQuotes(word);
+					filename = match[2].str();
+					StripQuotes(filename);
 					std::ifstream includedFile;
-					if (!file_env.FindAndOpen(word,includedFile))
-						throw tw::FatalError("couldn't open " + word);
+					if (!file_env.FindAndOpen(filename,includedFile))
+						throw tw::FatalError("couldn't open " + filename);
 					StripComments(includedFile,out);
 					count++;
 				}
 				else
-				{
-					out << word << " ";
-				}
+					throw tw::FatalError("Include badly formed: "+line);
+			}
+			else
+			{
+				out << line << std::endl;
 			}
 		}
-		out << std::endl;
 	}
 	return count;
 }
