@@ -1,5 +1,5 @@
 import sys
-import os
+import pathlib
 import glob
 import json
 import warnings
@@ -8,43 +8,38 @@ import h5py
 from scipy import constants as C
 
 if len(sys.argv)<2:
-    print('Usage: os-convert.py cmd component[,modifier] [n1=density] [dt=frame_time] [mode=m,part] [frame=:] [root=MS]')
+    print('Usage: os-convert.py <cmd> <component>[,<modifier>] [n1=<density>] [dt=<frame_time>] [frame=<::>] [root=<MS>]')
     print('Extracts data from OSIRIS directory tree, consolidates into npy file, and creates metadata file.')
     print('1D coordinate label mapping: 1->z')
     print('2D coordinate label mapping: 1->z, 2->x')
     print('3D coordinate label mapping: 1->z, 2->y, 3->x')
     print('-------------Examples----------------')
-    print('Cartesian field example: os-convert.py e1')
-    print('Cartesian charge example: os-convert.py charge,electrons')
-    print('Q3D field example: os-convert.py e3 mode=1,re')
-    print('Q3D charge example: convert.py charge,electrons mode=0,re')
+    print('Field example: os-convert.py e1')
+    print('Charge example: os-convert.py charge,electrons')
     print('Phase space example: os-convert.py p1x1,electrons')
-    print('NOTE: you do NOT need to include _cyl_m')
     print('-------------Arguments----------------')
     print('cmd = init or append, if init restart the metadata, otherwise append to it.')
     print('component = e1,e2,e3,b1,b2,b3,etc..')
-    print('modifier = typically a species name, but could include other things.')
+    print('modifier = used to narrow the file search, typically a species name, but could include other things.')
     print('n1 = a normalizing density in cgs units, needed to support TW unit conversions.')
     print('dt = time between frames in plasma units.')
-    print('m = 0,1,2... (only include for q3d).')
-    print('part = re,im (only include for q3d).')
     print('frame = python style range indicating frames to keep, e.g., 2:11:4, etc.')
     print('root = OSIRIS root data directory relative to working directory')
     exit()
 
-def range_str_to_tuple(rng_str):
-    '''Convert a python style range string to a tuple'''
+def str_to_range(rng_str,num):
+    '''Convert a numpy-style slice string to a range'''
     rng = rng_str.split(':')
     tup = ()
     for i,el in enumerate(rng):
         if el=='' and i==0:
         	el = '0'
         if el=='' and i==1:
-        	el = '-1'
+        	el = str(num)
         if el=='' and i==2:
         	el = '1'
         tup += (int(el),)
-    return tup
+    return range(tup[0],tup[1],tup[2])
 
 def get_data_ext(ax):
     '''Convert OSIRIS bounds data, involving some re-arrangement and padding.
@@ -67,6 +62,7 @@ def get_data_ext(ax):
 # Required arguments
 cmd = sys.argv[1]
 if cmd not in ['init','append']:
+    raise ValueError('First argument <'+cmd+'> not recognized.')
     print('ERROR: not a valid command.')
     exit(1)
 id = sys.argv[2].split(',')
@@ -76,52 +72,55 @@ if len(id)>1:
 else:
     modifier = ''
 # Defaults for optional arguments
-mode = 0
-part = ''
-frame_range = (0,-1,1)
+range_str = '::'
 root_dir = 'MS'
 n1_mks = 1e19
 dt = 1.0
+keys_found = []
 # Process optional arguments
 for keyval in sys.argv[3:]:
     key = keyval.split('=')[0]
     val = keyval.split('=')[1]
+    keys_found += [key]
+    if key not in ['frame','root','n1','dt']:
+        raise KeyError('Command line argument <'+key+'> not recognized.')
     if key=='frame':
-        frame_range = range_str_to_tuple(val)
+        range_str = val
     if key=='root':
         root_dir = val
-    if key=='mode':
-        mode = int(val.split(',')[0])
-        part = val.split(',')[1]
     if key=='n1':
         n1_mks = 1e6*np.float(val)
     if key=='dt':
         dt = np.float(val)
+if 'n1' not in keys_found:
+    warnings.warn('No density given, physical units will be arbitrary.')
+if 'dt' not in keys_found:
+    warnings.warn('No time step given, time axis will be arbitrary.')
 
-# Construct OSIRIS filename prefix from the information
-if len(part)>0 and component[-6:]!='_cyl_m':
-    component = component + '_cyl_m'
-prefix = ''
-if len(modifier)>0:
-    if part=='':
-        prefix = component + '-' + modifier + '-'
-    else:
-        prefix = component + '-' + modifier + str(mode) + '-' + part + '-'
+# Search for the desired OSIRIS data file
+if modifier=='':
+    glob_str = root_dir + '/**/' + component + '*[0-9][0-9][0-9][0-9][0-9][0-9].h5'
 else:
-    if part=='':
-        prefix = component + '-'
-    else:
-        prefix = component + '-' + str(mode) + '-' + part + '-'
-
-# See if we can find the specified file prefix
-glob_str = root_dir + '/**/' + prefix + '*.h5'
-print('Searching for',glob_str)
+    glob_str = root_dir + '/**/' + component + '*' + modifier + '*[0-9][0-9][0-9][0-9][0-9][0-9].h5'
 file_list = glob.glob(glob_str,recursive=True)
 num_frames = len(file_list)
-print('Found {:04d} h5 files with expected prefix.'.format(num_frames))
 if num_frames==0:
-    print('No files, so nothing to do.')
+    print('ERROR: no files matched the requested pattern.')
     exit(1)
+prefix_list = list(set([s[:-9] for s in file_list]))
+if len(prefix_list)>1:
+    print('ERROR: found more than one match, use modifier to narrow search.')
+    for i,res in enumerate(prefix_list):
+        print('    Match '+str(i)+': '+res)
+    exit(1)
+full_path_prefix = prefix_list[0]
+prefix = pathlib.Path(full_path_prefix).name
+print('Found {:04d} h5 files with prefix {}.'.format(num_frames,prefix))
+
+# Set up the frames to grab
+frame_list = []
+for frame in str_to_range(range_str,num_frames):
+    frame_list += [frame]
 
 # Get the axis and dimension information based on first frame
 
@@ -133,25 +132,21 @@ except:
 
 print('Found HDF5 groups',list(f.keys()))
 ax = f['AXIS']
-dset = f[component]
+data_key = None
+for k in f.keys():
+    if component in k:
+        data_key = k
+if data_key==None:
+    print('ERROR: could not match to an HDF5 key.')
+    exit(1)
 
+dset = f[data_key]
 print('Dimensions',dset.shape)
 print('Initial data bounds',get_data_ext(ax))
 print('Initial value range',np.min(dset),np.max(dset))
 
-# Set up the frames to grab
-first = frame_range[0]
-if frame_range[1]<0:
-    last = num_frames + frame_range[1] + 1
-else:
-    last = frame_range[1]
-step = frame_range[2]
-total_frames = int((last-first)/step)
-
 # name of the file to create
 new_file = prefix[:-1]+'.npy'
-# path of the file to read, not counting frame and extension
-full_path_prefix = file_list[0][:-9]
 
 def main_metadata(name,meta):
     meta[name] = {}
@@ -160,9 +155,7 @@ def main_metadata(name,meta):
     meta[name]['axes'] = {}
     return meta
 
-def axis_metadata(ax,fullpath):
-    path = os.path.split(fullpath)[0]
-    file = os.path.split(fullpath)[1]
+def axis_metadata(ax):
     wp = np.sqrt(n1_mks*C.e**2/C.epsilon_0/C.m_e)
     xa = (C.c/wp) / (C.hbar/C.m_e/C.c/C.alpha)
     ta = (1/wp) / (C.hbar/C.m_e/C.c**2/C.alpha**2)
@@ -172,39 +165,55 @@ def axis_metadata(ax,fullpath):
     ecgs = emks / (1e-4*C.c)
     ea = emks / (C.m_e**2*C.c**3*C.alpha**3 / C.hbar / C.e)
     en = emks / (C.m_e**2*C.c**3 / C.hbar / C.e)
-    if 'FLD' not in path and 'PHA' not in path:
-        print('ERROR: we only support converting fields or phase space.')
-        exit(1)
-    if 'FLD' in path:
-        comp = file[0].upper()
-        if comp!='E' and comp!='B':
-            warnings.warn('Metadata is specialized for E or B')
-        m = { 'E' : (emks,ecgs,1.0,ea,en) , 'B' : (emks/C.c,ecgs,1.0,ea,en) }
-        u = { 'E' : ('V$/$m','SV$/$cm') , 'B' : ('T','G') }
-        lab_key = ['mks','cgs','plasma','atomic','natural']
-        label = ['$t$','$x$','$y$','$z$','$'+comp+'$']
-        mult = [[1/wp]+[C.c/wp]*3+[m[comp][0]] , [1/wp]+[100*C.c/wp]*3+[m[comp][1]] , [1.0,1.0,1.0,1.0,1.0] , [ta,xa,xa,xa,m[comp][3]] , [tn,xn,xn,xn,m[comp][4]]]
-        ulab = []
-        ulab += [['s']+['m']*3+[u[comp][0]]]
-        ulab += [['s']+['cm']*3+[u[comp][1]]]
-        ulab += [[r'$\omega$']+[r'$\omega/c$']*3+[r'$e/mc\omega$']]
-    if 'PHA' in path:
-        warnings.warn('Metadata is specialized for p1x1')
-        comp = file[0].upper()
-        lab_key = ['mks','cgs','plasma','atomic','natural']
-        label = ['$t$','$p_z$','$y$','$z$','$f$']
-        mult = [[1/wp]+[C.m_e*C.c]+[C.c/wp]*2+[1.0] , [1/wp]+[1e5*C.m_e*C.c]+[100*C.c/wp]*2+[1.0] , [1.0,1.0,1.0,1.0,1.0] , [ta,0.0,xa,xa,1.0] , [tn,0.0,xn,xn,1.0]]
-        ulab = []
-        ulab += [['s']+['kg$\cdot$m$/$s']+['m']*2+['']]
-        ulab += [['s']+['g$\cdot$cm$/$s']+['cm']*2+['']]
-        ulab += [[r'$\omega$']+[r'$/mc$']+[r'$\omega/c$']*2 + ['']]
-    ulab += [['a.u.']*5]
-    ulab += [['n.u.']*5]
+    units = ['mks','cgs','plasma','atomic','natural']
+    label = ['$t$','$x$','$y$','$z$','$'+component+'$']
+    fields = ['e1','e2','e3','b1','b2','b3']
+    phase_space_axes = ['x1','x2','x3','p1','p2','p3']
+    phase_spaces = []
+    for i in range(6):
+        for j in range(6):
+            if i!=j:
+                phase_spaces += [phase_space_axes[i]+phase_space_axes[j]]
+    l = {}
+    l['none'] = {'mks':'AU' , 'cgs':'AU' , 'plasma':'', 'atomic':'AU', 'natural':'AU'}
+    l['t'] = {'mks':'s' , 'cgs':'s' , 'plasma':r'$\omega$', 'atomic':'a.u.', 'natural':'n.u.'}
+    l['x'] = {'mks':'m' , 'cgs':'cm' , 'plasma':r'$\omega/c$', 'atomic':'a.u.', 'natural':'n.u.'}
+    l['p'] = {'mks':'kg$\cdot$m$/$s' , 'cgs':'g$\cdot$cm$/$s' , 'plasma':r'$/mc$', 'atomic':'a.u.', 'natural':'n.u.'}
+    l['e'] = {'mks':'V$/$m' , 'cgs':'SV$/$cm' , 'plasma':r'$e/mc\omega$', 'atomic':'a.u.', 'natural':'n.u.'}
+    l['b'] = {'mks':'T' , 'cgs':'G' , 'plasma':r'$e/mc\omega$', 'atomic':'a.u.', 'natural':'n.u.'}
+    m = {}
+    m['none'] = {'mks':1.0 , 'cgs':1.0 , 'plasma':1.0, 'atomic':1.0, 'natural':1.0}
+    m['t'] = {'mks':1/wp , 'cgs':1/wp , 'plasma':1.0, 'atomic':xa, 'natural':xn}
+    m['x'] = {'mks':C.c/wp , 'cgs':100*C.c/wp , 'plasma':1.0, 'atomic':xa, 'natural':xn}
+    m['p'] = {'mks':C.m_e*C.c , 'cgs':1e5*C.m_e*C.c , 'plasma':1.0, 'atomic':C.m_e*C.c*C.alpha, 'natural':C.m_e*C.c}
+    m['e'] = {'mks':emks , 'cgs':ecgs , 'plasma':1.0, 'atomic':ea, 'natural':en}
+    m['b'] = {'mks':emks/C.c , 'cgs':ecgs , 'plasma':1.0, 'atomic':ea, 'natural':en}
+    mult = [[]]*5
+    ulab = [[]]*5
+    if component not in fields+phase_spaces:
+        warnings.warn('Requested component not known, units will be arbitrary.')
+        for i,s in enumerate(units):
+            mult[i] = [m['none'][s]]*5
+            ulab[i] = [l['none'][s]]*5
+    if component in fields:
+        label[4] = '$'+component[0].upper()+'_'+component[1]+'$'
+        for i,s in enumerate(units):
+            mult[i] = [m['t'][s]] + [m['x'][s]]*3 + [m[component[0]][s]]
+            ulab[i] = [l['t'][s]] + [l['x'][s]]*3 + [l[component[0]][s]]
+    if component in phase_spaces:
+        h = component[0]+'_'+component[1]
+        v = component[2]+'_'+component[3]
+        label[1] = '$'+h+'$'
+        label[3] = '$'+v+'$'
+        label[4] = '$f('+h+','+v+')$'
+        for i,s in enumerate(units):
+            mult[i] = [1.0,m[component[0]][s],1.0,m[component[2]][s],1.0]
+            ulab[i] = [l['none'][s],l[component[0]][s],l['none'][s],l[component[2]][s],l['none'][s]]
     a = {}
     a['label'] = label[ax]
-    for i in range(len(lab_key)):
-        a[lab_key[i]+' label'] = ulab[i][ax]
-        a[lab_key[i]+' multiplier'] = mult[i][ax]
+    for i in range(len(units)):
+        a[units[i]+' label'] = ulab[i][ax]
+        a[units[i]+' multiplier'] = mult[i][ax]
     return a
 
 def grid_string(frame,bounds,shp):
@@ -224,17 +233,19 @@ if len(dset.shape)==2:
 	new_shape = (dset.shape[0],1,dset.shape[1])
 if len(dset.shape)==3:
 	new_shape = dset.shape
-full_array = np.zeros((total_frames,)+new_shape)
+full_array = np.zeros((len(frame_list),)+new_shape)
 grid_str = ''
-for n in range(first,last,step):
+count = 0
+for n in frame_list:
     fullpath = full_path_prefix + '{:06d}.h5'.format(n)
     try:
         f = h5py.File(fullpath,'r')
     except:
-        print('Could not open HDF5 file.')
+        print('Could not open HDF5 file <' + fullpath + '>.')
         exit(1)
-    full_array[n,...] = np.array(f[component]).reshape(new_shape)
+    full_array[count,...] = np.array(f[data_key]).reshape(new_shape)
     grid_str += grid_string(n,get_data_ext(f['AXIS']),new_shape)
+    count += 1
     print('.',end='',flush=True)
 
 # Save the data into the .npy file
@@ -250,7 +261,7 @@ else:
         meta = json.load(f)
 meta = main_metadata(new_file,meta)
 for ax in range(5):
-    meta[new_file]['axes'][str(ax)] = axis_metadata(ax,fullpath)
+    meta[new_file]['axes'][str(ax)] = axis_metadata(ax)
 with open('tw_metadata.json','w') as f:
     json.dump(meta,f,indent=4)
 

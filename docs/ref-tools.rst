@@ -711,11 +711,15 @@ The following directives may be used with any diagnostic
 
 .. py:function:: galilean velocity = (vx,vy,vz)
 
-	Transform output to a Galilean frame, i.e., :math:`{\bf r}' = {\bf r} - {\bf v}t`.
+	Transform output to a Galilean frame, i.e., :math:`{\bf r}' = {\bf r} - {\bf v}t`.  This transformation can be combined with a boosted frame.
 
 	:param float vx: x-component of the galilean transformation velocity
 	:param float vy: y-component of the galilean transformation velocity
 	:param float vz: z-component of the galilean transformation velocity
+
+.. py:function:: boosted frame gamma = g
+
+	:param float g: Lorentz factor associated with a boosted frame (default=1).  This is a request to unboost data generated in a boosted frame. As of this writing it is only implemented for orbit and phase space diagnostics, and there are some limitations (see below).
 
 .. _specific-diagnostics:
 
@@ -775,7 +779,7 @@ Specific Diagnostics
 
 .. py:function:: new phase space diagnostic [<name>] [for <module_name>] { <directives> }
 
-	Diagnostic to write out up to 3D phase space projections.  Setting a dimension to 1 produces a lower dimensional projection.
+	Diagnostic to write out up to 3D phase space projections.  Setting a dimension to 1 produces a lower dimensional projection.  The ``boosted frame gamma`` parameter can be used to put the data in the lab frame.  It is important to note that if this is done, the frame write-out index still slices time in the boosted frame.
 
 	:param str species_name: the name of the species to diagnose
 	:param block directives: The following directives are supported:
@@ -798,6 +802,8 @@ Specific Diagnostics
 
 		.. py:function:: bounds = (x0,x1,y0,y1,z0,z1)
 
+			Boundaries of the interrogation region.  In boosted frame simulations, these can be specified in the lab frame by setting ``boosted frame gamma``.
+
 			:param float x0: lower bound for axis 1
 			:param float x1: upper bound for axis 1
 			:param float y0: lower bound for axis 2
@@ -808,7 +814,7 @@ Specific Diagnostics
 
 .. py:function:: new orbit diagnostic [<name>] [for <module_name>]
 
-	Diagnostic to write out full phase space data of the particles.
+	Diagnostic to write out full phase space data of the particles.  In boosted frame simulations, data can be put in the lab frame by setting ``boosted frame gamma``.  Note however that the time separators in the data file lose their meaning in this case.
 
 	.. caution::
 		Orbit diagnostics can create excessively large files if not used carefully.  To avoid this, define a species with a small number of test particles and use this on them.
@@ -820,4 +826,4 @@ Specific Diagnostics
 
 		.. py:function:: minimum gamma = gmin
 
-			:param float gmin: only save data for particles with gamma greater than this
+			:param float gmin: only save data for particles with gamma greater than this.  In boosted frame simulations, this can be specified in the lab frame by setting ``boosted frame gamma``.

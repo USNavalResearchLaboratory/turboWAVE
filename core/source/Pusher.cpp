@@ -149,7 +149,7 @@ void Species::Push()
 	const tw::Int num_par = particle.size();
 	const tw::Int concurrent_tasks = tw::GetOMPMaxThreads();
 	const tw::Int max_tasks = 1 + num_par / min_particles_per_task;
-	const tw::Int preferred_tasks = 8*concurrent_tasks;
+	const tw::Int preferred_tasks = 32*concurrent_tasks;
 	const tw::Int num_tasks = preferred_tasks > max_tasks ? max_tasks : preferred_tasks;
 	const tw::Int concurrent_sets = num_tasks / concurrent_tasks;
 	const tw::Int remainder_tasks = num_tasks % concurrent_tasks;

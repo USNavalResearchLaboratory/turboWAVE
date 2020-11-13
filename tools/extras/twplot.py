@@ -300,7 +300,7 @@ for file_idx in range(len(slice_tuples[0])):
 				b.set_label(format_label(r'$'+tl[2]+r'$'),size=12)
 
 			if roi[i]=='':
-				roi_i = plot_dict['extent']
+				roi_i = np.array(plot_dict['extent'])*exm
 			else:
 				roi_i = []
 				for s in roi[i].split(','):
@@ -330,10 +330,10 @@ for file_idx in range(len(slice_tuples[0])):
 				plt.ylabel(format_label(r'$'+tl[1]+r'$'),size=12)
 
 			if roi[i]=='':
-				roi_i = [abcissa[0],abcissa[-1],global_min[i],global_max[i]]
+				roi_i = [abcissa[0]*exm[0],abcissa[-1]*exm[0],global_min[i]*exm[2],global_max[i]*exm[2]]
 			else:
 				s = roi[i].split(',')
-				roi_i = [float(s[0]),float(s[1]),global_min[i],global_max[i]]
+				roi_i = [float(s[0]),float(s[1]),float(s[2]),float(s[3])]
 				plt.xlim(roi_i[0],roi_i[1])
 				plt.ylim(roi_i[2],roi_i[3])
 			if not panels[i]=='':

@@ -28,7 +28,7 @@ struct Diagnostic : ComputeTool
 {
 	std::string filename;
 	tw::Int skip[4];
-	tw::Float t,tRef,t0,t1,timePeriod;
+	tw::Float t,tRef,t0,t1,timePeriod,gammaBoost;
 	tw::vec3 vGalileo;
 	bool headerWritten;
 

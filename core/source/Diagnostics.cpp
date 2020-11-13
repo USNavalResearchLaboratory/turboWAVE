@@ -158,6 +158,7 @@ Diagnostic::Diagnostic(const std::string& name,MetricSpace *ms,Task *tsk) : Comp
 	timePeriod = 0.0;
 	filename = "diagnostic";
 	vGalileo = 0.0;
+	gammaBoost = 1.0;
 	headerWritten = false;
 	directives.Add("period",new tw::input::Int(&skip[0]),false);
 	directives.Add("time period",new tw::input::Float(&timePeriod),false);
@@ -166,6 +167,7 @@ Diagnostic::Diagnostic(const std::string& name,MetricSpace *ms,Task *tsk) : Comp
 	directives.Add("t0",new tw::input::Float(&t0),false);
 	directives.Add("t1",new tw::input::Float(&t1),false);
 	directives.Add("galilean velocity",new tw::input::Vec3(&vGalileo),false);
+	directives.Add("boosted frame gamma",new tw::input::Float(&gammaBoost),false);
 }
 
 bool Diagnostic::WriteThisStep(tw::Float elapsedTime,tw::Float dt,tw::Int stepNow)
@@ -675,17 +677,24 @@ void ParticleOrbits::Finish()
 
 void ParticleOrbits::Particle(const struct Particle& par,tw::Float m0,tw::Float tp)
 {
-	tw::vec3 position = space->PositionFromPrimitive(par.q);
-	if (theRgn->Inside(position,*space))
-		if (sqrt(1.0 + Norm(par.p/m0)) >= minGamma)
+	tw::vec4 x(tp,space->PositionFromPrimitive(par.q));
+	tw::vec4 v(sqrt(1+Norm(par.p)/(m0*m0)),par.p/m0);
+	// Boosts will work in Cartesian or cylindrical, but not spherical.
+	x.zBoost(gammaBoost,1.0);
+	v.zBoost(gammaBoost,1.0);
+	tw::vec3 x3 = x.spatial();
+	if (theRgn->Inside(x3,*space))
+		if (v[0] >= minGamma)
 		{
-			space->CurvilinearToCartesian(&position);
-			parData.push_back(position.x - vGalileo.x*tp);
-			parData.push_back(par.p.x);
-			parData.push_back(position.y - vGalileo.y*tp);
-			parData.push_back(par.p.y);
-			parData.push_back(position.z - vGalileo.z*tp);
-			parData.push_back(par.p.z);
+			space->CurvilinearToCartesian(&x3);
+			x3 -= vGalileo*x[0];
+			x = tw::vec4(x[0],x3);
+			parData.push_back(x[1]);
+			parData.push_back(m0*v[1]);
+			parData.push_back(x[2]);
+			parData.push_back(m0*v[2]);
+			parData.push_back(x[3]);
+			parData.push_back(m0*v[3]);
 			parData.push_back(par.aux1);
 			parData.push_back(par.aux2);
 		}
@@ -799,21 +808,26 @@ void PhaseSpaceDiagnostic::Finish()
 void PhaseSpaceDiagnostic::Particle(const struct Particle& par,tw::Float m0,tw::Float tp)
 {
 	weights_3D weights;
-	tw::vec3 r = space->PositionFromPrimitive(par.q);
-	const tw::vec3 p = par.p;
+	tw::vec4 x(tp,space->PositionFromPrimitive(par.q));
+	tw::vec4 v(sqrt(1+Norm(par.p)/(m0*m0)),par.p/m0);
+	x.zBoost(gammaBoost,1.0);
+	v.zBoost(gammaBoost,1.0);
 	const tw::Float dV = (bounds[1]-bounds[0])*(bounds[3]-bounds[2])*(bounds[5]-bounds[4])/(dims[1]*dims[2]*dims[3]);
-	if (theRgn->Inside(r,*space))
+	tw::vec3 x3 = x.spatial();
+	if (theRgn->Inside(x3,*space))
 	{
-		space->CurvilinearToCartesian(&r);
-		r -= vGalileo*tp;
-		std::map<tw::grid::axis,tw::Float> m = {{tw::grid::t,tp},{tw::grid::x,r.x},{tw::grid::y,r.y},{tw::grid::z,r.z},
-			{tw::grid::mass,sqrt(m0*m0+Norm(p))},{tw::grid::px,p.x},{tw::grid::py,p.y},{tw::grid::pz,p.z},
-			{tw::grid::g,sqrt(1+Norm(p)/(m0*m0))},{tw::grid::gbx,p.x/m0},{tw::grid::gby,p.y/m0},{tw::grid::gbz,p.z/m0}};
+		space->CurvilinearToCartesian(&x3);
+		x3 -= vGalileo*x[0];
+		x = tw::vec4(x[0],x3);
+		std::map<tw::grid::axis,tw::Float> m =
+			{{tw::grid::t,x[0]},{tw::grid::x,x[1]},{tw::grid::y,x[2]},{tw::grid::z,x[3]},
+			{tw::grid::mass,m0*v[0]},{tw::grid::px,m0*v[1]},{tw::grid::py,m0*v[2]},{tw::grid::pz,m0*v[3]},
+			{tw::grid::g,v[0]},{tw::grid::gbx,v[1]},{tw::grid::gby,v[2]},{tw::grid::gbz,v[3]}};
 		tw::vec3 q(m[ax[1]],m[ax[2]],m[ax[3]]);
-		if (dims[1]==1) q.x = 0.0;
-		if (dims[2]==1) q.y = 0.0;
-		if (dims[3]==1) q.z = 0.0;
-		if (q.x>bounds[0] && q.x<bounds[1] && q.y>bounds[2] && q.y<bounds[3] && q.z>bounds[4] && q.z<bounds[5])
+		if (dims[1]==1) q.x = 0.5*(bounds[0]+bounds[1]);
+		if (dims[2]==1) q.y = 0.5*(bounds[2]+bounds[3]);
+		if (dims[3]==1) q.z = 0.5*(bounds[4]+bounds[5]);
+		if (q.x>=bounds[0] && q.x<=bounds[1] && q.y>=bounds[2] && q.y<=bounds[3] && q.z>=bounds[4] && q.z<=bounds[5])
 		{
 			fxp.GetWeights(&weights,q);
 			fxp.InterpolateOnto( par.number/dV, weights );

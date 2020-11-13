@@ -295,7 +295,7 @@ void tw::input::UserMacros(std::stringstream& in,std::stringstream& out)
 		std::regex special(R"([.^$|()\[\]{}*+?\\])");
 		std::string escaped = std::regex_replace(pair.first,special,R"(\$&)");
 		// now make the replacement
-		std::regex ex(R"((\s))"+escaped+R"((\s))");
+		std::regex ex(R"(([\s-]))"+escaped+R"((\s))");
 		while (std::regex_search(stripped,match,ex)) // need loop to account for adjacent repeated patterns
 			stripped = std::regex_replace(stripped,ex,match[1].str()+pair.second+match[2].str());
 	}
