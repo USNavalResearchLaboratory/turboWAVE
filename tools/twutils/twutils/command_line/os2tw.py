@@ -7,16 +7,16 @@ import numpy as np
 import h5py
 from scipy import constants as C
 
-if len(sys.argv)<2:
-    print('Usage: os-convert.py <cmd> <component>[,<modifier>] [n1=<density>] [dt=<frame_time>] [frame=<::>] [root=<MS>]')
+def print_usage():
+    print('Usage: os2tw <cmd> <component>[,<modifier>] [n1=<density>] [dt=<frame_time>] [frame=<::>] [root=<MS>]')
     print('Extracts data from OSIRIS directory tree, consolidates into npy file, and creates metadata file.')
     print('1D coordinate label mapping: 1->z')
     print('2D coordinate label mapping: 1->z, 2->x')
     print('3D coordinate label mapping: 1->z, 2->y, 3->x')
     print('-------------Examples----------------')
-    print('Field example: os-convert.py e1')
-    print('Charge example: os-convert.py charge,electrons')
-    print('Phase space example: os-convert.py p1x1,electrons')
+    print('Field example: os-convert.py init e1')
+    print('Charge example: os-convert.py init charge,electrons')
+    print('Phase space example: os-convert.py init p1x1,electrons')
     print('-------------Arguments----------------')
     print('cmd = init or append, if init restart the metadata, otherwise append to it.')
     print('component = e1,e2,e3,b1,b2,b3,etc..')
@@ -25,7 +25,6 @@ if len(sys.argv)<2:
     print('dt = time between frames in plasma units.')
     print('frame = python style range indicating frames to keep, e.g., 2:11:4, etc.')
     print('root = OSIRIS root data directory relative to working directory')
-    exit()
 
 def str_to_range(rng_str,num):
     '''Convert a numpy-style slice string to a range'''
@@ -58,96 +57,6 @@ def get_data_ext(ax):
         data_ext = [-0.5,0.5,-0.5,0.5] + data_ext
     return data_ext
 
-# Process command line
-# Required arguments
-cmd = sys.argv[1]
-if cmd not in ['init','append']:
-    raise ValueError('First argument <'+cmd+'> not recognized.')
-    print('ERROR: not a valid command.')
-    exit(1)
-id = sys.argv[2].split(',')
-component = id[0]
-if len(id)>1:
-    modifier = id[-1]
-else:
-    modifier = ''
-# Defaults for optional arguments
-range_str = '::'
-root_dir = 'MS'
-n1_mks = 1e19
-dt = 1.0
-keys_found = []
-# Process optional arguments
-for keyval in sys.argv[3:]:
-    key = keyval.split('=')[0]
-    val = keyval.split('=')[1]
-    keys_found += [key]
-    if key not in ['frame','root','n1','dt']:
-        raise KeyError('Command line argument <'+key+'> not recognized.')
-    if key=='frame':
-        range_str = val
-    if key=='root':
-        root_dir = val
-    if key=='n1':
-        n1_mks = 1e6*np.float(val)
-    if key=='dt':
-        dt = np.float(val)
-if 'n1' not in keys_found:
-    warnings.warn('No density given, physical units will be arbitrary.')
-if 'dt' not in keys_found:
-    warnings.warn('No time step given, time axis will be arbitrary.')
-
-# Search for the desired OSIRIS data file
-if modifier=='':
-    glob_str = root_dir + '/**/' + component + '*[0-9][0-9][0-9][0-9][0-9][0-9].h5'
-else:
-    glob_str = root_dir + '/**/' + component + '*' + modifier + '*[0-9][0-9][0-9][0-9][0-9][0-9].h5'
-file_list = glob.glob(glob_str,recursive=True)
-num_frames = len(file_list)
-if num_frames==0:
-    print('ERROR: no files matched the requested pattern.')
-    exit(1)
-prefix_list = list(set([s[:-9] for s in file_list]))
-if len(prefix_list)>1:
-    print('ERROR: found more than one match, use modifier to narrow search.')
-    for i,res in enumerate(prefix_list):
-        print('    Match '+str(i)+': '+res)
-    exit(1)
-full_path_prefix = prefix_list[0]
-prefix = pathlib.Path(full_path_prefix).name
-print('Found {:04d} h5 files with prefix {}.'.format(num_frames,prefix))
-
-# Set up the frames to grab
-frame_list = []
-for frame in str_to_range(range_str,num_frames):
-    frame_list += [frame]
-
-# Get the axis and dimension information based on first frame
-
-try:
-    f = h5py.File(file_list[0],'r')
-except:
-    print('Could not open '+file_list[0])
-    exit(1)
-
-print('Found HDF5 groups',list(f.keys()))
-ax = f['AXIS']
-data_key = None
-for k in f.keys():
-    if component in k:
-        data_key = k
-if data_key==None:
-    print('ERROR: could not match to an HDF5 key.')
-    exit(1)
-
-dset = f[data_key]
-print('Dimensions',dset.shape)
-print('Initial data bounds',get_data_ext(ax))
-print('Initial value range',np.min(dset),np.max(dset))
-
-# name of the file to create
-new_file = prefix[:-1]+'.npy'
-
 def main_metadata(name,meta):
     meta[name] = {}
     meta[name]['native units'] = 'plasma'
@@ -155,7 +64,7 @@ def main_metadata(name,meta):
     meta[name]['axes'] = {}
     return meta
 
-def axis_metadata(ax):
+def axis_metadata(ax,component):
     wp = np.sqrt(n1_mks*C.e**2/C.epsilon_0/C.m_e)
     xa = (C.c/wp) / (C.hbar/C.m_e/C.c/C.alpha)
     ta = (1/wp) / (C.hbar/C.m_e/C.c**2/C.alpha**2)
@@ -226,44 +135,138 @@ def grid_string(frame,bounds,shp):
         s += '\n'
     return s
 
-# TW shapes are always 4 dimensional, so add necessary axes
-if len(dset.shape)==1:
-	new_shape = (1,1) + dset.shape
-if len(dset.shape)==2:
-	new_shape = (dset.shape[0],1,dset.shape[1])
-if len(dset.shape)==3:
-	new_shape = dset.shape
-full_array = np.zeros((len(frame_list),)+new_shape)
-grid_str = ''
-count = 0
-for n in frame_list:
-    fullpath = full_path_prefix + '{:06d}.h5'.format(n)
-    try:
-        f = h5py.File(fullpath,'r')
-    except:
-        print('Could not open HDF5 file <' + fullpath + '>.')
+def main():
+    # Process command line
+    # Required arguments
+    if len(sys.argv)<2:
+        print_usage()
+        exit(0)
+    cmd = sys.argv[1]
+    if cmd not in ['init','append']:
+        raise ValueError('First argument <'+cmd+'> not recognized.')
+        print('ERROR: not a valid command.')
         exit(1)
-    full_array[count,...] = np.array(f[data_key]).reshape(new_shape)
-    grid_str += grid_string(n,get_data_ext(f['AXIS']),new_shape)
-    count += 1
-    print('.',end='',flush=True)
+    id = sys.argv[2].split(',')
+    component = id[0]
+    if len(id)>1:
+        modifier = id[-1]
+    else:
+        modifier = ''
+    # Defaults for optional arguments
+    range_str = '::'
+    root_dir = 'MS'
+    n1_mks = 1e19
+    dt = 1.0
+    keys_found = []
+    # Process optional arguments
+    for keyval in sys.argv[3:]:
+        key = keyval.split('=')[0]
+        val = keyval.split('=')[1]
+        keys_found += [key]
+        if key not in ['frame','root','n1','dt']:
+            raise KeyError('Command line argument <'+key+'> not recognized.')
+        if key=='frame':
+            range_str = val
+        if key=='root':
+            root_dir = val
+        if key=='n1':
+            n1_mks = 1e6*np.float(val)
+        if key=='dt':
+            dt = np.float(val)
+    if 'n1' not in keys_found:
+        warnings.warn('No density given, physical units will be arbitrary.')
+    if 'dt' not in keys_found:
+        warnings.warn('No time step given, time axis will be arbitrary.')
 
-# Save the data into the .npy file
-np.save(new_file,full_array)
-print()
+    # Search for the desired OSIRIS data file
+    if modifier=='':
+        glob_str = root_dir + '/**/' + component + '*[0-9][0-9][0-9][0-9][0-9][0-9].h5'
+    else:
+        glob_str = root_dir + '/**/' + component + '*' + modifier + '*[0-9][0-9][0-9][0-9][0-9][0-9].h5'
+    file_list = glob.glob(glob_str,recursive=True)
+    num_frames = len(file_list)
+    if num_frames==0:
+        print('ERROR: no files matched the requested pattern.')
+        exit(1)
+    prefix_list = list(set([s[:-9] for s in file_list]))
+    if len(prefix_list)>1:
+        print('ERROR: found more than one match, use modifier to narrow search.')
+        for i,res in enumerate(prefix_list):
+            print('    Match '+str(i)+': '+res)
+        exit(1)
+    full_path_prefix = prefix_list[0]
+    prefix = pathlib.Path(full_path_prefix).name
+    print('Found {:04d} h5 files with prefix {}.'.format(num_frames,prefix))
 
-# create the metadata
+    # Set up the frames to grab
+    frame_list = []
+    for frame in str_to_range(range_str,num_frames):
+        frame_list += [frame]
 
-if cmd=='init':
-    meta = {}
-else:
-    with open('tw_metadata.json','r') as f:
-        meta = json.load(f)
-meta = main_metadata(new_file,meta)
-for ax in range(5):
-    meta[new_file]['axes'][str(ax)] = axis_metadata(ax)
-with open('tw_metadata.json','w') as f:
-    json.dump(meta,f,indent=4)
+    # Get the axis and dimension information based on first frame
 
-with open(new_file+'_grid_warp.txt','w') as f:
-    f.write(grid_str)
+    try:
+        f = h5py.File(file_list[0],'r')
+    except:
+        print('Could not open '+file_list[0])
+        exit(1)
+
+    print('Found HDF5 groups',list(f.keys()))
+    ax = f['AXIS']
+    data_key = None
+    for k in f.keys():
+        if component in k:
+            data_key = k
+    if data_key==None:
+        print('ERROR: could not match to an HDF5 key.')
+        exit(1)
+
+    dset = f[data_key]
+    print('Dimensions',dset.shape)
+    print('Initial data bounds',get_data_ext(ax))
+    print('Initial value range',np.min(dset),np.max(dset))
+
+    # name of the file to create
+    new_file = prefix[:-1]+'.npy'
+
+    # TW shapes are always 4 dimensional, so add necessary axes
+    if len(dset.shape)==1:
+    	new_shape = (1,1) + dset.shape
+    if len(dset.shape)==2:
+    	new_shape = (dset.shape[0],1,dset.shape[1])
+    if len(dset.shape)==3:
+    	new_shape = dset.shape
+    full_array = np.zeros((len(frame_list),)+new_shape)
+    grid_str = ''
+    count = 0
+    for n in frame_list:
+        fullpath = full_path_prefix + '{:06d}.h5'.format(n)
+        try:
+            f = h5py.File(fullpath,'r')
+        except:
+            print('Could not open HDF5 file <' + fullpath + '>.')
+            exit(1)
+        full_array[count,...] = np.array(f[data_key]).reshape(new_shape)
+        grid_str += grid_string(n,get_data_ext(f['AXIS']),new_shape)
+        count += 1
+        print('.',end='',flush=True)
+
+    # Save the data into the .npy file
+    np.save(new_file,full_array)
+    print()
+
+    # create the metadata
+
+    if cmd=='init':
+        meta = {}
+    else:
+        with open('tw_metadata.json','r') as f:
+            meta = json.load(f)
+    meta = main_metadata(new_file,meta)
+    for ax in range(5):
+        meta[new_file]['axes'][str(ax)] = axis_metadata(ax,component)
+    with open('tw_metadata.json','w') as f:
+        json.dump(meta,f,indent=4)
+
+    with open(new_file+'_grid_warp.txt','w') as f:
+        f.write(grid_str)

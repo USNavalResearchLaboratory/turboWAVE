@@ -1,41 +1,25 @@
-Tools Install for RHEL/CentOS 8
-===============================
+Tools Install for Linux
+=======================
 
-.. caution::
+Install Anaconda
+----------------
 
-	We assume core TurboWAVE has already been installed.
-
-Python 3 Conda Environment
---------------------------
-
-#. In this instruction we will use conda virtual environments.  You can also use the native venv system.
+#. If you already have Anaconda3 installed, skip to the next step.
 #. Download Miniconda3 installer from internet
 #. Navigate to downloaded file
-#. :samp:`bash {downloaded_file}`
+#. :samp:`bash {filename}`, where :samp:`{filename}` is the file that you just downloaded
 #. Respond with defaults to prompts.  Open a new terminal window when finished.
+
+TurboWAVE Python Environment
+----------------------------
+
 #. :samp:`conda update conda`
 #. :samp:`conda init`
-#. Choose a name for the environment, denoted :samp:`{NAME}`
-#. :samp:`conda create -n {NAME} scipy matplotlib pillow jupyter ipympl`
+#. Open a new terminal window.
+#. Choose a name for your environment, denoted :samp:`{NAME}`
+#. :samp:`conda create -n {NAME} -c dfxgordon twutils`
 #. :samp:`conda activate {NAME}`
 #. You are now in an isolated conda environment.  The environment must be activated each time you open a new terminal window.
-#. If there are problems with Jupyter notebooks any or all of the following may be tried:
-
-	* Try adding ``-c conda-forge`` at any install step
-	* :samp:`conda install widgetsnbextension={n}`, where :samp:`{n}` is some preferred version.
-	* :samp:`conda install ipywidgets`
-	* :samp:`jupyter nbextension install --py --sys-prefix widgetsnbextension`
-	* :samp:`jupyter nbextension enable --py --sys-prefix widgetsnbextension`
-
-TurboWAVE Python Packages
--------------------------
-
-#. If this is a new terminal session, activate the virtual environment (see above)
-#. Navigate to the :samp:`{twroot}/tools/twutils` directory
-#. Do **not** descend into the second :samp:`twutils` directory within.
-#. :samp:`pip install --upgrade pip`
-#. :samp:`pip install .`
-#. Your python programs should now have access to twutils and sub-packages.
 
 Python DataViewer
 -----------------

@@ -31,8 +31,7 @@ Let us plot the results using the interactive Python DataViewer.
 #. Activate your virtual environment (see :doc:`tools-install`)
 #. :samp:`jupyter notebook`
 #. Click on :samp:`DataViewer.ipynb`
-#. Locate the path variable in the source, and change to your own Run directory.  This must be a directory accessible to the Jupyter notebook server.
-#. Click on the button to run the notebook
+#. Put the cursor in the code cell and click on the button to run the notebook
 #. Use the File dropdown to select :samp:`phi.npy`.
 #. Advance the Frame slider to the last frame
 #. Your window should look something like Fig. 1.
@@ -47,16 +46,15 @@ Command Line Plotter Tutorial
 
 The command line interface (CLI) plotter allows you to generate animations and publication quality, multi-panel, plots.  The arguments may seem intimidating, but this tool is quite handy once you get the hang of it.  In the following we will start with a simple plot and work toward more complex ones.
 
-#. Copy :samp:`{twroot}/tools/extras/twplot.py` to some convenient location, for this demonstration we will assume :samp:`~/bin`.
 #. Activate your virtual environment.
 #. :samp:`cd ~/Run`
-#. Display the arguments by entering :samp:`python ~/bin/twplot.py`
+#. Display the arguments by entering :samp:`twplot`
 
 The last step should display the full range of arguments for the CLI plotter command.  You can examine these later.
 
 The simplest way to invoke the plotter is to use the required arguments only.  For example::
 
-	python ~/bin/twplot.py zxyt=0,-1 phi.npy
+	twplot zxyt=0,-1 phi.npy
 
 Execute this command, taking care not to add spaces.  You should get something like Fig. 2.  The key is to understand the slicing argument.  The first two characters to the left of ``=`` are the axes to plot.  The next two characters are the slicing axes.  The two numbers to the right of ``=`` are matched up with the slicing axes, and determine the slice to select.  Negative slices count from the back, i.e., ``-1`` selects the last slice (in this example the last time index).
 
@@ -67,7 +65,7 @@ Execute this command, taking care not to add spaces.  You should get something l
 
 The axis labels and color scale default to normalized plasma units.  You can add an argument to select from ``mks``, ``cgs``, ``plasma``, ``atomic``, or ``natural`` units::
 
-	python ~/bin/twplot.py zxyt=0,-1 phi.npy units=mks
+	twplot zxyt=0,-1 phi.npy units=mks
 
 .. tip::
 
@@ -75,23 +73,23 @@ The axis labels and color scale default to normalized plasma units.  You can add
 
 This should give the axes and color scale in mks units.  You can also take full control of the labels as follows (n.b. the particulars of escaping special characters may depend on your shell, the following works in ``bash``)::
 
-	python ~/bin/twplot.py zxyt=0,-1 phi.npy texlabels=\\omega_pz,\\omega_px,e\\phiSLASHmc
+	twplot zxyt=0,-1 phi.npy texlabels=\\omega_pz,\\omega_px,e\\phiSLASHmc
 
 Notice (i) LaTeX works since we are simply forwarding strings to Matplotlib, and (ii) we have to use ``SLASH`` to get ``/``.  The latter is because, as we will see, the CLI plotter uses ``/`` as a separator.  Next let us animate this plot.  Creating an animation is quite simple, you just use a Python style range as one of the slices.  For example, to animate every time slice::
 
-	python ~/bin/twplot.py zxyt=0,: phi.npy texlabels=\\omega_pz,\\omega_px,e\\phiSLASHmc
+	twplot zxyt=0,: phi.npy texlabels=\\omega_pz,\\omega_px,e\\phiSLASHmc
 
 This should generate a file called ``mov.gif``.  You can view the movie using standard software.  From Linux you can try ``eog mov.gif``.  From Windows PowerShell you can try ``Start mov.gif``.
 
 Finally let's make a multi-panel animation.  We will show the scalar potential alongside a lineout of the axial electric field::
 
-	python ~/bin/twplot.py zxyt=0,:/zxyt=64,0,: phi.npy,Ez.npy \
+	twplot zxyt=0,:/zxyt=64,0,: phi.npy,Ez.npy \
 	texlabels=\\omega_pz,\\omega_px,e\\phiSLASHmc/\\omega_pz,eE_zSLASHmc \
 	roi=0,25,-16,16/0,25,-0.1,0.1
 
 .. tip::
 
-		If you find yourself repeatedly typing the same labels, it may be useful to define a shell variable.  For example, in the ``bash`` shell, we could defined ``phi=\\omega_pz,\\omega_px,e\\phiSLASHmc``, and used ``$phi`` as shorthand for this label thereafter.
+		If you find yourself repeatedly typing the same labels, it may be useful to define a shell variable.  For example, in the ``bash`` shell, we could define ``phi=\\omega_pz,\\omega_px,e\\phiSLASHmc``, and use ``$phi`` as shorthand for this label thereafter.
 
 In this case, each argument is repeated for the new panel.  The panel separator is either ``,`` or ``/``, depending on the argument.  We also used the ``\`` separator to continue the long argument list onto a new line (may be shell dependent).  Finally, the ``roi`` argument is used to fix the vertical scale on the lineout (without this the scale would change from frame to frame).  If everything is working you should get something like Fig. 2.
 

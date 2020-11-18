@@ -1,14 +1,17 @@
+import pathlib
 import numpy as np
 import matplotlib.pyplot as plt
-import twutils.plot as twplot
+import twutils.plot
 
-# Simple example of how to use the plotter
+# Simple example of how to use the plotter class
+# to develop your own visualization script
 
-file_to_plot = '/home/gordon/Run/Ez.npy'
+file_to_plot = pathlib.Path.home() / 'Run' / 'Ez.npy'
 
+# First make a plotter object tied to a specific file.
 # Make it buffered if you want to load all data at once.
 # For huge files make it unbuffered.
-plotter = twplot.plotter(file_to_plot,units='cgs',buffered=False)
+plotter = twutils.plot.plotter(file_to_plot,units='cgs',buffered=False)
 plotter.display_info()
 plt.figure(1,figsize=(10,4),dpi=75)
 

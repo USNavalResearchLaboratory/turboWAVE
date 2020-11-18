@@ -1,5 +1,5 @@
 #ifndef _did_definitions
-#define TW_VERSION_STRING "4.1.2"
+#define TW_VERSION_STRING "4.2.1"
 
 /////////////////////////////////////////////////////////////////////
 //                                                                 //

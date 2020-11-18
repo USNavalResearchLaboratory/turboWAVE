@@ -1,19 +1,19 @@
 Tools Install for Windows 10
 ============================
 
-.. caution::
-
-	We assume core TurboWAVE has already been installed.
-
-.. caution::
+.. warning::
 
 	Anaconda warns that spaces in the install path should be avoided. If your account name has spaces, it may be worth creating a new account without spaces for this work.
 
-Python 3 via Anaconda
----------------------
+Install Anaconda
+----------------
 
 #. If you already a sufficiently recent Anaconda3 installed, you may be able to skip the next step.  The danger is that older versions have trouble with PowerShell.
 #. Run Miniconda3 installer from internet, accept defaults.
+
+TurboWAVE Python Environment
+----------------------------
+
 #. Open a new PowerShell window
 #. If you get an error you likely need to update the Execution Policy
 
@@ -21,28 +21,12 @@ Python 3 via Anaconda
 	* Respond affirmatively to the prompt, close and reopen the PowerShell
 
 #. :samp:`conda update conda`
+#. :samp:`conda init powershell`
+#. Open a new PowerShell window.
 #. Choose a name for your environment, denoted :samp:`{NAME}`
-#. :samp:`conda create -n {NAME} scipy matplotlib pillow jupyter ipympl`
+#. :samp:`conda create -n {NAME} -c dfxgordon twutils`
 #. :samp:`conda activate {NAME}`
 #. You are now in an isolated conda environment.  The environment must be activated each time you open a new terminal window.
-#. If there are problems with Jupyter notebooks any or all of the following may be tried:
-
-	* Try adding ``-c conda-forge`` at any install step
-	* :samp:`conda install widgetsnbextension={n}`, where :samp:`{n}` is some preferred version.
-	* :samp:`conda install ipywidgets`
-	* :samp:`jupyter nbextension install --py --sys-prefix widgetsnbextension`
-	* :samp:`jupyter nbextension enable --py --sys-prefix widgetsnbextension`
-
-
-TurboWAVE Python Packages
--------------------------
-
-#. If this is a new PowerShell session, activate the conda environment with :samp:`conda activate {NAME}`
-#. :samp:`cd {twroot}/tools/twutils`
-#. Do **not** descend into the second :samp:`twutils` directory within.
-#. :samp:`pip install --upgrade pip`
-#. :samp:`pip install .`
-#. Your python programs should now have access to twutils and sub-packages.
 
 Python DataViewer
 -----------------

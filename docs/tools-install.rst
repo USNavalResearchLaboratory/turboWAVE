@@ -19,7 +19,6 @@ Tools Install by OS
 .. toctree::
 	:maxdepth: 1
 
+	tools-linux
 	tools-mac
-	tools-RHEL
-	tools-ubuntu
 	tools-windows

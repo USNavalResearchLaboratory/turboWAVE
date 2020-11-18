@@ -1,3 +1,15 @@
+What's New in 4.2
+=================
+
+The turboWAVE tools are available on both PyPi and conda.  Installation is simplified and certain scripts are made available as part of the environment.
+
+Gotchas
+-------
+
+#. Scripts moved from ``extras`` to the ``twutils`` package.  Invocation is simpler, e.g., run ``twplot ...`` rather than ``python path/to/twplot.py ...`` (from within your conda or venv environment).
+
+#. The ``twtest`` script also moved into the ``twutils`` package.
+
 What's New in 4.1
 =================
 

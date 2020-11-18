@@ -12,15 +12,14 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 import PIL.Image
 
-if len(sys.argv)<2:
-	print('Usage: python twtest.py tw_root cmd')
+def print_usage():
+	print('Usage: twtest.py tw_root cmd')
 	print('tw_root = path to turboWAVE root directory.')
 	print('cmd = command line to execute for each test.')
 	print('To select explicit categories, append then to tw_root with double colons.')
 	print('desktop example: python twtest.py ~/turboWAVE::hydro::pic tw3d -n 4 -c 5')
 	print('cluster example: python twtest.py ~/turboWAVE mpirun -np 4 tw3d')
 	print('N.b. as a corollary no double colons may appear in tw_root.')
-	exit(1)
 
 def cleanup(wildcarded_path):
 	cleanstr = glob.glob(wildcarded_path)
@@ -199,142 +198,150 @@ def optimize_parallel(num_procs,num_threads,dims):
 	else:
 		return num_procs,num_threads
 
-subargs = sys.argv[1].split('::')
-tw_root = subargs[0]
-if not os.path.isdir(tw_root):
-	print('You specified a root directory ('+tw_root+') which does not exist.')
-	exit(1)
-if len(subargs)>1:
-	req_categories = subargs[1:]
-else:
-	req_categories = []
+def main():
 
-mpl.rcParams.update({'text.usetex' : False , 'font.size' : 16})
+	if len(sys.argv)<2:
+		print_usage()
+		exit()
 
-html_doc = ''
-html_doc += '<!DOCTYPE html>'
-html_doc += '<html><head><title>TurboWAVE Report</title></head>'
-html_doc += '<body>'
+	subargs = sys.argv[1].split('::')
+	tw_root = subargs[0]
+	if not os.path.isdir(tw_root):
+		print('You specified a root directory ('+tw_root+') which does not exist.')
+		exit(1)
+	if len(subargs)>1:
+		req_categories = subargs[1:]
+	else:
+		req_categories = []
 
-html_doc += '<h1 style="background-color:black;color:white;">TurboWAVE Test Suite Report</h1>\n\n'
+	mpl.rcParams.update({'text.usetex' : False , 'font.size' : 16})
 
-html_doc += '<h2 style="background-color:rgb(0,20,100);color:white;">Version Information</h2>\n\n'
-html_doc += '<p>Date of report : ' + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-# Get the command but insert placeholders for procs and threads ('TWPROCS' and 'TWTHREADS')
-# The requested procs and threads are stored separately
-tw_cmd,mpi_procs,omp_threads = parse_cmd(sys.argv[2:])
-html_doc += '<p>Requested MPI processes = ' + str(mpi_procs) + '</p>'
-html_doc += '<p>Requested OMP threads = ' + str(omp_threads) + '</p>'
+	html_doc = ''
+	html_doc += '<!DOCTYPE html>'
+	html_doc += '<html><head><title>TurboWAVE Report</title></head>'
+	html_doc += '<body>'
 
-try:
+	html_doc += '<h1 style="background-color:black;color:white;">TurboWAVE Test Suite Report</h1>\n\n'
+
+	html_doc += '<h2 style="background-color:rgb(0,20,100);color:white;">Version Information</h2>\n\n'
+	html_doc += '<p>Date of report : ' + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+	# Get the command but insert placeholders for procs and threads ('TWPROCS' and 'TWTHREADS')
+	# The requested procs and threads are stored separately
+	tw_cmd,mpi_procs,omp_threads = parse_cmd(sys.argv[2:])
+	html_doc += '<p>Requested MPI processes = ' + str(mpi_procs) + '</p>'
+	html_doc += '<p>Requested OMP threads = ' + str(omp_threads) + '</p>'
+
 	cleanup('*.gif')
 	cleanup('*.png')
 	cleanup('*.npy')
 
-	compl = subprocess.run(["git","status"],stdout=subprocess.PIPE,universal_newlines=True)
-	html_doc += '<p>Git status:</p>'
-	html_doc += '<blockquote><pre>'+compl.stdout+'</pre></blockquote>'
+	save_cwd = os.getcwd()
+	os.chdir(tw_root)
+	try:
+		compl = subprocess.run(["git","status"],stdout=subprocess.PIPE,universal_newlines=True)
+		html_doc += '<p>Git status:</p>'
+		html_doc += '<blockquote><pre>'+compl.stdout+'</pre></blockquote>'
 
-	compl = subprocess.run(["git","log"],stdout=subprocess.PIPE,universal_newlines=True)
-	html_doc += '<p>Git last commit:</p>'
-	gitloglines = compl.stdout.splitlines(keepends=True)
-	html_doc += '<blockquote><pre>'
-	commit_count = 0
-	for l in gitloglines:
-		if l[:6]=='commit':
-			commit_count += 1
-		if commit_count==2:
-				break
-		html_doc += l
-	html_doc += '</pre></blockquote>'
-except:
-	html_doc += '<p>ERROR: something went wrong in trying to call git for versioning information.</p>'
+		compl = subprocess.run(["git","log"],stdout=subprocess.PIPE,universal_newlines=True)
+		html_doc += '<p>Git last commit:</p>'
+		gitloglines = compl.stdout.splitlines(keepends=True)
+		html_doc += '<blockquote><pre>'
+		commit_count = 0
+		for l in gitloglines:
+			if l[:6]=='commit':
+				commit_count += 1
+			if commit_count==2:
+					break
+			html_doc += l
+		html_doc += '</pre></blockquote>'
+	except:
+		html_doc += '<p>ERROR: something went wrong in trying to call git for versioning information.</p>'
+	os.chdir(save_cwd)
 
+	try:
+		category_path_list = glob.glob(tw_root+'/core/examples/*')
+		category_path_list = sorted(category_path_list,key=lambda s: ntpath.basename(s)[0])
+		category_list = []
+		for s in category_path_list:
+			category_list.append(ntpath.basename(s))
+		if len(req_categories)>0:
+			for req in req_categories:
+				if req not in category_list:
+					raise ValueError('Requested category '+req+' not found.')
+			category_list = req_categories
 
-try:
-	category_path_list = glob.glob(tw_root+'/core/examples/*')
-	category_path_list = sorted(category_path_list,key=lambda s: ntpath.basename(s)[0])
-	category_list = []
-	for s in category_path_list:
-		category_list.append(ntpath.basename(s))
-	if len(req_categories)>0:
-		for req in req_categories:
-			if req not in category_list:
-				raise ValueError('Requested category '+req+' not found.')
-		category_list = req_categories
+		for cat in category_list:
+			print('=====================================')
+			print('Category',cat)
+			html_doc += '\n\n<h2 style="background-color:rgb(0,20,100);color:white;">"' + cat + '" Subdirectory</h2>\n\n'
+			ex_path_list = glob.glob(tw_root+'/core/examples/'+cat+'/*')
+			ex_path_list = sorted(ex_path_list,key=lambda s: ntpath.basename(s)[0])
+			ex_list = []
+			for s in ex_path_list:
+				ex_list.append(ntpath.basename(s))
+			for i,ex_path in enumerate(ex_path_list):
+				print('--------------------------------------')
+				print('Example',ex_list[i])
+				html_doc += '\n<h3 style="background-color:rgb(100,250,200);">"' + ex_list[i] + '" Example</h3>\n'
 
-	for cat in category_list:
-		print('=====================================')
-		print('Category',cat)
-		html_doc += '\n\n<h2 style="background-color:rgb(0,20,100);color:white;">"' + cat + '" Subdirectory</h2>\n\n'
-		ex_path_list = glob.glob(tw_root+'/core/examples/'+cat+'/*')
-		ex_path_list = sorted(ex_path_list,key=lambda s: ntpath.basename(s)[0])
-		ex_list = []
-		for s in ex_path_list:
-			ex_list.append(ntpath.basename(s))
-		for i,ex_path in enumerate(ex_path_list):
-			print('--------------------------------------')
-			print('Example',ex_list[i])
-			html_doc += '\n<h3 style="background-color:rgb(100,250,200);">"' + ex_list[i] + '" Example</h3>\n'
+				fig_dict,input_dict = parse_input_file(ex_path)
 
-			fig_dict,input_dict = parse_input_file(ex_path)
+				if len(fig_dict)>0:
+					# Run this case
+					nprocs,nthreads = optimize_parallel(mpi_procs,omp_threads,input_dict['dims'])
+					tw_cmd_now = tw_cmd.replace('TWPROCS',str(nprocs)).replace('TWTHREADS',str(nthreads))
+					tw_cmd_now += '--no-interactive --input-file ' + ex_path
+					print('Executing',tw_cmd_now,'...')
+					html_doc += '<p>TW command line = <samp>'+tw_cmd_now+'</samp></p>'
+					compl = subprocess.run(tw_cmd_now.split(),stdout=subprocess.PIPE,universal_newlines=True)
 
-			if len(fig_dict)>0:
-				# Run this case
-				nprocs,nthreads = optimize_parallel(mpi_procs,omp_threads,input_dict['dims'])
-				tw_cmd_now = tw_cmd.replace('TWPROCS',str(nprocs)).replace('TWTHREADS',str(nthreads))
-				tw_cmd_now += '--no-interactive --input-file ' + ex_path
-				print('Executing',tw_cmd_now,'...')
-				html_doc += '<p>TW command line = <samp>'+tw_cmd_now+'</samp></p>'
-				compl = subprocess.run(tw_cmd_now.split(),stdout=subprocess.PIPE,universal_newlines=True)
-
-				# Record the results
-				if compl.returncode==0:
-					warnings = []
-					for l in compl.stdout.splitlines():
-						if l.find('WARNING')>=0:
-							warnings.append(l)
-					if len(warnings)>0:
-						print('Completed successfully but with warnings:')
-						html_doc += '<p>Completed successfully but with warnings:</p>'
-						for w in warnings:
-							print(w)
-							html_doc += '<p><samp>' + w.replace('<','&lt;').replace('>','&gt;') + '</samp></p>'
+					# Record the results
+					if compl.returncode==0:
+						warnings = []
+						for l in compl.stdout.splitlines():
+							if l.find('WARNING')>=0:
+								warnings.append(l)
+						if len(warnings)>0:
+							print('Completed successfully but with warnings:')
+							html_doc += '<p>Completed successfully but with warnings:</p>'
+							for w in warnings:
+								print(w)
+								html_doc += '<p><samp>' + w.replace('<','&lt;').replace('>','&gt;') + '</samp></p>'
+						else:
+							print('Completed successfully.')
+							html_doc += '<p>Completed successfully.</p>'
+						html_doc += '<p>Representative figure:</p>'
+						print('Generating visualization...',end='',flush=True)
+						primitive_file = cat + '-' + ex_list[i] + '-' + fig_dict['data']
+						try:
+							viz_file = gen_viz(primitive_file,fig_dict)
+							html_doc += '<p><img src="' + viz_file + '" alt="Visualization is missing."</p>'
+							print('OK')
+						except OSError as err:
+							print("Trouble")
+							print(err)
+							html_doc += '<p>There was a problem creating the visualization.</p>'
 					else:
-						print('Completed successfully.')
-						html_doc += '<p>Completed successfully.</p>'
-					html_doc += '<p>Representative figure:</p>'
-					print('Generating visualization...',end='',flush=True)
-					primitive_file = cat + '-' + ex_list[i] + '-' + fig_dict['data']
-					try:
-						viz_file = gen_viz(primitive_file,fig_dict)
-						html_doc += '<p><img src="' + viz_file + '" alt="Visualization is missing."</p>'
-						print('OK')
-					except OSError as err:
-						print("Trouble")
-						print(err)
-						html_doc += '<p>There was a problem creating the visualization.</p>'
+						print('Did not complete successfully.  Error report from TW follows:')
+						html_doc += '<p>Did not complete successfully.  Error report from TW follows:</p>'
+						for l in compl.stdout.splitlines():
+							if l.find('ERROR')>=0:
+								print(l)
+								html_doc += '<p><samp>' + l.replace('<','&lt;').replace('>','&gt;') + '</samp></p>'
 				else:
-					print('Did not complete successfully.  Error report from TW follows:')
-					html_doc += '<p>Did not complete successfully.  Error report from TW follows:</p>'
-					for l in compl.stdout.splitlines():
-						if l.find('ERROR')>=0:
-							print(l)
-							html_doc += '<p><samp>' + l.replace('<','&lt;').replace('>','&gt;') + '</samp></p>'
-			else:
-				print('  Test not requested, or not a TW input file.')
-				html_doc += '<p>Test not requested, or not a TW input file.</p>'
+					print('  Test not requested, or not a TW input file.')
+					html_doc += '<p>Test not requested, or not a TW input file.</p>'
 
-			cleanup('*.npy')
-			if len(glob.glob('twstat'))==1:
-				os.remove('twstat')
+				cleanup('*.npy')
+				if len(glob.glob('twstat'))==1:
+					os.remove('twstat')
 
-except:
-	traceback.print_exc()
-	print('Unrecoverable error, attempting to close report...')
-	html_doc += '\n\n<h2>REPORT ENDS PREMATURELY</h2>\n\n'
+	except:
+		traceback.print_exc()
+		print('Unrecoverable error, attempting to close report...')
+		html_doc += '\n\n<h2>REPORT ENDS PREMATURELY</h2>\n\n'
 
-html_doc += '</body></html>'
+	html_doc += '</body></html>'
 
-with open('twreport.html','w') as f:
-	print(html_doc,file=f)
+	with open('twreport.html','w') as f:
+		print(html_doc,file=f)
