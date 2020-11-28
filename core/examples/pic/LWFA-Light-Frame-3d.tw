@@ -63,6 +63,7 @@ new box diagnostic
 {
 	period = 800
 	skip = 2 2 2
+	galilean velocity = ( 0 , 0 , 1 )
 }
 
 new phase space diagnostic for 'e'

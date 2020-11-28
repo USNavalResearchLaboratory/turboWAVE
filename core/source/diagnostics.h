@@ -12,6 +12,7 @@ public:
 	std::string s(const std::string& raw);
 	void start_entry(const std::string& name,const std::string& diagnostic_name);
 	void define_axis(const std::string& name,tw::Int ax,const std::string& label,tw::dimensions units,bool last=false);
+	std::string refine_label(const std::string& name,const tw::vec3& vGalileo,const tw::grid::geometry& geo);
 	void finish_entry();
 };
 
@@ -21,6 +22,8 @@ public:
 	std::string form_header(tw::Int shape[4]);
 	void write_header(const std::string& name,tw::Int shape[4]);
 	void update_shape(const std::string& name,tw::Int shape[4]);
+	void get_frame(const std::string& name,char *gData,tw::Int shape[4],tw::Int frame);
+	void set_frame(const std::string& name,const char *gData,tw::Int shape[4],tw::Int frame);
 	void add_frame(const std::string& name,const char *gData,tw::Int shape[4]);
 };
 
@@ -93,6 +96,7 @@ struct PhaseSpaceDiagnostic : Diagnostic
 	tw::Float bounds[6];
 	tw::Int dims[4];
 	tw::grid::axis ax[4];
+	bool accumulate;
 	DiscreteSpace plot_layout;
 	ScalarField fxp;
 

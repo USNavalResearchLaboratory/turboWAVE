@@ -2,6 +2,7 @@
 
 MetricSpace::MetricSpace()
 {
+	geo = tw::grid::cartesian;
 	car = 1.0;
 	cyl = sph = 0.0;
 	I3x3[0][0] = 1;
@@ -137,6 +138,7 @@ void MetricSpace::SetupPositionArrays()
 void MetricSpace::SetCartesianGeometry()
 {
 	SetupPositionArrays();
+	geo = tw::grid::cartesian;
 	car = 1.0; cyl = 0.0; sph = 0.0;
 	tw::Int i,sx=mnum[1],sz=mnum[3];
 	tw::Float *xpos = &gpos[mnum[0]*1];
@@ -203,6 +205,7 @@ void MetricSpace::SetCylindricalGeometry()
 {
 	// we are using x = r, y = phi, z = z
 	SetupPositionArrays();
+	geo = tw::grid::cylindrical;
 	car = 0.0; cyl = 1.0; sph = 0.0;
 	tw::Int i,sx=mnum[1],sz=mnum[3];
 	tw::Float *xpos = &gpos[mnum[0]*1];
@@ -278,6 +281,7 @@ void MetricSpace::SetSphericalGeometry()
 {
 	// we are using q1 = rho, q2 = phi (atan(y/x)), q3 = theta (acos(z/rho))
 	SetupPositionArrays();
+	geo = tw::grid::spherical;
 	car = 0.0; cyl = 0.0; sph = 1.0;
 	tw::Int i,sx=mnum[1],sz=mnum[3];
 	tw::Float *xpos = &gpos[mnum[0]*1];

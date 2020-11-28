@@ -51,6 +51,7 @@ Compile with LLVM (free)
 	* Uncomment ``PLATFORM = WIN`` and comment out all other platforms. In a makefile, comments are preceded by :samp:`#`.
 	* Uncomment ``HARDWARE_ACCEL = OMP`` and comment out all other accelerators.
 	* Uncomment ``COMPILER_PREF = LLVM_CLANG`` and comment out all other compilers.
+	* Set the ``VBITS`` constant to match the available vector extensions, using the guidance in the nearby comments.  You may need to search the internet for your processor's available extensions.  If in doubt 256 is a typical value.
 
 #. Open an administrator PowerShell window.
 #. :samp:`choco install llvm`
@@ -68,6 +69,7 @@ Compile with Intel (may require purchase)
 
 	* Uncomment ``COMPILER_PREF = INTEL`` and comment out ``COMPILER_PREF = VS``. In a makefile, comments are preceded by :samp:`#`.
 	* Uncomment ``CCFLAGS = $(RELEASE_FLAGS)`` and comment out ``CCFLAGS = $(DEBUG_FLAGS)`` and ``CCFLAGS = $(PROFILE_FLAGS)``.
+	* Set the ``VBITS`` constant to match the available vector extensions, using the guidance in the nearby comments.  You may need to search the internet for your processor's available extensions.  If in doubt 256 is a typical value.
 
 #. Download and install Intel Parallel Studio.
 

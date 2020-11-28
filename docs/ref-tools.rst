@@ -779,7 +779,7 @@ Specific Diagnostics
 
 .. py:function:: new phase space diagnostic [<name>] [for <module_name>] { <directives> }
 
-	Diagnostic to write out up to 3D phase space projections.  Setting a dimension to 1 produces a lower dimensional projection.  The ``boosted frame gamma`` parameter can be used to put the data in the lab frame.  It is important to note that if this is done, the frame write-out index still slices time in the boosted frame.
+	Diagnostic to write out up to 3D phase space projections.  Setting a dimension to 1 produces a lower dimensional projection.  The ``boosted frame gamma`` parameter can be used to put the data in the lab frame.  It is important to note that if this is done, the frame write-out index still slices time in the boosted frame.  On the other hand, explicit time axes are properly transformed.
 
 	:param str species_name: the name of the species to diagnose
 	:param block directives: The following directives are supported:
@@ -810,6 +810,10 @@ Specific Diagnostics
 			:param float y1: upper bound for axis 2
 			:param float z0: lower bound for axis 3
 			:param float z1: upper bound for axis 3
+
+		.. py:function:: accumulate = acc
+
+			:param bool acc: if true the phase space data accumulates, otherwise write-out frames are resolved (default=false).  This is especially useful for boosted frames.
 
 
 .. py:function:: new orbit diagnostic [<name>] [for <module_name>]

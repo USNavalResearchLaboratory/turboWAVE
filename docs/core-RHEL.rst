@@ -30,6 +30,7 @@ Compile turboWAVE
 
 #. Edit :samp:`{twroot}/core/source/makefile`
 #. In the makefile, you must comment/uncomment lines to select platform, hardware acceleration, compiler, and package manager.  You will only be editing the lines between :samp:`BEGIN INPUT VARIABLES BLOCK` and :samp:`END INPUT VARIABLES BLOCK`.  In a makefile, comments are preceded by :samp:`#`.  For this installation, only :samp:`PLATFORM = LINUX`, :samp:`HARDWARE_ACCEL = OMP`, and :samp:`COMPILER_PREF = GNU`, should be uncommented.
+#. In the makefile, set the constant ``VBITS`` to match the width of the available vector extensions, using the guidance in the nearby comments.  You can search the output of :samp:`lscpu` for the available vector extensions.  If still in doubt set it to 256.
 #. Open a terminal window and navigate to :samp:`{twroot}/core/source`
 #. Type :samp:`make`
 #. The makefile should automatically copy the executable into your :samp:`~/bin` directory for later use.  OpenCL kernel files may also be copied into :samp:`~/Run`, but these will not be used.

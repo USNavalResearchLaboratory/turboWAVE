@@ -1,6 +1,8 @@
 // Keep the following line for generating twtest reports
 // TWTEST matplotlib ztxy=0,0 Ex.npy
 
+#define $vg 0.680
+
 steps = 1000000
 timestep = 0.007
 dump period = 0
@@ -8,7 +10,7 @@ moving window = yes
 neutralize = no
 unit density = 1e19
 // expect vg = 0.680, vphase = 0.696
-window speed = 0.680
+window speed = $vg
 xboundary = ( periodic , periodic )
 yboundary = ( periodic , periodic )
 zboundary = ( absorbing , absorbing )
@@ -102,4 +104,5 @@ new box diagnostic
 {
 	skip = 1 1 4
 	period = 10000
+	galilean velocity = ( 0 , 0 , $vg )
 }

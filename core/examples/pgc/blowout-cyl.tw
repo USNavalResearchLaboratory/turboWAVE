@@ -125,4 +125,5 @@ new energy diagnostic
 new box diagnostic
 {
 	time period = $diag_step
+	galilean velocity = ( 0 , 0 , 1 )
 }

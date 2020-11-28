@@ -81,8 +81,8 @@ Performance Tuning Parameters
 
 There are a few parameters hard coded in source that can be used to tune performance.  These are as follows.
 
-#. Vector length - In ``definitions.h``, you should adjust the constant ``vec_align_bytes`` to match the vector processor of the target system.  For example, systems with AVX2 should set this to 32, while systems with AVX-512 should set this to 64.
+#. Vector length - In the makefile, you should adjust the constant ``VBITS`` to match the vector processor of the target system.  For example, systems with AVX2 should set this to 256, while systems with AVX-512 should set this to 512.
 
-#. Particle bundle size - In ``definitions.h``, whenever ``vec_align_bytes`` is changed, you should also change ``max_bundle_size`` to be a multiple of ``vec_align_bytes`` divided by four. The optimal choice is difficult to predict, but a rule of thumb is to make it close to the typical number of particles per cell.
+#. Particle bundle size - In ``definitions.h``, you should change ``max_bundle_size`` to be a multiple of ``VBITS`` divided by 32. The optimal choice is difficult to predict, but a rule of thumb is to make it close to the typical number of particles per cell.
 
 #. There are some constants in ``Pusher.cpp``, in the method ``Species::Push``, that it may be advantageous to adjust.  Namely, the constants ``min_particles_per_task`` and ``preferred_tasks``.  This has to do with how particles are partitioned among OpenMP threads.

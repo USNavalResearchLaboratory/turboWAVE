@@ -62,11 +62,7 @@ generate uniform 'e'
 new box diagnostic 'box'
 {
 	period = 100
-}
-
-new energy diagnostic 'energy'
-{
-	period = 100
+	galilean velocity = ( 0 , 0 , 1 )
 }
 
 new phase space diagnostic for 'e'

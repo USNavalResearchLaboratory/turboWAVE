@@ -1,24 +1,22 @@
 // Keep the following line for generating twtest reports
 // TWTEST matplotlib zxyt=0,: Ex.npy
 
-// Run out to 3000 steps to see accelerated electrons
-
 #define $cgs_density 3.5672623557807795e+18
 // length_unit is 2.814 microns
 // time unit is 9.385 femtoseconds
 // electric field unit is 181.6 GV/m
-#define $steps 1000
-#define $dt 0.138 // magic timestep is crucial for stability
+#define $steps 3000
+#define $dt 0.0981 // magic timestep is crucial for stability
 #define $dx 0.4
-#define $dz 0.2
+#define $dz 0.1422
 #define $nx 256
 #define $nz 3000
-#define $L 0.3730072602495407 [cm] // in lab frame
-#define $Lp 0.017768147544298254 [cm] // in boosted frame
-#define $a0 4.547568062216178 // in lab frame
+#define $L 0.3730072602495407[cm] // in lab frame
+#define $Lp 0.017768147544298254[cm] // in boosted frame
+#define $a0 4.547568062216178
 #define $w0 22.097926659850522 // in lab frame
-#define $r0 12.0 [um]
-#define $t0 38.90041493775934 [fs] // in lab frame
+#define $r0 12.0[um]
+#define $t0 38.90041493775934[fs] // in lab frame
 #define $zones 7
 #define $gamma 20.993030326857994
 
@@ -28,11 +26,9 @@ unit density = $cgs_density
 steps = $steps
 timestep = $dt
 dump period = 0
-// The laser pulse is longer, so we keep it fixed in the box.
-// We are therefore looking at a Galilean boost on top of a Lorentz boost.
-// As a result the plasma sweeps past at twice the speed of light.
-moving window = yes
+moving window = no
 // The immobile background cannot be used in a boosted frame.
+// (the background moves relativistically)
 neutralize = no
 
 // Transverse periodicity is important in a boosted frame.
@@ -54,11 +50,16 @@ new grid
 	decomposition = ( 16 , 1 , 1 )
 }
 
-new direct field solver 'em'
+new coulomb field solver 'em'
 {
 	// Smoothing is needed to control numerical Cherenkov instability
 	smoothing = (4 4 4)
 	compensation = (1 1 1)
+}
+
+new facr elliptic solver for 'em'
+{
+	zboundary = ( open , open )
 }
 
 new hermite gauss pulse for 'em'
@@ -68,7 +69,7 @@ new hermite gauss pulse for 'em'
 	a = ( $a0 0.0 0.0 )
 	w = $w0
 	r0 = ( $r0 , 1e5 )
-	delay = 0.0
+	delay = 1.0
 	risetime = $t0
 	holdtime = 0
 	falltime = $t0
@@ -82,11 +83,11 @@ new hermite gauss pulse for 'em'
 	zones = $zones
 }
 
-new species 'p'
+new species 'background'
 {
 	charge = 1.0
-	mass = 1836
-	particles per cell = ( 4 1 4 ) when density = 1.0
+	mass = 1e6 // we want to neglect ion motion, so we just make them heavy
+	particles per cell = ( 2 1 2 ) when density = 1.0
 }
 
 new species 'e'
@@ -94,7 +95,7 @@ new species 'e'
 	particles per cell = ( 4 1 4 ) when density = 1.0
 }
 
-generate piecewise 'p'
+generate piecewise 'background'
 {
 	// The profile is created in the lab frame and automatically transformed
 	// by specifying the <boosted frame gamma> parameter.
@@ -115,20 +116,53 @@ generate piecewise 'e'
 new energy diagnostic
 {
 	filename = energy
-	period = 200
+	period = 4
+}
+
+new region rect 'l1'
+{
+	bounds = ( 0 $dx -$dx $dx -1e5 1e5 )
+}
+
+new region rect 'r1'
+{
+	bounds = ( -1e5 1e5 -$dx $dx -1e5 1e5 )
 }
 
 new box diagnostic
 {
-	period = 200
+	// This is a lineout with high write-out frequency.
+	// This is intended to be post-processed to obtain lab frame EM fields.
+	filename = line
+	clipping region = 'l1'
+	galilean velocity = ( 0.0 , 0.0 , 1.0 )
+	period = 4
+}
+
+new box diagnostic
+{
+	// This will produce outputs in the boosted frame.
+	// This data is not intended to be transformed to the lab frame.
+	// (Write-out frequency would have to be increased)
+	clipping region = 'r1'
+	galilean velocity = ( 0.0 , 0.0 , 1.0 )
+	period = 500
 }
 
 new phase space diagnostic for 'e'
 {
-	filename = zpz
-	period = 200
+	// Use a time-gamma phase space to get spectra in the lab frame.
+	// Post-processing is unnecessary.
+	// It is important to use an explicit time axis, since frame indices are scrambled
+	// after a Lorentz transformation.
+	// The <accumulate> parameter is used to sum the contributions from all frames, i.e,
+	// we end up with a single frame (boosted frame time is integrated out).
+	filename = tg
+	accumulate = true
+	period = 20
 	galilean velocity = ( 0.0 , 0.0 , 1.0 )
-	axes = ( pz , y , z )
-	dimensions = ( 200 , 1 , 200 )
-	bounds = ( -400 , 100 , -0.5 , 0.5 , -600 , 0 )
+	axes = ( t , y , g )
+	dimensions = ( 100 , 1 , 400 )
+	bounds = ( 0.0 1400.0 , -0.5 , 0.5 , 0 , 2000 )
+	boosted frame gamma = $gamma
 }

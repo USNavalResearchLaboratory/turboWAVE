@@ -46,4 +46,5 @@ new hermite gauss for 'em'
 new box diagnostic
 {
 	period = 50
+	galilean velocity = ( 0 , 0 , 1 )
 }

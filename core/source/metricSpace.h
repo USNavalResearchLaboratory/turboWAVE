@@ -1,5 +1,6 @@
 struct MetricSpace:DiscreteSpace
 {
+	tw::grid::geometry geo;
 	tw::Float car,cyl,sph; // set variable corresponding to coordinate system to 1.0, all others to 0.0
 	tw::Int mnum[4]; // num for metric arrays (see DiscreteSpace)
 	tw::Int mlb[4],mub[4]; // lfg and ufg for metric arrays (see DiscreteSpace)

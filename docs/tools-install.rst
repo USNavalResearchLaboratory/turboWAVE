@@ -11,7 +11,7 @@ We do not cover installing the tools on HPC.
 
 .. note::
 
-	Tool versions are synchronized with core.  For the best results, keep the installed version numbers consistent.
+	Tools are synchronized with core to within major and minor version numbers (the patch and build numbers may differ).  For the best results, keep the installed versions consistent.
 
 Tools Install by OS
 -------------------

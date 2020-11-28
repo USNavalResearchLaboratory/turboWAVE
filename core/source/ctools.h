@@ -86,7 +86,21 @@ inline void WriteBigEndian(const char *bytes,tw::Int n,tw::Int blockSize,std::of
 	delete [] temp;
 }
 
-inline void WriteLittleEndian(const char *bytes,tw::Int n,tw::Int blockSize,std::ofstream& outFile)
+inline void ReadLittleEndian(char *bytes,tw::Int n,tw::Int blockSize,std::ifstream& inFile)
+{
+	if (!blockSize) blockSize = n;
+	char *temp = new char[blockSize];
+	for (tw::Int i=0;i<n/blockSize;i++)
+	{
+		inFile.read(temp,blockSize);
+		if (!LittleEndian())
+			ReverseBytes(temp,blockSize);
+		memcpy(&bytes[i*blockSize],temp,blockSize);
+	}
+	delete [] temp;
+}
+
+inline void WriteLittleEndian(const char *bytes,tw::Int n,tw::Int blockSize,std::fstream& outFile)
 {
 	if (!blockSize) blockSize = n;
 	char *temp = new char[blockSize];

@@ -33,11 +33,15 @@ PLATFORM = LINUX
 
 # Uncomment one, and at most one, of the following to use hardware acceleration
 # Highly recommend at least using OMP
+# Also set vector length here
 
 HARDWARE_ACCEL = OMP
 #HARDWARE_ACCEL = APPLE_CL
 #HARDWARE_ACCEL = CUDA
 #HARDWARE_ACCEL = RADEON_PRO
+
+# VBITS mapping: AVX512 : 512 , AVX/AVX2 : 256 , SSE/SSE2 : 128 , scalar : 64
+VBITS = 256
 
 # Specify a preference for compiler
 
@@ -352,13 +356,13 @@ ifndef PROFILE_FLAGS
 	PROFILE_FLAGS = $(RELEASE_FLAGS)
 endif
 
-tw3d_release: CCFLAGS = $(RELEASE_FLAGS) -DNDEBUG
+tw3d_release: CCFLAGS = $(RELEASE_FLAGS) -DNDEBUG -DVBITS=$(VBITS)
 tw3d_release: tw3d
 
-tw3d_debug: CCFLAGS = $(DEBUG_FLAGS)
+tw3d_debug: CCFLAGS = $(DEBUG_FLAGS) -DVBITS=$(VBITS)
 tw3d_debug: tw3d
 
-tw3d_profile: CCFLAGS = $(PROFILE_FLAGS)
+tw3d_profile: CCFLAGS = $(PROFILE_FLAGS) -DVBITS=$(VBITS)
 tw3d_profile: tw3d
 
 BASE_HEADERS = definitions.h tasks.h ctools.h 3dmath.h tw_iterator.h discreteSpace.h metricSpace.h functions.h fft.h numerics.h 3dfields.h region.h input.h units.h

@@ -59,6 +59,29 @@ void meta_writer::define_axis(const std::string& name,tw::Int ax,const std::stri
 	outFile.close();
 }
 
+std::string meta_writer::refine_label(const std::string& label,const tw::vec3& vGalileo,const tw::grid::geometry& geo)
+{
+	if (label=="$x$")
+	{
+		if (geo==tw::grid::cylindrical)
+			return "$\\varrho$";
+		if (geo==tw::grid::spherical)
+			return "$r$";
+	}
+	if (label=="$y$" && geo!=tw::grid::cartesian)
+		return "$\\varphi$";
+	if (label=="$z$")
+	{
+		if (geo==tw::grid::spherical)
+			return "$\\theta$";
+		if (vGalileo.z==1.0)
+			return "$(z-ct)$";
+		if (vGalileo.z!=0.0 && vGalileo.z!=1.0)
+			return "$\\zeta$";
+	}
+	return label;
+}
+
 void meta_writer::finish_entry()
 {
 	std::ofstream outFile("tw_metadata.json",std::ios::app);
@@ -134,10 +157,32 @@ void npy_writer::update_shape(const std::string& name,tw::Int shape[4])
 	outFile.close();
 }
 
+void npy_writer::get_frame(const std::string& name,char *gData,tw::Int shape[4],tw::Int frame)
+{
+	std::ifstream inFile;
+	std::string header(form_header(shape));
+	size_t frameSize = sizeof(float)*shape[1]*shape[2]*shape[3];
+	inFile.open(name.c_str(),std::ios::binary);
+	inFile.seekg(header.size()+frame*frameSize,std::ios::beg);
+	ReadLittleEndian(gData,frameSize,sizeof(float),inFile);
+	inFile.close();
+}
+
+void npy_writer::set_frame(const std::string& name,const char *gData,tw::Int shape[4],tw::Int frame)
+{
+	std::fstream outFile;
+	std::string header(form_header(shape));
+	size_t frameSize = sizeof(float)*shape[1]*shape[2]*shape[3];
+	outFile.open(name.c_str(),std::ios::binary | std::ios::out | std::ios::in);
+	outFile.seekp(header.size()+frame*frameSize,std::ios::beg);
+	WriteLittleEndian(gData,frameSize,sizeof(float),outFile);
+	outFile.close();
+}
+
 void npy_writer::add_frame(const std::string& name,const char *gData,tw::Int shape[4])
 {
-	std::ofstream outFile;
-	outFile.open(name.c_str(),std::ios::binary | std::ios::app);
+	std::fstream outFile;
+	outFile.open(name.c_str(),std::ios::binary | std::ios::out | std::ios::app);
 	WriteLittleEndian(gData,sizeof(float)*shape[1]*shape[2]*shape[3],sizeof(float),outFile);
 	outFile.close();
 }
@@ -565,12 +610,9 @@ void BoxDiagnostic::Field(const std::string& fieldName,const struct Field& F,con
 			writer.write_header(xname,pts);
 			meta.start_entry(xname,filename);
 			meta.define_axis(xname,0,"$t$",tw::dimensions::time);
-			meta.define_axis(xname,1,"$x$",tw::dimensions::length);
-			meta.define_axis(xname,2,"$y$",tw::dimensions::length);
-			if (vGalileo.z==0.0)
-				meta.define_axis(xname,3,"$z$",tw::dimensions::length);
-			else
-				meta.define_axis(xname,3,"$\\zeta$",tw::dimensions::length);
+			meta.define_axis(xname,1,meta.refine_label("$x$",vGalileo,space->geo),tw::dimensions::length);
+			meta.define_axis(xname,2,meta.refine_label("$y$",vGalileo,space->geo),tw::dimensions::length);
+			meta.define_axis(xname,3,meta.refine_label("$z$",vGalileo,space->geo),tw::dimensions::length);
 			if (pretty=="tw::none")
 				meta.define_axis(xname,4,fieldName,unit,true);
 			else
@@ -721,13 +763,15 @@ PhaseSpaceDiagnostic::PhaseSpaceDiagnostic(const std::string& name,MetricSpace *
 	ax[3] = tw::grid::py;
 	bounds[0] = bounds[2] = bounds[4] = 0.0;
 	bounds[1] = bounds[3] = bounds[5] = 1.0;
-	dims[0] = 1;
+	dims[0] = 0;
 	dims[1] = 100;
 	dims[2] = 100;
 	dims[3] = 1;
+	accumulate = false;
 	directives.Add("axes",new tw::input::Enums<tw::grid::axis>(tw::grid::axis_map(),&ax[1],&ax[2],&ax[3]));
 	directives.Add("dimensions",new tw::input::Numbers<tw::Int>(&dims[1],3));
 	directives.Add("bounds",new tw::input::Numbers<tw::Float>(&bounds[0],6));
+	directives.Add("accumulate",new tw::input::Bool(&accumulate),false);
 }
 
 void PhaseSpaceDiagnostic::Start()
@@ -744,10 +788,10 @@ void PhaseSpaceDiagnostic::Start()
 		writer.write_header(xname,dims);
 		meta_writer meta(space->units);
 		meta.start_entry(xname,filename);
-		meta.define_axis(xname,0,tw::grid::pretty_axis_label(ax[0]),m[ax[0]]);
-		meta.define_axis(xname,1,tw::grid::pretty_axis_label(ax[1]),m[ax[1]]);
-		meta.define_axis(xname,2,tw::grid::pretty_axis_label(ax[2]),m[ax[2]]);
-		meta.define_axis(xname,3,tw::grid::pretty_axis_label(ax[3]),m[ax[3]]);
+		meta.define_axis(xname,0,meta.refine_label(tw::grid::pretty_axis_label(ax[0]),vGalileo,space->geo),m[ax[0]]);
+		meta.define_axis(xname,1,meta.refine_label(tw::grid::pretty_axis_label(ax[1]),vGalileo,space->geo),m[ax[1]]);
+		meta.define_axis(xname,2,meta.refine_label(tw::grid::pretty_axis_label(ax[2]),vGalileo,space->geo),m[ax[2]]);
+		meta.define_axis(xname,3,meta.refine_label(tw::grid::pretty_axis_label(ax[3]),vGalileo,space->geo),m[ax[3]]);
 		meta.define_axis(xname,4,"$f({\\bf r},{\\bf p})$ (arb.)",tw::dimensions::none,true);
 		meta.finish_entry();
 		// don't set headerWritten until end of Finish() due to grid file
@@ -772,11 +816,18 @@ void PhaseSpaceDiagnostic::Finish()
 		fxp.ApplyBoundaryCondition();
 		std::string xname = filename + ".npy";
 		std::valarray<float> gData(dims[1]*dims[2]*dims[3]);
+		if (accumulate && dims[0]!=0)
+			writer.get_frame(xname,(char*)&gData[0],dims,0);
+		else
+			gData = 0.0f;
 		for (tw::Int i=1;i<=dims[1];i++)
 			for (tw::Int j=1;j<=dims[2];j++)
 				for (tw::Int k=1;k<=dims[3];k++)
-					gData[(i-1)*dims[2]*dims[3] + (j-1)*dims[3] + (k-1)] = fxp(i,j,k);
-		writer.add_frame(xname,(char*)&gData[0],dims);
+					gData[(i-1)*dims[2]*dims[3] + (j-1)*dims[3] + (k-1)] += fxp(i,j,k);
+		if (accumulate && dims[0]!=0)
+			writer.set_frame(xname,(char*)&gData[0],dims,0);
+		else
+			writer.add_frame(xname,(char*)&gData[0],dims);
 		writer.update_shape(xname,dims);
 	}
 
@@ -785,7 +836,8 @@ void PhaseSpaceDiagnostic::Finish()
 	std::ofstream gridFile;
 	if (task->strip[0].Get_rank()==0)
 	{
-		StartGridFile(gridFile);
+		if (!accumulate || !headerWritten)
+			StartGridFile(gridFile);
 		if (!headerWritten) // assuming static grid no need to keep writing spatial points
 		{
 			for (tw::Int ax=1;ax<=3;ax++)

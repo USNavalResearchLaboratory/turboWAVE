@@ -12,6 +12,7 @@
 // USE_HPC : if defined compile for a generic MPI cluster          //
 // USE_OPENCL : if defined executable uses OpenCL kernels          //
 // USE_OPENMP : if defined executable uses OpenMP threads          //
+// VBITS : used to align data for vector units                     //
 //                                                                 //
 // Coordinate system is fully controllable from input file.        //
 //                                                                 //
@@ -45,8 +46,8 @@ namespace tw
 	typedef uint32_t Uint;
 	typedef std::complex<tw::Float> Complex;
 	static const tw::Int cache_align_bytes = 64;
-	static const tw::Int vec_align_bytes = 32; // if not matched to hardware can lead to failures
-	static const tw::Int max_bundle_size = 16; // must be multiple of vec_align_bytes / 4
+	static const tw::Int vec_align_bytes = VBITS/8; // if not matched to hardware can lead to failures
+	static const tw::Int max_bundle_size = 16; // must be multiple of vec_align_bytes / sizeof(float)
 	static const tw::Float small_neg = -1e9*std::numeric_limits<tw::Float>::min();
 	static const tw::Float small_pos = 1e9*std::numeric_limits<tw::Float>::min();
 	static const tw::Float big_neg = -1e-9*std::numeric_limits<tw::Float>::max();
