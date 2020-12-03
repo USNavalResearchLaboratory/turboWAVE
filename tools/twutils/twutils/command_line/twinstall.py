@@ -880,20 +880,19 @@ def terminal(stdscr):
     cmd.connect(conf,tasks,titlebar)
     cmd.run()
 
-# def main():
+def main():
+    if '--help' in sys.argv or '-h' in sys.argv:
+        print('TurboWAVE Interactive Core Installer.')
+        print('Usage: twinstall [--help] [--terminal]')
+        print('Arguments: --help,-h :  displays this message')
+        print('           --terminal,-t : use textual interface')
+        exit(0)
 
-if '--help' in sys.argv or '-h' in sys.argv:
-    print('TurboWAVE Interactive Core Installer.')
-    print('Usage: twinstall [--help] [--terminal]')
-    print('Arguments: --help,-h :  displays this message')
-    print('           --terminal,-t : use textual interface')
-    exit(0)
-
-if '--terminal' in sys.argv or '-t' in sys.argv:
-    os.environ.setdefault('ESCDELAY','25')
-    curses.wrapper(terminal)
-else:
-    root = tk.Tk()
-    ttk.Style().theme_use('default')
-    app = Application(master=root)
-    app.mainloop()
+    if '--terminal' in sys.argv or '-t' in sys.argv:
+        os.environ.setdefault('ESCDELAY','25')
+        curses.wrapper(terminal)
+    else:
+        root = tk.Tk()
+        ttk.Style().theme_use('default')
+        app = Application(master=root)
+        app.mainloop()
