@@ -31,9 +31,8 @@ PLATFORM = LINUX
 #PLATFORM = CRAY
 #PLATFORM = SGI
 
-# Uncomment one, and at most one, of the following to use hardware acceleration
-# Highly recommend at least using OMP
-# Also set vector length here
+# Uncomment one, and at most one, of the following to use hardware acceleration.
+# Usually one should select OMP.
 
 HARDWARE_ACCEL = OMP
 #HARDWARE_ACCEL = APPLE_CL
@@ -42,6 +41,10 @@ HARDWARE_ACCEL = OMP
 
 # VBITS mapping: AVX512 : 512 , AVX/AVX2 : 256 , SSE/SSE2 : 128 , scalar : 64
 VBITS = 256
+
+# Select byte ordering of the target processor (usually LITTLE)
+ENDIANNESS = LITTLE
+#ENDIANNESS = BIG
 
 # Specify a preference for compiler
 
@@ -354,6 +357,12 @@ endif
 
 ifndef PROFILE_FLAGS
 	PROFILE_FLAGS = $(RELEASE_FLAGS)
+endif
+
+ifeq ($(ENDIANNESS),BIG)
+	RELEASE_FLAGS += -DBIGENDIAN
+	PROFILE_FLAGS += -DBIGENDIAN
+	DEBUG_FLAGS += -DBIGENDIAN
 endif
 
 tw3d_release: CCFLAGS = $(RELEASE_FLAGS) -DNDEBUG -DVBITS=$(VBITS)

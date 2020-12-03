@@ -12,6 +12,15 @@ COMPILER_PREF = INTEL
 # VBITS mapping: AVX512 : 512 , AVX2 : 256 , SSE2 : 128 , scalar : 64
 VBITS = 256
 
+# At present we always use OpenMP when using nmake
+HARDWARE_ACCEL = OMP
+
+# Define some parameters we don't need since we know we are in Windows
+# We keep these here so generalized configure tools can see them
+PLATFORM = WIN
+ENDIANNESS = LITTLE
+PACKAGE_PREF = CHOCO
+
 !IF "$(COMPILER_PREF)"=="VS"
 TW_Compiler = cl
 TW_Linker = cl

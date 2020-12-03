@@ -21,10 +21,10 @@ Installation
 .. toctree::
 	:maxdepth: 1
 
-	getting-components
-	core-install
-	tools-install
-	gpgpu
+	install-prepare
+	install-easy
+	install-manual
+	install-gpgpu
 
 Running
 -------

@@ -1,5 +1,5 @@
 #ifndef _did_definitions
-#define TW_VERSION_STRING "4.2.1"
+#define TW_VERSION_STRING "4.3.0a"
 
 /////////////////////////////////////////////////////////////////////
 //                                                                 //
@@ -240,6 +240,12 @@ namespace tw
 
 #endif
 
+#ifdef BIGENDIAN
+	inline bool LittleEndian() { return false; }
+#else
+	inline bool LittleEndian() { return true; }
+#endif
+
 
 //////////////////////////////
 //                          //
@@ -264,11 +270,6 @@ inline tw::Int GetSeconds()
 #include "tw_thread_stl.h"
 #include "tw_mpi.h"
 
-inline bool LittleEndian()
-{
-	return true;
-}
-
 static const bool parallelFileSystem = false;
 
 #endif
@@ -289,11 +290,6 @@ static const bool parallelFileSystem = false;
 inline tw::Int GetSeconds()
 {
 	return tw::Int(MPI_Wtime());
-}
-
-inline bool LittleEndian()
-{
-	return true;
 }
 
 static const bool parallelFileSystem = true;

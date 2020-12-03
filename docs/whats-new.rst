@@ -1,3 +1,16 @@
+What's New
+//////////
+
+What's New in 4.3
+=================
+
+Core configuration and installation is done using an installer program that is packaged with tools.  The installer uses a ``tk`` graphical interface by default, but can also use a textual interface (based on ``curses``) if needed for remote work.  The old installation workflow can still be used as well.
+
+Gotchas
+-------
+
+#. Install workflow is reversed relative to previous versions.  First install tools to gain access to the installer.  Then use the installer to configure and install core.
+
 What's New in 4.2
 =================
 

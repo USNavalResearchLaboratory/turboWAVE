@@ -8,7 +8,7 @@ import h5py
 from scipy import constants as C
 
 def print_usage():
-    print('Usage: os2tw <cmd> <component>[,<modifier>] [n1=<density>] [dt=<frame_time>] [frame=<::>] [root=<MS>]')
+    print('Usage: os2tw <cmd> <component>[,<modifier>] [n1=<density>] [dt=<frame_time>] [frame=<::>] [nfac=<factor>] [root=<MS>]')
     print('Extracts data from OSIRIS directory tree, consolidates into npy file, and creates metadata file.')
     print('1D coordinate label mapping: 1->z')
     print('2D coordinate label mapping: 1->z, 2->x')
@@ -24,6 +24,7 @@ def print_usage():
     print('n1 = a normalizing density in cgs units, needed to support TW unit conversions.')
     print('dt = time between frames in plasma units.')
     print('frame = python style range indicating frames to keep, e.g., 2:11:4, etc.')
+    print('nfac = OSIRIS frame skipping multiplication factor')
     print('root = OSIRIS root data directory relative to working directory')
 
 def str_to_range(rng_str,num):
@@ -64,7 +65,7 @@ def main_metadata(name,meta):
     meta[name]['axes'] = {}
     return meta
 
-def axis_metadata(ax,component):
+def axis_metadata(ax,component,n1_mks):
     wp = np.sqrt(n1_mks*C.e**2/C.epsilon_0/C.m_e)
     xa = (C.c/wp) / (C.hbar/C.m_e/C.c/C.alpha)
     ta = (1/wp) / (C.hbar/C.m_e/C.c**2/C.alpha**2)
@@ -77,6 +78,7 @@ def axis_metadata(ax,component):
     units = ['mks','cgs','plasma','atomic','natural']
     label = ['$t$','$x$','$y$','$z$','$'+component+'$']
     fields = ['e1','e2','e3','b1','b2','b3']
+    spectra = ['gamma']
     phase_space_axes = ['x1','x2','x3','p1','p2','p3']
     phase_spaces = []
     for i in range(6):
@@ -99,7 +101,7 @@ def axis_metadata(ax,component):
     m['b'] = {'mks':emks/C.c , 'cgs':ecgs , 'plasma':1.0, 'atomic':ea, 'natural':en}
     mult = [[]]*5
     ulab = [[]]*5
-    if component not in fields+phase_spaces:
+    if component not in fields+phase_spaces+spectra:
         warnings.warn('Requested component not known, units will be arbitrary.')
         for i,s in enumerate(units):
             mult[i] = [m['none'][s]]*5
@@ -116,8 +118,14 @@ def axis_metadata(ax,component):
         label[3] = '$'+v+'$'
         label[4] = '$f('+h+','+v+')$'
         for i,s in enumerate(units):
-            mult[i] = [1.0,m[component[0]][s],1.0,m[component[2]][s],1.0]
-            ulab[i] = [l['none'][s],l[component[0]][s],l['none'][s],l[component[2]][s],l['none'][s]]
+            mult[i] = [m['t'][s],m[component[0]][s],1.0,m[component[2]][s],1.0]
+            ulab[i] = [l['t'][s],l[component[0]][s],l['none'][s],l[component[2]][s],l['none'][s]]
+    if component in spectra:
+        label[3] = r'$\gamma$'
+        label[4] = r'$f(t,\gamma)$'
+        for i,s in enumerate(units):
+            mult[i] = [m['t'][s],1.0,1.0,1.0,1.0]
+            ulab[i] = [l['t'][s],'','','','']
     a = {}
     a['label'] = label[ax]
     for i in range(len(units)):
@@ -125,7 +133,7 @@ def axis_metadata(ax,component):
         a[units[i]+' multiplier'] = mult[i][ax]
     return a
 
-def grid_string(frame,bounds,shp):
+def grid_string(frame,dt,bounds,shp):
     s = 't = ' + str(frame*dt) + '\n'
     pts = lambda x0,x1,n : np.linspace(x0+0.5*(x1-x0)/n , x1-0.5*(x1-x0)/n , n)
     for ax in range(1,4):
@@ -157,13 +165,14 @@ def main():
     root_dir = 'MS'
     n1_mks = 1e19
     dt = 1.0
+    nfac = 1
     keys_found = []
     # Process optional arguments
     for keyval in sys.argv[3:]:
         key = keyval.split('=')[0]
         val = keyval.split('=')[1]
         keys_found += [key]
-        if key not in ['frame','root','n1','dt']:
+        if key not in ['frame','root','n1','dt','nfac']:
             raise KeyError('Command line argument <'+key+'> not recognized.')
         if key=='frame':
             range_str = val
@@ -173,6 +182,8 @@ def main():
             n1_mks = 1e6*np.float(val)
         if key=='dt':
             dt = np.float(val)
+        if key=='nfac':
+            nfac = int(val)
     if 'n1' not in keys_found:
         warnings.warn('No density given, physical units will be arbitrary.')
     if 'dt' not in keys_found:
@@ -240,14 +251,14 @@ def main():
     grid_str = ''
     count = 0
     for n in frame_list:
-        fullpath = full_path_prefix + '{:06d}.h5'.format(n)
+        fullpath = full_path_prefix + '{:06d}.h5'.format(n*nfac)
         try:
             f = h5py.File(fullpath,'r')
         except:
             print('Could not open HDF5 file <' + fullpath + '>.')
             exit(1)
         full_array[count,...] = np.array(f[data_key]).reshape(new_shape)
-        grid_str += grid_string(n,get_data_ext(f['AXIS']),new_shape)
+        grid_str += grid_string(n,dt,get_data_ext(f['AXIS']),new_shape)
         count += 1
         print('.',end='',flush=True)
 
@@ -264,7 +275,7 @@ def main():
             meta = json.load(f)
     meta = main_metadata(new_file,meta)
     for ax in range(5):
-        meta[new_file]['axes'][str(ax)] = axis_metadata(ax,component)
+        meta[new_file]['axes'][str(ax)] = axis_metadata(ax,component,n1_mks)
     with open('tw_metadata.json','w') as f:
         json.dump(meta,f,indent=4)
 
