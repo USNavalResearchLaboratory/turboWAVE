@@ -6,7 +6,7 @@ def readme():
 		return f.read()
 
 setup(name='twutils',
-	version='4.3.0a2',
+	version='4.3.0a3',
 	description='TurboWAVE utilities',
 	long_description=readme(),
 	classifiers=[
@@ -17,7 +17,7 @@ setup(name='twutils',
 	author_email='daniel.gordon@nrl.navy.mil',
 	url='https://github.com/USNavalResearchLaboratory/turboWAVE',
 	packages=find_packages(),
-	install_requires=['git>=2.16','scipy>=1.5','matplotlib>=3.3','jupyter>=1','ipympl>=0.5','pillow>=8','h5py'],
+	install_requires=['scipy>=1.5','matplotlib>=3.3','jupyter>=1','ipympl>=0.5','pillow>=8','h5py'],
 	include_package_data=True,
 	entry_points = { 'console_scripts': [
 		'twinstall=twutils.command_line.twinstall:main',

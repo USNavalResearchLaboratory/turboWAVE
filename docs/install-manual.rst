@@ -167,7 +167,7 @@ This type of installation differs from a desktop installation in at least two wa
 
 	* Provision must be made for file access across distributed nodes
 
-At present almost all systems use little-endian binary numbers.  If your system is big-endian, you must change the value of a boolean variable in :samp:`definitions.h`.
+At present almost all systems use little-endian binary numbers.  If your system is big-endian, you must change a flag in the makefile.
 
 Single Node System
 ------------------
@@ -208,7 +208,7 @@ Core Install for HPC
 
 In referring to High Performance Computing (HPC), we have in mind a large scale computing cluster, managed by a professional staff, and accessed remotely.
 
-We will focus on Cray systems in this instruction.  For other vendors the below will often go through with little modification.  At present almost all systems use little-endian binary numbers.  If your system is big-endian, you must change the value of a boolean variable in :samp:`definitions.h`.
+We will focus on Cray systems in this instruction.  For other vendors the below will often go through with little modification.  At present almost all systems use little-endian binary numbers.  If your system is big-endian, you must change a flag in the makefile.
 
 HPC modules
 -----------

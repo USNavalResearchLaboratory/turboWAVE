@@ -36,7 +36,6 @@ enter_keys = [ord('\n'),ord('\r')]
 panel_width = 80
 
 source_url = 'https://github.com/USNavalResearchLaboratory/turboWAVE.git'
-default_path = str(pathlib.Path.home() / 'Documents')
 incompatibility_matrix = {
     'Windows' : ['GNU','Cray','CUDA','Apple CL','AMD ROCm','Homebrew','MacPorts'],
     'Linux' : ['Cray','Apple CL','Homebrew','MacPorts'],
@@ -62,11 +61,11 @@ manually to a suitable location, preferably one in your environment's path.'''
 
 def git_err_handler(compl,cmd):
     if compl.returncode!=0:
-        match = re.search(r'\n.*(err|ERR|Err).*\n',compl.stdout)
+        match = re.search(r'\b(err|ERR|Err).*\n',compl.stdout)
         if match:
             err_str = match.group(0)
         else:
-            err_str = '(not found)'
+            err_str = '(we cannot find the error string)'
         if cmd.affirm('Git returned an error:\n'+err_str+'\nWould you like to continue anyway?')=='y':
             return False
         else:
@@ -158,7 +157,7 @@ class base_config(dictionary_view):
         if 'linux' in sys.platform:
             self.data['Platform'] = 'Linux'
             self.data['Compiler'] = 'LLVM'
-            compl = subprocess.run(['lscpu'],stdout=subprocess.PIPE,universal_newlines=True)
+            compl = subprocess.run(['lscpu'],stdout=subprocess.PIPE,stderr=subprocess.STDOUT,universal_newlines=True)
             for v in reversed(self.choices['Vectors']):
                 if re.search(r'\b'+v,compl.stdout,flags=re.IGNORECASE)!=None:
                     self.data['Vectors'] = v
@@ -167,7 +166,7 @@ class base_config(dictionary_view):
             self.data['Platform'] = 'MacOS'
             self.data['Compiler'] = 'GNU'
             self.data['Packager'] = 'Homebrew'
-            compl = subprocess.run(['sysctl','machdep.cpu'],stdout=subprocess.PIPE,universal_newlines=True)
+            compl = subprocess.run(['sysctl','machdep.cpu'],stdout=subprocess.PIPE,stderr=subprocess.STDOUT,universal_newlines=True)
             for v in reversed(self.choices['Vectors']):
                 if re.search(r'\b'+v,compl.stdout,flags=re.IGNORECASE)!=None:
                     self.data['Vectors'] = v
@@ -260,7 +259,7 @@ class base_tasks(dictionary_view):
             if ans=='y':
                 dest = str(pathlib.Path(primitive_path) / 'turboWAVE')
                 self.cmd.display('Cloning repository...')
-                compl = subprocess.run(["git","clone",source_url,dest],stdout=subprocess.PIPE,universal_newlines=True)
+                compl = subprocess.run(["git","clone",source_url,dest],stdout=subprocess.PIPE,stderr=subprocess.STDOUT,universal_newlines=True)
                 self.source_path = pathlib.Path(dest) / 'core' / 'source'
                 self.package_path = pathlib.Path(dest)
                 verified_path = glob.glob(str(self.source_path))
@@ -273,7 +272,7 @@ class base_tasks(dictionary_view):
                 save_dir = os.getcwd()
                 os.chdir(verified_path[0])
                 self.cmd.display('Pulling from repository...')
-                compl = subprocess.run(["git","pull","origin"],stdout=subprocess.PIPE,universal_newlines=True)
+                compl = subprocess.run(["git","pull","origin","master"],stdout=subprocess.PIPE,stderr=subprocess.STDOUT,universal_newlines=True)
                 if git_err_handler(compl,self.cmd):
                     verified_path = []
                 self.cmd.display('')
@@ -292,7 +291,7 @@ class base_tasks(dictionary_view):
         self.set('Set Version','incomplete')
         save_dir = os.getcwd()
         os.chdir(self.package_path)
-        compl = subprocess.run(["git","tag","-l"],stdout=subprocess.PIPE,universal_newlines=True)
+        compl = subprocess.run(["git","tag","-l"],stdout=subprocess.PIPE,stderr=subprocess.STDOUT,universal_newlines=True)
         os.chdir(save_dir)
         if git_err_handler(compl,self.cmd)==False:
             rawlist = compl.stdout.splitlines()
@@ -312,7 +311,7 @@ class base_tasks(dictionary_view):
         else:
             save_dir = os.getcwd()
             os.chdir(self.package_path)
-            compl = subprocess.run(["git","checkout",tag],stdout=subprocess.PIPE,universal_newlines=True)
+            compl = subprocess.run(["git","checkout",tag],stdout=subprocess.PIPE,stderr=subprocess.STDOUT,universal_newlines=True)
             os.chdir(save_dir)
             if git_err_handler(compl,self.cmd)==False:
                 self.conf.set('Core Version',tag)

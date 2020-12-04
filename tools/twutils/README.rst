@@ -13,7 +13,13 @@ Modules
 Scripts
 -------
 
+#. twinstall: configures and installs core turboWAVE
 #. twplot: command line plotter
 #. wigner: command line plotter for Wigner distributions
 #. twtest: script to run a test suite
 #. os2tw: script to convert OSIRIS outputs to turboWAVE outputs
+
+Known Issues
+------------
+
+The twinstall script depends on git.  The pypi package cannot account for this, while the conda package can.  So if one uses pip rather than conda, git must be installed beforehand.

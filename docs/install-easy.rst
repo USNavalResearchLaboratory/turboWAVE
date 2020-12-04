@@ -1,6 +1,9 @@
 Easy Install
 ============
 
+Install
+-------
+
 The following should work in any operating system, assuming compilers are installed in standard locations.  The shell must be aware of Anaconda.
 
 #. Open a terminal
@@ -20,3 +23,24 @@ The following should work in any operating system, assuming compilers are instal
 	* You can usually accept default responses.
 	* For now stick with OpenMP for the accelerator.
 	* The installer can configure for GPGPU, but you may need to fulfill some prerequisites as root for the compiler to succeed.
+
+Upgrade
+-------
+
+#. Open a terminal
+#. :samp:`conda activate {NAME}`
+#. :samp:`conda update -c dfxgordon twutils`
+#. Run the installer
+
+	* If you delete the old local repository first, or select a new location for ``Get Components``, the process is identical to a new installation.
+	* Alternatively you can point ``Get Components`` to the old local repository and let the installer pull the latest from upstream.  Note the local repository has to be clean in this case.
+
+Uninstall
+---------
+
+#. Open a terminal
+#. To remove the whole turboWAVE environment type :samp:`conda remove -n {NAME} --all`
+#. Delete the ``turboWAVE`` local repository (the location was chosen by you)
+#. Delete ``DataViewer.ipynb`` (the location was chosen by you)
+#. Remove ``~/.vim/filetype.vim`` and ``~/.vim/syntax/turbowave.vim`` (if you installed them)
+#. If you installed ``language-turbowave`` in Atom remove it using Atom's package manager
