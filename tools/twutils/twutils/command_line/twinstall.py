@@ -301,7 +301,7 @@ class base_tasks(dictionary_view):
                     reduced += [item]
             taglist = sorted(reduced[-7:])[::-1]
             taglist = ['workspace'] + taglist
-            tag_pop = self.popup(taglist,self.FinishSetVersion)
+            self.popup(taglist,self.FinishSetVersion)
     def FinishSetVersion(self,tag):
         if tag=='escape':
             return
@@ -356,6 +356,21 @@ class base_tasks(dictionary_view):
                 makefile = re.sub('\n[#\s]*'+var,'\n#'+var,makefile)
                 # Don't care about preserving unused values, safest to just overwrite the first value found.
                 makefile = re.sub('\n[#\s]*'+var+'\s*=\s*[\w\d]+','\n'+var+' = '+val,makefile,count=1)
+        if self.conf.get('Packager')=='Homebrew' and self.conf.get('Compiler')=='GNU':
+            gcc_glob = '/usr/local/opt/gcc/bin/g++-*'
+            gcc_re = r'\/usr\/local\/opt\/gcc\/bin\/g\+\+-\d+'
+            brew_gcc = glob.glob(gcc_glob)
+            if len(brew_gcc)==0:
+                self.cmd.err('Did not find GCC of the form '+gcc_glob)
+                return
+            gcc_sel = brew_gcc[0]
+            if len(brew_gcc)>1:
+                brew_callback = lambda sel : (gcc_sel := sel,)[0]
+                self.popup(brew_gcc,brew_callback)
+            if re.search(gcc_re,makefile)==None:
+                not_found += [gcc_sel]
+            else:
+                makefile = re.sub(gcc_re,gcc_sel,makefile)
         if len(not_found)==0:
             with open(makefile_out,'w') as f:
                 f.write(makefile)
@@ -405,21 +420,29 @@ class base_tasks(dictionary_view):
             return
         self.set('Install Files','incomplete')
         if self.conf.get('Platform')=='Windows':
-            ex = 'tw3d.exe'
+            src_exe = 'tw3d'
+            dst_exe = 'tw3d.exe'
         else:
-            ex = 'tw3d'
-        repo_path = self.source_path / ex
-        install_path = pathlib.Path(os.environ['CONDA_PREFIX']) / 'bin'
+            src_exe = 'tw3d'
+            dst_exe = 'tw3d'
+        repo_path = self.source_path / src_exe
+        install_path = pathlib.Path(os.environ['CONDA_PREFIX']) / 'bin' / dst_exe
         # tw3d executable
-        if self.cmd.affirm('We will install the main executable (tw3d) into '+str(install_path)+'. Proceed?')=='y':
-            shutil.copy(repo_path,install_path)
-            self.set('Install Files','done')
+        if self.conf.get('Platform')=='Cray':
+            dv_dir = self.AskDirectory('Select executable install location',str(pathlib.Path.home()))
+            if type(dv_dir)!=tuple:
+                shutil.copy(repo_path,dv_dir)
+                self.set('Install Files','done')
+        else:
+            if self.cmd.affirm('We will install the main executable ('+dst_exe+') into '+str(install_path)+'. Proceed?')=='y':
+                shutil.copy(repo_path,install_path)
+                self.set('Install Files','done')
         # Jupyter DataViewer styles
         if self.cmd.affirm('Can we change Jupyter (increase notebook width)?')=='y':
             repo_path = self.package_path / 'tools' / 'config-files' / 'custom.css'
             dest_path = pathlib.Path.home() / '.jupyter' / 'custom'
             if len(glob.glob(str(dest_path)))==0:
-                os.mkdirs(dest_path)
+                os.makedirs(dest_path,exist_ok=True)
             shutil.copy(repo_path,dest_path)
         # Jupyter DataViewer
         if self.cmd.affirm('Would you like make a copy of DataViewer?')=='y':
@@ -435,7 +458,7 @@ class base_tasks(dictionary_view):
             else:
                 dest_path = pathlib.Path.home() / '.vim'
             if len(glob.glob(str(dest_path)))==0:
-                os.mkdirs(dest_path)
+                os.makedirs(dest_path,exist_ok=True)
             shutil.copy(repo_path,dest_path)
 
             repo_path = self.package_path / 'tools' / 'config-files' / 'turbowave.vim'
@@ -444,7 +467,7 @@ class base_tasks(dictionary_view):
             else:
                 dest_path = pathlib.Path.home() / '.vim' / 'syntax'
             if len(glob.glob(str(dest_path)))==0:
-                os.mkdirs(dest_path)
+                os.makedirs(dest_path,exist_ok=True)
             shutil.copy(repo_path,dest_path)
         # Atom highlighting
         self.cmd.info('Notice','Syntax highlights are also available for Atom, simply search for "language-turbowave" in the Atom package manager.')
@@ -485,10 +508,15 @@ class base_tasks(dictionary_view):
 ######################
 
 class gui_popup:
-    def __init__(self,master,items,completion_callback):
+    def __init__(self,master_win,master_frame,items,completion_callback):
         self.window = tk.Toplevel()
         self.window.title('Selection')
-        self.window.transient(master)
+        self.window.transient(master_frame)
+        w = master_frame.winfo_width()
+        h = master_frame.winfo_height()
+        x = master_win.winfo_x() + master_frame.winfo_x()
+        y = master_win.winfo_y() + master_frame.winfo_x()
+        self.window.geometry('+'+str(int(w/4+x))+'+'+str(int(h/4+y)))
         self.window.grab_set()
         self.completion_callback = completion_callback
         mb = ttk.Menubutton(self.window,text='Select Version')
@@ -516,7 +544,7 @@ class gui_dictionary_view(dictionary_view):
             else:
                 self.widgets[key][1].configure(foreground='black')
     def popup(self,items,callback):
-        return gui_popup(self.window,items,callback)
+        return gui_popup(self.window.winfo_toplevel(),self.window,items,callback)
 
 class gui_config(base_config,gui_dictionary_view):
     def __init__(self,master):
@@ -596,13 +624,19 @@ class Application(tk.Frame):
     def __init__(self,master=None):
         super().__init__(master)
         self.master = master
-        self.winfo_toplevel().title('TurboWAVE Core Installer')
+        master.title('TurboWAVE Core Installer')
         self.pack()
         self.cmd = gui_command(self)
         self.conf = gui_config(self)
         self.tasks = gui_tasks(self)
         self.tasks.connect(self.cmd,self.conf)
         self.conf.connect(self.tasks)
+        master.update_idletasks()
+        ws = master.winfo_screenwidth()
+        hs = master.winfo_screenheight()
+        w = master.winfo_width()
+        h = master.winfo_height()
+        master.geometry('+%d+%d' % (ws/2-w/2,hs/2-h/2))
     def quit(self):
         if not self.tasks.finished():
             confirm = self.cmd.affirm('There are incomplete tasks, do you want to quit?')
@@ -773,14 +807,22 @@ class term_tasks(base_tasks,term_dictionary_view):
         newscr = curses.initscr()
         newscr.refresh()
         curses.doupdate()
-    def AskDirectory(self,title='Select Working Directory (must give complete path)',initialdir=str(pathlib.Path.home())):
-        self.cmd.display(title)
+    def AskDirectory(self,title='Select Working Directory',initialdir=str(pathlib.Path.home())):
+        self.cmd.display(title+'\nMust give complete path (no tab completion).\nEnvironment variables and ~ OK to use.')
         curses.echo()
-        ans = self.cmd.getstr(1,0)
+        ans = self.cmd.getstr(3,0)
         curses.noecho()
-        self.cmd.display('')
-        if ans=='':
+        ans = ans.replace('~',str(pathlib.Path.home()))
+        pattern = r'\$(\w+)'
+        match = re.search(pattern,ans)
+        while match!=None:
+            ans = re.sub(pattern,os.environ[match[1]],ans,count=1)
+            match = re.search(pattern,ans)
+        if len(glob.glob(ans))==0:
+            self.cmd.err('Could not find path.')
             ans = ()
+        else:
+            self.cmd.display('')
         return ans
 
 class term_command:

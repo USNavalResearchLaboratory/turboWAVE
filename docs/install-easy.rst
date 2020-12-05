@@ -21,6 +21,7 @@ The following should work in any operating system, assuming compilers are instal
 #. Use the installer to complete the sequence of steps in the ``Tasks`` area.
 
 	* You can usually accept default responses.
+	* On Cray, the platform and vector type popups should be set explicitly.
 	* For now stick with OpenMP for the accelerator.
 	* The installer can configure for GPGPU, but you may need to fulfill some prerequisites as root for the compiler to succeed.
 

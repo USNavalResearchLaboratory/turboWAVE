@@ -3,6 +3,11 @@ Prepare to Install
 
 We choose to install certain components in the root operating system.  This requires taking some manual steps prior to running the turboWAVE installer.  To proceed, find your operating system on this page and follow the directions.
 
+High Performance Computing (HPC)
+================================
+
+On HPC systems, the necessary components should already be prepared.  However, one sometimes has to load appropriate modules using the ``module load`` command.  Look for modules supporting Anaconda and a C++ compiler.  The installer is designed to work with Cray systems.  For others it may be necessary to perform a manual install.
+
 Linux - CentOS 8
 ================
 

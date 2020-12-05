@@ -14,7 +14,7 @@ Running an Example
 
 #. Pick some example from :samp:`{twroot}/core/examples`.  For this test you should avoid the 3D examples.
 #. For definiteness, let us use :samp:`{twroot}/core/examples/pgc/LWFA-coulomb.tw`
-#. Open a terminal window and navigate to :samp:`~/Run`
+#. Open a terminal window and navigate to a directory where you want to run, e.g., :samp:`~/Run` (create it if it doesn't exist).
 #. :samp:`cp {twroot}/core/examples/pgc/LWFA-coulomb.tw stdin`
 #. This puts the input file in :samp:`~/Run` with the name :samp:`stdin`.  By default, turboWAVE assumes the input file is in the working directory with the name :samp:`stdin`.
 #. :samp:`tw3d -n 4`

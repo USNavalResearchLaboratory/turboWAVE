@@ -5,7 +5,7 @@
 Manual Installation
 ///////////////////
 
-It is recommended to use the graphical installer program.  However, if you want to take full control of the configuration, this page may be useful.
+It is recommended to use the graphical installer program.  However, if you want to take full control of the configuration this page may be useful.
 
 Getting Components
 ==================
@@ -63,6 +63,13 @@ Most of the tools are built on Python 3.  It is highly recommended to operate in
 
 Tools are synchronized with core to within major and minor version numbers (the patch and build numbers may differ).  For the best results, keep the installed versions consistent.
 
+Python Module twutils
+---------------------
+
+#. You can create a conda environment with the necessary modules and scripts using :samp:`conda create -n {NAME} -c dfxgordon twutils`, where :samp:`{NAME}` is the name of the environment (your choice).
+#. You can also install from PyPi by typing ``pip install twutils``.  Note that in this case git must be installed separately.
+#. You can install from the local repository using ``pip install .`` (note dot) from within the :samp:`{twroot}/tools/twutils`` directory.
+
 Python DataViewer
 -----------------
 
@@ -90,6 +97,13 @@ Basic Approach
 ---------------
 
 The basic installation workflow is build from source, and copy files into user space directories.  This workflow is managed using GNU ``make``.  The ``makefile`` is configured to build and copy files in one step.  This is distinct from the usual practice of separating ``make``, which builds the binaries, from ``make install`` which copies them to standard locations.  The philosophy behind this is that some runtime workflows involve frequently tweaking source code, and in this setting, combining ``make`` and ``make install`` is less error prone.  The more typical approach can be applied by using ``make tw3d_release`` followed by ``make install``.
+
+Configuration
+-------------
+
+For manual installations, configuration is done by directly editing ``makefile``, or in case of the Intel compiler on Windows, ``win.make``.  Editing the ``makefile`` is usually easy.  In most cases, you only have to adjust the constants in the input variables block, which is prominently identified by comments.
+
+The default ``makefile`` is set up to copy the executable binary into an *existing* directory ``~/bin`` and OpenCL kernel files into an *existing* directory ``~/Run``.  You can change these directories by editing ``BINARY_PATH`` and ``WORK_PATH`` constants.
 
 Compiler Notes
 --------------
