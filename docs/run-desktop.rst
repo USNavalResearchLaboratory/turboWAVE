@@ -12,8 +12,8 @@ Desktop Runs
 Running an Example
 ------------------
 
-#. Pick some example from :samp:`{twroot}/core/examples`.  For this test you should avoid the 3D examples.
-#. For definiteness, let us use :samp:`{twroot}/core/examples/pgc/LWFA-coulomb.tw`
+#. Pick some example from :samp:`{turboWAVE}/core/examples`.  For this test you should avoid the 3D examples.
+#. For definiteness, let us use :samp:`{turboWAVE}/core/examples/pgc/LWFA-coulomb.tw`
 #. Open a terminal window and navigate to a directory where you want to run, e.g., :samp:`~/Run` (create it if it doesn't exist).
 #. :samp:`cp {twroot}/core/examples/pgc/LWFA-coulomb.tw stdin`
 #. This puts the input file in :samp:`~/Run` with the name :samp:`stdin`.  By default, turboWAVE assumes the input file is in the working directory with the name :samp:`stdin`.
@@ -28,7 +28,7 @@ Interactive DataViewer
 Let us plot the results using the interactive Python DataViewer.
 
 #. Open a terminal window and navigate to :samp:`~/bin`, or wherever :samp:`DataViewer.ipynb` is.
-#. Activate your virtual environment (see :doc:`tools-install`)
+#. Activate your virtual environment (see :doc:`install-easy`)
 #. :samp:`jupyter notebook`
 #. Click on :samp:`DataViewer.ipynb`
 #. Put the cursor in the code cell and click on the button to run the notebook
@@ -95,7 +95,7 @@ In this case, each argument is repeated for the new panel.  The panel separator 
 
 .. tip::
 
-	The type of plot is inferred from the slices.  Two slices give a 2D plot, three give a lineout.  This documentation does not cover 3D plots, but as a starting point see :samp:`{twroot}/tools/extras/twmaya.py`.
+	The type of plot is inferred from the slices.  Two slices give a 2D plot, three give a lineout.  This documentation does not cover 3D plots, but as a starting point see :samp:`{turboWAVE}/tools/extras/twmaya.py`.
 
 .. figure:: cli-plotter-ex2.gif
 	:figwidth: 80%

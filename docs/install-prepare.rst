@@ -1,7 +1,7 @@
 Prepare to Install
 //////////////////
 
-We choose to install certain components in the root operating system.  This requires taking some manual steps prior to running the turboWAVE installer.  To proceed, find your operating system on this page and follow the directions.
+The turboWAVE installer assumes Anaconda and a modern C++ compiler are available.  If you are sure you have this you can skip to :doc:`install-easy`.  Otherwise find your operating system below and follow the steps.
 
 High Performance Computing (HPC)
 ================================
@@ -30,6 +30,7 @@ Linux - Ubuntu 20.04
 #. :samp:`conda update conda`
 
 For other Debian based distributions the procedure should be the same.
+
 
 Mac OS
 ======

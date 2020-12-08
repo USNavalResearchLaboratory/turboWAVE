@@ -11,8 +11,8 @@ It will likely be necessary to study the documentation for the particular HPC sy
 Running an Example
 -------------------
 
-#. Pick some example from :samp:`{twroot}/core/examples`.  For this test a 3D example is appropriate.
-#. For definiteness, let us use :samp:`{twroot}/core/examples/pgc/beatwave-3d.tw`
+#. Pick some example from :samp:`{turboWAVE}/core/examples`.  For this test a 3D example is appropriate.
+#. For definiteness, let us use :samp:`{turboWAVE}/core/examples/pgc/beatwave-3d.tw`
 #. Let us assume that you will use :samp:`scp` to copy files to the HPC system
 #. :samp:`scp {twroot}/core/examples/pgc/beatwave-3d.tw {user@HPC_URL:HPC_scratch_directory}/stdin`
 #. This puts the input file in the HPC scratch space with the name :samp:`stdin`.  By default, turboWAVE expects the input file to have the name :samp:`stdin`, and to be in the working directory.

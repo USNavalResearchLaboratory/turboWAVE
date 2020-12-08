@@ -54,7 +54,7 @@ It can be useful to identify, in this connection, a unit of particle number, per
 TurboWAVE Example Files
 -----------------------
 
-You will learn the most by studying the examples.  They can be found in :samp:`{twroot}/core/examples` and are organized into several directories.  These are as follows.
+You will learn the most by studying the examples.  They can be found in :samp:`{turboWAVE}/core/examples` and are organized into several directories.  These are as follows.
 
 #. :samp:`hydro`: Contains examples of hydrodynamic simulations that use the SPARC module.  If you plan to use turboWAVE for hydro simulations, you should especially understand the simple-shock examples, and the diffusion example.  The shock cases can be compared with an analytical theory.  There is a Mathematica notebook in the folder which can be used to explore the analytical solution.
 #. :samp:`pic`: Contains examples of fully explicit PIC simulations.  This contains especially variants on laser driven wakefields.

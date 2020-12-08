@@ -59,6 +59,33 @@ manually to a suitable location, preferably one in your environment's path.'''
 ### BASE CLASSES FOR EITHER TEXT OR GRAPHICAL INTERFACE ###
 ###########################################################
 
+def git_get_default_tag(package_path,taglist):
+    '''Checks to see if the workspace is identical to any tagged commit.
+    If it is return that tag, otherwise return "untagged".'''
+    ans = 'untagged'
+    save_dir = os.getcwd()
+    os.chdir(package_path)
+    for tag in taglist:
+        compl = subprocess.run(["git","diff",tag],stdout=subprocess.PIPE,stderr=subprocess.STDOUT,universal_newlines=True)
+        if len(compl.stdout)<2:
+            ans = tag
+    os.chdir(save_dir)
+    return ans
+
+def git_is_clean(package_path):
+    save_dir = os.getcwd()
+    os.chdir(package_path)
+    compl = subprocess.run(["git","status"],stdout=subprocess.PIPE,stderr=subprocess.STDOUT,universal_newlines=True)
+    os.chdir(save_dir)
+    return 'working tree clean' in compl.stdout.lower()
+
+def git_is_detached(package_path):
+    save_dir = os.getcwd()
+    os.chdir(package_path)
+    compl = subprocess.run(["git","status"],stdout=subprocess.PIPE,stderr=subprocess.STDOUT,universal_newlines=True)
+    os.chdir(save_dir)
+    return 'head detached' in compl.stdout.lower()
+
 def git_err_handler(compl,cmd):
     if compl.returncode!=0:
         match = re.search(r'\b(err|ERR|Err).*\n',compl.stdout)
@@ -267,16 +294,19 @@ class base_tasks(dictionary_view):
                     verified_path = []
                 self.cmd.display('')
         else:
-            ans = self.cmd.affirm('TW source found, would you like to pull the latest\n(assumes working tree is clean)?')
-            if ans=='y':
-                save_dir = os.getcwd()
-                os.chdir(verified_path[0])
-                self.cmd.display('Pulling from repository...')
-                compl = subprocess.run(["git","pull","origin","master"],stdout=subprocess.PIPE,stderr=subprocess.STDOUT,universal_newlines=True)
-                if git_err_handler(compl,self.cmd):
-                    verified_path = []
-                self.cmd.display('')
-                os.chdir(save_dir)
+            if git_is_clean(self.package_path):
+                ans = self.cmd.affirm('TW source found, and working tree clean.\nWould you like to pull the latest?')
+                if ans=='y':
+                    save_dir = os.getcwd()
+                    os.chdir(verified_path[0])
+                    self.cmd.display('Pulling from repository...')
+                    compl = subprocess.run(["git","pull","origin","master"],stdout=subprocess.PIPE,stderr=subprocess.STDOUT,universal_newlines=True)
+                    if git_err_handler(compl,self.cmd):
+                        verified_path = []
+                    self.cmd.display('')
+                    os.chdir(save_dir)
+            else:
+                self.cmd.info('Warning','TW source found, but working tree not clean.\nYou can continue if you know what you are doing.')
         if len(verified_path)>0:
             self.conf.set('Source Path',verified_path[0])
             self.set('Get Components','done')
@@ -300,13 +330,14 @@ class base_tasks(dictionary_view):
                 if item[0]!='v':
                     reduced += [item]
             taglist = sorted(reduced[-7:])[::-1]
-            taglist = ['workspace'] + taglist
+            self.default_tag = 'workspace (' + git_get_default_tag(self.package_path,taglist) + ')'
+            taglist = [self.default_tag] + taglist
             self.popup(taglist,self.FinishSetVersion)
     def FinishSetVersion(self,tag):
         if tag=='escape':
             return
-        if tag=='workspace':
-            self.conf.set('Core Version','workspace')
+        if tag==self.default_tag:
+            self.conf.set('Core Version',self.default_tag)
             self.set('Set Version','done')
         else:
             save_dir = os.getcwd()
@@ -316,6 +347,8 @@ class base_tasks(dictionary_view):
             if git_err_handler(compl,self.cmd)==False:
                 self.conf.set('Core Version',tag)
                 self.set('Set Version','done')
+                if git_is_detached(self.package_path):
+                    self.cmd.info('Notice','Local repo in detached state.  This can be fixed during cleanup.')
 
     def Configure(self):
         if self.get('Set Version')!='done':
@@ -422,11 +455,12 @@ class base_tasks(dictionary_view):
         if self.conf.get('Platform')=='Windows':
             src_exe = 'tw3d'
             dst_exe = 'tw3d.exe'
+            install_path = pathlib.Path(os.environ['CONDA_PREFIX']) / 'Scripts' / dst_exe
         else:
             src_exe = 'tw3d'
             dst_exe = 'tw3d'
+            install_path = pathlib.Path(os.environ['CONDA_PREFIX']) / 'bin' / dst_exe
         repo_path = self.source_path / src_exe
-        install_path = pathlib.Path(os.environ['CONDA_PREFIX']) / 'bin' / dst_exe
         # tw3d executable
         if self.conf.get('Platform')=='Cray':
             dv_dir = self.AskDirectory('Select executable install location',str(pathlib.Path.home()))
@@ -496,6 +530,13 @@ class base_tasks(dictionary_view):
         d = self.source_path / exe_name
         if self.cmd.affirm('Delete '+str(d)+'?')=='y':
             os.remove(str(d))
+        if git_is_detached(self.package_path):
+            if self.cmd.affirm('Restore local repository to master?')=='y':
+                save_dir = os.getcwd()
+                os.chdir(self.package_path)
+                compl = subprocess.run(["git","checkout","master"],stdout=subprocess.PIPE,stderr=subprocess.STDOUT,universal_newlines=True)
+                os.chdir(save_dir)
+                git_err_handler(compl,self.cmd)
         self.set('Cleanup','done')
         if '--terminal' in sys.argv or '-t' in sys.argv:
             self.cmd.display('All tasks are finished, you can press q to quit.')

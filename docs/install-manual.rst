@@ -26,28 +26,29 @@ The first step to getting the components is to clone the repository.  This copie
 
 	#. Open a terminal window
 	#. Test to see if you have Git installed by executing :samp:`git --version`
-	#. Install Git if necessary. You will be directed back to this page at the appropriate point.
+	#. Install Git if necessary.
 
 		* Anaconda --- :samp:`conda install git`
 		* CentOS/RHEL/SL --- :samp:`sudo yum install git`
 		* MacOS with Homebrew --- :samp:`brew install git`
 		* MacOS with MacPorts --- :samp:`sudo port install git`
 		* Ubuntu --- :samp:`sudo apt install git`
-		* Windows PowerShell with Chocolatey --- :samp:`choco install git`
+		* Windows PowerShell with Chocolatey --- :samp:`choco install git` (run as administrator)
 
 	#. Navigate to the directory where you want to install turboWAVE (you don't need to make an enclosing directory).
 	#. :samp:`git clone https://github.com/USNavalResearchLaboratory/turboWAVE.git`
-	#. If you like you can give the turboWAVE root directory another name, we will call it :samp:`{twroot}` from now on.
 
 Switching to a Stable Version
 -----------------------------
 
 When you clone the repository the active files (the version you have checked out) will likely be the latest commit, which is not necessarily the most stable.  In order to select a stable version perform the following procedure.
 
-	#. Open a terminal and navigate to :samp:`{twroot}`.
+	#. Open a terminal and navigate to :samp:`{turboWAVE}`.
 	#. :samp:`git tag --list`
-	#. Choose the latest tag without a letter suffix, :samp:`{latest_tag}`.
-	#. :samp:`git checkout {latest_tag}`.
+	#. Choose the latest tag without a letter suffix, :samp:`{latest_stable_tag}`.
+	#. :samp:`git checkout {latest_stable_tag}`.
+
+		* You may be in a detached state.  If you want to restore the state later you can run ``git checkout master``, or, to automatically throw out any build products or other changes, add the ``-f`` flag.
 
 .. Note::
 
@@ -68,14 +69,14 @@ Python Module twutils
 
 #. You can create a conda environment with the necessary modules and scripts using :samp:`conda create -n {NAME} -c dfxgordon twutils`, where :samp:`{NAME}` is the name of the environment (your choice).
 #. You can also install from PyPi by typing ``pip install twutils``.  Note that in this case git must be installed separately.
-#. You can install from the local repository using ``pip install .`` (note dot) from within the :samp:`{twroot}/tools/twutils`` directory.
+#. You can install from the local repository using ``pip install .`` (note dot) from within the :samp:`{turboWAVE}/tools/twutils`` directory.
 
 Python DataViewer
 -----------------
 
 #. The Python DataViewer has to be run in a Jupyter Notebook.
-#. Copy :samp:`{twroot}/tools/DataViewer.ipynb` to :samp:`~/bin`
-#. Create a directory :samp:`~/.jupyter/custom/` and copy :samp:`{twroot}/tools/config-files/custom.css` to the new directory.
+#. Copy :samp:`{turboWAVE}/tools/DataViewer.ipynb` to :samp:`~/bin`
+#. Create a directory :samp:`~/.jupyter/custom/` and copy :samp:`{turboWAVE}/tools/config-files/custom.css` to the new directory.
 
 Input File Syntax Highlights
 ----------------------------
@@ -84,8 +85,8 @@ You can add syntax highlights for ``vim`` and ``Atom`` editors.  Syntax highligh
 
 #. To enable turboWAVE input file syntax highlights with the :samp:`vim` editor
 
-	* Copy :samp:`{twroot}/tools/config-files/filetype.vim` to :samp:`~/.vim/`
-	* Copy :samp:`{twroot}/tools/config-files/turbowave.vim` to :samp:`~/.vim/syntax/`
+	* Copy :samp:`{turboWAVE}/tools/config-files/filetype.vim` to :samp:`~/.vim/`
+	* Copy :samp:`{turboWAVE}/tools/config-files/turbowave.vim` to :samp:`~/.vim/syntax/`
 	* Files with extension ``.tw`` or the name ``stdin`` will be highlighted
 
 #. To enable turboWAVE input file syntax highlights with the :samp:`Atom` editor, go to the package installation screen and search for the :samp:`language-turbowave` package.  Press the button to install the package.
@@ -236,7 +237,7 @@ Compiling on Cray Systems
 
   #. Make a directory on the HPC system for turboWAVE source.  We denote it :samp:`{turbowave}`
 
-  #. Copy everything in the :samp:`{twroot}/core/source/` directory to :samp:`{turbowave}`.
+  #. Copy everything in the :samp:`{turboWAVE}/core/source/` directory to :samp:`{turbowave}`.
 
   #. Navigate to :samp:`{turbowave}`
 
