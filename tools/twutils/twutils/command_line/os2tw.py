@@ -3,12 +3,14 @@ import pathlib
 import glob
 import json
 import warnings
+import pkg_resources
 import numpy as np
 import h5py
 from scipy import constants as C
 
 def print_usage():
-    print('Usage: os2tw <cmd> <component>[,<modifier>] [n1=<density>] [dt=<frame_time>] [frame=<::>] [nfac=<factor>] [root=<MS>]')
+    print('Usage: os2tw [--help,-h] [--version,-v] <cmd> <component>[,<modifier>]')
+    print('             [n1=<density>] [dt=<frame_time>] [frame=<::>] [nfac=<factor>] [root=<MS>]')
     print('Extracts data from OSIRIS directory tree, consolidates into npy file, and creates metadata file.')
     print('1D coordinate label mapping: 1->z')
     print('2D coordinate label mapping: 1->z, 2->x')
@@ -26,6 +28,9 @@ def print_usage():
     print('frame = python style range indicating frames to keep, e.g., 2:11:4, etc.')
     print('nfac = OSIRIS frame skipping multiplication factor')
     print('root = OSIRIS root data directory relative to working directory')
+
+def print_version():
+    print('os2tw is provided by twutils, version '+pkg_resources.get_distribution('twutils').version)
 
 def str_to_range(rng_str,num):
     '''Convert a numpy-style slice string to a range'''
@@ -146,8 +151,11 @@ def grid_string(frame,dt,bounds,shp):
 def main():
     # Process command line
     # Required arguments
-    if len(sys.argv)<2:
+    if len(sys.argv)<2 or '--help' in sys.argv or '-h' in sys.argv:
         print_usage()
+        exit(0)
+    if '--version' in sys.argv or '-v' in sys.argv:
+        print_version()
         exit(0)
     cmd = sys.argv[1]
     if cmd not in ['init','append']:

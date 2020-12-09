@@ -1,6 +1,7 @@
 import sys
 import glob
 import os
+import pkg_resources
 import PIL.Image
 import numpy as np
 import matplotlib as mpl
@@ -45,6 +46,9 @@ def print_usage():
 	print('----------------------Animations----------------------')
 	print('Put a python range as one of the slices to generate animated GIF.')
 	print('For example, zxyt=0,0,2:5 would animate time slices 2,3,4.')
+
+def print_version():
+    print('twplot is provided by twutils, version '+pkg_resources.get_distribution('twutils').version)
 
 # Label scheme
 
@@ -102,8 +106,12 @@ def ParseSlices(dims,ax_list,slice_str_list):
 
 def main():
 
-	if len(sys.argv)<3:
+	if len(sys.argv)<2 or '--help' in sys.argv or '-h' in sys.argv:
 		print_usage()
+		exit(0)
+
+	if '--version' in sys.argv or '-v' in sys.argv:
+		print_version()
 		exit(0)
 
 	# Matplotlib setup

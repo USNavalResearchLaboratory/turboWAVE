@@ -639,11 +639,7 @@ Diagnostics
 Diagnostic Formats
 ,,,,,,,,,,,,,,,,,,
 
-TurboWAVE binaries are in numerical Python (numpy) format (extension ``.npy``).  They can be easily read into a Python program using ``numpy.load``.
-
-All metadata is in the file ``tw_metadata.json``, which can easily be read into a Python dictionary.  One then looks up the file of interest to expose further dictionaries pertaining to the file.
-
-Text files are generally tab delimited tables of ASCII data, with a one-line header containing column labels.
+TurboWAVE binaries are in numerical Python (numpy) format (extension ``.npy``). All metadata is in the file ``tw_metadata.json``. Text files are generally tab delimited tables of ASCII data, with a one-line header containing column labels.
 
 .. highlight:: none
 
@@ -675,6 +671,60 @@ The order of the particles within a time level is not significant.
 Particles must be identified by unique values of aux1 and aux2.
 The time level separator is a record with all zeros.
 Valid particles can never have aux1 = aux2 = 0.
+
+Example Post-processing Script
+,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+
+.. highlight:: python
+
+Typical Python post-processing scripts begin like this::
+
+	import numpy as np
+	import json
+	import pathlib
+
+	my_path = pathlib.Path.home() / 'Run'
+	# Get a field component into a 4D numpy array with shape (t,x,y,z)
+	Ex = np.load(my_path / 'Ex.npy')
+	# Load the metadata into a dictionary (all metadata)
+	with open(my_path / 'tw_metadata.json','r') as f:
+		meta = json.load(f)
+	# As an example of metadata, get the conversion factor to mks units.
+	# Note axis mapping, 0=t, 1=x, 2=y, 3=z, 4=data
+	mks_factor = meta['Ex.npy']['axes']['4']['mks multiplier']
+	# Get the name of the grid file
+	grid_file_name = meta['Ex.npy']['grid']
+
+The grid data is a text file.  One way to read it is with the following function::
+
+	def get_mesh_pts(grid_file_path,dims):
+	    """Try to find a grid warp file matching the npy file.
+	    If the file is found return [tmesh,xmesh,ymesh,zmesh].
+	    Each element is a list of the mesh points along the given axis.
+	    If the file is not found return unit length uniform mesh.
+	    Arguments: grid_file_path = pathlike, name of grid file.
+	               dims = expected shape of the data"""
+	    try:
+	        ans = [[],[],[],[]]
+	        with open(grid_file_path) as f:
+	            for line in f:
+	                l = line.split(' ')
+	                if l[0]=='t':
+	                    ans[0] += [np.float(l[-1])]
+	                if l[0]=='axis1' and len(ans[1])==0:
+	                    ans[1] = [np.float(x) for x in l[2:]]
+	                if l[0]=='axis2' and len(ans[2])==0:
+	                    ans[2] = [np.float(x) for x in l[2:]]
+	                if l[0]=='axis3' and len(ans[3])==0:
+	                    ans[3] = [np.float(x) for x in l[2:]]
+	        if len(ans[0])==dims[0] and len(ans[1])==dims[1] and len(ans[2])==dims[2] and len(ans[3])==dims[3]:
+	            return [np.array(ans[0]),np.array(ans[1]),np.array(ans[2]),np.array(ans[3])]
+	        else:
+	            warnings.warn('Grid file found but wrong dimensions ('+grid_file_path+').')
+	            return [np.linspace(0.0,1.0,dims[i]) for i in range(4)]
+	    except:
+	        warnings.warn('No grid file found ('+grid_file_path+').')
+	        return [np.linspace(0.0,1.0,dims[i]) for i in range(4)]
 
 .. _diagnostics-shared:
 

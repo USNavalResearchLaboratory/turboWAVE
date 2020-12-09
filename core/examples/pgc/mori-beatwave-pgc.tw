@@ -51,7 +51,7 @@ new hermite gauss for 'pgc'
 }
 
 // ...or we can add extra words in between as desired.
-generate hermite gauss pulse, and a nice one indeed, for 'pgc'
+new hermite gauss pulse, and a nice one indeed, for 'pgc'
 {
 	a = ( 0.56 , 0 , 0 )
 	direction = ( 0 , 0 , 1 )

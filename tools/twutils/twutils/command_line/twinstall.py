@@ -303,6 +303,9 @@ class base_tasks(dictionary_view):
                     compl = subprocess.run(["git","pull","origin","master"],stdout=subprocess.PIPE,stderr=subprocess.STDOUT,universal_newlines=True)
                     if git_err_handler(compl,self.cmd):
                         verified_path = []
+                    compl = subprocess.run(["git","pull","origin","--tag"],stdout=subprocess.PIPE,stderr=subprocess.STDOUT,universal_newlines=True)
+                    if git_err_handler(compl,self.cmd):
+                        verified_path = []
                     self.cmd.display('')
                     os.chdir(save_dir)
             else:
@@ -967,12 +970,18 @@ def main():
         print('TurboWAVE Interactive Core Installer.')
         print('Usage: twinstall [--help] [--terminal]')
         print('Arguments: --help,-h :  displays this message')
+        print('           --version,-v : display version number')
         print('           --terminal,-t : use textual interface')
+        exit(0)
+
+    if '--version' in sys.argv or '-v' in sys.argv:
+        print('twinstall is provided by twutils, version '+pkg_resources.get_distribution('twutils').version)
         exit(0)
 
     if '--terminal' in sys.argv or '-t' in sys.argv:
         os.environ.setdefault('ESCDELAY','25')
         curses.wrapper(terminal)
+
     else:
         root = tk.Tk()
         ttk.Style().theme_use('default')

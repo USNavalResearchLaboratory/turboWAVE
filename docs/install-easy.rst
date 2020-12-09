@@ -16,7 +16,11 @@ The following should work in any operating system, assuming compilers are instal
 #. Run the installer
 
 	* Type ``twinstall`` for installations on a local machine.
-	* Type ``twinstall --terminal`` for installation on a remote terminal.
+	* Type ``twinstall --terminal`` for installation on a remote machine.
+
+	.. note::
+
+		As of this writing, the installer's ``--terminal`` option is not compatible with Windows PowerShell.  As a result, if you want to install on a remote non-Windows server from a Windows terminal, use the old-style command prompt, or a third party terminal emulator.
 
 #. Use the installer to complete the sequence of steps in the ``Tasks`` area.
 

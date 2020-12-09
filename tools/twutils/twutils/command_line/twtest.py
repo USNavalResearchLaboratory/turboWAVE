@@ -2,6 +2,7 @@ import os
 import glob
 import ntpath
 import sys
+import pkg_resources
 import traceback
 import subprocess
 import datetime
@@ -20,6 +21,9 @@ def print_usage():
 	print('desktop example: python twtest.py ~/turboWAVE::hydro::pic tw3d -n 4 -c 5')
 	print('cluster example: python twtest.py ~/turboWAVE mpirun -np 4 tw3d')
 	print('N.b. as a corollary no double colons may appear in tw_root.')
+
+def print_version():
+    print('twtest is provided by twutils, version '+pkg_resources.get_distribution('twutils').version)
 
 def cleanup(wildcarded_path):
 	cleanstr = glob.glob(wildcarded_path)
@@ -200,9 +204,13 @@ def optimize_parallel(num_procs,num_threads,dims):
 
 def main():
 
-	if len(sys.argv)<2:
+	if len(sys.argv)<2 or '--help' in sys.argv or '-h' in sys.argv:
 		print_usage()
-		exit()
+		exit(0)
+
+	if '--version' in sys.argv or '-v' in sys.argv:
+		print_version()
+		exit(0)
 
 	subargs = sys.argv[1].split('::')
 	tw_root = subargs[0]
