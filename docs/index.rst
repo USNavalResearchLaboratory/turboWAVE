@@ -37,6 +37,7 @@ Running
 	run-cluster
 	run-hpc
 	run-testing
+	run-scan
 	run-input-files
 
 User Reference

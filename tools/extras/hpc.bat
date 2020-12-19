@@ -1,5 +1,5 @@
 :: provide a common interface for remote HPC machines (DOS version)
-:: WARNING: assumes PuTTY is installed
+:: WARNING: assumes PuTTY is installed (could use openssh, but HPC centers like PuTTY)
 :: Examples:
 :: 1) hpc cori login // login to Cori
 :: 2) hpc cori th // sftp session starting in Cori home directory

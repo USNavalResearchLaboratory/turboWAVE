@@ -328,11 +328,17 @@ class base_tasks(dictionary_view):
         os.chdir(save_dir)
         if git_err_handler(compl,self.cmd)==False:
             rawlist = compl.stdout.splitlines()
-            reduced = []
+            stable = []
+            major = []
+            prerelease = []
             for item in rawlist:
-                if item[0]!='v':
-                    reduced += [item]
-            taglist = sorted(reduced[-7:])[::-1]
+                if 'v' in item:
+                    major += [item]
+                elif 'a' in item or 'b' in item or 'rc' in item:
+                    prerelease += [item]
+                else:
+                    stable += [item]
+            taglist = sorted(stable[-5:])[::-1] + sorted(prerelease[-5:])[::-1]
             self.default_tag = 'workspace (' + git_get_default_tag(self.package_path,taglist) + ')'
             taglist = [self.default_tag] + taglist
             self.popup(taglist,self.FinishSetVersion)

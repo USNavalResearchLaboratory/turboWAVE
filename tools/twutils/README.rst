@@ -15,6 +15,7 @@ Scripts
 
 #. twinstall: configures and installs core turboWAVE
 #. twplot: command line plotter
+#. twscan: serial-parallel or parallel-parallel parameter scans
 #. wigner: command line plotter for Wigner distributions
 #. twtest: script to run a test suite
 #. os2tw: script to convert OSIRIS outputs to turboWAVE outputs

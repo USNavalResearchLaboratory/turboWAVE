@@ -107,27 +107,45 @@ In this case, each argument is repeated for the new panel.  The panel separator 
 Command line arguments
 ----------------------
 
-For desktop installations the turboWAVE command line specification is
+For desktop installations the command line options for the ``tw3d`` executable are
 
-.. py:function:: tw3d [optional arguments...]
+.. program:: tw3d
 
-	:samp:`-n <procs>` : number of MPI processes (default=1, desktop only)
+.. option:: -n <procs>
 
-	:samp:`-c <threads>` : number of OpenMP threads (see below for default)
+	number of MPI processes (default=1, desktop only)
 
-	:samp:`--input-file <file>` : name or path of the file to use as the input file (default=stdin)
+.. option:: -c <threads>
 
-	:samp:`--platform <search_string>` : select an OpenCL platform with the search string in its name
+	number of OpenMP threads (see below for default)
 
-	:samp:`--device <search_string>` : select an OpenCL device with the search string in its name.  This can also be a comma-delimited list of device numbers.
+.. option:: --input-file <file>, -i <file>
 
-	:samp:`--restart` : if present, causes initial data to be loaded from a checkpoint.
+	name or path of the file to use as the input file (default=stdin)
 
-	:samp:`--no-interactive` : if present, suppresses the interactive thread.
+.. option:: --platform <search_string>
 
-	:samp:`--version` : if present, prints the version number.  If this is the only argument, no simulation is attempted.
+	select an OpenCL platform with the search string in its name
 
-	:samp:`--help` : if present, prints the command line arguments and the link to the online documentation.  If this is the only argument, no simulation is attempted.
+.. option:: --device <search_string>
+
+	select an OpenCL device with the search string in its name.  This can also be a comma-delimited list of device numbers.
+
+.. option:: --restart
+
+	if present, causes initial data to be loaded from a checkpoint.
+
+.. option:: --no-interactive
+
+	if present, suppresses the interactive thread.
+
+.. option:: --version, -v
+
+	if present, prints the version number.  If this is the only argument, no simulation is attempted.
+
+.. option:: --help, -h
+
+	if present, prints the command line arguments and the link to the online documentation.  If this is the only argument, no simulation is attempted.
 
 If you enter only :samp:`tw3d` with no arguments, turboWAVE will use a single MPI processes, and will fork as many threads as there are logical cores on the system.  If you enter :samp:`tw3d -n {procs}`, turboWAVE will use the requested number of MPI processes, but only a single thread.  Finally, if you enter :samp:`tw3d -n {procs} -c {threads}`, turboWAVE will use the requested number for both processes and threads.
 

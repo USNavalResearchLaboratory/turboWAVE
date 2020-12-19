@@ -517,7 +517,7 @@ PulseShape::PulseShape()
 	falltime = 1.0;
 	t1 = 0.0;
 	t2 = 1.0;
-	t3 = 0.0;
+	t3 = 1.0;
 	t4 = 2.0;
 }
 
@@ -527,9 +527,54 @@ void PulseShape::Initialize(const tw::Float time_origin)
 	t2 = delay + risetime - time_origin;
 	t3 = delay + risetime + holdtime - time_origin;
 	t4 = delay + risetime + holdtime + falltime - time_origin;
+	// Set up the storage for an arbitrary waveform
+	// The waveform is always stored as an envelope, regardless of how it gets deployed later
+	const tw::Int N = 1024;
+	tpts.resize(N);
+	wpts.resize(N);
+	amplitude.resize(N);
+	// Set up the time window (estimate analytically)
+	tw::Float time_window;
+	if (spectral_phase_coeff.size()>0)
+	 	time_window = 1.5*(t4-t1)*sqrt(1.0+4096.0*sqr(spectral_phase_coeff[0])/pow(t4-t1,4));
+	else
+		time_window = 1.5*(t4-t1);
+	const tw::Float tbeg = t2 + 0.5*(t3-t2) - 0.5*time_window;
+	const tw::Float tend = t2 + 0.5*(t3-t2) + 0.5*time_window; // last node + 1
+	const tw::Float dt = (tend-tbeg)/tw::Float(N);
+	const tw::Float dw = 2*pi/(dt*tw::Float(N));
+	// Get the primitive (constant phase) pulse
+	for (tw::Int i=0;i<N;i++)
+		tpts[i] = tbeg + dt*i;
+	for (tw::Int i=0;i<N/2;i++)
+		wpts[i] = dw*i;
+	for (tw::Int i=N/2;i<N;i++)
+		wpts[i] = (i-N)*dw;
+	for (tw::Int i=0;i<N;i++)
+		amplitude[i] = PrimitiveAmplitude(tpts[i]);
+	// Apply spectral phase in frequency domain
+	if (spectral_phase_coeff.size()>0)
+	{
+		tw::Float *re = &reinterpret_cast<tw::Float(&)[2]>(amplitude[0])[0];
+		tw::Float *im = &reinterpret_cast<tw::Float(&)[2]>(amplitude[0])[1];
+		ComplexFFT(re,im,N,2,1.0);
+		for (tw::Int i=0;i<N;i++)
+		{
+			tw::Float psi = 0.0;
+			for (tw::Int c=0;c<spectral_phase_coeff.size();c++)
+				psi += spectral_phase_coeff[c]*pow(wpts[i],c+2)/Factorial(c+2);
+			amplitude[i] *= std::exp(ii*psi);
+		}
+		ComplexFFT(re,im,N,2,-1.0);
+		// Impose nice behavior at the boundaries
+		for (tw::Int i=0;i<N/8;i++)
+			amplitude[i] *= QuinticRise(tw::Float(i)/tw::Float(N/8));
+		for (tw::Int i=7*N/8;i<N;i++)
+			amplitude[i] *= QuinticFall(tw::Float(i-7*N/8)/tw::Float(N/8));
+	}
 }
 
-tw::Float PulseShape::PulseShapeFactor(const tw::Float t) const
+tw::Float PulseShape::PrimitiveAmplitude(const tw::Float t) const
 {
 	const tw::Float hold = tw::Float(t > t2 && t <= t3);
 	const tw::Float tau_rise = tw::Float(t > t1 && t <= t2) * (t-t1) / (t2-t1);
@@ -552,36 +597,22 @@ tw::Float PulseShape::PulseShapeFactor(const tw::Float t) const
 	return 0.0;
 }
 
-tw::Float PulseShape::D1Amplitude(const tw::Float t) const
+tw::Complex PulseShape::Amplitude(const tw::Float t) const
 {
-	const tw::Float hold = tw::Float(t > t2 && t <= t3);
-	const tw::Float tau_rise = tw::Float(t > t1 && t <= t2) * (t-t1) / (t2-t1);
-	const tw::Float tau_fall = tw::Float(t > t3 && t <= t4) * (1.0 - (t-t3) / (t4-t3));
-	const tw::Float tau = tau_rise + hold + tau_fall;
-	tw::Float w = tw::Float(t > t1 && t <= t2) / (t2 - t1);
-	w += tw::Float(t > t3 && t <= t4) / (t4 - t3);
-
-	switch (whichProfile)
-	{
-		case tw::profile::shape::triangle:
-			return 0.0;
-		case tw::profile::shape::sech:
-			return w*D1SechRise(tau);
-		case tw::profile::shape::quartic:
-			return w*D1QuarticRise(tau);
-		case tw::profile::shape::quintic:
-			return w*D1QuinticRise(tau);
-		case tw::profile::shape::sin2:
-      return w*D1Sin2Rise(tau);
-	}
-	return 0.0;
+	const tw::Int N = amplitude.size();
+	const tw::Float dt = tpts[1]-tpts[0];
+	const tw::Float frac = (t - tpts[0]) / dt;
+	const tw::Int i = tw::Int(frac);
+	const tw::Float w = frac - tw::Float(i);
+	const tw::Float mask = tw::Float(t>tpts[1] && t<tpts[N-2]);
+	return mask*(amplitude[i%N]*(1.0-w) + amplitude[(i+1)%N]*w);
 }
 
-tw::Float PulseShape::D1Intensity(const tw::Float t) const
+tw::Complex PulseShape::D1Amplitude(const tw::Float t) const
 {
-    return 2.0*PulseShapeFactor(t)*D1Amplitude(t);
+	const tw::Float dt = 0.1*(tpts[1]-tpts[0]);
+	return (Amplitude(t+0.5*dt) - Amplitude(t-0.5*dt))/dt;
 }
-
 
 /////////////////////////
 //                     //
@@ -626,6 +657,7 @@ Wave::Wave(const std::string& name,MetricSpace *m,Task *tsk) : ComputeTool(name,
 	std::map<std::string,tw::profile::shape> shape = {{"quintic",tw::profile::shape::quintic},{"sech",tw::profile::shape::sech},{"sin2",tw::profile::shape::sin2}};
 	directives.Add("shape",new tw::input::Enums<tw::profile::shape>(shape,&pulseShape.whichProfile),false);
 	directives.Add("zones",new tw::input::Int(&zones),false);
+	directives.Add("spectral phase",new tw::input::List<std::valarray<tw::Float>>(&pulseShape.spectral_phase_coeff),false);
 }
 
 void Wave::Initialize()
@@ -656,7 +688,7 @@ tw::Complex PlaneWave::PrimitivePhasor(const tw::vec4& x) const
 	// t,r are expected to be in the Cartesian laser basis for all primitive functions
 	const tw::Float tau = x[0] - nrefr*x[3];
 	const tw::Float psi = phase - w*tau - chirp*tau*tau;
-	return a0 * pulseShape.PulseShapeFactor(tau) * std::exp(ii*psi);
+	return a0 * pulseShape.Amplitude(tau) * std::exp(ii*psi);
 }
 
 tw::vec3 PlaneWave::PrimitiveVector(const tw::vec4& x4) const
@@ -674,7 +706,7 @@ tw::Complex BesselBeam::PrimitivePhasor(const tw::vec4& x) const
 	const tw::Float rbar = sqrt(sqr(x[1]) + sqr(x[2]))/modeData.scale[0];
 	const tw::Float tau = x[0] - nrefr*x[3];
 	const tw::Float psi = phase - w*tau - chirp*tau*tau;
-	return a0 * tw::cyl_bessel_j(0,rbar) * pulseShape.PulseShapeFactor(tau) * std::exp(ii*psi);
+	return a0 * tw::cyl_bessel_j(0,rbar) * pulseShape.Amplitude(tau) * std::exp(ii*psi);
 }
 
 AiryDisc::AiryDisc(const std::string& name,MetricSpace *m,Task *tsk) : Wave(name,m,tsk)
@@ -689,7 +721,7 @@ tw::Complex AiryDisc::PrimitivePhasor(const tw::vec4& x) const
 	const tw::Float rbar = sqrt(sqr(x[1]) + sqr(x[2]))*3.83171/modeData.scale[0];
 	const tw::Float tau = x[0] - nrefr*x[3];
 	const tw::Float psi = phase - w*tau - chirp*tau*tau;
-	return 2*a0 * (tw::cyl_bessel_j(1,rbar)/rbar) * pulseShape.PulseShapeFactor(tau) * std::exp(ii*psi);
+	return 2*a0 * (tw::cyl_bessel_j(1,rbar)/rbar) * pulseShape.Amplitude(tau) * std::exp(ii*psi);
 }
 
 LaguerreGauss::LaguerreGauss(const std::string& name,MetricSpace *m,Task *tsk) : Wave(name,m,tsk)
@@ -730,7 +762,7 @@ tw::Complex LaguerreGauss::PrimitivePhasor(const tw::vec4& x) const
 	tau += guoy_shift/w - 0.5*nrefr*rho*rho*x[3]/(x[3]*x[3] + zR*zR);
 	tw::Float psi = phase + 2.0*guoy_shift - mv*phi - w*tau - chirp*tau*tau;
 
-	return Ax * pulseShape.PulseShapeFactor(tau) * std::exp(ii*psi);
+	return Ax * pulseShape.Amplitude(tau) * std::exp(ii*psi);
 }
 
 HermiteGauss::HermiteGauss(const std::string& name,MetricSpace *m,Task *tsk) : Wave(name,m,tsk)
@@ -772,7 +804,7 @@ tw::Complex HermiteGauss::PrimitivePhasor(const tw::vec4& x) const
 	herm(x[2],2);
 	tw::Float psi = phase + 2.0*guoy_shift - w*tau - chirp*tau*tau;
 
-	return Ax * pulseShape.PulseShapeFactor(tau) * std::exp(ii*psi);
+	return Ax * pulseShape.Amplitude(tau) * std::exp(ii*psi);
 }
 
 Multipole::Multipole(const std::string& name,MetricSpace *m,Task *tsk) : Wave(name,m,tsk)
@@ -800,8 +832,8 @@ tw::Complex Multipole::PrimitivePhasor(const tw::vec4& x) const
 	tw::Float tau_in,tau_out;
 	tau_out = x[0] - nrefr*R;
 	tau_in = x[0] + nrefr*R;
-	Aphi = (-one/wR + one/(ii*wR*wR)) * pulseShape.PulseShapeFactor(tau_out) * std::exp(-ii*w*tau_out);
-	Aphi += (-one/wR - one/(ii*wR*wR)) * pulseShape.PulseShapeFactor(tau_in) * std::exp(-ii*w*tau_in);
+	Aphi = (-one/wR + one/(ii*wR*wR)) * pulseShape.Amplitude(tau_out) * std::exp(-ii*w*tau_out);
+	Aphi += (-one/wR - one/(ii*wR*wR)) * pulseShape.Amplitude(tau_in) * std::exp(-ii*w*tau_in);
 	Aphi *= 0.5 * a0 * (stheta/j1max);
 	return Aphi;
 }
@@ -914,7 +946,7 @@ tw::Float Conductor::Voltage(tw::Float t)
 {
 	tw::Float ans = 0.0;
 	for (tw::Int i=0;i<potential.size();i++)
-		ans += pulseShape.PulseShapeFactor(t)*potential[i]*cos(angFreq[i]*t + phase[i]);
+		ans += std::real(pulseShape.Amplitude(t))*potential[i]*cos(angFreq[i]*t + phase[i]);
 	return ans;
 }
 
@@ -923,8 +955,8 @@ tw::Float Conductor::VoltageRate(tw::Float t)
 	tw::Float ans = 0.0;
 	for (tw::Int i=0;i<potential.size();i++)
 	{
-		ans -= pulseShape.PulseShapeFactor(t)*angFreq[i]*potential[i]*sin(angFreq[i]*t + phase[i]);
-		ans += pulseShape.D1Amplitude(t)*potential[i]*cos(angFreq[i]*t + phase[i]);
+		ans -= std::real(pulseShape.Amplitude(t))*angFreq[i]*potential[i]*sin(angFreq[i]*t + phase[i]);
+		ans += std::real(pulseShape.D1Amplitude(t))*potential[i]*cos(angFreq[i]*t + phase[i]);
 	}
 	return ans;
 }
@@ -940,7 +972,7 @@ tw::vec3 Conductor::PolarizationDensity(const tw::vec3& pos,tw::Float t)
 		P0 = tw::vec3(Px[i],Py[i],Pz[i]);
 		ans += P0*sin(angFreq[i]*t + phase[i] + (0.5*angFreq[i]/f)*(rc.x*rc.x + rc.y*rc.y) + (ks^rc));
 	}
-	ans *= pulseShape.PulseShapeFactor(t + (0.5/f)*(rc.x*rc.x + rc.y*rc.y));
+	ans *= std::real(pulseShape.Amplitude(t + (0.5/f)*(rc.x*rc.x + rc.y*rc.y)));
 	ans *= exp(-sqr(rc.x/gaussianRadius.x)-sqr(rc.y/gaussianRadius.y)-sqr(rc.z/gaussianRadius.z));
 	theRgn->orientation.ExpressInStdBasis(&ans);
 	return ans;

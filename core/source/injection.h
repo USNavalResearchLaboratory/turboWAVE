@@ -118,12 +118,15 @@ struct PulseShape
 	tw::Float delay,risetime,holdtime,falltime;
 	tw::Float t1,t2,t3,t4;
 	tw::profile::shape whichProfile;
+	std::valarray<tw::Float> tpts,wpts;
+	std::valarray<tw::Complex> amplitude;
+	std::valarray<tw::Float> spectral_phase_coeff;
 
 	PulseShape();
 	void Initialize(const tw::Float time_origin);
-	tw::Float PulseShapeFactor(const tw::Float t) const;
-	tw::Float D1Intensity(const tw::Float t) const;
-	tw::Float D1Amplitude(const tw::Float t) const;
+	tw::Float PrimitiveAmplitude(const tw::Float t) const;
+	tw::Complex Amplitude(const tw::Float t) const;
+	tw::Complex D1Amplitude(const tw::Float t) const;
 };
 
 struct Wave : ComputeTool

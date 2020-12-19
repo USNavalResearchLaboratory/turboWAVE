@@ -22,8 +22,11 @@ std::map<std::string,std::string> arg_map(bool tw_mpi)
 	}
 	args["-c"] = "<threads> : Fork <threads> OpenMP threads per MPI thread.";
 	args["--input-file"] = "<path> : Use <path> as the input file.";
+	args["-i"] = "<path> : --input-file short form.";
 	args["--version"] = ": Display the version number (no simulation if only argument).";
+	args["-v"] = ": --version short form.";
 	args["--help"] = ": Display this message (no simulation if only argument).";
+	args["-h"] = ": --help short form.";
 	args["--restart"] = ": Load checkpoint data.";
 	args["--platform"] = "<plat_str> : OpenCL platform search string.";
 	args["--device"] = "<dev_str> : OpenCL device search string.";
@@ -116,14 +119,14 @@ int main(int argc,char *argv[])
 			if (args.find(arg)==args.end())
 				throw tw::FatalError("Unrecognized argument <"+arg+">");
 
-			if (arg=="--version")
+			if (arg=="--version" || arg=="-v")
 			{
 				std::cout << "turboWAVE version " << TW_VERSION_STRING << std::endl;
 				if (argc==2)
 					exit(0);
 			}
 
-			if (arg=="--help")
+			if (arg=="--help" || arg=="-h")
 			{
 				std::cout << "This is turboWAVE, a PIC/hydro/quantum simulation code." << std::endl;
 				std::cout << "Usage: <launcher> -np <procs> tw3d [optional arguments...]" << std::endl;
@@ -136,7 +139,7 @@ int main(int argc,char *argv[])
 					exit(0);
 			}
 
-			if (arg=="--input-file")
+			if (arg=="--input-file" || arg=="-i")
 			{
 				idx++;
 				if (idx<argc)
@@ -250,7 +253,7 @@ int main(int argc,char *argv[])
 			if (args.find(arg)==args.end())
 				throw tw::FatalError("Unrecognized argument");
 
-			if (arg=="--input-file")
+			if (arg=="--input-file" || arg=="-i")
 			{
 				idx++;
 				if (idx<argc)
@@ -282,14 +285,14 @@ int main(int argc,char *argv[])
 				restartFileName = "dump";
 			}
 
-			if (arg=="--version")
+			if (arg=="--version" || arg=="-v")
 			{
 				std::cout << "turboWAVE version " << TW_VERSION_STRING << std::endl;
 				if (argc==2)
 					exit(0);
 			}
 
-			if (arg=="--help")
+			if (arg=="--help" || arg=="-h")
 			{
 				std::cout << "This is turboWAVE, a PIC/hydro/quantum simulation code." << std::endl;
 				std::cout << "Usage: tw3d [optional arguments...]" << std::endl;

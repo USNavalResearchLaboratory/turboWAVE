@@ -31,31 +31,61 @@ The above procedure uses MPI only, because the argument ``-c 1`` selects a singl
 Command line arguments
 ----------------------
 
-For cluster installations the command line specification is
+For cluster installations the command line reads
 
 .. py:function:: <launcher> -np <procs> [--hostfile <nodes>] tw3d [optional arguments...]
 
-	:param command launcher: Command provided by the external MPI implementation to launch parallel processes, e.g., ``mpirun``.
-	:param int procs: number of MPI processes to launch
-	:param str nodes: name of the file listing the hosts to be used in case of a multi-node run
+The options for the launcher (which can depend on the MPI library) are typically
 
-	Optional arguments to ``tw3d`` are as follows:
+.. program:: launcher
 
-		:samp:`-c <threads>` : number of OpenMP threads
+.. option:: -np <procs>
 
-		:samp:`--input-file <file>` : name or path of the file to use as the input file (default=stdin)
+	number of MPI processes to launch
 
-		:samp:`--platform <search_string>` : select an OpenCL platform with the search string in its name
+.. option:: --hostfile <nodes>
 
-		:samp:`--device <search_string>` : select an OpenCL device with the search string in its name.  This can also be a comma-delimited list of device numbers.
+	name of the file listing the hosts to be used in case of a multi-node run
 
-		:samp:`--restart` : if present, causes initial data to be loaded from a checkpoint.
+.. option:: tw3d
 
-		:samp:`--no-interactive` : if present, suppresses the interactive thread.
+	the turboWAVE executable file
 
-		:samp:`--version` : if present, prints the version number.  If this is the only argument, no simulation is attempted.
+Optional arguments following ``tw3d`` are as follows:
 
-		:samp:`--help` : if present, prints the command line arguments and the link to the online documentation.  If this is the only argument, no simulation is attempted.
+.. program:: tw3d
+
+.. option:: -c <threads>
+
+	number of OpenMP threads (see below for default)
+
+.. option:: --input-file <file>, -i <file>
+
+	name or path of the file to use as the input file (default=stdin)
+
+.. option:: --platform <search_string>
+
+	select an OpenCL platform with the search string in its name
+
+.. option:: --device <search_string>
+
+	select an OpenCL device with the search string in its name.  This can also be a comma-delimited list of device numbers.
+
+.. option:: --restart
+
+	if present, causes initial data to be loaded from a checkpoint.
+
+.. option:: --no-interactive
+
+	if present, suppresses the interactive thread.
+
+.. option:: --version, -v
+
+	if present, prints the version number.  If this is the only argument, no simulation is attempted.
+
+.. option:: --help, -h
+
+	if present, prints the command line arguments and the link to the online documentation.  If this is the only argument, no simulation is attempted.
 
 Error Handling
 --------------

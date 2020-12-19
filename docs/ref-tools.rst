@@ -53,9 +53,15 @@ To inject radiation, you specify a type of electromagnetic mode, directives defi
 
 			:param float n0: refractive index in the starting medium
 
-		.. py:function:: chirp = c0
+		.. py:function:: chirp = x
 
-			:param float c0: creates a chirp :math:`\exp (-ic_0 t^2)`, with time referenced so that the center frequency occurs at the end of the risetime.  Up-chirp results from :math:`c_0>0`.
+			:param float x: Multiply the amplitude by :math:`\exp (-i\chi t^2)`, with time referenced so that the center frequency occurs at the end of the risetime.  Up-chirp results from :math:`\chi>0`.  If you are trying to model the pulse from a grating compressor you may prefer to use a spectral phase.
+
+		.. py:function:: spectral phase = { c2 , c3 , c4 , ... }
+
+			Multiplies the pulse *spectrum* by :math:`\exp(i\varphi)`, where :math:`\varphi` is given by a Taylor expansion about the center frequency.  N.b. that applying this filter will change the pulse metrics.  Up-chirp results from :math:`c_2>0`.
+
+			:param float cn: derivatives of the spectral phase, :math:`c_n = \partial^n_\omega \varphi(\omega)`.  Note that c0 and c1 are not used, since the effects would be redundant.
 
 		.. py:function:: phase = p0
 
