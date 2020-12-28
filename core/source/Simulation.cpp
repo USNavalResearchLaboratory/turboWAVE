@@ -514,7 +514,7 @@ void Simulation::FundamentalCycle()
 
 	tw::Int curr = strip[0].Get_rank();
 	bool doing_restart = dumpPeriod>0 && stepNow%dumpPeriod==0;
-	Lock();
+	// Lock();
 	if (doing_restart)
 	{
 		std::ofstream restartFile;
@@ -523,7 +523,7 @@ void Simulation::FundamentalCycle()
 		WriteCheckpoint(restartFile);
 		restartFile.close();
 	}
-	Unlock();
+	// Unlock();
 }
 
 bool Simulation::MangleModuleName(std::string& name)
@@ -769,7 +769,7 @@ std::string Simulation::InputFileFirstPass()
 
 	try
 	{
-		Lock();
+		// Lock();
 
 		bool foundGrid = false;
 		std::stringstream messageOut,fileName;
@@ -940,7 +940,7 @@ std::string Simulation::InputFileFirstPass()
 				tw_out = new std::stringstream; // put output into a throw away string
 		}
 
-		Unlock();
+		// Unlock();
 
 		return messageOut.str();
 	}
@@ -1040,7 +1040,7 @@ Module* Simulation::RecursiveAutoSuper(tw::module_type reqType,const std::string
 
 void Simulation::ReadInputFile()
 {
-	Lock();
+	// Lock();
 
 	std::string com1,word;
 	Profile* theProfile;
@@ -1167,7 +1167,7 @@ void Simulation::ReadInputFile()
 
 	outerDirectives.ThrowErrorIfMissingKeys("Simulation");
 
-	Unlock();
+	// Unlock();
 }
 
 void Simulation::Diagnose()

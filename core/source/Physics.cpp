@@ -56,6 +56,7 @@ tw::Float sparc::ElectronPhononRateCoeff(const UnitConverter& uc,tw::Float Ti,tw
 Ionizer::Ionizer(const std::string& name,MetricSpace *m,Task *tsk) : ComputeTool(name,m,tsk)
 {
 	ionizationPotential = 1e-5; // in simulation units
+	cutoff_field = 1e-3; // in atomic units
 	electrons = 0;
 	protons = 0;
 	multiplier = 1.0;
@@ -88,18 +89,14 @@ Multiphoton::Multiphoton(const std::string& name,MetricSpace *m,Task *tsk) : Ion
 
 void Multiphoton::Initialize()
 {
-	A3 = space->units->ConvertFromNative(E_MPI,tw::dimensions::electric_field,tw::units::atomic);
+	A1 = multiplier*two*pi;
 }
 
 tw::Float Multiphoton::AverageRate(tw::Float w0,tw::Float E)
 {
 	const tw::Float wa = space->units->ConvertFromNative(w0,tw::dimensions::angular_frequency,tw::units::atomic); // laser freq. in a.u.
 	const tw::Float photons = MyFloor(Uion/wa + 1);
-	return multiplier*two*pi*w0*pow(fabs(E)/E_MPI,two*photons) / Factorial(photons-1);
-}
-
-ADK::ADK(const std::string& name,MetricSpace *m,Task *tsk) : Ionizer(name,m,tsk)
-{
+	return A1*w0*pow(fabs(E)/E_MPI,two*photons) / Factorial(photons-1);
 }
 
 void ADK::Initialize()
@@ -117,14 +114,40 @@ void ADK::Initialize()
 
 tw::Float ADK::InstantRate(tw::Float w0,tw::Float E)
 {
-	const tw::Float Ea = space->units->ConvertFromNative(fabs(E),tw::dimensions::electric_field,tw::units::atomic) + 0.01;
+	const tw::Float Ea = space->units->ConvertFromNative(fabs(E),tw::dimensions::electric_field,tw::units::atomic) + cutoff_field;
 	return I1*pow(Ea,I2)*exp(-I3/Ea);
 }
 
 tw::Float ADK::AverageRate(tw::Float w0,tw::Float E)
 {
-	const tw::Float Ea = space->units->ConvertFromNative(fabs(E),tw::dimensions::electric_field,tw::units::atomic) + 0.01;
+	const tw::Float Ea = space->units->ConvertFromNative(fabs(E),tw::dimensions::electric_field,tw::units::atomic) + cutoff_field;
 	return A1*pow(Ea,A2)*exp(-A3/Ea);
+}
+
+void Klaiber::Initialize()
+{
+	Ionizer::Initialize();
+	const tw::Float alpha = 0.0072973525693;
+	const tw::Float Ua2 = Uion*alpha*alpha;
+	const tw::Float Ea = pow(2*Uion,1.5);
+	A1 = multiplier * pow(2.0,3.0-4*Ua2) * sqrt(3/pi) * (1.0-7*Ua2/72) * exp(4*Ua2) * pow(2*Uion,1.75-3.0*Ua2);
+	A1 /= tgamma(3.0-2*Ua2);
+	A2 = 2.0*Ua2 - 0.5;
+	A3 = (2.0/3.0)*Ea*(1.0-Ua2/12);
+	I1 = A1 * pow(2*Uion,0.75) / sqrt(3/pi);
+	I2 = A2 - 0.5;
+	I3 = A3;
+	I1 = space->units->ConvertToNative(I1,tw::dimensions::angular_frequency,tw::units::atomic);
+	A1 = space->units->ConvertToNative(A1,tw::dimensions::angular_frequency,tw::units::atomic);
+}
+
+void PPT_Tunneling::Initialize()
+{
+	ADK::Initialize();
+	const tw::Float NPPT = pow(pow(two,2*nstar-1)/tgamma(nstar+1),2);
+	const tw::Float NADK = (1/(8*pi*nstar))*pow(4*exp(1.0)/nstar,2*nstar);
+	I1 *= NPPT/NADK;
+	A1 *= NPPT/NADK;
 }
 
 PPT::PPT(const std::string& name,MetricSpace *m,Task *tsk) : Ionizer(name,m,tsk)
@@ -153,7 +176,7 @@ tw::Float PPT::AverageRate(tw::Float w0,tw::Float E)
 {
 	tw::Float ans = 0.0;
 	const tw::Float wa = space->units->ConvertFromNative(w0,tw::dimensions::angular_frequency,tw::units::atomic);
-	const tw::Float Ea = space->units->ConvertFromNative(fabs(E),tw::dimensions::electric_field,tw::units::atomic) + 0.01;
+	const tw::Float Ea = space->units->ConvertFromNative(fabs(E),tw::dimensions::electric_field,tw::units::atomic) + cutoff_field;
 	const tw::Float F0 = pow(2*Uion,tw::Float(1.5));
 	const tw::Float gam = sqrt(2*Uion)*wa/Ea;
 	const tw::Float gam2 = gam*gam;

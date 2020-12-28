@@ -69,7 +69,7 @@ Python Module twutils
 
 #. You can create a conda environment with the necessary modules and scripts using :samp:`conda create -n {NAME} -c dfxgordon twutils`, where :samp:`{NAME}` is the name of the environment (your choice).
 #. You can also install from PyPi by typing ``pip install twutils``.  Note that in this case git must be installed separately.
-#. You can install from the local repository using ``pip install .`` (note dot) from within the :samp:`{turboWAVE}/tools/twutils`` directory.
+#. You can install from the local repository using ``pip install .`` (note dot) from within the :samp:`{turboWAVE}/tools/twutils` directory.
 
 Python DataViewer
 -----------------

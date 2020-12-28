@@ -32,7 +32,7 @@ namespace tw
 		eosData, eosIdealGas, eosHotElectrons, eosMixture, eosIdealGasMix, eosSimpleMieGruneisen, eosLinearMieGruneisen,
 		eosTillotson,
 		// Ionization
-		mpi, adk, ppt,
+		mpi, adk, klaiber, ppt_tunneling, ppt,
 		// Diagnostics
 		boxDiagnostic,particleOrbits,phaseSpaceDiagnostic,volumeDiagnostic,pointDiagnostic,
 		// Quantum

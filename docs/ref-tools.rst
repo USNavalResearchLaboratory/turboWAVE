@@ -79,7 +79,7 @@ To inject radiation, you specify a type of electromagnetic mode, directives defi
 
 		.. py:function:: r0 = ( u0 , v0 )
 
-			:param float u0: spot size in the :math:`{\bf u}` direction.  Note this is **not necessarily** the spot size in the first coordinate of the standard basis. Spot size is measured at :math:`1/e` point of the field amplitude.
+			:param float u0: spot size at the vacuum waist in the :math:`{\bf u}` direction.  Note this is **not necessarily** the spot size in the first coordinate of the standard basis. Spot size is measured at :math:`1/e` point of the field amplitude.
 			:param float v0: spot size in the :math:`{\bf v}` direction.
 
 		.. py:function:: mode = ( mu , mv )
@@ -554,7 +554,7 @@ Multi-photon Ionization
 
 Model appropriate for low fields or high frequencies.
 
-.. py:function:: new mpi ionization [<name>] [for <module_name>] { <directives> }
+.. py:function:: new multiphoton ionization [<name>] [for <module_name>] { <directives> }
 
 	The following directives are supported:
 
@@ -575,10 +575,32 @@ Model appropriate for high fields or low frequencies.
 
 		Shared directives: see above
 
+Klaiber Tunneling Ionization
+,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+
+Model appropriate for high fields or low frequencies, based on a Coulomb corrected strong field approximation, and with relativistic corrections.
+
+.. py:function:: new klaiber ionization [<name>] [for <module_name>] { <directives> }
+
+	The following directives are supported:
+
+		Shared directives: see above
+
+PPT Tunneling Ionization
+,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+
+This model evaluates the general PPT formula in the tunneling limit.  Differs from ADK only in that the gamma function is not approximated.
+
+.. py:function:: new ppt tunneling [<name>] [for <module_name>] { <directives> }
+
+	The following directives are supported:
+
+		Shared directives: see above
+
 PPT Photoionization
 ,,,,,,,,,,,,,,,,,,,,
 
-Cycle-averaged model that works across multi-photon and tunneling regimes.  Cannot be used for ionization due to carrier-resolved fields, i.e., must be used with an enveloped field solver.
+Cycle-averaged model that works across multi-photon and tunneling regimes (convergence in tunneling regime is slow).  Cannot be used for ionization due to carrier-resolved fields, i.e., must be used with an enveloped field solver.
 
 .. py:function:: new ppt ionization [<name>] [for <module_name>] { <directives> }
 

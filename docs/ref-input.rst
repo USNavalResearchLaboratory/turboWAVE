@@ -67,7 +67,7 @@ A Little More Little Language
 
 The input file is a sequence of **directives**.  The directives are one of the following: **preprocessor-directives**, **statements**, or **assignments**.
 
-Preprocessor directives are a limited and slightly modified version of C language preprocessor directives.
+Preprocessor directives are a subset of C language preprocessor directives.  Preprocessor directives occupy a single line, while statements or assignments can be spread over any number of lines.  Indentation is never significant.
 
 Statements start with **new**, **get**, or **generate**.  The **new** and **generate** statements are usually terminated by a curly-brace delimited **block** that may contain a further sequence of directives.  Blocks of directives can be nested in this way with arbitrary depth.
 
@@ -97,8 +97,8 @@ would substitute the contents of ``myfile.tw`` at the point in the file where th
 
 The file can be specified using a path. If no path is given, the file should be in the working directory, or the directory of the input file.  Using quotes is optional. The angle-brackets used in C for system headers have no meaning and should not be used.
 
-User Defined Macros
-,,,,,,,,,,,,,,,,,,,
+Macro Substitution
+,,,,,,,,,,,,,,,,,,
 
 The effect of user variables can be achieved via macro substitution.  The format is the same as that used by the C preprocessor.  For example,
 
@@ -106,26 +106,35 @@ The effect of user variables can be achieved via macro substitution.  The format
 
 	#define $r0 2.5 [cm]
 
-causes every subsequent occurrence of ``$r0`` to be replaced with ``2.5 [cm]``. The substitution value is terminated by a new line.  The use of the ``$`` prefix is optional, but highly recommended, as it helps prevent unintended substitutions, and improves readability (including syntax highlights in supported editors).
+causes every occurrence of ``$r0`` to be replaced with ``2.5 [cm]``. The substitution value is terminated by a new line.  The use of the ``$`` prefix is optional, but highly recommended, as it helps prevent unintended substitutions, and improves readability (including syntax highlights in supported editors).
 
-The analogy with the C preprocessor is limited.  Function-like macros are not supported.  The keys are matched only to whole words, i.e. ``$r0`` would not match ``$r``.  Line continuation using ``\`` is not allowed, as of this writing.
+The keys are matched only to whole words, i.e. ``$r`` would not match ``$r0``.  You can use macros within other macros, e.g.
 
-User macros can be defined at any point in an input file, except where they would interrupt another directive. Attempting to redefine a macro throws an error.
+.. code-block:: c
 
-Preprocessor Order
+	#define $r ( $r0 , $r0 )
+
+would be expanded as ``( 2.5 [cm] , 2.5 [cm] )`` assuming ``$r0`` is defined as above.  Macros can be defined at any point in an input file, except where they would interrupt another directive. Macros are scoped by file.  Attempting to redefine a macro in the same scope throws an error.
+
+Function-like macros are not supported.  Line continuation using ``\`` is not allowed, as of this writing.
+
+Conditional Blocks
 ,,,,,,,,,,,,,,,,,,
 
-The order of preprocessor operations is as follows:
+You can use ``#define`` constants to control the inclusion of blocks of code.  This works the same as in C.  For example,
 
-	#. Strip comments
-	#. Recursive file substitution
+.. code-block:: c
 
-		* Comments are stripped at each level
+	#define $3D
+	#ifdef $3D
+		#define $cells ( 128 , 128 , 128 )
+		// ... other settings sensitive to dimensionality
+	#else
+		#define $cells ( 128 , 1 , 128 )
+		// ... other settings sensitive to dimensionality
+	#endif
 
-	#. Clean white space
-	#. Process user defined macros
-
-		* At present keys must be unique across all included files.
+allows the user to select from two or three dimensional settings by changing one constant.  TurboWAVE supports ``#ifdef``, ``#ifndef``, ``#else``, and ``#endif``.  Value comparisons using ``#if`` or ``#elif`` are not supported at present.
 
 .. _unit-conv:
 
@@ -187,7 +196,7 @@ Top level directives may include statements to create modules or tools, as well 
 
 	Select the density that fixes the plasma normalization to a particular scale.
 
-	:param float CGS_density: the density in particles per cubic centimeter.  Unit conversion macros must **not** be used.
+	:param float CGS_density: the density in particles per cubic centimeter.  Dimensional numbers must **not** be used.
 
 .. py:function:: steps = s
 

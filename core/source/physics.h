@@ -90,7 +90,7 @@ struct Ionizer : ComputeTool
 	// this tool requires the owner to manage indexing of ionized species
 	tw::Float ionizationPotential;
 	tw::Float electrons,protons;
-	tw::Float multiplier,max_rate;
+	tw::Float multiplier,max_rate,cutoff_field;
 
 	// members determining species involved
 	std::string ion_name,electron_name;
@@ -116,10 +116,22 @@ struct Multiphoton : Ionizer
 
 struct ADK : Ionizer
 {
-	ADK(const std::string& name,MetricSpace *m,Task *tsk);
+	ADK(const std::string& name,MetricSpace *m,Task *tsk) : Ionizer(name,m,tsk) {}
 	virtual void Initialize();
 	virtual tw::Float InstantRate(tw::Float w0,tw::Float E);
 	virtual tw::Float AverageRate(tw::Float w0,tw::Float E);
+};
+
+struct Klaiber : ADK
+{
+	Klaiber(const std::string& name,MetricSpace *m,Task *tsk) : ADK(name,m,tsk) {}
+	virtual void Initialize();
+};
+
+struct PPT_Tunneling : ADK
+{
+	PPT_Tunneling(const std::string& name,MetricSpace *m,Task *tsk) : ADK(name,m,tsk) {}
+	virtual void Initialize();
 };
 
 struct PPT : Ionizer
@@ -220,7 +232,7 @@ struct EOSTillotson:EOSComponent
 	tw::Float beta;   // Tillotson Coefficient
 
 	tw::Float nIV;   // Vaporization Pressure
-	tw::Float E0;   // Reference energy 
+	tw::Float E0;   // Reference energy
 	tw::Float EIV;   // Vaporization Energy
 	tw::Float ECV;   // Cavitation Energy
 

@@ -120,9 +120,11 @@ std::map<std::string,tw::tool_type> ComputeTool::Map()
 		{"eos simple mie gruneisen",tw::tool_type::eosSimpleMieGruneisen},
 		{"eos linear mie gruneisen",tw::tool_type::eosLinearMieGruneisen},
 		{"eos tillotson",tw::tool_type::eosTillotson},
-		{"mpi ionization",tw::tool_type::mpi},
+		{"multiphoton ionization",tw::tool_type::mpi},
 		{"adk ionization",tw::tool_type::adk},
 		{"ppt ionization",tw::tool_type::ppt},
+		{"ppt tunneling",tw::tool_type::ppt_tunneling},
+		{"klaiber ionization",tw::tool_type::klaiber},
 		{"box diagnostic",tw::tool_type::boxDiagnostic},
 		{"orbit diagnostic",tw::tool_type::particleOrbits},
 		{"phase space diagnostic",tw::tool_type::phaseSpaceDiagnostic},
@@ -264,6 +266,12 @@ ComputeTool* ComputeTool::CreateObjectFromType(const std::string& name,tw::tool_
 			break;
 		case tw::tool_type::ppt:
 			ans = new PPT(name,ms,tsk);
+			break;
+		case tw::tool_type::ppt_tunneling:
+			ans = new PPT_Tunneling(name,ms,tsk);
+			break;
+		case tw::tool_type::klaiber:
+			ans = new Klaiber(name,ms,tsk);
 			break;
 		case tw::tool_type::boxDiagnostic:
 			ans = new BoxDiagnostic(name,ms,tsk);

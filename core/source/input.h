@@ -206,17 +206,29 @@ namespace tw
 			std::string inputFileName;
 			std::vector<std::string> searchPaths;
 			FileEnv(const std::string& inputFileName);
-			bool OpenDeck(std::ifstream& inFile) const;
-			bool FindAndOpen(const std::string& fileName,std::ifstream& inFile) const;
+			bool OpenDeck(std::string& contents) const;
+			bool FindAndOpen(const std::string& fileName,std::string& contents) const;
+			bool FindAndOpen(const std::string& fileName,std::stringstream& contents) const;
 		};
 
 		tw::Float GetUnitDensityCGS(const std::string& in);
 		tw::units GetNativeUnits(const std::string& in);
-		tw::Int IncludeFiles(const FileEnv& file_env,std::stringstream& in,std::stringstream& out);
-		void StripComments(std::ifstream& inputFile,std::stringstream& out);
-		void StripDecorations(std::stringstream& in,std::stringstream& out);
-		void InsertWhitespace(std::stringstream& in,std::stringstream& out);
-		void UserMacros(std::stringstream& in,std::stringstream& out);
+
+		std::string include_regex();
+		std::string define_key_regex();
+		std::string define_regex();
+		std::string ifdef_regex();
+		std::string ifndef_regex();
+		std::string else_regex();
+		std::string endif_regex();
+		void StripComments(std::string& in_out);
+		void PreprocessorSyntaxCheck(const std::string& in);
+		void IncludeFiles(const FileEnv& file_env,std::string& in_out);
+		void AddMacro(const std::string& line,std::map<std::string,std::string>& macros);
+		void EnterConditional(std::string& line,std::stringstream& in,std::stringstream& out,std::map<std::string,std::string>& macros);
+		std::map<std::string,std::string> StripConditionalCode(std::string& in_out);
+		void MacroSubstitution(std::string& in_out,const std::map<std::string,std::string>& macros);
+		void PreprocessString(std::string& in_out);
 		void PreprocessInputFile(const FileEnv& file_env,std::stringstream& out);
 
 		Preamble EnterInputFileBlock(const std::string& com,std::stringstream& inputString,const std::string& end_tokens);

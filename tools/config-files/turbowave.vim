@@ -12,8 +12,12 @@ if exists("b:current_syntax")
   finish
 endif
 
-syn match twDefine "#define"
-syn match twInclude "#include"
+syn match twPreproc "#define"
+syn match twPreproc "#include"
+syn match twPreproc "#ifdef"
+syn match twPreproc "#ifndef"
+syn match twPreproc "#else"
+syn match twPreproc "#endif"
 syn keyword	twStatement	new generate get for
 
 syn match twUnit "\v(\s|\(|\{|\,|\=|$)[\+\-]=([0-9]+\.=[0-9]*|\.[0-9]+)([eE][\+\-]=[0-9]+)=\s*\[(deg|rad|mrad|urad|cm2|m2|cm2/s|m2/s|um|mm|cm|m|fs|ps|ns|us|s|/m3|/cm3|J/m3|J/cm3|eV|K|V|webers/m|G\*cm|V/m|V/cm|T|G)\](\s|\)|\}|\,|\n)"hs=s+1,he=e-1,me=e-1
@@ -31,14 +35,13 @@ syn match twmode "plane wave"
 syn match twmode "airy disc"
 syn match twmode "bessel beam"
 syn match twmode "multipole"
-syn keyword twioniz adk ppt mpi
+syn keyword twioniz adk ppt mpi klaiber
 syn keyword twshape quintic sin2 sech
 
 syn region twString1 start="'" end="'"
 syn region twString2 start='"' end='"'
 
-hi def link twDefine	Define
-hi def link twInclude	Define
+hi def link twPreproc	Define
 hi def link twStatement		Statement
 hi def link twUnit			Macro
 hi def link twUserMacro		Macro

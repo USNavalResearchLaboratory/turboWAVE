@@ -214,7 +214,6 @@ void Kinetics::Ionize()
 {
 	// There is a diplacement of the bound particle before it turns free, satisfying qE.dr = Uion.
 	// This accounts for the work done to remove the particle from the binding potential.
-	// To include this we create the particle with initial velocity v = dr/dt = Uion/qEdt
 	// Ionization due to wake and laser are simply added (OK if they do not overlap much)
 	// Time centering:
 	// Fp[6] is a2 at t = 0, carrier resolved field also known at t = 0
@@ -275,13 +274,13 @@ void Kinetics::Ionize()
 						momentum += theLaserSolver->GetIonizationKick(a2,s1->charge,s1->restMass);
 					s1->AddParticle(momentum,curr.q,curr.number);
 
-					// For the electron, add the velocity accounting for depletion of the field due to ionization energy.
+					// For the electron, account for depletion of the field due to ionization energy.
 					// This comes from a displacement satisfying dr.QE = dU, where dU = ionization energy.
-					const tw::Float dU = ionizer->ionizationPotential;
-					const tw::Float failsafe = sqr(0.01*ionizer->ThresholdEstimate());
-					const tw::vec3 dr = E*dU/(s2->charge*curr.number*(Norm(E)+failsafe));
+					// const tw::Float dU = ionizer->ionizationPotential;
+					// const tw::Float failsafe = sqr(0.01*ionizer->ThresholdEstimate());
+					// const tw::vec3 dr = E*dU/(s2->charge*curr.number*(Norm(E)+failsafe));
 
-					momentum = s2->restMass*gamma*(vel+dr/dt);
+					momentum = s2->restMass*gamma*vel;
 					if (theLaserSolver)
 						momentum += theLaserSolver->GetIonizationKick(a2,s2->charge,s2->restMass);
 					s2->AddParticle(momentum,curr.q,curr.number);

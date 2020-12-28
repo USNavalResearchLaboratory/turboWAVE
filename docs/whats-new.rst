@@ -1,6 +1,13 @@
 What's New
 //////////
 
+What's New in 4.4
+=================
+
+#. Input file support for a subset of C-style preprocessor conditionals (``#ifdef``, ``#ifndef``, ``#else``, and ``#endif``).
+
+#. Script for carrying out parallel-serial or parallel-parallel parameter scans is included in ``twutils`` package.
+
 What's New in 4.3
 =================
 

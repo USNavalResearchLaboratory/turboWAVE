@@ -293,30 +293,30 @@ void TabulatedState::Initialize()
 	QState::Initialize();
 	tw::Int num;
 	std::string word;
+	std::stringstream contents;
 	tw::Float realAmplitude,imagAmplitude;
-	std::ifstream inFile;
 	tw::input::FileEnv file_env(task->inputFileName);
-	if (!file_env.FindAndOpen(filename,inFile))
+	if (!file_env.FindAndOpen(filename,contents))
 		throw tw::FatalError("couldn't open state file <" + filename + ">");
 	do
 	{
-		inFile >> word;
+		contents >> word;
 		//if (word=="soft_core_radius")
 		//if (word=="nuclear_charge")
 		//if (word=="Bz")
 		if (word=="energy")
-			inFile >> word >> energy;
+			contents >> word >> energy;
 		if (word=="pts")
-			inFile >> word >> num;
+			contents >> word >> num;
 		if (word=="components")
-			inFile >> word >> components;
+			contents >> word >> components;
 		if (word=="cell_width")
-			inFile >> word >> cell_size.x;
+			contents >> word >> cell_size.x;
 		if (word=="nr_j_l_m")
-			inFile >> word >> nr >> Jam >> Lam >> jzam;
+			contents >> word >> nr >> Jam >> Lam >> jzam;
 		if (word=="cylindrical")
 		{
-			inFile >> word >> word;
+			contents >> word >> word;
 			cylindricalAtom = (word=="true" || word=="yes" || word=="on") ? true : false;
 		}
 	} while (word!="start_data");
@@ -324,7 +324,7 @@ void TabulatedState::Initialize()
 	radialFunction.resize(components*num);
 	for (tw::Int i=0;i<components*num;i++)
 	{
-		inFile >> realAmplitude >> imagAmplitude;
+		contents >> realAmplitude >> imagAmplitude;
 		radialFunction[i] = tw::Complex(realAmplitude,imagAmplitude);
 	}
 }

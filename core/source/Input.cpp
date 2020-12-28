@@ -102,11 +102,11 @@ void tw::input::DirectiveReader::ThrowErrorIfMissingKeys(const std::string& src)
 }
 
 
-///////////////////////////////////////
-//                                   //
-//  Stream Processing of Input File  //
-//                                   //
-///////////////////////////////////////
+////////////////////////////////////
+//                                //
+//  Pre-Processing of Input File  //
+//                                //
+////////////////////////////////////
 
 tw::input::FileEnv::FileEnv(const std::string& inputFilename)
 {
@@ -117,25 +117,55 @@ tw::input::FileEnv::FileEnv(const std::string& inputFilename)
 	searchPaths.push_back(inputFileName.substr(0,sep_pos+1)); // keep separator so we have the right one later
 }
 
-bool tw::input::FileEnv::OpenDeck(std::ifstream& inFile) const
+bool tw::input::FileEnv::OpenDeck(std::string& contents) const
 {
+	std::ifstream inFile;
+	std::stringstream temp;
 	inFile.open(inputFileName);
-	return inFile.good();
+	if (inFile.good())
+	{
+		temp << inFile.rdbuf();
+		contents = temp.str();
+		inFile.close();
+		return true;
+	}
+	return false;
 }
 
-bool tw::input::FileEnv::FindAndOpen(const std::string& fileName,std::ifstream& inFile) const
+bool tw::input::FileEnv::FindAndOpen(const std::string& fileName,std::string& contents) const
 {
-	std::ifstream *temp;
+	std::ifstream *inFile;
+	std::stringstream temp;
 	for (auto it=searchPaths.begin();it!=searchPaths.end();++it)
 	{
-		temp = new std::ifstream(*it + fileName);
-		if (temp->good())
+		inFile = new std::ifstream(*it + fileName);
+		if (inFile->good())
 		{
-			delete temp;
-			inFile.open(*it + fileName);
-			return inFile.good();
+			temp << inFile->rdbuf();
+			contents = temp.str();
+			inFile->close();
+			delete inFile;
+			return true;
 		}
-		delete temp;
+		delete inFile;
+	}
+	return false;
+}
+
+bool tw::input::FileEnv::FindAndOpen(const std::string& fileName,std::stringstream& contents) const
+{
+	std::ifstream *inFile;
+	for (auto it=searchPaths.begin();it!=searchPaths.end();++it)
+	{
+		inFile = new std::ifstream(*it + fileName);
+		if (inFile->good())
+		{
+			contents << inFile->rdbuf();
+			inFile->close();
+			delete inFile;
+			return true;
+		}
+		delete inFile;
 	}
 	return false;
 }
@@ -166,228 +196,285 @@ tw::units tw::input::GetNativeUnits(const std::string& in)
 	return m[match[2].str()];
 }
 
-void tw::input::StripComments(std::ifstream& inFile,std::stringstream& out)
+void tw::input::StripComments(std::string& in_out)
 {
-	bool ignoreUntilMark,ignoreUntilEOL;
-	char charNow,nextChar;
-
-	ignoreUntilMark = false;
-	ignoreUntilEOL = false;
-	while (inFile.get(charNow))
-	{
-		if (charNow=='/' || charNow=='*' || charNow=='\n' || charNow=='\r')
-		{
-			if (charNow=='/')
-			{
-				inFile.get(nextChar);
-				if (nextChar=='/')
-					ignoreUntilEOL = true;
-				if (nextChar=='*' && !ignoreUntilEOL)
-					ignoreUntilMark = true;
-				if (nextChar!='/' && nextChar!='*')
-				{
-					if (!ignoreUntilMark && !ignoreUntilEOL)
-						out << charNow;
-					inFile.putback(nextChar);
-				}
-			}
-			if (charNow=='*')
-			{
-				inFile.get(nextChar);
-				if (nextChar=='/')
-					ignoreUntilMark = false;
-				else
-				{
-					if (!ignoreUntilMark && !ignoreUntilEOL)
-						out << charNow;
-					inFile.putback(nextChar);
-				}
-			}
-			if (charNow=='\n' || charNow=='\r')
-			{
-				if (!ignoreUntilMark)
-					out << charNow;
-				ignoreUntilEOL = false;
-			}
-		}
-		else
-		{
-			if (!ignoreUntilMark && !ignoreUntilEOL)
-			{
-				out << charNow;
-			}
-		}
-	}
+	// Strip comments : does not preserve number of lines
+	// The following blindly matches any comment, whether quoted or not.
+	// TW has always used the blind version, continue with that for now.
+	std::regex ex_blind(R"(\/\/.*?(\n|\r\n)|\/\*(.|\s)*?\*\/)");
+	in_out = std::regex_replace(in_out,ex_blind,std::string("\n"));
 }
 
-void tw::input::StripDecorations(std::stringstream& in,std::stringstream& out)
+// The following regex are intended to be processed line by line.
+std::string tw::input::include_regex()
 {
-	// Replace commas and parenthesis with spaces
-	char charNow;
-	while (in.get(charNow))
-	{
-		if (charNow==',' || charNow=='(' || charNow==')')
-			out << ' ';
-		else
-			out << charNow;
-	}
+	return R"(([ \t]*#include[ \t]+)([^"']\S+[^"' \t]|"\S*"|'\S*')([ \t]*))";
+}
+std::string tw::input::define_key_regex()
+{
+	return R"(([^-+,=(){} \t][^,=(){} \t]+))";
+}
+std::string tw::input::define_regex()
+{
+	// group 2 is the key, group 5 is the value (if present)
+	return R"(([ \t]*#define[ \t]+))" + define_key_regex() + R"((([ \t]*)(.*)))";
+}
+std::string tw::input::ifdef_regex()
+{
+	return R"(([ \t]*#ifdef[ \t]+))" + define_key_regex() + R"(([ \t]*))";
+}
+std::string tw::input::ifndef_regex()
+{
+	return R"(([ \t]*#ifndef[ \t]+))" + define_key_regex() + R"(([ \t]*))";
+}
+std::string tw::input::else_regex()
+{
+	return R"([ \t]*#else[ \t]*)";
+}
+std::string tw::input::endif_regex()
+{
+	return R"([ \t]*#endif[ \t]*)";
 }
 
-void tw::input::InsertWhitespace(std::stringstream& in,std::stringstream& out)
+void tw::input::PreprocessorSyntaxCheck(const std::string& in)
 {
-	// Insert spaces around braces and equal signs
-	char charNow;
-	while (in.get(charNow))
-	{
-		if (charNow=='{' || charNow=='}' || charNow=='=')
-			out << ' ';
-		out << charNow;
-		if (charNow=='{' || charNow=='}' || charNow=='=')
-			out << ' ';
-	}
-}
-
-void tw::input::UserMacros(std::stringstream& in,std::stringstream& out)
-{
-	std::map<std::string,std::string> macros;
-	std::string line,key,val,stripped;
-	std::stringstream temp;
-	// First eat and save the key/value pairs
-	std::regex good_def(R"((^\s*#define\s+)(\S+)(\s+)(.*\S)\s*$)");
-	std::regex appearance(R"(.*#define.*)");
+	std::regex appearance(R"(.*(#include|#define|#ifdef|#ifndef|#else|#endif).*)");
 	std::smatch match;
+	std::stringstream temp(in);
+	std::string line;
+	tw::Int if_depth=0,else_depth=0;
+	while (!temp.eof())
+	{
+		std::getline(temp,line);
+		if (!temp.eof())
+		{
+			if (std::regex_search(line,appearance))
+			{
+				// First just check syntax of this line only
+				bool good_inc = std::regex_match(line,std::regex(include_regex()));
+				bool good_def = std::regex_match(line,std::regex(define_regex()));
+				bool good_ifdef = std::regex_match(line,std::regex(ifdef_regex()));
+				bool good_ifndef = std::regex_match(line,std::regex(ifndef_regex()));
+				bool good_else = std::regex_match(line,std::regex(else_regex()));
+				bool good_endif = std::regex_match(line,std::regex(endif_regex()));
+				// Then if everything is OK check nesting, otherwise throw error
+				if (good_inc || good_def || good_ifdef || good_ifndef || good_else || good_endif)
+				{
+					if (good_ifdef || good_ifndef)
+						if_depth++;
+					if (good_else)
+						else_depth++;
+					if (good_endif)
+					{
+						if_depth--;
+						if (else_depth)
+							else_depth--;
+					}
+					if (if_depth<0)
+						throw tw::FatalError("There is an extra #endif");
+					if (else_depth>if_depth)
+						throw tw::FatalError("There is an extra #else");
+				}
+				else
+					throw tw::FatalError("Preprocessor directive badly formed: "+line);
+			}
+		}
+	}
+	if (if_depth)
+		throw tw::FatalError("Missing " + std::to_string(if_depth) + " #endif " + (if_depth==1?"level":"levels"));
+}
+
+void tw::input::AddMacro(const std::string& line,std::map<std::string,std::string>& macros)
+{
+	std::string key,val;
+	std::smatch match;
+	if (std::regex_match(line,match,std::regex(define_regex())))
+	{
+		key = match[2].str();
+		val = match[5].str();
+		if (key==val)
+			throw tw::FatalError("Macro cannot refer to itself ("+key+")");
+		if (macros.find(key)==macros.end())
+			macros[key] = val;
+		else
+			throw tw::FatalError("Macro "+key+" was already used.");
+	}
+}
+
+void tw::input::EnterConditional(std::string& line,std::stringstream& in,std::stringstream& out,std::map<std::string,std::string>& macros)
+{
+	// Keep or clear lines until matching #endif is encountered.
+	// Continue to build macros as we go.
+	// Call this recursively if further conditionals encountered.
+	bool keeping,is_ifdef,is_ifndef,is_else,is_endif;
+	tw::Int depth=1;
+	std::smatch match;
+	out << std::endl; // clear the conditional that got us here
+	if (std::regex_match(line,match,std::regex(ifdef_regex())))
+		keeping = macros.find(match[2].str())!=macros.end();
+	if (std::regex_match(line,match,std::regex(ifndef_regex()))) // can't use else, must generate the match
+		keeping = macros.find(match[2].str())==macros.end();
+	do
+	{
+		std::getline(in,line);
+		is_ifdef = std::regex_match(line,std::regex(ifdef_regex()));
+		is_ifndef = std::regex_match(line,std::regex(ifndef_regex()));
+		is_else = std::regex_match(line,std::regex(else_regex()));
+		is_endif = std::regex_match(line,std::regex(endif_regex()));
+		if (is_else)
+		{
+			keeping = !keeping;
+			out << std::endl;
+		}
+		else if (is_endif)
+		{
+			depth--;
+			out << std::endl;
+		}
+		else
+		{
+			if (keeping)
+			{
+				AddMacro(line,macros);
+				if (is_ifdef || is_ifndef)
+					EnterConditional(line,in,out,macros);
+				else
+					out << line << std::endl;
+			}
+			else
+			{
+				if (is_ifdef || is_ifndef)
+					depth++;
+				out << std::endl;
+			}
+		}
+	} while (depth);
+}
+
+std::map<std::string,std::string> tw::input::StripConditionalCode(std::string& in_out)
+{
+	// Handle #ifdef and #ifndef blocks
+	// Assume syntax has already been checked
+	// This routine also loads the map of #define constants
+	std::map<std::string,std::string> macros;
+	std::string line;
+	std::stringstream in(in_out),out;
+
 	while (!in.eof())
 	{
 		std::getline(in,line);
 		if (!in.eof())
 		{
-			if (std::regex_search(line,appearance))
-			{
-				temp << std::endl;
-				if (std::regex_search(line,match,good_def))
-				{
-					key = match[2].str();
-					val = match[4].str();
-					if (key==val)
-						throw tw::FatalError("Macro cannot refer to itself ("+key+")");
-					if (macros.find(key)==macros.end())
-						macros[key] = val;
-					else
-						throw tw::FatalError("Macro "+key+" was already used.");
-				}
-				else
-					throw tw::FatalError("Macro badly formed: "+line);
-			}
+			AddMacro(line,macros);
+			if (std::regex_match(line,std::regex(ifdef_regex())) || std::regex_match(line,std::regex(ifndef_regex())))
+				EnterConditional(line,in,out,macros);
 			else
-			{
-				temp << line << std::endl;
-			}
+				out << line << std::endl;
 		}
 	}
+	in_out = out.str();
+	return macros;
+}
+
+void tw::input::MacroSubstitution(std::string& in_out,const std::map<std::string,std::string>& macros)
+{
+	// assumes syntax has already been checked.
+	// assumes conditionals have already been processed.
+	std::string line;
+	std::stringstream in(in_out),temp;
+	bool found;
+
+	// First eat #define lines
+	while (!in.eof())
+	{
+		std::getline(in,line);
+		if (!in.eof())
+		{
+			if (std::regex_match(line,std::regex(define_regex())))
+				temp << std::endl;
+			else
+				temp << line << std::endl;
+		}
+	}
+	in_out = temp.str();
 
 	// Now replace all the key matches with the values.
-	// The key is only replaced if it is enclosed by white space.
-	// N.b. by this time delimiters are replaced with white space.
-	stripped = temp.str();
-	for (auto pair : macros)
+	// Do multiple sweeps to account for macros within macros.
+	do
 	{
-		// first escape any special regex characters in the key
-		std::regex special(R"([.^$|()\[\]{}*+?\\])");
-		std::string escaped = std::regex_replace(pair.first,special,R"(\$&)");
-		// now make the replacement
-		std::regex ex(R"(([\s-]))"+escaped+R"((\s))");
-		while (std::regex_search(stripped,match,ex)) // need loop to account for adjacent repeated patterns
-			stripped = std::regex_replace(stripped,ex,match[1].str()+pair.second+match[2].str());
-	}
-	// Finally put the result on the output stream
-	out.str(stripped);
+		found = false;
+		for (auto pair : macros)
+		{
+			// first escape any special regex characters in the key
+			std::regex special(R"([.^$|()\[\]{}*+?\\])");
+			std::string escaped = std::regex_replace(pair.first,special,R"(\$&)");
+			// now make the replacement (could be simpler if we had lookbehind)
+			std::regex ex(R"(([-+,=(){}\s]|^))" + escaped + R"((?=[,=(){}\s]|$))");
+			// must beware that pair.second very often starts with a digit!
+			found = found || std::regex_search(in_out,ex);
+			in_out = std::regex_replace(in_out,ex,R"($01)"+pair.second);
+		}
+	} while (found);
 }
 
-tw::Int tw::input::IncludeFiles(const FileEnv& file_env,std::stringstream& in,std::stringstream& out)
+void tw::input::IncludeFiles(const FileEnv& file_env,std::string& in_out)
 {
-	tw::Int count = 0;
-	std::string line,expanded,filename;
-	// First eat and save the key/value pairs
-	std::regex good_def(R"((^\s*#include\s+)([^"']\S+[^"'\s]|".*"|'.*')\s*$)");
-	std::regex appearance(R"(.*#include.*)");
+	tw::Int count;
+	std::string line,filename;
 	std::smatch match;
-	while (!in.eof())
+	std::stringstream in,out,temp;
+	do
 	{
-		std::getline(in,line);
-		if (!in.eof())
+		count = 0;
+		in.clear();
+		in.str(in_out);
+		in.seekg(0,in.beg);
+		out.clear();
+		out.seekp(0,out.beg);
+		while (!in.eof())
 		{
-			if (std::regex_search(line,appearance))
+			std::getline(in,line);
+			if (!in.eof())
 			{
-				if (std::regex_search(line,match,good_def))
+				if (std::regex_match(line,match,std::regex(include_regex())))
 				{
+					count++;
 					filename = match[2].str();
 					StripQuotes(filename);
-					std::ifstream includedFile;
-					if (!file_env.FindAndOpen(filename,includedFile))
+					if (!file_env.FindAndOpen(filename,line))
 						throw tw::FatalError("couldn't open " + filename);
-					StripComments(includedFile,out);
-					count++;
+					PreprocessString(line);
 				}
-				else
-					throw tw::FatalError("Include badly formed: "+line);
-			}
-			else
-			{
 				out << line << std::endl;
 			}
 		}
-	}
-	return count;
+		in_out = out.str();
+	} while (count);
+}
+
+void tw::input::PreprocessString(std::string& in_out)
+{
+	std::map<std::string,std::string> macros; // treat as local to a file
+	tw::input::StripComments(in_out);
+	tw::input::PreprocessorSyntaxCheck(in_out);
+	macros = tw::input::StripConditionalCode(in_out);
+	tw::input::MacroSubstitution(in_out,macros);
+	// std::cout << in_out << std::endl << std::endl;
 }
 
 void tw::input::PreprocessInputFile(const FileEnv& file_env,std::stringstream& out)
 {
-	std::ifstream inFile;
-	std::stringstream temp;
-	std::string word;
-	if (!file_env.OpenDeck(inFile))
+	std::string deck;
+
+	if (!file_env.OpenDeck(deck))
 		throw tw::FatalError("couldn't open input file " + file_env.inputFileName);
 
-	auto reset_in = [&] (std::stringstream& ss)
-	{
-		ss.clear();
-		ss.seekg(0,ss.beg);
-	};
+	tw::input::PreprocessString(deck);
+	tw::input::IncludeFiles(file_env,deck);
+	deck = std::regex_replace(deck,std::regex(R"([\,\(\)])")," ");
+	deck = std::regex_replace(deck,std::regex(R"([\=\{\}])")," $& ");
 
-	auto reset_in_out = [&] (std::stringstream& i,std::stringstream& o)
-	{
-		i.clear();
-		i.str(o.str());
-		i.seekg(0,i.beg);
-		o.clear();
-		o.str("");
-		o.seekp(0,o.beg);
-	};
-
-	// Handle included files, strip comments
-	tw::input::StripComments(inFile,temp);
-	reset_in(temp);
-	while (tw::input::IncludeFiles(file_env,temp,out))
-		reset_in_out(temp,out);
-	// std::cout << out.str();
-	// std::cout << std::endl << std::endl;
-
-	// Clean formatting
-	reset_in_out(temp,out);
-	tw::input::StripDecorations(temp,out);
-	// std::cout << out.str();
-	// std::cout << std::endl << std::endl;
-	reset_in_out(temp,out);
-	tw::input::InsertWhitespace(temp,out);
-	// std::cout << out.str();
-	// std::cout << std::endl << std::endl;
-
-	// User macro substitution
-	reset_in_out(temp,out);
-	tw::input::UserMacros(temp,out);
-	// std::cout << out.str();
-	// std::cout << std::endl << std::endl;
-	inFile.close();
+	out.str(deck);
 }
 
 
