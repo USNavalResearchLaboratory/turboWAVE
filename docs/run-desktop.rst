@@ -137,7 +137,7 @@ For desktop installations the command line options for the ``tw3d`` executable a
 
 .. option:: --no-interactive
 
-	if present, suppresses the interactive thread.
+	if present, suppresses the interactive thread.  Generally you should add this if ``tw3d`` is invoked from another command (e.g. ``nohup`` or a user script).  N.b. ``twutils`` command line tools include this automatically where needed.
 
 .. option:: --version, -v
 

@@ -195,6 +195,18 @@ tw::Float PPT::AverageRate(tw::Float w0,tw::Float E)
 	return ans;
 }
 
+tw::Float PMPB::AverageRate(tw::Float w0,tw::Float E)
+{
+	tw::Float ans = PPT::AverageRate(w0,E);
+	const tw::Float wa = space->units->ConvertFromNative(w0,tw::dimensions::angular_frequency,tw::units::atomic);
+	const tw::Float Ea = space->units->ConvertFromNative(fabs(E),tw::dimensions::electric_field,tw::units::atomic) + cutoff_field;
+	const tw::Float gam = sqrt(2*Uion)*wa/Ea;
+	ans *= pow(1+2*gam/exp(1.0),-2*nstar);
+	ans *= nstar*tgamma(nstar+lstar+1)*tgamma(nstar-lstar);
+	ans /= sqr(tgamma(nstar+1));
+	return ans;
+}
+
 // ASHER_MOD
 
 //////////////////////////////////

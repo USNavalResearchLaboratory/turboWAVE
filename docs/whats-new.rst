@@ -8,6 +8,10 @@ What's New in 4.4
 
 #. Script for carrying out parallel-serial or parallel-parallel parameter scans is included in ``twutils`` package.
 
+#. Support for additional ionization models.
+
+#. Documentation for ``twutils`` modules.
+
 What's New in 4.3
 =================
 

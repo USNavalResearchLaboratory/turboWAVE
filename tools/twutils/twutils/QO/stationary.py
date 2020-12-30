@@ -1,5 +1,17 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
+'''
+Module :samp:`twutils.QO.stationary`
+====================================
+
+This module computes stationary states of numerical atoms.
+It can be used to generate state files for use with quantum optics modules.
+
+.. note::
+
+	Module documentation under construction
+
+Classes and functions
+----------------------
+'''
 
 import numpy as np
 import scipy as sp

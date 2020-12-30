@@ -612,6 +612,21 @@ Cycle-averaged model that works across multi-photon and tunneling regimes (conve
 
 			:param int n: number of terms to keep in the PPT expansion.
 
+PMPB Photoionization
+,,,,,,,,,,,,,,,,,,,,
+
+Similar to the PPT model, except the Coulomb correction is improved.  The bound state coefficient is also evaluated differently, namely :math:`l^*=0` rather than :math:`l^* = n^*-1`.
+
+.. py:function:: new pmpb ionization [<name>] [for <module_name>] { <directives> }
+
+	The following directives are supported:
+
+		Shared directives: see above
+
+		.. py:function:: terms = n
+
+			:param int n: number of terms to keep in the PPT expansion.
+
 .. _eos:
 
 Equation of State Tools

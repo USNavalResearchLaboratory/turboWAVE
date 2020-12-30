@@ -143,6 +143,12 @@ struct PPT : Ionizer
 	tw::Float wfunc(tw::Float x);
 };
 
+struct PMPB : PPT
+{
+	PMPB(const std::string& name,MetricSpace *m,Task *tsk) : PPT(name,m,tsk) {}
+	virtual tw::Float AverageRate(tw::Float w0,tw::Float E);
+};
+
 // DFG - redesigned to:
 // (i) take advantage of encapsulated data structures
 // (ii) conform to new ComputeTool spec (strong preference that containment tree be reserved for modules)
