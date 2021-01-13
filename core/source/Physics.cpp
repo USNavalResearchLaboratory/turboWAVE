@@ -53,7 +53,7 @@ tw::Float sparc::ElectronPhononRateCoeff(const UnitConverter& uc,tw::Float Ti,tw
 //////////////////////////
 
 
-Ionizer::Ionizer(const std::string& name,MetricSpace *m,Task *tsk) : ComputeTool(name,m,tsk)
+Ionizer::Ionizer(const std::string& name,MetricSpace *ms,Task *tsk) : ComputeTool(name,ms,tsk)
 {
 	ionizationPotential = 1e-5; // in simulation units
 	cutoff_field = 1e-3; // in atomic units
@@ -61,6 +61,8 @@ Ionizer::Ionizer(const std::string& name,MetricSpace *m,Task *tsk) : ComputeTool
 	protons = 0;
 	multiplier = 1.0;
 	I1 = I2 = I3 = A1 = A2 = A3 = 0.0;
+	nstar = 1.0;
+	lstar = l = m = 0.0;
 	max_rate = tw::big_pos;
 	// read ionspecies and electronspecies indices in Species::Initialize
 	// setup hydro indexing during Chemical::Initialize
@@ -79,7 +81,20 @@ void Ionizer::Initialize()
 	Z = protons - electrons + 1;
 	Uion = space->units->ConvertFromNative(ionizationPotential,tw::dimensions::energy,tw::units::atomic);
 	nstar = Z / sqrt(2*Uion);
-	lstar = nstar - 1;
+}
+
+void Ionizer::DeduceStaticCoeff()
+{
+	I1 = A1 * pow(2*Uion,0.75) / sqrt(3/pi);
+	I2 = A2 - 0.5;
+	I3 = A3;
+}
+
+void Ionizer::DeduceAveragedCoeff()
+{
+	A1 = I1 * sqrt(3/pi) / pow(2*Uion,0.75);
+	A2 = I2 + 0.5;
+	A3 = I3;
 }
 
 Multiphoton::Multiphoton(const std::string& name,MetricSpace *m,Task *tsk) : Ionizer(name,m,tsk)
@@ -99,32 +114,19 @@ tw::Float Multiphoton::AverageRate(tw::Float w0,tw::Float E)
 	return A1*w0*pow(fabs(E)/E_MPI,two*photons) / Factorial(photons-1);
 }
 
-void ADK::Initialize()
-{
-	Ionizer::Initialize();
-	I1 = multiplier*pow(4*exp(1)*pow(Z,3)/pow(nstar,4),2*nstar)/(8*pi*Z);
-	I2 = 1 - 2*nstar;
-	I3 = 2*pow(2*Uion,tw::Float(1.5))/3;
-	A1 = I1 * sqrt(3*cub(nstar)/(pi*cub(Z)));
-	A2 = I2 + tw::Float(0.5);
-	A3 = I3;
-	I1 = space->units->ConvertToNative(I1,tw::dimensions::angular_frequency,tw::units::atomic);
-	A1 = space->units->ConvertToNative(A1,tw::dimensions::angular_frequency,tw::units::atomic);
-}
-
-tw::Float ADK::InstantRate(tw::Float w0,tw::Float E)
+tw::Float Tunneling::InstantRate(tw::Float w0,tw::Float E)
 {
 	const tw::Float Ea = space->units->ConvertFromNative(fabs(E),tw::dimensions::electric_field,tw::units::atomic) + cutoff_field;
-	return I1*pow(Ea,I2)*exp(-I3/Ea);
+	return I1*pow(Ea,I2)*exp(I3/Ea);
 }
 
-tw::Float ADK::AverageRate(tw::Float w0,tw::Float E)
+tw::Float Tunneling::AverageRate(tw::Float w0,tw::Float E)
 {
 	const tw::Float Ea = space->units->ConvertFromNative(fabs(E),tw::dimensions::electric_field,tw::units::atomic) + cutoff_field;
-	return A1*pow(Ea,A2)*exp(-A3/Ea);
+	return A1*pow(Ea,A2)*exp(A3/Ea);
 }
 
-void Klaiber::Initialize()
+void KYH::Initialize()
 {
 	Ionizer::Initialize();
 	const tw::Float alpha = 0.0072973525693;
@@ -133,78 +135,134 @@ void Klaiber::Initialize()
 	A1 = multiplier * pow(2.0,3.0-4*Ua2) * sqrt(3/pi) * (1.0-7*Ua2/72) * exp(4*Ua2) * pow(2*Uion,1.75-3.0*Ua2);
 	A1 /= tgamma(3.0-2*Ua2);
 	A2 = 2.0*Ua2 - 0.5;
-	A3 = (2.0/3.0)*Ea*(1.0-Ua2/12);
-	I1 = A1 * pow(2*Uion,0.75) / sqrt(3/pi);
-	I2 = A2 - 0.5;
-	I3 = A3;
+	A3 = -(2.0/3.0)*Ea*(1.0-Ua2/12);
+	DeduceStaticCoeff();
+	I1 = space->units->ConvertToNative(I1,tw::dimensions::angular_frequency,tw::units::atomic);
+	A1 = space->units->ConvertToNative(A1,tw::dimensions::angular_frequency,tw::units::atomic);
+}
+
+ADK::ADK(const std::string& name,MetricSpace *ms,Task *tsk) : Tunneling(name,ms,tsk)
+{
+	directives.Add("orbital number",new tw::input::Float(&l),false);
+	directives.Add("orbital projection",new tw::input::Float(&m),false);
+	directives.Add("effective orbital number",new tw::input::Float(&lstar),false);
+}
+
+void ADK::Initialize()
+{
+	Ionizer::Initialize();
+	m = fabs(m);
+	const tw::Float e = exp(1.0);
+	const tw::Float sn2l2 = sqrt(nstar*nstar-lstar*lstar);
+	A1 = sqrt(3/cub(pi)) * (2*l+1) * tgamma(l+m+1) / tgamma(m+1) / tgamma(l-m+1);
+	A1 *= pow(e/sn2l2,m+1.5); // exponent is of poor print quality in JETP
+	A1 *= pow((nstar+lstar)/(nstar-lstar),lstar+0.5);
+	A1 *= (Z*Z/cub(nstar));
+	A1 *= pow(4*e*cub(Z/nstar)/sn2l2,2*nstar-m-1.5);
+	A2 = m+1.5-2*nstar;
+	A3 = -2*cub(Z/nstar)/3; // ADK 1986 has nstar**4 in Eq. 21, must be a typo?
+	DeduceStaticCoeff();
 	I1 = space->units->ConvertToNative(I1,tw::dimensions::angular_frequency,tw::units::atomic);
 	A1 = space->units->ConvertToNative(A1,tw::dimensions::angular_frequency,tw::units::atomic);
 }
 
 void PPT_Tunneling::Initialize()
 {
-	ADK::Initialize();
-	const tw::Float NPPT = pow(pow(two,2*nstar-1)/tgamma(nstar+1),2);
-	const tw::Float NADK = (1/(8*pi*nstar))*pow(4*exp(1.0)/nstar,2*nstar);
-	I1 *= NPPT/NADK;
-	A1 *= NPPT/NADK;
+	Ionizer::Initialize();
+	m = fabs(m);
+	const tw::Float F0 = cub(Z/nstar);
+	// First without the Coulomb factor
+	A1 = Uion;
+	A1 *= pow(2,2*nstar) / (nstar*tgamma(nstar+lstar+1)*tgamma(nstar-lstar)); // |C|^2
+	A1 *= sqrt(6/pi);
+	A1 *= (2*l+1) * tgamma(l+m+1) / pow(2,m) / tgamma(m+1) / tgamma(l-m+1);
+	A1 *= pow(0.5/F0,m+1.5);
+	A2 = m+1.5;
+	A3 = -2*F0/3;
+	// Account for Coulomb correction
+	A1 *= pow(2*F0,2*nstar);
+	A2 -= 2*nstar;
+	DeduceStaticCoeff();
+	I1 = space->units->ConvertToNative(I1,tw::dimensions::angular_frequency,tw::units::atomic);
+	A1 = space->units->ConvertToNative(A1,tw::dimensions::angular_frequency,tw::units::atomic);
 }
 
 PPT::PPT(const std::string& name,MetricSpace *m,Task *tsk) : Ionizer(name,m,tsk)
 {
 	terms = 1;
 	directives.Add("terms",new tw::input::Int(&terms));
-}
-
-tw::Float PPT::wfunc(tw::Float x)
-{
-	// the argument of this function varies from 0 up to sqrt(2*terms)
-	// where terms is the number of terms kept in the ppt expansion
-	return tw::Float(0.5) * exp(-x*x) * tw::erfi(x) * sqrt(pi);
+	directives.Add("orbital number",new tw::input::Float(&l),false);
+	directives.Add("effective orbital number",new tw::input::Float(&lstar),false);
+	// the projection must be zero, do not accept input for it
 }
 
 void PPT::Initialize()
 {
 	Ionizer::Initialize();
-	const tw::Float F0 = pow(2*Uion,tw::Float(1.5));
-	A1 =  multiplier * Uion * (4/sqrt(3*pi)) * sqrt(6/pi) * pow(2,2*nstar) / (nstar*tgamma(nstar+lstar+1)*tgamma(nstar-lstar));
-	A3 = 2*F0/3;
-	A1 = space->units->ConvertToNative(A1,tw::dimensions::angular_frequency,tw::units::atomic);
+	// use A1 to hold C_nl^2
+	A1 = pow(2,2*nstar);
+	A1 /= nstar*tgamma(nstar+lstar+1)*tgamma(nstar-lstar);
+	// use A3 to hold F0
+	A3 = pow(2*Uion,tw::Float(1.5));
+}
+
+tw::Float PPT::FourierSum(tw::Float gam,tw::Float nu)
+{
+	tw::Float A0 = 0.0;
+	const tw::Float alpha = 2*(asinh(gam) - gam/sqrt(1 + gam*gam));
+	const tw::Float beta = 2*gam/sqrt(1 + gam*gam);
+	const tw::Float dnu = MyCeil(nu)-nu;
+	for (tw::Int n=0;n<terms;n++)
+		A0 += exp(-alpha*(n+dnu))*tw::dawsoni(sqrt(beta*(n+dnu)));
+	return A0;
 }
 
 tw::Float PPT::AverageRate(tw::Float w0,tw::Float E)
 {
-	tw::Float ans = 0.0;
+	tw::Float ans;
 	const tw::Float wa = space->units->ConvertFromNative(w0,tw::dimensions::angular_frequency,tw::units::atomic);
 	const tw::Float Ea = space->units->ConvertFromNative(fabs(E),tw::dimensions::electric_field,tw::units::atomic) + cutoff_field;
-	const tw::Float F0 = pow(2*Uion,tw::Float(1.5));
+	const tw::Float F = Ea/A3;
 	const tw::Float gam = sqrt(2*Uion)*wa/Ea;
-	const tw::Float gam2 = gam*gam;
-	const tw::Float alpha = 2*(asinh(gam) - gam/sqrt(1 + gam2));
-	const tw::Float beta = 2*gam/sqrt(1 + gam2);
-	const tw::Float g = (3/(2*gam))*((1 + 1/(2*gam2))*asinh(gam) - sqrt(1 + gam2)/(2*gam));
-	const tw::Float nu = (Uion/wa)*(1 + 1/(2*gam2));
-	const tw::Float dnu = MyCeil(nu)-nu;
-	for (tw::Int n=0;n<terms;n++)
-		ans += exp(-alpha*(n+dnu))*wfunc(sqrt(beta*(n+dnu)));
-	ans *= (gam2/(1 + gam2));
-	ans *= pow(Ea*sqrt(1 + gam2)/(2*F0),tw::Float(1.5));
-	ans *= pow(2*F0/Ea,2*nstar); // coulomb correction
-	ans *= exp(-A3*g/Ea);
-	ans *= A1;
-	return ans;
+	const tw::Float g = (3/(2*gam))*((1 + 1/(2*gam*gam))*asinh(gam) - sqrt(1 + gam*gam)/(2*gam));
+	const tw::Float nu = (Uion/wa) * (1 + 1/(2*gam*gam));
+	ans = Uion*A1*sqrt(6/pi)*(2*l+1);
+	ans *= pow(F*sqrt(1 + gam*gam)/2,tw::Float(1.5));
+	ans *= (4/sqrt(3*pi)) * (gam*gam/(1 + gam*gam)) * FourierSum(gam,nu);
+	ans *= exp(-2*g/(3*F));
+	ans *= pow(2/F,2*nstar); // coulomb correction
+	return space->units->ConvertToNative(ans,tw::dimensions::angular_frequency,tw::units::atomic);
+}
+
+void PMPB::Initialize()
+{
+	Ionizer::Initialize();
+	// use A1 to hold C_nl^2, n.b. PMPB has a different convention from PPT (factor of 4)
+	A1 = pow(2,2*nstar-2);
+	A1 /= nstar*tgamma(nstar+lstar+1)*tgamma(nstar-lstar);
+	// use A3 to hold F0
+	A3 = pow(2*Uion,tw::Float(1.5));
 }
 
 tw::Float PMPB::AverageRate(tw::Float w0,tw::Float E)
 {
-	tw::Float ans = PPT::AverageRate(w0,E);
+	// Mappings from our PPT notation to PMPB notation:
+	// beta -> beta , gam -> gam , Uion -> I , Uion/w -> K0
+	// E/F0 -> F , alpha -> 2*c1 , nu -> nth , g -> g , dawson_integral -> script-F
+	tw::Float ans;
 	const tw::Float wa = space->units->ConvertFromNative(w0,tw::dimensions::angular_frequency,tw::units::atomic);
 	const tw::Float Ea = space->units->ConvertFromNative(fabs(E),tw::dimensions::electric_field,tw::units::atomic) + cutoff_field;
+	const tw::Float F = Ea/A3;
 	const tw::Float gam = sqrt(2*Uion)*wa/Ea;
-	ans *= pow(1+2*gam/exp(1.0),-2*nstar);
-	ans *= nstar*tgamma(nstar+lstar+1)*tgamma(nstar-lstar);
-	ans /= sqr(tgamma(nstar+1));
-	return ans;
+	const tw::Float g = (3/(2*gam))*((1 + 1/(2*gam*gam))*asinh(gam) - sqrt(1 + gam*gam)/(2*gam));
+	const tw::Float nu = (Uion/wa) * (1 + 1/(2*gam*gam));
+	ans = (2/pi)*Uion*A1*(2*l+1);
+	ans *= pow(Uion/wa,-1.5);
+	ans *= sqrt(2*gam/sqrt(1+gam*gam)) * FourierSum(gam,nu);
+	ans *= exp(-2*g/(3*F));
+	// Following is the improved Coulomb correction factor
+	ans *= pow(2/F,2*nstar) * pow(1+2*gam/exp(1),-2*nstar);
+	return space->units->ConvertToNative(ans,tw::dimensions::angular_frequency,tw::units::atomic);
 }
 
 // ASHER_MOD

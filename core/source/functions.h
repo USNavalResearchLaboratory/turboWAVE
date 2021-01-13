@@ -110,6 +110,11 @@ namespace tw
 		return real((one - erfcc(ii*x))/ii);
 	}
 
+	inline tw::Float dawsoni(const tw::Float x)
+	{
+		return tw::Float(0.5) * exp(-x*x) * tw::erfi(x) * sqrt(pi);
+	}
+
 }
 
 inline tw::Float Factorial(tw::Int n)

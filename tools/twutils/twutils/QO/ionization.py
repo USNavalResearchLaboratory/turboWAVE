@@ -119,10 +119,6 @@ def Keldysh_Parameter(omega,Uion,E):
 	:return: dimensionless adiabaticity parameter'''
 	return omega*np.sqrt(2.0*Uion)/E
 
-def wfunc(x):
-	"""Exponential integral from PPT theory (Dawson's integral)"""
-	return np.real(0.5 * np.exp(-x**2) * np.sqrt(np.pi) * spsf.erf(x*1j) / 1j)
-
 def CycleAveragingFactor(Uion,E):
 	'''Returns the PPT cycle averaging factor, multiply static rate by this factor to get average rate.
 
@@ -172,19 +168,39 @@ class AtomicUnits:
 
 class Ionization(AtomicUnits):
 	'''Base class for computing ionization rates'''
-	def __init__(self,w0,Uion,Z,terms=1):
+	def __init__(self,averaging,Uion,Z,lstar=0,l=0,m=0,w0=0,terms=1):
 		'''Create an ionization object.  Base class should be treated as abstract.
 
-		:param double w0: radiation angular frequency in atomic units
+		:param bool averaging: whether this object will cycle average the rate, or try to return static rate
 		:param double Uion: ionization potential in atomic units
 		:param double Z: residual charge in atomic units
-		:param int terms: terms to keep in PPT expansion'''
+		:parameter float lstar: effective orbital angular momentum
+		:parameter int l: orbital angular momentum quantum number
+		:parameter int m: orbital angular momentum projection in direction of field
+		:parameter float w0: angular frequency of radiation in atomic units
+		:parameter int terms: terms to keep in expansion over multiphoton orders'''
 		super().__init__()
-		self.w0 = w0
+		self.avg = averaging
 		self.Uion = Uion
 		self.Z = Z
+		self.lstar = lstar
+		self.l = l
+		self.m = m
+		self.w0 = w0
 		self.terms = terms
 		self.cutoff_field = 1e-3
+		# coefficients for standard form ionization formulas
+		self.C_pre = 0.0
+		self.C_pow = 0.0
+		self.C_exp = 0.0
+	def ToAverage(self):
+		'''Switch to averaging.  This must not be called more than once.'''
+		self.C_pre *= np.sqrt(3.0/np.pi) / (2*self.Uion)**0.75
+		self.C_pow += 0.5
+	def ToStatic(self):
+		'''Switch to static rate.  This must not be called more than once.'''
+		self.C_pre *= (2*self.Uion)**0.75 / np.sqrt(3.0/np.pi)
+		self.C_pow -= 0.5
 	def ExtractEikonalForm(self,E,dt,w00=0.0,bandwidth=1.0):
 		"""Extract amplitude, phase, and center frequency from a carrier resolved field E.
 		The assumed form is :math:`E = \Re\{Ae^{i\phi}\}`.
@@ -224,165 +240,191 @@ class Ionization(AtomicUnits):
 		amp = np.abs(Et)
 		phase = (np.angle(Et).swapaxes(0,ndims-1) + w0*np.linspace(0,(Nt-1)*dt,Nt)).swapaxes(0,ndims-1)
 		return amp,phase,w0
-	def Coeff(self,averaging):
-		# Precompute coefficients for ionization formulas
-		return 0.0,1.0,-1.0
-	def Rate(self,Es,averaging):
+	def Rate(self,Es):
 		'''Get the ionization rate, returned value is in atomic units.
+		The object's internal state decides whether this is a static or cycle averaged rate.
 
-		:param np.array Es: Time domain electric field in atomic units, any shape.
-		:param bool averaging: Interpret Es a complex envelope and get cycle averaged rate.  In this case :math:`|Es|` is expected to give the crest.'''
+		:param np.array Es: Time domain electric field in atomic units, any shape.  If a complex envelope is given :math:`|Es|` is expected to give the crest.'''
 		E = np.abs(Es) + self.cutoff_field
-		C1,C2,C3 = self.Coeff(averaging)
-		return C1*E**C2*np.exp(C3/E)
+		return self.C_pre * E**self.C_pow * np.exp(self.C_exp/E)
 
 class Hydrogen(Ionization):
 	"""Landau & Lifshitz formula for hydrogen, using PPT averaging"""
-	def Coeff(self,averaging):
-		C_pre = 4.0
-		C_pow = -1.0
-		C_exp = -2.0/3.0
+	def __init__(self,averaging,Uion,Z):
+		super().__init__(averaging,Uion,Z)
+		self.C_pre = 4.0
+		self.C_pow = -1.0
+		self.C_exp = -2.0/3.0
 		if averaging:
-			C_pre *= np.sqrt(3.0/np.pi) / (2*self.Uion)**0.75
-			C_pow += 0.5
-		return C_pre,C_pow,C_exp
+			self.ToAverage()
 
 class ADK(Ionization):
-	'''Standard ADK tunneling for s orbitals'''
-	def Coeff(self,averaging):
-		Uion = self.Uion
-		Z = self.Z
+	'''Full ADK for arbitrary states'''
+	def __init__(self,averaging,Uion,Z,lstar=0,l=0,m=0):
+		super().__init__(averaging,Uion,Z,lstar,l,m)
+		nstar = Z/np.sqrt(2*Uion)
+		m = abs(self.m)
+		e = np.exp(1.0)
+		sn2l2 = np.sqrt(nstar**2-lstar**2)
+		self.C_pre = np.sqrt(3/np.pi**3) * (2*l+1) * spsf.factorial(l+m) / spsf.factorial(m) / spsf.factorial(l-m)
+		self.C_pre *= (e/sn2l2)**(m+1.5) # exponent is of poor print quality in JETP
+		self.C_pre *= ((nstar+lstar)/(nstar-lstar))**(lstar+0.5)
+		self.C_pre *= (Z**2/nstar**3)
+		self.C_pre *= (4*e*Z**3/nstar**3/sn2l2)**(2*nstar-m-1.5)
+		self.C_pow = m+1.5-2*nstar
+		self.C_exp = -2*Z**3/(3*nstar**3) # ADK 1986 has nstar**4 in Eq. 21, must be a typo?
+		if not averaging:
+			self.ToStatic()
+
+class ADK00(Ionization):
+	'''ADK theory simplified for lstar=l=m=0'''
+	def __init__(self,averaging,Uion,Z):
+		super().__init__(averaging,Uion,Z)
 		nstar = Z/np.sqrt(2*Uion)
 		D = ((4.0*np.exp(1.0)*Z**3)/nstar**4)**nstar
-		C_pre = D*D/(8.0*np.pi*Z)
-		C_pow = 1.0-2*nstar
-		C_exp = -2*Z**3/(3.0*nstar**3)
+		self.C_pre = D*D/(8.0*np.pi*Z)
+		self.C_pow = 1.0-2*nstar # N.b. this is already for the static rate
+		self.C_exp = -2*Z**3/(3.0*nstar**3)
 		if averaging:
-			C_pre *= np.sqrt(3.0/np.pi) / (2*Uion)**0.75
-			C_pow += 0.5
-		return C_pre,C_pow,C_exp
+			self.ToAverage()
 
-class Klaiber(Ionization):
-	'''Klaiber dressed coulomb corrected SFA (Eq. 97)'''
-	def Coeff(self,averaging):
-		Uion = self.Uion
+class KYH(Ionization):
+	'''KYH theory for relativistic tunneling, using the dressed coulomb corrected SFA (Eq. 97)'''
+	def __init__(self,averaging,Uion,Z):
+		super().__init__(averaging,Uion,Z)
 		Ua2 = Uion*C.alpha**2
 		Ea = (2*Uion)**1.5 # definition of Ea applies to Eq. 97 but not Fig. 4 caption
-		C_pre = 2**(3-4*Ua2)*np.sqrt(3/np.pi)*(1-7*Ua2/72)*np.exp(4*Ua2)*(2*Uion)**(1.75-3*Ua2)
-		C_pre /= spsf.gamma(3-2*Ua2)
-		C_pow = 2*Ua2 - 0.5
-		C_exp = -(2.0/3.0)*Ea*(1-Ua2/12)
+		self.C_pre = 2**(3-4*Ua2)*np.sqrt(3/np.pi)*(1-7*Ua2/72)*np.exp(4*Ua2)*(2*Uion)**(1.75-3*Ua2)
+		self.C_pre /= spsf.gamma(3-2*Ua2)
+		self.C_pow = 2*Ua2 - 0.5
+		self.C_exp = -(2.0/3.0)*Ea*(1-Ua2/12)
 		if not averaging:
-			C_pre /= np.sqrt(3.0/np.pi) / (2*Uion)**0.75
-			C_pow -= 0.5
-		return C_pre,C_pow,C_exp
+			self.ToStatic()
 
-class PPT_Tunneling(ADK):
-	'''Evaluating the PPT theory in the tunneling limit, with the infinite sum solved analytically.'''
-	def Coeff(self,averaging):
-		# Derive from ADK so that in the tunneling limit,
-		# we can simply use Popov's note to undo application of the Stirling formula
-		nstar = self.Z/np.sqrt(2*self.Uion)
-		NPPT = (2**(2*nstar-1)/spsf.gamma(nstar+1))**2
-		NADK = (1/(8*np.pi*nstar))*(4*np.exp(1)/nstar)**(2*nstar)
-		C1,C2,C3 = super().Coeff(averaging)
-		C1 *= NPPT/NADK
-		return C1,C2,C3
+class PPT_Tunneling(Ionization):
+	'''Evaluating the PPT theory in the tunneling limit, with the infinite sum solved analytically.
+	This is PPT Eq. 59 multiplied by the standard Coulomb factor, and taking gamma=0.
+	For the bound state coefficient we use ADK Eq. 19.'''
+	def __init__(self,averaging,Uion,Z,lstar=0,l=0,m=0):
+		super().__init__(averaging,Uion,Z,lstar,l,m)
+		nstar = Z/np.sqrt(2*Uion)
+		m = abs(self.m)
+		F0 = Z**3/nstar**3
+		# First without the Coulomb factor
+		self.C_pre = Uion
+		self.C_pre *= 2**(2*nstar) / (nstar*spsf.gamma(nstar+lstar+1)*spsf.gamma(nstar-lstar)) # |C|^2
+		self.C_pre *= np.sqrt(6/np.pi)
+		self.C_pre *= (2*l+1) * spsf.factorial(l+m) / 2**m / spsf.factorial(m) / spsf.factorial(l-m)
+		self.C_pre *= (0.5/F0)**(m+1.5)
+		self.C_pow = m+1.5
+		self.C_exp = -2*F0/3
+		# Account for Coulomb correction
+		self.C_pre *= (2*F0)**(2*nstar)
+		self.C_pow -= 2*nstar
+		if not averaging:
+			self.ToStatic()
 
-class PPT(Ionization):
-	'''Full PPT theory accounting for multiphoton and tunneling limits.
-	If instantaneous rate is requested, the cycle averaging factor is divided out.
-	However, it may be better to use the ``PPT_Tunneling`` class in this case.'''
-	def Rate(self,Es,averaging):
-		E = np.abs(Es) + self.cutoff_field
-		w = self.w0
-		F0 = (2*self.Uion)**1.5
-		nstar = self.Z/np.sqrt(2*self.Uion)
-		lstar = nstar - 1
-		C2 = 2**(2*nstar) / (nstar*spsf.gamma(nstar+lstar+1)*spsf.gamma(nstar-lstar))
-		gam = np.sqrt(2.0*self.Uion)*w/E
-		alpha = 2 * (np.arcsinh(gam)-gam/np.sqrt(1+gam**2))
-		beta = 2*gam/np.sqrt(1+gam**2)
+class HybridTheories(Ionization):
+	'''Base class for theories that handle both multiphoton and tunneling limits'''
+	def __init__(self,averaging,Uion,Z,lstar=0,l=0,m=0,w0=0,terms=1):
+		if m!=0.0:
+			raise ValueError('Hybrid theories all require m=0')
+		if w0==0.0:
+			raise ValueError('Hybrid theories require w>0')
+		super().__init__(averaging,Uion,Z,lstar,l,m,w0,terms)
+	def Params(self,E,w,Uion,Z):
+		nstar = Z/np.sqrt(2*Uion)
+		F = E*nstar**3/Z**3
+		gam = Z*w/(nstar*E)
 		g = (3/(2*gam))*((1+1/(2*gam**2))*np.arcsinh(gam)-np.sqrt(1+gam**2)/(2*gam))
 		nu = (self.Uion/w) * (1 + 1/(2*gam**2))
-		A0 = 0.0*Es # if Es is an array we want A0 to be one also
+		return nstar,F,gam,g,nu
+	def FourierSum(self,gam,nu):
+		A0 = 0.0*gam; # make this the same shape as gam, if gam is an array
+		alpha = 2 * (np.arcsinh(gam)-gam/np.sqrt(1+gam**2))
+		beta = 2*gam/np.sqrt(1+gam**2)
 		dnu = np.ceil(nu) - nu
 		for n in range(self.terms):
-			A0 += np.exp(-alpha*(n+dnu))*wfunc(np.sqrt(beta*(n+dnu)))
-		A0 *= (4/np.sqrt(3*np.pi)) * (gam**2/(1+gam**2))
-		ans = A0*(E*np.sqrt(1+gam**2)/(2*F0))**1.5
-		ans *= self.Uion*C2*np.sqrt(6/np.pi) * np.exp(-2.0*F0*g/(3*E))
+			A0 += np.exp(-alpha*(n+dnu))*spsf.dawsn(np.sqrt(beta*(n+dnu))) # only valid for m=0
+		return A0;
+
+class PPT(HybridTheories):
+	'''PPT theory accounting for multiphoton and tunneling limits, but assuming m=0.
+	This is PPT Eq. 54 multiplied by the standard Coulomb factor, and taking m=0.
+	For the bound state coefficient we use ADK Eq. 19.
+	If static rate is requested, the result is only valid in the limit gamma=0'''
+	def Rate(self,Es):
+		E = np.abs(Es) + self.cutoff_field
+		w = self.w0
+		lstar = self.lstar
+		l = self.l
+		nstar,F,gam,g,nu = self.Params(E,w,self.Uion,self.Z)
+		ans = self.Uion
+		ans *= 2**(2*nstar) / (nstar*spsf.gamma(nstar+lstar+1)*spsf.gamma(nstar-lstar)) # |C|^2
+		ans *= np.sqrt(6/np.pi) * (2*l+1)
+		ans *= (F*np.sqrt(1+gam**2)/2)**1.5
+		ans *= (4/np.sqrt(3*np.pi)) * (gam**2/(1+gam**2)) * self.FourierSum(gam,nu)
+		ans *= np.exp(-2*g/(3*F))
 		# Following is the Coulomb correction factor
-		ans *= (2*F0/E)**(2*nstar)
-		if averaging:
+		ans *= (2/F)**(2*nstar)
+		if self.avg:
 			return ans
 		else:
 			# If explicit, simply unwind cycle averaging.
 			# This does not account for changes in sub-cycle structure with adiabaticity, but gives right average behavior.
 			return ans/CycleAveragingFactor(self.Uion,E)
 
-class PMPB(Ionization):
-	'''PMBP theory, similar to PPT but with different Coulomb factor and bound state coefficient.
-	This routine takes lstar=0, unlike others where lstar=nstar-1.'''
-	def Rate(self,Es,averaging):
-		# Mappings from our PPT notation to PMPB notation:
-		# beta -> beta , gam -> gam , Uion -> I , Uion/w -> K0
-		# E/F0 -> F , alpha -> 2*c1 , nu -> nth , g -> g , wfunc -> script-F
+class PMPB(HybridTheories):
+	'''PMBP theory, similar to PPT but with improved Coulomb factor, assuming m=0.
+	Take lstar=0,l=0,m=0 to strictly recover PMPB Eq. 6.'''
+	def Rate(self,Es):
+		# Note that |C_PPT|^2 = 4*|C_PMPB|^2
+		# This can be seen in how the respective authors write the wavefunction.
 		E = np.abs(Es) + self.cutoff_field
 		w = self.w0
-		F = E / (2*self.Uion)**1.5
-		nstar = self.Z/np.sqrt(2*self.Uion)
-		C2 = 2**(2*nstar-2.0) / spsf.gamma(nstar+1)**2
-		gam = np.sqrt(2.0*self.Uion)*w/E
-		c1 = np.arcsinh(gam)-gam/np.sqrt(1+gam**2)
-		beta = 2*gam/np.sqrt(1+gam**2)
-		g = (3/(2*gam))*((1+1/(2*gam**2))*np.arcsinh(gam)-np.sqrt(1+gam**2)/(2*gam))
-		nu = (self.Uion/w) * (1 + 1/(2*gam**2))
-		A0 = 0.0*Es # if Es is an array we want A0 to be one also
-		dnu = np.ceil(nu) - nu
-		for n in range(self.terms):
-			A0 += np.exp(-2*c1*(n+dnu))*wfunc(np.sqrt(beta*(n+dnu)))
-		ans = A0 * (2/np.pi) * C2 * self.Uion * (self.Uion/w)**(-1.5) * np.sqrt(beta)
+		lstar = self.lstar
+		l = self.l
+		nstar,F,gam,g,nu = self.Params(E,w,self.Uion,self.Z)
+		ans = (2/np.pi)*self.Uion
+		ans *= 2**(2*nstar-2) / (nstar*spsf.gamma(nstar+lstar+1)*spsf.gamma(nstar-lstar)) # |C_PMBP|^2 generalized
+		ans *= 2*l + 1 # generalize also for l>0, but demand m=0
+		ans *= (self.Uion/w)**-1.5
+		ans *= np.sqrt(2*gam/np.sqrt(1+gam**2))
+		ans *= self.FourierSum(gam,nu)
 		ans *= np.exp(-2*g/(3*F))
 		# Following is the improved Coulomb correction factor
 		ans *= (2/F)**(2*nstar) * (1+gam*2/np.exp(1))**(-2*nstar)
-		if averaging:
+		if self.avg:
 			return ans
 		else:
 			# If explicit, simply unwind cycle averaging.
 			# This does not account for changes in sub-cycle structure with adiabaticity, but gives right average behavior.
 			return ans/CycleAveragingFactor(self.Uion,E)
 
-class YI(Ionization):
-	"""Yudin-Ivanov phase dependent ionization rate."""
+class YI(HybridTheories):
+	"""Yudin-Ivanov phase dependent ionization rate, Eq. 17., assuming m=0."""
 	def Rate(self,amp,phase):
 		"""Get the phase dependent rate.  The Phase can be extracted using the
 		Ionization class method ExtractEikonalForm.
 
 		:param numpy.array amp: Amplitude of the field, any shape
 		:param numpy.array phase: Phase of the field, any shape"""
-		w = self.w0
 		amp = amp + self.cutoff_field
 		theta = (phase - 0.5*np.pi)%np.pi - 0.5*np.pi
-		nstar = self.Z/np.sqrt(2*self.Uion)
-		lstar = nstar - 1
-		Anl = 2**(2*nstar) / (nstar*spsf.gamma(nstar+lstar+1)*spsf.gamma(nstar-lstar))
-		gam = np.sqrt(2.0*self.Uion)*w/amp
+		w = self.w0
+		lstar = self.lstar
+		l = self.l
+		nstar,F,gam,g,nu = self.Params(amp,w,self.Uion,self.Z)
+		kappa = np.log(gam+np.sqrt(gam**2+1)) - gam/np.sqrt(1+gam**2)
+		pre = self.Uion
+		pre *= 2**(2*nstar) / (nstar*spsf.gamma(nstar+lstar+1)*spsf.gamma(nstar-lstar)) # A_nl = |C_PPT|^2
+		pre *= (2*l + 1) * np.sqrt(3*kappa/gam**3) # here 2*l+1 = B_lm with m=0
+		pre *= (1+gam**2)**0.75 * (4/np.sqrt(3*np.pi)) * (gam**2/(1+gam**2)) * self.FourierSum(gam,nu) # C
+		pre *= (2/F)**(2*nstar-1)
 		a = 1+gam*gam-np.sin(theta)**2
 		b = np.sqrt(a*a+4*gam*gam*np.sin(theta)**2)
 		c = np.sqrt((np.sqrt((b+a)/2)+gam)**2 + (np.sqrt((b-a)/2)+np.sin(np.abs(theta)))**2)
 		Phi = (gam**2 + np.sin(theta)**2 + 0.5)*np.log(c)
 		Phi -= 3*(np.sqrt(b-a)/(2*np.sqrt(2)))*np.sin(np.abs(theta))
 		Phi -= (np.sqrt(b+a)/(2*np.sqrt(2)))*gam
-		kappa = np.log(gam+np.sqrt(gam**2+1)) - gam/np.sqrt(1+gam**2)
-		alpha = 2 * (np.arcsinh(gam)-gam/np.sqrt(1+gam**2))
-		beta = 2*gam/np.sqrt(1+gam**2)
-		nu = (self.Uion/w) * (1 + 1/(2*gam**2))
-		A0 = 0.0*amp
-		dnu = np.ceil(nu) - nu
-		for n in range(self.terms):
-			A0 += np.exp(-alpha*(n+dnu))*wfunc(np.sqrt(beta*(n+dnu)))
-		A0 *= (4/np.sqrt(3*np.pi)) * (gam**2/(1+gam**2))
-		pre = Anl * np.sqrt(3*kappa/gam**3)*(1+gam**2)**0.75 * A0 * self.Uion
-		pre *= (2*(2*self.Uion)**1.5 / amp)**(2*nstar-1)
 		return pre * np.exp(-amp**2 * Phi / w**3)

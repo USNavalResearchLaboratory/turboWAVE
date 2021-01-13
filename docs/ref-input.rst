@@ -114,7 +114,7 @@ The keys are matched only to whole words, i.e. ``$r`` would not match ``$r0``.  
 
 	#define $r ( $r0 , $r0 )
 
-would be expanded as ``( 2.5 [cm] , 2.5 [cm] )`` assuming ``$r0`` is defined as above.  Macros can be defined at any point in an input file, except where they would interrupt another directive. Macros are scoped by file.  Attempting to redefine a macro in the same scope throws an error.
+would be expanded as ``( 2.5 [cm] , 2.5 [cm] )`` assuming ``$r0`` is defined as above.  Macros can be defined at any point in an input file, except where they would interrupt another directive. Unlike C, macros are scoped by file, and redefinition in the same scope throws an error.
 
 Function-like macros are not supported.  Line continuation using ``\`` is not allowed, as of this writing.
 

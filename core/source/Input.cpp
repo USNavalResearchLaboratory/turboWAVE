@@ -202,7 +202,14 @@ void tw::input::StripComments(std::string& in_out)
 	// The following blindly matches any comment, whether quoted or not.
 	// TW has always used the blind version, continue with that for now.
 	std::regex ex_blind(R"(\/\/.*?(\n|\r\n)|\/\*(.|\s)*?\*\/)");
-	in_out = std::regex_replace(in_out,ex_blind,std::string("\n"));
+	try
+	{
+		in_out = std::regex_replace(in_out,ex_blind,std::string("\n"));
+	}
+	catch (...)
+	{
+		throw tw::FatalError("Error trying to strip comments.  Perhaps C-style comment wasn't closed.");
+	}
 }
 
 // The following regex are intended to be processed line by line.
@@ -556,6 +563,9 @@ tw::input::Preamble tw::input::EnterInputFileBlock(const std::string& com,std::s
 	else
 		ans.attaching = false;
 	bool keywordFound = false;
+	for (auto s : ans.words)
+		if (s=="new" || s=="generate" || s=="get")
+			throw tw::FatalError(ans.err_prefix+"misplaced keyword <"+s+">.");
 	for (auto s : ans.words)
 		if (s=="for")
 			keywordFound = true;

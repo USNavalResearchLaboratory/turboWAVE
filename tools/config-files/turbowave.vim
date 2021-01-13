@@ -35,7 +35,7 @@ syn match twmode "plane wave"
 syn match twmode "airy disc"
 syn match twmode "bessel beam"
 syn match twmode "multipole"
-syn keyword twioniz adk ppt mpi klaiber pmpb
+syn keyword twioniz adk ppt mpi kyh pmpb
 syn keyword twshape quintic sin2 sech
 
 syn region twString1 start="'" end="'"

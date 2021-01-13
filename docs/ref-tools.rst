@@ -567,7 +567,7 @@ Model appropriate for low fields or high frequencies.
 ADK Tunneling Ionization
 ,,,,,,,,,,,,,,,,,,,,,,,,,
 
-Model appropriate for high fields or low frequencies.
+Model appropriate for high fields or low frequencies, and arbitrary atomic states.
 
 .. py:function:: new adk ionization [<name>] [for <module_name>] { <directives> }
 
@@ -575,23 +575,47 @@ Model appropriate for high fields or low frequencies.
 
 		Shared directives: see above
 
-Klaiber Tunneling Ionization
+		.. py:function:: orbital number = l
+
+			:param int l: the orbital quantum number of the state
+
+		.. py:function:: orbital projection = m
+
+			:param int m: the projection of the orbital quantum number in the direction of the field
+
+		.. py:function:: effective orbital number = lstar
+
+			:param float lstar: effective orbital quantum number
+
+PPT Tunneling Ionization
 ,,,,,,,,,,,,,,,,,,,,,,,,,,,,
 
-Model appropriate for high fields or low frequencies, based on a Coulomb corrected strong field approximation, and with relativistic corrections.
+This model evaluates the general PPT formula in the tunneling limit.  Differs from ADK only in that the gamma function in the bound state coefficient is not approximated.
 
-.. py:function:: new klaiber ionization [<name>] [for <module_name>] { <directives> }
+.. py:function:: new ppt tunneling [<name>] [for <module_name>] { <directives> }
 
 	The following directives are supported:
 
 		Shared directives: see above
 
-PPT Tunneling Ionization
+		.. py:function:: orbital number = l
+
+			:param int l: the orbital quantum number of the state
+
+		.. py:function:: orbital projection = m
+
+			:param int m: the projection of the orbital quantum number in the direction of the field
+
+		.. py:function:: effective orbital number = lstar
+
+			:param float lstar: effective orbital quantum number
+
+KYH Tunneling Ionization
 ,,,,,,,,,,,,,,,,,,,,,,,,,,,,
 
-This model evaluates the general PPT formula in the tunneling limit.  Differs from ADK only in that the gamma function is not approximated.
+Model appropriate for high fields or low frequencies, based on a Coulomb corrected strong field approximation, and with relativistic corrections.
 
-.. py:function:: new ppt tunneling [<name>] [for <module_name>] { <directives> }
+.. py:function:: new kyh ionization [<name>] [for <module_name>] { <directives> }
 
 	The following directives are supported:
 
@@ -600,13 +624,21 @@ This model evaluates the general PPT formula in the tunneling limit.  Differs fr
 PPT Photoionization
 ,,,,,,,,,,,,,,,,,,,,
 
-Cycle-averaged model that works across multi-photon and tunneling regimes (convergence in tunneling regime is slow).  Cannot be used for ionization due to carrier-resolved fields, i.e., must be used with an enveloped field solver.
+Cycle-averaged model that works across multi-photon and tunneling regimes (convergence in tunneling regime is slow).  Assumes the projection of the orbital angular momentum in the direction of the field vanishes. Cannot be used for ionization due to carrier-resolved fields, i.e., must be used with an enveloped field solver.
 
 .. py:function:: new ppt ionization [<name>] [for <module_name>] { <directives> }
 
 	The following directives are supported:
 
 		Shared directives: see above
+
+		.. py:function:: orbital number = l
+
+			:param int l: the orbital quantum number of the state
+
+		.. py:function:: effective orbital number = lstar
+
+			:param float lstar: effective orbital quantum number
 
 		.. py:function:: terms = n
 
@@ -615,13 +647,21 @@ Cycle-averaged model that works across multi-photon and tunneling regimes (conve
 PMPB Photoionization
 ,,,,,,,,,,,,,,,,,,,,
 
-Similar to the PPT model, except the Coulomb correction is improved.  The bound state coefficient is also evaluated differently, namely :math:`l^*=0` rather than :math:`l^* = n^*-1`.
+Similar to the PPT model, except the Coulomb correction is improved in the multiphoton limit.  In the original paper the orbital and effective orbital numbers are set to zero.
 
 .. py:function:: new pmpb ionization [<name>] [for <module_name>] { <directives> }
 
 	The following directives are supported:
 
 		Shared directives: see above
+
+		.. py:function:: orbital number = l
+
+			:param int l: the orbital quantum number of the state
+
+		.. py:function:: effective orbital number = lstar
+
+			:param float lstar: effective orbital quantum number
 
 		.. py:function:: terms = n
 

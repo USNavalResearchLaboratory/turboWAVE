@@ -13,6 +13,7 @@ Apart from the installer and visualization components, ``twutils`` contains modu
 
 .. automodule:: stationary
 	:members:
+	:special-members:
 
 .. automodule:: NLO
 	:members:

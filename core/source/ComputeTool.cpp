@@ -124,7 +124,7 @@ std::map<std::string,tw::tool_type> ComputeTool::Map()
 		{"adk ionization",tw::tool_type::adk},
 		{"ppt ionization",tw::tool_type::ppt},
 		{"ppt tunneling",tw::tool_type::ppt_tunneling},
-		{"klaiber ionization",tw::tool_type::klaiber},
+		{"kyh ionization",tw::tool_type::kyh},
 		{"pmpb ionization",tw::tool_type::pmpb},
 		{"box diagnostic",tw::tool_type::boxDiagnostic},
 		{"orbit diagnostic",tw::tool_type::particleOrbits},
@@ -271,8 +271,8 @@ ComputeTool* ComputeTool::CreateObjectFromType(const std::string& name,tw::tool_
 		case tw::tool_type::ppt_tunneling:
 			ans = new PPT_Tunneling(name,ms,tsk);
 			break;
-		case tw::tool_type::klaiber:
-			ans = new Klaiber(name,ms,tsk);
+		case tw::tool_type::kyh:
+			ans = new KYH(name,ms,tsk);
 			break;
 		case tw::tool_type::pmpb:
 			ans = new PMPB(name,ms,tsk);

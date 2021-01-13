@@ -767,19 +767,19 @@ std::string Simulation::InputFileFirstPass()
 {
 	// The first pass is used to fully initialize the task
 
+	int numRanksProvided,worldRank;
+	std::stringstream messageOut;
+	MPI_Comm_size(MPI_COMM_WORLD,&numRanksProvided);
+	MPI_Comm_rank(MPI_COMM_WORLD,&worldRank);
+	// world rank is suitable for reading task data from restart file
+	// because this data is the same in every restart file
+
 	try
 	{
 		// Lock();
 
 		bool foundGrid = false;
-		std::stringstream messageOut,fileName;
-
-		int numRanksProvided,worldRank;
-		MPI_Comm_size(MPI_COMM_WORLD,&numRanksProvided);
-		MPI_Comm_rank(MPI_COMM_WORLD,&worldRank);
-		// world rank is suitable for reading task data from restart file
-		// because this data is the same in every restart file
-
+		std::stringstream fileName;
 		std::stringstream inputString;
 
 		tw::input::PreprocessInputFile(tw::input::FileEnv(inputFileName),inputString);
@@ -941,16 +941,22 @@ std::string Simulation::InputFileFirstPass()
 		}
 
 		// Unlock();
-
-		return messageOut.str();
 	}
 
 	catch (tw::FatalError& e)
 	{
-		std::cout << "FATAL ERROR: " << e.what() << std::endl;
-		std::cout << "Could not start simulation --- exiting now." << std::endl;
+		if (worldRank==0)
+		{
+			std::cout << "FATAL ERROR: " << e.what() << std::endl;
+			std::cout << "Could not start simulation --- exiting now." << std::endl;
+		}
+		// Following acts as a barrier before exiting; we should implement MPI_Barrier in TW_MPI.
+		char buf[255];
+		MPI_Bcast(buf,1,MPI_BYTE,0,MPI_COMM_WORLD);
 		exit(1);
 	}
+
+	return messageOut.str();
 }
 
 void Simulation::SetupLocalGrid()

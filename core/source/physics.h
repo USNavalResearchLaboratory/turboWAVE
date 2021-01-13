@@ -97,10 +97,12 @@ struct Ionizer : ComputeTool
 	sparc::hydro_set hi,he,hgas; // for hydro save the field indexing
 
 	// members that are assigned in Initialize or in constructor
-	tw::Float Z,Uion,nstar,lstar,I1,I2,I3,A1,A2,A3;
+	tw::Float Z,Uion,nstar,lstar,l,m,I1,I2,I3,A1,A2,A3;
 
 	Ionizer(const std::string& name,MetricSpace *m,Task *tsk);
 	virtual void Initialize();
+	void DeduceAveragedCoeff();
+	void DeduceStaticCoeff();
 	virtual tw::Float InstantRate(tw::Float w0,tw::Float E) { return 0.0; }
 	virtual tw::Float AverageRate(tw::Float w0,tw::Float E) { return 0.0; }
 	tw::Float ThresholdEstimate() { return space->units->ConvertToNative(A3,tw::dimensions::electric_field,tw::units::atomic); }
@@ -114,17 +116,23 @@ struct Multiphoton : Ionizer
 	virtual tw::Float AverageRate(tw::Float w0,tw::Float E);
 };
 
-struct ADK : Ionizer
+struct Tunneling : Ionizer
 {
-	ADK(const std::string& name,MetricSpace *m,Task *tsk) : Ionizer(name,m,tsk) {}
-	virtual void Initialize();
+	// abstract class
+	Tunneling(const std::string& name,MetricSpace *m,Task *tsk) : Ionizer(name,m,tsk) {}
 	virtual tw::Float InstantRate(tw::Float w0,tw::Float E);
 	virtual tw::Float AverageRate(tw::Float w0,tw::Float E);
 };
 
-struct Klaiber : ADK
+struct KYH : Tunneling
 {
-	Klaiber(const std::string& name,MetricSpace *m,Task *tsk) : ADK(name,m,tsk) {}
+	KYH(const std::string& name,MetricSpace *m,Task *tsk) : Tunneling(name,m,tsk) {}
+	virtual void Initialize();
+};
+
+struct ADK : Tunneling
+{
+	ADK(const std::string& name,MetricSpace *m,Task *tsk);
 	virtual void Initialize();
 };
 
@@ -140,12 +148,13 @@ struct PPT : Ionizer
 	PPT(const std::string& name,MetricSpace *m,Task *tsk);
 	virtual void Initialize();
 	virtual tw::Float AverageRate(tw::Float w0,tw::Float E);
-	tw::Float wfunc(tw::Float x);
+	tw::Float FourierSum(tw::Float gam,tw::Float nu);
 };
 
 struct PMPB : PPT
 {
 	PMPB(const std::string& name,MetricSpace *m,Task *tsk) : PPT(name,m,tsk) {}
+	virtual void Initialize();
 	virtual tw::Float AverageRate(tw::Float w0,tw::Float E);
 };
 

@@ -9,7 +9,7 @@ import scipy.constants as C
 
 class SimUnits:
 	"""Contains constants characterizing plasma units.
-	Class is created with the unit density in *cgs* units.
+	Class is created with the unit density in mks units.
 
 	t1 = unit of time in seconds
 
@@ -20,7 +20,7 @@ class SimUnits:
 	x1 = 0.0
 	E1 = 0.0
 	def __init__(self,n1):
-		wp = np.sqrt(n1*1e6*C.e*C.e/(C.epsilon_0*C.m_e))
+		wp = np.sqrt(n1*C.e*C.e/(C.epsilon_0*C.m_e))
 		self.t1 = 1/wp
 		self.x1 = C.c/wp
 		self.E1 = C.m_e * C.c * wp / C.e
@@ -58,7 +58,7 @@ def getexp(a0,w0,r0,risetime,n1):
 	:param float w0: angular frequency
 	:param float r0: 1/e of amplitude radius
 	:param float risetime: quintic rise parameter
-	:param float n1: unit density in *cgs* units
+	:param float n1: unit density in *mks* units
 
 	:return: (intensity,power,energy,FWHM)"""
 	su = SimUnits(n1)
@@ -67,7 +67,7 @@ def getexp(a0,w0,r0,risetime,n1):
 	rmks = r0*su.x1
 	base_to_base = 2.0*risetime*su.t1
 	A0 = C.m_e * C.c * a0 / C.e
-	wp = np.sqrt(n1*1e6*C.e*C.e/(C.epsilon_0*C.m_e))
+	wp = np.sqrt(n1*C.e*C.e/(C.epsilon_0*C.m_e))
 	E0 = (w0/su.t1) * A0
 	I0 = 0.5*E0*E0/eta0
 	P0 = 0.5*np.pi*rmks*rmks*I0
@@ -83,7 +83,7 @@ def getsim(U0,l0,r0,FWHM,n1):
 	:param float l0: central wavelength
 	:param float r0: 1/e of amplitude radius
 	:param float FWHM: pulse length, full-width-half-maximum of intensity
-	:param float n1: unit density in *cgs* units
+	:param float n1: unit density
 
 	:return: (vector potential,angular frequency,quintic risetime)"""
 	su = SimUnits(n1)

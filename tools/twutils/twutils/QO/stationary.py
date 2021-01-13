@@ -5,10 +5,6 @@ Module :samp:`twutils.QO.stationary`
 This module computes stationary states of numerical atoms.
 It can be used to generate state files for use with quantum optics modules.
 
-.. note::
-
-	Module documentation under construction
-
 Classes and functions
 ----------------------
 '''
@@ -20,9 +16,18 @@ from scipy import constants as C
 from scipy.optimize import newton
 
 def DiracHypergeometricArgument(w,cylindrical,Qnuc,qorb,morb,nr,jam,jzam,Bz):
-	"""Auxilliary function used to find weak field energy levels.
-	At present cylindrical only.
-	Energy is the solution of f(w)==0"""
+	"""Auxilliary function used to find weak field energy levels.  At present cylindrical only.
+	Energy is the solution of f(w)==0.
+
+	:parameter float w: energy of the level, depending on usage possibly guess
+	:parameter boolean cylindrical: is this a cylincrical atom (currently must be true)
+	:parameter float Qnuc: charge of the nucleus
+	:parameter float qorb: charge of the orbiting particle
+	:parameter float morb: mass of the orbiting particle
+	:parameter float nr: radial quantum number
+	:parameter float jam: total angular momentum
+	:parameter float jzam: total angular momentum projection
+	:parameter float Bz: external magnetic field (must be weak)"""
 	# write the square roots so we dont get complex numbers
 	# we are just trying to get the root finder to not bail
 	l0 = np.sqrt(np.abs(morb**2 - w**2))
@@ -44,26 +49,28 @@ def DiracHypergeometricArgument(w,cylindrical,Qnuc,qorb,morb,nr,jam,jzam,Bz):
 		return 0.0
 
 def SchroedingerEnergyLevel(Qnuc,qorb,morb,nr,lam):
-	"""Returns Schroedinger energy levels indexed by nr and lam
-		Qnuc = charge of nucleus
-		qorb = charge of orbiting particle
-		morb = mass of orbiting particle
-		nr = radial quantum number = [0,1,2,...]
-		lam = orbital angular momentum = [0,1,2,...]
-		note n = principle quantum number = nr+lam+1"""
+	"""Returns Schroedinger energy levels indexed by nr and lam.  The principle quantum number is nr+lam+1.
+
+	:parameter float Qnuc: charge of the nucleus
+	:parameter float qorb: charge of the orbiting particle
+	:parameter float morb: mass of the orbiting particle
+	:parameter int nr: radial quantum number [0,1,2,...]
+	:parameter in lam: orbital angular momentum [0,1,2,...]"""
 	return morb*(1.0 - (Qnuc*qorb)**2/(2.0*(lam+nr+1.0)**2))
 
 def KGEnergyLevel(cylindrical,Qnuc,qorb,morb,nr,lam,lzam,Bz):
-	"""Returns KG energy level indexed by nr,lam,lzam
-		Qnuc = charge of nucleus
-		qorb = charge of orbiting particle
-		morb = mass of orbiting particle
-		nr = radial quantum number = [0,1,2,...]
-		lam = orbital angular momentum = [0,1,2,...]
-		lzam = lam z component = [-lam,...,lam]
-		Bz = magnetic field (must be weak)"""
-	# spherical stability of an electronic atom requires Z <= 68
-	# cylindrical stability requires lam>0
+	"""Returns KG energy level indexed by nr,lam,lzam.
+	Spherical stability of an electronic atom requires Z<=68.
+	Cylindrical stability requires lam>0.
+
+	:parameter boolean cylindrical: is this a cylincrical atom
+	:parameter float Qnuc: charge of the nucleus
+	:parameter float qorb: charge of the orbiting particle
+	:parameter float morb: mass of the orbiting particle
+	:parameter int nr: radial quantum number [0,1,2,...]
+	:parameter int lam: orbital angular momentum [0,1,2,...]
+	:parameter int lzam: orbital angular momentum projection [-lam,...,lam]
+	:parameter float Bz: magnetic field (must be weak)"""
 	if cylindrical:
 		if lzam**2 - (Qnuc*qorb)**2 < 0.0:
 			return 0.0
@@ -75,16 +82,18 @@ def KGEnergyLevel(cylindrical,Qnuc,qorb,morb,nr,lam,lzam,Bz):
 	return morb*np.sqrt(1.0-lzam*qorb*Bz/morb**2)/np.sqrt(e2i)
 
 def DiracEnergyLevel(cylindrical,Qnuc,qorb,morb,nr,jam,jzam,Bz,energy_estimate=0.99):
-	"""Returns Dirac energy levels indexed by nr and jam
-	Qnuc = charge of nucleus
-	qorb = charge of orbiting particle
-	morb = mass of orbiting particle
-	nr = radial quantum number = [0,1,2,...]
-	jam = total angular momentum = [0.5,1.5,2.5,...]
-	jzam = jam z component = [-jam,...,jam]
-	Bz = magnetic field (must be weak)"""
-	# spherical stability of an electronic atom requires Z <= 137
-	# cylindrical stability requires Z <= 68
+	"""Returns Dirac energy levels indexed by nr,jam,jzam.
+	Spherical stability of an electronic atom requires Z<=137.
+	Cylindrical stability requires Z<=68.
+
+	:parameter boolean cylindrical: is this a cylincrical atom
+	:parameter float Qnuc: charge of the nucleus
+	:parameter float qorb: charge of the orbiting particle
+	:parameter float morb: mass of the orbiting particle
+	:parameter int nr: radial quantum number [0,1,2,...]
+	:parameter float jam: total angular momentum [0.5,1.5,2.5,...]
+	:parameter float jzam: total angular momentum projection [-jam,...,jam]
+	:parameter float Bz: magnetic field (must be weak)"""
 	if Bz==0:
 		x2 = (Qnuc*qorb)**2
 		if cylindrical:
@@ -100,78 +109,48 @@ def DiracEnergyLevel(cylindrical,Qnuc,qorb,morb,nr,jam,jzam,Bz,energy_estimate=0
 		return newton(DiracHypergeometricArgument,energy_estimate,args=(cylindrical,Qnuc,qorb,morb,nr,jam,jzam,Bz))
 
 def nu_to_au(energy):
+	'''take energy from natural to atomic units'''
 	return (energy - 1.0)*C.m_e*C.c**2/(2.0*C.Rydberg*C.c*C.h)
 
 def nu_to_eV(energy):
+	'''take energy from natural units to eV'''
 	return (energy - 1.0)*C.m_e*C.c**2/C.e
 
 def nu_to_keV(energy):
+	'''take energy from natural units to keV'''
 	return 1e-3*(energy - 1.0)*C.m_e*C.c**2/C.e
 
 def nu_to_MeV(energy):
+	'''take energy from natural units to MeV'''
 	return 1e-6*(energy - 1.0)*C.m_e*C.c**2/C.e
 
 def SoftCorePotential(Qnuc,r0,num_pts,dr):
-	"""Returns radial grid and scalar potential on the grid
-	num_pts = number of interior cells
-	returned arrays are two cells bigger due to ghost cells"""
+	"""Create scalar potential on a radial grid
+
+	:parameter float Qnuc: charge of the nucleus
+	:parameter float r0: soft core radius
+	:parameter int num_pts: number of interior grid points, total is num_pts+2
+	:parameter float dr: radial grid spacing
+	:returns: an array of radial points and an array of potentials, including ghost cells
+	:returnType: tuple with the two arrays (grid,phi)"""
 	grid = np.linspace(-0.5*dr,num_pts*dr + 0.5*dr,num_pts+2)
 	phi = Qnuc/np.sqrt(r0**2 + grid**2)
 	return grid , phi
-
-def KGMatrixOld(cylindrical,grid,phi,qorb,morb,lam,lzam,Bz):
-	"""Returns matrix of the discretized time-independent KG operator
-	Cylindrical case:
-	-----------------
-	lam is ignored
-	lzam = any integer
-	Spherical case:
-	---------------
-	lam = [0,1,2,...]
-	lzam = [-lam,...,lam]
-	---------------
-	Bz = constant magnetic field in natural units"""
-	N = grid.shape[0]
-	num_pts = N-2
-	dr = grid[1]-grid[0]
-	r1_array = grid[1:N-1] - 0.5*dr
-	r2_array = grid[1:N-1]
-	r3_array = grid[1:N-1] + 0.5*dr
-	phi_array = phi[1:N-1]
-	if cylindrical:
-		T1 = (1.0/dr**2)*r1_array[1:]/r2_array[1:]
-		T2 = qorb**2*phi_array**2 - morb*morb - lzam**2/r2_array**2 - (1.0/dr**2)*(r1_array + r3_array)/r2_array
-		T2 += lzam*qorb*Bz - (0.5*qorb*Bz*r2_array)**2
-		T3 = (1.0/dr**2)*r3_array[:num_pts-1]/r2_array[:num_pts-1]
-	else:
-		if Bz!=0.0:
-			exit(1)
-		# spherical case ignores B-field
-		T1 = (1.0/dr)*3.0*r1_array[1:]**2/(r3_array[1:]**3-r1_array[1:]**3)
-		T2 = qorb**2*phi_array**2 - morb*morb - lam**2/r2_array**2 - (1.0/dr)*3.0*(r1_array**2 + r3_array**2)/(r3_array**3-r1_array**3)
-		T3 = (1.0/dr)*3.0*r3_array[:num_pts-1]**2/(r3_array[:num_pts-1]**3-r1_array[:num_pts-1]**3)
-	# may have to use "spdiags" with older scipy
-	mA = sp.sparse.diags([T1,T2,T3],[-1,0,1])
-	mB = sp.sparse.diags([-2.0*qorb*phi_array],[0])
-	mI = sp.sparse.identity(num_pts)
-	return sp.sparse.bmat([[None,mI],[-mA,-mB]])
 
 def KGMatrix(cylindrical,grid,phi,qorb,morb,lam,lzam,Bz):
 	"""Returns matrix of the discretized time-independent KG operator.
 	This uses the leapfrog friendly Hamiltonian representation.
 	For N grid points we obtain a 2Nx2N matrix corresponding to 2 components.
-	The second component is chi = (w-q*phi)*psi/m
-	Cylindrical case:
-	-----------------
-	lam is ignored
-	lzam = any integer
-	Spherical case:
-	---------------
-	lam = [0,1,2,...]
-	lzam = [-lam,...,lam]
-	---------------
-	Bz = constant magnetic field in natural units
-	Bz has to be small in spherical case."""
+	The second component is :math:`\chi = (\omega-q\phi)\psi/m`
+
+	:parameter boolean cylindrical: is this a cylincrical atom
+	:parameter array grid: grid array, can get from SoftCorePotential function
+	:parameter array phi: potential array, can get from SoftCorePotential function
+	:parameter float qorb: charge of the orbiting particle
+	:parameter float morb: mass of the orbiting particle
+	:parameter int lam: orbital angular momentum [0,1,2,...], ignored in cylindrical case
+	:parameter int lzam: orbital angular momentum projection [-lam,...,lam], or any integer in cylindrical case
+	:parameter float Bz: magnetic field (must be weak in spherical case)"""
 	N = grid.shape[0]
 	num_pts = N-2
 	dr = grid[1]-grid[0]
@@ -197,24 +176,20 @@ def KGMatrix(cylindrical,grid,phi,qorb,morb,lam,lzam,Bz):
 	return sp.sparse.bmat([[mA,mB],[mC,mD]])
 
 def DiracMatrix(cylindrical,grid,phi,qorb,morb,jam,lam,jzam,Bz):
-	"""Returns matrix of the discretized time-independent Dirac operator
-	Returns 2nx2n matrix corresponding to 2-components
-	Cylindrical case:
-	-----------------
-	jam is ignored
-	lam = azimuthal mode number of electron component = jzam +- 1/2
-	jzam = any half integer
-	if jzam = lam+1/2, the 2 components are psi0 and psi3 (spin up)
-	if jzam = lam-1/2, the 2 components are psi1 and psi2 (spin down)
-	Spherical case:
-	---------------
-	The components are 'f' and 'g' which are used to form the bispinor
-	See, e.g., Landau and Lifshitz section 35.
-	jam = [0.5,1.5,...]
-	lam = jam +- 1/2
-	jzam = [-jam,...,jam]
-	------------------
-	Bz = constant magnetic field in natural units"""
+	"""Returns matrix of the discretized time-independent Dirac operator.
+	For N grid points we obtain a 2Nx2N matrix corresponding to 2 components.
+	The two components are :math:`f` and :math:`g` which in turn form the bispinor.
+	See, e.g., Landau and Lifshitz QED section 35.
+
+	:parameter boolean cylindrical: is this a cylincrical atom
+	:parameter array grid: grid array, can get from SoftCorePotential function
+	:parameter array phi: potential array, can get from SoftCorePotential function
+	:parameter float qorb: charge of the orbiting particle
+	:parameter float morb: mass of the orbiting particle
+	:parameter float jam: total angular momentum [0.5,1.5,...], ignored in cylindrical case
+	:parameter int lam: parity number, must be jam :math:`\pm 1/2`, or in cylindrical case, jzam :math:`\pm 1/2`
+	:parameter float jzam: total angular momentum projection [-jam,...,jam], or in cylindrical case, any half integer
+	:parameter float Bz: magnetic field (must be weak in spherical case)"""
 	N = grid.shape[0]
 	num_pts = N-2
 	# uniform grid is assumed
@@ -255,11 +230,18 @@ def DiracMatrix(cylindrical,grid,phi,qorb,morb,jam,lam,jzam,Bz):
 	return sp.sparse.bmat([[mA,mB],[mC,mD]])
 
 class StationaryStateTool:
+	'''Class for managing stationary states, and creating state files'''
 
 	def __init__(self,cylindrical,grid,phi,nr,jam,lam,jzam):
-		'''grid,phi = can be output from SoftCorePotential()
-		nr,jam,lam,jzam = quantum numbers (see TW HTML docs)
-		Dirac vs. KG treatment is triggered by jzam value'''
+		'''Create a stationary state tool.
+
+		:parameter bool cylindrical: is this a cylindrical atom
+		:parameter array grid: radial grid, can be output from SoftCorePotential()
+		:parameter array phi: potential on the radial grid, can be output from SoftCorePotential()
+		:parameter int nr: radial quantum number [0,1,2,...] (cannot be 0 in certain cases)
+		:parameter float jam: see lower level functions for possible values
+		:parameter int lam: see lower level functions for possible values
+		:parameter float jzam: see lower level functions for possible values.  This triggers Dirac or KG treatment depending on whether integer or half-integer.'''
 		self.cylindrical = cylindrical
 		self.grid = grid
 		self.phi = phi
@@ -333,9 +315,11 @@ class StationaryStateTool:
 	def GetBaseComponents(self,energy_guess):
 		'''Gets 2 components used to form the wavefunction, call them f and g.
 		For KG returns a Hamiltonian decomposition, with f the usual scalar, and g an auxiliary function.
-		The Feshbach-Villars decomposition is then (f+g)/sqrt(2) , (f-g)/sqrt(2).
-		For Dirac returns f,g from L&L, which may be used to form the bispinor
-		Return values: En,f,g,sorted (En is the selected eigenvalue, sorted are the first few eigenvalues)'''
+		The Feshbach-Villars decomposition is then :math:`(f+g)/\sqrt{2}` , :math:`(f-g)/\sqrt{2}`.
+		For Dirac returns f,g from L&L, which may be used to form the bispinor.
+
+		:parameter float energy_guess: initial guess of the energy
+		:returns: En,f,g,sorted (En is the selected eigenvalue, sorted are the first few eigenvalues)'''
 
 		num_pts = self.grid.shape[0]-2
 		nr_max = np.int(self.nr + 4)
@@ -360,7 +344,7 @@ class StationaryStateTool:
 		'''Return 4 components (0,1,2,3) derived from the base components f and g.
 		For KG only components 1 and 2 are relevant, components 0 and 3 may be ignored.
 		For KG we return the simple decomposition with psi1 the usual scalar wavefunction.
-		The Feshbach-Villars decomposition is then (psi1+psi2)/sqrt(2) , (psi1-psi2)/sqrt(2).
+		The Feshbach-Villars decomposition is then :math:`(\psi_1+\psi_2)/\sqrt{2}` , :math:`(\psi_1-\psi_2)/\sqrt{2}`.
 		For Dirac the 4 components are the radial part of the bispinor.'''
 		nr = self.nr
 		jam = self.jam
@@ -406,6 +390,10 @@ class StationaryStateTool:
 		return psi0,psi1,psi2,psi3
 
 	def StandardFilename(self,Z):
+		'''Return a filename appropriate for the current quantum state
+
+		:parameter float Z: atomic number, purely for labeling
+		:returns: string with the filename'''
 		file_name = 'z'+str(np.int(Z))
 		if self.cylindrical:
 			file_name += '_c'
@@ -433,6 +421,7 @@ class StationaryStateTool:
 		return file_name
 
 	def WriteFile(self,file_name,psi0,psi1,psi2,psi3,En,softCoreRadius,Qnuc):
+		'''Write the state file given the current quantum state'''
 		num_pts = self.grid.shape[0]-2
 		dr = self.grid[1]-self.grid[0] # assume uniform grid
 		outFile = open(file_name,'w')
