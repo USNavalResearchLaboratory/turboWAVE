@@ -510,10 +510,10 @@ void EOSTillotson::AddPKV(ScalarField& IE, ScalarField& nm, ScalarField& nu_e, F
 			// Determine Region
 			tw::Int region = 0; // 1, 2, 3, 4, or 5 : 0 is for error detection
 			if ( rho_cgs >= rho0_cgs ) region = 1;
-			if ( ((rho_cgs >= RhoIV_cgs) and (rho_cgs < rho0_cgs)) and (u_cgs <= rho_cgs*EIV_cgs) ) region = 2;
-			if ((rho_cgs < rho0_cgs) and (u_cgs >= rho_cgs*ECV_cgs)) region = 3;
-			if ((rho_cgs < RhoIV_cgs) and (u_cgs < rho_cgs*ECV_cgs)) region = 4;
-			if (((rho_cgs > RhoIV_cgs) and (rho_cgs < rho0_cgs)) and ((u_cgs > rho_cgs*EIV_cgs) and (u_cgs < rho_cgs*ECV_cgs))) {
+			if ( ((rho_cgs >= RhoIV_cgs) && (rho_cgs < rho0_cgs)) && (u_cgs <= rho_cgs*EIV_cgs) ) region = 2;
+			if ((rho_cgs < rho0_cgs) && (u_cgs >= rho_cgs*ECV_cgs)) region = 3;
+			if ((rho_cgs < RhoIV_cgs) && (u_cgs < rho_cgs*ECV_cgs)) region = 4;
+			if (((rho_cgs > RhoIV_cgs) && (rho_cgs < rho0_cgs)) && ((u_cgs > rho_cgs*EIV_cgs) && (u_cgs < rho_cgs*ECV_cgs))) {
 				region = 5;
 			}
 			if (region == 0) {

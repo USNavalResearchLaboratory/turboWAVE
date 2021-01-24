@@ -805,9 +805,11 @@ The grid data is a text file.  One way to read it is with the following function
 	        else:
 	            warnings.warn('Grid file found but wrong dimensions ('+grid_file_path+').')
 	            return [np.linspace(0.0,1.0,dims[i]) for i in range(4)]
-	    except:
+	    except FileNotFoundError:
 	        warnings.warn('No grid file found ('+grid_file_path+').')
-	        return [np.linspace(0.0,1.0,dims[i]) for i in range(4)]
+	    except PermissionError:
+	        warnings.warn('Ignoring grid file ('+grid_file_path+') due to permissions.')
+	    return [np.linspace(0.0,1.0,dims[i]) for i in range(4)]
 
 .. _diagnostics-shared:
 

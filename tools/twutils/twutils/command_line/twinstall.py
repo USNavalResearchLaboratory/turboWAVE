@@ -20,7 +20,7 @@ import pkg_resources
 try:
     import curses
     has_curses = True
-except:
+except ModuleNotFoundError:
     has_curses = False
 try:
     import tkinter as tk
@@ -28,7 +28,7 @@ try:
     import tkinter.messagebox
     import tkinter.filedialog
     has_tk = True
-except:
+except ModuleNotFoundError:
     has_tk = False
 
 # Stuff for terminal mode
@@ -50,10 +50,6 @@ This will lead you through the necessary steps.'''
 config_affirm='''The dropdown menus in the "Current Configuration" frame can be used to edit the configuration.
 We have tried to choose the best options by detecting the environment.
 Are you satisfied with the selections?'''
-intel_windows_help='''Sorry, we can't invoke the Intel compiler from here.  Please use the special Intel
-command prompt, and run <nmake /F win.make.edited clean> followed by
-<nmake /F win.make.edited tw3d>.  Then you will have to copy the executable
-manually to a suitable location, preferably one in your environment's path.'''
 
 ###########################################################
 ### BASE CLASSES FOR EITHER TEXT OR GRAPHICAL INTERFACE ###
@@ -427,34 +423,48 @@ class base_tasks(dictionary_view):
         if self.get('Configure Makefile')!='done':
             self.cmd.err('Please complete <Configure Makefile> first')
             return
-        if self.conf.get('Platform')=='Windows' and self.conf.get('Compiler')=='Intel':
-            self.cmd.err('Sorry, cannot invoke Intel compiler.  Please run <win.make.edited> manually using nmake.  You must use the special Intel prompt.')
-            return
         self.set('Compile Code','incomplete')
-        if self.cmd.affirm('Compiler progress will appear in shell window.\nReady to proceed?')=='y':
+        if self.cmd.affirm('Compiler progress will appear in shell window.\nPlease wait for completion.\nReady to proceed?')=='y':
             self.cmd.display('Compiling...')
-            # with suspend_curses():
             save_dir = os.getcwd()
             os.chdir(self.source_path)
             maker = 'GNU'
             if self.conf.get('Platform')=='Windows' and self.conf.get('Compiler')=='Intel':
                 maker = 'MS'
             enter_shell()
-            if maker=='GNU':
-                compl = subprocess.run(['make','-f','makefile.edited','clean'],universal_newlines=True)
-                compl = subprocess.run(['make','-f','makefile.edited','tw3d_release'],universal_newlines=True)
-                if compl.returncode==0:
-                    self.set('Compile Code','done')
-            if maker=='MS':
-                compl = subprocess.run(['nmake','/F','win.make.edited','clean'],universal_newlines=True)
-                compl = subprocess.run(['nmake','/F','win.make.edited','tw3d'],universal_newlines=True)
-                if compl.returncode==0:
-                    self.set('Compile Code','done')
-            leave_shell()
-            os.chdir(save_dir)
-            self.cmd.display('')
-            if self.get('Compile Code')!='done':
+            try:
+                if maker=='GNU':
+                    compl = subprocess.run(['make','-f','makefile.edited','clean'],universal_newlines=True)
+                    compl = subprocess.run(['make','-f','makefile.edited','tw3d_release'],universal_newlines=True)
+                    if compl.returncode==0:
+                        self.set('Compile Code','done')
+                if maker=='MS':
+                    compl = subprocess.run(['nmake','/F','win.make.edited','clean'],universal_newlines=True)
+                    compl = subprocess.run(['nmake','/F','win.make.edited','tw3d'],universal_newlines=True)
+                    if compl.returncode==0:
+                        self.set('Compile Code','done')
+                if self.get('Compile Code')!='done':
+                    raise RuntimeError
+            except FileNotFoundError:
+                leave_shell()
+                self.cmd.display('')
+                if maker=='MS':
+                    self.cmd.err('Could not find nmake. Try running twinstall from Intel shell.')
+                else:
+                    self.cmd.err('Could not find make, perhaps it is not installed?')
+            except RuntimeError:
+                leave_shell()
+                self.cmd.display('')
                 self.cmd.err('There was an error while trying to compile.')
+            except Exception as ex:
+                leave_shell()
+                self.cmd.display('')
+                self.cmd.err('Unexpected error '+type(ex).__name__+', force exit.')
+                exit(1)
+            else:
+                leave_shell()
+                self.cmd.display('')
+            os.chdir(save_dir)
 
     def Install(self):
         if self.get('Compile Code')!='done':
@@ -462,7 +472,10 @@ class base_tasks(dictionary_view):
             return
         self.set('Install Files','incomplete')
         if self.conf.get('Platform')=='Windows':
-            src_exe = 'tw3d'
+            if self.conf.get('Compiler')=='Intel':
+                src_exe = 'tw3d.exe'
+            else:
+                src_exe = 'tw3d'
             dst_exe = 'tw3d.exe'
             install_path = pathlib.Path(os.environ['CONDA_PREFIX']) / 'Scripts' / dst_exe
         else:
@@ -640,7 +653,7 @@ class gui_tasks(base_tasks,gui_dictionary_view):
     def enter_shell(self):
         print('Start Shell Output.')
     def exit_shell(self):
-        print('Stop Shell Output.')
+        print('Reached Completion. Stop Shell Output.')
     def AskDirectory(self,title='Select Working Directory',initialdir=str(pathlib.Path.home())):
         return tkinter.filedialog.askdirectory(title=title,initialdir=initialdir)
 

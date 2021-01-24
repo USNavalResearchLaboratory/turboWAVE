@@ -76,9 +76,11 @@ def get_mesh_pts(grid_file_path,dims):
         else:
             warnings.warn('Grid file found but wrong dimensions ('+grid_file_path+').')
             return [np.linspace(0.0,1.0,dims[i]) for i in range(4)]
-    except:
+    except FileNotFoundError:
         warnings.warn('No grid file found ('+grid_file_path+').')
-        return [np.linspace(0.0,1.0,dims[i]) for i in range(4)]
+    except PermissionError:
+        warnings.warn('Cannot open grid file ('+grid_file_path+') due to permissions.')
+    return [np.linspace(0.0,1.0,dims[i]) for i in range(4)]
 
 class plotter:
     """Class that retains information about turboWAVE data,
@@ -92,17 +94,17 @@ class plotter:
         try:
             with open(os.path.join(self.basepath,'tw_metadata.json'),'r') as f:
                 meta_str = f.read()
-        except:
+        except (FileNotFoundError,PermissionError):
             warnings.warn('Could not read file '+os.path.join(self.basepath,'tw_metadata.json'))
         try:
             self.meta = json.loads(meta_str)
-        except:
+        except ValueError:
             warnings.warn('Could not decode tw_metadata.json.')
         try:
             self.axes = self.meta[self.name]['axes']
             for i in range(5):
                 self.axes[i] = self.axes[str(i)]
-        except:
+        except LookupError:
             warnings.warn('Could not retrieve axes from the metadata for '+self.name+', using arbitrary scales.')
             self.axes = { 0 : {} , 1 : {} , 2 : {} , 3 : {} , 4 : {} }
             self.axes[0]['label'] = 't'
@@ -123,7 +125,7 @@ class plotter:
                 self.axes[i]['natural multiplier'] = 1.0
         try:
             grid_file_path = os.path.join(self.basepath,self.meta[self.name]['grid'])
-        except:
+        except LookupError:
             warnings.warn('Could not find a reference to a grid file in the metadata.')
             grid_file_path = ''
         if buffered:

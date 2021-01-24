@@ -14,6 +14,7 @@
 # WARNING: release,debug, and profile objects are in the same directory.
 # This means you must 'make clean' before switching build modes.
 
+.PHONY: all,debug,profile,install,clean,tw3d_release,tw3d_debug,tw3d_profile
 all: tw3d_release install
 debug: tw3d_debug install
 profile: tw3d_profile install
@@ -62,307 +63,326 @@ PACKAGE_PREF = HOMEBREW
 #################################################
 
 ifndef HARDWARE_ACCEL
-	HARDWARE_ACCEL = NONE
+  HARDWARE_ACCEL = NONE
 endif
 
 ifndef PACKAGE_PREF
-	PACKAGE_PREF = NONE
+  PACKAGE_PREF = NONE
 endif
 
 ifeq ($(COMPILER_PREF),GNU)
-	OMP_FLAG = -fopenmp
+  OMP_FLAG = -fopenmp
 endif
 ifeq ($(COMPILER_PREF),LLVM_CLANG)
-	OMP_FLAG = -fopenmp
+  OMP_FLAG = -fopenmp
 endif
 ifeq ($(COMPILER_PREF),INTEL)
-	OMP_FLAG = -qopenmp
+  OMP_FLAG = -qopenmp
 endif
 ifeq ($(COMPILER_PREF),CRAY)
-	OMP_FLAG = -fopenmp
+  OMP_FLAG = -fopenmp
 endif
 
 ifeq ($(PLATFORM),OSX)
-	# Tested for Mac OS 10.15
-	BASE_FLAGS = -c -std=c++17 -DUSE_DESKTOP
-	ifeq ($(COMPILER_PREF),GNU)
-		LIBS = -lstdc++
-		ifeq ($(PACKAGE_PREF),NONE)
-$(error GNU compiler on MacOS requires PACKAGE_PREF)
-		else ifeq ($(PACKAGE_PREF),MACPORTS)
-			TW_Compiler = /opt/local/bin/g++
-			TW_Linker = /opt/local/bin/g++
-			BASE_FLAGS += -DSF_STD
-		else ifeq ($(PACKAGE_PREF),HOMEBREW)
-			TW_Compiler = /usr/local/opt/gcc/bin/g++-9
-			TW_Linker = /usr/local/opt/gcc/bin/g++-9
-			BASE_FLAGS += -DSF_STD
-		endif
-	else ifeq ($(COMPILER_PREF),LLVM_CLANG)
-$(warning Build mode limits special functions to low order)
-		ifeq ($(PACKAGE_PREF),NONE)
-			TW_Compiler = clang++
-			TW_Linker = clang++
-			BASE_FLAGS += -stdlib=libc++
-			LIBS = -lc++
-		else ifeq ($(PACKAGE_PREF),MACPORTS)
-			TW_Compiler = /opt/local/bin/clang++
-			TW_Linker = /opt/local/bin/clang++
-			BASE_FLAGS += -stdlib=libc++ -I/opt/local/include
-			LIBS = -lc++ -L/opt/local/lib -Wl,-rpath,/opt/local/lib
-		else ifeq ($(PACKAGE_PREF),HOMEBREW)
-			TW_Compiler = /usr/local/opt/llvm/bin/clang++
-			TW_Linker = /usr/local/opt/llvm/bin/clang++
-			BASE_FLAGS += -isysroot /Applications/XCode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk
-			BASE_FLAGS += -stdlib=libc++ -I/usr/local/opt/llvm/include/
-			LIBS = -lc++ -L/usr/local/opt/llvm/lib -Wl,-rpath,/usr/local/opt/llvm/lib
-		endif
-	else
-$(error Compiler $(COMPILER_PREF) is not supported on OSX)
-	endif
-	ifeq ($(HARDWARE_ACCEL),APPLE_CL)
-		BASE_FLAGS += -DUSE_OPENCL
-		LIBS += -framework OpenCL
-	else ifeq ($(HARDWARE_ACCEL),OMP)
-		BASE_FLAGS += -DUSE_OPENMP $(OMP_FLAG)
-		LIBS += $(OMP_FLAG)
-	else ifeq ($(HARDWARE_ACCEL),NONE)
-$(warning No accelerator, at least OMP is recommended)
-	else
-$(error Accelerator $(HARDWARE_ACCEL) is not supported on OSX)
-	endif
-	RELEASE_FLAGS = $(BASE_FLAGS) -O3 -march=native
-	PROFILE_FLAGS = $(BASE_FLAGS) -O3 -march=native -Rpass-analysis=loop-vectorize
-	DEBUG_FLAGS = $(BASE_FLAGS) -g -O0
-	BINARY_PATH = ~/bin/
-	WORK_PATH = ~/Run/
-	TW_MPI = yes
+  # Tested for Mac OS 10.15
+  BASE_FLAGS = -c -std=c++17 -DUSE_DESKTOP
+  ifeq ($(COMPILER_PREF),GNU)
+    LIBS = -lstdc++
+    ifeq ($(PACKAGE_PREF),NONE)
+      $(error GNU compiler on MacOS requires PACKAGE_PREF)
+    else ifeq ($(PACKAGE_PREF),MACPORTS)
+      TW_Compiler = /opt/local/bin/g++
+      TW_Linker = /opt/local/bin/g++
+      BASE_FLAGS += -DSF_STD
+    else ifeq ($(PACKAGE_PREF),HOMEBREW)
+      TW_Compiler = /usr/local/opt/gcc/bin/g++-9
+      TW_Linker = /usr/local/opt/gcc/bin/g++-9
+      BASE_FLAGS += -DSF_STD
+    endif
+  else ifeq ($(COMPILER_PREF),LLVM_CLANG)
+    $(warning Build mode limits special functions to low order)
+    ifeq ($(PACKAGE_PREF),NONE)
+      TW_Compiler = clang++
+      TW_Linker = clang++
+      BASE_FLAGS += -stdlib=libc++
+      LIBS = -lc++
+    else ifeq ($(PACKAGE_PREF),MACPORTS)
+      TW_Compiler = /opt/local/bin/clang++
+      TW_Linker = /opt/local/bin/clang++
+      BASE_FLAGS += -stdlib=libc++ -I/opt/local/include
+      LIBS = -lc++ -L/opt/local/lib -Wl,-rpath,/opt/local/lib
+    else ifeq ($(PACKAGE_PREF),HOMEBREW)
+      TW_Compiler = /usr/local/opt/llvm/bin/clang++
+      TW_Linker = /usr/local/opt/llvm/bin/clang++
+      BASE_FLAGS += -isysroot /Applications/XCode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk
+      BASE_FLAGS += -stdlib=libc++ -I/usr/local/opt/llvm/include/
+      LIBS = -lc++ -L/usr/local/opt/llvm/lib -Wl,-rpath,/usr/local/opt/llvm/lib
+    endif
+  else
+    $(error Compiler $(COMPILER_PREF) is not supported on OSX)
+  endif
+  ifeq ($(HARDWARE_ACCEL),APPLE_CL)
+    BASE_FLAGS += -DUSE_OPENCL
+    LIBS += -framework OpenCL
+  else ifeq ($(HARDWARE_ACCEL),OMP)
+    BASE_FLAGS += -DUSE_OPENMP $(OMP_FLAG)
+    LIBS += $(OMP_FLAG)
+  else ifeq ($(HARDWARE_ACCEL),NONE)
+    $(warning No accelerator, at least OMP is recommended)
+  else
+    $(error Accelerator $(HARDWARE_ACCEL) is not supported on OSX)
+  endif
+  RELEASE_FLAGS = $(BASE_FLAGS) -O3 -march=native
+  PROFILE_FLAGS = $(BASE_FLAGS) -O3 -march=native -Rpass-analysis=loop-vectorize
+  DEBUG_FLAGS = $(BASE_FLAGS) -g -O0
+  HOME_PATH_ABS = ~
+  PATH_SEP = /
+  BINARY_PATH = bin
+  WORK_PATH_ABS = ~/Run
+  TW_MPI = yes
 endif
 
 ifeq ($(PLATFORM),WIN)
-	BASE_FLAGS = -c -std=c++17 -DUSE_DESKTOP -DSF_STD
-	ifeq ($(COMPILER_PREF),LLVM_CLANG)
-		TW_Compiler = clang++
-		TW_Linker = clang++
-		LIBS =
-	else ifeq ($(COMPILER_PREF),INTEL)
-$(error For Windows use nmake with the Intel compiler)
-	else
-$(error Compiler $(COMPILER_PREF) not supported on Windows)
-	endif
-	ifeq ($(HARDWARE_ACCEL),OMP)
-		BASE_FLAGS += -DUSE_OPENMP $(OMP_FLAG)
-		LIBS += $(OMP_FLAG)
-	else ifeq ($(HARDWARE_ACCEL),CUDA)
-		CL_INCLUDE = /Program Files/NVIDIA GPU Computing Toolkit/CUDA/v10.0/include
-		CL_LIB = /Program Files/NVIDIA GPU Computing Toolkit/CUDA/v10.0/lib/x64
-		BASE_FLAGS += -DUSE_OPENCL -I'$(CL_INCLUDE)'
-		LIBS +=  -L'$(CL_LIB)' -lOpenCL
-	else ifeq ($(HARDWARE_ACCEL),NONE)
-$(warning No accelerator, at least OMP is recommended)
-	else
-$(error Accelerator $(HARDWARE_ACCEL) not supported on Windows)
-	endif
-	RELEASE_FLAGS = $(BASE_FLAGS) -O3 -march=native
-	PROFILE_FLAGS = $(BASE_FLAGS) -O3 -march=native -Rpass-analysis=loop-vectorize
-	DEBUG_FLAGS = $(BASE_FLAGS) -g -O0
-	BINARY_PATH = $(HOMEPATH)\bin\$(strip)
-	WORK_PATH = $(HOMEPATH)\Run\$(strip)
-	TW_MPI = yes
+  BASE_FLAGS = -c -std=c++17 -DUSE_DESKTOP -DSF_STD
+  ifeq ($(COMPILER_PREF),LLVM_CLANG)
+    TW_Compiler = clang++
+    TW_Linker = clang++
+    LIBS =
+  else ifeq ($(COMPILER_PREF),INTEL)
+    $(error For Windows use nmake with the Intel compiler)
+  else
+    $(error Compiler $(COMPILER_PREF) not supported on Windows)
+  endif
+  ifeq ($(HARDWARE_ACCEL),OMP)
+    BASE_FLAGS += -DUSE_OPENMP $(OMP_FLAG)
+    LIBS += $(OMP_FLAG)
+  else ifeq ($(HARDWARE_ACCEL),CUDA)
+    CL_INCLUDE = /Program Files/NVIDIA GPU Computing Toolkit/CUDA/v10.0/include
+    CL_LIB = /Program Files/NVIDIA GPU Computing Toolkit/CUDA/v10.0/lib/x64
+    BASE_FLAGS += -DUSE_OPENCL -I'$(CL_INCLUDE)'
+    LIBS +=  -L'$(CL_LIB)' -lOpenCL
+  else ifeq ($(HARDWARE_ACCEL),NONE)
+    $(warning No accelerator, at least OMP is recommended)
+  else
+    $(error Accelerator $(HARDWARE_ACCEL) not supported on Windows)
+  endif
+  RELEASE_FLAGS = $(BASE_FLAGS) -O3 -march=native
+  PROFILE_FLAGS = $(BASE_FLAGS) -O3 -march=native -Rpass-analysis=loop-vectorize
+  DEBUG_FLAGS = $(BASE_FLAGS) -g -O0
+  HOME_PATH_ABS = $(HOMEPATH)
+  PATH_SEP = \$(strip)
+  BINARY_PATH = Scripts
+  WORK_PATH_ABS = $(HOMEPATH)\Run
+  TW_MPI = yes
 endif
 
 ifeq ($(PLATFORM),LINUX)
-	BASE_FLAGS = -c -std=c++17 -DUSE_DESKTOP
-	ifeq ($(COMPILER_PREF),LLVM_CLANG)
-		TW_Compiler = clang++
-		TW_Linker = clang++
-		LIBS = -lstdc++
-		BASE_FLAGS += -DSF_STD -stdlib=libstdc++
-	else ifeq ($(COMPILER_PREF),GNU)
-		TW_Compiler = g++
-		TW_Linker = g++
-		LIBS = -lstdc++
-		BASE_FLAGS += -DSF_STD
-	else ifeq ($(COMPILER_PREF),INTEL)
-		TW_Compiler = icpc
-		TW_Linker = icpc
-		LIBS = -lstdc++
-		BASE_FLAGS += -DSF_STD
-	else
-$(error Compiler $(COMPILER_PREF) not supported on Linux)
-	endif
-	ifeq ($(HARDWARE_ACCEL),NONE)
-$(warning No accelerator, at least OMP is recommended)
-		LIBS += -pthread
-	else ifeq ($(HARDWARE_ACCEL),OMP)
-		BASE_FLAGS += -DUSE_OPENMP $(OMP_FLAG)
-		LIBS += $(OMP_FLAG)
-	else ifeq ($(HARDWARE_ACCEL),CUDA)
-		BASE_FLAGS += -DUSE_OPENCL
-		LIBS += -lOpenCL -pthread
-	else ifeq ($(HARDWARE_ACCEL),RADEON_PRO)
-		CL_INCLUDE = /opt/rocm/opencl/include
-		CL_LIB = /opt/rocm/opencl/lib
-		BASE_FLAGS += -DCL_TARGET_OPENCL_VERSION=200 -DUSE_OPENCL -I'$(CL_INCLUDE)'
-		LIBS += -L'$(CL_LIB)' -Wl,-rpath='$(CL_LIB)' -lOpenCL -pthread
-	else
-$(error Accelerator $(HARDWARE_ACCEL) not supported on Linux)
-	endif
-	RELEASE_FLAGS = $(BASE_FLAGS) -O3 -march=native
-	PROFILE_FLAGS = $(BASE_FLAGS) -O3 -march=native -Rpass-analysis=loop-vectorize
-	DEBUG_FLAGS = $(BASE_FLAGS) -g -O0
-	BINARY_PATH = ~/bin/
-	WORK_PATH = ~/Run/
-	TW_MPI = yes
+  BASE_FLAGS = -c -std=c++17 -DUSE_DESKTOP
+  ifeq ($(COMPILER_PREF),LLVM_CLANG)
+    TW_Compiler = clang++
+    TW_Linker = clang++
+    LIBS = -lstdc++
+    BASE_FLAGS += -DSF_STD -stdlib=libstdc++
+  else ifeq ($(COMPILER_PREF),GNU)
+    TW_Compiler = g++
+    TW_Linker = g++
+    LIBS = -lstdc++
+    BASE_FLAGS += -DSF_STD
+  else ifeq ($(COMPILER_PREF),INTEL)
+    TW_Compiler = icpc
+    TW_Linker = icpc
+    LIBS = -lstdc++
+    BASE_FLAGS += -DSF_STD
+  else
+    $(error Compiler $(COMPILER_PREF) not supported on Linux)
+  endif
+  ifeq ($(HARDWARE_ACCEL),NONE)
+    $(warning No accelerator, at least OMP is recommended)
+    LIBS += -pthread
+  else ifeq ($(HARDWARE_ACCEL),OMP)
+    BASE_FLAGS += -DUSE_OPENMP $(OMP_FLAG)
+    LIBS += $(OMP_FLAG)
+  else ifeq ($(HARDWARE_ACCEL),CUDA)
+    BASE_FLAGS += -DUSE_OPENCL
+    LIBS += -lOpenCL -pthread
+  else ifeq ($(HARDWARE_ACCEL),RADEON_PRO)
+    CL_INCLUDE = /opt/rocm/opencl/include
+    CL_LIB = /opt/rocm/opencl/lib
+    BASE_FLAGS += -DCL_TARGET_OPENCL_VERSION=200 -DUSE_OPENCL -I'$(CL_INCLUDE)'
+    LIBS += -L'$(CL_LIB)' -Wl,-rpath='$(CL_LIB)' -lOpenCL -pthread
+  else
+    $(error Accelerator $(HARDWARE_ACCEL) not supported on Linux)
+  endif
+  RELEASE_FLAGS = $(BASE_FLAGS) -O3 -march=native
+  PROFILE_FLAGS = $(BASE_FLAGS) -O3 -march=native -Rpass-analysis=loop-vectorize
+  DEBUG_FLAGS = $(BASE_FLAGS) -g -O0
+  HOME_PATH_ABS = ~
+  PATH_SEP = /
+  BINARY_PATH = bin
+  WORK_PATH_ABS = ~/Run
+  TW_MPI = yes
 endif
 
 ifeq ($(PLATFORM),OPENMPI)
-	BASE_FLAGS = -c -std=c++17 -DUSE_HPC -DSF_STD
-	TW_Compiler = mpicxx
-	TW_Linker = mpicxx
-	ifeq ($(COMPILER_PREF),LLVM_CLANG)
-		export OMPI_CXX=clang++
-		LIBS = -lstdc++
-		BASE_FLAGS += -stdlib=libstdc++
-	else ifeq ($(COMPILER_PREF),INTEL)
-		export OMPI_CXX=icpc
-		LIBS = -lstdc++
-	else ifeq ($(COMPILER_PREF),GNU)
-		export OMPI_CXX=g++
-		LIBS = -lstdc++
-	else
-$(error Compiler $(COMPILER_PREF) not supported on OpenMPI local cluster)
-	endif
-	ifeq ($(HARDWARE_ACCEL),NONE)
-$(warning No accelerator, at least OMP is recommended)
-		LIBS += -pthread
-	else ifeq ($(HARDWARE_ACCEL),OMP)
-		BASE_FLAGS += -DUSE_OPENMP $(OMP_FLAG)
-		LIBS += $(OMP_FLAG)
-	else ifeq ($(HARDWARE_ACCEL),CUDA)
-		BASE_FLAGS += -DUSE_OPENCL
-		LIBS += -lOpenCL -pthread
-	else ifeq ($(HARDWARE_ACCEL),RADEON_PRO)
-		BASE_FLAGS += -DUSE_OPENCL
-		LIBS += -lOpenCL -pthread
-	else
-$(error Accelerator $(HARDWARE_ACCEL) not supported on OpenMPI local cluster)
-	endif
-	RELEASE_FLAGS = $(BASE_FLAGS) -O3
-	PROFILE_FLAGS = $(BASE_FLAGS) -O3 -Rpass-analysis=loop-vectorize
-	DEBUG_FLAGS = $(BASE_FLAGS) -g -O0
+  BASE_FLAGS = -c -std=c++17 -DUSE_HPC -DSF_STD
+  TW_Compiler = mpicxx
+  TW_Linker = mpicxx
+  ifeq ($(COMPILER_PREF),LLVM_CLANG)
+    export OMPI_CXX=clang++
+    LIBS = -lstdc++
+    BASE_FLAGS += -stdlib=libstdc++
+  else ifeq ($(COMPILER_PREF),INTEL)
+    export OMPI_CXX=icpc
+    LIBS = -lstdc++
+  else ifeq ($(COMPILER_PREF),GNU)
+    export OMPI_CXX=g++
+    LIBS = -lstdc++
+  else
+    $(error Compiler $(COMPILER_PREF) not supported on OpenMPI local cluster)
+  endif
+  ifeq ($(HARDWARE_ACCEL),NONE)
+    $(warning No accelerator, at least OMP is recommended)
+    LIBS += -pthread
+  else ifeq ($(HARDWARE_ACCEL),OMP)
+    BASE_FLAGS += -DUSE_OPENMP $(OMP_FLAG)
+    LIBS += $(OMP_FLAG)
+  else ifeq ($(HARDWARE_ACCEL),CUDA)
+    BASE_FLAGS += -DUSE_OPENCL
+    LIBS += -lOpenCL -pthread
+  else ifeq ($(HARDWARE_ACCEL),RADEON_PRO)
+    BASE_FLAGS += -DUSE_OPENCL
+    LIBS += -lOpenCL -pthread
+  else
+    $(error Accelerator $(HARDWARE_ACCEL) not supported on OpenMPI local cluster)
+  endif
+  RELEASE_FLAGS = $(BASE_FLAGS) -O3
+  PROFILE_FLAGS = $(BASE_FLAGS) -O3 -Rpass-analysis=loop-vectorize
+  DEBUG_FLAGS = $(BASE_FLAGS) -g -O0
 endif
 
 ifeq ($(PLATFORM),INTELMPI)
-	BASE_FLAGS = -c -std=c++17 -DUSE_HPC
-	ifeq ($(COMPILER_PREF),INTEL)
-$(warning Build mode limits special functions to low order)
-		TW_Compiler = mpiicpc
-		TW_Linker = mpiicpc
-		LIBS = -lstdc++
-	else ifeq ($(COMPILER_PREF),GNU)
-		BASE_FLAGS += -DSF_STD
-		TW_Compiler = mpicxx
-		TW_Linker = mpicxx
-		LIBS = -lstdc++
-	else
-$(error Compiler $(COMPILER_PREF) not supported on Intel MPI cluster)
-	endif
-	ifeq ($(HARDWARE_ACCEL),NONE)
-$(warning No accelerator, at least OMP is recommended)
-		LIBS += -pthread
-	else ifeq ($(HARDWARE_ACCEL),OMP)
-		BASE_FLAGS += -DUSE_OPENMP $(OMP_FLAG)
-		LIBS += $(OMP_FLAG)
-	else ifeq ($(HARDWARE_ACCEL),CUDA)
-		BASE_FLAGS += -DUSE_OPENCL
-		LIBS += -lOpenCL -pthread
-	else ifeq ($(HARDWARE_ACCEL),RADEON_PRO)
-		BASE_FLAGS += -DUSE_OPENCL
-		LIBS += -lOpenCL -pthread
-	else
-$(error Accelerator $(HARDWARE_ACCEL) not supported on Intel MPI cluster)
-	endif
-	RELEASE_FLAGS = $(BASE_FLAGS) -O3
-	PROFILE_FLAGS = $(BASE_FLAGS) -O3 -Rpass-analysis=loop-vectorize
-	DEBUG_FLAGS = $(BASE_FLAGS) -g -O0
+  BASE_FLAGS = -c -std=c++17 -DUSE_HPC
+  ifeq ($(COMPILER_PREF),INTEL)
+    $(warning Build mode limits special functions to low order)
+    TW_Compiler = mpiicpc
+    TW_Linker = mpiicpc
+    LIBS = -lstdc++
+  else ifeq ($(COMPILER_PREF),GNU)
+    BASE_FLAGS += -DSF_STD
+    TW_Compiler = mpicxx
+    TW_Linker = mpicxx
+    LIBS = -lstdc++
+  else
+    $(error Compiler $(COMPILER_PREF) not supported on Intel MPI cluster)
+  endif
+  ifeq ($(HARDWARE_ACCEL),NONE)
+    $(warning No accelerator, at least OMP is recommended)
+    LIBS += -pthread
+  else ifeq ($(HARDWARE_ACCEL),OMP)
+    BASE_FLAGS += -DUSE_OPENMP $(OMP_FLAG)
+    LIBS += $(OMP_FLAG)
+  else ifeq ($(HARDWARE_ACCEL),CUDA)
+    BASE_FLAGS += -DUSE_OPENCL
+    LIBS += -lOpenCL -pthread
+  else ifeq ($(HARDWARE_ACCEL),RADEON_PRO)
+    BASE_FLAGS += -DUSE_OPENCL
+    LIBS += -lOpenCL -pthread
+  else
+    $(error Accelerator $(HARDWARE_ACCEL) not supported on Intel MPI cluster)
+  endif
+  RELEASE_FLAGS = $(BASE_FLAGS) -O3
+  PROFILE_FLAGS = $(BASE_FLAGS) -O3 -Rpass-analysis=loop-vectorize
+  DEBUG_FLAGS = $(BASE_FLAGS) -g -O0
 endif
 
 ifeq ($(PLATFORM),CRAY)
-	BASE_FLAGS = -c -std=c++17 -DUSE_HPC
-	ifeq ($(COMPILER_PREF),CRAY) # assume this is the LLVM based Cray compiler
-		BASE_FLAGS += -DSF_STD -stdlib=libstdc++
-		TW_Compiler = CC
-		TW_Linker = CC
-		ifeq ($(HARDWARE_ACCEL),NONE)
-$(warning No accelerator, at least OMP is recommended)
-		else ifeq ($(HARDWARE_ACCEL),OMP)
-			BASE_FLAGS += -DUSE_OPENMP $(OMP_FLAG)
-		else
-$(error Accelerator $(HARDWARE_ACCEL) not supported on Cray HPC with Cray compiler)
-		endif
-		RELEASE_FLAGS = $(BASE_FLAGS) -O3
-		PROFILE_FLAGS = $(BASE_FLAGS) -O3
-		DEBUG_FLAGS = $(BASE_FLAGS) -g -O0
-		LIBS =
-	else ifeq ($(COMPILER_PREF),INTEL)
-		BASE_FLAGS += -DSF_STD
-		TW_Compiler = CC
-		TW_Linker = CC
-		ifeq ($(HARDWARE_ACCEL),NONE)
-$(warning No accelerator, at least OMP is recommended)
-			LIBS =
-		else ifeq ($(HARDWARE_ACCEL),OMP)
-			BASE_FLAGS += -qopenmp -qopenmp-simd -DUSE_OPENMP
-			LIBS = -qopenmp -qopenmp-simd
-		else
-$(error Accelerator $(HARDWARE_ACCEL) not supported on Cray HPC with Intel compiler)
-		endif
-		RELEASE_FLAGS = $(BASE_FLAGS) -fast
-		PROFILE_FLAGS = $(BASE_FLAGS) -qopt-report -qopt-report-phase=vec -fast
-		DEBUG_FLAGS = $(BASE_FLAGS) -g
-	else
-$(error Compiler $(COMPILER_PREF) not supported on Cray HPC)
-	endif
+  BASE_FLAGS = -c -std=c++17 -DUSE_HPC
+  ifeq ($(COMPILER_PREF),CRAY) # assume this is the LLVM based Cray compiler
+    BASE_FLAGS += -DSF_STD -stdlib=libstdc++
+    TW_Compiler = CC
+    TW_Linker = CC
+    ifeq ($(HARDWARE_ACCEL),NONE)
+      $(warning No accelerator, at least OMP is recommended)
+    else ifeq ($(HARDWARE_ACCEL),OMP)
+      BASE_FLAGS += -DUSE_OPENMP $(OMP_FLAG)
+    else
+      $(error Accelerator $(HARDWARE_ACCEL) not supported on Cray HPC with Cray compiler)
+    endif
+    RELEASE_FLAGS = $(BASE_FLAGS) -O3
+    PROFILE_FLAGS = $(BASE_FLAGS) -O3
+    DEBUG_FLAGS = $(BASE_FLAGS) -g -O0
+    LIBS =
+  else ifeq ($(COMPILER_PREF),INTEL)
+    BASE_FLAGS += -DSF_STD
+    TW_Compiler = CC
+    TW_Linker = CC
+    ifeq ($(HARDWARE_ACCEL),NONE)
+      $(warning No accelerator, at least OMP is recommended)
+      LIBS =
+    else ifeq ($(HARDWARE_ACCEL),OMP)
+      BASE_FLAGS += -qopenmp -qopenmp-simd -DUSE_OPENMP
+      LIBS = -qopenmp -qopenmp-simd
+    else
+      $(error Accelerator $(HARDWARE_ACCEL) not supported on Cray HPC with Intel compiler)
+    endif
+    RELEASE_FLAGS = $(BASE_FLAGS) -fast
+    PROFILE_FLAGS = $(BASE_FLAGS) -qopt-report -qopt-report-phase=vec -fast
+    DEBUG_FLAGS = $(BASE_FLAGS) -g
+  else
+    $(error Compiler $(COMPILER_PREF) not supported on Cray HPC)
+  endif
 endif
 
 ifeq ($(PLATFORM),SGI)
-	BASE_FLAGS = -c -std=c++17 -DUSE_HPC
-	ifeq ($(COMPILER_PREF),INTEL)
-		TW_Compiler = icpc
-		TW_Linker = icpc
-		LIBS = -lmpi -lmpi++
-$(warning Build mode limits special functions to low order)
-	else
-$(error Compiler $(COMPILER_PREF) not supported on SGI HPC)
-	endif
-	ifeq ($(HARDWARE_ACCEL),NONE)
-$(warning No accelerator, at least OMP is recommended)
-		LIBS = -lmpi -lmpi++
-	else ifeq ($(HARDWARE_ACCEL),OMP)
-		BASE_FLAGS += -qopenmp -DUSE_OPENMP
-		LIBS = -lmpi -lmpi++ -qopenmp
-	else ifeq ($(HARDWARE_ACCEL),CUDA)
-		CUDA_ROOT = /p/home/apps/cuda/7.5
-		BASE_FLAGS += -I$(CUDA_ROOT)/include -DUSE_OPENCL
-		LIBS = -L$(CUDA_ROOT)/lib64
-		LIBS += -lmpi -lmpi++ -lOpenCL
-	else
-$(error Accelerator $(HARDWARE_ACCEL) not supported on SGI HPC)
-	endif
-	RELEASE_FLAGS = $(BASE_FLAGS) -fast
-	PROFILE_FLAGS = $(BASE_FLAGS) -qopt-report -qopt-report-phase=vec -fast
-	DEBUG_FLAGS = $(BASE_FLAGS) -g
+  BASE_FLAGS = -c -std=c++17 -DUSE_HPC
+  ifeq ($(COMPILER_PREF),INTEL)
+    TW_Compiler = icpc
+    TW_Linker = icpc
+    LIBS = -lmpi -lmpi++
+    $(warning Build mode limits special functions to low order)
+  else
+    $(error Compiler $(COMPILER_PREF) not supported on SGI HPC)
+  endif
+  ifeq ($(HARDWARE_ACCEL),NONE)
+    $(warning No accelerator, at least OMP is recommended)
+    LIBS = -lmpi -lmpi++
+  else ifeq ($(HARDWARE_ACCEL),OMP)
+    BASE_FLAGS += -qopenmp -DUSE_OPENMP
+    LIBS = -lmpi -lmpi++ -qopenmp
+  else ifeq ($(HARDWARE_ACCEL),CUDA)
+    CUDA_ROOT = /p/home/apps/cuda/7.5
+    BASE_FLAGS += -I$(CUDA_ROOT)/include -DUSE_OPENCL
+    LIBS = -L$(CUDA_ROOT)/lib64
+    LIBS += -lmpi -lmpi++ -lOpenCL
+  else
+    $(error Accelerator $(HARDWARE_ACCEL) not supported on SGI HPC)
+  endif
+  RELEASE_FLAGS = $(BASE_FLAGS) -fast
+  PROFILE_FLAGS = $(BASE_FLAGS) -qopt-report -qopt-report-phase=vec -fast
+  DEBUG_FLAGS = $(BASE_FLAGS) -g
 endif
 
 ifndef PROFILE_FLAGS
-	PROFILE_FLAGS = $(RELEASE_FLAGS)
+  PROFILE_FLAGS = $(RELEASE_FLAGS)
 endif
 
 ifeq ($(ENDIANNESS),BIG)
-	RELEASE_FLAGS += -DBIGENDIAN
-	PROFILE_FLAGS += -DBIGENDIAN
-	DEBUG_FLAGS += -DBIGENDIAN
+  RELEASE_FLAGS += -DBIGENDIAN
+  PROFILE_FLAGS += -DBIGENDIAN
+  DEBUG_FLAGS += -DBIGENDIAN
+endif
+
+ifdef BINARY_PATH
+  ifdef CONDA_PREFIX
+    BINARY_PATH_ABS = $(CONDA_PREFIX)$(PATH_SEP)$(BINARY_PATH)
+    $(info Conda environment detected.)
+    ifeq ($(CONDA_DEFAULT_ENV),base)
+      $(error You are in the base conda environment, which is not recommended.  Change this to a warning if you really want to do this.)
+    endif
+  else
+    BINARY_PATH_ABS = $(HOME_PATH_ABS)$(PATH_SEP)$(BINARY_PATH)
+    $(warning Conda environment not detected.)
+  endif
 endif
 
 tw3d_release: CCFLAGS = $(RELEASE_FLAGS) -DNDEBUG -DVBITS=$(VBITS)
@@ -380,26 +400,26 @@ SIM_HEADERS = $(BASE_HEADERS) $(TOOL_HEADERS) module.h simulation.h
 MODULE_HEADERS = fieldSolve.h electrostatic.h laserSolve.h fluid.h quantum.h particles.h solidState.h
 OBJ_LIST = 3DFields.o Chemistry.o ComputeTool.o Diagnostics.o DiscreteSpace.o Electrostatic.o Elliptic.o FFT.o FieldSolve.o Fluid.o Functions.o Hyperbolic.o Injection.o Input.o LaserSolve.o Main.o MetricSpace.o Module.o Numerics.o Parabolic.o Particles.o Physics.o Pusher.o Qstate.o Quantum.o Region.o Simulation.o SolidState.o Tasks.o Units.o
 ifdef TW_MPI
-	BASE_HEADERS += tw_mpi.h
-	OBJ_LIST += TW_MPI.o
+  BASE_HEADERS += tw_mpi.h
+  OBJ_LIST += TW_MPI.o
 endif
 
 tw3d: 3dfields.cl particles.cl elliptic.cl hyperbolic.cl quantum.cl $(OBJ_LIST)
 	$(TW_Linker) -o tw3d $(OBJ_LIST) $(LIBS)
 
 install:
-ifdef BINARY_PATH
+ifdef BINARY_PATH_ABS
 ifeq ($(PLATFORM),WIN)
-	copy tw3d $(BINARY_PATH)tw3d.exe
+	copy tw3d $(BINARY_PATH_ABS)$(PATH_SEP)tw3d.exe
 else
-	cp tw3d $(BINARY_PATH)
+	cp tw3d $(BINARY_PATH_ABS)$(PATH_SEP)
 endif
 endif
-ifdef WORK_PATH
+ifdef WORK_PATH_ABS
 ifeq ($(PLATFORM),WIN)
-	copy *.cl $(WORK_PATH)
+	copy *.cl $(WORK_PATH_ABS)$(PATH_SEP)
 else
-	cp *.cl $(WORK_PATH)
+	cp *.cl $(WORK_PATH_ABS)$(PATH_SEP)
 endif
 endif
 

@@ -12,7 +12,8 @@ COMPILER_PREF = INTEL
 # VBITS mapping: AVX512 : 512 , AVX2 : 256 , SSE2 : 128 , scalar : 64
 VBITS = 256
 
-# At present we always use OpenMP when using nmake
+# At present the following is not used.
+# If INTEL is selected we will use OpenMP unconditionally.
 HARDWARE_ACCEL = OMP
 
 # Define some parameters we don't need since we know we are in Windows
@@ -45,8 +46,18 @@ CCFLAGS = $(RELEASE_FLAGS)
 #CCFLAGS = $(PROFILE_FLAGS)
 #CCFLAGS = $(DEBUG_FLAGS)
 
-BINARY_PATH = $(HOMEPATH)\bin
+!IFDEF CONDA_PREFIX
+!MESSAGE Conda environment detected.
+!IF "$(CONDA_DEFAULT_ENV)"=="base"
+!ERROR You are in the base environment which is not recommended.  Change this to a warning if you really want to do this.
+!ENDIF
+BINARY_PATH = $(CONDA_PREFIX)\Scripts
 WORK_PATH = $(HOMEPATH)\Run
+!ELSE
+!MESSAGE Conda environment not detected.
+BINARY_PATH = $(HOMEPATH)\Scripts
+WORK_PATH = $(HOMEPATH)\Run
+!ENDIF
 
 !IF "$(CCFLAGS)"=="$(RELEASE_FLAGS)"
 LKFLAGS = /Fetw3d

@@ -6,7 +6,11 @@ The turboWAVE installer assumes Anaconda and a modern C++ compiler are available
 High Performance Computing (HPC)
 ================================
 
-On HPC systems, the necessary components should already be prepared.  However, one sometimes has to load appropriate modules using the ``module load`` command.  Look for modules supporting Anaconda and a C++ compiler.  The installer is designed to work with Cray systems.  For others it may be necessary to perform a manual install.
+On HPC systems, the necessary components should already be prepared.  However, one sometimes has to load appropriate modules using the ``module load`` command.  Look for modules supporting Anaconda and a C++ compiler.  Choose compiler versions that support C++17 (usually the latest stable version is best).  The installer is designed to work with Cray systems.  For others it may be necessary to perform a manual install.
+
+.. tip::
+
+	Non-GCC compilers sometimes rely on GCC for the standard library.  If you are trying to load an updated non-GCC compiler, you may need to load GCC as well.
 
 Linux - CentOS 8
 ================

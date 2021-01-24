@@ -262,8 +262,8 @@ def main():
 					break
 			html_doc += l
 		html_doc += '</pre></blockquote>'
-	except:
-		html_doc += '<p>ERROR: something went wrong in trying to call git for versioning information.</p>'
+	except FileNotFoundError:
+		html_doc += '<p>ERROR: Could not find git (used to report versioning information).</p>'
 	os.chdir(save_cwd)
 
 	try:

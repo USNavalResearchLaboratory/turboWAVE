@@ -104,7 +104,7 @@ Configuration
 
 For manual installations, configuration is done by directly editing ``makefile``, or in case of the Intel compiler on Windows, ``win.make``.  Editing the ``makefile`` is usually easy.  In most cases, you only have to adjust the constants in the input variables block, which is prominently identified by comments.
 
-The default ``makefile`` is set up to copy the executable binary into an *existing* directory ``~/bin`` and OpenCL kernel files into an *existing* directory ``~/Run``.  You can change these directories by editing ``BINARY_PATH`` and ``WORK_PATH`` constants.
+If the ``makefile`` senses an activated conda environment, it copies the executable binary into that environment.  Otherwise, it tries to copy the executable to an *existing* directory ``~/bin`` (``~\Scripts`` on Windows).  OpenCL kernel files are copied to an *existing* directory ``~/Run``.  You can change these directories by editing ``BINARY_PATH`` and ``WORK_PATH`` constants.
 
 Compiler Notes
 --------------

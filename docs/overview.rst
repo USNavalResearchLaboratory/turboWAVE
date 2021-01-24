@@ -14,10 +14,10 @@ nonlinear optics models, and quantum optics models.
 All these modules can be invoked from the same executable file.
 TurboWAVE consists of the following software components:
 
-	#.	:samp:`twutils`---Distribution of python modules useful for pre and post processing
+	#.	:samp:`twutils`---Python package with installer, visualization and other utilities.
 	#.	:samp:`twcad`---CAD rendering program to visualize turboWAVE geometries
 	#.	:samp:`DataViewer`---A Jupyter notebook for viewing and animating the data
-	#.	:samp:`SPARC database`---chemical reactions for use in SPARC
+	#.	:samp:`SPARC database`---chemical reactions for use in SPARC modules
 	#.	:samp:`tw3d`---The executable file
 
 On the desktop, turboWAVE is essentially self-contained, in that no external libraries are
@@ -34,9 +34,6 @@ TurboWAVE can be run as a hybrid MPI-OpenMP code.
 This means it can use a combination of distributed (MPI) and shared memory (OpenMP)
 parallel processing models.  Unlike MPI, the OpenMP support relies on availability of
 OpenMP libraries.  Fortunately, OpenMP is becoming a standard part of modern compilers.
-As of this writing, the default compiler on RHEL/SL/CentOS, and on MacOS, does not have
-sufficient OpenMP support.  The installation documentation explains how to install updated
-compilers on these systems.  At the time of this writing, Microsoft Windows appears to be missing a free compiler with OpenMP support.
 
 TurboWAVE supports hardware acceleration with Graphical Processing Units (GPU) through OpenCL.
 However, this support is limited to selected modules.

@@ -57,9 +57,9 @@ def get_data_ext(ax):
         try:
             data_ext += [ax['AXIS3'][0],ax['AXIS3'][1]]
             data_ext = data_ext[4:6] + data_ext[2:4] + data_ext[:2]
-        except:
+        except LookupError:
             data_ext = data_ext[2:4] + [-0.5,0.5] + data_ext[:2]
-    except:
+    except LookupError:
         data_ext = [-0.5,0.5,-0.5,0.5] + data_ext
     return data_ext
 
@@ -226,7 +226,7 @@ def main():
 
     try:
         f = h5py.File(file_list[0],'r')
-    except:
+    except (FileNotFoundError,PermissionError):
         print('Could not open '+file_list[0])
         exit(1)
 
@@ -262,7 +262,7 @@ def main():
         fullpath = full_path_prefix + '{:06d}.h5'.format(n*nfac)
         try:
             f = h5py.File(fullpath,'r')
-        except:
+        except (FileNotFoundError,PermissionError):
             print('Could not open HDF5 file <' + fullpath + '>.')
             exit(1)
         full_array[count,...] = np.array(f[data_key]).reshape(new_shape)
