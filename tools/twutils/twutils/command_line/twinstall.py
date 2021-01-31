@@ -506,8 +506,34 @@ class base_tasks(dictionary_view):
             dv_dir = self.AskDirectory('Select DataViewer install location',str(pathlib.Path.home()))
             if type(dv_dir)!=tuple:
                 shutil.copy(repo_path,dv_dir)
+        # MICRO highlighting
+        if self.cmd.affirm('Would you like to install syntax highlights for MICRO?')=='y':
+            repo_path = self.package_path / 'tools' / 'config-files' / 'turbowave.micro.yaml'
+            dest_path = pathlib.Path.home() / '.config' / 'micro' / 'syntax'
+            if len(glob.glob(str(dest_path)))==0:
+                os.makedirs(dest_path,exist_ok=True)
+            shutil.copy(repo_path,dest_path)
+        # NANO highlighting
+        if self.cmd.affirm('Would you like to install syntax highlights for NANO?')=='y':
+            repo_path = self.package_path / 'tools' / 'config-files' / '.turbowave.nanorc'
+            dest_path = pathlib.Path.home()
+            shutil.copy(repo_path,dest_path)
+
+            if self.conf.get('Platform')=='Windows':
+                dest_path = pathlib.Path.home() / 'nano.rc'
+            else:
+                dest_path = pathlib.Path.home() / '.nanorc'
+            try:
+                with open(dest_path,'r') as f:
+                    nanorc = f.read()
+            except FileNotFoundError:
+                nanorc = '# nano settings file, created by twinstall\n\n'
+            if re.search(r'include\s+"\.turbowave\.nanorc"',nanorc)==None:
+                nanorc += '\ninclude ".turbowave.nanorc"'
+            with open(dest_path,'w') as f:
+                f.write(nanorc)
         # VIM highlighting
-        if self.cmd.affirm('Would you like to install syntax highlights for VIM?')=='y':
+        if self.cmd.affirm('Would you like to install syntax highlights for VIM? (overwrites other filetype customizations)')=='y':
             repo_path = self.package_path / 'tools' / 'config-files' / 'filetype.vim'
             if self.conf.get('Platform')=='Windows':
                 dest_path = pathlib.Path.home() / 'vimfiles'

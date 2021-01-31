@@ -1,0 +1,30 @@
+# Nano syntax file
+# Language:	turboWAVE
+# Maintainer: Daniel Gordon
+
+# Syntax highlighting for turboWAVE input files in nano:
+# Include this in .nanorc to highlight stdin,stdin.txt,*.tw
+
+syntax "turbowave" "(^stdin$|^stdin\.txt$|\.tw$)"
+
+comment "//"
+
+color brightcyan "^[[:space:]]*#(define|include|ifn?def|endif|else)"
+color brightblue "\<(new|generate|get|for)\>"
+
+# The following are hard to do just right within limitations of POSIX regex
+color yellow "(^|[[:space:],=(){}])([0-9]+\.?[0-9]*|\.[0-9]+)([eE](\+|\-)?[0-9]+)?[[:space:]]*\[(deg|rad|mrad|urad|cm2|m2|cm2/s|m2/s|um|mm|cm|m|fs|ps|ns|us|s|/m3|/cm3|J/m3|J/cm3|eV|K|V|webers/m|G\*cm|V/m|V/cm|T|G)\]($|[[:space:],=(){}])"
+color brightyellow "(^|[[:space:],=(){}])\$[^[:space:],=(){}]+"
+
+color cyan "\<(none|full)\>"
+color cyan "\<(deterministic|statistical|variable|fixed|triggered|maintained)\>"
+color cyan "\<(absorbing|emitting|reflecting|axisymmetric|periodic)\>"
+color cyan "\<(true|false|on|off|yes|no)\>"
+
+color cyan "\<(hermite gauss|laguerre gauss|plane wave|airy disc|bessel beam|multipole)\>"
+color cyan "\<(adk|ppt|mpi|kyh|pmpb)\>"
+color cyan "\<(quintic|sin2|sech)\>"
+
+color brightmagenta ""[^"]*"" "'[^']*'"
+color red "//.*"
+color red start="/\*" end="\*/"

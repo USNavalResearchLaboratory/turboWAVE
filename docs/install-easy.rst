@@ -15,17 +15,17 @@ The following should work in any operating system, assuming compilers are instal
 
 #. Run the installer
 
-	* Type ``twinstall`` for installations on a local machine.
-	* Type ``twinstall --terminal`` for installation on a remote machine.
+	* Type ``twinstall`` for installations on a local machine, or a remote machine with X forwarding.
+	* Type ``twinstall --terminal`` for installation on a remote machine where X forwarding fails.
 
 	.. note::
 
-		As of this writing, the installer's ``--terminal`` option is not compatible with Windows PowerShell.  As a result, if you want to install on a remote non-Windows server from a Windows terminal, use the old-style command prompt, or a third party terminal emulator.
+		As of this writing, the ``--terminal`` option is not compatible with Windows PowerShell.  You can use a third party terminal emulator (e.g. PuTTY) instead.  Correct rendering of lines can depend on terminal settings.
 
 #. Use the installer to complete the sequence of steps in the ``Tasks`` area.
 
 	* You can usually accept default responses.
-	* On Cray, the platform and vector type popups should be set explicitly.
+	* On Cray, the platform and vector type popups should be set manually.
 	* For now use OpenMP for the accelerator.
 	* The installer can configure for GPGPU, but you may need to fulfill some prerequisites as root for the compiler to succeed.
 
@@ -47,5 +47,8 @@ Uninstall
 #. To remove the whole turboWAVE environment type :samp:`conda remove -n {NAME} --all`
 #. Delete the ``turboWAVE`` local repository (the location was chosen by you)
 #. Delete ``DataViewer.ipynb`` (the location was chosen by you)
-#. Remove ``~/.vim/filetype.vim`` and ``~/.vim/syntax/turbowave.vim`` (if you installed them)
-#. If you installed ``language-turbowave`` in Atom remove it using Atom's package manager
+#. If you installed syntax highlights and you want to remove them:
+
+	* Delete ``~/.vim/syntax/turbowave.vim``, ``~/.turbowave.nanorc``, and ``~/.config/micro/syntax/turbowave.micro.yaml``, or their Windows counterparts
+	* Delete ``~/.vim/filetype.vim`` and ``~/.nanorc``, or their Windows counterparts, unless you need them for other purposes.  In the latter case, search for lines containing ``turbowave`` and delete them.
+	* If you installed ``language-turbowave`` in Atom remove it using Atom's package manager

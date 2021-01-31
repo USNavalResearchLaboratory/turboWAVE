@@ -91,15 +91,16 @@ class plotter:
         self.path = file_to_plot # includes path
         self.units = units
         self.buffered = buffered
+        self.meta = {}
         try:
             with open(os.path.join(self.basepath,'tw_metadata.json'),'r') as f:
                 meta_str = f.read()
+            try:
+                self.meta = json.loads(meta_str)
+            except ValueError:
+                warnings.warn('Could not decode tw_metadata.json.')
         except (FileNotFoundError,PermissionError):
             warnings.warn('Could not read file '+os.path.join(self.basepath,'tw_metadata.json'))
-        try:
-            self.meta = json.loads(meta_str)
-        except ValueError:
-            warnings.warn('Could not decode tw_metadata.json.')
         try:
             self.axes = self.meta[self.name]['axes']
             for i in range(5):

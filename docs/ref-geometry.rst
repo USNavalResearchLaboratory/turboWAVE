@@ -20,7 +20,7 @@ At present most objects are created in parameter space.  This distinction is onl
 TurboWAVE CAD Viewer
 --------------------
 
-There is a Python program for viewing turboWAVE geometries in :file:`{twroot}/tools/twcad/`.  If the program is run with ``stdin`` in the working directory, a 3D viewing window is created allowing the user to inspect the geometry from any angle.  This program has to be run from a special Python environment.  For more on how to install and run this program see the documentation in :file:`{twroot}/tools/twcad/`.
+There is a Python program for viewing turboWAVE geometries in :file:`{turboWAVE}/tools/twcad/`.  If the program is run with ``stdin`` in the working directory, a 3D viewing window is created allowing the user to inspect the geometry from any angle.  This program has to be run from a special Python environment.  For more on how to install and run this program see the documentation in :file:`{turboWAVE}/tools/twcad/`.
 
 .. _shared-geometry:
 

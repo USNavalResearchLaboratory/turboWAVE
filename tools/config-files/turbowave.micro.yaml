@@ -1,0 +1,39 @@
+# Micro syntax file
+# Language:	turboWAVE
+# Maintainer: Daniel Gordon
+
+# Syntax highlighting for turboWAVE input files in micro:
+# Put this in ~/.config/micro/syntax/ to highlight stdin,stdin.txt,*.tw
+
+filetype: turbowave
+detect:
+  filename: "(^stdin$|^stdin.txt$|\\.tw$)"
+
+rules:
+  - preproc: "^\\s*#(define|include|ifn?def|endif|else)"
+  - statement: "\\b(new|generate|get|for)\\b"
+  # Without lookaround the following are hard to get exactly right
+  - special: "(^|[\\s,=(){}])([0-9]+\\.?[0-9]*|\\.[0-9]+)([eE](\\+|\\-)?[0-9]+)?\\s*\\[(deg|rad|mrad|urad|cm2|m2|cm2/s|m2/s|um|mm|cm|m|fs|ps|ns|us|s|/m3|/cm3|J/m3|J/cm3|eV|K|V|webers/m|G\\*cm|V/m|V/cm|T|G)\\]($|[\\s,=(){}])"
+  - special: "(^|[\\s,=(){}])\\$[^\\s,=(){}]+"
+  - constant: "\\b(none|full)\\b"
+  - constant: "\\b(deterministic|statistical|variable|fixed|triggered|maintained)\\b"
+  - constant: "\\b(absorbing|emitting|reflecting|axisymmetric|periodic)\\b"
+  - constant.bool: "\\b(true|false|on|off|yes|no)\\b"
+
+  - constant: "\\b(hermite gauss|laguerre gauss|plane wave|airy disc|bessel beam|multipole)\\b"
+  - constant: "\\b(adk|ppt|mpi|kyh|pmpb)\\b"
+  - constant: "\\b(quintic|sin2|sech)\\b"
+
+  - constant.string: "\"[^\"]*\""
+  - constant.string: "'[^']*'"
+  - comment:
+      start: "//"
+      end: "$"
+      rules:
+          - todo: "(TODO|XXX|FIXME):?"
+
+  - comment:
+      start: "/\\*"
+      end: "\\*/"
+      rules:
+          - todo: "(TODO|XXX|FIXME):?"

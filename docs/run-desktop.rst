@@ -15,7 +15,7 @@ Running an Example
 #. Pick some example from :samp:`{turboWAVE}/core/examples`.  For this test you should avoid the 3D examples.
 #. For definiteness, let us use :samp:`{turboWAVE}/core/examples/pgc/LWFA-coulomb.tw`
 #. Open a terminal window and navigate to a directory where you want to run, e.g., :samp:`~/Run` (create it if it doesn't exist).
-#. :samp:`cp {twroot}/core/examples/pgc/LWFA-coulomb.tw stdin`
+#. :samp:`cp {turboWAVE}/core/examples/pgc/LWFA-coulomb.tw stdin`
 #. This puts the input file in :samp:`~/Run` with the name :samp:`stdin`.  By default, turboWAVE assumes the input file is in the working directory with the name :samp:`stdin`.
 #. :samp:`tw3d -n 4`
 #. The above command runs the problem with 4 MPI processes and 1 thread per process.  Of course this choice may not be optimal for your system, method of compiling, etc., but it should suffice for this example.

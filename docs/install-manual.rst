@@ -81,15 +81,23 @@ Python DataViewer
 Input File Syntax Highlights
 ----------------------------
 
-You can add syntax highlights for ``vim`` and ``Atom`` editors.  Syntax highlights assign different colors to different input file elements, such as comments, macros, keywords, etc..  This often makes the file easier to read and helps identify errors.
+You can add syntax highlights for ``Atom``, ``micro``, ``nano``, and ``vim`` editors.  Syntax highlights assign different colors to different input file elements, such as comments, macros, keywords, etc..  This often makes the file easier to read and helps identify errors.
+
+#. To enable turboWAVE input file syntax highlights with the :samp:`Atom` editor, go to the package installation screen and search for the :samp:`language-turbowave` package.  Press the button to install the package.
+
+#. To enable turboWAVE input file syntax highlights with the :samp:`micro` editor
+
+	* Copy :samp:`{turboWAVE}/tools/config-files/turbowave.micro.yaml` to ``%HomePath%\.config\micro\syntax\`` (Windows) or ``~/.config/micro/syntax/`` (others).
+
+#. To enable turboWAVE input file syntax highlights with the :samp:`nano` editor
+
+	* Copy :samp:`{turboWAVE}/tools/config-files/.turbowave.nano` to your home directory.
+	* Edit (create if necessary) ``%HomePath%\nano.rc`` (windows) or ``~/.nanorc`` (others) and add the line ``include ".turbowave.nanorc"``.
 
 #. To enable turboWAVE input file syntax highlights with the :samp:`vim` editor
 
-	* Copy :samp:`{turboWAVE}/tools/config-files/filetype.vim` to :samp:`~/.vim/`
-	* Copy :samp:`{turboWAVE}/tools/config-files/turbowave.vim` to :samp:`~/.vim/syntax/`
-	* Files with extension ``.tw`` or the name ``stdin`` will be highlighted
-
-#. To enable turboWAVE input file syntax highlights with the :samp:`Atom` editor, go to the package installation screen and search for the :samp:`language-turbowave` package.  Press the button to install the package.
+	* Copy :samp:`{turboWAVE}/tools/config-files/filetype.vim` to ``%HomePath%\vimfiles\`` (Windows) or ``~/.vim/`` (others)
+	* Copy :samp:`{turboWAVE}/tools/config-files/turbowave.vim` to ``%HomePath%\vimfiles\syntax\`` or ``~/.vim/syntax/`` (others).
 
 Core Installation
 =================

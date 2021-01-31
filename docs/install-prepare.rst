@@ -108,8 +108,10 @@ Install Anaconda
 Notes on Text Editors
 ----------------------
 
-Most turboWAVE text files, such as input file examples, have UNIX line feeds.  This is no problem for WordPad (set word wrap to no wrap), but Notepad may not display them properly.  Installing a developer-oriented text editor (e.g. Atom, Sublime) might be useful.  You can also install terminal-style editors such as ``vim`` for use in the PowerShell::
+Most turboWAVE text files, such as input file examples, have UNIX line feeds.  This is no problem for WordPad (set word wrap to no wrap), but Notepad may not display them properly.  Installing a developer-oriented text editor (e.g. Atom, Sublime) might be useful.  You can install various terminal-style editors by opening an administrator PowerShell window and executing any or all of the following::
 
+	choco install emacs
+	choco install micro
 	choco install vim
 
 Install LLVM (free)
