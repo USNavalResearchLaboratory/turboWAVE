@@ -92,7 +92,7 @@ You can add syntax highlights for ``Atom``, ``micro``, ``nano``, and ``vim`` edi
 #. To enable turboWAVE input file syntax highlights with the :samp:`nano` editor
 
 	* Copy :samp:`{turboWAVE}/tools/config-files/.turbowave.nano` to your home directory.
-	* Edit (create if necessary) ``%HomePath%\nano.rc`` (windows) or ``~/.nanorc`` (others) and add the line ``include ".turbowave.nanorc"``.
+	* Edit (create if necessary) ``%HomePath%\nano.rc`` (windows) or ``~/.nanorc`` (others) and add the line ``include "~/.turbowave.nanorc"``.
 
 #. To enable turboWAVE input file syntax highlights with the :samp:`vim` editor
 

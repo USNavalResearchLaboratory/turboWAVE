@@ -28,8 +28,15 @@ Module::Module(const std::string& name,Simulation* sim)
 		smoothing[i] = compensation[i] = 0;
 	suppressNextUpdate = false;
 	DiscreteSpace::operator=(*sim);
+	// Units
+	native = sim->units;
+	natural = tw::UnitConverter(tw::units::natural,native);
+	atomic = tw::UnitConverter(tw::units::atomic,native);
+	plasma = tw::UnitConverter(tw::units::plasma,native);
+	cgs = tw::UnitConverter(tw::units::cgs,native);
+	mks = tw::UnitConverter(tw::units::mks,native);
+	directives.AttachUnits(native);
 	// Any Module recognizes smoothing keys
-	directives.AttachUnits(sim->units);
 	directives.Add("smoothing",new tw::input::Numbers<tw::Int>(&smoothing[1],3),false);
 	directives.Add("compensation",new tw::input::Numbers<tw::Int>(&compensation[1],3),false);
 }

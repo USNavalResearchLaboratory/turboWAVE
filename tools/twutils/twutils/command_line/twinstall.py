@@ -528,8 +528,13 @@ class base_tasks(dictionary_view):
                     nanorc = f.read()
             except FileNotFoundError:
                 nanorc = '# nano settings file, created by twinstall\n\n'
-            if re.search(r'include\s+"\.turbowave\.nanorc"',nanorc)==None:
-                nanorc += '\ninclude ".turbowave.nanorc"'
+            inc_path = pathlib.Path.home() / '.turbowave.nanorc'
+            search_str = r'include.+turbowave\.nanorc.*'
+            inc_str = 'include ' + '"' + str(inc_path) + '"'
+            if re.search(search_str,nanorc)==None:
+                nanorc += '\n' + inc_str
+            else:
+                nanorc = re.sub(search_str,inc_str,nanorc)
             with open(dest_path,'w') as f:
                 f.write(nanorc)
         # VIM highlighting

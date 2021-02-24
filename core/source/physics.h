@@ -81,8 +81,8 @@ namespace sparc
 		}
 	};
 
-	tw::Float CoulombCrossSection(const UnitConverter& uc,tw::Float q1,tw::Float q2,tw::Float m12,tw::Float v12,tw::Float N1,tw::Float N2,tw::Float T1,tw::Float T2);
-	tw::Float ElectronPhononRateCoeff(const UnitConverter& uc,tw::Float Ti,tw::Float EFermi,tw::Float ks,tw::Float nref);
+	tw::Float CoulombCrossSectionCGS(tw::Float q1,tw::Float q2,tw::Float m12,tw::Float v12,tw::Float N1,tw::Float N2,tw::Float T1,tw::Float T2);
+	tw::Float ElectronPhononFrequencyCGS(tw::Float Ti,tw::Float EFermi,tw::Float ks);
 }
 
 struct Ionizer : ComputeTool
@@ -105,7 +105,7 @@ struct Ionizer : ComputeTool
 	void DeduceStaticCoeff();
 	virtual tw::Float InstantRate(tw::Float w0,tw::Float E) { return 0.0; }
 	virtual tw::Float AverageRate(tw::Float w0,tw::Float E) { return 0.0; }
-	tw::Float ThresholdEstimate() { return space->units->ConvertToNative(A3,tw::dimensions::electric_field,tw::units::atomic); }
+	//tw::Float ThresholdEstimate() { return A3*tw::dims::electric_field >> atomic >> native; }
 };
 
 struct Multiphoton : Ionizer
@@ -158,16 +158,13 @@ struct PMPB : PPT
 	virtual tw::Float AverageRate(tw::Float w0,tw::Float E);
 };
 
-// DFG - redesigned to:
-// (i) take advantage of encapsulated data structures
-// (ii) conform to new ComputeTool spec (strong preference that containment tree be reserved for modules)
-// In this process I split components and mixtures more strongly.
+// notes on EOS:
 // Higher levels must orchestrate the following sequence (see Chemistry::ApplyEOS):
 // 1. Components load the nmcv array
 // 2. Mixture computes T, and returns IE and nm for components to use
 // 3. Components load the P, K, and visc arrays
 
-// EOS classes now retain their own indexing and material information in 3 lightweight structs:
+// EOS classes retain their own indexing and material information in 3 lightweight structs:
 // sparc::hydro_set and sparc::eos_set contain indices into a Field object
 // sparc::material contains floats characterizing a chemical
 struct EOSComponent:ComputeTool
@@ -237,19 +234,19 @@ struct EOSLinearMieGruneisen:EOSComponent
 // Coefficients for water can be found at [A.L. Brundage, Procedia Engineering (2013)]
 struct EOSTillotson:EOSComponent
 {
-	tw::Float n0;   // Reference density
+	tw::Float rho0;   // Reference density
 
 	tw::Float a;   // Tillotson Coefficient
 	tw::Float b;   // Tillotson Coefficient
-	tw::Float A;   // Bulk Modulus [sim]
-	tw::Float B;   // Tillotson Parameter [sim]
+	tw::Float A;   // Bulk Modulus [pressure]
+	tw::Float B;   // Tillotson Parameter [pressure]
 	tw::Float alpha;   // Tillotson Coefficient
 	tw::Float beta;   // Tillotson Coefficient
 
-	tw::Float nIV;   // Vaporization Pressure
-	tw::Float E0;   // Reference energy
-	tw::Float EIV;   // Vaporization Energy
-	tw::Float ECV;   // Cavitation Energy
+	tw::Float rhoIV;   // Incipient vaporization density
+	tw::Float E0;   // Reference specific energy
+	tw::Float EIV;   // Incipient vaporization specific energy
+	tw::Float ECV;   // Complete vaporization specific energy
 
 	EOSTillotson(const std::string& name,MetricSpace *m,Task *tsk);
 	virtual void AddPKV(ScalarField& IE,ScalarField& nm,ScalarField& nu_e,Field& hydro,Field& eos);

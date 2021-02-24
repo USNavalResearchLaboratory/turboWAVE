@@ -11,7 +11,7 @@ using namespace tw::bc;
 
 FieldSolver::FieldSolver(const std::string& name,Simulation* sim):Module(name,sim)
 {
-	if (sim->units->native!=tw::units::plasma)
+	if (native.native!=tw::units::plasma)
 		throw tw::FatalError("FieldSolver module requires <native units = plasma>");
 
 	updateSequencePriority = tw::priority::field;
@@ -276,16 +276,16 @@ void Electromagnetic::Report(Diagnostic& diagnostic)
 	diagnostic.FirstMoment("Dx",sources,0,dipoleCenter,tw::grid::x);
 	diagnostic.FirstMoment("Dy",sources,0,dipoleCenter,tw::grid::y);
 	diagnostic.FirstMoment("Dz",sources,0,dipoleCenter,tw::grid::z);
-	diagnostic.Field("Ex",F,0,tw::dimensions::electric_field,"$E_x$");
-	diagnostic.Field("Ey",F,1,tw::dimensions::electric_field,"$E_y$");
-	diagnostic.Field("Ez",F,2,tw::dimensions::electric_field,"$E_z$");
-	diagnostic.Field("Bx",F,3,tw::dimensions::magnetic_field,"$B_x$");
-	diagnostic.Field("By",F,4,tw::dimensions::magnetic_field,"$B_y$");
-	diagnostic.Field("Bz",F,5,tw::dimensions::magnetic_field,"$B_z$");
-	diagnostic.Field("rho",sources,0,tw::dimensions::charge_density,"$\\rho$");
-	diagnostic.Field("Jx",sources,1,tw::dimensions::current_density,"$j_x$");
-	diagnostic.Field("Jy",sources,2,tw::dimensions::current_density,"$j_y$");
-	diagnostic.Field("Jz",sources,3,tw::dimensions::current_density,"$j_z$");
+	diagnostic.Field("Ex",F,0,tw::dims::electric_field,"$E_x$");
+	diagnostic.Field("Ey",F,1,tw::dims::electric_field,"$E_y$");
+	diagnostic.Field("Ez",F,2,tw::dims::electric_field,"$E_z$");
+	diagnostic.Field("Bx",F,3,tw::dims::magnetic_field,"$B_x$");
+	diagnostic.Field("By",F,4,tw::dims::magnetic_field,"$B_y$");
+	diagnostic.Field("Bz",F,5,tw::dims::magnetic_field,"$B_z$");
+	diagnostic.Field("rho",sources,0,tw::dims::charge_density,"$\\rho$");
+	diagnostic.Field("Jx",sources,1,tw::dims::current_density,"$j_x$");
+	diagnostic.Field("Jy",sources,2,tw::dims::current_density,"$j_y$");
+	diagnostic.Field("Jz",sources,3,tw::dims::current_density,"$j_z$");
 }
 
 
@@ -479,7 +479,7 @@ void CoulombSolver::Report(Diagnostic& diagnostic)
 	// Upon entry : A0(-1/2) , A1(1/2) , phi0(-1) , phi1(0)
 	Electromagnetic::Report(diagnostic);
 
-	diagnostic.Field("phi",A4,4,tw::dimensions::scalar_potential,"$\\phi$");
+	diagnostic.Field("phi",A4,4,tw::dims::scalar_potential,"$\\phi$");
 
 	std::map<tw::Int,std::string> xyz = {{1,"x"},{2,"y"},{3,"z"}};
 
@@ -488,12 +488,12 @@ void CoulombSolver::Report(Diagnostic& diagnostic)
 		scratch1 = 0.0;
 		AddMulFieldData(scratch1,Element(0),A4,Element(ax),0.5);
 		AddMulFieldData(scratch1,Element(0),A4,Element(ax+4),0.5);
-		diagnostic.Field("A"+xyz[ax],scratch1,0,tw::dimensions::vector_potential,"$A_"+xyz[ax]+"$");
+		diagnostic.Field("A"+xyz[ax],scratch1,0,tw::dims::vector_potential,"$A_"+xyz[ax]+"$");
 
 		scratch1 = 0.0;
 		AddMulFieldData(scratch1,Element(0),A4,Element(ax),-1.0/dt);
 		AddMulFieldData(scratch1,Element(0),A4,Element(ax+4),1.0/dt);
-		diagnostic.Field("A"+xyz[ax]+"Dot",scratch1,0,tw::dimensions::electric_field,"$\\dot{A}_"+xyz[ax]+"$");
+		diagnostic.Field("A"+xyz[ax]+"Dot",scratch1,0,tw::dims::electric_field,"$\\dot{A}_"+xyz[ax]+"$");
 	}
 }
 

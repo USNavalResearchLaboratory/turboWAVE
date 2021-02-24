@@ -22,6 +22,7 @@ struct Module:DiscreteSpace
 	std::vector<Module*> submodule;
 	std::vector<ComputeTool*> moduleTool;
 	tw::input::DirectiveReader directives;
+	tw::UnitConverter native,natural,atomic,plasma,cgs,mks;
 
 	tw::priority updateSequencePriority;
 	tw::Int subSequencePriority;

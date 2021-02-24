@@ -5,9 +5,14 @@
 // Dictionary for storing metadata associated with .npy files //
 ////////////////////////////////////////////////////////////////
 
-meta_writer::meta_writer(UnitConverter *units)
+meta_writer::meta_writer(const tw::UnitConverter& units)
 {
-	this->units = units;
+	native = units;
+	mks = tw::UnitConverter(tw::units::mks,native);
+	cgs = tw::UnitConverter(tw::units::cgs,native);
+	plasma = tw::UnitConverter(tw::units::plasma,native);
+	atomic = tw::UnitConverter(tw::units::atomic,native);
+	natural = tw::UnitConverter(tw::units::natural,native);
 }
 
 std::string meta_writer::s(const std::string& raw)
@@ -31,7 +36,7 @@ void meta_writer::start_entry(const std::string& name,const std::string& diagnos
 	outFile.seekp(-1,std::ios::end);
 	outFile << "," << std::endl;
 	outFile << s(name) << ": {" << std::endl;
-	outFile << "\t\"native units\": " << s(m[units->native]) << "," << std::endl;
+	outFile << "\t\"native units\": " << s(m[native.native]) << "," << std::endl;
 	if (diagnostic_name=="tw::none")
 		outFile << "\t\"grid\": " << "\"grid_warp.txt\"," << std::endl;
 	else
@@ -40,21 +45,21 @@ void meta_writer::start_entry(const std::string& name,const std::string& diagnos
 	outFile.close();
 }
 
-void meta_writer::define_axis(const std::string& name,tw::Int ax,const std::string& label,tw::dimensions d,bool last)
+void meta_writer::define_axis(const std::string& name,tw::Int ax,const std::string& label,tw::dims d,bool last)
 {
 	std::ofstream outFile("tw_metadata.json",std::ios::app);
 	outFile << "\t\t\"" << ax << "\": {" << std::endl;
 	outFile << "\t\t\t" << "\"label\" : " << s(label) << "," << std::endl;
 	outFile << "\t\t\t" << "\"mks label\" : " << s(tw::mks_label(d)) << "," << std::endl;
-	outFile << "\t\t\t" << "\"mks multiplier\" : " << units->ConvertFromNative(1.0,d,tw::units::mks) << "," << std::endl;
+	outFile << "\t\t\t" << "\"mks multiplier\" : " << (1.0*d>>native>>mks) << "," << std::endl;
 	outFile << "\t\t\t" << "\"cgs label\" : " << s(tw::cgs_label(d)) << "," << std::endl;
-	outFile << "\t\t\t" << "\"cgs multiplier\" : " << units->ConvertFromNative(1.0,d,tw::units::cgs) << "," << std::endl;
+	outFile << "\t\t\t" << "\"cgs multiplier\" : " << (1.0*d>>native>>cgs) << "," << std::endl;
 	outFile << "\t\t\t" << "\"plasma label\" : " << s(tw::plasma_label(d)) << "," << std::endl;
-	outFile << "\t\t\t" << "\"plasma multiplier\" : " << units->ConvertFromNative(1.0,d,tw::units::plasma) << "," << std::endl;
+	outFile << "\t\t\t" << "\"plasma multiplier\" : " << (1.0*d>>native>>plasma) << "," << std::endl;
 	outFile << "\t\t\t" << "\"atomic label\" : " << s(tw::atomic_label(d)) << "," << std::endl;
-	outFile << "\t\t\t" << "\"atomic multiplier\" : " << units->ConvertFromNative(1.0,d,tw::units::atomic) << "," << std::endl;
+	outFile << "\t\t\t" << "\"atomic multiplier\" : " << (1.0*d>>native>>atomic) << "," << std::endl;
 	outFile << "\t\t\t" << "\"natural label\" : " << s(tw::natural_label(d)) << "," << std::endl;
-	outFile << "\t\t\t" << "\"natural multiplier\" : " << units->ConvertFromNative(1.0,d,tw::units::natural) << std::endl;
+	outFile << "\t\t\t" << "\"natural multiplier\" : " << (1.0*d>>native>>natural) << std::endl;
 	outFile << "\t\t}" << (last==false ? "," : "") << std::endl;
 	outFile.close();
 }
@@ -306,7 +311,7 @@ tw::Float Diagnostic::FirstMoment(const std::string& fieldName,const struct Fiel
 	return ans;
 }
 
-void Diagnostic::Field(const std::string& fieldName,const struct Field& F,const tw::Int c,tw::dimensions unit,const std::string& pretty)
+void Diagnostic::Field(const std::string& fieldName,const struct Field& F,const tw::Int c,tw::dims unit,const std::string& pretty)
 {
 }
 
@@ -427,7 +432,7 @@ PointDiagnostic::PointDiagnostic(const std::string& name,MetricSpace *ms,Task *t
 	directives.Add("point",new tw::input::Vec3(&thePoint));
 }
 
-void PointDiagnostic::Field(const std::string& fieldName,const struct Field& F,const tw::Int c,tw::dimensions unit,const std::string& pretty)
+void PointDiagnostic::Field(const std::string& fieldName,const struct Field& F,const tw::Int c,tw::dims unit,const std::string& pretty)
 {
 	tw::vec3 r = thePoint + vGalileo*t;
 	if (space->IsPointValid(r)) // assumes uniform grid
@@ -510,7 +515,7 @@ void BoxDiagnostic::GetLocalIndexing(const tw::Int pts[4],const tw::Int glb[6],t
 	}
 }
 
-void BoxDiagnostic::Field(const std::string& fieldName,const struct Field& F,const tw::Int c,tw::dimensions unit,const std::string& pretty)
+void BoxDiagnostic::Field(const std::string& fieldName,const struct Field& F,const tw::Int c,tw::dims unit,const std::string& pretty)
 {
 	if (reports.size()>0)
 		if (std::find(reports.begin(),reports.end(),fieldName)==reports.end())
@@ -519,7 +524,7 @@ void BoxDiagnostic::Field(const std::string& fieldName,const struct Field& F,con
 	tw::Int buffSize,ready,i0,i1;
 	std::valarray<float> buffer,gData;
 	std::string xname;
-	meta_writer meta(space->units);
+	meta_writer meta(native);
 	npy_writer writer;
 	tw::Int coords[4],pts[4],loc[6],glb[6],dim[4],s[4];
 	tw::Int thisNode,curr,master;
@@ -609,10 +614,10 @@ void BoxDiagnostic::Field(const std::string& fieldName,const struct Field& F,con
 			pts[0] = 0;
 			writer.write_header(xname,pts);
 			meta.start_entry(xname,filename);
-			meta.define_axis(xname,0,"$t$",tw::dimensions::time);
-			meta.define_axis(xname,1,meta.refine_label("$x$",vGalileo,space->geo),tw::dimensions::length);
-			meta.define_axis(xname,2,meta.refine_label("$y$",vGalileo,space->geo),tw::dimensions::length);
-			meta.define_axis(xname,3,meta.refine_label("$z$",vGalileo,space->geo),tw::dimensions::length);
+			meta.define_axis(xname,0,"$t$",tw::dims::time);
+			meta.define_axis(xname,1,meta.refine_label("$x$",vGalileo,space->geo),tw::dims::length);
+			meta.define_axis(xname,2,meta.refine_label("$y$",vGalileo,space->geo),tw::dims::length);
+			meta.define_axis(xname,3,meta.refine_label("$z$",vGalileo,space->geo),tw::dims::length);
 			if (pretty=="tw::none")
 				meta.define_axis(xname,4,fieldName,unit,true);
 			else
@@ -780,19 +785,19 @@ void PhaseSpaceDiagnostic::Start()
 
 	if (!headerWritten && task->strip[0].Get_rank()==0)
 	{
-		std::map<tw::grid::axis,tw::dimensions> m = {{tw::grid::t,tw::dimensions::time},{tw::grid::x,tw::dimensions::length},{tw::grid::y,tw::dimensions::length},{tw::grid::z,tw::dimensions::length},
-			{tw::grid::mass,tw::dimensions::energy},{tw::grid::px,tw::dimensions::momentum},{tw::grid::py,tw::dimensions::momentum},{tw::grid::pz,tw::dimensions::momentum},
-			{tw::grid::g,tw::dimensions::none},{tw::grid::gbx,tw::dimensions::none},{tw::grid::gby,tw::dimensions::none},{tw::grid::gbz,tw::dimensions::none}};
+		std::map<tw::grid::axis,tw::dims> m = {{tw::grid::t,tw::dims::time},{tw::grid::x,tw::dims::length},{tw::grid::y,tw::dims::length},{tw::grid::z,tw::dims::length},
+			{tw::grid::mass,tw::dims::energy},{tw::grid::px,tw::dims::momentum},{tw::grid::py,tw::dims::momentum},{tw::grid::pz,tw::dims::momentum},
+			{tw::grid::g,tw::dims::none},{tw::grid::gbx,tw::dims::none},{tw::grid::gby,tw::dims::none},{tw::grid::gbz,tw::dims::none}};
 		npy_writer writer;
 		std::string xname = filename + ".npy";
 		writer.write_header(xname,dims);
-		meta_writer meta(space->units);
+		meta_writer meta(native);
 		meta.start_entry(xname,filename);
 		meta.define_axis(xname,0,meta.refine_label(tw::grid::pretty_axis_label(ax[0]),vGalileo,space->geo),m[ax[0]]);
 		meta.define_axis(xname,1,meta.refine_label(tw::grid::pretty_axis_label(ax[1]),vGalileo,space->geo),m[ax[1]]);
 		meta.define_axis(xname,2,meta.refine_label(tw::grid::pretty_axis_label(ax[2]),vGalileo,space->geo),m[ax[2]]);
 		meta.define_axis(xname,3,meta.refine_label(tw::grid::pretty_axis_label(ax[3]),vGalileo,space->geo),m[ax[3]]);
-		meta.define_axis(xname,4,"$f({\\bf r},{\\bf p})$ (arb.)",tw::dimensions::none,true);
+		meta.define_axis(xname,4,"$f({\\bf r},{\\bf p})$ (arb.)",tw::dims::none,true);
 		meta.finish_entry();
 		// don't set headerWritten until end of Finish() due to grid file
 	}

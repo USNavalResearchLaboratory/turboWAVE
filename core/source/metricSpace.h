@@ -21,7 +21,7 @@ struct MetricSpace:DiscreteSpace
 	// Elements 3,4,5 are offset by 1/2 cell forward in arc direction, back in other 2
 	// External access of arcs is through dl and dlh, and uses spatial indexing 1,2,3
 
-	UnitConverter *units;
+	tw::UnitConverter units;
 
 	#ifdef USE_OPENCL
 	cl_mem metricsBuffer;

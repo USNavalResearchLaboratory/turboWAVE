@@ -1,5 +1,5 @@
 #ifndef _did_definitions
-#define TW_VERSION_STRING "4.4.1"
+#define TW_VERSION_STRING "4.5.0"
 
 /////////////////////////////////////////////////////////////////////
 //                                                                 //
@@ -79,10 +79,6 @@ static const tw::Float one = tw::Float(1.0);
 static const tw::Float two = tw::Float(2.0);
 static const tw::Float half = tw::Float(0.5);
 static const tw::Float root2 = std::sqrt(2);
-namespace mks
-{
-	static const tw::Float c=2.99792458e8,qe=1.6021766208e-19,me=9.10938356e-31,eps0=8.854187818e-12,kB=1.38064852e-23,hbar=1.0545718001e-34;
-}
 
 /////////////////////////////////
 //                             //

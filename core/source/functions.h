@@ -1,12 +1,9 @@
 // Special functions and special function dispatch.
 // To deal with current compiler differences we wrap some special functions in the tw namespace.
 // Definitions passed in from make:
-// SF_STD : if defined C++17 special functions are in the std namespace
-// SF_ROOT : if defined C++17 special functions are in the root namespace
-// If neither are defined use our own special functions.
+// USE_TWSF : if defined use turboWAVE special functions rather than C++17 special functions (only do so if compiler forces us)
 
-#ifndef SF_STD
-#ifndef SF_ROOT
+#ifdef USE_TWSF
 
 namespace tw
 {
@@ -49,25 +46,7 @@ namespace tw
 
 }
 
-#endif
-#endif
-
-#ifdef SF_ROOT
-
-namespace tw
-{
-
-	inline tw::Float cyl_bessel_j(tw::Int n,tw::Float x) { return cyl_bessel_j(n,x); }
-
-	inline tw::Float hermite(tw::Int n,tw::Float x) { return hermite(n,x); }
-
-	inline tw::Float assoc_laguerre(tw::Int n,tw::Int m,tw::Float x) { return assoc_laguerre(n,m,x); }
-
-}
-
-#endif
-
-#ifdef SF_STD
+#else
 
 namespace tw
 {

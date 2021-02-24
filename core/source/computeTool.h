@@ -47,6 +47,7 @@ struct ComputeTool
 	std::string name;
 	int refCount; // how many modules currently using
 	tw::input::DirectiveReader directives;
+	tw::UnitConverter native,natural,atomic,plasma,cgs,mks;
 
 	// Allow for a region
 	std::string region_name;

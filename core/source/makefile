@@ -93,29 +93,27 @@ ifeq ($(PLATFORM),OSX)
     else ifeq ($(PACKAGE_PREF),MACPORTS)
       TW_Compiler = /opt/local/bin/g++
       TW_Linker = /opt/local/bin/g++
-      BASE_FLAGS += -DSF_STD
     else ifeq ($(PACKAGE_PREF),HOMEBREW)
       TW_Compiler = /usr/local/opt/gcc/bin/g++-9
       TW_Linker = /usr/local/opt/gcc/bin/g++-9
-      BASE_FLAGS += -DSF_STD
     endif
   else ifeq ($(COMPILER_PREF),LLVM_CLANG)
     $(warning Build mode limits special functions to low order)
     ifeq ($(PACKAGE_PREF),NONE)
       TW_Compiler = clang++
       TW_Linker = clang++
-      BASE_FLAGS += -stdlib=libc++
+      BASE_FLAGS += -stdlib=libc++ -DUSE_TWSF
       LIBS = -lc++
     else ifeq ($(PACKAGE_PREF),MACPORTS)
       TW_Compiler = /opt/local/bin/clang++
       TW_Linker = /opt/local/bin/clang++
-      BASE_FLAGS += -stdlib=libc++ -I/opt/local/include
+      BASE_FLAGS += -stdlib=libc++ -I/opt/local/include -DUSE_TWSF
       LIBS = -lc++ -L/opt/local/lib -Wl,-rpath,/opt/local/lib
     else ifeq ($(PACKAGE_PREF),HOMEBREW)
       TW_Compiler = /usr/local/opt/llvm/bin/clang++
       TW_Linker = /usr/local/opt/llvm/bin/clang++
       BASE_FLAGS += -isysroot /Applications/XCode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk
-      BASE_FLAGS += -stdlib=libc++ -I/usr/local/opt/llvm/include/
+      BASE_FLAGS += -stdlib=libc++ -I/usr/local/opt/llvm/include/ -DUSE_TWSF
       LIBS = -lc++ -L/usr/local/opt/llvm/lib -Wl,-rpath,/usr/local/opt/llvm/lib
     endif
   else
@@ -143,7 +141,7 @@ ifeq ($(PLATFORM),OSX)
 endif
 
 ifeq ($(PLATFORM),WIN)
-  BASE_FLAGS = -c -std=c++17 -DUSE_DESKTOP -DSF_STD
+  BASE_FLAGS = -c -std=c++17 -DUSE_DESKTOP
   ifeq ($(COMPILER_PREF),LLVM_CLANG)
     TW_Compiler = clang++
     TW_Linker = clang++
@@ -182,17 +180,15 @@ ifeq ($(PLATFORM),LINUX)
     TW_Compiler = clang++
     TW_Linker = clang++
     LIBS = -lstdc++
-    BASE_FLAGS += -DSF_STD -stdlib=libstdc++
+    BASE_FLAGS += -stdlib=libstdc++
   else ifeq ($(COMPILER_PREF),GNU)
     TW_Compiler = g++
     TW_Linker = g++
     LIBS = -lstdc++
-    BASE_FLAGS += -DSF_STD
   else ifeq ($(COMPILER_PREF),INTEL)
     TW_Compiler = icpc
     TW_Linker = icpc
     LIBS = -lstdc++
-    BASE_FLAGS += -DSF_STD
   else
     $(error Compiler $(COMPILER_PREF) not supported on Linux)
   endif
@@ -224,7 +220,7 @@ ifeq ($(PLATFORM),LINUX)
 endif
 
 ifeq ($(PLATFORM),OPENMPI)
-  BASE_FLAGS = -c -std=c++17 -DUSE_HPC -DSF_STD
+  BASE_FLAGS = -c -std=c++17 -DUSE_HPC
   TW_Compiler = mpicxx
   TW_Linker = mpicxx
   ifeq ($(COMPILER_PREF),LLVM_CLANG)
@@ -264,11 +260,11 @@ ifeq ($(PLATFORM),INTELMPI)
   BASE_FLAGS = -c -std=c++17 -DUSE_HPC
   ifeq ($(COMPILER_PREF),INTEL)
     $(warning Build mode limits special functions to low order)
+    BASE_FLAGS += -DUSE_TWSF
     TW_Compiler = mpiicpc
     TW_Linker = mpiicpc
     LIBS = -lstdc++
   else ifeq ($(COMPILER_PREF),GNU)
-    BASE_FLAGS += -DSF_STD
     TW_Compiler = mpicxx
     TW_Linker = mpicxx
     LIBS = -lstdc++
@@ -298,7 +294,7 @@ endif
 ifeq ($(PLATFORM),CRAY)
   BASE_FLAGS = -c -std=c++17 -DUSE_HPC
   ifeq ($(COMPILER_PREF),CRAY) # assume this is the LLVM based Cray compiler
-    BASE_FLAGS += -DSF_STD -stdlib=libstdc++
+    BASE_FLAGS += -stdlib=libstdc++
     TW_Compiler = CC
     TW_Linker = CC
     ifeq ($(HARDWARE_ACCEL),NONE)
@@ -313,7 +309,6 @@ ifeq ($(PLATFORM),CRAY)
     DEBUG_FLAGS = $(BASE_FLAGS) -g -O0
     LIBS =
   else ifeq ($(COMPILER_PREF),INTEL)
-    BASE_FLAGS += -DSF_STD
     TW_Compiler = CC
     TW_Linker = CC
     ifeq ($(HARDWARE_ACCEL),NONE)
@@ -339,7 +334,6 @@ ifeq ($(PLATFORM),SGI)
     TW_Compiler = icpc
     TW_Linker = icpc
     LIBS = -lmpi -lmpi++
-    $(warning Build mode limits special functions to low order)
   else
     $(error Compiler $(COMPILER_PREF) not supported on SGI HPC)
   endif

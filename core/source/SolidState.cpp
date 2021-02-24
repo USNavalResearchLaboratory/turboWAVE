@@ -10,7 +10,7 @@
 
 BoundElectrons::BoundElectrons(const std::string& name,Simulation* sim) : Module(name,sim)
 {
-	if (sim->units->native!=tw::units::plasma)
+	if (native.native!=tw::units::plasma)
 		throw tw::FatalError("BoundElectrons module requires <native units = plasma>");
 
 	updateSequencePriority = tw::priority::source;
@@ -309,14 +309,13 @@ void BoundElectrons::ReadInputFileDirective(std::stringstream& inputString,const
 
 	if (command=="basis")
 	{
-		auto native = [&] (const tw::dnum& d) { return owner->units->ConvertToNative(d); };
 		inputString >> word;
 		inputString >> x >> y >> z;
-		crystalBasis.u = tw::vec3(native(x),native(y),native(z));
+		crystalBasis.u = tw::vec3(x>>native,y>>native,z>>native);
 		inputString >> x >> y >> z;
-		crystalBasis.v = tw::vec3(native(x),native(y),native(z));
+		crystalBasis.v = tw::vec3(x>>native,y>>native,z>>native);
 		inputString >> x >> y >> z;
-		crystalBasis.w = tw::vec3(native(x),native(y),native(z));
+		crystalBasis.w = tw::vec3(x>>native,y>>native,z>>native);
 	}
 }
 
@@ -362,8 +361,8 @@ void BoundElectrons::Report(Diagnostic& diagnostic)
 		temp(cell) = 0.5*m0*dens(cell)*Norm(resFreq*R1.Vec3(cell,0));
 	diagnostic.VolumeIntegral("bound-PE",temp,0);
 
-	diagnostic.Field(name,dens,0,tw::dimensions::density,"$n_{\\rm "+name+"}$");
-	diagnostic.Field(name+"_x",R1,0,tw::dimensions::length,"$\\delta x$["+name+"]");
-	diagnostic.Field(name+"_y",R1,1,tw::dimensions::length,"$\\delta y$["+name+"]");
-	diagnostic.Field(name+"_z",R1,2,tw::dimensions::length,"$\\delta z$["+name+"]");
+	diagnostic.Field(name,dens,0,tw::dims::density,"$n_{\\rm "+name+"}$");
+	diagnostic.Field(name+"_x",R1,0,tw::dims::length,"$\\delta x$["+name+"]");
+	diagnostic.Field(name+"_y",R1,1,tw::dims::length,"$\\delta y$["+name+"]");
+	diagnostic.Field(name+"_z",R1,2,tw::dims::length,"$\\delta z$["+name+"]");
 }

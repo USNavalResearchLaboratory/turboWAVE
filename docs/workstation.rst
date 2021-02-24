@@ -15,7 +15,7 @@ TurboWAVE can be readily installed on Linux, MacOS, or Windows.  The workflow te
 Visualization tools are fairly universal, taking the form of command line Python scripts,
 or interactive Python notebooks.  Outputs are written in Python-friendly formats so you can readily create your own post-processing tools.
 
-Desktop OS's that are explicitly supported at the time of this writing include MacOS 10.15, RHEL 8.0 and clones, Ubuntu 18.04, and Windows 10.  Supercomputer platforms that are known to work well include Cray and SGI.
+Desktop OS's that are explicitly supported and tested at the time of this writing include MacOS 10.15, RHEL 8.x and clones, Ubuntu 20.04, and Windows 10.  Supercomputer platforms that are known to work well include Cray and SGI.
 
 Hardware
 --------

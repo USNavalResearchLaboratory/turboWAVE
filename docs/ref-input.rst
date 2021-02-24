@@ -143,43 +143,57 @@ Specifying Units
 
 When a number is given without dimensions, it is assumed to be in native units.  As of this writing, native units must be set globally (see :ref:`top-level`).  Dimensional numbers can be specified using the form :samp:`{n} {u}`, where :samp:`{n}` is a number and :samp:`{u}` is a string identifying the unit.  An example is :samp:`10 [ps]`, which means 10 picoseconds. White space between the number and unit is optional.  Supported units and identifier string are:
 
-.. csv-table:: Unit Identifiers.
-	:header: "Quantity", "Identifier", "Deprecated"
+.. csv-table:: Unit Specifiers.
+	:header: "Quantity", "Identifier", "Dimension"
 
-	"Femtoseconds", :samp:`[fs]`, :samp:`fs`
-	"Picoseconds", :samp:`[ps]`, :samp:`ps`
-	"Nanoseconds", :samp:`[ns]`, :samp:`ns`
-	"Microseconds", :samp:`[us]`, :samp:`us`
-	"Seconds", :samp:`[s]`, :samp:`s`
-	"Micrometers", :samp:`[um]`, :samp:`um`
-	"Millimeters", :samp:`[mm]`, :samp:`mm`
-	"Centimeters", :samp:`[cm]`, :samp:`cm`
-	"Meters", :samp:`[m]`, :samp:`m`
-	"Degrees", :samp:`[deg]`, :samp:`deg`
-	"Radians", :samp:`[rad]`, :samp:`rad`
-	"Milliradians", :samp:`[mrad]`, :samp:`mrad`
-	"Microradians", :samp:`[urad]`, :samp:`urad`
-	"Particles per Cubic Meter", :samp:`[/m3]`, :samp:`m-3`
-	"Particles per Cubic Centimeter", :samp:`[/cm3]`, :samp:`cm-3`
-	"Joules per Cubic Meter", :samp:`[J/m3]`, :samp:`Jm3`
-	"Joules per Cubic Centimeter", :samp:`[J/cm3]`, :samp:`Jcm3`
-	"Electron Volts", :samp:`[eV]`, :samp:`eV`
-	"Kelvin", :samp:`[K]`, :samp:`K`
-	"CGS Cross Section", :samp:`[cm2]`, :samp:`cm2`
-	"MKS Cross Section", :samp:`[m2]`, :samp:`m2`
-	"CGS Diffusivity", :samp:`[cm2/s]`, :samp:`cm2s`
-	"MKS Diffusivity", :samp:`[m2/s]`, :samp:`m2s`
-	"Volts", :samp:`[V]`, :samp:`V`
-	"Webers per Meter", :samp:`[webers/m]`, :samp:`wm`
-	"Gauss Centimeters", :samp:`[G*cm]`, :samp:`Gcm`
-	"Volts per Meter", :samp:`[V/m]`, :samp:`Vm`
-	"Volts per Centimeter", :samp:`[V/cm]`, :samp:`Vcm`
-	"Tesla", :samp:`[T]`, :samp:`T`
-	"Gauss", :samp:`[G]`, :samp:`G`
+	**Spatiotemporal Category**
 
-.. note::
+	"Femtoseconds", :samp:`[fs]`, Time
+	"Picoseconds", :samp:`[ps]`, Time
+	"Nanoseconds", :samp:`[ns]`, Time
+	"Microseconds", :samp:`[us]`, Time
+	"Seconds", :samp:`[s]`, "Time"
+	"Micrometers", :samp:`[um]`, Length
+	"Millimeters", :samp:`[mm]`, Length
+	"Centimeters", :samp:`[cm]`, Length
+	"Meters", :samp:`[m]`, Length
+	"Degrees", :samp:`[deg]`, Angle
+	"Radians", :samp:`[rad]`, Angle
+	"Milliradians", :samp:`[mrad]`, Angle
+	"Microradians", :samp:`[urad]`, Angle
 
-	The old ``%`` prefix can still be used, but is considered deprecated.
+	**Thermodynamics Category**
+
+	"Particles per Cubic Meter", :samp:`[/m3]`, Density
+	"Particles per Cubic Centimeter", :samp:`[/cm3]`, Density
+	"Kilograms per Cubic Meter", :samp:`[kg/m3]`, Mass Density
+	"Grams per Cubic Centimeter", :samp:`[g/cm3]`, Mass Density
+	"Joules per Cubic Meter", :samp:`[J/m3]`, Energy Density
+	"Joules per Cubic Centimeter", :samp:`[J/cm3]`, Energy Density
+	"Electron Volts", :samp:`[eV]`, Temperature
+	"Kelvin", :samp:`[K]`, Temperature
+	"Pascals", :samp:`[Pa]`, Pressure
+	"Dynes per Square Centimeter", :samp:`[dynes/cm2]`, Pressure
+	"Bars", :samp:`[bar]`, Pressure
+	"Ergs per Gram", :samp:`[ergs/g]`, Specific Energy
+	"Joules per Kilogram", :samp:`[J/kg]`, Specific Energy
+
+	**Transport Category**
+
+	"Centimeters Squared", :samp:`[cm2]`, Cross Section
+	"Meters Squared", :samp:`[m2]`, Cross section
+	"Centimeters Squared per Second", :samp:`[cm2/s]`, Diffusivity
+	"Meters Squared per Second", :samp:`[m2/s]`, Diffusivity
+
+	**Electrodynamics Category**
+
+	"Volts", :samp:`[V]`, Scalar Potential
+	"Webers per Meter", :samp:`[webers/m]`, Vector Potential
+	"Gauss Centimeters", :samp:`[G*cm]`, Vector Potential
+	"Volts per Meter", :samp:`[V/m]`, Electric Field
+	"Volts per Centimeter", :samp:`[V/cm]`, Electric Field
+	"Tesla", :samp:`[T]`, Magnetic Field
+	"Gauss", :samp:`[G]`, Magnetic Field
 
 .. _top-level:
 
@@ -322,7 +336,7 @@ To use a predeclaration, create a named low level object.  Then add it to a high
 Post-declaration
 ,,,,,,,,,,,,,,,,
 
-To use a post-declaration use one of the two associative forms of object creation:
+To use a post-declaration first create the high level object, then use one of the two associative forms of object creation:
 
 .. code-block:: none
 
@@ -330,7 +344,7 @@ To use a post-declaration use one of the two associative forms of object creatio
 	{
 		// fill in directives defining the species
 	}
-	generate uniform 'ions'
+	generate uniform 'ions' // creates an anonymous profile for 'ions'
 	{
 		// fill in directives defining the profile
 	}

@@ -20,7 +20,13 @@ ComputeTool::ComputeTool(const std::string& name,MetricSpace *ms,Task *tsk)
 	theRgn = NULL;
 	programFilename = "";
 	buildLog = "";
-	directives.AttachUnits(ms->units);
+	native = ms->units;
+	natural = tw::UnitConverter(tw::units::natural,native);
+	atomic = tw::UnitConverter(tw::units::atomic,native);
+	plasma = tw::UnitConverter(tw::units::plasma,native);
+	cgs = tw::UnitConverter(tw::units::cgs,native);
+	mks = tw::UnitConverter(tw::units::mks,native);
+	directives.AttachUnits(native);
 	directives.Add("clipping region",new tw::input::String(&region_name),false);
 }
 

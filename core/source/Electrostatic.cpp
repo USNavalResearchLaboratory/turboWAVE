@@ -14,7 +14,7 @@ using namespace tw::bc;
 
 Electrostatic::Electrostatic(const std::string& name,Simulation* sim):FieldSolver(name,sim)
 {
-	if (sim->units->native!=tw::units::plasma)
+	if (native.native!=tw::units::plasma)
 		throw tw::FatalError("Electrostatic module requires <native units = plasma>");
 
 	phi.Initialize(*this,owner);
@@ -114,14 +114,14 @@ void Electrostatic::Report(Diagnostic& diagnostic)
 		energyDensity(cell) = 0.5*Norm(Ef(cell));
 	diagnostic.VolumeIntegral("FieldEnergy",energyDensity,0);
 	diagnostic.VolumeIntegral("TotalCharge",J4,0);
-	diagnostic.Field("phi",phi,0,tw::dimensions::scalar_potential,"$\\phi$");
-	diagnostic.Field("Ex",Ef,0,tw::dimensions::electric_field,"$E_x$");
-	diagnostic.Field("Ey",Ef,1,tw::dimensions::electric_field,"$E_y$");
-	diagnostic.Field("Ez",Ef,2,tw::dimensions::electric_field,"$E_z$");
-	diagnostic.Field("rho",J4,0,tw::dimensions::charge_density,"$\\rho$");
-	diagnostic.Field("Jx",J4,1,tw::dimensions::current_density,"$j_x$");
-	diagnostic.Field("Jy",J4,2,tw::dimensions::current_density,"$j_y$");
-	diagnostic.Field("Jz",J4,3,tw::dimensions::current_density,"$j_z$");
+	diagnostic.Field("phi",phi,0,tw::dims::scalar_potential,"$\\phi$");
+	diagnostic.Field("Ex",Ef,0,tw::dims::electric_field,"$E_x$");
+	diagnostic.Field("Ey",Ef,1,tw::dims::electric_field,"$E_y$");
+	diagnostic.Field("Ez",Ef,2,tw::dims::electric_field,"$E_z$");
+	diagnostic.Field("rho",J4,0,tw::dims::charge_density,"$\\rho$");
+	diagnostic.Field("Jx",J4,1,tw::dims::current_density,"$j_x$");
+	diagnostic.Field("Jy",J4,2,tw::dims::current_density,"$j_y$");
+	diagnostic.Field("Jz",J4,3,tw::dims::current_density,"$j_z$");
 }
 
 void Electrostatic::SetupInitialPotential()

@@ -10,7 +10,6 @@
 tw::input::DirectiveReader::DirectiveReader()
 {
 	maxKeyWords = 0;
-	uc = NULL;
 }
 
 tw::input::DirectiveReader::~DirectiveReader()
@@ -19,9 +18,9 @@ tw::input::DirectiveReader::~DirectiveReader()
 		delete pair.second;
 }
 
-void tw::input::DirectiveReader::AttachUnits(UnitConverter *uc)
+void tw::input::DirectiveReader::AttachUnits(const tw::UnitConverter& native)
 {
-	this->uc = uc;
+	this->native = native;
 }
 
 void tw::input::DirectiveReader::Reset()
@@ -65,9 +64,9 @@ std::string tw::input::DirectiveReader::ReadNext(std::stringstream& in)
 		if (dmap.find(key)!=dmap.end()) // key has been found
 		{
 			keysFound[key] = 0;
-			if (uc==NULL)
+			if (native.ne==0.0)
 				throw tw::FatalError("DirectiveReader class is missing units while processing key <"+key+">.");
-			dmap[key]->Read(in,key,*uc);
+			dmap[key]->Read(in,key,native);
 			return key;
 		}
 		if (word_count<maxKeyWords)

@@ -24,10 +24,11 @@ tw::Float PrimitiveReaction::PrimitiveRate(tw::Float T)
 	return rate;
 }
 
-void PrimitiveReaction::ReadRate(std::stringstream& inputString,tw::Int numBodies,UnitConverter *uc)
+void PrimitiveReaction::ReadRate(std::stringstream& inputString,tw::Int numBodies,const tw::UnitConverter& native)
 {
-	unit_T_eV = uc->ConvertFromNative(1.0,tw::dimensions::temperature,tw::units::cgs);
-	unit_rate_cgs = std::pow(uc->ConvertFromNative(1.0,tw::dimensions::density,tw::units::cgs),tw::Float(1-numBodies)) / uc->ConvertFromNative(1.0,tw::dimensions::time,tw::units::cgs);
+	tw::UnitConverter cgs(tw::units::cgs,native);
+	unit_T_eV = 1.0*tw::dims::temperature >> native >> cgs;
+	unit_rate_cgs = std::pow(1.0*tw::dims::density>>native>>cgs,tw::Float(1-numBodies)) / (1.0*tw::dims::time>>native>>cgs);
 	std::string word;
 	inputString >> word;
 	if (word!="rate" && word!="janev_rate")
@@ -39,7 +40,7 @@ void PrimitiveReaction::ReadRate(std::stringstream& inputString,tw::Int numBodie
 			throw tw::FatalError("Invalid number while reading rate coefficients for reaction.");
 		c1 *= pow(unit_T_eV,c2);
 		c1 /= unit_rate_cgs;
-		c3 = uc->ConvertToNative(c3,tw::dimensions::temperature,tw::units::cgs);
+		c3 = c3*tw::dims::temperature >> cgs >> native;
 	}
 	if (word=="janev_rate")
 	{
@@ -58,12 +59,13 @@ Reaction::~Reaction()
 		delete s;
 }
 
-void Reaction::ReadInputFile(std::stringstream& inputString,UnitConverter *uc)
+void Reaction::ReadInputFile(std::stringstream& inputString,const tw::UnitConverter& native)
 {
 	std::string word;
 	tw::Float sign,energy;
 	bool rhs;
 	numBodies = 0;
+	tw::UnitConverter cgs(tw::units::cgs,native);
 
 	tw::input::PopExpectedWord(inputString,"{","reaction");
 
@@ -89,7 +91,7 @@ void Reaction::ReadInputFile(std::stringstream& inputString,UnitConverter *uc)
 				try
 				{
 					size_t pos;
-					energy = uc->ConvertToNative(std::stod(word,&pos),tw::dimensions::temperature,tw::units::cgs);
+					energy = std::stod(word,&pos)*tw::dims::temperature >> cgs >> native;
 					if (pos<word.size()-1 || (pos==word.size()-1 && word.back()!='v'))
 						throw tw::FatalError("Heat of reaction is ill-formed.");
 					if (word.back()=='v')
@@ -117,16 +119,16 @@ void Reaction::ReadInputFile(std::stringstream& inputString,UnitConverter *uc)
 		} while (word!=":" && word!="}");
 	} while (word!="}");
 
-	ReadRate(inputString,numBodies,uc);
+	ReadRate(inputString,numBodies,native);
 
 	// Get temperature range and catalyst
 	inputString >> catalyst_name >> word;
 	tw::input::PythonRange(word,&T0,&T1);
-	T0 = uc->ConvertToNative(T0,tw::dimensions::temperature,tw::units::cgs);
-	T1 = uc->ConvertToNative(T1,tw::dimensions::temperature,tw::units::cgs);
+	T0 = T0*tw::dims::temperature >> cgs >> native;
+	T1 = T1*tw::dims::temperature >> cgs >> native;
 }
 
-void Excitation::ReadInputFile(std::stringstream& inputString,UnitConverter *uc)
+void Excitation::ReadInputFile(std::stringstream& inputString,const tw::UnitConverter& native)
 {
 	std::string word;
 
@@ -141,10 +143,10 @@ void Excitation::ReadInputFile(std::stringstream& inputString,UnitConverter *uc)
 
 	T0 = 0.0;
 	T1 = tw::big_pos;
-	ReadRate(inputString,2,uc);
+	ReadRate(inputString,2,native);
 }
 
-void Collision::ReadInputFile(std::stringstream& inputString,UnitConverter *uc)
+void Collision::ReadInputFile(std::stringstream& inputString,const tw::UnitConverter& native)
 {
 	// hard sphere example
 	// new collision = e <-> N , cross section = 1e-15
@@ -157,6 +159,7 @@ void Collision::ReadInputFile(std::stringstream& inputString,UnitConverter *uc)
 
 	tw::Int i;
 	std::string word,species;
+	tw::UnitConverter cgs(tw::units::cgs,native);
 
 	inputString >> name1;
 	tw::input::StripQuotes(name1);
@@ -176,7 +179,7 @@ void Collision::ReadInputFile(std::stringstream& inputString,UnitConverter *uc)
 		tw::input::PopExpectedWord(inputString,"=","hard sphere collision");
 		if (!(inputString >> crossSection))
 			throw tw::FatalError("Invalid number encountered while reading collision cross section.");
-		crossSection = uc->ConvertToNative(crossSection,tw::dimensions::cross_section,tw::units::cgs);
+		crossSection = crossSection*tw::dims::cross_section >> cgs >> native;
 	}
 
 	if (word=="coulomb")
@@ -199,7 +202,7 @@ void Collision::ReadInputFile(std::stringstream& inputString,UnitConverter *uc)
 		tw::input::PopExpectedWord(inputString,"=","metallic collision");
 		if (!(inputString >> n_ref))
 			throw tw::FatalError("Invalid number encountered while reading metallic collision.");
-		T_ref = uc->ConvertToNative(T_ref,tw::dimensions::temperature,tw::units::cgs);
-		n_ref = uc->ConvertToNative(n_ref,tw::dimensions::density,tw::units::cgs);
+		T_ref = T_ref*tw::dims::temperature >> cgs >> native;
+		n_ref = n_ref*tw::dims::density >> cgs >> native;
 	}
 }

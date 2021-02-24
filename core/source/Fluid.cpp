@@ -11,7 +11,7 @@ using namespace tw::bc;
 
 Fluid::Fluid(const std::string& name,Simulation* sim):Module(name,sim)
 {
-	if (sim->units->native!=tw::units::plasma)
+	if (native.native!=tw::units::plasma)
 		throw tw::FatalError("Fluid module requires <native units = plasma>");
 
 	charge = -1.0;
@@ -281,7 +281,6 @@ void Fluid::Update()
 {
 	tw::bc::fld bc;
 	tw::Float field,ionizedDensity;
-	const UnitConverter& uc = *owner->units;
 
 	const tw::Float q0 = charge;
 	const tw::Float m0 = mass;
@@ -337,6 +336,9 @@ void Fluid::Update()
 	{
 		tw::Float kT_eff,temp;
 		std::valarray<tw::Float> nuColl(dim[3]+1);
+		const tw::Float nconv = 1.0*tw::dims::density >> native >> cgs;
+		const tw::Float Tconv = 1.0*tw::dims::temperature >> native >> cgs;
+		const tw::Float fconv = 1.0*tw::dims::frequency >> cgs >> native;
 		for (auto v : VectorStripRange<3>(*this,false))
 		{
 			#pragma omp simd
@@ -344,9 +346,9 @@ void Fluid::Update()
 			{
 				kT_eff = kT + (vel(v,k,0) - m0);
 				nuColl[k] = gas(v,k) * enCrossSection * sqrt(kT_eff*m0i);
-				temp = coulomb * 1e-5 * uc.ConvertFromNative(fixed(v,k),tw::dimensions::density,tw::units::cgs);
-				temp *= pow(uc.ConvertFromNative(kT_eff,tw::dimensions::temperature,tw::units::cgs),-1.5);
-				nuColl[k] += uc.ConvertToNative(temp,tw::dimensions::frequency,tw::units::cgs);
+				temp = coulomb * 1e-5 * fixed(v,k) * nconv;
+				temp *= pow(kT_eff*Tconv,-1.5);
+				nuColl[k] += temp*fconv;
 			}
 			#pragma omp simd
 			for (tw::Int k=1;k<=dim[3];k++)
@@ -536,8 +538,8 @@ void Fluid::WriteCheckpoint(std::ofstream& outFile)
 void Fluid::Report(Diagnostic& diagnostic)
 {
 	Module::Report(diagnostic);
-	diagnostic.Field(name+"_e",state1,0,tw::dimensions::density,"$n_e$");
-	diagnostic.Field(name+"_n",gas,0,tw::dimensions::density,"$n_g$");
+	diagnostic.Field(name+"_e",state1,0,tw::dims::density,"$n_e$");
+	diagnostic.Field(name+"_n",gas,0,tw::dims::density,"$n_g$");
 }
 
 /////////////////////
@@ -549,7 +551,7 @@ void Fluid::Report(Diagnostic& diagnostic)
 
 Chemical::Chemical(const std::string& name,Simulation* sim):Module(name,sim)
 {
-	if (sim->units->native!=tw::units::plasma)
+	if (native.native!=tw::units::plasma)
 		throw tw::FatalError("Chemical module requires <native units = plasma>");
 
 	mat.charge = -1.0;
@@ -748,7 +750,7 @@ void Chemical::LoadInternalEnergy(Field& hydro,Field& eos)
 
 EquilibriumGroup::EquilibriumGroup(const std::string& name,Simulation* sim):Module(name,sim)
 {
-	if (sim->units->native!=tw::units::plasma)
+	if (native.native!=tw::units::plasma)
 		throw tw::FatalError("EquilibriumGroup module requires <native units = plasma>");
 
 	mobile = true;
@@ -831,7 +833,7 @@ bool EquilibriumGroup::GenerateFluid(Field& hydro,Field& eos)
 
 sparc::HydroManager::HydroManager(const std::string& name,Simulation* sim):Module(name,sim)
 {
-	if (sim->units->native!=tw::units::plasma)
+	if (native.native!=tw::units::plasma)
 		throw tw::FatalError("HydroManager module requires <native units = plasma>");
 
 	epsilonFactor = 1e-4;
@@ -1212,44 +1214,67 @@ void sparc::HydroManager::Reset()
 	}
 }
 
-tw::Float sparc::HydroManager::CollisionCoefficient(Collision *coll,const tw::cell& cell)
+void sparc::HydroManager::LoadCollisionRate(Collision *coll,ScalarField& R)
 {
-	// DFG - this used to appear in multiple places, now modularized.
+	// Load collision rate into R (units of volume/time).  Can be called from OpenMP parallel section.
 	// Deriving a particular frequency depends on the process.
 	// Energy and momentum transfer have a factor of 3 difference, and different mass dependence.
 	// If this coefficient is multiplied by the field density, we get what is typically called "collision frequency".
-	const UnitConverter& uc = *owner->units;
-	const tw::Float N1 = state1(cell,coll->h1.ni);
-	const tw::Float N2 = state1(cell,coll->h2.ni);
-	const tw::Float T1 = eos1(cell,coll->e1.T);
-	const tw::Float T2 = eos1(cell,coll->e2.T);
-	const tw::Float m1 = coll->m1.mass;
-	const tw::Float m2 = coll->m2.mass;
-	const tw::Float q1 = coll->m1.charge;
-	const tw::Float q2 = coll->m2.charge;
-	const tw::Float v12 = sqrt(8.0*(T1/m1 + T2/m2)/pi);
+
+	// We will work in CGS units for these computations
+
+	const tw::Float m1 = coll->m1.mass * tw::dims::mass >> native >> cgs;
+	const tw::Float m2 = coll->m2.mass * tw::dims::mass >> native >> cgs;
 	const tw::Float m12 = m1*m2/(m1+m2);
-	const tw::Float Ti = m1==1.0 ? T2 : T1;//T1*T2/(T1+T2);
+	const tw::Float q1 = coll->m1.charge * tw::dims::charge >> native >> cgs;
+	const tw::Float q2 = coll->m2.charge * tw::dims::charge >> native >> cgs;
+	const tw::Float sigma = coll->crossSection * tw::dims::cross_section >> native >> cgs;
+	const tw::Float EFermi = coll->T_ref * tw::dims::energy >> native >> cgs;
+	const tw::Float nref = coll->n_ref * tw::dims::density >> native >> cgs;
+	// Get multiplicative factors so we don't have dimensional numbers in the inner loops
+	const tw::Float nconv = 1.0 * tw::dims::density >> native >> cgs;
+	const tw::Float econv = 1.0 * tw::dims::energy >> native >> cgs;
+	const tw::Float rconv = 1.0 * tw::dims::rate_coefficient_2 >> cgs >> native;
+	// CGS quantities that depend on the cell
+	tw::Float N1,N2,T1,T2,v12,Ti,phonon,coulomb;
 
 	if (coll->type==sparc::hard_sphere)
-		return (4.0/3.0) * coll->crossSection * v12;
+		for (auto cell : InteriorCellRange(*this))
+		{
+			T1 = eos1(cell,coll->e1.T) * econv;
+			T2 = eos1(cell,coll->e2.T) * econv;
+			v12 = sqrt(8.0*(T1/m1 + T2/m2)/pi);
+			R(cell) = rconv * (4.0/3.0) * v12 * sigma;
+		}
 
 	if (coll->type==sparc::coulomb)
-	{
-		const tw::Float sigma = sparc::CoulombCrossSection(uc,q1,q2,m12,v12,N1,N2,T1,T2);
-		return (4.0/3.0) * sigma * v12;
-	}
+		for (auto cell : InteriorCellRange(*this))
+		{
+			N1 = state1(cell,coll->h1.ni) * nconv;
+			N2 = state1(cell,coll->h2.ni) * nconv;
+			T1 = eos1(cell,coll->e1.T) * econv;
+			T2 = eos1(cell,coll->e2.T) * econv;
+			v12 = sqrt(8.0*(T1/m1 + T2/m2)/pi);
+			R(cell) = rconv * (4.0/3.0) * v12 * sparc::CoulombCrossSectionCGS(q1,q2,m12,v12,N1,N2,T1,T2);
+		}
 
 	if (coll->type==sparc::metallic)
-	{
 		// Electron-phonon rate is the collision frequency divided by a reference density
 		// The collision frequency is defined by the momentum loss rate, e.g., dp/dt = -nu*p
-		const tw::Float phonon = sparc::ElectronPhononRateCoeff(uc,Ti,coll->T_ref,coll->ks,coll->n_ref);
-		const tw::Float coulomb = (4.0/3.0) * sparc::CoulombCrossSection(uc,q1,q2,m12,v12,N1,N2,T1,T2) * v12;
-		return coulomb*phonon / (coulomb + phonon);
-	}
-
-	return 0.0;
+		for (auto cell : InteriorCellRange(*this))
+		{
+			N1 = state1(cell,coll->h1.ni) * nconv;
+			N2 = state1(cell,coll->h2.ni) * nconv;
+			T1 = eos1(cell,coll->e1.T) * econv;
+			T2 = eos1(cell,coll->e2.T) * econv;
+			v12 = sqrt(8.0*(T1/m1 + T2/m2)/pi);
+			Ti = m1==1.0 ? T2 : T1;
+			phonon = sparc::ElectronPhononFrequencyCGS(Ti,EFermi,coll->ks)/nref;
+			coulomb = (4.0/3.0) * v12 * sparc::CoulombCrossSectionCGS(q1,q2,m12,v12,N1,N2,T1,T2);
+			// This expression causes the rate to go over to Spitzer when phonon rate >> coulomb rate.
+			// This is also where temperature is large, as required.
+			R(cell) = rconv*coulomb*phonon / (coulomb + phonon);
+		}
 }
 
 void sparc::HydroManager::ComputeElectronCollisionFrequency()
@@ -1257,16 +1282,16 @@ void sparc::HydroManager::ComputeElectronCollisionFrequency()
 	#pragma omp parallel
 	{
 		for (auto cell : InteriorCellRange(*this))
+			nu_e(cell) = 0.0;
+		for (auto coll : collision)
 		{
-			tw::Float aggregateCollFreq = 0.0;
-			for (auto coll : collision)
-			{
-				if (coll->h1.ni==ie)
-					aggregateCollFreq += state1(cell,coll->h2.ni) * CollisionCoefficient(coll,cell);
-				if (coll->h2.ni==ie)
-					aggregateCollFreq += state1(cell,coll->h1.ni) * CollisionCoefficient(coll,cell);
-			}
-			nu_e(cell) = aggregateCollFreq;
+			LoadCollisionRate(coll,scratch);
+			if (coll->h1.ni==ie)
+				for (auto cell : InteriorCellRange(*this))
+					nu_e(cell) += state1(cell,coll->h2.ni) * scratch(cell);
+			if (coll->h2.ni==ie)
+				for (auto cell : InteriorCellRange(*this))
+					nu_e(cell) += state1(cell,coll->h1.ni) * scratch(cell);
 		}
 	}
 	nu_e.CopyFromNeighbors();
@@ -1352,9 +1377,11 @@ void sparc::HydroManager::ComputeCollisionalSources()
 		// COLLISIONS (MOMENTUM TRANSFER, THERMAL ENERGY TRANSFER)
 
 		for (auto coll : collision)
+		{
+			LoadCollisionRate(coll,scratch);
 			for (auto cell : InteriorCellRange(*this))
 			{
-				const tw::Float R = CollisionCoefficient(coll,cell);
+				const tw::Float R = scratch(cell);
 				const tw::Float N1 = state1(cell,coll->h1.ni);
 				const tw::Float N2 = state1(cell,coll->h2.ni);
 				const tw::Float T1 = eos1(cell,coll->e1.T);
@@ -1381,6 +1408,7 @@ void sparc::HydroManager::ComputeCollisionalSources()
 					DestroyTotalEnergy( cell , 3.0*m12*R*N1*N2 * (T2 - T1) / (m1 + m2) , coll->h2);
 				}
 			}
+		}
 
 		// VIBRATIONS
 
@@ -1415,10 +1443,9 @@ void sparc::HydroManager::ComputeRadiativeSources()
 {
 	#pragma omp parallel
 	{
-		const UnitConverter& uc = *owner->units;
 		const tw::Float stef_boltz = 5.67e-8; // W/m^2/K^4
 		const tw::vec3 R = GlobalPhysicalSize(*owner);
-		const tw::vec3 Rmks(uc.ConvertFromNative(R.x,tw::dimensions::length,tw::units::mks),uc.ConvertFromNative(R.y,tw::dimensions::length,tw::units::mks),uc.ConvertFromNative(R.z,tw::dimensions::length,tw::units::mks));
+		const tw::vec3 Rmks(R.x*tw::dims::length>>native>>mks,R.y*tw::dims::length>>native>>mks,R.z*tw::dims::length>>native>>mks);
 		const tw::Float Vmks = owner->car*Rmks.x*Rmks.y*Rmks.z + owner->cyl*pi*sqr(Rmks.x)*Rmks.z + owner->sph*1.33*pi*cub(Rmks.x);
 		const tw::Float Smks = owner->car*2*(Rmks.x*Rmks.y + Rmks.y*Rmks.z + Rmks.z*Rmks.x) + owner->cyl*(2*pi*sqr(Rmks.x)+2*pi*Rmks.x*Rmks.z) + owner->sph*4*pi*sqr(Rmks.x);
 
@@ -1490,13 +1517,13 @@ void sparc::HydroManager::ComputeRadiativeSources()
 					Ptot += eos1(cell,grp->eidx.P);
 					ntot += grp->DensitySum(state1,cell);
 				}
-				const tw::Float TKelvin = uc.ConvertFromNative(Ptot/ntot,tw::dimensions::temperature,tw::units::mks);
+				const tw::Float TKelvin = (Ptot/ntot)*tw::dims::temperature >> native >> mks;
 				const tw::Float Lmks = tw::small_pos + 8.0e-14 * sqr(TKelvin); // mean free path in meters
 				const tw::Float Imks = 4.0*stef_boltz*pow(TKelvin,4);
 				if (radModel==sparc::thin)
-					radiativeLosses(cell) = uc.ConvertToNative(Imks/Lmks,tw::dimensions::power_density,tw::units::mks);
+					radiativeLosses(cell) = (Imks/Lmks)*tw::dims::power_density >> mks >> native;
 				if (radModel==sparc::thick)
-					radiativeLosses(cell) = uc.ConvertToNative(Imks*Smks/Vmks,tw::dimensions::power_density,tw::units::mks);
+					radiativeLosses(cell) = (Imks*Smks/Vmks)*tw::dims::power_density >> mks >> native;
 				for (auto grp : group)
 				{
 					const tw::Float lossNow = eos1(cell,grp->eidx.P)*radiativeLosses(cell)/Ptot;
@@ -2165,19 +2192,19 @@ bool sparc::HydroManager::ReadQuasitoolBlock(const tw::input::Preamble& preamble
 	if (key=="reaction")
 	{
 		reaction.push_back(new Reaction);
-		reaction.back()->ReadInputFile(inputString,owner->units);
+		reaction.back()->ReadInputFile(inputString,native);
 		return true;
 	}
 	if (key=="excitation")
 	{
 		excitation.push_back(new Excitation);
-		excitation.back()->ReadInputFile(inputString,owner->units);
+		excitation.back()->ReadInputFile(inputString,native);
 		return true;
 	}
 	if (key=="collision")
 	{
 		collision.push_back(new Collision);
-		collision.back()->ReadInputFile(inputString,owner->units);
+		collision.back()->ReadInputFile(inputString,native);
 		return true;
 	}
 	return false;
@@ -2207,7 +2234,7 @@ void sparc::HydroManager::Report(Diagnostic& diagnostic)
 
 	std::map<tw::Int,std::string> xyz = {{1,"x"},{2,"y"},{3,"z"}};
 
-	auto WriteSubmoduleData = [&] (Field& theData,tw::Int comp,const std::string& filename,const tw::dimensions units=tw::dimensions::none,const std::string& pretty="tw::none")
+	auto WriteSubmoduleData = [&] (Field& theData,tw::Int comp,const std::string& filename,const tw::dims units=tw::dims::none,const std::string& pretty="tw::none")
 	{
 		CopyFieldData(scratch,Element(0),theData,Element(comp));
 		scratch *= fluxMask;
@@ -2224,7 +2251,7 @@ void sparc::HydroManager::Report(Diagnostic& diagnostic)
 		scratch += scratch2;
 	}
 	diagnostic.VolumeIntegral("Mass",scratch,0);
-	diagnostic.Field("massdensity",scratch,0,tw::dimensions::mass_density,"$\\rho$");
+	diagnostic.Field("massdensity",scratch,0,tw::dims::mass_density,"$\\rho$");
 
 	diagnostic.VolumeIntegral("Charge",rho,0);
 
@@ -2257,14 +2284,14 @@ void sparc::HydroManager::Report(Diagnostic& diagnostic)
 
 	// Collision Diagnostic
 
-	diagnostic.Field("collisionFreq",nu_e,0,tw::dimensions::frequency,"$\\nu_e$");
+	diagnostic.Field("collisionFreq",nu_e,0,tw::dims::frequency,"$\\nu_e$");
 
 	// Radiation Diagnostic
 
-	diagnostic.Field("rad-intensity",radiationIntensity,0,tw::dimensions::intensity,"$I$");
-	diagnostic.Field("rad-ereal",laserAmplitude,0,tw::dimensions::electric_field,"$\\Re E$");
-	diagnostic.Field("rad-eimag",laserAmplitude,1,tw::dimensions::electric_field,"$\\Im E$");
-	diagnostic.Field("rad-losses",radiativeLosses,0,tw::dimensions::power_density,"${\\cal P}$");
+	diagnostic.Field("rad-intensity",radiationIntensity,0,tw::dims::intensity,"$I$");
+	diagnostic.Field("rad-ereal",laserAmplitude,0,tw::dims::electric_field,"$\\Re E$");
+	diagnostic.Field("rad-eimag",laserAmplitude,1,tw::dims::electric_field,"$\\Im E$");
+	diagnostic.Field("rad-losses",radiativeLosses,0,tw::dims::power_density,"${\\cal P}$");
 	diagnostic.Field("rad-nreal",refractiveIndex,0);
 	diagnostic.Field("rad-nimag",refractiveIndex,1);
 	diagnostic.Field("me_eff",me_eff,0);
@@ -2273,8 +2300,8 @@ void sparc::HydroManager::Report(Diagnostic& diagnostic)
 
 	if (electrons)
 	{
-		diagnostic.Field("chem-phi",phi,0,tw::dimensions::scalar_potential,"$\\phi$");
-		diagnostic.Field("chem-rho",rho,0,tw::dimensions::charge_density,"$\\rho$");
+		diagnostic.Field("chem-phi",phi,0,tw::dims::scalar_potential,"$\\phi$");
+		diagnostic.Field("chem-rho",rho,0,tw::dims::charge_density,"$\\rho$");
 	}
 
 	// Constituents and groups
@@ -2282,19 +2309,19 @@ void sparc::HydroManager::Report(Diagnostic& diagnostic)
 	for (auto g : group)
 	{
 		for (auto chem : g->chemical)
-			WriteSubmoduleData(state1,chem->indexInState,chem->name,tw::dimensions::density,"$n[$"+chem->name+"$]$");
+			WriteSubmoduleData(state1,chem->indexInState,chem->name,tw::dims::density,"$n[$"+chem->name+"$]$");
 
-		WriteSubmoduleData(eos1,g->eidx.T,"T_" + g->name,tw::dimensions::temperature,"$T$");
-		WriteSubmoduleData(eos1,g->eidx.P,"P_" + g->name,tw::dimensions::pressure,"$P$");
-		WriteSubmoduleData(eos1,g->eidx.nmcv,"nmcv_" + g->name,tw::dimensions::density,"$nmc_v$");
-		WriteSubmoduleData(eos1,g->eidx.K,"K_" + g->name,tw::dimensions::thermal_conductivity,"$K$");
-		WriteSubmoduleData(eos1,g->eidx.Tv,"Tv_" + g->name,tw::dimensions::temperature,"$T_v$");
+		WriteSubmoduleData(eos1,g->eidx.T,"T_" + g->name,tw::dims::temperature,"$T$");
+		WriteSubmoduleData(eos1,g->eidx.P,"P_" + g->name,tw::dims::pressure,"$P$");
+		WriteSubmoduleData(eos1,g->eidx.nmcv,"nmcv_" + g->name,tw::dims::density,"$nmc_v$");
+		WriteSubmoduleData(eos1,g->eidx.K,"K_" + g->name,tw::dims::thermal_conductivity,"$K$");
+		WriteSubmoduleData(eos1,g->eidx.Tv,"Tv_" + g->name,tw::dims::temperature,"$T_v$");
 
 		for (tw::Int ax=1;ax<=3;ax++)
 		{
 			g->LoadVelocity(scratch,state1,ax);
 			scratch *= fluxMask;
-			diagnostic.Field("v"+xyz[ax]+"_"+g->name,scratch,0,tw::dimensions::velocity,"$v_"+xyz[ax]+"$");
+			diagnostic.Field("v"+xyz[ax]+"_"+g->name,scratch,0,tw::dims::velocity,"$v_"+xyz[ax]+"$");
 		}
 	}
 }

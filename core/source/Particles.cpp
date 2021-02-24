@@ -12,7 +12,7 @@ using namespace tw::bc;
 
 Kinetics::Kinetics(const std::string& name,Simulation* sim) : Module(name,sim)
 {
-	if (sim->units->native!=tw::units::plasma && sim->units->native!=tw::units::atomic)
+	if (native.native!=tw::units::plasma && native.native!=tw::units::atomic)
 		throw tw::FatalError("Kinetics module requires <native units = plasma> or <native units = atomic>.");
 
 	rho00.Initialize(*this,owner);
@@ -387,7 +387,7 @@ void Particle::WriteCheckpoint(std::ofstream& outFile)
 
 Species::Species(const std::string& name,Simulation* sim) : Module(name,sim)
 {
-	if (sim->units->native!=tw::units::plasma && sim->units->native!=tw::units::atomic)
+	if (native.native!=tw::units::plasma && native.native!=tw::units::atomic)
 		throw tw::FatalError("Species module requires <native units = plasma> or <native units = atomic>.");
 
 	restMass = 1.0;
@@ -1054,13 +1054,13 @@ void Species::ReadInputFileDirective(std::stringstream& inputString,const std::s
 		inputString >> distributionInCell.x >> distributionInCell.y >> distributionInCell.z;
 		inputString >> word >> word >> word;
 		inputString >> density;
-		targetDensity = owner->units->ConvertToNative(density)/(distributionInCell.x*distributionInCell.y*distributionInCell.z);
+		targetDensity = (density >> native) / (distributionInCell.x*distributionInCell.y*distributionInCell.z);
 	}
 	if (command=="accelerate to") // eg, accelerate to 100.0 in 10.0
 	{
 		inputString >> momentum >> word >> time;
-		accelerationImpulse = owner->units->ConvertToNative(momentum);
-		accelerationTime = owner->units->ConvertToNative(time);
+		accelerationImpulse = momentum >> native;
+		accelerationTime = time >> native;
 	}
 }
 
@@ -1131,7 +1131,7 @@ void Species::Report(Diagnostic& diagnostic)
 
 	diagnostic.Float("N_"+name,particle.size(),false);
 	CalculateDensity(temp);
-	diagnostic.Field(name,temp,0,tw::dimensions::density,"$n_{\\rm "+name+"}$");
+	diagnostic.Field(name,temp,0,tw::dims::density,"$n_{\\rm "+name+"}$");
 
 	if (qo_j4!=NULL)
 	{

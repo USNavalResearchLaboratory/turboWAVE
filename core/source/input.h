@@ -12,7 +12,7 @@ namespace tw
 			virtual ~Directive()
 			{
 			}
-			virtual void Read(std::stringstream& in,const std::string& key,const UnitConverter& uc)
+			virtual void Read(std::stringstream& in,const std::string& key,const tw::UnitConverter& native)
 			{
 				std::string word;
 				in >> word;
@@ -22,7 +22,7 @@ namespace tw
 		};
 		struct Custom : Directive
 		{
-			virtual void Read(std::stringstream& in,const std::string& key,const UnitConverter& uc)
+			virtual void Read(std::stringstream& in,const std::string& key,const tw::UnitConverter& native)
 			{
 				// Do not consume the equals sign or any other token.  Do nothing.
 			}
@@ -31,9 +31,9 @@ namespace tw
 		{
 			std::string *str;
 			String(std::string *s) { str=s; }
-			virtual void Read(std::stringstream& in,const std::string& key,const UnitConverter& uc)
+			virtual void Read(std::stringstream& in,const std::string& key,const tw::UnitConverter& native)
 			{
-				Directive::Read(in,key,uc);
+				Directive::Read(in,key,native);
 				in >> *str;
 				StripQuotes(*str);
 			}
@@ -44,16 +44,16 @@ namespace tw
 			T *dat;
 			tw::Int num;
 			Numbers(T *d,tw::Int n) { num=n; dat=d; }
-			virtual void Read(std::stringstream& in,const std::string& key,const UnitConverter& uc)
+			virtual void Read(std::stringstream& in,const std::string& key,const tw::UnitConverter& native)
 			{
-				Directive::Read(in,key,uc);
+				Directive::Read(in,key,native);
 				for (tw::Int i=0;i<num;i++)
 				{
 					if (std::is_floating_point<T>::value)
 					{
 						tw::dnum dimensional_number;
 						in >> dimensional_number;
-						dat[i] = uc.ConvertToNative(dimensional_number);
+						dat[i] = dimensional_number >> native;
 					}
 					else
 					{
@@ -90,9 +90,9 @@ namespace tw
 			// The contained type has to support input streams.
 			T *dat;
 			List(T *d) { dat=d; }
-			virtual void Read(std::stringstream& in,const std::string& key,const UnitConverter& uc)
+			virtual void Read(std::stringstream& in,const std::string& key,const tw::UnitConverter& native)
 			{
-				Directive::Read(in,key,uc);
+				Directive::Read(in,key,native);
 				std::string word;
 				in >> word;
 				if (word!="{")
@@ -110,7 +110,7 @@ namespace tw
 						{
 							tw::dnum dimensional_number;
 							in >> dimensional_number;
-							dummy[0] = uc.ConvertToNative(dimensional_number);
+							dummy[0] = dimensional_number >> native;
 						}
 						else
 						{
@@ -140,9 +140,9 @@ namespace tw
 			{
 				delete emap;
 			}
-			virtual void Read(std::stringstream& in,const std::string& key,const UnitConverter& uc)
+			virtual void Read(std::stringstream& in,const std::string& key,const tw::UnitConverter& native)
 			{
-				Directive::Read(in,key,uc);
+				Directive::Read(in,key,native);
 				std::string word;
 				auto read_one = [&] (T *d)
 				{
@@ -163,9 +163,9 @@ namespace tw
 		{
 			bool *dat;
 			Bool(bool *d) { dat=d; }
-			virtual void Read(std::stringstream& in,const std::string& key,const UnitConverter& uc)
+			virtual void Read(std::stringstream& in,const std::string& key,const tw::UnitConverter& native)
 			{
-				Directive::Read(in,key,uc);
+				Directive::Read(in,key,native);
 				std::string word;
 				std::multimap<std::string,bool> m = {{"on",true},{"true",true},{"yes",true},{"off",false},{"false",false},{"no",false}};
 				in >> word;
@@ -181,11 +181,11 @@ namespace tw
 			std::vector<std::string> requiredKeys;
 			std::map<std::string,tw::Int> keysFound;
 			std::map<std::string,tw::input::Directive*> dmap;
-			UnitConverter *uc;
+			tw::UnitConverter native;
 		public:
 			DirectiveReader();
 			~DirectiveReader();
-			void AttachUnits(UnitConverter *uc);
+			void AttachUnits(const tw::UnitConverter& native);
 			void Reset();
 			void Add(const std::string& key,tw::input::Directive *dir,bool required=true);
 			std::string ReadNext(std::stringstream& in);

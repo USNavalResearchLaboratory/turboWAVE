@@ -1,6 +1,18 @@
 What's New
 //////////
 
+What's New in 4.5
+=================
+
+#. Addition of units helpful for hydro, namely specific energy, mass density, and pressure in bars.
+
+#. Internally, dimensional number class with operator based conversions streamlines notation.
+
+Gotchas
+-------
+
+Old dimensional number specifiers are no longer allowed. Attempting to use them will result in ``unrecognized units`` or ``unexpected directive``.
+
 What's New in 4.4
 =================
 

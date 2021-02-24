@@ -13,7 +13,7 @@ using namespace tw::bc;
 
 LaserSolver::LaserSolver(const std::string& name,Simulation* sim):Module(name,sim)
 {
-	if (sim->units->native!=tw::units::plasma)
+	if (native.native!=tw::units::plasma)
 		throw tw::FatalError("LaserSolver module requires <native units = plasma>");
 
 	updateSequencePriority = tw::priority::field;
@@ -313,7 +313,7 @@ void PGCSolver::Report(Diagnostic& diagnostic)
 			temp(s,k) = -real(dadt - ii*laserFreq*anow);
 		}
 	}
-	diagnostic.Field("e_real",temp,0,tw::dimensions::electric_field,"$\\Re E$");
+	diagnostic.Field("e_real",temp,0,tw::dims::electric_field,"$\\Re E$");
 
 	for (auto s : StripRange(*this,3,strongbool::no))
 	{
@@ -324,11 +324,11 @@ void PGCSolver::Report(Diagnostic& diagnostic)
 			temp(s,k) = -imag(dadt - ii*laserFreq*anow);
 		}
 	}
-	diagnostic.Field("e_imag",temp,0,tw::dimensions::electric_field,"$\\Im E$");
+	diagnostic.Field("e_imag",temp,0,tw::dims::electric_field,"$\\Im E$");
 
-	diagnostic.Field("a_real_raw",a1,0,tw::dimensions::vector_potential,"$\\Re A$");
-	diagnostic.Field("a_imag_raw",a1,1,tw::dimensions::vector_potential,"$\\Im A$");
-	diagnostic.Field("a2",F,7,tw::dimensions::none,"$a^2$");
-	diagnostic.Field("j_real",chi,0,tw::dimensions::current_density,"$\\Re j$");
-	diagnostic.Field("j_imag",chi,1,tw::dimensions::current_density,"$\\Im j$");
+	diagnostic.Field("a_real_raw",a1,0,tw::dims::vector_potential,"$\\Re A$");
+	diagnostic.Field("a_imag_raw",a1,1,tw::dims::vector_potential,"$\\Im A$");
+	diagnostic.Field("a2",F,7,tw::dims::none,"$a^2$");
+	diagnostic.Field("j_real",chi,0,tw::dims::current_density,"$\\Re j$");
+	diagnostic.Field("j_imag",chi,1,tw::dims::current_density,"$\\Im j$");
 }

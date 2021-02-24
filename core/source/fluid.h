@@ -186,7 +186,7 @@ struct HydroManager:Module
 	void SetupIndexing();
 	virtual void Initialize();
 	virtual void Reset();
-	tw::Float CollisionCoefficient(Collision *coll,const tw::cell& cell);
+	void LoadCollisionRate(Collision *coll,ScalarField& R);
 	void ComputeElectronCollisionFrequency();
 	void ComputeCollisionalSources();
 	void ComputeRadiativeSources();
