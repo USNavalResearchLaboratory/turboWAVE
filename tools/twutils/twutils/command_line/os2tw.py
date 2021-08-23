@@ -266,7 +266,7 @@ def main():
             print('Could not open HDF5 file <' + fullpath + '>.')
             exit(1)
         full_array[count,...] = np.array(f[data_key]).reshape(new_shape)
-        grid_str += grid_string(n,dt,get_data_ext(f['AXIS']),new_shape)
+        grid_str += grid_string(n*nfac,dt,get_data_ext(f['AXIS']),new_shape)
         count += 1
         print('.',end='',flush=True)
 

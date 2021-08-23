@@ -24,9 +24,9 @@ profile: tw3d_profile install
 
 # Uncomment exactly one platform
 
-#PLATFORM = OSX
+PLATFORM = OSX
 #PLATFORM = WIN
-PLATFORM = LINUX
+#PLATFORM = LINUX
 #PLATFORM = OPENMPI
 #PLATFORM = INTELMPI
 #PLATFORM = CRAY
@@ -49,15 +49,15 @@ ENDIANNESS = LITTLE
 
 # Specify a preference for compiler
 
-#COMPILER_PREF = GNU
-COMPILER_PREF = LLVM_CLANG
+COMPILER_PREF = GNU
+#COMPILER_PREF = LLVM_CLANG
 #COMPILER_PREF = INTEL
 #COMPILER_PREF = CRAY
 
 # Specify a package manager preference (only used for OSX platform)
 
-PACKAGE_PREF = HOMEBREW
-#PACKAGE_PREF = MACPORTS
+#PACKAGE_PREF = HOMEBREW
+PACKAGE_PREF = MACPORTS
 
 # END INPUT VARIABLES BLOCK
 #################################################
@@ -492,7 +492,7 @@ Particles.o: Particles.cpp $(SIM_HEADERS) particles.h fieldSolve.h laserSolve.h
 Physics.o: Physics.cpp $(BASE_HEADERS) computeTool.h physics.h
 	$(TW_Compiler) $(CCFLAGS) Physics.cpp
 
-Pusher.o: Pusher.cpp $(SIM_HEADERS) particles.h fieldSolve.h laserSolve.h
+Pusher.o: Pusher.cpp $(SIM_HEADERS) particles.h pusher.h fieldSolve.h laserSolve.h
 	$(TW_Compiler) $(CCFLAGS) Pusher.cpp
 
 Qstate.o: Qstate.cpp $(BASE_HEADERS) computeTool.h qstate.h

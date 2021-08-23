@@ -144,8 +144,8 @@ struct DiscreteSpace
 	void UpdatePrimitiveWithPosition(Primitive& q,const tw::vec3& pos) const;
 	tw::vec3 PositionFromPrimitive(const Primitive& q) const;
 	void MinimizePrimitive(Primitive& q) const;
-	void MinimizePrimitive(tw::Int *cell,tw::Int ijk[3][tw::max_bundle_size],float x[3][tw::max_bundle_size],float domainMask[tw::max_bundle_size]) const;
-	//void MinimizePrimitiveBohm(tw::Int *cell,tw::Int ijk[3][tw::max_bundle_size],float x[3][tw::max_bundle_size],float domainMask[tw::max_bundle_size]) const;
+	void MinimizePrimitive(tw::Int *cell,tw::Int ijk[3][tw::max_bundle_size],float x[4][tw::max_bundle_size],float domainMask[tw::max_bundle_size]) const;
+	//void MinimizePrimitiveBohm(tw::Int *cell,tw::Int ijk[3][tw::max_bundle_size],float x[4][tw::max_bundle_size],float domainMask[tw::max_bundle_size]) const;
 	tw::Int Dim(const tw::Int& ax) const { return dim[ax]; }
 	tw::Int Num(const tw::Int& ax) const { return num[ax]; }
 	tw::Int Layers(const tw::Int& ax) const { return layers[ax]; }
@@ -172,8 +172,8 @@ struct DiscreteSpace
 	bool TransversePowersOfTwo();
 	void GetWeights(weights_3D* weights,const tw::vec3& P);
 	void GetWeights(weights_3D* weights,const Primitive& q);
-	void GetWeights(float w[3][3][tw::max_bundle_size],float x[3][tw::max_bundle_size]);
-	void GetWallWeights(float w[3][3][tw::max_bundle_size],float x[3][tw::max_bundle_size]);
+	void GetWeights(float w[3][3][tw::max_bundle_size],float x[4][tw::max_bundle_size]);
+	void GetWallWeights(float w[3][3][tw::max_bundle_size],float x[4][tw::max_bundle_size]);
 
 	void ReadCheckpoint(std::ifstream& inFile);
 	void WriteCheckpoint(std::ofstream& outFile);
@@ -262,7 +262,7 @@ inline void DiscreteSpace::UpdatePrimitiveWithPosition(Primitive& q,const tw::ve
 	q.x[2] = PLoc[2]*freq[2] - tw::Float(ijk[3]) + tw::Float(0.5);
 }
 
-inline void DiscreteSpace::MinimizePrimitive(tw::Int cell[tw::max_bundle_size],tw::Int ijk[3][tw::max_bundle_size],float x[3][tw::max_bundle_size],float domainMask[tw::max_bundle_size]) const
+inline void DiscreteSpace::MinimizePrimitive(tw::Int cell[tw::max_bundle_size],tw::Int ijk[3][tw::max_bundle_size],float x[4][tw::max_bundle_size],float domainMask[tw::max_bundle_size]) const
 {
 	// Bundle version of below.
 	// Note non-standard indexing of decoded cell ijk[] is tolerated for sake of efficiency.
@@ -284,7 +284,7 @@ inline void DiscreteSpace::MinimizePrimitive(tw::Int cell[tw::max_bundle_size],t
 		{
 			for (par=0;par<N;par++)
 			{
-				itest[par] = tw::Int(x[ax][par]<-0.5 && ijk[ax][par]>lfg[ax+1]) - tw::Int(x[ax][par]>=0.5 && ijk[ax][par]<ufg[ax+1]);
+				itest[par] = tw::Int(x[ax+1][par]<-0.5 && ijk[ax][par]>lfg[ax+1]) - tw::Int(x[ax+1][par]>=0.5 && ijk[ax][par]<ufg[ax+1]);
 				ftest[par] = float(itest[par]);
 			}
 			#pragma omp simd aligned(itest,ijk:AB)
@@ -292,10 +292,10 @@ inline void DiscreteSpace::MinimizePrimitive(tw::Int cell[tw::max_bundle_size],t
 				ijk[ax][par] -= itest[par];
 			#pragma omp simd aligned(ftest,x:AB)
 			for (par=0;par<N;par++)
-				x[ax][par] += ftest[par];
+				x[ax+1][par] += ftest[par];
 			repeat = 0;
 			for (par=0;par<N;par++)
-				repeat += tw::Int(x[ax][par]<-0.5 && ijk[ax][par]>lfg[ax+1]) + tw::Int(x[ax][par]>=0.5 && ijk[ax][par]<ufg[ax+1]);
+				repeat += tw::Int(x[ax+1][par]<-0.5 && ijk[ax][par]>lfg[ax+1]) + tw::Int(x[ax+1][par]>=0.5 && ijk[ax][par]<ufg[ax+1]);
 		} while (repeat);
 		for (par=0;par<N;par++)
 			ftest[par] = float(tw::Int(ijk[ax][par]>=1 && ijk[ax][par]<=dim[ax+1]));
@@ -350,25 +350,25 @@ inline void DiscreteSpace::GetWeights(weights_3D* weights,const Primitive& q)
 	weights->w[2][2] = 0.125f + 0.5f*q.x[2] + 0.5f*q.x[2]*q.x[2];
 }
 
-inline void DiscreteSpace::GetWeights(float w[3][3][tw::max_bundle_size],float x[3][tw::max_bundle_size])
+inline void DiscreteSpace::GetWeights(float w[3][3][tw::max_bundle_size],float x[4][tw::max_bundle_size])
 {
 	tw::Int N = tw::max_bundle_size;
 	#pragma omp simd aligned(w,x:tw::vec_align_bytes)
 	for (tw::Int i=0;i<N;i++)
 	{
-		w[0][0][i] = 0.125f - 0.5f*x[0][i] + 0.5f*x[0][i]*x[0][i];
-		w[0][1][i] = 0.125f - 0.5f*x[1][i] + 0.5f*x[1][i]*x[1][i];
-		w[0][2][i] = 0.125f - 0.5f*x[2][i] + 0.5f*x[2][i]*x[2][i];
-		w[1][0][i] = 0.75f - x[0][i]*x[0][i];
-		w[1][1][i] = 0.75f - x[1][i]*x[1][i];
-		w[1][2][i] = 0.75f - x[2][i]*x[2][i];
-		w[2][0][i] = 0.125f + 0.5f*x[0][i] + 0.5f*x[0][i]*x[0][i];
-		w[2][1][i] = 0.125f + 0.5f*x[1][i] + 0.5f*x[1][i]*x[1][i];
-		w[2][2][i] = 0.125f + 0.5f*x[2][i] + 0.5f*x[2][i]*x[2][i];
+		w[0][0][i] = 0.125f - 0.5f*x[1][i] + 0.5f*x[1][i]*x[1][i];
+		w[0][1][i] = 0.125f - 0.5f*x[2][i] + 0.5f*x[2][i]*x[2][i];
+		w[0][2][i] = 0.125f - 0.5f*x[3][i] + 0.5f*x[3][i]*x[3][i];
+		w[1][0][i] = 0.75f - x[1][i]*x[1][i];
+		w[1][1][i] = 0.75f - x[2][i]*x[2][i];
+		w[1][2][i] = 0.75f - x[3][i]*x[3][i];
+		w[2][0][i] = 0.125f + 0.5f*x[1][i] + 0.5f*x[1][i]*x[1][i];
+		w[2][1][i] = 0.125f + 0.5f*x[2][i] + 0.5f*x[2][i]*x[2][i];
+		w[2][2][i] = 0.125f + 0.5f*x[3][i] + 0.5f*x[3][i]*x[3][i];
 	}
 }
 
-inline void DiscreteSpace::GetWallWeights(float w[3][3][tw::max_bundle_size],float x[3][tw::max_bundle_size])
+inline void DiscreteSpace::GetWallWeights(float w[3][3][tw::max_bundle_size],float x[4][tw::max_bundle_size])
 {
 	tw::Int N = tw::max_bundle_size;
 	#pragma omp simd aligned(w,x:tw::vec_align_bytes)
@@ -377,11 +377,11 @@ inline void DiscreteSpace::GetWallWeights(float w[3][3][tw::max_bundle_size],flo
 		w[0][0][i] = 0.0f;
 		w[0][1][i] = 0.0f;
 		w[0][2][i] = 0.0f;
-		w[1][0][i] = 0.5f - x[0][i];
-		w[1][1][i] = 0.5f - x[1][i];
-		w[1][2][i] = 0.5f - x[2][i];
-		w[2][0][i] = 0.5f + x[0][i];
-		w[2][1][i] = 0.5f + x[1][i];
-		w[2][2][i] = 0.5f + x[2][i];
+		w[1][0][i] = 0.5f - x[1][i];
+		w[1][1][i] = 0.5f - x[2][i];
+		w[1][2][i] = 0.5f - x[3][i];
+		w[2][0][i] = 0.5f + x[1][i];
+		w[2][1][i] = 0.5f + x[2][i];
+		w[2][2][i] = 0.5f + x[3][i];
 	}
 }

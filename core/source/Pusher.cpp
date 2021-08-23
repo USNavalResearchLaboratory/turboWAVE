@@ -1,5 +1,6 @@
 #include "simulation.h"
 #include "particles.h"
+#include "pusher.h"
 #include "fieldSolve.h"
 #include "laserSolve.h"
 
@@ -109,11 +110,11 @@ void Species::PushSlice(tw::Int tasks,tw::Int tid,tw::Int bounds_data[][8])
 	}
 	for (tw::Int i=first;i<=last;i++)
 	{
-		b.Append(particle[map[i-first].idx]);
+		b.Append(particle[map[i-first].idx],restMass);
 		next = i==last ? i : i+1;
 		if (i==last || b.Complete(particle[map[next-first].idx]))
 		{
-			b.Push(this);
+			b.Advance(this);
 			b.CopyBack(this);
 			b.Reset();
 		}
@@ -183,7 +184,7 @@ void Species::DispatchPush()
 	}
 	if (ESField)
 	{
-		Push<ParticleBundleElectrostatic>();
+		//Push<ParticleBundleElectrostatic>();
 		return;
 	}
 	if (laser)
@@ -194,6 +195,7 @@ void Species::DispatchPush()
 
 	if (ignorable[2])
 		Push<ParticleBundle2D>();
+		//Push<ParticleBundleUnitary>();
 	else
 		Push<ParticleBundle3D>();
 }
@@ -205,95 +207,168 @@ void Species::DispatchPush()
 //                           //
 ///////////////////////////////
 
-
-void ParticleBundleBohmian::Push(Species *owner)
+void ParticleBundle2D::Advance(Species *owner)
 {
-	// The empty particles in the bundle can be operated on harmlessly
-	// except in gather scatter.
-	// N = particles in a full bundle
-	// num = particles in this bundle
+	Gather(owner,F);
+	Push(owner);
+	Scatter(owner);
+}
+
+void ParticleBundle3D::Advance(Species *owner)
+{
+	Gather(owner,F);
+	Push(owner);
+	Scatter(owner);
+}
+
+void ParticleBundlePGC::Advance(Species *owner)
+{
+	Gather(owner,F,las);
+	Push(owner);
+	Scatter(owner,chi);
+}
+
+void ParticleBundleUnitary::Advance(Species *owner)
+{
+	Gather(owner,F);
+	Push(owner);
+	Scatter(owner);
+}
+
+void ParticleBundleBohmian::Advance(Species *owner)
+{
+	Gather(owner);
+	Push(owner);
+}
+
+void BundlePusherBoris::Push(Species *owner)
+{
+	Simulation *sim = owner->owner;
+	const tw::Float q0 = owner->charge;
+	const tw::Float dt = timestep(*sim);
+	const tw::Float k[3] = { dxi(*sim) , dyi(*sim) , dzi(*sim) };
+
+	impulse(u,F);
+	rotation1(t,u,F);
+	rotation2(s,t);
+	rotation3(s,t,vel,u);
+	impulse(u,F);
+	velocity(vel,u);
+	translate(x,vel,k,dt);
+	load_j4(J,number,vel,k,q0);
+}
+
+void BundlePusherUnitary::Lambda()
+{
+	// Left multiply the spinor by Lambda (time translation operator)
+	copy_spinor(zf,zi);
+
+	copy_spinor(z,zi);
+	set_psi24(a,F);
+	scalar_mul(a,z);
+	add_spinor(zf,z);
+
+	copy_spinor(z,zi);
+	left_mul_sig1(z);
+	set_psi_1(a,F);
+	scalar_mul(a,z);
+	add_spinor(zf,z);
+
+	copy_spinor(z,zi);
+	left_mul_sig2(z);
+	set_psi_2(a,F);
+	scalar_mul(a,z);
+	add_spinor(zf,z);
+
+	copy_spinor(z,zi);
+	left_mul_sig3(z);
+	set_psi_3(a,F);
+	scalar_mul(a,z);
+	add_spinor(zf,z);
+}
+
+void BundlePusherUnitary::Push(Species *owner)
+{
+	// We rewrite L*z*L^dag as (L*(L*z)^dag)^dag
+	Simulation *sim = owner->owner;
+	const tw::Float q0 = owner->charge;
+	const tw::Float dt = timestep(*sim);
+	const tw::Float k[3] = { dxi(*sim) , dyi(*sim) , dzi(*sim) };
+
+	to_spinor(u,zi);
+	estimate_ds(ds,F,u,dt); // ds gets buried in F; at present must go after to_spinor
+	Lambda();
+	copy_spinor(zi,zf);
+	dagger(zi);
+	Lambda();
+	dagger(zf);
+	to_vector(u,zf,a);
+
+	velocity(vel,u);
+	translate(x,vel,k,dt);
+	load_j4(J,number,vel,k,q0);
+}
+
+void BundlePusherPGC::Push(Species *owner)
+{
 	Simulation *sim = owner->owner;
 	const tw::Float q0 = owner->charge;
 	const tw::Float m0 = owner->restMass;
 	const tw::Float dth = 0.5*timestep(*sim);
 	const tw::Float dt = timestep(*sim);
 	const tw::Float k[3] = { dxi(*sim) , dyi(*sim) , dzi(*sim) };
-	const float dti = 1.0/dt;
 
-	PadBundle();
+	avg_gam_1(avgGam,vel,u,F,las,dth);
+	impulse(u,F,las,avgGam,dth);
+	rotation1(t,F,avgGam);
+	rotation2(s,t);
+	rotation3(s,t,vel,u);
+	impulse(u,F,las,avgGam,dth);
+	avg_gam_2(avgGam,u,las,dth);
+	velocity(vel,u,avgGam);
+	translate(x,vel,k,dt);
+	load_j4(J,number,vel,k,q0);
+	load_chi(chi,number,avgGam,q0,m0);
+}
 
-	cell0 = cell[0];
-	sim->DecodeCell(cell0,&ijk0[0],&ijk0[1],&ijk0[2]);
-	sim->GetWeights(w0,x);
-	LoadTile();
-	GatherJ4(J,w0);
-
-	// estimate vel(n+1/2) using p(n-1) and J(n), and update p(n-1) to p(n)
-	bohm_velocity(vel,p,J);
+void BundlePusherBohmian::Push(Species *owner)
+{
+	Simulation *sim = owner->owner;
+	const tw::Float dt = timestep(*sim);
+	const tw::Float k[3] = { dxi(*sim) , dyi(*sim) , dzi(*sim) };
+	// estimate vel(n+1/2) using u(n-1) and J(n), and update u(n-1) to u(n)
+	bohm_velocity(vel,u,J);
 	// update x(n) to x(n+1) using vel(n+1/2)
 	translate(x,vel,k,dt);
 	sim->MinimizePrimitive(cell,ijk,x,domainMask);
 }
 
-void ParticleBundleBohmian::GatherJ4(float J[4][N],const float w[3][3][N])
+void BundleTiler2D::Gather(Species *owner,float F[6][N])
 {
-	tw::Int i,j,k,n;
-	ZeroArray(J,0,3);
-	for (i=0;i<3;i++)
-		for (j=0;j<3;j++)
-			for (k=0;k<3;k++)
-				#pragma omp simd aligned(J,w:AB)
-				for (n=0;n<N;n++)
-				{
-					J[0][n] += w[i][0][n]*w[j][1][n]*w[k][2][n]*tile[i][j][k][0];
-					J[1][n] += w[i][0][n]*w[j][1][n]*w[k][2][n]*tile[i][j][k][1];
-					J[2][n] += w[i][0][n]*w[j][1][n]*w[k][2][n]*tile[i][j][k][2];
-					J[3][n] += w[i][0][n]*w[j][1][n]*w[k][2][n]*tile[i][j][k][3];
-				}
-}
-
-
-void ParticleBundle2D::Push(Species *owner)
-{
-	// The empty particles in the bundle can be operated on harmlessly
-	// except in gather scatter.
-	// N = particles in a full bundle
-	// num = particles in this bundle
 	Simulation *sim = owner->owner;
-	const tw::Float q0 = owner->charge;
-	const tw::Float m0 = owner->restMass;
-	const tw::Float dth = 0.5*timestep(*sim);
-	const tw::Float dt = timestep(*sim);
-	const tw::Float k[3] = { dxi(*sim) , dyi(*sim) , dzi(*sim) };
-	const float dti = 1.0/dt;
-
+	const float qmdth = 0.5 * owner->charge * timestep(*sim) / owner->restMass;
 	PadBundle();
-
 	cell0 = cell[0];
 	sim->DecodeCell(cell0,&ijk0[0],&ijk0[1],&ijk0[2]);
 	sim->GetWeights(w0,x);
 	sim->GetWallWeights(l0,x);
-	LoadTile();
-	GatherF(F,w0,l0);
+	LoadFTile();
+	GatherF(F,w0,l0,qmdth);
+}
 
-	impulse(p,F,q0,dth);
-	rotation1(t,p,F,q0,m0,dth);
-	rotation2(s,t);
-	rotation3(s,t,vel,p);
-	impulse(p,F,q0,dth);
-	velocity(vel,p,m0);
-	translate(x,vel,k,dt);
-	load_j4(J,number,vel,k,q0);
-
+void BundleTiler2D::Scatter(Species *owner)
+{
+	Simulation *sim = owner->owner;
+	const tw::Float dti = 1.0/timestep(*sim);
 	sim->MinimizePrimitive(cell,ijk,x,domainMask);
 	sim->GetWeights(w1,x);
 	set_cell_mask(cellMask,cell0,cell);
-	ResetXTile();
+	ResetJTile();
 	ScatterJ4(J,w0,w1,cellMask,dti);
-	StoreXTile();
+	StoreJTile();
 }
 
-void ParticleBundle2D::GatherF(float F[6][N],const float w[3][3][N],const float l[3][3][N])
+void BundleTiler2D::GatherF(float F[6][N],const float w[3][3][N],const float l[3][3][N],const float qmdth)
 {
 	// Assumes every particle in bundle is in the same cell and data is packed with Yee fields
 	tw::Int i,k,n;
@@ -303,19 +378,19 @@ void ParticleBundle2D::GatherF(float F[6][N],const float w[3][3][N],const float 
 			#pragma omp simd aligned(F,w,l:AB)
 			for (n=0;n<N;n++)
 			{
-				F[0][n] += l[i][0][n]*w[k][2][n]*tile[i][k][0];
-				F[1][n] += w[i][0][n]*w[k][2][n]*tile[i][k][1];
-				F[2][n] += w[i][0][n]*l[k][2][n]*tile[i][k][2];
-				F[3][n] += w[i][0][n]*l[k][2][n]*tile[i][k][3];
-				F[4][n] += l[i][0][n]*l[k][2][n]*tile[i][k][4];
-				F[5][n] += l[i][0][n]*w[k][2][n]*tile[i][k][5];
+				F[0][n] += l[i][0][n]*w[k][2][n]*F_tile[i][k][0]*qmdth;
+				F[1][n] += w[i][0][n]*w[k][2][n]*F_tile[i][k][1]*qmdth;
+				F[2][n] += w[i][0][n]*l[k][2][n]*F_tile[i][k][2]*qmdth;
+				F[3][n] += w[i][0][n]*l[k][2][n]*F_tile[i][k][3]*qmdth;
+				F[4][n] += l[i][0][n]*l[k][2][n]*F_tile[i][k][4]*qmdth;
+				F[5][n] += l[i][0][n]*w[k][2][n]*F_tile[i][k][5]*qmdth;
 			}
 }
 
-void ParticleBundle2D::ScatterJ4(const float J[4][N],const float w0[3][3][N],const float w1[3][3][N],const float cellMask[N],const float& dti)
+void BundleTiler2D::ScatterJ4(const float J[4][N],const float w0[3][3][N],const float w1[3][3][N],const float cellMask[N],const float& dti)
 {
-	// xtile will be loaded with charge and current
-	// if xtile is nonzero on entry, it must contain the density decomposition, not the current
+	// J_tile will be loaded with charge and current
+	// if J_tile is nonzero on entry, it must contain the density decomposition, not the current
 	// Current deposition from T.Zh. Esirkepov, Comp. Phys. Comm. 135, 144 (2001)
 	tw::Int i,j,k,i1,i2,k1,k2,dc[3],n;
 	float xw0[5][3];
@@ -352,7 +427,7 @@ void ParticleBundle2D::ScatterJ4(const float J[4][N],const float w0[3][3][N],con
 		// Charge Deposition (as in coulombs in the cell)
 		for (i=0;i<5;i++)
 			for (k=0;k<5;k++)
-				xtile[i][k][0] += J[0][n]*xw1[i][0]*xw1[k][2];
+				J_tile[i][k][0] += J[0][n]*xw1[i][0]*xw1[k][2];
 
 		// Optimize Current Deposition Loops
 		i1 = dc[0]<0 ? 0 : 1;
@@ -363,13 +438,13 @@ void ParticleBundle2D::ScatterJ4(const float J[4][N],const float w0[3][3][N],con
 		// Current Deposition (as in amps through the wall)
 		for (i=1;i<=i2;i++)
 			for (k=k1;k<=k2;k++)
-				xtile[i][k][1] += J[0][n]*dti*xdw[i][0]*(xw0[k][2]+0.5f*xdw[k][2]);
+				J_tile[i][k][1] += J[0][n]*dti*xdw[i][0]*(xw0[k][2]+0.5f*xdw[k][2]);
 		for (i=i1;i<=i2;i++)
 			for (k=k1;k<=k2;k++)
-				xtile[i][k][2] += J[2][n]*(xw0[i][0]*xw0[k][2]+0.5f*xdw[i][0]*xw0[k][2]+0.5f*xw0[i][0]*xdw[k][2]+0.3333333f*xdw[i][0]*xdw[k][2]);
+				J_tile[i][k][2] += J[2][n]*(xw0[i][0]*xw0[k][2]+0.5f*xdw[i][0]*xw0[k][2]+0.5f*xw0[i][0]*xdw[k][2]+0.3333333f*xdw[i][0]*xdw[k][2]);
 		for (i=i1;i<=i2;i++)
 			for (k=1;k<=k2;k++)
-				xtile[i][k][3] += J[0][n]*dti*xdw[k][2]*(xw0[i][0]+0.5f*xdw[i][0]);
+				J_tile[i][k][3] += J[0][n]*dti*xdw[k][2]*(xw0[i][0]+0.5f*xdw[i][0]);
 	}
 
 	// Vector code to scatter current from intra-cell particles
@@ -386,86 +461,71 @@ void ParticleBundle2D::ScatterJ4(const float J[4][N],const float w0[3][3][N],con
 			#pragma omp simd reduction(+:sum) aligned(J,w1,cellMask:AB)
 			for (n=0;n<N;n++)
 				sum += J[0][n]*cellMask[n]*w1[i][0][n]*w1[k][2][n];
-			xtile[i+1][k+1][0] += sum;
+			J_tile[i+1][k+1][0] += sum;
 
 			sum = 0.0;
 			#pragma omp simd reduction(+:sum) aligned(J,dw,w0,cellMask:AB)
 			for (n=0;n<N;n++)
 				sum += J[0][n]*dti*cellMask[n]*dw[i][0][n]*(w0[k][2][n]+0.5f*dw[k][2][n]);
-			xtile[i+1][k+1][1] += sum;
+			J_tile[i+1][k+1][1] += sum;
 
 			sum = 0.0;
 			#pragma omp simd reduction(+:sum) aligned(J,dw,w0,cellMask:AB)
 			for (n=0;n<N;n++)
 				sum += J[2][n]*cellMask[n]*(w0[i][0][n]*w0[k][2][n]+0.5f*dw[i][0][n]*w0[k][2][n]+0.5f*w0[i][0][n]*dw[k][2][n]+0.3333333f*dw[i][0][n]*dw[k][2][n]);
-			xtile[i+1][k+1][2] += sum;
+			J_tile[i+1][k+1][2] += sum;
 
 			sum = 0.0;
 			#pragma omp simd reduction(+:sum) aligned(J,dw,w0,cellMask:AB)
 			for (n=0;n<N;n++)
 				sum += J[0][n]*dti*cellMask[n]*dw[k][2][n]*(w0[i][0][n]+0.5f*dw[i][0][n]);
-			xtile[i+1][k+1][3] += sum;
+			J_tile[i+1][k+1][3] += sum;
 		}
 
 	// Integrate to get current from density decomposition
 	// The relationship is J_i = j_i+1 + W_i
 	for (k=0;k<5;k++)
 	{
-		sum = xtile[4][k][1];
-		sum += xtile[3][k][1]; xtile[3][k][1] = sum;
-		sum += xtile[2][k][1]; xtile[2][k][1] = sum;
-		sum += xtile[1][k][1]; xtile[1][k][1] = sum;
-		xtile[0][k][1] = 0.0;
+		sum = J_tile[4][k][1];
+		sum += J_tile[3][k][1]; J_tile[3][k][1] = sum;
+		sum += J_tile[2][k][1]; J_tile[2][k][1] = sum;
+		sum += J_tile[1][k][1]; J_tile[1][k][1] = sum;
+		J_tile[0][k][1] = 0.0;
 
-		sum = xtile[k][4][3];
-		sum += xtile[k][3][3]; xtile[k][3][3] = sum;
-		sum += xtile[k][2][3]; xtile[k][2][3] = sum;
-		sum += xtile[k][1][3]; xtile[k][1][3] = sum;
-		xtile[k][0][3] = 0.0;
+		sum = J_tile[k][4][3];
+		sum += J_tile[k][3][3]; J_tile[k][3][3] = sum;
+		sum += J_tile[k][2][3]; J_tile[k][2][3] = sum;
+		sum += J_tile[k][1][3]; J_tile[k][1][3] = sum;
+		J_tile[k][0][3] = 0.0;
 	}
 }
 
-void ParticleBundle3D::Push(Species *owner)
+void BundleTiler3D::Gather(Species *owner,float F[6][N])
 {
-	// The empty particles in the bundle can be operated on harmlessly
-	// except in gather scatter.
-	// N = particles in a full bundle
-	// num = particles in this bundle
 	Simulation *sim = owner->owner;
-	const tw::Float q0 = owner->charge;
-	const tw::Float m0 = owner->restMass;
-	const tw::Float dth = 0.5*timestep(*sim);
-	const tw::Float dt = timestep(*sim);
-	const tw::Float k[3] = { dxi(*sim) , dyi(*sim) , dzi(*sim) };
-	const float dti = 1.0/dt;
-
+	const float qmdth = 0.5 * owner->charge * timestep(*sim) / owner->restMass;
 	PadBundle();
-
 	cell0 = cell[0];
 	sim->DecodeCell(cell0,&ijk0[0],&ijk0[1],&ijk0[2]);
 	sim->GetWeights(w0,x);
 	sim->GetWallWeights(l0,x);
-	LoadTile();
-	GatherF(F,w0,l0);
+	LoadFTile();
+	GatherF(F,w0,l0,qmdth);
+}
 
-	impulse(p,F,q0,dth);
-	rotation1(t,p,F,q0,m0,dth);
-	rotation2(s,t);
-	rotation3(s,t,vel,p);
-	impulse(p,F,q0,dth);
-	velocity(vel,p,m0);
-	translate(x,vel,k,dt);
-	load_j4(J,number,vel,k,q0);
-
+void BundleTiler3D::Scatter(Species *owner)
+{
+	Simulation *sim = owner->owner;
+	const tw::Float dti = 1.0/timestep(*sim);
 	sim->MinimizePrimitive(cell,ijk,x,domainMask);
 	sim->GetWeights(w1,x);
 	set_cell_mask(cellMask,cell0,cell);
-	ResetXTile();
+	ResetJTile();
 	ScatterJ4(J,w0,w1,cellMask,dti);
-	StoreXTile();
+	StoreJTile();
 }
 
-void ParticleBundle3D::GatherF(float F[6][N],const float w[3][3][N],const float l[3][3][N])
+void BundleTiler3D::GatherF(float F[6][N],const float w[3][3][N],const float l[3][3][N],const float qmdth)
 {
 	// Assumes every particle in bundle is in the same cell and data is packed with Yee fields
 	tw::Int i,j,k,n;
@@ -476,19 +536,19 @@ void ParticleBundle3D::GatherF(float F[6][N],const float w[3][3][N],const float 
 				#pragma omp simd aligned(F,w,l:AB)
 				for (n=0;n<N;n++)
 				{
-					F[0][n] += l[i][0][n]*w[j][1][n]*w[k][2][n]*tile[i][j][k][0];
-					F[1][n] += w[i][0][n]*l[j][1][n]*w[k][2][n]*tile[i][j][k][1];
-					F[2][n] += w[i][0][n]*w[j][1][n]*l[k][2][n]*tile[i][j][k][2];
-					F[3][n] += w[i][0][n]*l[j][1][n]*l[k][2][n]*tile[i][j][k][3];
-					F[4][n] += l[i][0][n]*w[j][1][n]*l[k][2][n]*tile[i][j][k][4];
-					F[5][n] += l[i][0][n]*l[j][1][n]*w[k][2][n]*tile[i][j][k][5];
+					F[0][n] += l[i][0][n]*w[j][1][n]*w[k][2][n]*F_tile[i][j][k][0]*qmdth;
+					F[1][n] += w[i][0][n]*l[j][1][n]*w[k][2][n]*F_tile[i][j][k][1]*qmdth;
+					F[2][n] += w[i][0][n]*w[j][1][n]*l[k][2][n]*F_tile[i][j][k][2]*qmdth;
+					F[3][n] += w[i][0][n]*l[j][1][n]*l[k][2][n]*F_tile[i][j][k][3]*qmdth;
+					F[4][n] += l[i][0][n]*w[j][1][n]*l[k][2][n]*F_tile[i][j][k][4]*qmdth;
+					F[5][n] += l[i][0][n]*l[j][1][n]*w[k][2][n]*F_tile[i][j][k][5]*qmdth;
 				}
 }
 
-void ParticleBundle3D::ScatterJ4(const float J[4][N],const float w0[3][3][N],const float w1[3][3][N],const float cellMask[N],const float& dti)
+void BundleTiler3D::ScatterJ4(const float J[4][N],const float w0[3][3][N],const float w1[3][3][N],const float cellMask[N],const float& dti)
 {
-	// xtile will be loaded with charge and current
-	// if xtile is nonzero on entry, it must contain the density decomposition, not the current
+	// J_tile will be loaded with charge and current
+	// if J_tile is nonzero on entry, it must contain the density decomposition, not the current
 	// Current deposition from T.Zh. Esirkepov, Comp. Phys. Comm. 135, 144 (2001)
 	tw::Int i,j,k,i1,i2,j1,j2,k1,k2,dc[3],n;
 	float xw0[5][3];
@@ -526,7 +586,7 @@ void ParticleBundle3D::ScatterJ4(const float J[4][N],const float w0[3][3][N],con
 		for (i=0;i<5;i++)
 			for (j=0;j<5;j++)
 				for (k=0;k<5;k++)
-					xtile[i][j][k][0] += J[0][n]*xw1[i][0]*xw1[j][1]*xw1[k][2];
+					J_tile[i][j][k][0] += J[0][n]*xw1[i][0]*xw1[j][1]*xw1[k][2];
 
 		// Optimize Current Deposition Loops
 		i1 = dc[0]<0 ? 0 : 1;
@@ -541,17 +601,17 @@ void ParticleBundle3D::ScatterJ4(const float J[4][N],const float w0[3][3][N],con
 		for (i=1;i<=i2;i++)
 			for (j=j1;j<=j2;j++)
 				for (k=k1;k<=k2;k++)
-					xtile[i][j][k][1] += J[0][n]*dti*xdw[i][0]*(xw0[j][1]*xw0[k][2]+
+					J_tile[i][j][k][1] += J[0][n]*dti*xdw[i][0]*(xw0[j][1]*xw0[k][2]+
 						0.5f*xdw[j][1]*xw0[k][2]+0.5f*xw0[j][1]*xdw[k][2]+0.3333333f*xdw[j][1]*xdw[k][2]);
 		for (i=i1;i<=i2;i++)
 			for (j=1;j<=j2;j++)
 				for (k=k1;k<=k2;k++)
-					xtile[i][j][k][2] += J[0][n]*dti*xdw[j][1]*(xw0[i][0]*xw0[k][2]+
+					J_tile[i][j][k][2] += J[0][n]*dti*xdw[j][1]*(xw0[i][0]*xw0[k][2]+
 						0.5f*xdw[i][0]*xw0[k][2]+0.5f*xw0[i][0]*xdw[k][2]+0.3333333f*xdw[i][0]*xdw[k][2]);
 		for (i=i1;i<=i2;i++)
 			for (j=j1;j<=j2;j++)
 				for (k=1;k<=k2;k++)
-					xtile[i][j][k][3] += J[0][n]*dti*xdw[k][2]*(xw0[i][0]*xw0[j][1]+
+					J_tile[i][j][k][3] += J[0][n]*dti*xdw[k][2]*(xw0[i][0]*xw0[j][1]+
 						0.5f*xdw[i][0]*xw0[j][1]+0.5f*xw0[i][0]*xdw[j][1]+0.3333333f*xdw[i][0]*xdw[j][1]);
 	}
 
@@ -570,28 +630,28 @@ void ParticleBundle3D::ScatterJ4(const float J[4][N],const float w0[3][3][N],con
 				#pragma omp simd reduction(+:sum) aligned(J,w1,cellMask:AB)
 				for (n=0;n<N;n++)
 					sum += J[0][n]*cellMask[n]*w1[i][0][n]*w1[j][1][n]*w1[k][2][n];
-				xtile[i+1][j+1][k+1][0] += sum;
+				J_tile[i+1][j+1][k+1][0] += sum;
 
 				sum = 0.0;
 				#pragma omp simd reduction(+:sum) aligned(J,dw,w0,cellMask:AB)
 				for (n=0;n<N;n++)
 					sum += J[0][n]*dti*cellMask[n]*dw[i][0][n]*(w0[j][1][n]*w0[k][2][n]+
 						0.5f*dw[j][1][n]*w0[k][2][n]+0.5f*w0[j][1][n]*dw[k][2][n]+0.3333333f*dw[j][1][n]*dw[k][2][n]);
-				xtile[i+1][j+1][k+1][1] += sum;
+				J_tile[i+1][j+1][k+1][1] += sum;
 
 				sum = 0.0;
 				#pragma omp simd reduction(+:sum) aligned(J,dw,w0,cellMask:AB)
 				for (n=0;n<N;n++)
 					sum += J[0][n]*dti*cellMask[n]*dw[j][1][n]*(w0[i][0][n]*w0[k][2][n]+
 						0.5f*dw[i][0][n]*w0[k][2][n]+0.5f*w0[i][0][n]*dw[k][2][n]+0.3333333f*dw[i][0][n]*dw[k][2][n]);
-				xtile[i+1][j+1][k+1][2] += sum;
+				J_tile[i+1][j+1][k+1][2] += sum;
 
 				sum = 0.0;
 				#pragma omp simd reduction(+:sum) aligned(J,dw,w0,cellMask:AB)
 				for (n=0;n<N;n++)
 					sum += J[0][n]*dti*cellMask[n]*dw[k][2][n]*(w0[i][0][n]*w0[j][1][n]+
 						0.5f*dw[i][0][n]*w0[j][1][n]+0.5f*w0[i][0][n]*dw[j][1][n]+0.3333333f*dw[i][0][n]*dw[j][1][n]);
-				xtile[i+1][j+1][k+1][3] += sum;
+				J_tile[i+1][j+1][k+1][3] += sum;
 			}
 
 	// Integrate to get current from density decomposition
@@ -599,125 +659,43 @@ void ParticleBundle3D::ScatterJ4(const float J[4][N],const float w0[3][3][N],con
 	for (j=0;j<5;j++)
 		for (k=0;k<5;k++)
 		{
-			sum = xtile[4][j][k][1];
-			sum += xtile[3][j][k][1]; xtile[3][j][k][1] = sum;
-			sum += xtile[2][j][k][1]; xtile[2][j][k][1] = sum;
-			sum += xtile[1][j][k][1]; xtile[1][j][k][1] = sum;
-			xtile[0][j][k][1] = 0.0;
+			sum = J_tile[4][j][k][1];
+			sum += J_tile[3][j][k][1]; J_tile[3][j][k][1] = sum;
+			sum += J_tile[2][j][k][1]; J_tile[2][j][k][1] = sum;
+			sum += J_tile[1][j][k][1]; J_tile[1][j][k][1] = sum;
+			J_tile[0][j][k][1] = 0.0;
 
-			sum = xtile[j][4][k][2];
-			sum += xtile[j][3][k][2]; xtile[j][3][k][2] = sum;
-			sum += xtile[j][2][k][2]; xtile[j][2][k][2] = sum;
-			sum += xtile[j][1][k][2]; xtile[j][1][k][2] = sum;
-			xtile[j][0][k][2] = 0.0;
+			sum = J_tile[j][4][k][2];
+			sum += J_tile[j][3][k][2]; J_tile[j][3][k][2] = sum;
+			sum += J_tile[j][2][k][2]; J_tile[j][2][k][2] = sum;
+			sum += J_tile[j][1][k][2]; J_tile[j][1][k][2] = sum;
+			J_tile[j][0][k][2] = 0.0;
 
-			sum = xtile[j][k][4][3];
-			sum += xtile[j][k][3][3]; xtile[j][k][3][3] = sum;
-			sum += xtile[j][k][2][3]; xtile[j][k][2][3] = sum;
-			sum += xtile[j][k][1][3]; xtile[j][k][1][3] = sum;
-			xtile[j][k][0][3] = 0.0;
+			sum = J_tile[j][k][4][3];
+			sum += J_tile[j][k][3][3]; J_tile[j][k][3][3] = sum;
+			sum += J_tile[j][k][2][3]; J_tile[j][k][2][3] = sum;
+			sum += J_tile[j][k][1][3]; J_tile[j][k][1][3] = sum;
+			J_tile[j][k][0][3] = 0.0;
 		}
 }
 
-void ParticleBundleElectrostatic::Push(Species *owner)
+void BundleTilerPGC::Gather(Species *owner,float F[6][N],float las[8][N])
 {
-	// The empty particles in the bundle can be operated on harmlessly
-	// except in gather scatter.
-	// N = particles in a full bundle
-	// num = particles in this bundle
-	Simulation *sim = owner->owner;
-	const tw::Float q0 = owner->charge;
-	const tw::Float m0 = owner->restMass;
-	const tw::Float dth = 0.5*timestep(*sim);
-	const tw::Float dt = timestep(*sim);
-	const tw::Float k[3] = { dxi(*sim) , dyi(*sim) , dzi(*sim) };
-	const float dti = 1.0/dt;
-
-	PadBundle();
-
-	cell0 = cell[0];
-	sim->DecodeCell(cell0,&ijk0[0],&ijk0[1],&ijk0[2]);
-	sim->GetWeights(w0,x);
-	sim->GetWallWeights(l0,x);
-	LoadTile();
-	GatherF(F,w0,l0);
-
-	impulse(p,F,q0,dt);
-	velocity(vel,p,m0);
-	translate(x,vel,k,dt);
-	load_j4(J,number,vel,k,q0);
-
-	sim->MinimizePrimitive(cell,ijk,x,domainMask);
-	sim->GetWeights(w1,x);
-	set_cell_mask(cellMask,cell0,cell);
-	ResetXTile();
-	ScatterJ4(J,w0,w1,cellMask,dti);
-	StoreXTile();
+	const float q2m2 = sqr(owner->charge / owner->restMass);
+	BundleTiler3D::Gather(owner,F);
+	LoadLaserTile();
+	GatherLaser(las,w0,q2m2);
 }
 
-void ParticleBundleElectrostatic::GatherF(float F[6][N],const float w[3][3][N],const float l[3][3][N])
+void BundleTilerPGC::Scatter(Species *owner,float chi[N])
 {
-	// Assumes every particle in bundle is in the same cell and data is packed with Yee fields
-	tw::Int i,j,k,n;
-	ZeroArray(F,0,2);
-	for (i=0;i<3;i++)
-		for (j=0;j<3;j++)
-			for (k=0;k<3;k++)
-				#pragma omp simd aligned(F,w,l:AB)
-				for (n=0;n<N;n++)
-				{
-					F[0][n] += l[i][0][n]*w[j][1][n]*w[k][2][n]*tile[i][j][k][0];
-					F[1][n] += w[i][0][n]*l[j][1][n]*w[k][2][n]*tile[i][j][k][1];
-					F[2][n] += w[i][0][n]*w[j][1][n]*l[k][2][n]*tile[i][j][k][2];
-				}
-}
-
-void ParticleBundlePGC::Push(Species *owner)
-{
-	// The empty particles in the bundle can be operated on harmlessly
-	// except in gather scatter.
-	// N = particles in a full bundle
-	// num = particles in this bundle
-	Simulation *sim = owner->owner;
-	const tw::Float q0 = owner->charge;
-	const tw::Float m0 = owner->restMass;
-	const tw::Float dth = 0.5*timestep(*sim);
-	const tw::Float dt = timestep(*sim);
-	const tw::Float k[3] = { dxi(*sim) , dyi(*sim) , dzi(*sim) };
-	const float dti = 1.0/dt;
-
-	PadBundle();
-
-	cell0 = cell[0];
-	sim->DecodeCell(cell0,&ijk0[0],&ijk0[1],&ijk0[2]);
-	sim->GetWeights(w0,x);
-	sim->GetWallWeights(l0,x);
-	LoadTile();
-	GatherF(F,w0,l0);
-	GatherLaser(las,w0);
-
-	avg_mass_1(avgMass,vel,p,F,las,q0,m0,dth);
-	impulse(p,F,las,avgMass,q0,dth);
-	rotation1(t,F,avgMass,q0,dth);
-	rotation2(s,t);
-	rotation3(s,t,vel,p);
-	impulse(p,F,las,avgMass,q0,dth);
-	avg_mass_2(avgMass,p,las,q0,m0,dth);
-	velocity(vel,p,avgMass);
-	translate(x,vel,k,dt);
-	load_j4(J,number,vel,k,q0);
-	load_chi(chi,number,avgMass,q0);
-
-	sim->MinimizePrimitive(cell,ijk,x,domainMask);
-	sim->GetWeights(w1,x);
-	set_cell_mask(cellMask,cell0,cell);
-	ResetXTile();
-	ScatterJ4(J,w0,w1,cellMask,dti);
+	BundleTiler3D::Scatter(owner);
+	ResetChiTile();
 	ScatterChi(chi,w0,w1,cellMask);
-	StoreXTile();
+	StoreChiTile();
 }
 
-void ParticleBundlePGC::GatherLaser(float las[8][N],const float w[3][3][N])
+void BundleTilerPGC::GatherLaser(float las[8][N],const float w[3][3][N],const float q2m2)
 {
 	tw::Int i,j,k,n;
 	alignas(AB) float factorNow[N];
@@ -732,19 +710,19 @@ void ParticleBundlePGC::GatherLaser(float las[8][N],const float w[3][3][N])
 				#pragma omp simd aligned(las,factorNow:AB)
 				for (n=0;n<N;n++)
 				{
-					las[0][n] += factorNow[n]*las_tile[i][j][k][0];
-					las[1][n] += factorNow[n]*las_tile[i][j][k][1];
-					las[2][n] += factorNow[n]*las_tile[i][j][k][2];
-					las[3][n] += factorNow[n]*las_tile[i][j][k][3];
-					las[4][n] += factorNow[n]*las_tile[i][j][k][4];
-					las[5][n] += factorNow[n]*las_tile[i][j][k][5];
-					las[6][n] += factorNow[n]*las_tile[i][j][k][6];
-					las[7][n] += factorNow[n]*las_tile[i][j][k][7];
+					las[0][n] += factorNow[n]*las_tile[i][j][k][0]*q2m2;
+					las[1][n] += factorNow[n]*las_tile[i][j][k][1]*q2m2;
+					las[2][n] += factorNow[n]*las_tile[i][j][k][2]*q2m2;
+					las[3][n] += factorNow[n]*las_tile[i][j][k][3]*q2m2;
+					las[4][n] += factorNow[n]*las_tile[i][j][k][4]*q2m2;
+					las[5][n] += factorNow[n]*las_tile[i][j][k][5]*q2m2;
+					las[6][n] += factorNow[n]*las_tile[i][j][k][6]*q2m2;
+					las[7][n] += factorNow[n]*las_tile[i][j][k][7]*q2m2;
 				}
 			}
 }
 
-void ParticleBundlePGC::ScatterChi(const float chi[N],const float w0[3][3][N],const float w1[3][3][N],const float cellMask[N])
+void BundleTilerPGC::ScatterChi(const float chi[N],const float w0[3][3][N],const float w1[3][3][N],const float cellMask[N])
 {
 	tw::Int i,j,k,dc[3],n;
 	float xw0[5][3];
@@ -789,4 +767,32 @@ void ParticleBundlePGC::ScatterChi(const float chi[N],const float w0[3][3][N],co
 					sum += 0.5f*chi[n]*cellMask[n]*(w0[i][0][n]*w0[j][1][n]*w0[k][2][n] + w1[i][0][n]*w1[j][1][n]*w1[k][2][n]);
 				chi_tile[i+1][j+1][k+1] += sum;
 			}
+}
+
+void BundleTilerBohmian::Gather(Species *owner)
+{
+	Simulation *sim = owner->owner;
+	PadBundle();
+	cell0 = cell[0];
+	sim->DecodeCell(cell0,&ijk0[0],&ijk0[1],&ijk0[2]);
+	sim->GetWeights(w0,x);
+	LoadTile();
+	GatherJ4(J,w0);
+}
+
+void BundleTilerBohmian::GatherJ4(float J[4][N],const float w[3][3][N])
+{
+	tw::Int i,j,k,n;
+	ZeroArray(J,0,3);
+	for (i=0;i<3;i++)
+		for (j=0;j<3;j++)
+			for (k=0;k<3;k++)
+				#pragma omp simd aligned(J,w:AB)
+				for (n=0;n<N;n++)
+				{
+					J[0][n] += w[i][0][n]*w[j][1][n]*w[k][2][n]*tile[i][j][k][0];
+					J[1][n] += w[i][0][n]*w[j][1][n]*w[k][2][n]*tile[i][j][k][1];
+					J[2][n] += w[i][0][n]*w[j][1][n]*w[k][2][n]*tile[i][j][k][2];
+					J[3][n] += w[i][0][n]*w[j][1][n]*w[k][2][n]*tile[i][j][k][3];
+				}
 }
