@@ -216,6 +216,7 @@ void Fluid::Initialize()
 
 void Fluid::MoveWindow()
 {
+	Module::MoveWindow();
 	#pragma omp parallel
 	{
 		for (auto s : StripRange(*this,3,strongbool::yes))

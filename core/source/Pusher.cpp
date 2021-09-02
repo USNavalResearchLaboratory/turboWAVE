@@ -1,16 +1,36 @@
-#include "simulation.h"
-#include "particles.h"
+#include "meta_base.h"
+#include "computeTool.h"
 #include "pusher.h"
-#include "fieldSolve.h"
-#include "laserSolve.h"
 
-void Species::GetSubarrayBounds(std::vector<ParticleRef>& sorted,tw::Int low[4],tw::Int high[4],tw::Int layers)
+Pusher::Pusher(const std::string& name,MetricSpace *m,Task *tsk) : ComputeTool(name,m,tsk)
+{
+	for (tw::Int i=0;i<4;i++)
+		ignorable[i] = space->Ignorable(i);
+}
+
+void Pusher::AddTransferParticle(const Particle& src)
+{
+	tw::Int ijk[4];
+	TransferParticle dest;
+	space->DecodeCell(src.q,ijk);
+	dest.dst[0] = task->strip[0].Get_rank();
+	for (tw::Int i=1;i<=3;i++)
+		dest.dst[i] = tw::Int(ijk[i]>space->Dim(i)) - tw::Int(ijk[i]<1);
+	dest.x = tw::vec4(0.0,space->PositionFromPrimitive(src.q));
+	dest.p = tw::vec4(0.0,src.p);
+	dest.number = src.number;
+	dest.aux1 = src.aux1;
+	dest.aux2 = src.aux2;
+	transfer->push_back(dest);
+}
+
+void Pusher::GetSubarrayBounds(std::vector<ParticleRef>& sorted,tw::Int low[4],tw::Int high[4],tw::Int layers)
 {
 	// Assumes particles are sorted in increasing memory order
 	// This depends in turn on the cell encoding respecting memory order
 
-	DecodeCell(sorted.front().cell,low);
-	DecodeCell(sorted.back().cell,high);
+	space->DecodeCell(sorted.front().cell,low);
+	space->DecodeCell(sorted.back().cell,high);
 	for (int i=1;i<=3;i++)
 		if (low[i]>high[i])
 			std::swap(low[i],high[i]);
@@ -18,21 +38,21 @@ void Species::GetSubarrayBounds(std::vector<ParticleRef>& sorted,tw::Int low[4],
 	if (low[1]!=high[1])
 	{
 		low[2] = 1;
-		high[2] = Dim(2);
+		high[2] = space->Dim(2);
 		low[3] = 1;
-		high[3] = Dim(3);
+		high[3] = space->Dim(3);
 	}
 	if (low[2]!=high[2])
 	{
 		low[3] = 1;
-		high[3] = Dim(3);
+		high[3] = space->Dim(3);
 	}
 	// Expand subarray to allow for motion and particle shape
 	// For gather this induces 1 ghost cell layers
 	// For scatter this induces 2 ghost cell layers
 	for (int i=1;i<=3;i++)
 	{
-		if (Dim(i)>1)
+		if (space->Dim(i)>1)
 		{
 			low[i] -= layers;
 			high[i] += layers;
@@ -44,13 +64,13 @@ void Species::GetSubarrayBounds(std::vector<ParticleRef>& sorted,tw::Int low[4],
 	}
 }
 
-void Species::BunchTasks(std::vector<tw::Int>& task_map)
+void Pusher::BunchTasks(std::vector<tw::Int>& task_map)
 {
 	for (tw::Int i=0;i<task_map.size();i++)
 		task_map[i] = i;
 }
 
-void Species::SpreadTasks(std::vector<tw::Int>& task_map)
+void Pusher::SpreadTasks(std::vector<tw::Int>& task_map)
 {
 	// Try to order tasks so they are spread out during concurrent execution.
 	// Gives us a chance of non-overlapping memory in the main source field.
@@ -87,21 +107,21 @@ void Species::SpreadTasks(std::vector<tw::Int>& task_map)
 }
 
 template <class BundleType>
-void Species::PushSlice(tw::Int tasks,tw::Int tid,tw::Int bounds_data[][8])
+void Pusher::PushSlice(tw::Int tasks,tw::Int tid,tw::Int bounds_data[][8])
 {
 	tw::Int first,last,next,low[4],high[4];
 	std::vector<ParticleRef> map;
-	BundleType b;
+	BundleType b(this);
 	first = bounds_data[tid][0];
 	last = bounds_data[tid][1];
 	map.resize(last-first+1);
 	for (tw::Int i=first;i<=last;i++)
-		map[i-first] = ParticleRef(i,particle[i]);
+		map[i-first] = ParticleRef(i,(*particle)[i]);
 	std::sort(map.begin(),map.end());
 	GetSubarrayBounds(map,low,high,1);
-	b.LoadFieldSlice(this,low,high,ignorable);
+	b.LoadFieldSlice(low,high,ignorable);
 	GetSubarrayBounds(map,low,high,2);
-	b.InitSourceSlice(this,low,high,ignorable);
+	b.InitSourceSlice(low,high,ignorable);
 	// Save the bounds information
 	for (tw::Int i=1;i<=3;i++)
 	{
@@ -110,12 +130,12 @@ void Species::PushSlice(tw::Int tasks,tw::Int tid,tw::Int bounds_data[][8])
 	}
 	for (tw::Int i=first;i<=last;i++)
 	{
-		b.Append(particle[map[i-first].idx],restMass);
+		b.Append((*particle)[map[i-first].idx]);
 		next = i==last ? i : i+1;
-		if (i==last || b.Complete(particle[map[next-first].idx]))
+		if (i==last || b.Complete((*particle)[map[next-first].idx]))
 		{
-			b.Advance(this);
-			b.CopyBack(this);
+			b.Advance();
+			b.CopyBack();
 			b.Reset();
 		}
 	}
@@ -137,17 +157,17 @@ void Species::PushSlice(tw::Int tasks,tw::Int tid,tw::Int bounds_data[][8])
 		}
 	}
 	needs_atomic = needs_atomic && tw::GetOMPMaxThreads()>1;
-	b.DepositSourceSlice(this,needs_atomic);
+	b.DepositSourceSlice(needs_atomic);
 }
 
 template <class BundleType>
-void Species::Push()
+void Pusher::Push()
 {
-	if (particle.size()==0)
+	if (particle->size()==0)
 		return;
 
 	const tw::Int min_particles_per_task = 256;
-	const tw::Int num_par = particle.size();
+	const tw::Int num_par = particle->size();
 	const tw::Int concurrent_tasks = tw::GetOMPMaxThreads();
 	const tw::Int max_tasks = 1 + num_par / min_particles_per_task;
 	const tw::Int preferred_tasks = 32*concurrent_tasks;
@@ -175,29 +195,31 @@ void Species::Push()
 	}
 }
 
-void Species::DispatchPush()
-{
-	if (qo_j4)
-	{
-		Push<ParticleBundleBohmian>();
-		return;
-	}
-	if (ESField)
-	{
-		//Push<ParticleBundleElectrostatic>();
-		return;
-	}
-	if (laser)
-	{
-		Push<ParticleBundlePGC>();
-		return;
-	}
+void Pusher::Advance() {}
 
-	if (ignorable[2])
-		Push<ParticleBundle2D>();
-		//Push<ParticleBundleUnitary>();
-	else
-		Push<ParticleBundle3D>();
+void BorisPusher2D::Advance()
+{
+	Push<ParticleBundle2D>();
+}
+void BorisPusher3D::Advance()
+{
+	Push<ParticleBundle3D>();
+}
+void UnitaryPusher2D::Advance()
+{
+	Push<ParticleBundleUnitary2D>();
+}
+void UnitaryPusher3D::Advance()
+{
+	Push<ParticleBundleUnitary3D>();
+}
+void BohmianPusher::Advance()
+{
+	Push<ParticleBundleBohmian>();
+}
+void PGCPusher::Advance()
+{
+	Push<ParticleBundlePGC>();
 }
 
 
@@ -207,55 +229,57 @@ void Species::DispatchPush()
 //                           //
 ///////////////////////////////
 
-void ParticleBundle2D::Advance(Species *owner)
+void ParticleBundle2D::Advance()
 {
-	Gather(owner,F);
-	Push(owner);
-	Scatter(owner);
+	Gather(F);
+	Push();
+	Scatter();
 }
 
-void ParticleBundle3D::Advance(Species *owner)
+void ParticleBundle3D::Advance()
 {
-	Gather(owner,F);
-	Push(owner);
-	Scatter(owner);
+	Gather(F);
+	Push();
+	Scatter();
 }
 
-void ParticleBundlePGC::Advance(Species *owner)
+void ParticleBundlePGC::Advance()
 {
-	Gather(owner,F,las);
-	Push(owner);
-	Scatter(owner,chi);
+	Gather(F,las);
+	Push();
+	Scatter(chi);
 }
 
-void ParticleBundleUnitary::Advance(Species *owner)
+void ParticleBundleUnitary2D::Advance()
 {
-	Gather(owner,F);
-	Push(owner);
-	Scatter(owner);
+	Gather(F);
+	Push();
+	Scatter();
 }
 
-void ParticleBundleBohmian::Advance(Species *owner)
+void ParticleBundleUnitary3D::Advance()
 {
-	Gather(owner);
-	Push(owner);
+	Gather(F);
+	Push();
+	Scatter();
 }
 
-void BundlePusherBoris::Push(Species *owner)
+void ParticleBundleBohmian::Advance()
 {
-	Simulation *sim = owner->owner;
-	const tw::Float q0 = owner->charge;
-	const tw::Float dt = timestep(*sim);
-	const tw::Float k[3] = { dxi(*sim) , dyi(*sim) , dzi(*sim) };
+	Gather();
+	Push();
+}
 
+void BundlePusherBoris::Push()
+{
 	impulse(u,F);
 	rotation1(t,u,F);
 	rotation2(s,t);
 	rotation3(s,t,vel,u);
 	impulse(u,F);
 	velocity(vel,u);
-	translate(x,vel,k,dt);
-	load_j4(J,number,vel,k,q0);
+	translate(x,vel);
+	load_j4(J,number,vel);
 }
 
 void BundlePusherUnitary::Lambda()
@@ -287,16 +311,11 @@ void BundlePusherUnitary::Lambda()
 	add_spinor(zf,z);
 }
 
-void BundlePusherUnitary::Push(Species *owner)
+void BundlePusherUnitary::Push()
 {
 	// We rewrite L*z*L^dag as (L*(L*z)^dag)^dag
-	Simulation *sim = owner->owner;
-	const tw::Float q0 = owner->charge;
-	const tw::Float dt = timestep(*sim);
-	const tw::Float k[3] = { dxi(*sim) , dyi(*sim) , dzi(*sim) };
-
 	to_spinor(u,zi);
-	estimate_ds(ds,F,u,dt); // ds gets buried in F; at present must go after to_spinor
+	estimate_ds(ds,F,u); // ds gets buried in F; at present must go after to_spinor
 	Lambda();
 	copy_spinor(zi,zf);
 	dagger(zi);
@@ -305,63 +324,51 @@ void BundlePusherUnitary::Push(Species *owner)
 	to_vector(u,zf,a);
 
 	velocity(vel,u);
-	translate(x,vel,k,dt);
-	load_j4(J,number,vel,k,q0);
+	translate(x,vel);
+	load_j4(J,number,vel);
 }
 
-void BundlePusherPGC::Push(Species *owner)
+void BundlePusherPGC::Push()
 {
-	Simulation *sim = owner->owner;
-	const tw::Float q0 = owner->charge;
-	const tw::Float m0 = owner->restMass;
-	const tw::Float dth = 0.5*timestep(*sim);
-	const tw::Float dt = timestep(*sim);
-	const tw::Float k[3] = { dxi(*sim) , dyi(*sim) , dzi(*sim) };
-
-	avg_gam_1(avgGam,vel,u,F,las,dth);
-	impulse(u,F,las,avgGam,dth);
+	avg_gam_1(avgGam,vel,u,F,las);
+	impulse(u,F,las,avgGam);
 	rotation1(t,F,avgGam);
 	rotation2(s,t);
 	rotation3(s,t,vel,u);
-	impulse(u,F,las,avgGam,dth);
-	avg_gam_2(avgGam,u,las,dth);
+	impulse(u,F,las,avgGam);
+	avg_gam_2(avgGam,u,las);
 	velocity(vel,u,avgGam);
-	translate(x,vel,k,dt);
-	load_j4(J,number,vel,k,q0);
-	load_chi(chi,number,avgGam,q0,m0);
+	translate(x,vel);
+	load_j4(J,number,vel);
+	load_chi(chi,number,avgGam);
 }
 
-void BundlePusherBohmian::Push(Species *owner)
+void BundlePusherBohmian::Push()
 {
-	Simulation *sim = owner->owner;
-	const tw::Float dt = timestep(*sim);
-	const tw::Float k[3] = { dxi(*sim) , dyi(*sim) , dzi(*sim) };
 	// estimate vel(n+1/2) using u(n-1) and J(n), and update u(n-1) to u(n)
 	bohm_velocity(vel,u,J);
 	// update x(n) to x(n+1) using vel(n+1/2)
-	translate(x,vel,k,dt);
-	sim->MinimizePrimitive(cell,ijk,x,domainMask);
+	translate(x,vel);
+	owner->space->MinimizePrimitive(cell,ijk,x,domainMask);
 }
 
-void BundleTiler2D::Gather(Species *owner,float F[6][N])
+void BundleTiler2D::Gather(float F[6][N])
 {
-	Simulation *sim = owner->owner;
-	const float qmdth = 0.5 * owner->charge * timestep(*sim) / owner->restMass;
+	const float qmdth = 0.5*q0*dt/m0;
 	PadBundle();
 	cell0 = cell[0];
-	sim->DecodeCell(cell0,&ijk0[0],&ijk0[1],&ijk0[2]);
-	sim->GetWeights(w0,x);
-	sim->GetWallWeights(l0,x);
+	owner->space->DecodeCell(cell0,&ijk0[0],&ijk0[1],&ijk0[2]);
+	owner->space->GetWeights(w0,x);
+	owner->space->GetWallWeights(l0,x);
 	LoadFTile();
 	GatherF(F,w0,l0,qmdth);
 }
 
-void BundleTiler2D::Scatter(Species *owner)
+void BundleTiler2D::Scatter()
 {
-	Simulation *sim = owner->owner;
-	const tw::Float dti = 1.0/timestep(*sim);
-	sim->MinimizePrimitive(cell,ijk,x,domainMask);
-	sim->GetWeights(w1,x);
+	const tw::Float dti = 1.0/dt;
+	owner->space->MinimizePrimitive(cell,ijk,x,domainMask);
+	owner->space->GetWeights(w1,x);
 	set_cell_mask(cellMask,cell0,cell);
 	ResetJTile();
 	ScatterJ4(J,w0,w1,cellMask,dti);
@@ -500,25 +507,23 @@ void BundleTiler2D::ScatterJ4(const float J[4][N],const float w0[3][3][N],const 
 	}
 }
 
-void BundleTiler3D::Gather(Species *owner,float F[6][N])
+void BundleTiler3D::Gather(float F[6][N])
 {
-	Simulation *sim = owner->owner;
-	const float qmdth = 0.5 * owner->charge * timestep(*sim) / owner->restMass;
+	const float qmdth = 0.5*q0*dt/m0;
 	PadBundle();
 	cell0 = cell[0];
-	sim->DecodeCell(cell0,&ijk0[0],&ijk0[1],&ijk0[2]);
-	sim->GetWeights(w0,x);
-	sim->GetWallWeights(l0,x);
+	owner->space->DecodeCell(cell0,&ijk0[0],&ijk0[1],&ijk0[2]);
+	owner->space->GetWeights(w0,x);
+	owner->space->GetWallWeights(l0,x);
 	LoadFTile();
 	GatherF(F,w0,l0,qmdth);
 }
 
-void BundleTiler3D::Scatter(Species *owner)
+void BundleTiler3D::Scatter()
 {
-	Simulation *sim = owner->owner;
-	const tw::Float dti = 1.0/timestep(*sim);
-	sim->MinimizePrimitive(cell,ijk,x,domainMask);
-	sim->GetWeights(w1,x);
+	const tw::Float dti = 1.0/dt;
+	owner->space->MinimizePrimitive(cell,ijk,x,domainMask);
+	owner->space->GetWeights(w1,x);
 	set_cell_mask(cellMask,cell0,cell);
 	ResetJTile();
 	ScatterJ4(J,w0,w1,cellMask,dti);
@@ -679,17 +684,17 @@ void BundleTiler3D::ScatterJ4(const float J[4][N],const float w0[3][3][N],const 
 		}
 }
 
-void BundleTilerPGC::Gather(Species *owner,float F[6][N],float las[8][N])
+void BundleTilerPGC::Gather(float F[6][N],float las[8][N])
 {
-	const float q2m2 = sqr(owner->charge / owner->restMass);
-	BundleTiler3D::Gather(owner,F);
+	const float q2m2 = sqr(q0/m0);
+	BundleTiler3D::Gather(F);
 	LoadLaserTile();
 	GatherLaser(las,w0,q2m2);
 }
 
-void BundleTilerPGC::Scatter(Species *owner,float chi[N])
+void BundleTilerPGC::Scatter(float chi[N])
 {
-	BundleTiler3D::Scatter(owner);
+	BundleTiler3D::Scatter();
 	ResetChiTile();
 	ScatterChi(chi,w0,w1,cellMask);
 	StoreChiTile();
@@ -769,13 +774,12 @@ void BundleTilerPGC::ScatterChi(const float chi[N],const float w0[3][3][N],const
 			}
 }
 
-void BundleTilerBohmian::Gather(Species *owner)
+void BundleTilerBohmian::Gather()
 {
-	Simulation *sim = owner->owner;
 	PadBundle();
 	cell0 = cell[0];
-	sim->DecodeCell(cell0,&ijk0[0],&ijk0[1],&ijk0[2]);
-	sim->GetWeights(w0,x);
+	owner->space->DecodeCell(cell0,&ijk0[0],&ijk0[1],&ijk0[2]);
+	owner->space->GetWeights(w0,x);
 	LoadTile();
 	GatherJ4(J,w0);
 }

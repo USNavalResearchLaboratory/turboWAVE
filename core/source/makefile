@@ -24,9 +24,9 @@ profile: tw3d_profile install
 
 # Uncomment exactly one platform
 
-PLATFORM = OSX
+#PLATFORM = OSX
 #PLATFORM = WIN
-#PLATFORM = LINUX
+PLATFORM = LINUX
 #PLATFORM = OPENMPI
 #PLATFORM = INTELMPI
 #PLATFORM = CRAY
@@ -41,7 +41,7 @@ HARDWARE_ACCEL = OMP
 #HARDWARE_ACCEL = RADEON_PRO
 
 # VBITS mapping: AVX512 : 512 , AVX/AVX2 : 256 , SSE/SSE2 : 128 , scalar : 64
-VBITS = 256
+VBITS = 512
 
 # Select byte ordering of the target processor (usually LITTLE)
 ENDIANNESS = LITTLE
@@ -49,8 +49,8 @@ ENDIANNESS = LITTLE
 
 # Specify a preference for compiler
 
-COMPILER_PREF = GNU
-#COMPILER_PREF = LLVM_CLANG
+#COMPILER_PREF = GNU
+COMPILER_PREF = LLVM_CLANG
 #COMPILER_PREF = INTEL
 #COMPILER_PREF = CRAY
 
@@ -389,7 +389,7 @@ tw3d_profile: CCFLAGS = $(PROFILE_FLAGS) -DVBITS=$(VBITS)
 tw3d_profile: tw3d
 
 BASE_HEADERS = definitions.h tasks.h ctools.h 3dmath.h tw_iterator.h discreteSpace.h metricSpace.h functions.h fft.h numerics.h 3dfields.h region.h input.h units.h
-TOOL_HEADERS = computeTool.h parabolic.h elliptic.h hyperbolic.h injection.h qstate.h physics.h chemistry.h diagnostics.h
+TOOL_HEADERS = computeTool.h parabolic.h elliptic.h hyperbolic.h pusher.h injection.h qstate.h physics.h chemistry.h diagnostics.h
 SIM_HEADERS = $(BASE_HEADERS) $(TOOL_HEADERS) module.h simulation.h
 MODULE_HEADERS = fieldSolve.h electrostatic.h laserSolve.h fluid.h quantum.h particles.h solidState.h
 OBJ_LIST = 3DFields.o Chemistry.o ComputeTool.o Diagnostics.o DiscreteSpace.o Electrostatic.o Elliptic.o FFT.o FieldSolve.o Fluid.o Functions.o Hyperbolic.o Injection.o Input.o LaserSolve.o Main.o MetricSpace.o Module.o Numerics.o Parabolic.o Particles.o Physics.o Pusher.o Qstate.o Quantum.o Region.o Simulation.o SolidState.o Tasks.o Units.o
@@ -492,7 +492,7 @@ Particles.o: Particles.cpp $(SIM_HEADERS) particles.h fieldSolve.h laserSolve.h
 Physics.o: Physics.cpp $(BASE_HEADERS) computeTool.h physics.h
 	$(TW_Compiler) $(CCFLAGS) Physics.cpp
 
-Pusher.o: Pusher.cpp $(SIM_HEADERS) particles.h pusher.h fieldSolve.h laserSolve.h
+Pusher.o: Pusher.cpp $(BASE_HEADERS) computeTool.h pusher.h
 	$(TW_Compiler) $(CCFLAGS) Pusher.cpp
 
 Qstate.o: Qstate.cpp $(BASE_HEADERS) computeTool.h qstate.h

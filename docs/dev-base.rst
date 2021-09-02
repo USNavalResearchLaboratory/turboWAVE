@@ -43,6 +43,7 @@ The ``Run`` method executes the following sequence:
 		#. Verify all ``Module`` objects
 		#. Initialize ``Region`` objects
 		#. Initialize ``ComputeTool`` objects
+		#. Exchange resources among ``Module`` objects
 		#. Initialize ``Module`` objects
 
 	#. Loop over ``FundamentalCycle`` method

@@ -140,7 +140,13 @@ std::map<std::string,tw::tool_type> ComputeTool::Map()
 		{"qstate free",tw::tool_type::freeState},
 		{"qstate bound",tw::tool_type::boundState},
 		{"qstate random",tw::tool_type::randomState},
-		{"qstate tabulated",tw::tool_type::tabulatedState}
+		{"qstate tabulated",tw::tool_type::tabulatedState},
+		{"2d boris pusher",tw::tool_type::borisPusher2D},
+		{"3d boris pusher",tw::tool_type::borisPusher3D},
+		{"pgc pusher",tw::tool_type::pgcPusher},
+		{"2d unitary pusher",tw::tool_type::unitaryPusher2D},
+		{"3d unitary pusher",tw::tool_type::unitaryPusher3D},
+		{"bohmian pusher",tw::tool_type::bohmianPusher}
 	};
 }
 
@@ -309,6 +315,24 @@ ComputeTool* ComputeTool::CreateObjectFromType(const std::string& name,tw::tool_
 			break;
 		case tw::tool_type::tabulatedState:
 			ans = new TabulatedState(name,ms,tsk);
+			break;
+		case tw::tool_type::borisPusher2D:
+			ans = new BorisPusher2D(name,ms,tsk);
+			break;
+		case tw::tool_type::borisPusher3D:
+			ans = new BorisPusher3D(name,ms,tsk);
+			break;
+		case tw::tool_type::pgcPusher:
+			ans = new PGCPusher(name,ms,tsk);
+			break;
+		case tw::tool_type::unitaryPusher2D:
+			ans = new UnitaryPusher2D(name,ms,tsk);
+			break;
+		case tw::tool_type::unitaryPusher3D:
+			ans = new UnitaryPusher3D(name,ms,tsk);
+			break;
+		case tw::tool_type::bohmianPusher:
+			ans = new BohmianPusher(name,ms,tsk);
 			break;
 	}
 	return ans;

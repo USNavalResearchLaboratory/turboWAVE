@@ -79,6 +79,38 @@ struct Particle
 	}
 };
 
+struct TransferParticle
+{
+	// To avoid inconsistencies arising from FP comparisons on different nodes
+	// the destination information is computed on the source domain and packaged with the particle
+	// The position is kept as a double precision global coordinate until final call to AddParticle
+	tw::Int dst[4];
+	// dst[0] is rank of starting domain upon construction; gets set to destination domain later.
+	// dst[1..3] are +-1, giving direction of movement; zero if no movement.
+	tw::vec4 x,p; // can use x[0] or p[0] to pack extra info
+	float number,aux1,aux2;
+};
+
+struct ParticleRef
+{
+	// Used to create sorting map within a thread for subsets of particle lists
+	tw::Int idx,cell;
+	ParticleRef() noexcept
+	{
+		idx = 0;
+		cell = 0;
+	}
+	ParticleRef(tw::Int list_index,const Particle& par) noexcept
+	{
+		idx = list_index;
+		cell = par.q.cell;
+	}
+	friend bool operator < (const ParticleRef& r1,const ParticleRef& r2)
+	{
+		return r1.cell < r2.cell;
+	}
+};
+
 struct weights_3D
 {
 	tw::Float w[3][3];
@@ -148,6 +180,7 @@ struct DiscreteSpace
 	//void MinimizePrimitiveBohm(tw::Int *cell,tw::Int ijk[3][tw::max_bundle_size],float x[4][tw::max_bundle_size],float domainMask[tw::max_bundle_size]) const;
 	tw::Int Dim(const tw::Int& ax) const { return dim[ax]; }
 	tw::Int Num(const tw::Int& ax) const { return num[ax]; }
+	tw::Int Ignorable(const tw::Int& ax) const { return ignorable[ax]; }
 	tw::Int Layers(const tw::Int& ax) const { return layers[ax]; }
 	tw::Int LNG(const tw::Int& ax) const { return lng[ax]; }
 	tw::Int UNG(const tw::Int& ax) const { return ung[ax]; }

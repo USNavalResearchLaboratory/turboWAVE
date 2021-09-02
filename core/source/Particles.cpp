@@ -56,6 +56,7 @@ bool Kinetics::InspectResource(void* resource,const std::string& description)
 void Kinetics::MoveWindow()
 {
 	tw::Int i,j;
+	Module::MoveWindow();
 
 	// rho00 must be prepared to receive deposition from incoming particles
 	// rho00 array is always left in an unrefined post-deposition state
@@ -87,7 +88,7 @@ void Kinetics::Update()
 	{
 		if (owner->stepNow%species[i]->sortPeriod==0)
 			std::sort(species[i]->particle.begin(),species[i]->particle.end());
-		species[i]->DispatchPush();
+		species[i]->pusher->Advance();
 		species[i]->ApplyGlobalBoundaryConditions();
 	}
 	// This barrier helps keep the stack trace clean for debugging purposes.
@@ -410,6 +411,7 @@ Species::Species(const std::string& name,Simulation* sim) : Module(name,sim)
 	mobile = true;
 	radiationDamping = false;
 
+	pusher = NULL;
 	ionizer = NULL;
 
 	EM = NULL;
@@ -439,6 +441,8 @@ Species::Species(const std::string& name,Simulation* sim) : Module(name,sim)
 
 Species::~Species()
 {
+	if (pusher!=NULL)
+		owner->RemoveTool(pusher);
 	if (ionizer!=NULL)
 		owner->RemoveTool(ionizer);
 }
@@ -448,9 +452,17 @@ void Species::VerifyInput()
 	Module::VerifyInput();
 	for (auto tool : moduleTool)
 	{
-		ionizer = dynamic_cast<Ionizer*>(tool);
-		if (ionizer!=NULL)
-			break;
+		if (ionizer==NULL)
+			ionizer = dynamic_cast<Ionizer*>(tool);
+		if (pusher==NULL)
+			pusher = dynamic_cast<Pusher*>(tool);
+	}
+	if (pusher==NULL)
+	{
+		if (Dim(2)==1)
+			pusher = (Pusher*)owner->CreateTool("Boris-xz",tw::tool_type::borisPusher2D);
+		else
+			pusher = (Pusher*)owner->CreateTool("Boris-xyz",tw::tool_type::borisPusher3D);
 	}
 }
 
@@ -461,6 +473,15 @@ void Species::Initialize()
 	CleanParticleList();
 	if (!owner->neutralize)
 		CopyFieldData(*sources,0,*rho00,0); // accepting redundant operations
+	pusher->q0 = charge;
+	pusher->m0 = restMass;
+	pusher->particle = &particle;
+	pusher->transfer = &transfer;
+	pusher->EM = EM;
+	pusher->sources = sources;
+	pusher->laser = laser;
+	pusher->chi = chi;
+	pusher->qo_j4 = qo_j4;
 }
 
 void Species::WarningMessage(std::ostream *theStream)
@@ -563,22 +584,6 @@ void Species::AddParticle(const TransferParticle& xfer)
 	q.cell = EncodeCell(ijk[1],ijk[2],ijk[3]);
 	particle.emplace_back(p,q,xfer.number,xfer.aux1,xfer.aux2);
 	// don't update count because the transfer particle already has its identifier in aux1 and aux2
-}
-
-void Species::AddTransferParticle(const Particle& src)
-{
-	tw::Int ijk[4];
-	TransferParticle dest;
-	DecodeCell(src.q,ijk);
-	dest.dst[0] = owner->strip[0].Get_rank();
-	for (tw::Int i=1;i<=3;i++)
-		dest.dst[i] = tw::Int(ijk[i]>dim[i]) - tw::Int(ijk[i]<1);
-	dest.x = tw::vec4(0.0,PositionFromPrimitive(src.q));
-	dest.p = tw::vec4(0.0,src.p);
-	dest.number = src.number;
-	dest.aux1 = src.aux1;
-	dest.aux2 = src.aux2;
-	transfer.push_back(dest);
 }
 
 void Species::CleanParticleList()
@@ -988,10 +993,6 @@ tw::Float Species::AddDensityRandom(const LoadingData& theData)
 	return particleDensity*tw::Float(numToAdd);
 }
 
-void Species::MoveWindow()
-{
-}
-
 void Species::BeginMoveWindow()
 {
 	// Throw out and transfer particles leaving on the left
@@ -1003,7 +1004,7 @@ void Species::BeginMoveWindow()
 		if (!RefCellInDomain(particle[i].q))
 		{
 			if (owner->n0[3]!=MPI_PROC_NULL) // need to transfer particle
-				AddTransferParticle(particle[i]);
+				pusher->AddTransferParticle(particle[i]);
 			particle[i] = particle.back();
 			particle.pop_back();
 			i--;

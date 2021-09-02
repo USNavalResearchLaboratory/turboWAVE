@@ -188,6 +188,7 @@ void PGCSolver::Initialize()
 
 void PGCSolver::MoveWindow()
 {
+	LaserSolver::MoveWindow();
 	for (auto s : StripRange(*this,3,strongbool::yes))
 		F.Shift(s,-1,0.0);
 	F.DownwardCopy(tw::grid::z,1);

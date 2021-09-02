@@ -52,7 +52,7 @@ struct Module:DiscreteSpace
 	virtual void Initialize();
 	virtual void Reset() {;}
 	virtual void Update() {;}
-	virtual void MoveWindow() {;}
+	virtual void MoveWindow();
 	virtual void AntiMoveWindow() {;}
 	virtual void AdaptGrid() {;}
 	virtual tw::Float AdaptTimestep() { return 0.0;}

@@ -81,6 +81,12 @@ void Module::Initialize()
 {
 }
 
+void Module::MoveWindow()
+{
+	corner.z += spacing.z;
+	globalCorner.z += spacing.z;
+}
+
 void Module::ReadCheckpoint(std::ifstream& inFile)
 {
 	DiscreteSpace::ReadCheckpoint(inFile);

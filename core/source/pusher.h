@@ -1,9 +1,67 @@
+struct Pusher:ComputeTool
+{
+	tw::Float q0,m0;
+	tw::Int ignorable[4];
+	// Following particles and fields are owned by the parent Species module
+	std::vector<Particle> *particle;
+	std::vector<TransferParticle> *transfer;
+	Field *EM,*sources,*laser,*chi,*qo_j4;
+	Pusher(const std::string& name,MetricSpace *m,Task *tsk);
+	void AddTransferParticle(const Particle& src);
+	void GetSubarrayBounds(std::vector<ParticleRef>& sorted,tw::Int low[4],tw::Int high[4],tw::Int layers);
+	void SpreadTasks(std::vector<tw::Int>& task_map);
+	void BunchTasks(std::vector<tw::Int>& task_map);
+	template <class BundleType>
+	void PushSlice(tw::Int tasks,tw::Int tid,tw::Int bounds_data[][8]);
+	template <class BundleType>
+	void Push();
+	virtual void Advance();
+};
+
+struct BorisPusher2D:Pusher
+{
+	BorisPusher2D(const std::string& name,MetricSpace *m,Task *tsk): Pusher(name,m,tsk) {}
+	virtual void Advance();
+};
+
+struct BorisPusher3D:Pusher
+{
+	BorisPusher3D(const std::string& name,MetricSpace *m,Task *tsk): Pusher(name,m,tsk) {}
+	virtual void Advance();
+};
+
+struct UnitaryPusher2D:Pusher
+{
+	UnitaryPusher2D(const std::string& name,MetricSpace *m,Task *tsk): Pusher(name,m,tsk) {}
+	virtual void Advance();
+};
+
+struct UnitaryPusher3D:Pusher
+{
+	UnitaryPusher3D(const std::string& name,MetricSpace *m,Task *tsk): Pusher(name,m,tsk) {}
+	virtual void Advance();
+};
+
+struct PGCPusher:Pusher
+{
+	PGCPusher(const std::string& name,MetricSpace *m,Task *tsk): Pusher(name,m,tsk) {}
+	virtual void Advance();
+};
+
+struct BohmianPusher:Pusher
+{
+	BohmianPusher(const std::string& name,MetricSpace *m,Task *tsk): Pusher(name,m,tsk) {}
+	virtual void Advance();
+};
+
 struct ParticleBundle
 {
 	// The purpose of the particle bundle is to allow for efficient vectorization of the pusher
 	// Several inlined functions are needed due to OpenMP inability to work with member variables
 	// Evidently this is related to uninstantiated variables being tagged as aligned
 	// The workaround is to pass members back in as arguments
+	Pusher *owner;
+	tw::Float q0,m0,dt,k[3];
 	tw::Int num,cell0,ijk0[3];
 	static const tw::Int N = tw::max_bundle_size;
 	static const tw::Int AB = tw::vec_align_bytes;
@@ -24,16 +82,16 @@ struct ParticleBundle
 
 	std::valarray<Particle*> refs;
 
-	ParticleBundle();
+	ParticleBundle(Pusher *owner);
 	void PadBundle();
 	void Reset();
 	bool Complete(const Particle& par);
-	void Append(Particle& par,const tw::Float& m0);
-	void CopyBack(Species *owner);
-	void translate(float x[4][N],tw::Float vel[3][N],const tw::Float k[3],const tw::Float& dt);
+	void Append(Particle& par);
+	void CopyBack();
+	void translate(float x[4][N],tw::Float vel[3][N]);
 	void set_cell_mask(float cellMask[N],tw::Int cell0,tw::Int cell[N]);
 	void get_cell_displ(tw::Int dc[3],tw::Int n);
-	void load_j4(float J[4][N],const float number[N],const tw::Float vel[3][N],const tw::Float k[3],const tw::Float& q0);
+	void load_j4(float J[4][N],const float number[N],const tw::Float vel[3][N]);
 	void ZeroArray(float q[][N],tw::Int s1,tw::Int s2);
 };
 
@@ -43,12 +101,13 @@ struct BundlePusherBoris : virtual ParticleBundle
 	alignas(AB) tw::Float t[3][N];
 	alignas(AB) tw::Float s[3][N];
 
+	BundlePusherBoris(Pusher *owner) : ParticleBundle(owner) { ; }
 	void impulse(tw::Float u[4][N],float F[6][N]);
 	void rotation1(tw::Float t[3][N],tw::Float u[4][N],float F[6][N]);
 	void rotation2(tw::Float s[3][N],tw::Float t[3][N]);
 	void rotation3(tw::Float s[3][N],tw::Float t[3][N],tw::Float vel[3][N],tw::Float u[4][N]);
 	void velocity(tw::Float vel[3][N],tw::Float u[4][N]);
-	void Push(Species *owner);
+	void Push();
 };
 
 struct BundlePusherPGC : BundlePusherBoris
@@ -57,54 +116,58 @@ struct BundlePusherPGC : BundlePusherBoris
 	alignas(AB) float chi[N];
 	alignas(AB) tw::Float avgGam[N];
 
-	void avg_gam_1(tw::Float avgGam[N],tw::Float vel[3][N],tw::Float u[4][N],float F[6][N],float las[8][N],const tw::Float& dth);
-	void avg_gam_2(tw::Float avgGam[N],tw::Float u[4][N],float las[8][N],const tw::Float& dth);
-	void impulse(tw::Float u[4][N],float F[6][N],float las[8][N],tw::Float avgGam[N],const tw::Float& dth);
+	BundlePusherPGC(Pusher *owner) : BundlePusherBoris(owner) , ParticleBundle(owner) { ; }
+	void avg_gam_1(tw::Float avgGam[N],tw::Float vel[3][N],tw::Float u[4][N],float F[6][N],float las[8][N]);
+	void avg_gam_2(tw::Float avgGam[N],tw::Float u[4][N],float las[8][N]);
+	void impulse(tw::Float u[4][N],float F[6][N],float las[8][N],tw::Float avgGam[N]);
 	void rotation1(tw::Float t[3][N],float F[6][N],tw::Float avgGam[N]);
 	void velocity(tw::Float vel[3][N],tw::Float u[4][N],tw::Float avgGam[N]);
-	void load_chi(float chi[N],float number[N],tw::Float avgGam[N],const tw::Float& q0,const tw::Float& m0);
-	void Push(Species *owner);
+	void load_chi(float chi[N],float number[N],tw::Float avgGam[N]);
+	void Push();
 };
 
 struct BundlePusherUnitary : virtual ParticleBundle
 {
 	alignas(AB) float ds[N];
 	alignas(AB) float F[6][N];
-	alignas(AB) float a[3][N];
-	alignas(AB) float z[2][2][2][N];
-	alignas(AB) float zi[2][2][2][N];
-	alignas(AB) float zf[2][2][2][N];
-	void estimate_ds(float ds[N],float F[6][N],tw::Float u[4][N],tw::Float dt);
-	void copy_spinor(float dst[2][2][2][N],float src[2][2][2][N]);
-	void add_spinor(float dst[2][2][2][N],float src[2][2][2][N]);
-	void to_spinor(tw::Float u[4][N],float z[2][2][2][N]);
-	void to_vector(tw::Float u[4][N],float z[2][2][2][N],float a[3][N]);
-	void dagger(float z[2][2][2][N]);
-	void scalar_mul(float a[3][N],float z[2][2][2][N]);
-	void left_mul_sig1(float z[2][2][2][N]);
-	void left_mul_sig2(float z[2][2][2][N]);
-	void left_mul_sig3(float z[2][2][2][N]);
-	void set_psi_1(float a[3][N],float F[6][N]);
-	void set_psi_2(float a[3][N],float F[6][N]);
-	void set_psi_3(float a[3][N],float F[6][N]);
-	void set_psi24(float a[3][N],float F[6][N]);
+	alignas(AB) tw::Float a[3][N];
+	alignas(AB) tw::Float z[2][2][2][N];
+	alignas(AB) tw::Float zi[2][2][2][N];
+	alignas(AB) tw::Float zf[2][2][2][N];
+	BundlePusherUnitary(Pusher *owner) : ParticleBundle(owner) { ; }
+	void estimate_ds(float ds[N],float F[6][N],tw::Float u[4][N]);
+	void copy_spinor(tw::Float dst[2][2][2][N],tw::Float src[2][2][2][N]);
+	void add_spinor(tw::Float dst[2][2][2][N],tw::Float src[2][2][2][N]);
+	void to_spinor(tw::Float u[4][N],tw::Float z[2][2][2][N]);
+	void to_vector(tw::Float u[4][N],tw::Float z[2][2][2][N],tw::Float a[3][N]);
+	void dagger(tw::Float z[2][2][2][N]);
+	void scalar_mul(tw::Float a[3][N],tw::Float z[2][2][2][N]);
+	void left_mul_sig1(tw::Float z[2][2][2][N]);
+	void left_mul_sig2(tw::Float z[2][2][2][N]);
+	void left_mul_sig3(tw::Float z[2][2][2][N]);
+	void set_psi_1(tw::Float a[3][N],float F[6][N]);
+	void set_psi_2(tw::Float a[3][N],float F[6][N]);
+	void set_psi_3(tw::Float a[3][N],float F[6][N]);
+	void set_psi24(tw::Float a[3][N],float F[6][N]);
 	void velocity(tw::Float vel[3][N],tw::Float u[4][N]);
 	void Lambda();
-	void Push(Species *owner);
+	void Push();
 };
 
 struct BundlePusherBohmian : virtual ParticleBundle
 {
+	BundlePusherBohmian(Pusher *owner) : ParticleBundle(owner) { ; }
 	void bohm_velocity(tw::Float vel[3][N],tw::Float u[4][N],float J[4][N]);
-	void Push(Species *owner);
+	void Push();
 };
 
 struct BundleTilerEM : virtual ParticleBundle
 {
 	Slice<float> Fx,Jx;
-	void LoadFieldSlice(Species *owner,tw::Int low[4],tw::Int high[4],tw::Int ignorable[4]);
-	void InitSourceSlice(Species *owner,tw::Int low[4],tw::Int high[4],tw::Int ignorable[4]);
-	void DepositSourceSlice(Species *owner,bool needsAtomic);
+	BundleTilerEM(Pusher *owner) : ParticleBundle(owner) { ; }
+	void LoadFieldSlice(tw::Int low[4],tw::Int high[4],tw::Int ignorable[4]);
+	void InitSourceSlice(tw::Int low[4],tw::Int high[4],tw::Int ignorable[4]);
+	void DepositSourceSlice(bool needsAtomic);
 };
 
 struct BundleTiler2D : BundleTilerEM
@@ -112,13 +175,14 @@ struct BundleTiler2D : BundleTilerEM
 	float F_tile[3][3][6];
 	float J_tile[5][5][4];
 
+	BundleTiler2D(Pusher *owner) : BundleTilerEM(owner) , ParticleBundle(owner) { ; }
 	void LoadFTile();
 	void ResetJTile();
 	void StoreJTile();
 	void GatherF(float F[6][N],const float w0[3][3][N],const float l0[3][3][N],const float qmdth);
 	void ScatterJ4(const float J[4][N],const float w0[3][3][N],const float w1[3][3][N],const float cellMask[N],const float& dti);
-	void Gather(Species *owner,float F[6][N]);
-	void Scatter(Species *owner);
+	void Gather(float F[6][N]);
+	void Scatter();
 };
 
 struct BundleTiler3D : BundleTilerEM
@@ -126,13 +190,14 @@ struct BundleTiler3D : BundleTilerEM
 	float F_tile[3][3][3][6];
 	float J_tile[5][5][5][4];
 
+	BundleTiler3D(Pusher *owner) : BundleTilerEM(owner) , ParticleBundle(owner) { ; }
 	void LoadFTile();
 	void ResetJTile();
 	void StoreJTile();
 	void GatherF(float F[6][N],const float w0[3][3][N],const float l0[3][3][N],const float qmdth);
 	void ScatterJ4(const float J[4][N],const float w0[3][3][N],const float w1[3][3][N],const float cellMask[N],const float& dti);
-	void Gather(Species *owner,float F[6][N]);
-	void Scatter(Species *owner);
+	void Gather(float F[6][N]);
+	void Scatter();
 };
 
 struct BundleTilerPGC : BundleTiler3D
@@ -141,53 +206,66 @@ struct BundleTilerPGC : BundleTiler3D
 	float las_tile[3][3][3][8];
 	float chi_tile[5][5][5];
 
-	void LoadFieldSlice(Species *owner,tw::Int low[4],tw::Int high[4],tw::Int ignorable[4]);
-	void InitSourceSlice(Species *owner,tw::Int low[4],tw::Int high[4],tw::Int ignorable[4]);
-	void DepositSourceSlice(Species *owner,bool needsAtomic);
+	BundleTilerPGC(Pusher *owner) : BundleTiler3D(owner) , ParticleBundle(owner) { ; }
+	void LoadFieldSlice(tw::Int low[4],tw::Int high[4],tw::Int ignorable[4]);
+	void InitSourceSlice(tw::Int low[4],tw::Int high[4],tw::Int ignorable[4]);
+	void DepositSourceSlice(bool needsAtomic);
 	void LoadLaserTile();
 	void ResetChiTile();
 	void StoreChiTile();
 	void GatherLaser(float las[8][N],const float w0[3][3][N],const float q2m2);
 	void ScatterChi(const float chi[N],const float w0[3][3][N],const float w1[3][3][N],const float cellMask[N]);
-	void Gather(Species *owner,float F[6][N],float las[8][N]);
-	void Scatter(Species *owner,float chi[N]);
+	void Gather(float F[6][N],float las[8][N]);
+	void Scatter(float chi[N]);
 };
 
 struct BundleTilerBohmian : virtual ParticleBundle
 {
 	Slice<float> Jx;
 	float tile[3][3][3][4];
-	void LoadFieldSlice(Species *owner,tw::Int low[4],tw::Int high[4],tw::Int ignorable[4]);
-	void InitSourceSlice(Species *owner,tw::Int low[4],tw::Int high[4],tw::Int ignorable[4]);
-	void DepositSourceSlice(Species *owner,bool needsAtomic);
+	BundleTilerBohmian(Pusher *owner) : ParticleBundle(owner) { ; }
+	void LoadFieldSlice(tw::Int low[4],tw::Int high[4],tw::Int ignorable[4]);
+	void InitSourceSlice(tw::Int low[4],tw::Int high[4],tw::Int ignorable[4]);
+	void DepositSourceSlice(bool needsAtomic);
 	void LoadTile();
 	void GatherJ4(float J[4][N],const float w0[3][3][N]);
-	void Gather(Species *owner);
+	void Gather();
 };
 
 struct ParticleBundle2D : BundleTiler2D,BundlePusherBoris
 {
-	void Advance(Species *owner);
+	ParticleBundle2D(Pusher *owner) : BundleTiler2D(owner),BundlePusherBoris(owner) , ParticleBundle(owner) { ; }
+	void Advance();
 };
 
 struct ParticleBundle3D : BundleTiler3D,BundlePusherBoris
 {
-	void Advance(Species *owner);
+	ParticleBundle3D(Pusher *owner) : BundleTiler3D(owner),BundlePusherBoris(owner) , ParticleBundle(owner) { ; }
+	void Advance();
 };
 
 struct ParticleBundlePGC : BundleTilerPGC,BundlePusherPGC
 {
-	void Advance(Species *owner);
+	ParticleBundlePGC(Pusher *owner) : BundleTilerPGC(owner),BundlePusherPGC(owner) , ParticleBundle(owner) { ; }
+	void Advance();
 };
 
 struct ParticleBundleBohmian : BundleTilerBohmian,BundlePusherBohmian
 {
-	void Advance(Species *owner);
+	ParticleBundleBohmian(Pusher *owner) : BundleTilerBohmian(owner),BundlePusherBohmian(owner) , ParticleBundle(owner) { ; }
+	void Advance();
 };
 
-struct ParticleBundleUnitary : BundleTiler2D,BundlePusherUnitary
+struct ParticleBundleUnitary2D : BundleTiler2D,BundlePusherUnitary
 {
-	void Advance(Species *owner);
+	ParticleBundleUnitary2D(Pusher *owner) : BundleTiler2D(owner),BundlePusherUnitary(owner) , ParticleBundle(owner) { ; }
+	void Advance();
+};
+
+struct ParticleBundleUnitary3D : BundleTiler3D,BundlePusherUnitary
+{
+	ParticleBundleUnitary3D(Pusher *owner) : BundleTiler3D(owner),BundlePusherUnitary(owner) , ParticleBundle(owner) { ; }
+	void Advance();
 };
 
 //////////////////////////
@@ -197,8 +275,15 @@ struct ParticleBundleUnitary : BundleTiler2D,BundlePusherUnitary
 //////////////////////////
 
 
-inline ParticleBundle::ParticleBundle()
+inline ParticleBundle::ParticleBundle(Pusher *owner)
 {
+	this->owner = owner;
+	q0 = owner->q0;
+	m0 = owner->m0;
+	dt = timestep(*owner->space);
+	k[0] = dxi(*owner->space);
+	k[1] = dyi(*owner->space);
+	k[2] = dzi(*owner->space);
 	refs.resize(N);
 	num = 0;
 }
@@ -225,7 +310,7 @@ inline bool ParticleBundle::Complete(const Particle& par)
 {
 	return (num && par.q.cell!=cell[0]) || num==N;
 }
-inline void ParticleBundle::Append(Particle& par,const tw::Float& m0)
+inline void ParticleBundle::Append(Particle& par)
 {
 	refs[num] = &par;
 	cell[num] = par.q.cell;
@@ -238,7 +323,7 @@ inline void ParticleBundle::Append(Particle& par,const tw::Float& m0)
 	number[num] = par.number;
 	num++;
 }
-inline void ParticleBundle::CopyBack(Species *owner)
+inline void ParticleBundle::CopyBack()
 {
 	for (int i=0;i<num;i++)
 	{
@@ -246,10 +331,10 @@ inline void ParticleBundle::CopyBack(Species *owner)
 		refs[i]->q.x[0] = x[1][i];
 		refs[i]->q.x[1] = x[2][i];
 		refs[i]->q.x[2] = x[3][i];
-		refs[i]->p[0] = u[1][i]*owner->restMass;
-		refs[i]->p[1] = u[2][i]*owner->restMass;
-		refs[i]->p[2] = u[3][i]*owner->restMass;
-		// If particle left MPI domain, put a copy on transfer list, and mark for disposal
+		refs[i]->p[0] = u[1][i]*m0;
+		refs[i]->p[1] = u[2][i]*m0;
+		refs[i]->p[2] = u[3][i]*m0;
+		// If particle left MPI domain, add to transfer list, and mark for disposal
 		if (domainMask[i]==0.0)
 		{
 			#pragma omp critical
@@ -261,7 +346,7 @@ inline void ParticleBundle::CopyBack(Species *owner)
 		}
 	}
 }
-inline void ParticleBundle::translate(float x[4][N],tw::Float vel[3][N],const tw::Float k[3],const tw::Float& dt)
+inline void ParticleBundle::translate(float x[4][N],tw::Float vel[3][N])
 {
 	for (int c=0;c<3;c++)
 		#pragma omp simd aligned(x,vel:AB)
@@ -279,7 +364,7 @@ inline void ParticleBundle::get_cell_displ(tw::Int dc[3],tw::Int n)
 	dc[1] = ijk[1][n] - ijk0[1];
 	dc[2] = ijk[2][n] - ijk0[2];
 }
-inline void ParticleBundle::load_j4(float J[4][N],const float number[N],const tw::Float vel[3][N],const tw::Float k[3],const tw::Float& q0)
+inline void ParticleBundle::load_j4(float J[4][N],const float number[N],const tw::Float vel[3][N])
 {
 	#pragma omp simd aligned(J,number:AB)
 	for (int i=0;i<N;i++)
@@ -307,7 +392,7 @@ inline void ParticleBundle::ZeroArray(float q[][N],tw::Int s1,tw::Int s2)
 //////////////////////////////////////////
 
 
-inline void BundlePusherUnitary::estimate_ds(float ds[N],float F[6][N],tw::Float u[4][N],tw::Float dt)
+inline void BundlePusherUnitary::estimate_ds(float ds[N],float F[6][N],tw::Float u[4][N])
 {
 	// ds is the ratio of proper time step to lab step
 	// the dilation factor is folded into F (which already contains dt)
@@ -328,7 +413,7 @@ inline void BundlePusherUnitary::estimate_ds(float ds[N],float F[6][N],tw::Float
 		F[5][i] *= ds[i];
 	}
 }
-inline void BundlePusherUnitary::copy_spinor(float dst[2][2][2][N],float src[2][2][2][N])
+inline void BundlePusherUnitary::copy_spinor(tw::Float dst[2][2][2][N],tw::Float src[2][2][2][N])
 {
 	#pragma omp simd aligned(dst,src:AB)
 	for (int i=0;i<N;i++)
@@ -343,7 +428,7 @@ inline void BundlePusherUnitary::copy_spinor(float dst[2][2][2][N],float src[2][
 		dst[1][1][1][i] = src[1][1][1][i];
 	}
 }
-inline void BundlePusherUnitary::add_spinor(float dst[2][2][2][N],float src[2][2][2][N])
+inline void BundlePusherUnitary::add_spinor(tw::Float dst[2][2][2][N],tw::Float src[2][2][2][N])
 {
 	#pragma omp simd aligned(dst,src:AB)
 	for (int i=0;i<N;i++)
@@ -358,7 +443,7 @@ inline void BundlePusherUnitary::add_spinor(float dst[2][2][2][N],float src[2][2
 		dst[1][1][1][i] += src[1][1][1][i];
 	}
 }
-inline void BundlePusherUnitary::to_spinor(tw::Float u[4][N],float z[2][2][2][N])
+inline void BundlePusherUnitary::to_spinor(tw::Float u[4][N],tw::Float z[2][2][2][N])
 {
 	// Form the spinor, z, from the four velocity, u
 	#pragma omp simd aligned(u,z:AB)
@@ -378,7 +463,7 @@ inline void BundlePusherUnitary::to_spinor(tw::Float u[4][N],float z[2][2][2][N]
 		z[1][1][1][i] = 0.0f;
 	}
 }
-inline void BundlePusherUnitary::to_vector(tw::Float u[4][N],float z[2][2][2][N],float a[3][N])
+inline void BundlePusherUnitary::to_vector(tw::Float u[4][N],tw::Float z[2][2][2][N],tw::Float a[3][N])
 {
 	// Restore the four velocity, u, from the spinor, z
 	set_psi24(a,F);
@@ -392,7 +477,7 @@ inline void BundlePusherUnitary::to_vector(tw::Float u[4][N],float z[2][2][2][N]
 		u[3][i] = a[0][i]*0.5f*(z[0][0][0][i] - z[1][1][0][i]);
 	}
 }
-inline void BundlePusherUnitary::dagger(float z[2][2][2][N])
+inline void BundlePusherUnitary::dagger(tw::Float z[2][2][2][N])
 {
 	// Form the Hermitian conjugate of z in place
 	#pragma omp simd aligned(z:AB)
@@ -406,7 +491,7 @@ inline void BundlePusherUnitary::dagger(float z[2][2][2][N])
 		z[1][1][1][i] *= -1.0f;
 	}
 }
-inline void BundlePusherUnitary::scalar_mul(float a[3][N],float z[2][2][2][N])
+inline void BundlePusherUnitary::scalar_mul(tw::Float a[3][N],tw::Float z[2][2][2][N])
 {
 	// multiply a spinor, z, by a complex scalar, a.
 	// the extra element of the scalar is used as a temporary.
@@ -430,7 +515,7 @@ inline void BundlePusherUnitary::scalar_mul(float a[3][N],float z[2][2][2][N])
 		z[1][1][1][i] = a[2][i]*a[1][i] + z[1][1][1][i]*a[0][i];
 	}
 }
-inline void BundlePusherUnitary::left_mul_sig1(float z[2][2][2][N])
+inline void BundlePusherUnitary::left_mul_sig1(tw::Float z[2][2][2][N])
 {
 	// Left multiply by Pauli matrix sigma_1 (swap rows)
 	#pragma omp simd aligned(z:AB)
@@ -442,7 +527,7 @@ inline void BundlePusherUnitary::left_mul_sig1(float z[2][2][2][N])
 		std::swap(z[0][1][1][i],z[1][1][1][i]);
 	}
 }
-inline void BundlePusherUnitary::left_mul_sig2(float z[2][2][2][N])
+inline void BundlePusherUnitary::left_mul_sig2(tw::Float z[2][2][2][N])
 {
 	// Left multiply by Pauli matrix sigma_2
 	#pragma omp simd aligned(z:AB)
@@ -464,7 +549,7 @@ inline void BundlePusherUnitary::left_mul_sig2(float z[2][2][2][N])
 		std::swap(z[0][1][1][i],z[1][1][1][i]);
 	}
 }
-inline void BundlePusherUnitary::left_mul_sig3(float z[2][2][2][N])
+inline void BundlePusherUnitary::left_mul_sig3(tw::Float z[2][2][2][N])
 {
 	// Left multiply by Pauli matrix sigma_3 (change sign of bottom row)
 	#pragma omp simd aligned(z:AB)
@@ -476,7 +561,7 @@ inline void BundlePusherUnitary::left_mul_sig3(float z[2][2][2][N])
 		z[1][1][1][i] *= -1.0f;
 	}
 }
-inline void BundlePusherUnitary::set_psi_1(float a[3][N],float F[6][N])
+inline void BundlePusherUnitary::set_psi_1(tw::Float a[3][N],float F[6][N])
 {
 	#pragma omp simd aligned(a,F:AB)
 	for (int i=0;i<N;i++)
@@ -485,7 +570,7 @@ inline void BundlePusherUnitary::set_psi_1(float a[3][N],float F[6][N])
 		a[1][i] = F[3][i];
 	}
 }
-inline void BundlePusherUnitary::set_psi_2(float a[3][N],float F[6][N])
+inline void BundlePusherUnitary::set_psi_2(tw::Float a[3][N],float F[6][N])
 {
 	#pragma omp simd aligned(a,F:AB)
 	for (int i=0;i<N;i++)
@@ -494,7 +579,7 @@ inline void BundlePusherUnitary::set_psi_2(float a[3][N],float F[6][N])
 		a[1][i] = F[4][i];
 	}
 }
-inline void BundlePusherUnitary::set_psi_3(float a[3][N],float F[6][N])
+inline void BundlePusherUnitary::set_psi_3(tw::Float a[3][N],float F[6][N])
 {
 	#pragma omp simd aligned(a,F:AB)
 	for (int i=0;i<N;i++)
@@ -503,7 +588,7 @@ inline void BundlePusherUnitary::set_psi_3(float a[3][N],float F[6][N])
 		a[1][i] = F[5][i];
 	}
 }
-inline void BundlePusherUnitary::set_psi24(float a[3][N],float F[6][N])
+inline void BundlePusherUnitary::set_psi24(tw::Float a[3][N],float F[6][N])
 {
 	#pragma omp simd aligned(a,F:AB)
 	for (int i=0;i<N;i++)
@@ -574,8 +659,9 @@ inline void BundlePusherBoris::velocity(tw::Float vel[3][N],tw::Float u[4][N])
 //////////////////////////////////////////
 
 
-inline void BundlePusherPGC::avg_gam_1(tw::Float avgGam[N],tw::Float vel[3][N],tw::Float u[4][N],float F[6][N],float las[8][N],const tw::Float& dth)
+inline void BundlePusherPGC::avg_gam_1(tw::Float avgGam[N],tw::Float vel[3][N],tw::Float u[4][N],float F[6][N],float las[8][N])
 {
+	const tw::Float dth = 0.5*dt;
 	alignas(AB) tw::Float g1[N];
 	alignas(AB) tw::Float dA[N];
 	// estimate avgGam at level n using solution of <g>^2 = g1<g> - dA/4
@@ -594,10 +680,11 @@ inline void BundlePusherPGC::avg_gam_1(tw::Float avgGam[N],tw::Float vel[3][N],t
 		avgGam[i] = 0.5*g1[i] + 0.5*sqrt(g1[i]*g1[i] - dA[i]);
 	}
 }
-inline void BundlePusherPGC::avg_gam_2(tw::Float avgGam[N],tw::Float u[4][N],float las[8][N],const tw::Float& dth)
+inline void BundlePusherPGC::avg_gam_2(tw::Float avgGam[N],tw::Float u[4][N],float las[8][N])
 {
 	// estimate avgGam at level n+1/2 using <g>^2 = g1^2 + (g1/<g>)dA/2
 	// (solve cubic and expand in powers of dA/g1^2)
+	const tw::Float dth = 0.5*dt;
 	alignas(AB) tw::Float g1[N];
 	alignas(AB) tw::Float dA[N];
 	#pragma omp simd aligned(g1,dA,u,las,avgGam:AB)
@@ -608,8 +695,9 @@ inline void BundlePusherPGC::avg_gam_2(tw::Float avgGam[N],tw::Float u[4][N],flo
 		avgGam[i] = g1[i] + 0.25*dA[i]/g1[i] - 0.09375*dA[i]*dA[i]/(g1[i]*g1[i]*g1[i]);
 	}
 }
-inline void BundlePusherPGC::impulse(tw::Float u[4][N],float F[6][N],float las[8][N],tw::Float avgGam[N],const tw::Float& dth)
+inline void BundlePusherPGC::impulse(tw::Float u[4][N],float F[6][N],float las[8][N],tw::Float avgGam[N])
 {
+	const tw::Float dth = 0.5*dt;
 	for (int c=0;c<3;c++)
 		#pragma omp simd aligned(u,F,las,avgGam:AB)
 		for (int i=0;i<N;i++)
@@ -629,7 +717,7 @@ inline void BundlePusherPGC::velocity(tw::Float vel[3][N],tw::Float u[4][N],tw::
 		for (int i=0;i<N;i++)
 			vel[c][i] = u[c+1][i]/avgGam[i];
 }
-inline void BundlePusherPGC::load_chi(float chi[N],float number[N],tw::Float avgGam[N],const tw::Float& q0,const tw::Float& m0)
+inline void BundlePusherPGC::load_chi(float chi[N],float number[N],tw::Float avgGam[N])
 {
 	#pragma omp simd aligned(chi,number,avgGam:AB)
 	for (int i=0;i<N;i++)
@@ -660,17 +748,17 @@ inline void BundlePusherBohmian::bohm_velocity(tw::Float vel[3][N],tw::Float u[4
 //////////////////////////////////////////
 
 
-inline void BundleTilerEM::LoadFieldSlice(Species *owner,tw::Int low[4],tw::Int high[4],tw::Int ignorable[4])
+inline void BundleTilerEM::LoadFieldSlice(tw::Int low[4],tw::Int high[4],tw::Int ignorable[4])
 {
 	Fx.Resize(Element(0,5),low,high,ignorable);
 	owner->EM->LoadDataIntoImage<float>(&Fx);
 }
-inline void BundleTilerEM::InitSourceSlice(Species *owner,tw::Int low[4],tw::Int high[4],tw::Int ignorable[4])
+inline void BundleTilerEM::InitSourceSlice(tw::Int low[4],tw::Int high[4],tw::Int ignorable[4])
 {
 	Jx.Resize(Element(0,3),low,high,ignorable);
 	Jx = 0.0f;
 }
-inline void BundleTilerEM::DepositSourceSlice(Species *owner,bool needsAtomic)
+inline void BundleTilerEM::DepositSourceSlice(bool needsAtomic)
 {
 	if (needsAtomic)
 		owner->sources->AddDataFromImageAtomic<float>(&Jx);
@@ -678,21 +766,21 @@ inline void BundleTilerEM::DepositSourceSlice(Species *owner,bool needsAtomic)
 		owner->sources->AddDataFromImage<float>(&Jx);
 }
 
-inline void BundleTilerPGC::LoadFieldSlice(Species *owner,tw::Int low[4],tw::Int high[4],tw::Int ignorable[4])
+inline void BundleTilerPGC::LoadFieldSlice(tw::Int low[4],tw::Int high[4],tw::Int ignorable[4])
 {
 	Fx.Resize(Element(0,5),low,high,ignorable);
 	owner->EM->LoadDataIntoImage<float>(&Fx);
 	lasx.Resize(Element(0,7),low,high,ignorable);
 	owner->laser->LoadDataIntoImage<float>(&lasx);
 }
-inline void BundleTilerPGC::InitSourceSlice(Species *owner,tw::Int low[4],tw::Int high[4],tw::Int ignorable[4])
+inline void BundleTilerPGC::InitSourceSlice(tw::Int low[4],tw::Int high[4],tw::Int ignorable[4])
 {
 	Jx.Resize(Element(0,3),low,high,ignorable);
 	Jx = 0.0f;
 	chix.Resize(Element(0),low,high,ignorable);
 	chix = 0.0f;
 }
-inline void BundleTilerPGC::DepositSourceSlice(Species *owner,bool needsAtomic)
+inline void BundleTilerPGC::DepositSourceSlice(bool needsAtomic)
 {
 	if (needsAtomic)
 	{
@@ -706,15 +794,15 @@ inline void BundleTilerPGC::DepositSourceSlice(Species *owner,bool needsAtomic)
 	}
 }
 
-inline void BundleTilerBohmian::LoadFieldSlice(Species *owner,tw::Int low[4],tw::Int high[4],tw::Int ignorable[4])
+inline void BundleTilerBohmian::LoadFieldSlice(tw::Int low[4],tw::Int high[4],tw::Int ignorable[4])
 {
 	Jx.Resize(Element(0,3),low,high,ignorable);
 	owner->qo_j4->LoadDataIntoImage<float>(&Jx);
 }
-inline void BundleTilerBohmian::InitSourceSlice(Species *owner,tw::Int low[4],tw::Int high[4],tw::Int ignorable[4])
+inline void BundleTilerBohmian::InitSourceSlice(tw::Int low[4],tw::Int high[4],tw::Int ignorable[4])
 {
 }
-inline void BundleTilerBohmian::DepositSourceSlice(Species *owner,bool needsAtomic)
+inline void BundleTilerBohmian::DepositSourceSlice(bool needsAtomic)
 {
 }
 

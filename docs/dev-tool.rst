@@ -56,6 +56,8 @@ If you want the tool to be accessible from the input file, carry out the followi
 		* Search the ``moduleTool`` vector for a compatible tool, and copy the dynamically typecast compatible pointer to your pointer.
 		* If no compatible tool is found, either throw an error, or create a default tool using ``owner->CreateTool``.
 
+	#. If you need to set the tool's member variables based on module data, it is safest to do this in the ``Initialize`` method, since this is called only after all modules have exchanged resources.
+
 .. tip::
 
 	If you want to create a tool exclusively for the use of a particular module, *and* there is no need for input file or restart file interaction, you can simply create it in the module constructor, and remove it in the module destructor.

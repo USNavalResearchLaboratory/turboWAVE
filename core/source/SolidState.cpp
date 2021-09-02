@@ -193,6 +193,8 @@ bool BoundElectrons::InspectResource(void* resource,const std::string& descripti
 
 void BoundElectrons::MoveWindow()
 {
+	Module::MoveWindow();
+	
 	// must prepare before shift
 	dens.DownwardCopy(tw::grid::z,1);
 	R0.DownwardCopy(tw::grid::z,1);
