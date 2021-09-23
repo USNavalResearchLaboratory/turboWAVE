@@ -118,6 +118,7 @@ struct PulseShape
 	tw::Float delay,risetime,holdtime,falltime;
 	tw::Float t1,t2,t3,t4;
 	tw::profile::shape whichProfile;
+	tw::Int samplePoints;
 	std::valarray<tw::Float> tpts,wpts;
 	std::valarray<tw::Complex> amplitude;
 	std::valarray<tw::Float> spectral_phase_coeff;

@@ -88,7 +88,7 @@ void Kinetics::Update()
 	{
 		if (owner->stepNow%species[i]->sortPeriod==0)
 			std::sort(species[i]->particle.begin(),species[i]->particle.end());
-		species[i]->pusher->Advance();
+		species[i]->mover->Advance();
 		species[i]->ApplyGlobalBoundaryConditions();
 	}
 	// This barrier helps keep the stack trace clean for debugging purposes.
@@ -411,7 +411,7 @@ Species::Species(const std::string& name,Simulation* sim) : Module(name,sim)
 	mobile = true;
 	radiationDamping = false;
 
-	pusher = NULL;
+	mover = NULL;
 	ionizer = NULL;
 
 	EM = NULL;
@@ -421,7 +421,6 @@ Species::Species(const std::string& name,Simulation* sim) : Module(name,sim)
 	carrierFrequency = NULL;
 	polarizationType = NULL;
 	rho00 = NULL;
-	ESField = NULL;
 	qo_j4 = NULL;
 
 	directives.Add("xboundary",new tw::input::Enums<tw::bc::par>(tw::bc::par_map(),&bc0[1],&bc1[1]),false);
@@ -441,8 +440,8 @@ Species::Species(const std::string& name,Simulation* sim) : Module(name,sim)
 
 Species::~Species()
 {
-	if (pusher!=NULL)
-		owner->RemoveTool(pusher);
+	if (mover!=NULL)
+		owner->RemoveTool(mover);
 	if (ionizer!=NULL)
 		owner->RemoveTool(ionizer);
 }
@@ -454,15 +453,8 @@ void Species::VerifyInput()
 	{
 		if (ionizer==NULL)
 			ionizer = dynamic_cast<Ionizer*>(tool);
-		if (pusher==NULL)
-			pusher = dynamic_cast<Pusher*>(tool);
-	}
-	if (pusher==NULL)
-	{
-		if (Dim(2)==1)
-			pusher = (Pusher*)owner->CreateTool("Boris-xz",tw::tool_type::borisPusher2D);
-		else
-			pusher = (Pusher*)owner->CreateTool("Boris-xyz",tw::tool_type::borisPusher3D);
+		if (mover==NULL)
+			mover = dynamic_cast<Mover*>(tool);
 	}
 }
 
@@ -473,15 +465,28 @@ void Species::Initialize()
 	CleanParticleList();
 	if (!owner->neutralize)
 		CopyFieldData(*sources,0,*rho00,0); // accepting redundant operations
-	pusher->q0 = charge;
-	pusher->m0 = restMass;
-	pusher->particle = &particle;
-	pusher->transfer = &transfer;
-	pusher->EM = EM;
-	pusher->sources = sources;
-	pusher->laser = laser;
-	pusher->chi = chi;
-	pusher->qo_j4 = qo_j4;
+
+	// Choose a mover if none was specified
+	if (mover==NULL)
+	{
+		if (EM!=NULL && sources!=NULL && laser==NULL && qo_j4==NULL)
+			mover = (Mover*)owner->CreateTool("Boris-mover",tw::tool_type::borisMover);
+		if (EM!=NULL && sources!=NULL && laser!=NULL && qo_j4==NULL)
+			mover = (Mover*)owner->CreateTool("PGC-mover",tw::tool_type::pgcMover);
+		if (qo_j4!=NULL)
+			mover = (Mover*)owner->CreateTool("Bohmian-mover",tw::tool_type::bohmianMover);
+	}
+
+	// Copy pointers to the mover tool
+	mover->q0 = charge;
+	mover->m0 = restMass;
+	mover->particle = &particle;
+	mover->transfer = &transfer;
+	mover->EM = EM;
+	mover->sources = sources;
+	mover->laser = laser;
+	mover->chi = chi;
+	mover->qo_j4 = qo_j4;
 }
 
 void Species::WarningMessage(std::ostream *theStream)
@@ -495,12 +500,6 @@ void Species::WarningMessage(std::ostream *theStream)
 
 bool Species::InspectResource(void* resource,const std::string& description)
 {
-	if (description=="electrostatic:E")
-	{
-		ESField = (Vec3Field*)resource;
-		return true;
-	}
-
 	if (description=="electromagnetic:F")
 	{
 		EM = (Field*)resource;
@@ -1004,7 +1003,7 @@ void Species::BeginMoveWindow()
 		if (!RefCellInDomain(particle[i].q))
 		{
 			if (owner->n0[3]!=MPI_PROC_NULL) // need to transfer particle
-				pusher->AddTransferParticle(particle[i]);
+				mover->AddTransferParticle(particle[i]);
 			particle[i] = particle.back();
 			particle.pop_back();
 			i--;

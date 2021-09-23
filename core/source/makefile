@@ -389,10 +389,13 @@ tw3d_profile: CCFLAGS = $(PROFILE_FLAGS) -DVBITS=$(VBITS)
 tw3d_profile: tw3d
 
 BASE_HEADERS = definitions.h tasks.h ctools.h 3dmath.h tw_iterator.h discreteSpace.h metricSpace.h functions.h fft.h numerics.h 3dfields.h region.h input.h units.h
-TOOL_HEADERS = computeTool.h parabolic.h elliptic.h hyperbolic.h pusher.h injection.h qstate.h physics.h chemistry.h diagnostics.h
+TOOL_HEADERS = computeTool.h parabolic.h elliptic.h hyperbolic.h injection.h qstate.h physics.h chemistry.h diagnostics.h
+TOOL_HEADERS += particles_mover.h particles_bundle.h particles_pusher.h particles_slicer.h particles_tiler.h
 SIM_HEADERS = $(BASE_HEADERS) $(TOOL_HEADERS) module.h simulation.h
 MODULE_HEADERS = fieldSolve.h electrostatic.h laserSolve.h fluid.h quantum.h particles.h solidState.h
-OBJ_LIST = 3DFields.o Chemistry.o ComputeTool.o Diagnostics.o DiscreteSpace.o Electrostatic.o Elliptic.o FFT.o FieldSolve.o Fluid.o Functions.o Hyperbolic.o Injection.o Input.o LaserSolve.o Main.o MetricSpace.o Module.o Numerics.o Parabolic.o Particles.o Physics.o Pusher.o Qstate.o Quantum.o Region.o Simulation.o SolidState.o Tasks.o Units.o
+OBJ_LIST = 3DFields.o Chemistry.o ComputeTool.o Diagnostics.o DiscreteSpace.o Electrostatic.o Elliptic.o FFT.o FieldSolve.o Fluid.o Functions.o Hyperbolic.o
+OBJ_LIST += Injection.o Input.o LaserSolve.o Main.o MetricSpace.o Module.o Numerics.o Parabolic.o Particles.o Particles_Bundle.o Particles_Mover.o
+OBJ_LIST += Particles_Pusher.o Particles_Slicer.o Particles_Tiler.o Physics.o Qstate.o Quantum.o Region.o Simulation.o SolidState.o Tasks.o Units.o
 ifdef TW_MPI
   BASE_HEADERS += tw_mpi.h
   OBJ_LIST += TW_MPI.o
@@ -489,11 +492,23 @@ Parabolic.o: Parabolic.cpp $(BASE_HEADERS) computeTool.h parabolic.h
 Particles.o: Particles.cpp $(SIM_HEADERS) particles.h fieldSolve.h laserSolve.h
 	$(TW_Compiler) $(CCFLAGS) Particles.cpp
 
+Particles_Bundle.o: Particles_Bundle.cpp $(BASE_HEADERS) $(TOOL_HEADERS)
+	$(TW_Compiler) $(CCFLAGS) Particles_Bundle.cpp
+
+Particles_Mover.o: Particles_Mover.cpp $(BASE_HEADERS) $(TOOL_HEADERS)
+	$(TW_Compiler) $(CCFLAGS) Particles_Mover.cpp
+
+Particles_Pusher.o: Particles_Pusher.cpp $(BASE_HEADERS) $(TOOL_HEADERS)
+	$(TW_Compiler) $(CCFLAGS) Particles_Pusher.cpp
+
+Particles_Slicer.o: Particles_Slicer.cpp $(BASE_HEADERS) $(TOOL_HEADERS)
+	$(TW_Compiler) $(CCFLAGS) Particles_Slicer.cpp
+
+Particles_Tiler.o: Particles_Tiler.cpp $(BASE_HEADERS) $(TOOL_HEADERS)
+	$(TW_Compiler) $(CCFLAGS) Particles_Tiler.cpp
+
 Physics.o: Physics.cpp $(BASE_HEADERS) computeTool.h physics.h
 	$(TW_Compiler) $(CCFLAGS) Physics.cpp
-
-Pusher.o: Pusher.cpp $(BASE_HEADERS) computeTool.h pusher.h
-	$(TW_Compiler) $(CCFLAGS) Pusher.cpp
 
 Qstate.o: Qstate.cpp $(BASE_HEADERS) computeTool.h qstate.h
 	$(TW_Compiler) $(CCFLAGS) Qstate.cpp

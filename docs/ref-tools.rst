@@ -63,6 +63,12 @@ To inject radiation, you specify a type of electromagnetic mode, directives defi
 
 			:param float cn: derivatives of the spectral phase, :math:`c_n = \partial^n_\omega \varphi(\omega)`.  Note that c0 and c1 are not used, since the effects would be redundant.
 
+		.. py:function:: sample points = sp
+
+			The number of points in the look-up table representing the pulse.  Use this to better resolve complex spectral phases, or if you need to resolve the rising part of a near top-hat profile.
+
+			:param float sp: the number of sample points, defaults to 1024.
+
 		.. py:function:: phase = p0
 
 			:param float p0: phase shift in radians
@@ -431,6 +437,59 @@ Conducting regions serve the following purposes:
 			Apply a gaussian spatial weight to the oscillator amplitudes.
 
 .. _elliptic:
+
+Particle Movers
+----------------
+
+Particle movers are used with ``Species`` modules.  As of this writing, there are no adjustable parameters.
+
+.. sidebar:: terminology
+
+	The term "mover" is used to encompass the field gather, momentum update, position update, and source scatter operations.  We reserve "pusher" for the momentum and position update.  Internally, mover objects are composed of slicers, pushers, and tilers.
+
+There are three types of distinctions among mover tools:
+
+	#. Physics - differing physics models can call for differing mover tools
+	#. Dimensionality - optimization for an ignorable y-coordinate, or fully 3D
+	#. Algorithm - different discretization schemes
+
+The ``Species`` module will automatically choose a mover if none is specified.  It does this by looking at the grid, and the data that has been shared by other modules, and deducing the correct dimensionality and physics.  The way the discretization scheme is selected favors legacy methods, at present.
+
+Boris Mover
+,,,,,,,,,,,,
+
+.. py:function:: new boris mover [<name>] [for <module_name>] { <directives> }
+
+	This is the long-standing, standard, relativistic, electromagnetic mover.  This is used by default if an electromagnetic field is detected, and there are no quantum or enveloped fields.
+
+	This mover is also selected if there is an electrostatic field solver.  The electrostatic solver must provide the magnetic field, but may set it to zero.
+
+	There are no directives.
+
+PGC Mover
+,,,,,,,,,,
+
+.. py:function:: new pgc mover [<name>] [for <module_name>] { <directives> }
+
+	This is an extension of the Boris mover to account for the ponderomotive guiding center approximation.  This is chosen if an enveloped field solver is detected.
+
+	There are no directives.
+
+Unitary Mover
+,,,,,,,,,,,,,,
+
+.. py:function:: new unitary mover [<name>] [for <module_name>] { <directives> }
+
+	This is an alternative to the Boris mover, which is believed to be more accurate for ultra-relativistic parameters.  This is never chosen by default.
+
+	There are no directives.
+
+Bohmian Mover
+,,,,,,,,,,,,,,
+
+.. py:function:: new bohmian mover [<name>] [for <module_name>] { <directives> }
+
+	This moves particles using the Bohmian guidance condition.  This is used to create Bohmian trajectories with the quantum optics modules.  It is created automatically if a quantum propagator is detected.
 
 Elliptic Solvers
 ----------------

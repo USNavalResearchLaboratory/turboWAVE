@@ -1,0 +1,60 @@
+#include "meta_base.h"
+#include "computeTool.h"
+#include "particles_bundle.h"
+#include "particles_pusher.h"
+#include "particles_slicer.h"
+#include "particles_tiler.h"
+#include "particles_mover.h"
+
+ParticleBundle::ParticleBundle(Mover *owner)
+{
+	this->owner = owner;
+	q0 = owner->q0;
+	m0 = owner->m0;
+	dt = timestep(*owner->space);
+	k[0] = dxi(*owner->space);
+	k[1] = dyi(*owner->space);
+	k[2] = dzi(*owner->space);
+	refs.resize(N);
+	num = 0;
+}
+
+void ParticleBundle::CopyBack()
+{
+	for (int i=0;i<num;i++)
+	{
+		refs[i]->q.cell = cell[i];
+		refs[i]->q.x[0] = x[1][i];
+		refs[i]->q.x[1] = x[2][i];
+		refs[i]->q.x[2] = x[3][i];
+		refs[i]->p[0] = u[1][i]*m0;
+		refs[i]->p[1] = u[2][i]*m0;
+		refs[i]->p[2] = u[3][i]*m0;
+		// If particle left MPI domain, add to transfer list, and mark for disposal
+		if (domainMask[i]==0.0)
+		{
+			#pragma omp critical
+			{
+				owner->AddTransferParticle(*refs[i]);
+			}
+			// mark for disposal only after copying to transfer list
+			refs[i]->number = 0.0;
+		}
+	}
+}
+
+void ParticleBundle::PrepareGather()
+{
+	PadBundle();
+	cell0 = cell[0];
+	owner->space->DecodeCell(cell0,&ijk0[0],&ijk0[1],&ijk0[2]);
+	owner->space->GetWeights(w0,x);
+	owner->space->GetWallWeights(l0,x);
+}
+
+void ParticleBundle::PrepareScatter()
+{
+	owner->space->MinimizePrimitive(cell,ijk,x,domainMask);
+	owner->space->GetWeights(w1,x);
+	set_cell_mask(cellMask,cell0,cell);
+}

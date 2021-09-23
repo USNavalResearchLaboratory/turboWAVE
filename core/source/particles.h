@@ -2,7 +2,7 @@ struct Species;
 struct Kinetics;
 
 // Particle struct is defined in discreteSpace.h
-// Heavy lifting is done by Bundle classes in pusher.h
+// Heavy lifting is done by classes in particles_*.h
 
 struct LoadingData
 {
@@ -36,7 +36,7 @@ struct Species:Module
 	std::vector<Particle> particle;
 	std::vector<TransferParticle> transfer;
 
-	Pusher* pusher;
+	Mover* mover;
 	Ionizer* ionizer;
 
 	Field* EM; // Ex,Ey,Ez,Bx,By,Bz
@@ -46,7 +46,6 @@ struct Species:Module
 	tw::Float* carrierFrequency;
 	tw_polarization_type* polarizationType;
 	ScalarField* rho00;
-	Vec3Field* ESField;
 
 	Field *qo_j4; // 4-current from quantum optics modules
 

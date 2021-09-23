@@ -1,6 +1,13 @@
 What's New
 //////////
 
+What's New in 4.6
+=================
+
+#. It is now possible to select from various particle movers from the input file.
+
+#. Injection tools are friendly to both flat-top pulse, and pulses with complex spectral phases, at the same time.  Injection resolution is controllable from the input file.
+
 What's New in 4.5
 =================
 

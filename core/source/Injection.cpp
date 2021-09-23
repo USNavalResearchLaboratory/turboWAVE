@@ -518,6 +518,7 @@ PulseShape::PulseShape()
 	t2 = 1.0;
 	t3 = 1.0;
 	t4 = 2.0;
+	samplePoints = 1024;
 }
 
 void PulseShape::Initialize(const tw::Float time_origin)
@@ -528,7 +529,7 @@ void PulseShape::Initialize(const tw::Float time_origin)
 	t4 = delay + risetime + holdtime + falltime - time_origin;
 	// Set up the storage for an arbitrary waveform
 	// The waveform is always stored as an envelope, regardless of how it gets deployed later
-	const tw::Int N = 1024;
+	const tw::Int N = samplePoints;
 	tpts.resize(N);
 	wpts.resize(N);
 	amplitude.resize(N);
@@ -537,10 +538,20 @@ void PulseShape::Initialize(const tw::Float time_origin)
 	if (spectral_phase_coeff.size()>0)
 	 	time_window = 1.5*(t4-t1)*sqrt(1.0+4096.0*sqr(spectral_phase_coeff[0])/pow(t4-t1,4));
 	else
-		time_window = 1.5*(t4-t1);
-	const tw::Float tbeg = t2 + 0.5*(t3-t2) - 0.5*time_window;
-	const tw::Float tend = t2 + 0.5*(t3-t2) + 0.5*time_window; // last node + 1
-	const tw::Float dt = (tend-tbeg)/tw::Float(N);
+		time_window = t4-t1;
+	tw::Float tbeg = t1 + 0.5*(t4-t1) - 0.5*time_window;
+	tw::Float tend = t1 + 0.5*(t4-t1) + 0.5*time_window;
+	// Handle case of near top-hat pulses
+	if (spectral_phase_coeff.size()==0)
+	{
+		// Premise is we don't want to involve the zeros in the interpolation,
+		// otherwise we will have reduced amplitude until holdtime/N, which might be huge.
+		if (holdtime/risetime > N)
+			tbeg += risetime;
+		if (holdtime/falltime > N)
+			tend -= falltime;
+	}
+	const tw::Float dt = (tend-tbeg)/tw::Float(N-1);
 	const tw::Float dw = 2*pi/(dt*tw::Float(N));
 	// Get the primitive (constant phase) pulse
 	for (tw::Int i=0;i<N;i++)
@@ -601,9 +612,9 @@ tw::Complex PulseShape::Amplitude(const tw::Float t) const
 	const tw::Int N = amplitude.size();
 	const tw::Float dt = tpts[1]-tpts[0];
 	const tw::Float frac = (t - tpts[0]) / dt;
-	const tw::Int i = tw::Int(frac);
+	const tw::Int i = abs(tw::Int(frac));
 	const tw::Float w = frac - tw::Float(i);
-	const tw::Float mask = tw::Float(t>tpts[1] && t<tpts[N-2]);
+	const tw::Float mask = tw::Float(t>tpts[0] && t<tpts[N-1]);
 	return mask*(amplitude[i%N]*(1.0-w) + amplitude[(i+1)%N]*w);
 }
 
@@ -657,6 +668,7 @@ Wave::Wave(const std::string& name,MetricSpace *m,Task *tsk) : ComputeTool(name,
 	directives.Add("shape",new tw::input::Enums<tw::profile::shape>(shape,&pulseShape.whichProfile),false);
 	directives.Add("zones",new tw::input::Int(&zones),false);
 	directives.Add("spectral phase",new tw::input::List<std::valarray<tw::Float>>(&pulseShape.spectral_phase_coeff),false);
+	directives.Add("sample points",new tw::input::Int(&pulseShape.samplePoints),false);
 }
 
 void Wave::Initialize()

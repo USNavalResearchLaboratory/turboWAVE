@@ -11,7 +11,7 @@
 unit density = 2.8e19 // only used if post-processing wants to display plasma units
 native units = atomic
 
-steps = 24000
+steps = 25000
 timestep = 0.01
 dump period = 0
 
@@ -21,10 +21,10 @@ zboundary = ( absorbing , absorbing )
 
 new grid
 {
-	corner = ( 0 , -3.1416 , -12 )
-	dimensions = ( 400 , 1 , 1200 )
+	corner = ( 0 , -3.1416 , -20.48 )
+	dimensions = ( 512 , 1 , 2048 )
 	cell size = ( 0.02 , 6.2832 , 0.02 )
-	decomposition = ( 4 , 1 , 4 )
+	decomposition = ( 4 , 1 , 8 )
 	geometry = cylindrical
 }
 
@@ -97,10 +97,10 @@ generate gaussian test
 
 new box diagnostic
 {
-	period = 2000
+	period = 1000
 }
 
 new energy diagnostic
 {
-	period = 100
+	period = 1000
 }

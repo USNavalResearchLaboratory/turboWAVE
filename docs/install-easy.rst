@@ -15,8 +15,8 @@ The following should work in any operating system, assuming compilers are instal
 
 #. Run the installer
 
-	* Type ``twinstall`` for installations on a local machine, or a remote machine with X forwarding.
-	* Type ``twinstall --terminal`` for installation on a remote machine where X forwarding fails.
+	* Type ``twinstall`` for installations on a local machine, or a remote machine with tolerable X forwarding.
+	* Type ``twinstall --terminal`` for installation on a remote machine where X forwarding fails or is too slow.
 
 	.. note::
 

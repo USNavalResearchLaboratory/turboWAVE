@@ -14,12 +14,12 @@ import matplotlib.pyplot as plt
 import PIL.Image
 
 def print_usage():
-	print('Usage: twtest.py tw_root cmd')
+	print('Usage: twtest tw_root cmd')
 	print('tw_root = path to turboWAVE root directory.')
 	print('cmd = command line to execute for each test.')
 	print('To select explicit categories, append then to tw_root with double colons.')
-	print('desktop example: python twtest.py ~/turboWAVE::hydro::pic tw3d -n 4 -c 5')
-	print('cluster example: python twtest.py ~/turboWAVE mpirun -np 4 tw3d')
+	print('desktop example: twtest ~/turboWAVE::hydro::pic tw3d -n 4 -c 5')
+	print('cluster example: twtest ~/turboWAVE mpirun -np 4 tw3d')
 	print('N.b. as a corollary no double colons may appear in tw_root.')
 
 def print_version():

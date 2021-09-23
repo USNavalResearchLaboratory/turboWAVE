@@ -330,6 +330,6 @@ void PGCSolver::Report(Diagnostic& diagnostic)
 	diagnostic.Field("a_real_raw",a1,0,tw::dims::vector_potential,"$\\Re A$");
 	diagnostic.Field("a_imag_raw",a1,1,tw::dims::vector_potential,"$\\Im A$");
 	diagnostic.Field("a2",F,7,tw::dims::none,"$a^2$");
-	diagnostic.Field("j_real",chi,0,tw::dims::current_density,"$\\Re j$");
-	diagnostic.Field("j_imag",chi,1,tw::dims::current_density,"$\\Im j$");
+	diagnostic.Field("j_real_pert",chi,0,tw::dims::current_density,"$\\Re j$");
+	diagnostic.Field("j_imag_pert",chi,1,tw::dims::current_density,"$\\Im j$");
 }

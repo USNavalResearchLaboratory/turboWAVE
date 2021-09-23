@@ -1,8 +1,7 @@
 struct Electrostatic:FieldSolver
 {
-	Field J4;
+	Field F,J4;
 	ScalarField phi,source;
-	Vec3Field Ef;
 
 	Electrostatic(const std::string& name,Simulation* sim);
 	virtual void Initialize();

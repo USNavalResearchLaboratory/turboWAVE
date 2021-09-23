@@ -492,7 +492,7 @@ void Simulation::FundamentalCycle()
 	for (auto m : module)
 		m->Reset();
 
-		for (auto m : module)
+	for (auto m : module)
 		m->Update();
 
 	elapsedTime += dt;

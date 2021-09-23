@@ -21,7 +21,7 @@ Running an Example
 #. As the problem runs, you can monitor the progress by examining the contents of the file :samp:`twstat`.
 #. When the run is finished, you should have several files with the extension :samp:`npy`.  This is a simple binary format often used with numerical Python.
 
-We do not cover remote visualization of data in this documentation.  Of course you can transfer the data to your desktop and follow the guidance in :doc:`run-desktop`.
+The visualization workflow is identical to that described in :doc:`run-desktop`.  Remote visualization using the command line tools should work provided X-forwarding is allowed. If you are allowed to run a Jupyter notebook server on the remote machine, the interactive DataViewer should work as well.
 
 Command line arguments
 ----------------------

@@ -37,8 +37,8 @@ namespace tw
 		boxDiagnostic,particleOrbits,phaseSpaceDiagnostic,volumeDiagnostic,pointDiagnostic,
 		// Quantum
 		randomState,freeState,boundState,tabulatedState,
-		// Pushers
-		borisPusher2D,borisPusher3D,pgcPusher,unitaryPusher2D,unitaryPusher3D,bohmianPusher
+		// Movers
+		borisMover,pgcMover,unitaryMover,bohmianMover
 	};
 }
 
