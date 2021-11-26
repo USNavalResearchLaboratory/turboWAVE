@@ -33,7 +33,6 @@ sys.modules.update((mod_name,Mock()) for mod_name in MOCK_MODULES)
 sys.path.insert(0, os.path.abspath('../tools/twutils/src/twutils/command_line'))
 sys.path.insert(0, os.path.abspath('../tools/twutils/src/twutils/QO'))
 sys.path.insert(0, os.path.abspath('../tools/twutils/src/twutils'))
-sys.path.append(os.path.abspath('./ext/breathe/'))
 
 read_the_docs_build = os.environ.get('READTHEDOCS', None) == 'True'
 if read_the_docs_build:
