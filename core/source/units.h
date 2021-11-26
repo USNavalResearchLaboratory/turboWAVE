@@ -89,7 +89,6 @@ namespace tw
 		dnum();
 		dnum(tw::Float v,const tw::dnum_units& d);
 		dnum(const std::string& s);
-		friend std::istream& operator >> (std::istream& is,tw::dnum& d);
 		friend tw::Float operator >> (const tw::dnum& d,const tw::UnitConverter& uc);
 		friend class tw::UnitConverter;
 	};
@@ -346,3 +345,5 @@ namespace tw
 			return "n.u.";
 	}
 }
+
+std::istream& operator >> (std::istream& is,tw::dnum& d);

@@ -4,8 +4,8 @@
 
 .. highlight:: none
 
-Understanding Multiboot Workstations
-------------------------------------
+Multiboot Workstations
+----------------------
 
 Overview of File system
 ,,,,,,,,,,,,,,,,,,,,,,,

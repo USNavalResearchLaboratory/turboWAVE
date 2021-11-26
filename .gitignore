@@ -10,6 +10,7 @@ __pycache__
 tw3d
 tw3d.exe
 docs/_build/
+docs/doxyxml/
 tools/twutils/dist/
 tools/twutils/build/
 tools/twtest/*.png

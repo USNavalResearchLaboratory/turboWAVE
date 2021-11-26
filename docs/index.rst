@@ -65,6 +65,7 @@ Developer Reference
 	dev-module
 	dev-tool
 	dev-field
+	dev-space
 
 Background
 ----------

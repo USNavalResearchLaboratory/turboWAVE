@@ -1,20 +1,24 @@
 namespace tw
 {
+	/// boundary conditions
 	namespace bc
 	{
-		// boundary conditions for particles
+		/// boundary conditions for particles
 		enum class par {none,periodic,reflecting,absorbing,emitting,axisymmetric};
+		/// Maps input file identifiers to particle B.C. enumeration identifiers
 		inline std::map<std::string,par> par_map()
 		{
 			return {{"periodic",par::periodic},{"reflecting",par::reflecting},{"absorbing",par::absorbing},{"open",par::absorbing},{"emitting",par::emitting},{"axisymmetric",par::axisymmetric}};
 		}
-		// boundary conditions for fields
+		/// boundary conditions for fields
 		enum class fld	{none,periodic,normalFluxFixed,dirichletWall,neumannWall,dirichletCell,natural};
+		/// Maps input file identifiers to field B.C. enumeration identifiers
 		inline std::map<std::string,fld> fld_map()
 		{
 			return {{"periodic",fld::periodic},{"neumann",fld::neumannWall},{"dirichlet",fld::dirichletCell},{"open",fld::natural}};
 		}
 	}
+	/// Types and maps for working with grid axes
 	namespace grid
 	{
 		enum geometry {cartesian,cylindrical,spherical};
@@ -43,10 +47,13 @@ namespace tw
 	}
 }
 
+/// Abstraction for location on a grid
 struct Primitive
 {
-	float x[3];	// x[0],x[1],x[2] = relative position in cell using interval [-0.5,0.5); linearly mapped to curvilinear coordinates in cell
-	tw::Int cell; // encoded index of the reference cell
+	/// This is the relative position in a cell referenced to the interval [-0.5,0.5).
+	/// The components can represent arbitrary coordinates.
+	float x[3];
+	tw::Int cell; ///< encoded index of the reference cell
 	Primitive() noexcept
 	{
 		cell = 0;
@@ -61,39 +68,44 @@ struct Primitive
 	}
 };
 
+/// Data describing any kind of particle
 struct Particle
 {
-	Primitive q; // DEFINITION: {x,y,z,cell} constitute a "primitive" coordinate
-	tw::vec3 p; // momentum , always known in cartesian coordinates
-	float number,aux1,aux2; // number = particles per macroparticle divided by n0*(c/wp)^3
+	Primitive q; ///< abstraction for the spatial coordinate
+	tw::vec3 p; ///< momentum , always known in Cartesian coordinates
+	float number; ///< number = particles per macroparticle divided by \f$n_0(c/wp)^3\f$
+	float aux1; ///< auxiliary, typically node of origin
+	float aux2; ///< auxiliary, typically particle tag
 
+	/// Constructor, parameters shadow the member variables
 	Particle(const tw::vec3& p,const Primitive& q,const float number,const float aux1,const float aux2) noexcept;
 
 	void ReadCheckpoint(std::ifstream& inFile);
 	void WriteCheckpoint(std::ofstream& outFile);
 
+	/// Used to define the ordering of particles for `std::sort`
 	friend bool operator < (const Particle& p1,const Particle& p2)
 	{
-		// Used to define the ordering of particles following std::sort
 		return p1.q.cell < p2.q.cell;
 	}
 };
 
+/// Used to pack data for message passing of particles
+/// To avoid inconsistencies arising from FP comparisons on different nodes
+/// the destination information is computed on the source domain and packaged with the particle
+/// The position is kept as a double precision global coordinate until final call to `AddParticle`
 struct TransferParticle
 {
-	// To avoid inconsistencies arising from FP comparisons on different nodes
-	// the destination information is computed on the source domain and packaged with the particle
-	// The position is kept as a double precision global coordinate until final call to AddParticle
+	/// `dst[0]` is rank of starting domain upon construction; gets set to destination domain later.
+	/// `dst[1..3]` are -1, 0, or 1, giving direction of movement or no movement.
 	tw::Int dst[4];
-	// dst[0] is rank of starting domain upon construction; gets set to destination domain later.
-	// dst[1..3] are +-1, giving direction of movement; zero if no movement.
 	tw::vec4 x,p; // can use x[0] or p[0] to pack extra info
 	float number,aux1,aux2;
 };
 
+/// Used to create sorting map within a thread for subsets of particle lists
 struct ParticleRef
 {
-	// Used to create sorting map within a thread for subsets of particle lists
 	tw::Int idx,cell;
 	ParticleRef() noexcept
 	{
@@ -111,65 +123,102 @@ struct ParticleRef
 	}
 };
 
+/// This holds the coefficients used to spread the particle cloud across
+/// 3x3x3 grid cells.  Due to assumptions of separability
+/// this only requires storing 3x3 coefficients.
 struct weights_3D
 {
+	/// The weights are packed in a 3x3 matrix.  The first index (row) selects
+	/// a cell from a 3-cell strip along a given axis, the second index (column)
+	/// selects the axis, and the value is the weight factor in the cell.
 	tw::Float w[3][3];
-	tw::Int cell;
+	tw::Int cell; ///< Encoded representation of the cell in which the particle center resides.
 };
 
+/// This object is an indexing and interpolation scheme for a structured grid.
+/// Consider first the *topological indices*, defined as follows.
+///
+/// Let `ax` be an axis index, numbered from 1 to 3.  Consider a one dimensional
+/// strip of cells lined up along axis `ax`.  Suppose this axis uses `L` ghost cell
+/// layers.  Then, for any such strip,
+/// - Interior cells are labeled `[1,...,dim[ax]]`
+/// - Lower ghost cells are labeled `[1-L,...,0]`
+/// - Upper ghost cells are labeled `[dim[ax]+1,...,dim[ax]+L]`.
+///
+/// The topological indices are independent of all storage patterns, In other words, no matter
+/// what storage pattern is used, toplogical index `(i0,j0,k0)` will always refer
+/// to the same cell.
+///
+/// Storage patterns are dictated by a *cell encoding*.  This associates the
+/// topological indices with a single integer that maps to ascending memory addresses.
+/// The default encoding is used to sort particles.
+/// Superclasses can add a secondary encoding to resolve higher
+/// dimensional storage patterns. For example, `Field` adds another encoding to
+/// define how its components are packed.
 struct DiscreteSpace
 {
-	// This object is an indexing and interpolation scheme for a structured grid.
-	// It defines a cell encoding, which labels cells with a single integer in unbroken sequence.
-	// Decoded cell indices are triple integers defined as follows:
-	// The interior cells are labeled [1,...,dim[ax]], where ax is an axis numbered from 1 to 3
-	// Ghost cell layers are labeled [1-L,...,0] and [dim[ax]+1,...,dim[ax]+L]
-	// Note that the cell encoding is not required to be related to storage of field data in the cells.
-
 	protected:
 
-	tw::Float dt,dth,dti; // timestep, half timestep, inverse timestep
-	tw::vec3 corner,size,globalCorner,globalSize,spacing,freq; // spacing and freq are only for uniform grids
-	// Indexing in the following has 0=components, (1,2,3)=spatial axes
-	// num includes ghost cells, dim does not
-	// Element 0 only becomes meaningful when a Field class is derived
-	tw::Int dim[4],num[4];
-	// Cell strides help encode a cell; they have nothing to do with storage patterns
-	// decodingStride does not use 0 strides, encodingStride does
-	// The Field class governs packing of quantities in cells
-	// matching the encoding and storage patterns may boost performance
-	tw::Int encodingStride[4],decodingStride[4];
+	tw::Float dt; ///< timestep
+	tw::Float dth; ///< half timestep
+	tw::Float dti; ///< inverse timestep
+	tw::vec3 corner; ///< position where all coordinates are minimized on the local domain
+	tw::vec3 size; ///< length of the local domain along each axis
+	tw::vec3 globalCorner; ///< position where all coordinates are minimized on the global domain
+	tw::vec3 globalSize; ///< length of the global domain along each axis
+	tw::vec3 spacing; ///< center-to-center cell separation along each axis (uniform grids only)
+	tw::vec3 freq; ///< inverse of spacing component by component (uniform grids only)
+	/// `dim[1..3]` are the number of cells along each axis.
+	/// When a `Field` is derived, `dim[0]` becomes the number of components.
+	tw::Int dim[4];
+	/// `num` is similar to `dim`, except ghost cells are included.
+	tw::Int num[4];
+	/// Parameters of the default cell encoding.  For the encoding see `EncodeCell`.
+	/// The `encodingStride` is 0 along an ignorable axis resulting in a many-one mapping, i.e.,
+	/// ghost cells and the one interior cell map to the same cell for the ignorable axis.
+	tw::Int encodingStride[4];
+	/// The `decodingStride` differs from the `encodingStride` only in that ignorable
+	/// axes have unit strides.  See `DecodeCell` for the decoding.
+	tw::Int decodingStride[4];
 	// The following are the indices of the lower and upper far ghost cells
-	tw::Int lfg[4],ufg[4];
-	// The following are the indices of the lower and upper near ghost cells
-	tw::Int lng[4],ung[4];
-	// The following is the number of layers of ghost cells, layers[0] holds the maximum layers
-	tw::Int layers[4];
-	// Identify ignorable dimensions, 1 if axis is ignorable, 0 otherwise
-	tw::Int ignorable[4];
+	tw::Int lfg[4]; ///< indices of lower far ghost cells
+	tw::Int ufg[4]; ///< indices of upper far ghost cells
+	tw::Int lng[4]; ///< indices of lower near ghost cells
+	tw::Int ung[4]; ///< indices of upper near ghost cells
+	tw::Int layers[4]; ///< number of ghost cell layers, `layers[0]` holds maximum layers
+	tw::Int ignorable[4]; ///< 1 if axis is ignorable, 0 otherwise
 
 	public:
 
+	/// Create an empty `DiscreteSpace`
 	DiscreteSpace();
+	/// Create a `DiscreteSpace` with given timestep, interior cell counts, hull metrics, and ghost cell layers.
 	DiscreteSpace(tw::Float dt,tw::Int x,tw::Int y,tw::Int z,const tw::vec3& corner,const tw::vec3& size,tw::Int ghostCellLayers);
+	/// Change the interior cell counts, hull metrics, and ghost cell layers.
 	void Resize(tw::Int x,tw::Int y,tw::Int z,const tw::vec3& corner,const tw::vec3& size,tw::Int ghostCellLayers);
+	/// Change the interior cell counts and hull metrics.
 	void Resize(tw::Int x,tw::Int y,tw::Int z,const tw::vec3& corner,const tw::vec3& size);
+	/// Change the time step.
 	void SetupTimeInfo(tw::Float dt0) { dt = dt0; dth = 0.5*dt0; dti = 1.0/dt0; }
+	/// Encode the cell with topological indices `(i,j,k)`
 	tw::Int EncodeCell(tw::Int i,tw::Int j,tw::Int k) const { return (i-lfg[1])*encodingStride[1] + (j-lfg[2])*encodingStride[2] + (k-lfg[3])*encodingStride[3]; }
+	/// Decode `cell` to produce topological indices `(ijk[1],ijk[2],ijk[3])`. This assumes z-packed encoding, i.e., `decodingStride[3]=1`.
 	void DecodeCell(const tw::Int& cell,tw::Int ijk[4]) const
 	{
-		// Assumes z-packed encoding pattern, i.e. decodingStride[3]=1
 		ijk[1] = lfg[1] + cell / decodingStride[1];
 		ijk[2] = lfg[2] + (cell % decodingStride[1]) / decodingStride[2];
 		ijk[3] = lfg[3] + (cell % decodingStride[1]) % decodingStride[2];
 	}
+	/// Decode `cell` to produce topological indices `(i,j,k)`. This assumes z-packed encoding, i.e., `decodingStride[3]=1`.
 	void DecodeCell(const tw::Int& cell,tw::Int *i,tw::Int *j,tw::Int *k) const
 	{
 		*i = lfg[1] + cell / decodingStride[1];
 		*j = lfg[2] + (cell % decodingStride[1]) / decodingStride[2];
 		*k = lfg[3] + (cell % decodingStride[1]) % decodingStride[2];
 	}
+	/// Decode `q` to produce topological indices `(ijk[1],ijk[2],ijk[3])`. This assumes z-packed encoding, i.e., `decodingStride[3]=1`.
 	void DecodeCell(const Primitive& q,tw::Int ijk[4]) const { DecodeCell(q.cell,ijk); }
+	/// Decode `q` to produce topological indices `(i,j,k)`. This assumes z-packed encoding, i.e., `decodingStride[3]=1`.
 	void DecodeCell(const Primitive& q,tw::Int *i,tw::Int *j,tw::Int *k) const { DecodeCell(q.cell,i,j,k); }
 	bool RefCellInDomain(const Primitive& q) const;
 	void SetPrimitiveWithPosition(Primitive& q,const tw::vec3& pos) const;

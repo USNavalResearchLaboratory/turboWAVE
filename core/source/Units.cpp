@@ -28,11 +28,12 @@ tw::dnum::dnum(const std::string& s)
 	temp >> *this;
 }
 
-std::istream& tw::operator >> (std::istream& is,tw::dnum& d)
+std::istream& operator >> (std::istream& is,tw::dnum& d)
 {
 	// Function to read a dimensional number off the input stream.
 	// Accept several forms, e.g., %-1.0[V], -1.0[V], -1.0 [V].
 	// The '%' prefix is deprecated but still allowed, old specifiers no longer allowed.
+	tw::Float raw_val;
 	std::size_t endpos;
 	std::string word,val,units;
 	std::map<std::string,tw::dnum_units> umap = tw::umap();
@@ -53,7 +54,7 @@ std::istream& tw::operator >> (std::istream& is,tw::dnum& d)
 			val = word.substr(1);
 		}
 	}
-	try { d.value = std::stod(val,&endpos); }
+	try { raw_val = std::stod(val,&endpos); }
 	catch (std::invalid_argument) { throw tw::FatalError("Invalid number : " + word); }
 	if (endpos<val.size())
 		units = val.substr(endpos);
@@ -68,15 +69,14 @@ std::istream& tw::operator >> (std::istream& is,tw::dnum& d)
 	}
 	if (units=="")
 	{
-		d.unit_dimension = tw::dims::none;
-		d.unit_system = tw::units::mks;
+		d = tw::dnum(raw_val,tw::dnum_units());
 	}
 	else
 	{
 		if (umap.find(units)==umap.end())
 			throw tw::FatalError("Unrecognized Units " + units);
 		if (umap.find(units)!=umap.end())
-			d = dnum(d.value,umap[units]);
+			d = tw::dnum(raw_val,umap[units]);
 	}
 	return is;
 }
