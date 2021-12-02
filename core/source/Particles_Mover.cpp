@@ -21,10 +21,9 @@ void Mover::AddTransferParticle(const Particle& src)
 	for (tw::Int i=1;i<=3;i++)
 		dest.dst[i] = tw::Int(ijk[i]>space->Dim(i)) - tw::Int(ijk[i]<1);
 	dest.x = tw::vec4(0.0,space->PositionFromPrimitive(src.q));
-	dest.p = tw::vec4(0.0,src.p);
+	dest.p = src.p;
+	dest.s = src.s;
 	dest.number = src.number;
-	dest.aux1 = src.aux1;
-	dest.aux2 = src.aux2;
 	transfer->push_back(dest);
 }
 

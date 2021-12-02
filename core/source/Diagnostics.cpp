@@ -725,25 +725,26 @@ void ParticleOrbits::Finish()
 void ParticleOrbits::Particle(const struct Particle& par,tw::Float m0,tw::Float tp)
 {
 	tw::vec4 x(tp,space->PositionFromPrimitive(par.q));
-	tw::vec4 v(sqrt(1+Norm(par.p)/(m0*m0)),par.p/m0);
+	tw::vec4 p(par.p);
 	// Boosts will work in Cartesian or cylindrical, but not spherical.
 	x.zBoost(gammaBoost,1.0);
-	v.zBoost(gammaBoost,1.0);
+	p.zBoost(gammaBoost,1.0);
 	tw::vec3 x3 = x.spatial();
 	if (theRgn->Inside(x3,*space))
-		if (v[0] >= minGamma)
+		if (p[0] >= m0*minGamma)
 		{
 			space->CurvilinearToCartesian(&x3);
 			x3 -= vGalileo*x[0];
 			x = tw::vec4(x[0],x3);
 			parData.push_back(x[1]);
-			parData.push_back(m0*v[1]);
+			parData.push_back(p[1]);
 			parData.push_back(x[2]);
-			parData.push_back(m0*v[2]);
+			parData.push_back(p[2]);
 			parData.push_back(x[3]);
-			parData.push_back(m0*v[3]);
-			parData.push_back(par.aux1);
-			parData.push_back(par.aux2);
+			parData.push_back(p[3]);
+			// TODO: support tags
+			//parData.push_back(par.aux1);
+			//parData.push_back(par.aux2);
 		}
 }
 
@@ -866,7 +867,7 @@ void PhaseSpaceDiagnostic::Particle(const struct Particle& par,tw::Float m0,tw::
 {
 	weights_3D weights;
 	tw::vec4 x(tp,space->PositionFromPrimitive(par.q));
-	tw::vec4 v(sqrt(1+Norm(par.p)/(m0*m0)),par.p/m0);
+	tw::vec4 v(par.p/m0);
 	x.zBoost(gammaBoost,1.0);
 	v.zBoost(gammaBoost,1.0);
 	const tw::Float dV = (bounds[1]-bounds[0])*(bounds[3]-bounds[2])*(bounds[5]-bounds[4])/(dims[1]*dims[2]*dims[3]);

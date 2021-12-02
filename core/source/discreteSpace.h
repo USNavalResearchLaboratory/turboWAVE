@@ -50,35 +50,37 @@ namespace tw
 /// Abstraction for location on a grid
 struct Primitive
 {
-	/// This is the relative position in a cell referenced to the interval [-0.5,0.5).
+	/// The reference cell encoded as a single integer
+	tw::Int cell;
+	/// This is the relative position in a space-time cell, referenced to the interval [-0.5,0.5).
 	/// The components can represent arbitrary coordinates.
-	float x[3];
-	tw::Int cell; ///< encoded index of the reference cell
+	/// The time component x[0] is not involved with cell encoding.
+	float x[4];
 	Primitive() noexcept
 	{
 		cell = 0;
-		x[0] = x[1] = x[2] = 0.0;
+		x[0] = x[1] = x[2] = x[3] = 0.0;
 	}
-	Primitive(tw::Int c,float x0,float x1,float x2) noexcept
+	Primitive(tw::Int c,float x0,float x1,float x2,float x3) noexcept
 	{
 		cell = c;
 		x[0] = x0;
 		x[1] = x1;
 		x[2] = x2;
+		x[3] = x3;
 	}
 };
 
 /// Data describing any kind of particle
 struct Particle
 {
+	float number; ///< particles per macroparticle divided by \f$n_0(c/wp)^3\f$
 	Primitive q; ///< abstraction for the spatial coordinate
-	tw::vec3 p; ///< momentum , always known in Cartesian coordinates
-	float number; ///< number = particles per macroparticle divided by \f$n_0(c/wp)^3\f$
-	float aux1; ///< auxiliary, typically node of origin
-	float aux2; ///< auxiliary, typically particle tag
+	tw::vec4 p; ///< momentum , always known in Cartesian coordinates
+	tw::vec4 s; //< polarization, always known in Cartesian coordinates
 
 	/// Constructor, parameters shadow the member variables
-	Particle(const tw::vec3& p,const Primitive& q,const float number,const float aux1,const float aux2) noexcept;
+	Particle(const float number,const Primitive& q,const tw::vec4& p,const tw::vec4& s) noexcept;
 
 	void ReadCheckpoint(std::ifstream& inFile);
 	void WriteCheckpoint(std::ofstream& outFile);
@@ -99,8 +101,8 @@ struct TransferParticle
 	/// `dst[0]` is rank of starting domain upon construction; gets set to destination domain later.
 	/// `dst[1..3]` are -1, 0, or 1, giving direction of movement or no movement.
 	tw::Int dst[4];
-	tw::vec4 x,p; // can use x[0] or p[0] to pack extra info
-	float number,aux1,aux2;
+	tw::vec4 x,p,s;
+	float number;
 };
 
 /// Used to create sorting map within a thread for subsets of particle lists
@@ -312,9 +314,9 @@ inline tw::vec3 DiscreteSpace::PositionFromPrimitive(const Primitive& q) const
 	tw::Int ijk[4];
 	tw::vec3 ans;
 	DecodeCell(q,ijk);
-	ans[0] = corner[0] + spacing[0] * (tw::Float(q.x[0]) + tw::Float(ijk[1]) - tw::Float(0.5));
-	ans[1] = corner[1] + spacing[1] * (tw::Float(q.x[1]) + tw::Float(ijk[2]) - tw::Float(0.5));
-	ans[2] = corner[2] + spacing[2] * (tw::Float(q.x[2]) + tw::Float(ijk[3]) - tw::Float(0.5));
+	ans[0] = corner[0] + spacing[0] * (tw::Float(q.x[1]) + tw::Float(ijk[1]) - tw::Float(0.5));
+	ans[1] = corner[1] + spacing[1] * (tw::Float(q.x[2]) + tw::Float(ijk[2]) - tw::Float(0.5));
+	ans[2] = corner[2] + spacing[2] * (tw::Float(q.x[3]) + tw::Float(ijk[3]) - tw::Float(0.5));
 	return ans;
 }
 
@@ -324,13 +326,10 @@ inline void DiscreteSpace::SetPrimitiveWithPosition(Primitive& q,const tw::vec3&
 	const tw::Int i = tw::Int(floor(PLoc.x*freq.x)) + 1;
 	const tw::Int j = tw::Int(floor(PLoc.y*freq.y)) + 1;
 	const tw::Int k = tw::Int(floor(PLoc.z*freq.z)) + 1;
-	//const tw::Int i = MyFloor(PLoc.x*freq.x) + 1;
-	//const tw::Int j = MyFloor(PLoc.y*freq.y) + 1;
-	//const tw::Int k = MyFloor(PLoc.z*freq.z) + 1;
 	q.cell = EncodeCell(i,j,k);
-	q.x[0] = PLoc.x*freq.x - tw::Float(i) + tw::Float(0.5);
-	q.x[1] = PLoc.y*freq.y - tw::Float(j) + tw::Float(0.5);
-	q.x[2] = PLoc.z*freq.z - tw::Float(k) + tw::Float(0.5);
+	q.x[1] = PLoc.x*freq.x - tw::Float(i) + tw::Float(0.5);
+	q.x[2] = PLoc.y*freq.y - tw::Float(j) + tw::Float(0.5);
+	q.x[3] = PLoc.z*freq.z - tw::Float(k) + tw::Float(0.5);
 }
 
 inline void DiscreteSpace::UpdatePrimitiveWithPosition(Primitive& q,const tw::vec3& P) const
@@ -339,9 +338,9 @@ inline void DiscreteSpace::UpdatePrimitiveWithPosition(Primitive& q,const tw::ve
 	tw::Int ijk[4];
 	const tw::vec3 PLoc = P - corner;
 	DecodeCell(q,ijk);
-	q.x[0] = PLoc[0]*freq[0] - tw::Float(ijk[1]) + tw::Float(0.5);
-	q.x[1] = PLoc[1]*freq[1] - tw::Float(ijk[2]) + tw::Float(0.5);
-	q.x[2] = PLoc[2]*freq[2] - tw::Float(ijk[3]) + tw::Float(0.5);
+	q.x[1] = PLoc[0]*freq[0] - tw::Float(ijk[1]) + tw::Float(0.5);
+	q.x[2] = PLoc[1]*freq[1] - tw::Float(ijk[2]) + tw::Float(0.5);
+	q.x[3] = PLoc[2]*freq[2] - tw::Float(ijk[3]) + tw::Float(0.5);
 }
 
 inline void DiscreteSpace::MinimizePrimitive(tw::Int cell[tw::max_bundle_size],tw::Int ijk[3][tw::max_bundle_size],float x[4][tw::max_bundle_size],float domainMask[tw::max_bundle_size]) const
@@ -402,10 +401,10 @@ inline void DiscreteSpace::MinimizePrimitive(Primitive& q) const
 	{
 		do
 		{
-			test = tw::Int(q.x[ax-1]<-0.5 && ijk[ax]>lfg[ax]);
-			test -= tw::Int(q.x[ax-1]>=0.5 && ijk[ax]<ufg[ax]);
+			test = tw::Int(q.x[ax]<-0.5 && ijk[ax]>lfg[ax]);
+			test -= tw::Int(q.x[ax]>=0.5 && ijk[ax]<ufg[ax]);
 			ijk[ax] -= test;
-			q.x[ax-1] += float(test);
+			q.x[ax] += float(test);
 		} while (test);
 	}
 	q.cell = EncodeCell(ijk[1],ijk[2],ijk[3]);
@@ -421,15 +420,15 @@ inline void DiscreteSpace::GetWeights(weights_3D* weights,const tw::vec3& P)
 inline void DiscreteSpace::GetWeights(weights_3D* weights,const Primitive& q)
 {
 	weights->cell = q.cell;
-	weights->w[0][0] = 0.125f - 0.5f*q.x[0] + 0.5f*q.x[0]*q.x[0];
-	weights->w[0][1] = 0.125f - 0.5f*q.x[1] + 0.5f*q.x[1]*q.x[1];
-	weights->w[0][2] = 0.125f - 0.5f*q.x[2] + 0.5f*q.x[2]*q.x[2];
-	weights->w[1][0] = 0.75f - q.x[0]*q.x[0];
-	weights->w[1][1] = 0.75f - q.x[1]*q.x[1];
-	weights->w[1][2] = 0.75f - q.x[2]*q.x[2];
-	weights->w[2][0] = 0.125f + 0.5f*q.x[0] + 0.5f*q.x[0]*q.x[0];
-	weights->w[2][1] = 0.125f + 0.5f*q.x[1] + 0.5f*q.x[1]*q.x[1];
-	weights->w[2][2] = 0.125f + 0.5f*q.x[2] + 0.5f*q.x[2]*q.x[2];
+	weights->w[0][0] = 0.125f - 0.5f*q.x[1] + 0.5f*q.x[1]*q.x[1];
+	weights->w[0][1] = 0.125f - 0.5f*q.x[2] + 0.5f*q.x[2]*q.x[2];
+	weights->w[0][2] = 0.125f - 0.5f*q.x[3] + 0.5f*q.x[3]*q.x[3];
+	weights->w[1][0] = 0.75f - q.x[1]*q.x[1];
+	weights->w[1][1] = 0.75f - q.x[2]*q.x[2];
+	weights->w[1][2] = 0.75f - q.x[3]*q.x[3];
+	weights->w[2][0] = 0.125f + 0.5f*q.x[1] + 0.5f*q.x[1]*q.x[1];
+	weights->w[2][1] = 0.125f + 0.5f*q.x[2] + 0.5f*q.x[2]*q.x[2];
+	weights->w[2][2] = 0.125f + 0.5f*q.x[3] + 0.5f*q.x[3]*q.x[3];
 }
 
 inline void DiscreteSpace::GetWeights(float w[3][3][tw::max_bundle_size],float x[4][tw::max_bundle_size])

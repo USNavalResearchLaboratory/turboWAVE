@@ -265,15 +265,15 @@ void Kinetics::Ionize()
 				species[s]->EM->Interpolate(temp,Element(0,2),weights);
 				E.x = temp[0]; E.y = temp[1]; E.z = temp[2];
 				probability += dt*ionizer->InstantRate(1e-6,Magnitude(E));
-				gamma = sqrt(1.0 + Norm(curr.p)/(m0*m0) + 0.5*sqr(q0)*a2/(m0*m0));
+				gamma = sqrt(sqr(curr.p[0]/m0) + 0.5*sqr(q0/m0)*a2);
 				// Starting velocity is that of the neutral
-				vel = curr.p/(gamma*m0);
+				vel = curr.p.spatial()/(gamma*m0);
 				if (probability > owner->uniformDeviate->Next())
 				{
 					momentum = s1->restMass*gamma*vel;
 					if (theLaserSolver)
 						momentum += theLaserSolver->GetIonizationKick(a2,s1->charge,s1->restMass);
-					s1->AddParticle(momentum,curr.q,curr.number);
+					s1->AddParticle(curr.number,curr.q,tw::vec4(gamma*s1->restMass,momentum),tw::vec4(0.0));
 
 					// For the electron, account for depletion of the field due to ionization energy.
 					// This comes from a displacement satisfying dr.QE = dU, where dU = ionization energy.
@@ -284,7 +284,7 @@ void Kinetics::Ionize()
 					momentum = s2->restMass*gamma*vel;
 					if (theLaserSolver)
 						momentum += theLaserSolver->GetIonizationKick(a2,s2->charge,s2->restMass);
-					s2->AddParticle(momentum,curr.q,curr.number);
+					s2->AddParticle(curr.number,curr.q,tw::vec4(gamma*s2->restMass,momentum),tw::vec4(0.0));
 
 					// Throw away the neutral
 					particle[i] = particle.back();
@@ -325,14 +325,8 @@ tw::Float Kinetics::KineticEnergy(const Region& theRgn)
 	{
 		const tw::Float m0 = sp->restMass;
 		for (auto par : sp->particle)
-		{
 			if (theRgn.Inside(owner->PositionFromPrimitive(par.q),*owner))
-			{
-				const tw::Float p2 = Norm(par.p);
-				tw::Float gamma = sqrt(1 + p2/(m0*m0));
-				ans += par.number * m0 * (gamma - 1.0);
-			}
-		}
+				ans += par.number * (par.p[0] - m0);
 	}
 	return ans;
 }
@@ -361,13 +355,12 @@ void Kinetics::WriteCheckpoint(std::ofstream& outFile)
 ////////////////////
 
 
-Particle::Particle(const tw::vec3& p,const Primitive& q,const float number,const float aux1,const float aux2) noexcept
+Particle::Particle(const float number,const Primitive& q,const tw::vec4& p,const tw::vec4& s) noexcept
 {
-	this->p = p;
-	this->q = q;
 	this->number = number;
-	this->aux1 = aux1;
-	this->aux2 = aux2;
+	this->q = q;
+	this->p = p;
+	this->s = s;
 }
 
 void Particle::ReadCheckpoint(std::ifstream& inFile)
@@ -551,10 +544,10 @@ bool Species::InspectResource(void* resource,const std::string& description)
 	return false;
 }
 
-void Species::AddParticle(const tw::vec3& p,const Primitive& q,const float& number)
+void Species::AddParticle(const float& number,const Primitive& q,const tw::vec4& p,const tw::vec4& s)
 {
-	particle.emplace_back(p,q,number,count,owner->strip[0].Get_rank());
-	count++; // this serves as a unique identifier for particles irrespective of any additions or deletions in the vector
+	particle.emplace_back(number,q,p,s);
+	count++; // formerly used for tagging, not used as of this writing
 }
 
 void Species::AddParticle(const TransferParticle& xfer)
@@ -564,7 +557,6 @@ void Species::AddParticle(const TransferParticle& xfer)
 	Primitive q;
 	tw::Int ijk[4];
 	tw::vec3 x = tw::vec3(xfer.x[1],xfer.x[2],xfer.x[3]);
-	tw::vec3 p = tw::vec3(xfer.p[1],xfer.p[2],xfer.p[3]);
 	SetPrimitiveWithPosition(q,x); // particle must at least resolve inside the extended domain
 	DecodeCell(q,ijk);
 	for (tw::Int ax=1;ax<=3;ax++)
@@ -581,7 +573,7 @@ void Species::AddParticle(const TransferParticle& xfer)
 		}
 	}
 	q.cell = EncodeCell(ijk[1],ijk[2],ijk[3]);
-	particle.emplace_back(p,q,xfer.number,xfer.aux1,xfer.aux2);
+	particle.emplace_back(xfer.number,q,xfer.p,xfer.s);
 	// don't update count because the transfer particle already has its identifier in aux1 and aux2
 }
 
@@ -895,11 +887,12 @@ tw::Float Species::AddDensity(const LoadingData& theData)
 	const bool neutralize = theData.neutralize;
 	const tw::Int pointsInSubGrid = theData.pointsInSubGrid;
 
-	tw::vec3 r_primitive,r,p;
+	tw::vec3 r_primitive,r;
 	Primitive q;
+	tw::vec4 p;
 	tw::Float particleDensity;
 	tw::Int numToAdd,numNow;
-	std::valarray<tw::vec3> initialMomenta;
+	std::valarray<tw::vec4> initialMomenta;
 
 	particleDensity = theData.particleDensity;
 	if (particleDensity <= minimumDensity)
@@ -910,17 +903,17 @@ tw::Float Species::AddDensity(const LoadingData& theData)
 
 	if (numToAdd<1) return 0.0;
 
-	p = tw::vec3(0,0,0);
+	p = tw::vec4(0.0);
 	initialMomenta.resize(numToAdd);
 	for (tw::Int i=0;i<numToAdd;i++)
 	{
-		initialMomenta[i].x = thermalMomentum.x*owner->gaussianDeviate->Next();
-		initialMomenta[i].y = thermalMomentum.y*owner->gaussianDeviate->Next();
-		initialMomenta[i].z = thermalMomentum.z*owner->gaussianDeviate->Next();
+		initialMomenta[i][1] = thermalMomentum.x*owner->gaussianDeviate->Next();
+		initialMomenta[i][2] = thermalMomentum.y*owner->gaussianDeviate->Next();
+		initialMomenta[i][3] = thermalMomentum.z*owner->gaussianDeviate->Next();
 		p += initialMomenta[i];
 	}
 	p /= tw::Float(numToAdd);
-	initialMomenta -= p - driftMomentum;
+	initialMomenta -= p - tw::vec4(0,driftMomentum);
 
 	for (tw::Int i=0;i<numToAdd;i++)
 	{
@@ -929,13 +922,14 @@ tw::Float Species::AddDensity(const LoadingData& theData)
 		r_primitive = theData.subGrid[j];
 		r = r_primitive*cellSize + cellCenter;
 		p = initialMomenta[i];
-
-		q.x[0] = r_primitive.x;
-		q.x[1] = r_primitive.y;
-		q.x[2] = r_primitive.z;
+		p[0] = sqr(restMass) + Norm(p.spatial());
+		q.x[0] = 0.0; // TODO get the time
+		q.x[1] = r_primitive.x;
+		q.x[2] = r_primitive.y;
+		q.x[3] = r_primitive.z;
 		q.cell = EncodeCell(theData.cell.dcd1(),theData.cell.dcd2(),theData.cell.dcd3());
 		const tw::Float N = theData.GeometryFactor(r.x,cellCenter.x)*particleDensity*cellVolume;
-		AddParticle(p,q,N);
+		AddParticle(N,q,p,tw::vec4(0.0));
 		DepositInitialCharge(r,N*charge);
 	}
 
@@ -952,8 +946,9 @@ tw::Float Species::AddDensityRandom(const LoadingData& theData)
 	const tw::vec3 driftMomentum = theData.driftMomentum;
 	const bool neutralize = theData.neutralize;
 
-	tw::vec3 r_primitive,r,p;
+	tw::vec3 r_primitive,r;
 	Primitive q;
+	tw::vec4 p;
 	tw::Float particleDensity,fractionalNum;
 	tw::Int numToAdd;
 
@@ -975,17 +970,18 @@ tw::Float Species::AddDensityRandom(const LoadingData& theData)
 		r_primitive.z = owner->uniformDeviate->Next() - 0.5;
 		r = r_primitive*cellSize + cellCenter;
 
-		p.x = thermalMomentum.x*owner->gaussianDeviate->Next();
-		p.y = thermalMomentum.y*owner->gaussianDeviate->Next();
-		p.z = thermalMomentum.z*owner->gaussianDeviate->Next();
-		p += driftMomentum;
-
-		q.x[0] = r_primitive.x;
-		q.x[1] = r_primitive.y;
-		q.x[2] = r_primitive.z;
+		p[1] = thermalMomentum.x*owner->gaussianDeviate->Next();
+		p[2] = thermalMomentum.y*owner->gaussianDeviate->Next();
+		p[3] = thermalMomentum.z*owner->gaussianDeviate->Next();
+		p += tw::vec4(0.0,driftMomentum);
+		p[0] = sqr(restMass) + Norm(p.spatial());
+		q.x[0] = 0.0; // TODO get the time
+		q.x[1] = r_primitive.x;
+		q.x[2] = r_primitive.y;
+		q.x[3] = r_primitive.z;
 		q.cell = EncodeCell(theData.cell.dcd1(),theData.cell.dcd2(),theData.cell.dcd3());
 		const tw::Float N = theData.GeometryFactor(r.x,cellCenter.x)*particleDensity*cellVolume;
-		AddParticle(p,q,N);
+		AddParticle(N,q,p,tw::vec4(0.0));
 		DepositInitialCharge(r,N*charge);
 	}
 
@@ -998,7 +994,7 @@ void Species::BeginMoveWindow()
 
 	for (tw::Int i=0;i<particle.size();i++)
 	{
-		particle[i].q.x[2] -= 1.0;
+		particle[i].q.x[3] -= 1.0;
 		MinimizePrimitive(particle[i].q);
 		if (!RefCellInDomain(particle[i].q))
 		{
@@ -1076,7 +1072,7 @@ void Species::ReadCheckpoint(std::ifstream& inFile)
 	inFile.read((char *)&num,sizeof(tw::Int));
 	for (tw::Int i=0;i<num;i++)
 	{
-		particle.emplace_back(tw::vec3(0.0),Primitive(0,0.0,0.0,0.0),0.0,0.0,0.0);
+		particle.emplace_back(0.0,Primitive(0,0.0,0.0,0.0,0.0),tw::vec4(0.0),tw::vec4(0.0));
 		particle.back().ReadCheckpoint(inFile);
 	}
 }

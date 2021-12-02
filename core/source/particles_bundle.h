@@ -70,12 +70,14 @@ inline void ParticleBundle::Append(Particle& par)
 {
 	refs[num] = &par;
 	cell[num] = par.q.cell;
-	x[1][num] = par.q.x[0];
-	x[2][num] = par.q.x[1];
-	x[3][num] = par.q.x[2];
-	u[1][num] = par.p[0]/m0;
-	u[2][num] = par.p[1]/m0;
-	u[3][num] = par.p[2]/m0;
+	x[0][num] = par.q.x[0];
+	x[1][num] = par.q.x[1];
+	x[2][num] = par.q.x[2];
+	x[3][num] = par.q.x[3];
+	u[0][num] = par.p[0]/m0;
+	u[1][num] = par.p[1]/m0;
+	u[2][num] = par.p[2]/m0;
+	u[3][num] = par.p[3]/m0;
 	number[num] = par.number;
 	num++;
 }

@@ -54,7 +54,7 @@ struct Species:Module
 	virtual bool InspectResource(void* resource,const std::string& description);
 	virtual void VerifyInput();
 	virtual void Initialize();
-	void AddParticle(const tw::vec3& p,const Primitive& q,const float& number);
+	void AddParticle(const float& number,const Primitive& q,const tw::vec4& p,const tw::vec4& s);
 	void AddParticle(const TransferParticle& newParticle);
 	void CleanParticleList();
 
