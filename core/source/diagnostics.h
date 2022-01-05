@@ -97,7 +97,6 @@ struct PhaseSpaceDiagnostic : Diagnostic
 	tw::Int dims[4];
 	tw::grid::axis ax[4];
 	bool accumulate;
-	DiscreteSpace plot_layout;
 	ScalarField fxp;
 
 	PhaseSpaceDiagnostic(const std::string& name,MetricSpace *ms,Task *tsk);

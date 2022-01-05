@@ -70,6 +70,7 @@ struct Module:DiscreteSpace
 	virtual void Report(Diagnostic&);
 	virtual void WarningMessage(std::ostream *theStream);
 	virtual void StatusMessage(std::ostream *theStream) {;}
+	virtual bool Test();
 
 	static std::map<std::string,tw::module_type> Map();
 	static bool SingularType(tw::module_type theType);

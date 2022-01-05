@@ -6,6 +6,7 @@
 *.npy
 *.egg-info
 .ipynb_checkpoints
+.vscode/
 __pycache__
 tw3d
 tw3d.exe

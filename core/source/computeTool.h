@@ -73,6 +73,7 @@ struct ComputeTool
 	virtual void ReadInputFileDirective(std::stringstream& inputString,const std::string& command);
 	virtual void ReadCheckpoint(std::ifstream& inFile);
 	virtual void WriteCheckpoint(std::ofstream& outFile);
+	virtual bool Test();
 
 	void InitializeCLProgram(const std::string& filename);
 

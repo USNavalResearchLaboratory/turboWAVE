@@ -537,6 +537,7 @@ void BoxDiagnostic::Field(const std::string& fieldName,const struct Field& F,con
 	else
 		xname = filename + "_" + fieldName + ".npy";
 
+	pts[0] = 0;
 	GetGlobalIndexing(pts,glb);
 	for (tw::Int i=1;i<=3;i++) dim[i] = space->Dim(i);
 	for (tw::Int i=1;i<=3;i++) s[i] = skip[i];
@@ -615,9 +616,9 @@ void BoxDiagnostic::Field(const std::string& fieldName,const struct Field& F,con
 			writer.write_header(xname,pts);
 			meta.start_entry(xname,filename);
 			meta.define_axis(xname,0,"$t$",tw::dims::time);
-			meta.define_axis(xname,1,meta.refine_label("$x$",vGalileo,space->geo),tw::dims::length);
-			meta.define_axis(xname,2,meta.refine_label("$y$",vGalileo,space->geo),tw::dims::length);
-			meta.define_axis(xname,3,meta.refine_label("$z$",vGalileo,space->geo),tw::dims::length);
+			meta.define_axis(xname,1,meta.refine_label("$x$",vGalileo,space->gridGeometry),tw::dims::length);
+			meta.define_axis(xname,2,meta.refine_label("$y$",vGalileo,space->gridGeometry),tw::dims::length);
+			meta.define_axis(xname,3,meta.refine_label("$z$",vGalileo,space->gridGeometry),tw::dims::length);
 			if (pretty=="tw::none")
 				meta.define_axis(xname,4,fieldName,unit,true);
 			else
@@ -793,10 +794,10 @@ void PhaseSpaceDiagnostic::Start()
 		writer.write_header(xname,dims);
 		meta_writer meta(native);
 		meta.start_entry(xname,filename);
-		meta.define_axis(xname,0,meta.refine_label(tw::grid::pretty_axis_label(ax[0]),vGalileo,space->geo),m[ax[0]]);
-		meta.define_axis(xname,1,meta.refine_label(tw::grid::pretty_axis_label(ax[1]),vGalileo,space->geo),m[ax[1]]);
-		meta.define_axis(xname,2,meta.refine_label(tw::grid::pretty_axis_label(ax[2]),vGalileo,space->geo),m[ax[2]]);
-		meta.define_axis(xname,3,meta.refine_label(tw::grid::pretty_axis_label(ax[3]),vGalileo,space->geo),m[ax[3]]);
+		meta.define_axis(xname,0,meta.refine_label(tw::grid::pretty_axis_label(ax[0]),vGalileo,space->gridGeometry),m[ax[0]]);
+		meta.define_axis(xname,1,meta.refine_label(tw::grid::pretty_axis_label(ax[1]),vGalileo,space->gridGeometry),m[ax[1]]);
+		meta.define_axis(xname,2,meta.refine_label(tw::grid::pretty_axis_label(ax[2]),vGalileo,space->gridGeometry),m[ax[2]]);
+		meta.define_axis(xname,3,meta.refine_label(tw::grid::pretty_axis_label(ax[3]),vGalileo,space->gridGeometry),m[ax[3]]);
 		meta.define_axis(xname,4,"$f({\\bf r},{\\bf p})$ (arb.)",tw::dims::none,true);
 		meta.finish_entry();
 		// don't set headerWritten until end of Finish() due to grid file
@@ -804,8 +805,7 @@ void PhaseSpaceDiagnostic::Start()
 
 	tw::vec3 phaseSpaceMin(bounds[0],bounds[2],bounds[4]);
 	tw::vec3 phaseSpaceSize(bounds[1]-bounds[0],bounds[3]-bounds[2],bounds[5]-bounds[4]);
-	plot_layout.Resize(dims[1],dims[2],dims[3],phaseSpaceMin,phaseSpaceSize,1);
-	fxp.Initialize(plot_layout,task);
+	fxp.Initialize(DiscreteSpace(dims[1],dims[2],dims[3],phaseSpaceMin,phaseSpaceSize),task);
 	fxp.SetBoundaryConditions(tw::grid::x,tw::bc::fld::dirichletCell,tw::bc::fld::dirichletCell);
 	fxp.SetBoundaryConditions(tw::grid::y,tw::bc::fld::dirichletCell,tw::bc::fld::dirichletCell);
 	fxp.SetBoundaryConditions(tw::grid::z,tw::bc::fld::dirichletCell,tw::bc::fld::dirichletCell);

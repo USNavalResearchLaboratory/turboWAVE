@@ -21,6 +21,10 @@ struct Mover:ComputeTool
 	template <class BundleType>
 	void DoTasks();
 	virtual void Advance();
+	virtual void InitTest();
+	virtual void TranslationTest();
+	virtual bool Test();
+	virtual void CloseTest();
 };
 
 // Subclasses of the Mover Tool
@@ -32,24 +36,28 @@ struct BorisMover:Mover
 {
 	BorisMover(const std::string& name,MetricSpace *m,Task *tsk): Mover(name,m,tsk) {}
 	virtual void Advance();
+	virtual void InitTest();
 };
 
 struct UnitaryMover:Mover
 {
 	UnitaryMover(const std::string& name,MetricSpace *m,Task *tsk): Mover(name,m,tsk) {}
 	virtual void Advance();
+	virtual bool Test() { return false; }
 };
 
 struct PGCMover:Mover
 {
 	PGCMover(const std::string& name,MetricSpace *m,Task *tsk): Mover(name,m,tsk) {}
 	virtual void Advance();
+	virtual void InitTest();
 };
 
 struct BohmianMover:Mover
 {
 	BohmianMover(const std::string& name,MetricSpace *m,Task *tsk): Mover(name,m,tsk) {}
 	virtual void Advance();
+	virtual bool Test() { return false; }
 };
 
 /////////////////////////////////////

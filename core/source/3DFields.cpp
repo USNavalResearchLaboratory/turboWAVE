@@ -843,7 +843,6 @@ void Field::Transpose(const Element& e,const tw::grid::axis& axis1,const tw::gri
 
 	tw::Int dN0,dN1;
 	Slice<tw::Float>* block;
-	DiscreteSpace transposedSpace;
 
 	const tw::Int ax1 = tw::grid::naxis(axis1);
 	const tw::Int ax2 = tw::grid::naxis(axis2);
@@ -881,28 +880,13 @@ void Field::Transpose(const Element& e,const tw::grid::axis& axis1,const tw::gri
 
 	if (inversion==1)
 	{
-		if (axis1==tw::grid::x)
-		{
-			if (axis2==tw::grid::y)
-				transposedSpace.Resize(dim[ax1]*nodes,interiorCellsPerBlock,dim[3],corner,size);
-			else
-				transposedSpace.Resize(dim[ax1]*nodes,dim[2],interiorCellsPerBlock,corner,size);
-		}
-		if (axis1==tw::grid::y)
-		{
-			if (axis2==tw::grid::x)
-				transposedSpace.Resize(interiorCellsPerBlock,dim[ax1]*nodes,dim[3],corner,size);
-			else
-				transposedSpace.Resize(dim[1],dim[ax1]*nodes,interiorCellsPerBlock,corner,size);
-		}
-		if (axis1==tw::grid::z)
-		{
-			if (axis2==tw::grid::x)
-				transposedSpace.Resize(interiorCellsPerBlock,dim[2],dim[ax1]*nodes,corner,size);
-			else
-				transposedSpace.Resize(dim[1],interiorCellsPerBlock,dim[ax1]*nodes,corner,size);
-		}
-		target->Initialize(e.Components(),transposedSpace,task);
+		tw::Int ax3,dim_T[4];
+		ax3 = 1;
+		while (ax3==ax1 || ax3==ax2) ax3++;
+		dim_T[ax1] = dim[ax1]*nodes;
+		dim_T[ax2] = interiorCellsPerBlock;
+		dim_T[ax3] = dim[ax3];
+		target->Initialize(e.Components(),DiscreteSpace(dim_T[1],dim_T[2],dim_T[3],corner,size),task);
 	}
 
   // The message passing pattern is to have simultaneous exchanges between pairs.

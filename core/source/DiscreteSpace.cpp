@@ -7,27 +7,37 @@ DiscreteSpace::DiscreteSpace()
 	ignorable[3] = 0;
 }
 
-DiscreteSpace::DiscreteSpace(tw::Float dt0,tw::Int x,tw::Int y,tw::Int z,const tw::vec3& corner,const tw::vec3& size,tw::Int ghostCellLayers)
+DiscreteSpace::DiscreteSpace(tw::Int xDim,tw::Int yDim,tw::Int zDim,const tw::vec3& corner,const tw::vec3& size,tw::Int ghostCellLayers)
 {
-	SetupTimeInfo(dt0);
-	ignorable[1] = 0;
-	ignorable[2] = 0;
-	ignorable[3] = 0;
-	Resize(x,y,z,corner,size,ghostCellLayers);
+	const tw::Int ldim[4] = { 0, xDim, yDim, zDim };
+	const tw::Int gdim[4] = { 0, xDim, yDim, zDim };
+	const tw::Int dom[4] = { 0, 0, 0, 0 };
+	Resize(ldim,gdim,dom,corner,size,ghostCellLayers);
 }
 
-void DiscreteSpace::Resize(tw::Int x,tw::Int y,tw::Int z,const tw::vec3& corner,const tw::vec3& size,tw::Int ghostCellLayers)
+// DiscreteSpace::DiscreteSpace(tw::Float dt0,Task& task,const tw::vec3& gcorner,const tw::vec3& gsize,tw::Int ghostCellLayers)
+// {
+// 	SetupTimeInfo(dt0);
+// 	Resize(task,gcorner,gsize,ghostCellLayers);
+// }
+
+void DiscreteSpace::Resize(Task& task,const tw::vec3& gcorner,const tw::vec3& gsize,tw::Int ghostCellLayers)
+{
+	Resize(task.localCells,task.globalCells,task.domainIndex,gcorner,gsize,ghostCellLayers);
+}
+
+void DiscreteSpace::Resize(const tw::Int dim[4],const tw::Int gdim[4],const tw::Int dom[4],const tw::vec3& gcorner,const tw::vec3& gsize,tw::Int ghostCellLayers)
 {
 	// init unused elements so later assignments are memcheck clean.
-	dim[0] = num[0] = 0;
+	this->dim[0] = num[0] = 0;
 	ignorable[0] = 0;
 	lfg[0] = ufg[0] = lng[0] = ung[0] = 0;
 	decodingStride[0] = encodingStride[0] = 0;
 
 	layers[0] = ghostCellLayers;
-	dim[1] = x;
-	dim[2] = y;
-	dim[3] = z;
+	this->dim[1] = dim[1];
+	this->dim[2] = dim[2];
+	this->dim[3] = dim[3];
 
 	for (tw::Int i=1;i<=3;i++)
 	{
@@ -63,19 +73,15 @@ void DiscreteSpace::Resize(tw::Int x,tw::Int y,tw::Int z,const tw::vec3& corner,
 		}
 	}
 
-	this->corner = corner;
-	this->size = size;
-	spacing.x = size.x/dim[1];
-	spacing.y = size.y/dim[2];
-	spacing.z = size.z/dim[3];
-	freq.x = 1/spacing.x;
-	freq.y = 1/spacing.y;
-	freq.z = 1/spacing.z;
-}
-
-void DiscreteSpace::Resize(tw::Int x,tw::Int y,tw::Int z,const tw::vec3& corner,const tw::vec3& size)
-{
-	Resize(x,y,z,corner,size,2); // default to 2 ghost cell layers
+	globalCorner = gcorner;
+	globalSize = gsize;
+	for (tw::Int i=1;i<=3;i++)
+	{
+		spacing[i-1] = globalSize[i-1]/gdim[i];
+		freq[i-1] = 1/spacing[i-1];
+		size[i-1] = dim[i]*spacing[i-1];
+		corner[i-1] = gcorner[i-1] + dom[i]*size[i-1];
+	}
 }
 
 void DiscreteSpace::ReadCheckpoint(std::ifstream& inFile)

@@ -35,6 +35,8 @@ void Mover::GetSubarrayBounds(std::vector<ParticleRef>& sorted,tw::Int low[4],tw
 
 	space->DecodeCell(sorted.front().cell,low);
 	space->DecodeCell(sorted.back().cell,high);
+	// Sorting by cell only sorts the outermost topological index in general.
+	// Hence the following loop.
 	for (int i=1;i<=3;i++)
 		if (low[i]>high[i])
 			std::swap(low[i],high[i]);
@@ -61,10 +63,8 @@ void Mover::GetSubarrayBounds(std::vector<ParticleRef>& sorted,tw::Int low[4],tw
 			low[i] -= layers;
 			high[i] += layers;
 		}
-		// if (low[i]<owner->N0(i))
-		// 	throw tw::FatalError("Particle unexpectedly low");
-		// if (high[i]>owner->N1(i))
-		// 	throw tw::FatalError("Particle unexpectedly high");
+		assert(low[i]>=space->LFG(i));
+		assert(high[i]<=space->UFG(i));
 	}
 }
 
@@ -118,9 +118,12 @@ void Mover::MoveSlice(tw::Int tasks,tw::Int tid,tw::Int bounds_data[][8])
 	BundleType b(this);
 	first = bounds_data[tid][0];
 	last = bounds_data[tid][1];
-	map.resize(last-first+1);
+	map.reserve(last-first+1);
 	for (tw::Int i=first;i<=last;i++)
-		map[i-first] = ParticleRef(i,(*particle)[i]);
+	{
+		(*particle)[i].Assert(0,space->Num(1)*space->Num(2)*space->Num(3));
+		map.push_back(ParticleRef(i,(*particle)[i]));
+	}
 	std::sort(map.begin(),map.end());
 	GetSubarrayBounds(map,low,high,1);
 	b.LoadFieldSlice(low,high,ignorable);

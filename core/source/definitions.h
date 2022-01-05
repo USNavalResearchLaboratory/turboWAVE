@@ -1,5 +1,5 @@
 #ifndef _did_definitions
-#define TW_VERSION_STRING "4.6.1"
+#define TW_VERSION_STRING "4.7.0a"
 
 /////////////////////////////////////////////////////////////////////
 //                                                                 //
@@ -79,6 +79,21 @@ static const tw::Float one = tw::Float(1.0);
 static const tw::Float two = tw::Float(2.0);
 static const tw::Float half = tw::Float(0.5);
 static const tw::Float root2 = std::sqrt(2);
+
+// ANSI terminal codes
+namespace term
+{
+	static const std::string ok("\u2713");
+	static const std::string err("\u2717");
+	static const std::string red("\u001b[31m");
+	static const std::string green("\u001b[32m");
+	static const std::string blue("\u001b[94m");
+	static const std::string yellow("\u001b[33m");
+	static const std::string cyan("\u001b[96m");
+	static const std::string reset_color("\u001b[39;49m");
+	static const std::string reset_all("\u001b[0m");
+	static const std::string bold("\u001b[1m");
+}
 
 /////////////////////////////////
 //                             //

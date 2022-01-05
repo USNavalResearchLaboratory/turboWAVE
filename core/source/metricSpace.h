@@ -1,11 +1,19 @@
+// This abstract class is needed to anticipate ComputeTool::Warp.
+struct warp_base
+{
+	tw::grid::axis ax;
+	virtual tw::Float AddedCellWidth(tw::Int globalCell) = 0;
+};
+
 struct MetricSpace:DiscreteSpace
 {
-	tw::grid::geometry geo;
+	tw::grid::geometry gridGeometry;
 	tw::Float car,cyl,sph; // set variable corresponding to coordinate system to 1.0, all others to 0.0
 	tw::Int mnum[4]; // num for metric arrays (see DiscreteSpace)
 	tw::Int mlb[4],mub[4]; // lfg and ufg for metric arrays (see DiscreteSpace)
 	tw::Int I3x3[3][3];
-
+	bool adaptiveTimestep,adaptiveGrid;
+	
 	std::valarray<tw::Float> gpos; // global positions in parameter space
 	std::valarray<tw::Float> width; // cell sizes in parameter space
 	// Cell metrics are packed assuming separable functional forms
@@ -22,6 +30,7 @@ struct MetricSpace:DiscreteSpace
 	// External access of arcs is through dl and dlh, and uses spatial indexing 1,2,3
 
 	tw::UnitConverter units;
+	std::vector<warp_base*> warps;
 
 	#ifdef USE_OPENCL
 	cl_mem metricsBuffer;
@@ -30,17 +39,26 @@ struct MetricSpace:DiscreteSpace
 
 	MetricSpace();
 	~MetricSpace();
-	void AttachUnits(tw::units sys,tw::Float unitDensityCGS);
 
-	void Resize(tw::Int x,tw::Int y,tw::Int z,const tw::vec3& corner,const tw::vec3& size,tw::Int ghostCellLayers);
-	void Resize(tw::Int x,tw::Int y,tw::Int z,const tw::vec3& corner,const tw::vec3& size);
-	void ReadCheckpoint(std::ifstream& inFile);
-	void WriteCheckpoint(std::ofstream& outFile);
-
+private:
+	void SetTopology(Task& task,const tw::vec3& gcorner,const tw::vec3& gsize,tw::Int ghostCellLayers);
+	void Allocate();
+	void SetSpacings(Task& task);
+	void UpdateHulls(Task& task);
 	void SetupPositionArrays();
 	void SetCartesianGeometry();
 	void SetCylindricalGeometry();
 	void SetSphericalGeometry();
+public:
+	void Resize(Task& task,
+		const tw::vec3& gcorner,
+		const tw::vec3& gsize,
+		tw::Int ghostCellLayers=2,
+		tw::grid::geometry geo=tw::grid::cartesian);
+	void ReadCheckpoint(std::ifstream& inFile);
+	void WriteCheckpoint(std::ofstream& outFile);
+	void AttachUnits(tw::units sys,tw::Float unitDensityCGS);
+	void AttachWarp(warp_base *w);
 
 	#ifdef USE_OPENCL
 	void InitializeMetricsBuffer(cl_context ctx,tw::Float dt);

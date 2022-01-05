@@ -165,6 +165,11 @@ void Module::Report(Diagnostic& diagnostic)
 {
 }
 
+bool Module::Test()
+{
+	return false; // indicates no test available in the given environment
+}
+
 void Module::WarningMessage(std::ostream *theStream)
 {
 	if (buildLog.size()>4)

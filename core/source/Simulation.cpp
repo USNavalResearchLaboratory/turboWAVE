@@ -8,20 +8,99 @@
 #include "solidState.h"
 //#include <unistd.h>
 
+GridReader::GridReader(tw::UnitConverter& uc)
+{
+	globalCorner = 0.0;
+	adaptiveGrid = adaptiveTimestep = false;
+	geo = tw::grid::cartesian;
+
+	// allow user to choose any of 8 corners with strings like corner001, corner010, etc.
+	auto corner_str = [&] (tw::Int i,tw::Int j,tw::Int k)
+	{
+		return "corner" + std::to_string(i) + std::to_string(j) + std::to_string(k);
+	};
+	for (tw::Int i=0;i<2;i++)
+		for (tw::Int j=0;j<2;j++)
+			for (tw::Int k=0;k<2;k++)
+				directives.Add(corner_str(i,j,k),new tw::input::Numbers<tw::Float>(&cornerSet[i][j][k][0],3),false);
+	directives.Add("corner",new tw::input::Numbers<tw::Float>(&globalCorner[0],3),false);
+	directives.Add("cell size",new tw::input::Numbers<tw::Float>(&spacing[0],3));
+	directives.Add("adaptive timestep",new tw::input::Bool(&adaptiveTimestep),false);
+	directives.Add("adaptive grid",new tw::input::Bool(&adaptiveGrid),false);
+	directives.Add("dimensions",new tw::input::Numbers<tw::Int>(&req_dim[1],3));
+	directives.Add("decomposition",new tw::input::Numbers<tw::Int>(&req_dom[1],3));
+	std::map<std::string,tw::grid::geometry> geo_map = {{"cartesian",tw::grid::cartesian},{"cylindrical",tw::grid::cylindrical},{"spherical",tw::grid::spherical}};
+	directives.Add("geometry",new tw::input::Enums<tw::grid::geometry>(geo_map,&geo),false);
+	directives.AttachUnits(uc);
+}
+
+void GridReader::Read(std::stringstream& inputString,tw::input::Preamble& preamble)
+{
+	std::string com2;
+	if (preamble.words.size()!=1)
+		throw tw::FatalError("Ill-formed grid block.");
+	// allow user to choose any of 8 corners with strings like corner001, corner010, etc.
+	auto corner_str = [&] (tw::Int i,tw::Int j,tw::Int k)
+	{
+		return "corner" + std::to_string(i) + std::to_string(j) + std::to_string(k);
+	};
+	do
+	{
+		com2 = directives.ReadNext(inputString);
+		if (com2=="tw::EOF")
+			throw tw::FatalError("Encountered EOF while processing <grid>.");
+		if (com2=="new" || com2=="generate" || com2=="get")
+			throw tw::FatalError("Keyword <"+com2+"> inside grid block is not allowed.");
+	} while (com2!="}");
+	directives.ThrowErrorIfMissingKeys("grid");
+	tw::Int corners_given = directives.TestKey("corner") ? 1 : 0;
+	for (tw::Int i=0;i<2;i++)
+		for (tw::Int j=0;j<2;j++)
+			for (tw::Int k=0;k<2;k++)
+			{
+				if (directives.TestKey(corner_str(i,j,k)))
+				{
+					corners_given++;
+					if (corners_given>1)
+						throw tw::FatalError("Grid geometry is overspecified.");
+					globalCorner.x = cornerSet[i][j][k].x - req_dim[1]*spacing.x*i;
+					globalCorner.y = cornerSet[i][j][k].y - req_dim[2]*spacing.y*j;
+					globalCorner.z = cornerSet[i][j][k].z - req_dim[3]*spacing.z*k;
+				}
+			}
+}
+
+void GridReader::UpdateTask(Task& tsk)
+{
+	for (tw::Int i=0;i<4;i++)
+	{
+		tsk.globalCells[i] = req_dim[i];
+		tsk.domains[i] = req_dom[i];
+	}
+}
+
+
 ////////////////////////
 //  SIMULATION CLASS  //
 ////////////////////////
 
 
-Simulation::Simulation(const std::string& file_name,const std::string& restart_name,const std::string& platform,const std::string& device)
+Simulation::Simulation(const std::string& test_name,
+	const std::string& file_name,
+	const std::string& restart_name,
+	const std::string& platform,
+	const std::string& device,
+	const tw::Int& outputLevel,
+	const tw::Int& errorCheckingLevel)
 {
+	unitTest = test_name;
 	inputFileName = file_name;
 	restartFileName = restart_name;
 	platformSearchString = platform;
 	deviceSearchString = device;
+	this->outputLevel = outputLevel;
+	this->errorCheckingLevel = errorCheckingLevel;
 	clippingRegion.push_back(new EntireRegion(clippingRegion));
-
-	gridGeometry = tw::grid::cartesian;
 
 	nativeUnits = tw::units::plasma;
 	dt0 = 0.1;
@@ -40,14 +119,10 @@ Simulation::Simulation(const std::string& file_name,const std::string& restart_n
 	neutralize = true;
 	movingWindow = false;
 	completed = false;
-	adaptiveTimestep = false;
-	adaptiveGrid = false;
 
 	stepNow = 0;
 	stepsToTake = 32;
 	lastTime = 0;
-	outputLevel = 0;
-	errorCheckingLevel = 0;
 	dumpPeriod = 0;
 
 	bc0[1] = tw::bc::par::periodic;
@@ -72,26 +147,6 @@ Simulation::Simulation(const std::string& file_name,const std::string& restart_n
 	outerDirectives.Add("neutralize",new tw::input::Bool(&neutralize),false);
 	outerDirectives.Add("window speed",new tw::input::Float(&signalSpeed),false);
 	outerDirectives.Add("moving window",new tw::input::Bool(&movingWindow),false);
-	outerDirectives.Add("output level",new tw::input::Int(&outputLevel),false);
-	outerDirectives.Add("error checking level",new tw::input::Int(&errorCheckingLevel),false);
-
-	// allow user to choose any of 8 corners with strings like corner001, corner010, etc.
-	auto corner_str = [&] (tw::Int i,tw::Int j,tw::Int k)
-	{
-		return "corner" + std::to_string(i) + std::to_string(j) + std::to_string(k);
-	};
-	for (tw::Int i=0;i<2;i++)
-		for (tw::Int j=0;j<2;j++)
-			for (tw::Int k=0;k<2;k++)
-				gridDirectives.Add(corner_str(i,j,k),new tw::input::Numbers<tw::Float>(&cornerSet[i][j][k][0],3),false);
-	gridDirectives.Add("corner",new tw::input::Numbers<tw::Float>(&globalCorner[0],3),false);
-	gridDirectives.Add("cell size",new tw::input::Numbers<tw::Float>(&spacing[0],3));
-	gridDirectives.Add("adaptive timestep",new tw::input::Bool(&adaptiveTimestep),false);
-	gridDirectives.Add("adaptive grid",new tw::input::Bool(&adaptiveGrid),false);
-	gridDirectives.Add("dimensions",new tw::input::Numbers<tw::Int>(&globalCells[1],3));
-	gridDirectives.Add("decomposition",new tw::input::Numbers<tw::Int>(&domains[1],3));
-	std::map<std::string,tw::grid::geometry> geo = {{"cartesian",tw::grid::cartesian},{"cylindrical",tw::grid::cylindrical},{"spherical",tw::grid::spherical}};
-	gridDirectives.Add("geometry",new tw::input::Enums<tw::grid::geometry>(geo,&gridGeometry),false);
 }
 
 Simulation::~Simulation()
@@ -116,79 +171,48 @@ Simulation::~Simulation()
 		delete tw_out;
 }
 
-void Simulation::SetCellWidthsAndLocalSize()
+void Simulation::SetupIO()
 {
-	// Overwrite uniform cell widths with requested variable widths.
-	// Correct the local domain size to reflect the variable cell widths.
-
-	for (auto tool : computeTool)
+	// Set up standard outputs
+	if (strip[0].Get_rank()==0)
 	{
-		Warp *w = dynamic_cast<Warp*>(tool);
-		if (w)
-		{
-			tw::Int ax = tw::grid::naxis(w->ax);
-			w->Initialize(); // needs an explicit call due to order of events
-			for (tw::Int i=lfg[ax];i<=ufg[ax];i++)
-				dX(i,ax) += w->AddedCellWidth(cornerCell[ax]-1+i);
-		}
+		tw_out = &std::cout;
+		tw_err = &std::cerr;
 	}
-
-	size = 0.0;
-	for (tw::Int ax=1;ax<=3;ax++)
-		for (tw::Int i=1;i<=dim[ax];i++)
-			size[ax-1] += dX(i,ax);
-}
-
-void Simulation::SetGlobalSizeAndLocalCorner()
-{
-	// Perform message passing to determine the effect of non-uniform cell widths
-	// on the global domain size and the coordinates of the local domain corner.
-	// Assumes local domain sizes are already calculated.
-
-	tw::Int axis,src,dst;
-	tw::Float inData,outData;
-	tw::Float lsize[4] = { 0.0 , size.x , size.y , size.z };
-	tw::Float gcorn[4] = { 0.0 , globalCorner.x , globalCorner.y , globalCorner.z };
-	tw::Float lcorn[4];
-	tw::Float gsize[4];
-
-	for (axis=1;axis<=3;axis++)
+	else
 	{
-		finiteStrip[axis].Shift(1,1,&src,&dst);
-		if (domainIndex[axis]==0)
+		if (outputLevel>0)
 		{
-			finiteStrip[axis].Send(&lsize[axis],sizeof(tw::Float),dst);
-			lcorn[axis] = gcorn[axis];
-			outData = lsize[axis]; // in case domains=1
+			tw_out = new std::ofstream(std::to_string(strip[0].Get_rank()) + "_stdout.txt");
+			tw_err = new std::ofstream(std::to_string(strip[0].Get_rank()) + "_stderr.txt");
 		}
 		else
 		{
-			finiteStrip[axis].Recv(&inData,sizeof(tw::Float),src);
-			lcorn[axis] = gcorn[axis] + inData;
-			outData = inData + lsize[axis];
-			if (domainIndex[axis]!=domains[axis]-1)
-				finiteStrip[axis].Send(&outData,sizeof(tw::Float),dst);
+			// put outputs into throw-away strings
+			tw_out = new std::stringstream;
+			tw_err = new std::stringstream;
 		}
-		finiteStrip[axis].Shift(1,-1,&src,&dst);
-		if (domainIndex[axis]==domains[axis]-1)
-		{
-			gsize[axis] = outData;
-			finiteStrip[axis].Send(&gsize[axis],sizeof(tw::Float),dst);
-		}
-		else
-		{
-			finiteStrip[axis].Recv(&inData,sizeof(tw::Float),src);
-			gsize[axis] = inData;
-			if (domainIndex[axis]!=0)
-				finiteStrip[axis].Send(&gsize[axis],sizeof(tw::Float),dst);
-		}
-		((tw::Float*)&corner)[axis-1] = lcorn[axis];
-		((tw::Float*)&globalSize)[axis-1] = gsize[axis];
 	}
+
+	*tw_out << std::endl << "*** Starting turboWAVE Session ***" << std::endl << std::endl;
+	*tw_out << "Floating point precision = " << sizeof(tw::Float)*8 << " bits" << std::endl;
+	#ifdef USE_OPENMP
+	*tw_out << "Maximum OpenMP threads = " << omp_get_max_threads() << std::endl;
+	#endif
 }
 
 void Simulation::Run()
 {
+	#ifdef USING_TW_MPI
+	// Wait until master thread is done
+	// TODO: fold this into TW_MPI's MPI_init
+	TW_MPI_Lock();
+	TW_MPI_Unlock();
+	#endif
+
+	SetupIO();
+	InputFileFirstPass();
+
 	std::ofstream twstat;
 	if (strip[0].Get_rank()==0)
 	{
@@ -246,13 +270,13 @@ void Simulation::Run()
 	}
 	catch (tw::FatalError& e)
 	{
-		(*tw_out) << "FATAL ERROR: " << e.what() << std::endl;
-		(*tw_out) << "Simulation failed --- exiting now." << std::endl;
+		(*tw_err) << "FATAL ERROR: " << e.what() << std::endl;
+		(*tw_err) << "Simulation failed --- exiting now." << std::endl;
 		#ifdef USE_TW_MPI
 		if (tw_out != &std::cout)
 		{
-			std::cout << "FATAL ERROR: " << e.what() << std::endl;
-			std::cout << "Simulation failed --- exiting now." << std::endl;
+			std::cerr << "FATAL ERROR: " << e.what() << std::endl;
+			std::cerr << "Simulation failed --- exiting now." << std::endl;
 		}
 		#endif
 		if (strip[0].Get_rank()==0)
@@ -265,30 +289,152 @@ void Simulation::Run()
 		exit(1);
 	}
 
+	*tw_out << std::endl << "*** TurboWAVE Session Completed ***" << std::endl;
 	completed = true;
 }
 
-void Simulation::SetupGeometry()
+void Simulation::Test()
 {
-	// This routine assumes that MetricSpace::width, and MetricSpace::corner are valid
-	switch (gridGeometry)
+	#ifdef USING_TW_MPI
+	// Wait until master thread is done
+	// TODO: fold this into TW_MPI's MPI_init
+	TW_MPI_Lock();
+	TW_MPI_Unlock();
+	#endif
+
+	SetupIO();
+
+	// Get basic MPI data
+	int numRanksProvided,worldRank;
+	MPI_Comm_size(MPI_COMM_WORLD,&numRanksProvided);
+	MPI_Comm_rank(MPI_COMM_WORLD,&worldRank);
+
+	// Random numbers
+	uniformDeviate = new UniformDeviate(1 + strip[0].Get_rank()*(MaxSeed()/numRanksProvided));
+	gaussianDeviate = new GaussianDeviate(1 + strip[0].Get_rank()*(MaxSeed()/numRanksProvided) + MaxSeed()/(2*numRanksProvided));
+
+	// diverting output
+	std::ostream *alt_out = new std::stringstream;
+	std::ostream *save_out = tw_out;
+
+	// Create a test grid
+	if (numRanksProvided!=2)
+		throw tw::FatalError("test must use -n 2");
+	AttachUnits(tw::units::plasma,1e19);
+	globalCells[1] = 4;
+	globalCells[2] = 4;
+	globalCells[3] = 4;
+	periodic[1] = 1;
+	periodic[2] = 1;
+	periodic[3] = 0;
+	domains[1] = 1;
+	domains[2] = 1;
+	domains[3] = 2;
+	Task::Initialize(domains,globalCells,periodic);
+	globalCorner = tw::vec3(0.0,0.0,0.0);
+	spacing = tw::vec3(0.2,0.2,0.2);
+	globalSize = spacing * tw::vec3(globalCells[1],globalCells[2],globalCells[3]);
+	Resize(*this,globalCorner,globalSize,2);
+	UpdateTimestep(0.1);
+
+	// Verify grid creation
+	tw::Float tolerance = 1e-10;
+	for (tw::Int ax=1;ax<=3;ax++)
 	{
-		case tw::grid::cartesian:
-			if (stepNow==0)
-				(*tw_out) << "Using CARTESIAN Grid" << std::endl;
-			SetCartesianGeometry();
-			break;
-		case tw::grid::cylindrical:
-			if (stepNow==0)
-				(*tw_out) << "Using CYLINDRICAL Grid" << std::endl;
-			SetCylindricalGeometry();
-			break;
-		case tw::grid::spherical:
-			if (stepNow==0)
-				(*tw_out) << "Using SPHERICAL Grid" << std::endl;
-			SetSphericalGeometry();
-			break;
+		assert(size[ax-1]-spacing[ax-1]*dim[ax]<tolerance);
+		assert(corner[ax-1]-(globalCorner[ax-1]+size[ax-1]*strip[ax].Get_rank())<tolerance);
 	}
+	tw::Int src,dst;
+	strip[1].Shift(1,1,&src,&dst);
+	assert(src==strip[1].Get_rank());
+	assert(dst==strip[1].Get_rank());
+	strip[2].Shift(1,1,&src,&dst);
+	assert(src==strip[2].Get_rank());
+	assert(dst==strip[2].Get_rank());
+	strip[3].Shift(1,1,&src,&dst);
+	assert(src==strip[3].Get_rank()-1 || src==MPI_PROC_NULL);
+	assert(dst==strip[3].Get_rank()+1 || dst==MPI_PROC_NULL);
+
+	bool some_success = false;
+	ComputeTool *tool;
+	Module *module;
+
+	for (auto m : ComputeTool::Map())
+	{
+		if (unitTest==m.first || unitTest=="--all")
+		{
+			tw_out = save_out;
+			*tw_out << std::endl << "testing " << term::bold << term::cyan << m.first << term::reset_all << std::endl;
+			try
+			{
+				tw_out = alt_out;
+				tool = CreateTool("test_tool",m.second);
+			}
+			catch (tw::FatalError& e)
+			{
+				tw_out = save_out;
+				*tw_out << "    " << term::yellow << "tool rejected the environment" << term::reset_all << std::endl;
+				tool = NULL;
+			}
+			tw_out = alt_out;
+			if (tool!=NULL)
+			{
+				if (tool->Test())
+				{
+					tw_out = save_out;
+					*tw_out << "    " << term::ok << " " << term::green << "success" << term::reset_all << std::endl;
+					some_success = true;
+				}
+				else
+				{
+					tw_out = save_out;
+					*tw_out << "    " << term::yellow << "no test available for this environment" << term::reset_all << std::endl;
+				}
+				RemoveTool(tool);
+			}
+		}
+	}
+
+	for (auto m : Module::Map())
+	{
+		if (unitTest==m.first || unitTest=="--all")
+		{
+			tw_out = save_out;
+			*tw_out << std::endl << "testing " << term::bold << term::cyan << m.first << term::reset_all << std::endl;
+			try
+			{
+				tw_out = alt_out;
+				module = Module::CreateObjectFromType("test_module",m.second,this);
+			}
+			catch (tw::FatalError& e)
+			{
+				tw_out = save_out;
+				*tw_out << "    " << term::yellow << "module rejected the environment" << term::reset_all << std::endl;
+				module = NULL;
+			}
+			tw_out = alt_out;
+			if (module!=NULL)
+			{
+				if (module->Test())
+				{
+					tw_out = save_out;
+					*tw_out << "    " << term::ok << " " << term::green << "success" << term::reset_all << std::endl;
+					some_success = true;
+				}
+				else
+				{
+					tw_out = save_out;
+					*tw_out << "    " << term::yellow << "no test available for this environment" << term::reset_all << std::endl;
+				}
+				delete module;
+			}
+		}
+	}
+
+	tw_out = save_out;
+	delete alt_out;
+	assert(some_success);
+	completed = true;
 }
 
 void Simulation::PrepareSimulation()
@@ -298,8 +444,6 @@ void Simulation::PrepareSimulation()
 	#ifdef USE_OPENCL
 	PrintGPUInformation();
 	#endif
-
-	SetupLocalGrid();
 
 	ReadInputFile();
 
@@ -763,12 +907,12 @@ void Simulation::WriteCheckpoint(std::ofstream& outFile)
 //  Read the Input File  //
 ///////////////////////////
 
-std::string Simulation::InputFileFirstPass()
-{
-	// The first pass is used to fully initialize the task
 
+/// The first pass through the input file is used to fully initialize the `Task` and
+/// `MetricSpace` parent classes.
+void Simulation::InputFileFirstPass()
+{
 	int numRanksProvided,worldRank;
-	std::stringstream messageOut;
 	MPI_Comm_size(MPI_COMM_WORLD,&numRanksProvided);
 	MPI_Comm_rank(MPI_COMM_WORLD,&worldRank);
 	// world rank is suitable for reading task data from restart file
@@ -788,8 +932,7 @@ std::string Simulation::InputFileFirstPass()
 		inputString.seekg(0);
 		outerDirectives.AttachUnits(units);
 		outerDirectives.Reset();
-		gridDirectives.AttachUnits(units);
-		gridDirectives.Reset();
+		GridReader grid(units);
 
 		std::string com1,com2,word;
 
@@ -816,47 +959,19 @@ std::string Simulation::InputFileFirstPass()
 				{
 					if (preamble.words[0]=="grid")
 					{
-						if (preamble.words.size()!=1)
-							throw tw::FatalError("Ill-formed grid block.");
 						foundGrid = true;
-						corner = globalCorner = size = globalSize = tw::vec3(0.0,0.0,0.0);
-						// allow user to choose any of 8 corners with strings like corner001, corner010, etc.
-						auto corner_str = [&] (tw::Int i,tw::Int j,tw::Int k)
-						{
-							return "corner" + std::to_string(i) + std::to_string(j) + std::to_string(k);
-						};
-						do
-						{
-							com2 = gridDirectives.ReadNext(inputString);
-							if (com2=="tw::EOF")
-								throw tw::FatalError("Encountered EOF while processing <grid>.");
-							if (com2=="new" || com2=="generate" || com2=="get")
-								throw tw::FatalError("Keyword <"+com2+"> inside grid block is not allowed.");
-						} while (com2!="}");
-						gridDirectives.ThrowErrorIfMissingKeys("grid");
-						tw::Int corners_given = gridDirectives.TestKey("corner") ? 1 : 0;
-						for (tw::Int i=0;i<2;i++)
-							for (tw::Int j=0;j<2;j++)
-								for (tw::Int k=0;k<2;k++)
-								{
-									if (gridDirectives.TestKey(corner_str(i,j,k)))
-									{
-										corners_given++;
-										if (corners_given>1)
-											throw tw::FatalError("Grid geometry is overspecified.");
-										globalCorner.x = cornerSet[i][j][k].x - globalCells[1]*spacing.x*i;
-										globalCorner.y = cornerSet[i][j][k].y - globalCells[2]*spacing.y*j;
-										globalCorner.z = cornerSet[i][j][k].z - globalCells[3]*spacing.z*k;
-									}
-								}
+						grid.Read(inputString,preamble);
+						grid.UpdateTask(*this);
 					}
 					if (preamble.words[0]=="warp")
 					{
 						MangleToolName(preamble.obj_name);
-						messageOut << "Creating Tool <" << preamble.obj_name << ">..." << std::endl;
+						*tw_out << "Creating Tool <" << preamble.obj_name << ">..." << std::endl;
 						// Do not use CreateTool, do not want to increase refCount
 						computeTool.push_back(ComputeTool::CreateObjectFromType(preamble.obj_name,tw::tool_type::warp,this,this));
 						computeTool.back()->ReadInputFileBlock(inputString);
+						computeTool.back()->Initialize(); // OK and necessary to init here
+						AttachWarp(dynamic_cast<Warp*>(computeTool.back()));
 					}
 					if (preamble.words[0]!="grid" && preamble.words[0]!="warp")
 						tw::input::ExitInputFileBlock(inputString,true);
@@ -884,7 +999,7 @@ std::string Simulation::InputFileFirstPass()
 		// Verify and (if necessary) correct decomposition
 		if (NumTasks() != numRanksProvided)
 		{
-			messageOut << "WARNING: Bad decomposition ";
+			*tw_out << "WARNING: Bad decomposition ";
 			tw::Int ax1=1,ax2=2,ax3=3; // to be sorted so ax1 is longest
 			for (tw::Int i=1;i<=3;i++)
 			{
@@ -904,9 +1019,9 @@ std::string Simulation::InputFileFirstPass()
 				domains[ax1] /= 2;
 				domains[ax2] *= 2;
 			}
-			messageOut << "(defaulting to " << domains[1] << "x" << domains[2] << "x" << domains[3] << ")" << std::endl;
+			*tw_out << "(defaulting to " << domains[1] << "x" << domains[2] << "x" << domains[3] << ")" << std::endl;
 		}
-		messageOut << NumTasks() << "-Way Decomposition" << std::endl;
+		*tw_out << NumTasks() << "-Way Decomposition" << std::endl;
 
 		// Set up the domain decomposition
 		// Simulation/restart provide domains[] , globalCells[] , periodic[] as inputs
@@ -922,23 +1037,11 @@ std::string Simulation::InputFileFirstPass()
 			if (localCells[i]%2!=0 && globalCells[i]>1)
 				throw tw::FatalError("local number of cells is not even along non-ignorable axis");
 		}
+		Resize(*this,grid.GlobalCorner(),grid.GlobalSize(),2,grid.Geometry());
 
 		// Random numbers
 		uniformDeviate = new UniformDeviate(1 + strip[0].Get_rank()*(MaxSeed()/numRanksProvided));
 		gaussianDeviate = new GaussianDeviate(1 + strip[0].Get_rank()*(MaxSeed()/numRanksProvided) + MaxSeed()/(2*numRanksProvided));
-
-		// Set up standard outputs
-		std::stringstream stdoutString;
-		stdoutString << strip[0].Get_rank() << "_stdout.txt";
-		if (strip[0].Get_rank() == 0)
-			tw_out = &std::cout;
-		else
-		{
-			if (outputLevel>0)
-				tw_out = new std::ofstream(stdoutString.str().c_str());
-			else
-				tw_out = new std::stringstream; // put output into a throw away string
-		}
 
 		// Unlock();
 	}
@@ -947,32 +1050,14 @@ std::string Simulation::InputFileFirstPass()
 	{
 		if (worldRank==0)
 		{
-			std::cout << "FATAL ERROR: " << e.what() << std::endl;
-			std::cout << "Could not start simulation --- exiting now." << std::endl;
+			std::cerr << "FATAL ERROR: " << e.what() << std::endl;
+			std::cerr << "Could not start simulation --- exiting now." << std::endl;
 		}
 		// Following acts as a barrier before exiting; we should implement MPI_Barrier in TW_MPI.
 		char buf[255];
 		MPI_Bcast(buf,1,MPI_BYTE,0,MPI_COMM_WORLD);
 		exit(1);
 	}
-
-	return messageOut.str();
-}
-
-void Simulation::SetupLocalGrid()
-{
-	tw::Int Nx = localCells[1], Ny = localCells[2], Nz = localCells[3];
-	(*tw_out) << "Allocate " << Nx << "x" << Ny << "x" << Nz << " Grid" << std::endl;
-	size = spacing * tw::vec3(Nx,Ny,Nz);
-	globalSize = spacing * tw::vec3(globalCells[1],globalCells[2],globalCells[3]);
-	corner = globalCorner + tw::vec3(domainIndex[1],domainIndex[2],domainIndex[3]) * size;
-	Resize(Nx,Ny,Nz,corner,size,2);
-	SetCellWidthsAndLocalSize();
-	SetGlobalSizeAndLocalCorner();
-	SetupGeometry();
-	#ifdef USE_OPENCL
-	InitializeMetricsBuffer(context,dt);
-	#endif
 }
 
 void Simulation::NestedDeclaration(const std::string& com,std::stringstream& inputString,Module *super)
@@ -1058,7 +1143,6 @@ void Simulation::ReadInputFile()
 
 	inputString.seekg(0);
 	outerDirectives.Reset();
-	gridDirectives.Reset();
 
 	do
 	{

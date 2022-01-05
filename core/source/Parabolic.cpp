@@ -91,6 +91,8 @@ void EigenmodePropagator::Initialize()
 	// Computing the matrices requires message passing, cannot go in constructor.
 	if (space->car!=1.0)
 		ComputeTransformMatrices(fld::dirichletWall,eigenvalue,hankel,inverseHankel,space,task);
+	if (modes>task->globalCells[1])
+		throw tw::FatalError("more modes than radial cells");
 }
 
 void EigenmodePropagator::SetData(tw::Float w0,tw::Float dt,tw_polarization_type pol,bool mov)

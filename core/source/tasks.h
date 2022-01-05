@@ -74,7 +74,7 @@ namespace tw
 				MPI_Comm_free(&comm_cart);
 			comm_cart = MPI_COMM_WORLD;
 		}
-		void Shift(tw::Int axis,tw::Int shift,tw::Int *src,tw::Int *dst)
+		void Shift(tw::Int axis,tw::Int shift,tw::Int *src,tw::Int *dst) const
 		{
 			int srci,dsti;
 			MPI_Cart_shift(comm_cart,axis-1,shift,&srci,&dsti);
@@ -209,7 +209,7 @@ struct Task
 	tw::Int cornerCell[4],localCells[4],localCells2[4],domainIndex[4]; // blank,x,y,z
 	tw::Int n0[4],n1[4]; // low and high neighbors : blank,x,y,z
 
-	std::string inputFileName,restartFileName; // keep with task so ComputeTool can access
+	std::string unitTest,inputFileName,restartFileName; // keep with task so ComputeTool can access
 
 	std::string deviceSearchString,platformSearchString,initMessage;
 	std::valarray<tw::Int> affinityMask; // IDs of logical processors for thread binding

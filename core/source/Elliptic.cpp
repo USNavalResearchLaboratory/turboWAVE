@@ -236,8 +236,8 @@ IterativePoissonSolver::IterativePoissonSolver(const std::string& name,MetricSpa
 
 IterativePoissonSolver::~IterativePoissonSolver()
 {
-	delete mask1;
-	delete mask2;
+	delete [] mask1;
+	delete [] mask2;
 }
 
 void IterativePoissonSolver::FixPotential(ScalarField& phi,Region* theRegion,const tw::Float& thePotential)

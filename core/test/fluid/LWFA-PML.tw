@@ -1,0 +1,69 @@
+// Keep the following line for continuous integration testing
+// CITEST Ex.npy range=-.024,.024 tolerance=1e-3
+
+steps = 250
+timestep = 0.16
+dump period = 0
+moving window = yes
+neutralize = yes
+unit density = 1.1e+17
+
+xboundary = ( periodic , periodic )
+yboundary = ( periodic , periodic )
+zboundary = ( absorbing , absorbing )
+
+// wp^-1 = 53.4781 fs
+// c/wp = 16.0434 um
+// E_br = 31.9056 GV/m
+
+new grid
+{
+	corner = ( -16.0 , -0.5 , -25.6 )
+	dimensions = ( 64 , 1 , 128 )
+	cell size = ( 0.5 , 1.0 , 0.2 )
+	decomposition = ( 1 , 1 , 1 )
+}
+
+new direct electromagnetic module 'em'
+{
+	layers = (8 8 0 0 0 0)
+	reflection coefficient = (1e-4 1e-4 1e-4 1e-4 1e-4 1e-4)
+}
+
+new pgc laser module 'pgc'
+{
+	carrier frequency = 50
+}
+
+new hermite gauss for 'pgc'
+{
+	a = ( 0.5 , 0.0 , 0.0 )
+	r0 = ( 5 , 1e5 )
+	w = 50
+	risetime = 3
+	holdtime = 0
+	falltime = 3
+	delay = 5
+	focus position = ( 0 , 0 , 0 )
+	direction = ( 0 , 0 , 1 )
+}
+
+new fluid 'e'
+{
+	mass = 1.0
+	charge = -1.0
+}
+
+generate piecewise 'e'
+{
+	zdensity = { 0.0 1.0 1.0 }
+	zpoints = { 0.0 10.0 10000.0 }
+	temperature = 1.0[eV]
+	shape = quintic
+}
+
+new box diagnostic
+{
+	period = 250
+	galilean velocity = ( 0 , 0 , 1 )
+}

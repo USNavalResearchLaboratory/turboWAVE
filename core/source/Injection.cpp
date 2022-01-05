@@ -1044,33 +1044,12 @@ void LindmanBoundary::Initialize(Task *task,MetricSpace *ms,std::vector<Wave*> *
 	this->c0 = c0;
 	this->c1 = c1;
 
-	DiscreteSpace bm_layout;
-
-	if (axis==tw::grid::x && ms->Dim(1)==1)
-		throw tw::FatalError("Lindman boundary geometry is not consistent");
-
-	if (axis==tw::grid::y && ms->Dim(2)==1)
-		throw tw::FatalError("Lindman boundary geometry is not consistent");
-
-	if (axis==tw::grid::z && ms->Dim(3)==1)
-		throw tw::FatalError("Lindman boundary geometry is not consistent");
-
-	switch (axis)
-	{
-		case tw::grid::x:
-			bm_layout.Resize(1,ms->Dim(2),ms->Dim(3),Corner(*ms),PhysicalSize(*ms));
-			break;
-		case tw::grid::y:
-			bm_layout.Resize(ms->Dim(1),1,ms->Dim(3),Corner(*ms),PhysicalSize(*ms));
-			break;
-		case tw::grid::z:
-			bm_layout.Resize(ms->Dim(1),ms->Dim(2),1,Corner(*ms),PhysicalSize(*ms));
-			break;
-		default:
-			throw tw::FatalError("Lindman boundary axis must be one of x,y,z");
-	}
-
-	boundaryMemory.Initialize( 9 , bm_layout , task );
+	tw::Int ax = tw::grid::naxis(axis);
+	assert(ms->Dim(ax)!=1);
+	assert(ax>=1 && ax<=3);
+	tw::Int bdim[4] = { 0, ms->Dim(1), ms->Dim(2), ms->Dim(3) };
+	bdim[ax] = 1;
+	boundaryMemory.Initialize(9, DiscreteSpace(bdim[1],bdim[2],bdim[3],Corner(*ms),PhysicalSize(*ms)), task);
 	boundaryMemory.SetBoundaryConditions(tw::grid::x,fld::none,fld::none);
 	boundaryMemory.SetBoundaryConditions(tw::grid::y,fld::none,fld::none);
 	boundaryMemory.SetBoundaryConditions(tw::grid::z,fld::none,fld::none);

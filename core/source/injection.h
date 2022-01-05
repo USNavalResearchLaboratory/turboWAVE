@@ -290,9 +290,8 @@ struct MABoundary
 	tw::Complex NormalDerivativeRight(tw::Int index,tw::Complex amplitude,tw::Float carrierFrequency);
 };
 
-struct Warp : ComputeTool
+struct Warp : ComputeTool,warp_base
 {
-	tw::grid::axis ax;
 	bool increasing;
 	tw::Int rng[2];
 	tw::Float L,gridSum;

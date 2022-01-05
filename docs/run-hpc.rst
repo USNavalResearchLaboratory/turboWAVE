@@ -37,7 +37,5 @@ Error Handling
 
 It is important to pay attention to the output file if you are having problems.  If the code stops without reporting an error in the main output file (usually named by you in the batch script), you may still be able to get some feedback.  The procedure is as follows.
 
-	#. In the input file, add the line :samp:`output level = 1`
-	#. This line can go anywhere except within a :samp:`new` block or :samp:`generate` block
-	#. Run the problem again
-	#. If the error is not reported in the main output, try :samp:`grep ERROR *stdout*`
+	#. Run the simulation again with the command line option ``--output-level 1``
+	#. If the error is not reported on the console, try :samp:`grep ERROR *stdout*`

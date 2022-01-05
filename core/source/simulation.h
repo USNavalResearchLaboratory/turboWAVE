@@ -5,19 +5,38 @@ struct Simulation;
 
 #include "module.h"
 
+/// This class reads the grid block from the input file.  The grid block
+/// contains data pertinent to both `Task` and `MetricSpace`, hence the
+/// need for a broker class.
+class GridReader
+{
+	tw::input::DirectiveReader directives;
+	tw::grid::geometry geo;
+	tw::vec3 cornerSet[2][2][2];
+	tw::Int req_dim[4],req_dom[4];
+	tw::vec3 globalCorner,spacing;
+	bool adaptiveTimestep,adaptiveGrid;
+	public:
+	GridReader(tw::UnitConverter& uc);
+	void Read(std::stringstream& inputString,tw::input::Preamble& pre);
+	void UpdateTask(Task& tsk);
+	tw::vec3 GlobalCorner() { return globalCorner; }
+	tw::vec3 GlobalSize() { return tw::vec3(spacing.x*req_dim[1],spacing.y*req_dim[2],spacing.z*req_dim[3]); }
+	tw::grid::geometry Geometry() { return geo; }
+};
+
 struct Simulation:Task,MetricSpace
 {
-	std::ostream *tw_out;
-	tw::input::DirectiveReader outerDirectives,gridDirectives;
+	std::ostream *tw_out,*tw_err;
+	tw::input::DirectiveReader outerDirectives;
 
-	tw::grid::geometry gridGeometry;
 	tw::Float dt0,dtMin,dtMax,dtCritical,elapsedTime,elapsedTimeMax;
 	tw::Float signalPosition,windowPosition,signalSpeed;
 	tw::Float antiSignalPosition,antiWindowPosition;
 	tw::Float unitDensityCGS;
 	tw::units nativeUnits;
 
-	bool neutralize,movingWindow,adaptiveTimestep,adaptiveGrid;
+	bool neutralize,movingWindow;
 	bool completed;
 	tw::Int outputLevel,errorCheckingLevel;
 
@@ -26,7 +45,6 @@ struct Simulation:Task,MetricSpace
 
 	tw::Int dumpPeriod;
 
-	tw::vec3 cornerSet[2][2][2]; // only used for input
 	tw::bc::par bc0[4],bc1[4];
 
 	std::vector<Region*> clippingRegion;
@@ -35,10 +53,17 @@ struct Simulation:Task,MetricSpace
 	// Map of the most recently created module of a given type
 	std::map<tw::module_type,Module*> module_map;
 
-	Simulation(const std::string& inputFileName,const std::string& restartFileName,const std::string& platform,const std::string& device);
+	Simulation(const std::string& unitTest,
+		const std::string& inputFileName,
+		const std::string& restartFileName,
+		const std::string& platform,
+		const std::string& device,
+		const tw::Int& outputLevel,
+		const tw::Int& errorCheckingLevel);
 	virtual ~Simulation();
+	void SetupIO();
 	virtual void Run();
-	void SetupGeometry();
+	virtual void Test();
 	void PrepareSimulation();
 	void FundamentalCycle();
 	void MoveWindow();
@@ -55,9 +80,6 @@ struct Simulation:Task,MetricSpace
 	void ToolFromDirective(std::vector<ComputeTool*>& tool,std::stringstream& inputString,const std::string& command);
 	bool RemoveTool(ComputeTool *theTool);
 
-	void SetCellWidthsAndLocalSize();
-	void SetGlobalSizeAndLocalCorner();
-
 	tw::Float ToLab(tw::Float zeta,tw::Float relativeTime);
 	tw::Float ToLight(tw::Float z,tw::Float relativeTime);
 	template <class T,class U>
@@ -65,8 +87,7 @@ struct Simulation:Task,MetricSpace
 	template <class T,class U>
 	U ValueOnLightGrid(T& A,tw::strip s,tw::Int k,tw::Float relativeTime);
 
-	std::string InputFileFirstPass();
-	void SetupLocalGrid();
+	void InputFileFirstPass();
 	void NestedDeclaration(const std::string& com,std::stringstream& inputString,Module *sup);
 	Module* RecursiveAutoSuper(tw::module_type reqType,const std::string& basename);
 	void ReadInputFile();

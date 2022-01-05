@@ -41,7 +41,7 @@ HARDWARE_ACCEL = OMP
 #HARDWARE_ACCEL = RADEON_PRO
 
 # VBITS mapping: AVX512 : 512 , AVX/AVX2 : 256 , SSE/SSE2 : 128 , scalar : 64
-VBITS = 512
+VBITS = 256
 
 # Select byte ordering of the target processor (usually LITTLE)
 ENDIANNESS = LITTLE
@@ -49,8 +49,8 @@ ENDIANNESS = LITTLE
 
 # Specify a preference for compiler
 
-#COMPILER_PREF = GNU
-COMPILER_PREF = LLVM_CLANG
+COMPILER_PREF = GNU
+#COMPILER_PREF = LLVM_CLANG
 #COMPILER_PREF = INTEL
 #COMPILER_PREF = CRAY
 
@@ -379,7 +379,7 @@ ifdef BINARY_PATH
   endif
 endif
 
-tw3d_release: CCFLAGS = $(RELEASE_FLAGS) -DNDEBUG -DVBITS=$(VBITS)
+tw3d_release: CCFLAGS = $(RELEASE_FLAGS) -DVBITS=$(VBITS)
 tw3d_release: tw3d
 
 tw3d_debug: CCFLAGS = $(DEBUG_FLAGS) -DVBITS=$(VBITS)
@@ -395,7 +395,8 @@ SIM_HEADERS = $(BASE_HEADERS) $(TOOL_HEADERS) module.h simulation.h
 MODULE_HEADERS = fieldSolve.h electrostatic.h laserSolve.h fluid.h quantum.h particles.h solidState.h
 OBJ_LIST = 3DFields.o Chemistry.o ComputeTool.o Diagnostics.o DiscreteSpace.o Electrostatic.o Elliptic.o FFT.o FieldSolve.o Fluid.o Functions.o Hyperbolic.o
 OBJ_LIST += Injection.o Input.o LaserSolve.o Main.o MetricSpace.o Module.o Numerics.o Parabolic.o Particles.o Particles_Bundle.o Particles_Mover.o
-OBJ_LIST += Particles_Pusher.o Particles_Slicer.o Particles_Tiler.o Physics.o Qstate.o Quantum.o Region.o Simulation.o SolidState.o Tasks.o Units.o
+OBJ_LIST += Particles_Pusher.o Particles_Slicer.o Particles_Tiler.o Particles_Test.o Particles_Mover_Test.o
+OBJ_LIST += Physics.o Qstate.o Quantum.o Region.o Simulation.o SolidState.o Tasks.o Units.o
 ifdef TW_MPI
   BASE_HEADERS += tw_mpi.h
   OBJ_LIST += TW_MPI.o
@@ -406,28 +407,15 @@ tw3d: 3dfields.cl particles.cl elliptic.cl hyperbolic.cl quantum.cl $(OBJ_LIST)
 
 install:
 ifdef BINARY_PATH_ABS
-ifeq ($(PLATFORM),WIN)
-	copy tw3d $(BINARY_PATH_ABS)$(PATH_SEP)tw3d.exe
-else
 	cp tw3d $(BINARY_PATH_ABS)$(PATH_SEP)
 endif
-endif
 ifdef WORK_PATH_ABS
-ifeq ($(PLATFORM),WIN)
-	copy *.cl $(WORK_PATH_ABS)$(PATH_SEP)
-else
 	cp *.cl $(WORK_PATH_ABS)$(PATH_SEP)
-endif
 endif
 
 clean:
-ifeq ($(PLATFORM),WIN)
-	del *.o
-	del tw3d
-else
 	rm -f *.o
 	rm -f tw3d
-endif
 
 3DFields.o: 3DFields.cpp $(BASE_HEADERS)
 	$(TW_Compiler) $(CCFLAGS) 3DFields.cpp
@@ -506,6 +494,12 @@ Particles_Slicer.o: Particles_Slicer.cpp $(BASE_HEADERS) $(TOOL_HEADERS)
 
 Particles_Tiler.o: Particles_Tiler.cpp $(BASE_HEADERS) $(TOOL_HEADERS)
 	$(TW_Compiler) $(CCFLAGS) Particles_Tiler.cpp
+
+Particles_Test.o: Particles_Test.cpp $(SIM_HEADERS) particles.h fieldSolve.h laserSolve.h
+	$(TW_Compiler) $(CCFLAGS) Particles_Test.cpp
+
+Particles_Mover_Test.o: Particles_Mover_Test.cpp $(BASE_HEADERS) $(TOOL_HEADERS)
+	$(TW_Compiler) $(CCFLAGS) Particles_Mover_Test.cpp
 
 Physics.o: Physics.cpp $(BASE_HEADERS) computeTool.h physics.h
 	$(TW_Compiler) $(CCFLAGS) Physics.cpp

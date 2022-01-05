@@ -512,13 +512,9 @@ DirectSolver::DirectSolver(const std::string& name,Simulation* sim):Electromagne
 	for (tw::Int i=0;i<6;i++) layerThickness[i] = 0;
 	for (tw::Int i=0;i<6;i++) reflectionCoefficient[i] = 0.01;
 	A.Initialize(12,*this,owner);
-	DiscreteSpace pml_layout;
-	pml_layout.Resize(dim[1],1,1,corner,size);
-	PMLx.Initialize(6,pml_layout,owner); // sx,tx,jx,sxstar,txstar,jxstar
-	pml_layout.Resize(dim[2],1,1,corner,size);
-	PMLy.Initialize(6,pml_layout,owner);
-	pml_layout.Resize(dim[3],1,1,corner,size);
-	PMLz.Initialize(6,pml_layout,owner);
+	PMLx.Initialize(6,DiscreteSpace(dim[1],1,1,corner,size),owner); // sx,tx,jx,sxstar,txstar,jxstar
+	PMLy.Initialize(6,DiscreteSpace(dim[2],1,1,corner,size),owner);
+	PMLz.Initialize(6,DiscreteSpace(dim[3],1,1,corner,size),owner);
 
 	#ifdef USE_OPENCL
 	A.InitializeComputeBuffer();
@@ -1045,8 +1041,7 @@ void FarFieldDiagnostic::Initialize()
 		throw tw::FatalError("Far field diagnostic did not find a source field.");
 	tw::vec3 corner(bounds[0],bounds[2],bounds[4]);
 	tw::vec3 size(bounds[1]-bounds[0],bounds[3]-bounds[2],bounds[5]-bounds[4]);
-	DiscreteSpace layout(1.0,dims[0],dims[1],dims[2],corner,size,1);
-	A.Initialize(layout,owner);
+	A.Initialize(DiscreteSpace(dims[0],dims[1],dims[2],corner,size,1),owner);
 }
 
 bool FarFieldDiagnostic::InspectResource(void *resource,const std::string& description)

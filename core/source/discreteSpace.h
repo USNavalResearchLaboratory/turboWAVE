@@ -66,6 +66,11 @@ struct Primitive
 		x[1] = x1;
 		x[2] = x2;
 	}
+	friend std::ostream& operator << (std::ostream& os, const Primitive& q)
+	{
+		os << '<' << q.cell << ": (" << q.x[0] << ',' << q.x[1] << ',' << q.x[2] << ")>";
+		return os;
+	}
 };
 
 /// Data describing any kind of particle
@@ -79,6 +84,15 @@ struct Particle
 
 	/// Constructor, parameters shadow the member variables
 	Particle(const tw::vec3& p,const Primitive& q,const float number,const float aux1,const float aux2) noexcept;
+	/// Assertions verifying that the primitive is minimized and in bounds
+	void Assert(tw::Int beg,tw::Int end)
+	{
+		const float max_displ = 0.5f + std::numeric_limits<float>::epsilon();
+		assert(q.cell>=beg && q.cell<end);
+		assert(fabs(q.x[0]) < max_displ);
+		assert(fabs(q.x[1]) < max_displ);
+		assert(fabs(q.x[2]) < max_displ);
+	}
 
 	void ReadCheckpoint(std::ifstream& inFile);
 	void WriteCheckpoint(std::ofstream& outFile);
@@ -180,7 +194,6 @@ struct DiscreteSpace
 	/// The `decodingStride` differs from the `encodingStride` only in that ignorable
 	/// axes have unit strides.  See `DecodeCell` for the decoding.
 	tw::Int decodingStride[4];
-	// The following are the indices of the lower and upper far ghost cells
 	tw::Int lfg[4]; ///< indices of lower far ghost cells
 	tw::Int ufg[4]; ///< indices of upper far ghost cells
 	tw::Int lng[4]; ///< indices of lower near ghost cells
@@ -192,12 +205,12 @@ struct DiscreteSpace
 
 	/// Create an empty `DiscreteSpace`
 	DiscreteSpace();
-	/// Create a `DiscreteSpace` with given timestep, interior cell counts, hull metrics, and ghost cell layers.
-	DiscreteSpace(tw::Float dt,tw::Int x,tw::Int y,tw::Int z,const tw::vec3& corner,const tw::vec3& size,tw::Int ghostCellLayers);
-	/// Change the interior cell counts, hull metrics, and ghost cell layers.
-	void Resize(tw::Int x,tw::Int y,tw::Int z,const tw::vec3& corner,const tw::vec3& size,tw::Int ghostCellLayers);
-	/// Change the interior cell counts and hull metrics.
-	void Resize(tw::Int x,tw::Int y,tw::Int z,const tw::vec3& corner,const tw::vec3& size);
+	/// Create a `DiscreteSpace` with purely *local* coordinates.
+	DiscreteSpace(tw::Int xDim,tw::Int yDim,tw::Int zDim,const tw::vec3& corner,const tw::vec3& size,tw::Int ghostCellLayers=2);
+	/// Change the topology and coordinates.
+	void Resize(const tw::Int dim[4],const tw::Int gdim[4],const tw::Int dom[4],const tw::vec3& gcorner,const tw::vec3& gsize,tw::Int ghostCellLayers=2);
+	/// Change the coordinates, inheriting the `Task` topology.
+	void Resize(Task& task,const tw::vec3& gcorner,const tw::vec3& gsize,tw::Int ghostCellLayers=2);
 	/// Change the time step.
 	void SetupTimeInfo(tw::Float dt0) { dt = dt0; dth = 0.5*dt0; dti = 1.0/dt0; }
 	/// Encode the cell with topological indices `(i,j,k)`

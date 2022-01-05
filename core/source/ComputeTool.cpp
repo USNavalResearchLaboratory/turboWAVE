@@ -45,6 +45,11 @@ void ComputeTool::Initialize()
 	// Typically constructor should be complete, nothing to do here, unless MPI needed.
 }
 
+bool ComputeTool::Test()
+{
+	return false; // indicates no test available in the given environment
+}
+
 void ComputeTool::InitializeCLProgram(const std::string& filename)
 {
 	#ifdef USE_OPENCL
