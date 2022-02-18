@@ -1,10 +1,10 @@
-#include "meta_base.h"
-#include "computeTool.h"
-#include "particles_bundle.h"
-#include "particles_pusher.h"
-#include "particles_slicer.h"
-#include "particles_tiler.h"
-#include "particles_mover.h"
+#include "../meta_base.h"
+#include "../computeTool.h"
+#include "bundle.h"
+#include "pusher.h"
+#include "slicer.h"
+#include "tiler.h"
+#include "mover.h"
 
 void BundleSlicerEM::LoadFieldSlice(tw::Int low[4],tw::Int high[4],tw::Int ignorable[4])
 {

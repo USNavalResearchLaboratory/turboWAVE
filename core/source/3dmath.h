@@ -1,6 +1,32 @@
 namespace tw
 {
 
+	struct idx4
+	{
+		tw::Int array[4];
+		idx4()
+		{
+			array[0] = 0;
+			array[1] = 0;
+			array[2] = 0;
+			array[3] = 0;
+		}
+		idx4(tw::Int mu0,tw::Int mu1,tw::Int mu2,tw::Int mu3)
+		{
+			array[0] = mu0;
+			array[1] = mu1;
+			array[2] = mu2;
+			array[3] = mu3;
+		}
+		idx4(tw::Int mu1,tw::Int mu2,tw::Int mu3)
+		{
+			array[0] = 0;
+			array[1] = mu1;
+			array[2] = mu2;
+			array[3] = mu3;
+		}
+	};
+
 	struct vec3
 	{
 		tw::Float x,y,z;

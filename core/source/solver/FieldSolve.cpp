@@ -1,4 +1,4 @@
-#include "simulation.h"
+#include "../simulation.h"
 #include "fieldSolve.h"
 using namespace tw::bc;
 

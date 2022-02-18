@@ -5,7 +5,7 @@ with open('README.md','r',encoding='utf-8') as fh:
 	long_description = fh.read()
 
 setup(name='twutils',
-	version='4.6.0',
+	version='4.7.0a2',
 	license='PUBLIC-DOMAIN',
 	author='Daniel Gordon',
 	author_email='daniel.gordon@nrl.navy.mil',

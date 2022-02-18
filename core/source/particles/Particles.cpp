@@ -1,7 +1,7 @@
-#include "simulation.h"
+#include "../simulation.h"
 #include "particles.h"
-#include "fieldSolve.h"
-#include "laserSolve.h"
+#include "../solver/fieldSolve.h"
+#include "../solver/laserSolve.h"
 using namespace tw::bc;
 
 ////////////////////

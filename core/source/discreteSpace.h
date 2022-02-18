@@ -211,7 +211,7 @@ struct DiscreteSpace
 	void Resize(const tw::Int dim[4],const tw::Int gdim[4],const tw::Int dom[4],const tw::vec3& gcorner,const tw::vec3& gsize,tw::Int ghostCellLayers=2);
 	/// Change the coordinates, inheriting the `Task` topology.
 	void Resize(Task& task,const tw::vec3& gcorner,const tw::vec3& gsize,tw::Int ghostCellLayers=2);
-	/// Change the time step.
+	/// Change the time step.  Use `Simulation::UpdateTimestep` to do this for all modules.
 	void SetupTimeInfo(tw::Float dt0) { dt = dt0; dth = 0.5*dt0; dti = 1.0/dt0; }
 	/// Encode the cell with topological indices `(i,j,k)`
 	tw::Int EncodeCell(tw::Int i,tw::Int j,tw::Int k) const { return (i-lfg[1])*encodingStride[1] + (j-lfg[2])*encodingStride[2] + (k-lfg[3])*encodingStride[3]; }
@@ -238,8 +238,7 @@ struct DiscreteSpace
 	void UpdatePrimitiveWithPosition(Primitive& q,const tw::vec3& pos) const;
 	tw::vec3 PositionFromPrimitive(const Primitive& q) const;
 	void MinimizePrimitive(Primitive& q) const;
-	void MinimizePrimitive(tw::Int *cell,tw::Int ijk[3][tw::max_bundle_size],float x[4][tw::max_bundle_size],float domainMask[tw::max_bundle_size]) const;
-	//void MinimizePrimitiveBohm(tw::Int *cell,tw::Int ijk[3][tw::max_bundle_size],float x[4][tw::max_bundle_size],float domainMask[tw::max_bundle_size]) const;
+	void MinimizePrimitive(tw::Int *cell,tw::Int ijk[4][tw::max_bundle_size],float x[4][tw::max_bundle_size],float domainMask[tw::max_bundle_size]) const;
 	tw::Int Dim(const tw::Int& ax) const { return dim[ax]; }
 	tw::Int Num(const tw::Int& ax) const { return num[ax]; }
 	tw::Int Ignorable(const tw::Int& ax) const { return ignorable[ax]; }
@@ -283,11 +282,12 @@ struct DiscreteSpace
 
 inline bool DiscreteSpace::IsWithinInset(const Primitive& q,tw::Int inset) const
 {
-	tw::Int i,j,k;
-	DecodeCell(q,&i,&j,&k);
-	return (dim[1]==1 || (i>=lfg[1]+inset && i<=ufg[1]-inset))
-		&& (dim[2]==1 || (j>=lfg[2]+inset && j<=ufg[2]-inset))
-		&& (dim[3]==1 || (k>=lfg[3]+inset && k<=ufg[3]-inset));
+	tw::Int ijk[4];
+	DecodeCell(q,ijk);
+	bool ans = true;
+	for (tw::Int ax=1;ax<=3;ax++)
+		ans = ans && (dim[ax]==1 || (ijk[ax]>=lfg[ax]+inset && ijk[ax]<=ufg[ax]-inset));
+	return ans;
 }
 
 inline bool DiscreteSpace::IsPointValid(const tw::vec3& P)
@@ -357,69 +357,61 @@ inline void DiscreteSpace::UpdatePrimitiveWithPosition(Primitive& q,const tw::ve
 	q.x[2] = PLoc[2]*freq[2] - tw::Float(ijk[3]) + tw::Float(0.5);
 }
 
-inline void DiscreteSpace::MinimizePrimitive(tw::Int cell[tw::max_bundle_size],tw::Int ijk[3][tw::max_bundle_size],float x[4][tw::max_bundle_size],float domainMask[tw::max_bundle_size]) const
+/// Bundle version of `MinimizePrimitive`.  The bundle version also sets the `domainMask` to 0
+/// for particles out of the interior domain, 1 otherwise.  Also the topological indices are loaded for further use.
+inline void DiscreteSpace::MinimizePrimitive(tw::Int cell[tw::max_bundle_size],tw::Int ijk[4][tw::max_bundle_size],float x[4][tw::max_bundle_size],float domainMask[tw::max_bundle_size]) const
 {
-	// Bundle version of below.
-	// Note non-standard indexing of decoded cell ijk[] is tolerated for sake of efficiency.
-	// This also sets the domain mask to 0 for particles out of interior domain, 1 otherwise.
+	const float eps = std::numeric_limits<float>::epsilon();
 	const tw::Int N = tw::max_bundle_size;
 	const tw::Int AB = tw::vec_align_bytes;
-	alignas(AB) tw::Int itest[N];
-	alignas(AB) float ftest[N];
-	tw::Int par,ax,repeat;
+	alignas(AB) tw::Int pos[N],neg[N],displ[N],max_displ[N];
+	tw::Int par,ax;
 	#pragma omp simd aligned(cell,ijk:AB)
 	for (par=0;par<N;par++)
-		DecodeCell(cell[par],&ijk[0][par],&ijk[1][par],&ijk[2][par]);
-	#pragma omp simd aligned(domainMask:AB)
-	for (par=0;par<N;par++)
-		domainMask[par] = 1.0; // in domain
-	for (ax=0;ax<3;ax++)
+		DecodeCell(cell[par],&ijk[1][par],&ijk[2][par],&ijk[3][par]);
+	for (ax=1;ax<=3;ax++)
 	{
-		do
+		#pragma omp simd aligned(ijk,x,domainMask,pos,neg,displ,max_displ:AB)
+		for (par=0;par<N;par++)
 		{
-			for (par=0;par<N;par++)
-			{
-				itest[par] = tw::Int(x[ax+1][par]<-0.5 && ijk[ax][par]>lfg[ax+1]) - tw::Int(x[ax+1][par]>=0.5 && ijk[ax][par]<ufg[ax+1]);
-				ftest[par] = float(itest[par]);
-			}
-			#pragma omp simd aligned(itest,ijk:AB)
-			for (par=0;par<N;par++)
-				ijk[ax][par] -= itest[par];
-			#pragma omp simd aligned(ftest,x:AB)
-			for (par=0;par<N;par++)
-				x[ax+1][par] += ftest[par];
-			repeat = 0;
-			for (par=0;par<N;par++)
-				repeat += tw::Int(x[ax+1][par]<-0.5 && ijk[ax][par]>lfg[ax+1]) + tw::Int(x[ax+1][par]>=0.5 && ijk[ax][par]<ufg[ax+1]);
-		} while (repeat);
-		for (par=0;par<N;par++)
-			ftest[par] = float(tw::Int(ijk[ax][par]>=1 && ijk[ax][par]<=dim[ax+1]));
-		#pragma omp simd aligned(ftest,domainMask:AB)
-		for (par=0;par<N;par++)
-			domainMask[par] *= ftest[par];
+			pos[par] = x[ax][par]>0.0f;
+			neg[par] = x[ax][par]<0.0f;
+			displ[par] = fabs(x[ax][par]) + 0.5f - neg[par]*eps;
+			// max_displ will be 0 if axis is ignorable due to ufg=lfg=ijk=1
+			max_displ[par] = pos[par]*(ufg[ax] - ijk[ax][par]) + neg[par]*(ijk[ax][par] - lfg[ax]);
+			displ[par] = (displ[par]>max_displ[par])*max_displ[par] + (displ[par]<=max_displ[par])*displ[par] + ignorable[ax]*displ[par];
+			displ[par] = (pos[par]-neg[par])*displ[par];
+			ijk[ax][par] += displ[par] * (1-ignorable[ax]);
+			x[ax][par] -= displ[par];
+			domainMask[par] = float(tw::Int(ijk[ax][par]>=1 && ijk[ax][par]<=dim[ax]));
+		}
 	}
 	#pragma omp simd aligned(cell,ijk:AB)
 	for (par=0;par<N;par++)
-		cell[par] = EncodeCell(ijk[0][par],ijk[1][par],ijk[2][par]);
+		cell[par] = EncodeCell(ijk[1][par],ijk[2][par],ijk[3][par]);
 }
 
+/// Change the reference cell to the one containing the particle centroid.
+/// This leaves x[ax] within the normal range [-.5,.5) *except* when the particle
+/// has left the domain.  In the latter case the reference cell is pegged to
+/// the current domain, leaving x[ax] out of normal range.
 inline void DiscreteSpace::MinimizePrimitive(Primitive& q) const
 {
-	// Change the reference cell to the one containing the particle centroid
-	// Absolute position remains unchanged
-	// The reference cell is pegged such that the cell is in the extended domain
-	// This means x stays out of range in the event the reference cell is pegged
-	tw::Int ax,ijk[4],test;
+	tw::Int ax,ijk[4],displ,max_displ,pos,neg;
+	const float eps = std::numeric_limits<float>::epsilon();
 	DecodeCell(q.cell,ijk);
 	for (ax=1;ax<=3;ax++)
 	{
-		do
-		{
-			test = tw::Int(q.x[ax-1]<-0.5 && ijk[ax]>lfg[ax]);
-			test -= tw::Int(q.x[ax-1]>=0.5 && ijk[ax]<ufg[ax]);
-			ijk[ax] -= test;
-			q.x[ax-1] += float(test);
-		} while (test);
+		const float x = q.x[ax-1];
+		pos = x>0.0f;
+		neg = x<0.0f;
+		displ = fabs(x) + 0.5f - neg*eps;
+		// max_displ will be 0 if axis is ignorable due to ufg=lfg=ijk=1
+		max_displ = pos*(ufg[ax] - ijk[ax]) + neg*(ijk[ax] - lfg[ax]);
+		displ = (displ>max_displ)*max_displ + (displ<=max_displ)*displ + ignorable[ax]*displ;
+		displ = (pos-neg)*displ;
+		ijk[ax] += displ * (1-ignorable[ax]);
+		q.x[ax-1] -= displ;
 	}
 	q.cell = EncodeCell(ijk[1],ijk[2],ijk[3]);
 }

@@ -335,6 +335,46 @@ ComputeTool* ComputeTool::CreateObjectFromType(const std::string& name,tw::tool_
 	return ans;
 }
 
+bool ComputeTool::SetTestGrid(tw::tool_type theType,tw::Int testId,MetricSpace *ms,Task *tsk)
+{
+	switch (theType)
+	{
+		case tw::tool_type::ellipticSolver1D:
+			if (testId>0)
+				return false;
+			tsk->Initialize(tw::idx4(1,1,2).array,tw::idx4(1,1,4).array,tw::idx4(1,1,0).array);
+			ms->Resize(*tsk,tw::vec3(0,0,0),tw::vec3(0.2,0.2,0.8),2);
+			ms->SetupTimeInfo(0.1);
+			return true;
+		case tw::tool_type::pgcMover:
+		case tw::tool_type::borisMover:
+			if (testId==0) {
+				tsk->Initialize(tw::idx4(1,1,2).array,tw::idx4(1,1,4).array,tw::idx4(1,1,0).array);
+				ms->Resize(*tsk,tw::vec3(0,0,0),tw::vec3(0.2,0.2,0.8),2);
+				ms->SetupTimeInfo(0.1);
+				return true;
+			} else if (testId==1) {
+				tsk->Initialize(tw::idx4(1,1,2).array,tw::idx4(4,1,4).array,tw::idx4(1,1,0).array);
+				ms->Resize(*tsk,tw::vec3(0,0,0),tw::vec3(0.8,0.2,0.8),2);
+				ms->SetupTimeInfo(0.1);
+				return true;
+			} else if (testId==2) {
+				tsk->Initialize(tw::idx4(1,1,2).array,tw::idx4(4,4,4).array,tw::idx4(1,1,0).array);
+				ms->Resize(*tsk,tw::vec3(0,0,0),tw::vec3(0.8,0.8,0.8),2);
+				ms->SetupTimeInfo(0.1);
+				return true;
+			}
+			return false;
+		default:
+			if (testId>0)
+				return false;
+			tsk->Initialize(tw::idx4(1,1,2).array,tw::idx4(4,4,4).array,tw::idx4(1,1,0).array);
+			ms->Resize(*tsk,tw::vec3(0,0,0),tw::vec3(0.8,0.8,0.8),2);
+			ms->SetupTimeInfo(0.1);
+			return true;
+	}
+}
+
 // BoundedTool derived class
 // Expect that many tools will want basic access to boundary conditions.
 // Therefore provide a derived class at a low level to provide this.

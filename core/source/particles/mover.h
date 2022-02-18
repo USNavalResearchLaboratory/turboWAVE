@@ -21,7 +21,10 @@ struct Mover:ComputeTool
 	template <class BundleType>
 	void DoTasks();
 	virtual void Advance();
+
 	virtual void InitTest();
+	virtual void MinimizePrimitiveScalarTest();
+	virtual void MinimizePrimitiveVectorTest();
 	virtual void TranslationTest();
 	virtual bool Test();
 	virtual void CloseTest();
@@ -30,7 +33,7 @@ struct Mover:ComputeTool
 // Subclasses of the Mover Tool
 // These are simple dispatchers. Their only purpose is to make the
 // appropriate templated call to DoTasks().  The template argument is one
-// of the BundleMover* classes above.
+// of the BundleMover* classes.
 
 struct BorisMover:Mover
 {

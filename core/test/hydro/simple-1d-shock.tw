@@ -10,7 +10,7 @@
 steps = 1000
 timestep = 10000
 dtmax = 30000
-maxtime = 5e7
+maxtime = 7e5
 dump period = 0
 neutralize = yes
 unit density = 2.8e+19

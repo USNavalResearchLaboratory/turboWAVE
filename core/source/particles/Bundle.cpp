@@ -1,10 +1,10 @@
-#include "meta_base.h"
-#include "computeTool.h"
-#include "particles_bundle.h"
-#include "particles_pusher.h"
-#include "particles_slicer.h"
-#include "particles_tiler.h"
-#include "particles_mover.h"
+#include "../meta_base.h"
+#include "../computeTool.h"
+#include "bundle.h"
+#include "pusher.h"
+#include "slicer.h"
+#include "tiler.h"
+#include "mover.h"
 
 ParticleBundle::ParticleBundle(Mover *owner)
 {
@@ -47,7 +47,7 @@ void ParticleBundle::PrepareGather()
 {
 	PadBundle();
 	cell0 = cell[0];
-	owner->space->DecodeCell(cell0,&ijk0[0],&ijk0[1],&ijk0[2]);
+	owner->space->DecodeCell(cell0,ijk0);
 	owner->space->GetWeights(w0,x);
 	owner->space->GetWallWeights(l0,x);
 }

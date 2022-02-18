@@ -18,6 +18,7 @@
 all: tw3d_release install
 debug: tw3d_debug install
 profile: tw3d_profile install
+VPATH = particles solver
 
 #################################################
 # BEGIN INPUT VARIABLES BLOCK
@@ -133,10 +134,10 @@ ifeq ($(PLATFORM),OSX)
   RELEASE_FLAGS = $(BASE_FLAGS) -O3 -march=native
   PROFILE_FLAGS = $(BASE_FLAGS) -O3 -march=native -Rpass-analysis=loop-vectorize
   DEBUG_FLAGS = $(BASE_FLAGS) -g -O0
-  HOME_PATH_ABS = ~
+  HOME_PATH_ABS = $(HOME)
   PATH_SEP = /
   BINARY_PATH = bin
-  WORK_PATH_ABS = ~/Run
+  WORK_PATH_ABS = $(HOME)/Run
   TW_MPI = yes
 endif
 
@@ -167,10 +168,10 @@ ifeq ($(PLATFORM),WIN)
   RELEASE_FLAGS = $(BASE_FLAGS) -O3 -march=native
   PROFILE_FLAGS = $(BASE_FLAGS) -O3 -march=native -Rpass-analysis=loop-vectorize
   DEBUG_FLAGS = $(BASE_FLAGS) -g -O0
-  HOME_PATH_ABS = $(HOMEPATH)
+  HOME_PATH_ABS = $(HOMEDRIVE)$(HOMEPATH)
   PATH_SEP = \$(strip)
   BINARY_PATH = Scripts
-  WORK_PATH_ABS = $(HOMEPATH)\Run
+  WORK_PATH_ABS = $(HOMEDRIVE)$(HOMEPATH)\Run
   TW_MPI = yes
 endif
 
@@ -212,10 +213,10 @@ ifeq ($(PLATFORM),LINUX)
   RELEASE_FLAGS = $(BASE_FLAGS) -O3 -march=native
   PROFILE_FLAGS = $(BASE_FLAGS) -O3 -march=native -Rpass-analysis=loop-vectorize
   DEBUG_FLAGS = $(BASE_FLAGS) -g -O0
-  HOME_PATH_ABS = ~
+  HOME_PATH_ABS = $(HOME)
   PATH_SEP = /
   BINARY_PATH = bin
-  WORK_PATH_ABS = ~/Run
+  WORK_PATH_ABS = $(HOME)/Run
   TW_MPI = yes
 endif
 
@@ -390,12 +391,12 @@ tw3d_profile: tw3d
 
 BASE_HEADERS = definitions.h tasks.h ctools.h 3dmath.h tw_iterator.h discreteSpace.h metricSpace.h functions.h fft.h numerics.h 3dfields.h region.h input.h units.h
 TOOL_HEADERS = computeTool.h parabolic.h elliptic.h hyperbolic.h injection.h qstate.h physics.h chemistry.h diagnostics.h
-TOOL_HEADERS += particles_mover.h particles_bundle.h particles_pusher.h particles_slicer.h particles_tiler.h
+TOOL_HEADERS += mover.h bundle.h pusher.h slicer.h tiler.h
 SIM_HEADERS = $(BASE_HEADERS) $(TOOL_HEADERS) module.h simulation.h
 MODULE_HEADERS = fieldSolve.h electrostatic.h laserSolve.h fluid.h quantum.h particles.h solidState.h
 OBJ_LIST = 3DFields.o Chemistry.o ComputeTool.o Diagnostics.o DiscreteSpace.o Electrostatic.o Elliptic.o FFT.o FieldSolve.o Fluid.o Functions.o Hyperbolic.o
-OBJ_LIST += Injection.o Input.o LaserSolve.o Main.o MetricSpace.o Module.o Numerics.o Parabolic.o Particles.o Particles_Bundle.o Particles_Mover.o
-OBJ_LIST += Particles_Pusher.o Particles_Slicer.o Particles_Tiler.o Particles_Test.o Particles_Mover_Test.o
+OBJ_LIST += Injection.o Input.o LaserSolve.o Main.o MetricSpace.o Module.o Numerics.o Parabolic.o Particles.o Bundle.o Mover.o
+OBJ_LIST += Pusher.o Slicer.o Tiler.o Particles_Test.o Mover_Test.o
 OBJ_LIST += Physics.o Qstate.o Quantum.o Region.o Simulation.o SolidState.o Tasks.o Units.o
 ifdef TW_MPI
   BASE_HEADERS += tw_mpi.h
@@ -410,7 +411,7 @@ ifdef BINARY_PATH_ABS
 	cp tw3d $(BINARY_PATH_ABS)$(PATH_SEP)
 endif
 ifdef WORK_PATH_ABS
-	cp *.cl $(WORK_PATH_ABS)$(PATH_SEP)
+	cp *.cl '$(WORK_PATH_ABS)$(PATH_SEP)'
 endif
 
 clean:
@@ -418,114 +419,114 @@ clean:
 	rm -f tw3d
 
 3DFields.o: 3DFields.cpp $(BASE_HEADERS)
-	$(TW_Compiler) $(CCFLAGS) 3DFields.cpp
+	$(TW_Compiler) $(CCFLAGS) $<
 
 Chemistry.o: Chemistry.cpp $(BASE_HEADERS) computeTool.h physics.h chemistry.h
-	$(TW_Compiler) $(CCFLAGS) Chemistry.cpp
+	$(TW_Compiler) $(CCFLAGS) $<
 
 ComputeTool.o: ComputeTool.cpp $(SIM_HEADERS)
-	$(TW_Compiler) $(CCFLAGS) ComputeTool.cpp
+	$(TW_Compiler) $(CCFLAGS) $<
 
 Diagnostics.o: Diagnostics.cpp $(SIM_HEADERS)
-	$(TW_Compiler) $(CCFLAGS) Diagnostics.cpp
+	$(TW_Compiler) $(CCFLAGS) $<
 
 DiscreteSpace.o: DiscreteSpace.cpp $(BASE_HEADERS)
-	$(TW_Compiler) $(CCFLAGS) DiscreteSpace.cpp
+	$(TW_Compiler) $(CCFLAGS) $<
 
 Electrostatic.o: Electrostatic.cpp $(SIM_HEADERS) fieldSolve.h electrostatic.h
-	$(TW_Compiler) $(CCFLAGS) Electrostatic.cpp
+	$(TW_Compiler) $(CCFLAGS) $<
 
 Elliptic.o: Elliptic.cpp $(BASE_HEADERS) computeTool.h elliptic.h
-	$(TW_Compiler) $(CCFLAGS) Elliptic.cpp
+	$(TW_Compiler) $(CCFLAGS) $<
 
 FFT.o: FFT.cpp $(BASE_HEADERS)
-	$(TW_Compiler) $(CCFLAGS) FFT.cpp
+	$(TW_Compiler) $(CCFLAGS) $<
 
 FieldSolve.o: FieldSolve.cpp $(SIM_HEADERS) fieldSolve.h
-	$(TW_Compiler) $(CCFLAGS) FieldSolve.cpp
+	$(TW_Compiler) $(CCFLAGS) $<
 
 Fluid.o: Fluid.cpp $(SIM_HEADERS) fieldSolve.h fluid.h
-	$(TW_Compiler) $(CCFLAGS) Fluid.cpp
+	$(TW_Compiler) $(CCFLAGS) $<
 
 Functions.o: Functions.cpp $(BASE_HEADERS)
-	$(TW_Compiler) $(CCFLAGS) Functions.cpp
+	$(TW_Compiler) $(CCFLAGS) $<
 
 Hyperbolic.o: Hyperbolic.cpp $(BASE_HEADERS) computeTool.h hyperbolic.h
-	$(TW_Compiler) $(CCFLAGS) Hyperbolic.cpp
+	$(TW_Compiler) $(CCFLAGS) $<
 
 Injection.o: Injection.cpp $(BASE_HEADERS) computeTool.h injection.h
-	$(TW_Compiler) $(CCFLAGS) Injection.cpp
+	$(TW_Compiler) $(CCFLAGS) $<
 
 Input.o: Input.cpp $(BASE_HEADERS)
-	$(TW_Compiler) $(CCFLAGS) Input.cpp
+	$(TW_Compiler) $(CCFLAGS) $<
 
 LaserSolve.o: LaserSolve.cpp $(SIM_HEADERS) fieldSolve.h laserSolve.h
-	$(TW_Compiler) $(CCFLAGS) LaserSolve.cpp
+	$(TW_Compiler) $(CCFLAGS) $<
 
 Main.o: Main.cpp $(SIM_HEADERS)
-	$(TW_Compiler) $(CCFLAGS) Main.cpp
+	$(TW_Compiler) $(CCFLAGS) $<
 
 MetricSpace.o: MetricSpace.cpp $(BASE_HEADERS)
-	$(TW_Compiler) $(CCFLAGS) MetricSpace.cpp
+	$(TW_Compiler) $(CCFLAGS) $<
 
 Module.o: Module.cpp $(SIM_HEADERS) $(MODULE_HEADERS)
-	$(TW_Compiler) $(CCFLAGS) Module.cpp
+	$(TW_Compiler) $(CCFLAGS) $<
 
 Numerics.o: Numerics.cpp $(BASE_HEADERS)
-	$(TW_Compiler) $(CCFLAGS) Numerics.cpp
+	$(TW_Compiler) $(CCFLAGS) $<
 
 Parabolic.o: Parabolic.cpp $(BASE_HEADERS) computeTool.h parabolic.h
-	$(TW_Compiler) $(CCFLAGS) Parabolic.cpp
+	$(TW_Compiler) $(CCFLAGS) $<
 
 Particles.o: Particles.cpp $(SIM_HEADERS) particles.h fieldSolve.h laserSolve.h
-	$(TW_Compiler) $(CCFLAGS) Particles.cpp
+	$(TW_Compiler) $(CCFLAGS) $<
 
-Particles_Bundle.o: Particles_Bundle.cpp $(BASE_HEADERS) $(TOOL_HEADERS)
-	$(TW_Compiler) $(CCFLAGS) Particles_Bundle.cpp
+Bundle.o: Bundle.cpp $(BASE_HEADERS) $(TOOL_HEADERS)
+	$(TW_Compiler) $(CCFLAGS) $<
 
-Particles_Mover.o: Particles_Mover.cpp $(BASE_HEADERS) $(TOOL_HEADERS)
-	$(TW_Compiler) $(CCFLAGS) Particles_Mover.cpp
+Mover.o: Mover.cpp $(BASE_HEADERS) $(TOOL_HEADERS)
+	$(TW_Compiler) $(CCFLAGS) $<
 
-Particles_Pusher.o: Particles_Pusher.cpp $(BASE_HEADERS) $(TOOL_HEADERS)
-	$(TW_Compiler) $(CCFLAGS) Particles_Pusher.cpp
+Pusher.o: Pusher.cpp $(BASE_HEADERS) $(TOOL_HEADERS)
+	$(TW_Compiler) $(CCFLAGS) $<
 
-Particles_Slicer.o: Particles_Slicer.cpp $(BASE_HEADERS) $(TOOL_HEADERS)
-	$(TW_Compiler) $(CCFLAGS) Particles_Slicer.cpp
+Slicer.o: Slicer.cpp $(BASE_HEADERS) $(TOOL_HEADERS)
+	$(TW_Compiler) $(CCFLAGS) $<
 
-Particles_Tiler.o: Particles_Tiler.cpp $(BASE_HEADERS) $(TOOL_HEADERS)
-	$(TW_Compiler) $(CCFLAGS) Particles_Tiler.cpp
+Tiler.o: Tiler.cpp $(BASE_HEADERS) $(TOOL_HEADERS)
+	$(TW_Compiler) $(CCFLAGS) $<
 
 Particles_Test.o: Particles_Test.cpp $(SIM_HEADERS) particles.h fieldSolve.h laserSolve.h
-	$(TW_Compiler) $(CCFLAGS) Particles_Test.cpp
+	$(TW_Compiler) $(CCFLAGS) $<
 
-Particles_Mover_Test.o: Particles_Mover_Test.cpp $(BASE_HEADERS) $(TOOL_HEADERS)
-	$(TW_Compiler) $(CCFLAGS) Particles_Mover_Test.cpp
+Mover_Test.o: Mover_Test.cpp $(BASE_HEADERS) $(TOOL_HEADERS)
+	$(TW_Compiler) $(CCFLAGS) $<
 
 Physics.o: Physics.cpp $(BASE_HEADERS) computeTool.h physics.h
-	$(TW_Compiler) $(CCFLAGS) Physics.cpp
+	$(TW_Compiler) $(CCFLAGS) $<
 
 Qstate.o: Qstate.cpp $(BASE_HEADERS) computeTool.h qstate.h
-	$(TW_Compiler) $(CCFLAGS) Qstate.cpp
+	$(TW_Compiler) $(CCFLAGS) $<
 
 Quantum.o: Quantum.cpp $(SIM_HEADERS) quantum.h
-	$(TW_Compiler) $(CCFLAGS) Quantum.cpp
+	$(TW_Compiler) $(CCFLAGS) $<
 
 Region.o: Region.cpp $(BASE_HEADERS)
-	$(TW_Compiler) $(CCFLAGS) Region.cpp
+	$(TW_Compiler) $(CCFLAGS) $<
 
 Simulation.o: Simulation.cpp $(SIM_HEADERS) $(MODULE_HEADERS)
-	$(TW_Compiler) $(CCFLAGS) Simulation.cpp
+	$(TW_Compiler) $(CCFLAGS) $<
 
 SolidState.o: SolidState.cpp $(SIM_HEADERS) solidState.h
-	$(TW_Compiler) $(CCFLAGS) SolidState.cpp
+	$(TW_Compiler) $(CCFLAGS) $<
 
 Tasks.o: Tasks.cpp $(BASE_HEADERS)
-	$(TW_Compiler) $(CCFLAGS) Tasks.cpp
+	$(TW_Compiler) $(CCFLAGS) $<
 
 ifdef TW_MPI
 TW_MPI.o: TW_MPI.cpp $(BASE_HEADERS)
-	$(TW_Compiler) $(CCFLAGS) TW_MPI.cpp
+	$(TW_Compiler) $(CCFLAGS) $<
 endif
 
 Units.o: Units.cpp $(BASE_HEADERS)
-	$(TW_Compiler) $(CCFLAGS) Units.cpp
+	$(TW_Compiler) $(CCFLAGS) $<

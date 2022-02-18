@@ -8,7 +8,7 @@ struct ParticleBundle
 	// The workaround is to pass members back in as arguments
 	Mover *owner;
 	tw::Float q0,m0,dt,k[3];
-	tw::Int num,cell0,ijk0[3];
+	tw::Int num,cell0,ijk0[4];
 	static const tw::Int N = tw::max_bundle_size;
 	static const tw::Int AB = tw::vec_align_bytes;
 	// arrays storing particle state
@@ -20,7 +20,7 @@ struct ParticleBundle
 	alignas(AB) float J[4][N];
 	alignas(AB) float domainMask[N];
 	alignas(AB) float cellMask[N];
-	alignas(AB) tw::Int ijk[3][N];
+	alignas(AB) tw::Int ijk[4][N];
 	alignas(AB) tw::Float vel[3][N];
 	alignas(AB) float w0[3][3][N];
 	alignas(AB) float w1[3][3][N];
@@ -93,9 +93,9 @@ inline void ParticleBundle::set_cell_mask(float cellMask[N],tw::Int cell0,tw::In
 }
 inline void ParticleBundle::get_cell_displ(tw::Int dc[3],tw::Int n)
 {
-	dc[0] = ijk[0][n] - ijk0[0];
-	dc[1] = ijk[1][n] - ijk0[1];
-	dc[2] = ijk[2][n] - ijk0[2];
+	dc[0] = ijk[1][n] - ijk0[1];
+	dc[1] = ijk[2][n] - ijk0[2];
+	dc[2] = ijk[3][n] - ijk0[3];
 }
 inline void ParticleBundle::load_j4(float J[4][N],const float number[N],const tw::Float vel[3][N])
 {

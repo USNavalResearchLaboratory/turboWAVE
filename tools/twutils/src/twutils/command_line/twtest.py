@@ -8,7 +8,6 @@ import subprocess
 import datetime
 import numpy as np
 import re
-import json
 import twutils.plot as twplot
 import matplotlib as mpl
 import matplotlib.pyplot as plt

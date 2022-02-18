@@ -395,11 +395,13 @@ class base_tasks(dictionary_view):
                 # Don't care about preserving unused values, safest to just overwrite the first value found.
                 makefile = re.sub('\n[#\s]*'+var+'\s*=\s*[\w\d]+','\n'+var+' = '+val,makefile,count=1)
         if self.conf.get('Packager')=='Homebrew' and self.conf.get('Compiler')=='GNU':
-            gcc_glob = '/usr/local/opt/gcc/bin/g++-*'
+            gcc_glob_list = ['/usr/local/opt/**/g++-*','/opt/homebrew/**/g++-*']
             gcc_re = r'\/usr\/local\/opt\/gcc\/bin\/g\+\+-\d+'
-            brew_gcc = glob.glob(gcc_glob)
+            brew_gcc = []
+            for gcc_glob in gcc_glob_list:
+                brew_gcc += glob.glob(gcc_glob,recursive=True)
             if len(brew_gcc)==0:
-                self.cmd.err('Did not find GCC of the form '+gcc_glob)
+                self.cmd.err('Did not find GCC of the form '+gcc_glob_list)
                 return
             gcc_sel = brew_gcc[0]
             if len(brew_gcc)>1:

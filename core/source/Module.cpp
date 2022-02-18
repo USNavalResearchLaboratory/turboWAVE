@@ -1,10 +1,10 @@
 #include "simulation.h"
-#include "fieldSolve.h"
-#include "electrostatic.h"
-#include "laserSolve.h"
+#include "solver/fieldSolve.h"
+#include "solver/electrostatic.h"
+#include "solver/laserSolve.h"
 #include "fluid.h"
 #include "quantum.h"
-#include "particles.h"
+#include "particles/particles.h"
 #include "solidState.h"
 
 
@@ -325,4 +325,32 @@ Module* Module::CreateObjectFromType(const std::string& name,tw::module_type the
 			break;
 	}
 	return ans;
+}
+
+bool Module::SetTestGrid(tw::module_type theType,tw::Int testId,Simulation *sim)
+{
+	switch (theType)
+	{
+		case tw::module_type::species:
+			if (testId==0)
+			{
+				sim->Initialize(tw::idx4(1,1,2).array,tw::idx4(4,1,4).array,tw::idx4(1,1,0).array);
+				sim->Resize(*sim,tw::vec3(0,0,0),tw::vec3(0.8,0.2,0.8),2);
+				sim->SetupTimeInfo(0.1);
+				return true;
+			} else if (testId==1) {
+				sim->Initialize(tw::idx4(1,1,2).array,tw::idx4(4,4,4).array,tw::idx4(1,1,0).array);
+				sim->Resize(*sim,tw::vec3(0,0,0),tw::vec3(0.8,0.8,0.8),2);
+				sim->SetupTimeInfo(0.1);
+				return true;
+			}
+			return false;
+		default:
+			if (testId>0)
+				return false;
+			sim->Initialize(tw::idx4(1,1,2).array,tw::idx4(4,4,4).array,tw::idx4(1,1,0).array);
+			sim->Resize(*sim,tw::vec3(0,0,0),tw::vec3(0.8,0.8,0.8),2);
+			sim->SetupTimeInfo(0.1);
+			return true;
+	}
 }

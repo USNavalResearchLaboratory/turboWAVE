@@ -1,13 +1,14 @@
-#include "meta_base.h"
-#include "computeTool.h"
-#include "particles_bundle.h"
-#include "particles_pusher.h"
-#include "particles_slicer.h"
-#include "particles_tiler.h"
-#include "particles_mover.h"
+#include "../meta_base.h"
+#include "../computeTool.h"
+#include "bundle.h"
+#include "pusher.h"
+#include "slicer.h"
+#include "tiler.h"
+#include "mover.h"
 
 void BundlePusherBoris::Push()
 {
+	TW_MPI_Lock();
 	impulse(u,F);
 	rotation1(t,u,F);
 	rotation2(s,t);
@@ -16,6 +17,7 @@ void BundlePusherBoris::Push()
 	velocity(vel,u);
 	translate(x,vel);
 	load_j4(J,number,vel);
+	TW_MPI_Unlock();
 }
 
 void BundlePusherUnitary::Lambda()

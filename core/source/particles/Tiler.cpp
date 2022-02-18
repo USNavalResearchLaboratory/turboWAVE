@@ -1,10 +1,10 @@
-#include "meta_base.h"
-#include "computeTool.h"
-#include "particles_bundle.h"
-#include "particles_pusher.h"
-#include "particles_slicer.h"
-#include "particles_tiler.h"
-#include "particles_mover.h"
+#include "../meta_base.h"
+#include "../computeTool.h"
+#include "bundle.h"
+#include "pusher.h"
+#include "slicer.h"
+#include "tiler.h"
+#include "mover.h"
 
 void BundleTilerEM2D::GatherF(float F[6][N],const float w[3][3][N],const float l[3][3][N],const float qmdth)
 {

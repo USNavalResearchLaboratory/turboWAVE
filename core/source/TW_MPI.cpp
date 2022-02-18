@@ -420,8 +420,9 @@ int MPI_Scatter(void *sb,int scount,MPI_Datatype sdt,void *rb,int rcount,MPI_Dat
 
 int MPI_Barrier(MPI_Comm comm)
 {
-	// WARNING: not implemented!
 	if (comm==MPI_COMM_WORLD)
 		comm = TW_MPI_FindCommWorld();
+	char buf[255];
+	MPI_Bcast(buf,1,MPI_BYTE,0,comm);
 	return 0;
 }

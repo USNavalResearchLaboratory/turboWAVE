@@ -1,11 +1,14 @@
-#include "simulation.h"
+#include "../simulation.h"
 #include "particles.h"
-#include "fieldSolve.h"
-#include "laserSolve.h"
+#include "../solver/fieldSolve.h"
+#include "../solver/laserSolve.h"
 using namespace tw::bc;
 
 bool Species::Test()
 {
+	owner->Initialize(tw::idx4(1,1,2).array,tw::idx4(4,4,4).array,tw::idx4(1,1,0).array);
+	owner->Resize(*owner,tw::vec3(0,0,0),tw::vec3(0.8,0.8,0.8),2);
+	owner->UpdateTimestep(0.1);
 	EM = new Field;
 	sources = new Field;
 	rho00 = new ScalarField;

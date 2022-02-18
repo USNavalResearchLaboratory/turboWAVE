@@ -1,8 +1,8 @@
 #include "simulation.h"
-#include "particles.h"
-#include "fieldSolve.h"
-#include "electrostatic.h"
-#include "laserSolve.h"
+#include "particles/particles.h"
+#include "solver/fieldSolve.h"
+#include "solver/electrostatic.h"
+#include "solver/laserSolve.h"
 #include "fluid.h"
 #include "quantum.h"
 #include "solidState.h"
@@ -317,43 +317,10 @@ void Simulation::Test()
 	std::ostream *alt_out = new std::stringstream;
 	std::ostream *save_out = tw_out;
 
-	// Create a test grid
+	// each test must setup its own task and grid
 	if (numRanksProvided!=2)
 		throw tw::FatalError("test must use -n 2");
 	AttachUnits(tw::units::plasma,1e19);
-	globalCells[1] = 4;
-	globalCells[2] = 4;
-	globalCells[3] = 4;
-	periodic[1] = 1;
-	periodic[2] = 1;
-	periodic[3] = 0;
-	domains[1] = 1;
-	domains[2] = 1;
-	domains[3] = 2;
-	Task::Initialize(domains,globalCells,periodic);
-	globalCorner = tw::vec3(0.0,0.0,0.0);
-	spacing = tw::vec3(0.2,0.2,0.2);
-	globalSize = spacing * tw::vec3(globalCells[1],globalCells[2],globalCells[3]);
-	Resize(*this,globalCorner,globalSize,2);
-	UpdateTimestep(0.1);
-
-	// Verify grid creation
-	tw::Float tolerance = 1e-10;
-	for (tw::Int ax=1;ax<=3;ax++)
-	{
-		assert(size[ax-1]-spacing[ax-1]*dim[ax]<tolerance);
-		assert(corner[ax-1]-(globalCorner[ax-1]+size[ax-1]*strip[ax].Get_rank())<tolerance);
-	}
-	tw::Int src,dst;
-	strip[1].Shift(1,1,&src,&dst);
-	assert(src==strip[1].Get_rank());
-	assert(dst==strip[1].Get_rank());
-	strip[2].Shift(1,1,&src,&dst);
-	assert(src==strip[2].Get_rank());
-	assert(dst==strip[2].Get_rank());
-	strip[3].Shift(1,1,&src,&dst);
-	assert(src==strip[3].Get_rank()-1 || src==MPI_PROC_NULL);
-	assert(dst==strip[3].Get_rank()+1 || dst==MPI_PROC_NULL);
 
 	bool some_success = false;
 	ComputeTool *tool;
@@ -363,34 +330,40 @@ void Simulation::Test()
 	{
 		if (unitTest==m.first || unitTest=="--all")
 		{
-			tw_out = save_out;
 			*tw_out << std::endl << "testing " << term::bold << term::cyan << m.first << term::reset_all << std::endl;
-			try
+			tw::Int testId = 0;
+			while (ComputeTool::SetTestGrid(m.second,testId,this,this))
 			{
+				*tw_out << "    " << this->globalCells[1] << "x" << this->globalCells[2] << "x" << this->globalCells[3] << " grid";
+				try
+				{
+					tw_out = alt_out;
+					tool = CreateTool("test_tool",m.second);
+				}
+				catch (tw::FatalError& e)
+				{
+					tw_out = save_out;
+					*tw_out << "    " << term::yellow << "tool rejected the environment" << term::reset_all << std::endl;
+					tool = NULL;
+				}
 				tw_out = alt_out;
-				tool = CreateTool("test_tool",m.second);
-			}
-			catch (tw::FatalError& e)
-			{
+				if (tool!=NULL)
+				{
+					if (tool->Test())
+					{
+						tw_out = save_out;
+						*tw_out << "    " << term::ok << " " << term::green << "success" << term::reset_all << std::endl;
+						some_success = true;
+					}
+					else
+					{
+						tw_out = save_out;
+						*tw_out << "    " << term::yellow << "no test available for this environment" << term::reset_all << std::endl;
+					}
+					RemoveTool(tool);
+				}
 				tw_out = save_out;
-				*tw_out << "    " << term::yellow << "tool rejected the environment" << term::reset_all << std::endl;
-				tool = NULL;
-			}
-			tw_out = alt_out;
-			if (tool!=NULL)
-			{
-				if (tool->Test())
-				{
-					tw_out = save_out;
-					*tw_out << "    " << term::ok << " " << term::green << "success" << term::reset_all << std::endl;
-					some_success = true;
-				}
-				else
-				{
-					tw_out = save_out;
-					*tw_out << "    " << term::yellow << "no test available for this environment" << term::reset_all << std::endl;
-				}
-				RemoveTool(tool);
+				testId++;
 			}
 		}
 	}
@@ -399,34 +372,40 @@ void Simulation::Test()
 	{
 		if (unitTest==m.first || unitTest=="--all")
 		{
-			tw_out = save_out;
 			*tw_out << std::endl << "testing " << term::bold << term::cyan << m.first << term::reset_all << std::endl;
-			try
+			tw::Int testId = 0;
+			while (Module::SetTestGrid(m.second,testId,this))
 			{
+				*tw_out << "    " << this->globalCells[1] << "x" << this->globalCells[2] << "x" << this->globalCells[3] << " grid";
+				try
+				{
+					tw_out = alt_out;
+					module = Module::CreateObjectFromType("test_module",m.second,this);
+				}
+				catch (tw::FatalError& e)
+				{
+					tw_out = save_out;
+					*tw_out << "    " << term::yellow << "module rejected the environment" << term::reset_all << std::endl;
+					module = NULL;
+				}
 				tw_out = alt_out;
-				module = Module::CreateObjectFromType("test_module",m.second,this);
-			}
-			catch (tw::FatalError& e)
-			{
+				if (module!=NULL)
+				{
+					if (module->Test())
+					{
+						tw_out = save_out;
+						*tw_out << "    " << term::ok << " " << term::green << "success" << term::reset_all << std::endl;
+						some_success = true;
+					}
+					else
+					{
+						tw_out = save_out;
+						*tw_out << "    " << term::yellow << "no test available for this environment" << term::reset_all << std::endl;
+					}
+					delete module;
+				}
 				tw_out = save_out;
-				*tw_out << "    " << term::yellow << "module rejected the environment" << term::reset_all << std::endl;
-				module = NULL;
-			}
-			tw_out = alt_out;
-			if (module!=NULL)
-			{
-				if (module->Test())
-				{
-					tw_out = save_out;
-					*tw_out << "    " << term::ok << " " << term::green << "success" << term::reset_all << std::endl;
-					some_success = true;
-				}
-				else
-				{
-					tw_out = save_out;
-					*tw_out << "    " << term::yellow << "no test available for this environment" << term::reset_all << std::endl;
-				}
-				delete module;
+				testId++;
 			}
 		}
 	}
@@ -1053,9 +1032,7 @@ void Simulation::InputFileFirstPass()
 			std::cerr << "FATAL ERROR: " << e.what() << std::endl;
 			std::cerr << "Could not start simulation --- exiting now." << std::endl;
 		}
-		// Following acts as a barrier before exiting; we should implement MPI_Barrier in TW_MPI.
-		char buf[255];
-		MPI_Bcast(buf,1,MPI_BYTE,0,MPI_COMM_WORLD);
+		MPI_Barrier(MPI_COMM_WORLD);
 		exit(1);
 	}
 }
