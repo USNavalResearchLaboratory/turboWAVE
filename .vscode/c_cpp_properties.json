@@ -1,0 +1,32 @@
+{
+    "configurations": [
+        {
+            "name": "MacPortsGCC",
+            "includePath": [
+                "${workspaceFolder}/**"
+            ],
+            "defines": ["USE_DESKTOP","USE_OPENMP","VBITS=256"],
+            "macFrameworkPath": [
+                "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/System/Library/Frameworks"
+            ],
+            "compilerPath": "/opt/local/bin/gcc",
+            "cStandard": "c17",
+            "cppStandard": "c++17",
+            "intelliSenseMode": "macos-clang-x64",
+            "configurationProvider": "ms-vscode.makefile-tools"
+        },
+        {
+            "name": "LinuxGCC",
+            "includePath": [
+                "${workspaceFolder}/**"
+            ],
+            "defines": ["USE_DESKTOP","USE_OPENMP","VBITS=256"],
+            "compilerPath": "/usr/bin/gcc",
+            "cStandard": "c17",
+            "cppStandard": "c++17",
+            "intelliSenseMode": "gcc-x64",
+            "configurationProvider": "ms-vscode.makefile-tools"
+        }
+    ],
+    "version": 4
+}
