@@ -1,10 +1,10 @@
 #include "simulation.h"
-#include "solver/fieldSolve.h"
-#include "solver/electrostatic.h"
-#include "solver/laserSolve.h"
+#include "fieldSolve.h"
+#include "electrostatic.h"
+#include "laserSolve.h"
 #include "fluid.h"
 #include "quantum.h"
-#include "particles/particles.h"
+#include "particles.h"
 #include "solidState.h"
 
 

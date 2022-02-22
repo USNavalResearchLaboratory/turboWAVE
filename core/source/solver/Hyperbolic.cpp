@@ -1,5 +1,5 @@
-#include "../meta_base.h"
-#include "../computeTool.h"
+#include "meta_base.h"
+#include "computeTool.h"
 #include "hyperbolic.h"
 
 

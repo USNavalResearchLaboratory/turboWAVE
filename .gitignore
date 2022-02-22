@@ -5,6 +5,7 @@
 *.dvdat
 *.npy
 *.egg-info
+*.log
 .ipynb_checkpoints
 __pycache__
 tw3d

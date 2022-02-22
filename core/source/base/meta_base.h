@@ -10,5 +10,5 @@
 #include "tw_iterator.h"
 #include "metricSpace.h"
 #include "3dfields.h"
-#include "solver/numerics.h"
+#include "numerics.h"
 #include "region.h"

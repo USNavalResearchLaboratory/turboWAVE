@@ -1,4 +1,4 @@
-#include "../meta_base.h"
+#include "meta_base.h"
 
 void Transform(tw::Float *array,tw::Int pts,tw::Int modes,tw::Int interval,std::valarray<tw::Float>& transform)
 {

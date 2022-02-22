@@ -18,16 +18,22 @@
 all: tw3d_release install
 debug: tw3d_debug install
 profile: tw3d_profile install
-VPATH = particles solver
+
+PROJDIR := $(realpath $(CURDIR)/..)
+SOURCEDIR := $(PROJDIR)/source
+SUBDIRS = base concurrency io particles solver sparc
+SUBPATHS = $(foreach dir, $(SUBDIRS), $(addprefix $(SOURCEDIR)/, $(dir)))
+INCLUDES = $(foreach dir, $(SUBPATHS), $(addprefix -I, $(dir)))
+VPATH = $(SUBPATHS)
 
 #################################################
 # BEGIN INPUT VARIABLES BLOCK
 
 # Uncomment exactly one platform
 
-#PLATFORM = OSX
+PLATFORM = OSX
 #PLATFORM = WIN
-PLATFORM = LINUX
+#PLATFORM = LINUX
 #PLATFORM = OPENMPI
 #PLATFORM = INTELMPI
 #PLATFORM = CRAY
@@ -84,9 +90,10 @@ ifeq ($(COMPILER_PREF),CRAY)
   OMP_FLAG = -fopenmp
 endif
 
+BASE_FLAGS = $(INCLUDES)
 ifeq ($(PLATFORM),OSX)
   # Tested for Mac OS 10.15
-  BASE_FLAGS = -c -std=c++17 -DUSE_DESKTOP
+  BASE_FLAGS += -c -std=c++17 -DUSE_DESKTOP
   ifeq ($(COMPILER_PREF),GNU)
     LIBS = -lstdc++
     ifeq ($(PACKAGE_PREF),NONE)
@@ -142,7 +149,7 @@ ifeq ($(PLATFORM),OSX)
 endif
 
 ifeq ($(PLATFORM),WIN)
-  BASE_FLAGS = -c -std=c++17 -DUSE_DESKTOP
+  BASE_FLAGS += -c -std=c++17 -DUSE_DESKTOP
   ifeq ($(COMPILER_PREF),LLVM_CLANG)
     TW_Compiler = clang++
     TW_Linker = clang++
@@ -176,7 +183,7 @@ ifeq ($(PLATFORM),WIN)
 endif
 
 ifeq ($(PLATFORM),LINUX)
-  BASE_FLAGS = -c -std=c++17 -DUSE_DESKTOP
+  BASE_FLAGS += -c -std=c++17 -DUSE_DESKTOP
   ifeq ($(COMPILER_PREF),LLVM_CLANG)
     TW_Compiler = clang++
     TW_Linker = clang++
@@ -221,7 +228,7 @@ ifeq ($(PLATFORM),LINUX)
 endif
 
 ifeq ($(PLATFORM),OPENMPI)
-  BASE_FLAGS = -c -std=c++17 -DUSE_HPC
+  BASE_FLAGS += -c -std=c++17 -DUSE_HPC
   TW_Compiler = mpicxx
   TW_Linker = mpicxx
   ifeq ($(COMPILER_PREF),LLVM_CLANG)
@@ -258,7 +265,7 @@ ifeq ($(PLATFORM),OPENMPI)
 endif
 
 ifeq ($(PLATFORM),INTELMPI)
-  BASE_FLAGS = -c -std=c++17 -DUSE_HPC
+  BASE_FLAGS += -c -std=c++17 -DUSE_HPC
   ifeq ($(COMPILER_PREF),INTEL)
     $(warning Build mode limits special functions to low order)
     BASE_FLAGS += -DUSE_TWSF
@@ -293,7 +300,7 @@ ifeq ($(PLATFORM),INTELMPI)
 endif
 
 ifeq ($(PLATFORM),CRAY)
-  BASE_FLAGS = -c -std=c++17 -DUSE_HPC
+  BASE_FLAGS += -c -std=c++17 -DUSE_HPC
   ifeq ($(COMPILER_PREF),CRAY) # assume this is the LLVM based Cray compiler
     BASE_FLAGS += -stdlib=libstdc++
     TW_Compiler = CC
@@ -330,7 +337,7 @@ ifeq ($(PLATFORM),CRAY)
 endif
 
 ifeq ($(PLATFORM),SGI)
-  BASE_FLAGS = -c -std=c++17 -DUSE_HPC
+  BASE_FLAGS += -c -std=c++17 -DUSE_HPC
   ifeq ($(COMPILER_PREF),INTEL)
     TW_Compiler = icpc
     TW_Linker = icpc
@@ -411,7 +418,7 @@ ifdef BINARY_PATH_ABS
 	cp tw3d $(BINARY_PATH_ABS)$(PATH_SEP)
 endif
 ifdef WORK_PATH_ABS
-	cp *.cl '$(WORK_PATH_ABS)$(PATH_SEP)'
+	cp $(SOURCEDIR)$(PATH_SEP)**$(PATH_SEP)*.cl '$(WORK_PATH_ABS)$(PATH_SEP)'
 endif
 
 clean:

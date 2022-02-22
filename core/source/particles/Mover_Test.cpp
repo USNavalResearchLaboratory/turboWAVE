@@ -1,10 +1,10 @@
-#include "../meta_base.h"
-#include "../computeTool.h"
-#include "../particles/bundle.h"
-#include "../particles/pusher.h"
-#include "../particles/slicer.h"
-#include "../particles/tiler.h"
-#include "../particles/mover.h"
+#include "meta_base.h"
+#include "computeTool.h"
+#include "bundle.h"
+#include "pusher.h"
+#include "slicer.h"
+#include "tiler.h"
+#include "mover.h"
 
 void Mover::InitTest()
 {

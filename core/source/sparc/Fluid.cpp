@@ -1,5 +1,5 @@
 #include "simulation.h"
-#include "solver/fieldSolve.h"
+#include "fieldSolve.h"
 #include "fluid.h"
 using namespace tw::bc;
 
