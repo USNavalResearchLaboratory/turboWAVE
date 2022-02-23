@@ -400,11 +400,6 @@ tw3d_debug: tw3d
 tw3d_profile: CCFLAGS = $(PROFILE_FLAGS) -DVBITS=$(VBITS)
 tw3d_profile: tw3d
 
-BASE_HEADERS = definitions.h tasks.h ctools.h 3dmath.h tw_iterator.h discreteSpace.h metricSpace.h functions.h fft.h numerics.h 3dfields.h region.h input.h units.h
-TOOL_HEADERS = computeTool.h parabolic.h elliptic.h hyperbolic.h injection.h qstate.h physics.h chemistry.h diagnostics.h
-TOOL_HEADERS += mover.h bundle.h pusher.h slicer.h tiler.h
-SIM_HEADERS = $(BASE_HEADERS) $(TOOL_HEADERS) module.h simulation.h
-MODULE_HEADERS = fieldSolve.h electrostatic.h laserSolve.h fluid.h quantum.h particles.h solidState.h
 ifdef TW_MPI
   BASE_HEADERS += tw_mpi.h
   OBJ_LIST += TW_MPI.o
