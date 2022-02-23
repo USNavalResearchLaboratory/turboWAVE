@@ -134,12 +134,14 @@ struct ADK : Tunneling
 {
 	ADK(const std::string& name,MetricSpace *m,Task *tsk);
 	virtual void Initialize();
+	virtual bool Test();
 };
 
 struct PPT_Tunneling : ADK
 {
 	PPT_Tunneling(const std::string& name,MetricSpace *m,Task *tsk) : ADK(name,m,tsk) {}
 	virtual void Initialize();
+	virtual bool Test();
 };
 
 struct PPT : Ionizer

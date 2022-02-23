@@ -168,7 +168,7 @@ class base_config(dictionary_view):
         self.choices['Byte Order'] = ['Little Endian','Big Endian']
         self.data['Tools Version'] = pkg_resources.get_distribution('twutils').version
         self.data['Core Version'] = ''
-        self.data['Source Path'] = ''
+        self.data['Build Path'] = ''
         self.data['Platform'] = self.choices['Platform'][0]
         self.data['Compiler'] = self.choices['Compiler'][0]
         self.data['Accelerator'] = self.choices['Accelerator'][0]
@@ -270,22 +270,22 @@ class base_tasks(dictionary_view):
         primitive_path = self.AskDirectory()
         if type(primitive_path)==tuple:
             return
-        self.source_path = pathlib.Path(primitive_path) / 'turboWAVE' / 'core' / 'source'
+        self.build_path = pathlib.Path(primitive_path) / 'turboWAVE' / 'core' / 'build'
         self.package_path = pathlib.Path(primitive_path) / 'turboWAVE'
-        verified_path = glob.glob(str(self.source_path))
+        verified_path = glob.glob(str(self.build_path))
         if len(verified_path)==0:
-            self.source_path = pathlib.Path(primitive_path) / 'core' / 'source'
+            self.build_path = pathlib.Path(primitive_path) / 'core' / 'build'
             self.package_path = pathlib.Path(primitive_path)
-            verified_path = glob.glob(str(self.source_path))
+            verified_path = glob.glob(str(self.build_path))
         if len(verified_path)==0:
             ans = self.cmd.affirm('Path is '+primitive_path+'\nTW source not found, would you like to retrieve it?')
             if ans=='y':
                 dest = str(pathlib.Path(primitive_path) / 'turboWAVE')
                 self.cmd.display('Cloning repository...')
                 compl = subprocess.run(["git","clone",source_url,dest],stdout=subprocess.PIPE,stderr=subprocess.STDOUT,universal_newlines=True)
-                self.source_path = pathlib.Path(dest) / 'core' / 'source'
+                self.build_path = pathlib.Path(dest) / 'core' / 'build'
                 self.package_path = pathlib.Path(dest)
-                verified_path = glob.glob(str(self.source_path))
+                verified_path = glob.glob(str(self.build_path))
                 if git_err_handler(compl,self.cmd):
                     verified_path = []
                 self.cmd.display('')
@@ -307,10 +307,10 @@ class base_tasks(dictionary_view):
             else:
                 self.cmd.info('Warning','TW source found, but working tree not clean.\nYou can continue if you know what you are doing.')
         if len(verified_path)>0:
-            self.conf.set('Source Path',verified_path[0])
+            self.conf.set('Build Path',verified_path[0])
             self.set('Get Components','done')
         else:
-            self.conf.set('Source Path','')
+            self.conf.set('Build Path','')
             self.cmd.err('Get components did not succeed.')
 
     def StartSetVersion(self):
@@ -369,11 +369,11 @@ class base_tasks(dictionary_view):
         if self.conf.get('Platform')=='Windows' and self.conf.get('Compiler')=='Intel':
             maker = 'MS'
         if maker=='MS':
-            makefile_in = str(self.source_path / 'win.make')
-            makefile_out = str(self.source_path / 'win.make.edited')
+            makefile_in = str(self.build_path / 'win.make')
+            makefile_out = str(self.build_path / 'win.make.edited')
         if maker=='GNU':
-            makefile_in = str(self.source_path / 'makefile')
-            makefile_out = str(self.source_path / 'makefile.edited')
+            makefile_in = str(self.build_path / 'makefile')
+            makefile_out = str(self.build_path / 'makefile.edited')
         with open(makefile_in,'r') as f:
             makefile = f.read()
         key_on = ['Platform','Compiler','Accelerator','Vectors','Packager','Byte Order']
@@ -429,7 +429,7 @@ class base_tasks(dictionary_view):
         if self.cmd.affirm('Compiler progress will appear in shell window.\nPlease wait for completion.\nReady to proceed?')=='y':
             self.cmd.display('Compiling...')
             save_dir = os.getcwd()
-            os.chdir(self.source_path)
+            os.chdir(self.build_path)
             maker = 'GNU'
             if self.conf.get('Platform')=='Windows' and self.conf.get('Compiler')=='Intel':
                 maker = 'MS'
@@ -484,7 +484,7 @@ class base_tasks(dictionary_view):
             src_exe = 'tw3d'
             dst_exe = 'tw3d'
             install_path = pathlib.Path(os.environ['CONDA_PREFIX']) / 'bin' / dst_exe
-        repo_path = self.source_path / src_exe
+        repo_path = self.build_path / src_exe
         # tw3d executable
         if self.conf.get('Platform')=='Cray':
             dv_dir = self.AskDirectory('Select executable install location',str(pathlib.Path.home()))
@@ -558,8 +558,8 @@ class base_tasks(dictionary_view):
             if len(glob.glob(str(dest_path)))==0:
                 os.makedirs(dest_path,exist_ok=True)
             shutil.copy(repo_path,dest_path)
-        # Atom highlighting
-        self.cmd.info('Notice','Syntax highlights are also available for Atom, simply search for "language-turbowave" in the Atom package manager.')
+        # Other highlighting
+        self.cmd.info('Notice','Syntax highlights are available for Atom and VS Code, search for "turbowave" in the respective package managers.')
 
     def Clean(self):
         if self.get('Install Files')!='done':
@@ -574,15 +574,15 @@ class base_tasks(dictionary_view):
             makefile_name = 'makefile.edited'
             obj_ext = '.o'
             exe_name = 'tw3d'
-        d = self.source_path / makefile_name
+        d = self.build_path / makefile_name
         if self.cmd.affirm('Delete '+str(d)+'?')=='y':
             os.remove(str(d))
-        d = self.source_path / ('*' + obj_ext)
+        d = self.build_path / ('*' + obj_ext)
         if self.cmd.affirm('Delete '+str(d)+'?')=='y':
             obj_list = glob.glob(str(d))
             for f in obj_list:
                 os.remove(f)
-        d = self.source_path / exe_name
+        d = self.build_path / exe_name
         if self.cmd.affirm('Delete '+str(d)+'?')=='y':
             os.remove(str(d))
         if git_is_detached(self.package_path):
