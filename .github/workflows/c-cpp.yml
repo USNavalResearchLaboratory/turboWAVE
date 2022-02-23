@@ -1,0 +1,27 @@
+name: C/C++ CI
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: configure
+      run: |
+        cd core/build
+        sed -E -i '' -e 's/PLATFORM *= *[A-Z]*/PLATFORM = LINUX/g' makefile
+        sed -E -i '' -e 's/HARDWARE_ACCEL *= *[A-Z]*/HARDWARE_ACCEL = OMP/g' makefile
+        sed -E -i '' -e 's/VBITS *= *[0-9]*/VBITS = 256/g' makefile
+        sed -E -i '' -e 's/ENDIANNESS *= *[A-Z]*/ENDIANNESS = LITTLE/g' makefile
+        sed -E -i '' -e 's/COMPILER_PREF *= *[A-Z]*/COMPILER_PREF = GNU/g' makefile
+    - name: make
+      run: make tw3d_debug
+    - name: turbowave unit testing
+      run: ./tw3d -n 2 --unit-test --all
