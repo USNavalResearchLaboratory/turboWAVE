@@ -422,8 +422,9 @@ def UnitTest(args):
 		if compl.returncode==0:
 			passing = compl.stdout.count(term.ok)
 			missing = compl.stdout.count(term.yellow)
+			failing = compl.stdout.count(term.err)
 			print('    ' + term.ok + ' ' + term.green + 'passing' + term.reset_all)
-			print('    coverage is {:1.0f}% by objects tested'.format(100*passing/(passing+missing)))
+			print('    {} passing, {} failing, {} missing'.format(passing,failing,missing))
 		else:
 			print('    ' + term.err + ' ' + term.red + 'failure' + term.reset_all)
 			err_report['unit tests'] = {}

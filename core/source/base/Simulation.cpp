@@ -194,7 +194,7 @@ void Simulation::SetupIO()
 		}
 	}
 
-	*tw_out << std::endl << "*** Starting turboWAVE Session ***" << std::endl << std::endl;
+	*tw_out << std::endl << term::green << term::bold << "Starting turboWAVE Session" << term::reset_all << std::endl << std::endl;
 	*tw_out << "Floating point precision = " << sizeof(tw::Float)*8 << " bits" << std::endl;
 	#ifdef USE_OPENMP
 	*tw_out << "Maximum OpenMP threads = " << omp_get_max_threads() << std::endl;
@@ -223,18 +223,18 @@ void Simulation::Run()
 
 	try
 	{
-		(*tw_out) << std::endl << "*** Prepare Simulation ***" << std::endl << std::endl;
+		(*tw_out) << std::endl << term::green << term::bold << "Prepare Simulation" << term::reset_all << std::endl << std::endl;
 
 		PrepareSimulation();
 
-		(*tw_out) << std::endl << "*** Begin Simulation ***" << std::endl << std::endl;
+		(*tw_out) << std::endl << term::green << term::bold << "Begin Simulation" << term::reset_all << std::endl << std::endl;
 
 		tw::Int startTime = GetSeconds();
 		lastTime = startTime;
 
 		if (GetSeconds()<0)
 		{
-			(*tw_out) << std::endl << "WARNING: System clock is not responding properly." << std::endl << std::endl;
+			(*tw_out) << std::endl << term::warning << ": System clock is not responding properly." << std::endl << std::endl;
 		}
 
 		#ifdef USE_HPC
@@ -289,7 +289,7 @@ void Simulation::Run()
 		exit(1);
 	}
 
-	*tw_out << std::endl << "*** TurboWAVE Session Completed ***" << std::endl;
+	*tw_out << std::endl << term::green << term::bold << "TurboWAVE Session Completed" << term::reset_all << std::endl;
 	completed = true;
 }
 
@@ -314,6 +314,8 @@ void Simulation::Test()
 	gaussianDeviate = new GaussianDeviate(1 + strip[0].Get_rank()*(MaxSeed()/numRanksProvided) + MaxSeed()/(2*numRanksProvided));
 
 	// diverting output
+	std::stringstream test_out;
+	std::stringstream test_report;
 	std::ostream *alt_out = new std::stringstream;
 	std::ostream *save_out = tw_out;
 
@@ -322,7 +324,7 @@ void Simulation::Test()
 		throw tw::FatalError("test must use -n 2");
 	AttachUnits(tw::units::plasma,1e19);
 
-	bool some_success = false;
+	int success_count = 0,failure_count = 0;
 	ComputeTool *tool;
 	Module *module;
 
@@ -331,39 +333,48 @@ void Simulation::Test()
 		if (unitTest==m.first || unitTest=="--all")
 		{
 			*tw_out << std::endl << "testing " << term::bold << term::cyan << m.first << term::reset_all << std::endl;
-			tw::Int testId = 0;
-			while (ComputeTool::SetTestGrid(m.second,testId,this,this))
+			tw::Int gridId = 1;
+			while (ComputeTool::SetTestGrid(m.second,gridId,this,this))
 			{
-				*tw_out << "    " << this->globalCells[1] << "x" << this->globalCells[2] << "x" << this->globalCells[3] << " grid";
+				std::string gridStr("    "+std::to_string(this->globalCells[1])+"x"+std::to_string(this->globalCells[2])+"x"+std::to_string(this->globalCells[3])+" grid");
+				tw_out = alt_out;
 				try
 				{
-					tw_out = alt_out;
 					tool = CreateTool("test_tool",m.second);
 				}
 				catch (tw::FatalError& e)
 				{
-					tw_out = save_out;
-					*tw_out << "    " << term::yellow << "tool rejected the environment" << term::reset_all << std::endl;
+					test_out << gridStr + "    " << term::yellow << "tool rejected the environment" << term::reset_all << std::endl;
 					tool = NULL;
 				}
-				tw_out = alt_out;
 				if (tool!=NULL)
 				{
-					if (tool->Test())
+					tw::Int testId = 1;
+					do
 					{
-						tw_out = save_out;
-						*tw_out << "    " << term::ok << " " << term::green << "success" << term::reset_all << std::endl;
-						some_success = true;
-					}
-					else
-					{
-						tw_out = save_out;
-						*tw_out << "    " << term::yellow << "no test available for this environment" << term::reset_all << std::endl;
-					}
+						try
+						{
+							if (tool->Test(testId))
+							{
+								success_count++;
+								test_out << gridStr << "    " << term::ok << " " << term::green << tool->testName << term::reset_all << std::endl;
+							}
+						}
+						catch(tw::FatalError& e)
+						{
+							test_out << gridStr << "    " << term::err << " " << term::red << tool->testName <<  term::reset_all << std::endl;
+							test_report << ++failure_count << ". " << m.first << " grid " << gridId << std::endl;
+							test_report << e.what() << std::endl;
+						}
+					} while (testId>1);
 					RemoveTool(tool);
 				}
+				MPI_Barrier(MPI_COMM_WORLD);
 				tw_out = save_out;
-				testId++;
+				*tw_out << test_out.str();
+				test_out.str("");
+				test_out.clear();
+				gridId++;
 			}
 		}
 	}
@@ -373,46 +384,60 @@ void Simulation::Test()
 		if (unitTest==m.first || unitTest=="--all")
 		{
 			*tw_out << std::endl << "testing " << term::bold << term::cyan << m.first << term::reset_all << std::endl;
-			tw::Int testId = 0;
-			while (Module::SetTestGrid(m.second,testId,this))
+			tw::Int gridId = 1;
+			while (Module::SetTestGrid(m.second,gridId,this))
 			{
-				*tw_out << "    " << this->globalCells[1] << "x" << this->globalCells[2] << "x" << this->globalCells[3] << " grid";
+				std::string gridStr("    "+std::to_string(this->globalCells[1])+"x"+std::to_string(this->globalCells[2])+"x"+std::to_string(this->globalCells[3])+" grid");
+				tw_out = alt_out;
 				try
 				{
-					tw_out = alt_out;
-					module = Module::CreateObjectFromType("test_module",m.second,this);
+	 				module = Module::CreateObjectFromType("test_module",m.second,this);
 				}
 				catch (tw::FatalError& e)
 				{
-					tw_out = save_out;
-					*tw_out << "    " << term::yellow << "module rejected the environment" << term::reset_all << std::endl;
+					test_out << "    " << term::yellow << "module rejected the environment" << term::reset_all << std::endl;
 					module = NULL;
 				}
-				tw_out = alt_out;
 				if (module!=NULL)
 				{
-					if (module->Test())
+					tw::Int testId = 1;
+					do
 					{
-						tw_out = save_out;
-						*tw_out << "    " << term::ok << " " << term::green << "success" << term::reset_all << std::endl;
-						some_success = true;
-					}
-					else
-					{
-						tw_out = save_out;
-						*tw_out << "    " << term::yellow << "no test available for this environment" << term::reset_all << std::endl;
-					}
+						try
+						{
+							if (module->Test(testId))
+							{
+								success_count++;
+								test_out << gridStr << "    " << term::ok << " " << term::green << module->testName << term::reset_all << std::endl;
+							}
+						}
+						catch(tw::FatalError& e)
+						{
+							test_out << gridStr << "    " << term::err << " " << term::red << module->testName <<  term::reset_all << std::endl;
+							test_report << ++failure_count << ". " << m.first << " grid " << gridId << std::endl;
+							test_report << e.what() << std::endl;
+						}
+					} while (testId>1);
 					delete module;
 				}
+				MPI_Barrier(MPI_COMM_WORLD);
 				tw_out = save_out;
-				testId++;
+				*tw_out << test_out.str();
+				test_out.str("");
+				test_out.clear();
+				gridId++;
 			}
 		}
 	}
 
-	tw_out = save_out;
+	*tw_out << std::endl;
+	if (test_report.str().size()>0)
+		*tw_out << term::bold << term::red << "Unit Tests Failing" << std::endl << std::endl << term::reset_all << test_report.str();
+	else
+		*tw_out << term::bold << term::green << "Unit Tests Passing" << term::reset_all << " - " << failure_count << " failed, " << success_count << " succeeded" << std::endl;
 	delete alt_out;
-	assert(some_success);
+	MPI_Barrier(MPI_COMM_WORLD);
+	assert(failure_count==0);
 	completed = true;
 }
 
@@ -978,7 +1003,7 @@ void Simulation::InputFileFirstPass()
 		// Verify and (if necessary) correct decomposition
 		if (NumTasks() != numRanksProvided)
 		{
-			*tw_out << "WARNING: Bad decomposition ";
+			*tw_out << term::warning << ": Bad decomposition ";
 			tw::Int ax1=1,ax2=2,ax3=3; // to be sorted so ax1 is longest
 			for (tw::Int i=1;i<=3;i++)
 			{
@@ -1029,7 +1054,7 @@ void Simulation::InputFileFirstPass()
 	{
 		if (worldRank==0)
 		{
-			std::cerr << "FATAL ERROR: " << e.what() << std::endl;
+			std::cerr << term::red << "FATAL ERROR: " << term::reset_all << e.what() << std::endl;
 			std::cerr << "Could not start simulation --- exiting now." << std::endl;
 		}
 		MPI_Barrier(MPI_COMM_WORLD);
@@ -1114,7 +1139,7 @@ void Simulation::ReadInputFile()
 	Profile* theProfile;
 	std::stringstream inputString;
 
-	(*tw_out) << std::endl << "Reading Input File..." << std::endl << std::endl;
+	(*tw_out) << "Reading Input File..." << std::endl << std::endl;
 
 	tw::input::PreprocessInputFile(tw::input::FileEnv(inputFileName),inputString);
 

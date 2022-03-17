@@ -108,7 +108,7 @@ namespace tw
 				if (sendToSelfData!=NULL)
 				{
 					if (buff==sendToSelfData)
-						std::cout << "WARNING: memcpy in place during send to self." << std::endl;
+						std::cout << term::warning << ": memcpy in place during send to self." << std::endl;
 					memcpy(sendToSelfData,buff,buffSize);
 					sendToSelfData = NULL;
 				}
@@ -125,7 +125,7 @@ namespace tw
 				if (sendToSelfData!=NULL)
 				{
 					if (buff==sendToSelfData)
-						std::cout << "WARNING: memcpy in place during recv from self." << std::endl;
+						std::cout << term::warning << ": memcpy in place during recv from self." << std::endl;
 					memcpy(buff,sendToSelfData,buffSize);
 					sendToSelfData = NULL;
 				}

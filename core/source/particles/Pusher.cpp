@@ -8,7 +8,6 @@
 
 void BundlePusherBoris::Push()
 {
-	TW_MPI_Lock();
 	impulse(u,F);
 	rotation1(t,u,F);
 	rotation2(s,t);
@@ -17,7 +16,6 @@ void BundlePusherBoris::Push()
 	velocity(vel,u);
 	translate(x,vel);
 	load_j4(J,number,vel);
-	TW_MPI_Unlock();
 }
 
 void BundlePusherUnitary::Lambda()

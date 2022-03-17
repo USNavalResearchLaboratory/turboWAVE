@@ -34,6 +34,9 @@ struct Module:DiscreteSpace
 	std::vector<Wave*> wave;
 	std::vector<Conductor*> conductor;
 
+	// Test data
+	std::string testName;
+
 	// OpenCL Support
 	private:
 	std::string programFilename;
@@ -70,7 +73,7 @@ struct Module:DiscreteSpace
 	virtual void Report(Diagnostic&);
 	virtual void WarningMessage(std::ostream *theStream);
 	virtual void StatusMessage(std::ostream *theStream) {;}
-	virtual bool Test();
+	virtual bool Test(tw::Int& id);
 
 	static std::map<std::string,tw::module_type> Map();
 	static bool SingularType(tw::module_type theType);

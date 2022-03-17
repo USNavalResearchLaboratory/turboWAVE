@@ -259,8 +259,8 @@ struct DiscreteSpace
 	friend tw::vec3 GlobalPhysicalSize(const DiscreteSpace& A)  { return A.globalSize; }
 	friend tw::vec3 Corner(const DiscreteSpace& A) { return A.corner; }
 	friend tw::vec3 GlobalCorner(const DiscreteSpace& A)  { return A.globalCorner; }
-	bool IsWithinInset(const Primitive& q,tw::Int inset) const;
-	bool IsPointValid(const tw::vec3& P);
+	bool IsRefCellWithin(const Primitive& q,tw::Int inset) const;
+	bool IsPointWithinInterior(const tw::vec3& P);
 	tw::Int Dimensionality();
 	bool PowersOfTwo();
 	bool TransversePowersOfTwo();
@@ -280,17 +280,17 @@ struct DiscreteSpace
 	#endif
 };
 
-inline bool DiscreteSpace::IsWithinInset(const Primitive& q,tw::Int inset) const
+inline bool DiscreteSpace::IsRefCellWithin(const Primitive& q,tw::Int inset) const
 {
 	tw::Int ijk[4];
 	DecodeCell(q,ijk);
 	bool ans = true;
 	for (tw::Int ax=1;ax<=3;ax++)
-		ans = ans && (dim[ax]==1 || (ijk[ax]>=lfg[ax]+inset && ijk[ax]<=ufg[ax]-inset));
+		ans = ans && ijk[ax]>=lfg[ax]+inset*(1-ignorable[ax]) && ijk[ax]<=ufg[ax]-inset*(1-ignorable[ax]);
 	return ans;
 }
 
-inline bool DiscreteSpace::IsPointValid(const tw::vec3& P)
+inline bool DiscreteSpace::IsPointWithinInterior(const tw::vec3& P)
 {
 	const tw::vec3 PLoc = P - corner;
 	return (PLoc.x>=0.0 && PLoc.x<size.x && PLoc.y>=0.0 && PLoc.y<size.y && PLoc.z>=0.0 && PLoc.z<size.z);
@@ -368,7 +368,10 @@ inline void DiscreteSpace::MinimizePrimitive(tw::Int cell[tw::max_bundle_size],t
 	tw::Int par,ax;
 	#pragma omp simd aligned(cell,ijk:AB)
 	for (par=0;par<N;par++)
+	{
 		DecodeCell(cell[par],&ijk[1][par],&ijk[2][par],&ijk[3][par]);
+		domainMask[par] = 1.0f;
+	}
 	for (ax=1;ax<=3;ax++)
 	{
 		#pragma omp simd aligned(ijk,x,domainMask,pos,neg,displ,max_displ:AB)
@@ -383,7 +386,7 @@ inline void DiscreteSpace::MinimizePrimitive(tw::Int cell[tw::max_bundle_size],t
 			displ[par] = (pos[par]-neg[par])*displ[par];
 			ijk[ax][par] += displ[par] * (1-ignorable[ax]);
 			x[ax][par] -= displ[par];
-			domainMask[par] = float(tw::Int(ijk[ax][par]>=1 && ijk[ax][par]<=dim[ax]));
+			domainMask[par] *= float(tw::Int(ijk[ax][par]>=1 && ijk[ax][par]<=dim[ax]));
 		}
 	}
 	#pragma omp simd aligned(cell,ijk:AB)
@@ -393,8 +396,8 @@ inline void DiscreteSpace::MinimizePrimitive(tw::Int cell[tw::max_bundle_size],t
 
 /// Change the reference cell to the one containing the particle centroid.
 /// This leaves x[ax] within the normal range [-.5,.5) *except* when the particle
-/// has left the domain.  In the latter case the reference cell is pegged to
-/// the current domain, leaving x[ax] out of normal range.
+/// has left the extended domain.  In the latter case the reference cell is pegged to
+/// the current extended domain, leaving x[ax] out of normal range.
 inline void DiscreteSpace::MinimizePrimitive(Primitive& q) const
 {
 	tw::Int ax,ijk[4],displ,max_displ,pos,neg;

@@ -3,7 +3,7 @@
 #include "physics.h"
 
 
-bool ADK::Test()
+bool ADK::Test(tw::Int& id)
 {
 	ionizationPotential = 24.587*tw::dims::temperature >> cgs >> native;
     electrons = 2;
@@ -14,12 +14,12 @@ bool ADK::Test()
         const tw::Float field = (0.1-cutoff_field)*tw::dims::electric_field >> atomic >> native;
         const tw::Float rate = AverageRate(1.0,field)*tw::dims::frequency >> native >> atomic;
         const tw::Float expected = 4.546e-7;
-        assert(fabs(rate-expected)<expected/100);
+        ASSERT_NEAR(rate , expected , expected/100);
     }
 	return true;
 }
 
-bool PPT_Tunneling::Test()
+bool PPT_Tunneling::Test(tw::Int& id)
 {
 	ionizationPotential = 24.587*tw::dims::temperature >> cgs >> native;
     electrons = 2;
@@ -30,7 +30,7 @@ bool PPT_Tunneling::Test()
         const tw::Float field = (0.1-cutoff_field)*tw::dims::electric_field >> atomic >> native;
         const tw::Float rate = AverageRate(1.0,field)*tw::dims::frequency >> native >> atomic;
         const tw::Float expected = 3.6774e-7;
-        assert(fabs(rate-expected)<expected/100);
+        ASSERT_NEAR(rate , expected , expected/100);
     }
 	return true;
 }

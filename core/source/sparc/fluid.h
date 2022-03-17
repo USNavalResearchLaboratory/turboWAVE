@@ -35,6 +35,7 @@ struct Fluid:Module
 	virtual void WriteCheckpoint(std::ofstream& outFile);
 
 	virtual void Report(Diagnostic&);
+	virtual bool Test(tw::Int& id);
 };
 
 struct EquilibriumGroup;

@@ -63,8 +63,8 @@ void Mover::GetSubarrayBounds(std::vector<ParticleRef>& sorted,tw::Int low[4],tw
 			low[i] -= layers;
 			high[i] += layers;
 		}
-		assert(low[i]>=space->LFG(i));
-		assert(high[i]<=space->UFG(i));
+		// ASSERT_GTREQ(low[i],space->LFG(i));
+		// ASSERT_LESSEQ(high[i],space->UFG(i));
 	}
 }
 
@@ -121,7 +121,7 @@ void Mover::MoveSlice(tw::Int tasks,tw::Int tid,tw::Int bounds_data[][8])
 	map.reserve(last-first+1);
 	for (tw::Int i=first;i<=last;i++)
 	{
-		(*particle)[i].Assert(0,space->Num(1)*space->Num(2)*space->Num(3));
+		assert(space->IsRefCellWithin((*particle)[i].q,2));
 		map.push_back(ParticleRef(i,(*particle)[i]));
 	}
 	std::sort(map.begin(),map.end());

@@ -79,7 +79,10 @@ struct Species:Module
 	virtual void WriteCheckpoint(std::ofstream& outFile);
 	virtual void Report(Diagnostic&);
 	virtual void WarningMessage(std::ostream *theStream);
-	virtual bool Test();
+
+	virtual bool Test(tw::Int& id);
+	void ReflectionTest();
+	void MoveWindowTest();
 };
 
 struct Kinetics:Module

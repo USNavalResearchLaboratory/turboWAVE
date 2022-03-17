@@ -55,6 +55,9 @@ struct ComputeTool
 	std::string region_name;
 	Region *theRgn;
 
+	// Test info
+	std::string testName;
+
 	// OpenCL Support
 	private:
 	std::string programFilename;
@@ -73,7 +76,7 @@ struct ComputeTool
 	virtual void ReadInputFileDirective(std::stringstream& inputString,const std::string& command);
 	virtual void ReadCheckpoint(std::ifstream& inFile);
 	virtual void WriteCheckpoint(std::ofstream& outFile);
-	virtual bool Test();
+	virtual bool Test(tw::Int& id);
 
 	void InitializeCLProgram(const std::string& filename);
 

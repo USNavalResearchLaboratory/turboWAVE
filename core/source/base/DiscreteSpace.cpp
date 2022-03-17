@@ -60,17 +60,14 @@ void DiscreteSpace::Resize(const tw::Int dim[4],const tw::Int gdim[4],const tw::
 		num[i] = ufg[i] - lfg[i] + 1;
 	}
 
-	decodingStride[1] = encodingStride[1] = num[2]*num[3];
-	decodingStride[2] = encodingStride[2] = num[3];
-	decodingStride[3] = encodingStride[3] = 1;
+	decodingStride[1] = num[2]*num[3];
+	decodingStride[2] = num[3];
+	decodingStride[3] = 1;
 
 	for (tw::Int i=1;i<=3;i++)
 	{
-		if (dim[i]==1)
-		{
-			encodingStride[i] = 0;
-			ignorable[i] = 1;
-		}
+		encodingStride[i] = (dim[i]==1 ? 0 : decodingStride[i]);
+		ignorable[i] = (dim[i]==1 ? 1 : 0);
 	}
 
 	globalCorner = gcorner;

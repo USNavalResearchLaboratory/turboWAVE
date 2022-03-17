@@ -435,7 +435,7 @@ PointDiagnostic::PointDiagnostic(const std::string& name,MetricSpace *ms,Task *t
 void PointDiagnostic::Field(const std::string& fieldName,const struct Field& F,const tw::Int c,tw::dims unit,const std::string& pretty)
 {
 	tw::vec3 r = thePoint + vGalileo*t;
-	if (space->IsPointValid(r)) // assumes uniform grid
+	if (space->IsPointWithinInterior(r)) // assumes uniform grid
 	{
 		std::valarray<tw::Float> ans(1);
 		weights_3D w;

@@ -4,18 +4,31 @@
 #include "laserSolve.h"
 using namespace tw::bc;
 
-bool Species::Test()
+bool Species::Test(tw::Int& id)
 {
-	owner->Initialize(tw::idx4(1,1,2).array,tw::idx4(4,4,4).array,tw::idx4(1,1,0).array);
-	owner->Resize(*owner,tw::vec3(0,0,0),tw::vec3(0.8,0.8,0.8),2);
-	owner->UpdateTimestep(0.1);
+	if (id==1) {
+		id++;
+		ReflectionTest();
+		return true;
+	} else if (id==2) {
+		id=0;
+		MoveWindowTest();
+		return true;
+	}
+	return false;
+}
+
+void Species::ReflectionTest()
+{
+	laser = NULL;
+	chi = NULL;
+	qo_j4 = NULL;
 	EM = new Field;
 	sources = new Field;
 	rho00 = new ScalarField;
 	EM->Initialize(6,*this,owner);
 	sources->Initialize(4,*this,owner);
 	rho00->Initialize(*this,owner);
-	mover = (Mover*)owner->CreateTool("test_tool",tw::tool_type::borisMover);
 	Initialize();
 
 	// Reflecting boundary condition test
@@ -33,19 +46,60 @@ bool Species::Test()
 	ApplyGlobalBoundaryConditions();
 	if (owner->strip[3].Get_rank()==0)
 	{
-		assert(fabs(rtest.z-transfer[0].x[3])<tolerance);
-		assert(transfer[0].p[3]==-p0.z);
+		ASSERT_NEAR(transfer[0].x[3], rtest.z, tolerance);
+		ASSERT_NEAR(transfer[0].p[3], -p0.z, tolerance);
 	}
 	else
 	{
-		assert(fabs(r0.z-transfer[0].x[3])<tolerance);
-		assert(transfer[0].p[3]==p0.z);
+		ASSERT_NEAR(transfer[0].x[3], r0.z, tolerance);
+		ASSERT_NEAR(transfer[0].p[3], p0.z, tolerance);
 	}
 
 	delete EM;
 	delete sources;
 	delete rho00;
-	// mover is deleted by Species
+}
 
-	return true;
+void Species::MoveWindowTest()
+{
+	laser = NULL;
+	chi = NULL;
+	qo_j4 = NULL;
+	EM = new Field;
+	sources = new Field;
+	rho00 = new ScalarField;
+	EM->Initialize(6,*this,owner);
+	sources->Initialize(4,*this,owner);
+	rho00->Initialize(*this,owner);
+	Initialize();
+
+	// Begin move window test
+	const tw::Float tolerance = 1e-5;
+	particle.clear();
+	transfer.clear();
+	Primitive q0;
+	tw::vec3 r0,p0;
+	if (owner->strip[3].Get_rank()==1)
+	{
+		r0 = tw::vec3(0.0,0.0,Corner(*this).z);
+		SetPrimitiveWithPosition(q0,r0);
+		AddParticle(p0,q0,1.0);
+		BeginMoveWindow();
+		ASSERT_EQ(particle.size(),0);
+		ASSERT_EQ(transfer.size(),1);
+		ASSERT_NEAR(transfer[0].x[3], r0.z - dz(*this), tolerance);
+		ASSERT_EQ(transfer[0].dst[0],1);
+		ASSERT_EQ(transfer[0].dst[1],0);
+		ASSERT_EQ(transfer[0].dst[2],0);
+		ASSERT_EQ(transfer[0].dst[3],-1);
+	}
+	
+	// Simulate message passing the transfer particle
+
+	// Finish move window test
+
+	delete EM;
+	delete sources;
+	delete rho00;
+	ASSERT_FORCE();
 }

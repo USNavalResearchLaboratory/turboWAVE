@@ -93,6 +93,7 @@ namespace term
 	static const std::string reset_color("\u001b[39;49m");
 	static const std::string reset_all("\u001b[0m");
 	static const std::string bold("\u001b[1m");
+	static const std::string warning("\u001b[33mWARNING\u001b[39;49m");
 }
 
 /////////////////////////////////

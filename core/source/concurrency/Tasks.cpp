@@ -133,7 +133,7 @@ void Task::Initialize(tw::Int *doms,tw::Int *gcells,tw::Int *cyclic)
 
 	if (whichPlatform==-1)
 	{
-		messg << "WARNING: could not find platform search string '" << platformSearchString << "'" << std::endl;
+		messg << term::warning << ": could not find platform search string '" << platformSearchString << "'" << std::endl;
 		messg << "    (using first available)" << std::endl;
 		whichPlatform = 0;
 	}
@@ -193,7 +193,7 @@ void Task::Initialize(tw::Int *doms,tw::Int *gcells,tw::Int *cyclic)
 
 	if (deviceMap.size()==0)
 	{
-		messg << "WARNING: could not form a device map." << std::endl;
+		messg << term::warning << ": could not form a device map." << std::endl;
 		messg << "Search string was '" << deviceSearchString << "'" << std::endl;
 		messg << "    (will try to use device number = MPI rank)" << std::endl;
 		whichDevice = strip[0].Get_rank();

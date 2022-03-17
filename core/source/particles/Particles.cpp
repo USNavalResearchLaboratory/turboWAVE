@@ -495,7 +495,7 @@ void Species::WarningMessage(std::ostream *theStream)
 	if (bc0[1]==par::absorbing || bc1[1]==par::absorbing ||
 		bc0[2]==par::absorbing || bc1[2]==par::absorbing ||
 		bc0[3]==par::absorbing || bc1[3]==par::absorbing)
-		(*theStream) << "WARNING: " << name << " will be absorbed." << std::endl;
+		(*theStream) << term::warning << ": " << name << " will be absorbed." << std::endl;
 }
 
 bool Species::InspectResource(void* resource,const std::string& description)
@@ -998,8 +998,10 @@ void Species::BeginMoveWindow()
 
 	for (tw::Int i=0;i<particle.size();i++)
 	{
-		particle[i].q.x[2] -= 1.0;
-		MinimizePrimitive(particle[i].q);
+		tw::Int ijk[4];
+		DecodeCell(particle[i].q,ijk);
+		ijk[3]--;
+		particle[i].q.cell = EncodeCell(ijk[1],ijk[2],ijk[3]);
 		if (!RefCellInDomain(particle[i].q))
 		{
 			if (owner->n0[3]!=MPI_PROC_NULL) // need to transfer particle

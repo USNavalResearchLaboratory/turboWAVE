@@ -40,6 +40,17 @@ void ParticleBundle::CopyBack()
 			// mark for disposal only after copying to transfer list
 			refs[i]->number = 0.0;
 		}
+		// else
+		// {
+		// 	tw::Int ijk[4];
+		// 	owner->space->DecodeCell(refs[i]->q,ijk);
+		// 	ASSERT_GTREQ(ijk[1],1);
+		// 	ASSERT_LESSEQ(ijk[1],owner->space->Dim(1));
+		// 	ASSERT_GTREQ(ijk[2],1);
+		// 	ASSERT_LESSEQ(ijk[2],owner->space->Dim(2));
+		// 	ASSERT_GTREQ(ijk[3],1);
+		// 	ASSERT_LESSEQ(ijk[3],owner->space->Dim(3));
+		// }
 	}
 }
 

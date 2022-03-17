@@ -451,13 +451,16 @@ class base_tasks(dictionary_view):
                 leave_shell()
                 self.cmd.display('')
                 if maker=='MS':
-                    self.cmd.err('Could not find nmake. Try running twinstall from Intel shell.')
+                    self.cmd.err('nmake is not supported in the synced core version.')#self.cmd.err('Could not find nmake. Try running twinstall from Intel shell.')
                 else:
                     self.cmd.err('Could not find make, perhaps it is not installed?')
             except RuntimeError:
                 leave_shell()
                 self.cmd.display('')
-                self.cmd.err('There was an error while trying to compile.')
+                if maker=='MS':
+                    self.cmd.err('nmake is not supported in the synced core version.')
+                else:
+                    self.cmd.err('There was an error while trying to compile.')
             except Exception as ex:
                 leave_shell()
                 self.cmd.display('')
@@ -583,6 +586,9 @@ class base_tasks(dictionary_view):
             for f in obj_list:
                 os.remove(f)
         d = self.build_path / exe_name
+        if self.cmd.affirm('Delete '+str(d)+'?')=='y':
+            os.remove(str(d))
+        d = self.build_path / '*.d'
         if self.cmd.affirm('Delete '+str(d)+'?')=='y':
             os.remove(str(d))
         if git_is_detached(self.package_path):

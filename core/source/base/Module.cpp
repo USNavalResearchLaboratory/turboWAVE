@@ -165,9 +165,9 @@ void Module::Report(Diagnostic& diagnostic)
 {
 }
 
-bool Module::Test()
+bool Module::Test(tw::Int& id)
 {
-	return false; // indicates no test available in the given environment
+	return false; // did not test, id unchanged means no next test
 }
 
 void Module::WarningMessage(std::ostream *theStream)
@@ -332,13 +332,13 @@ bool Module::SetTestGrid(tw::module_type theType,tw::Int testId,Simulation *sim)
 	switch (theType)
 	{
 		case tw::module_type::species:
-			if (testId==0)
+			if (testId==1)
 			{
 				sim->Initialize(tw::idx4(1,1,2).array,tw::idx4(4,1,4).array,tw::idx4(1,1,0).array);
 				sim->Resize(*sim,tw::vec3(0,0,0),tw::vec3(0.8,0.2,0.8),2);
 				sim->SetupTimeInfo(0.1);
 				return true;
-			} else if (testId==1) {
+			} else if (testId==2) {
 				sim->Initialize(tw::idx4(1,1,2).array,tw::idx4(4,4,4).array,tw::idx4(1,1,0).array);
 				sim->Resize(*sim,tw::vec3(0,0,0),tw::vec3(0.8,0.8,0.8),2);
 				sim->SetupTimeInfo(0.1);
@@ -346,7 +346,7 @@ bool Module::SetTestGrid(tw::module_type theType,tw::Int testId,Simulation *sim)
 			}
 			return false;
 		default:
-			if (testId>0)
+			if (testId>1)
 				return false;
 			sim->Initialize(tw::idx4(1,1,2).array,tw::idx4(4,4,4).array,tw::idx4(1,1,0).array);
 			sim->Resize(*sim,tw::vec3(0,0,0),tw::vec3(0.8,0.8,0.8),2);

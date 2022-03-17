@@ -45,9 +45,9 @@ void ComputeTool::Initialize()
 	// Typically constructor should be complete, nothing to do here, unless MPI needed.
 }
 
-bool ComputeTool::Test()
+bool ComputeTool::Test(tw::Int& id)
 {
-	return false; // indicates no test available in the given environment
+	return false; // did not test, id unchanged means no next test
 }
 
 void ComputeTool::InitializeCLProgram(const std::string& filename)
@@ -340,7 +340,7 @@ bool ComputeTool::SetTestGrid(tw::tool_type theType,tw::Int testId,MetricSpace *
 	switch (theType)
 	{
 		case tw::tool_type::ellipticSolver1D:
-			if (testId>0)
+			if (testId>1)
 				return false;
 			tsk->Initialize(tw::idx4(1,1,2).array,tw::idx4(1,1,4).array,tw::idx4(1,1,0).array);
 			ms->Resize(*tsk,tw::vec3(0,0,0),tw::vec3(0.2,0.2,0.8),2);
@@ -348,17 +348,17 @@ bool ComputeTool::SetTestGrid(tw::tool_type theType,tw::Int testId,MetricSpace *
 			return true;
 		case tw::tool_type::pgcMover:
 		case tw::tool_type::borisMover:
-			if (testId==0) {
+			if (testId==1) {
 				tsk->Initialize(tw::idx4(1,1,2).array,tw::idx4(1,1,4).array,tw::idx4(1,1,0).array);
 				ms->Resize(*tsk,tw::vec3(0,0,0),tw::vec3(0.2,0.2,0.8),2);
 				ms->SetupTimeInfo(0.1);
 				return true;
-			} else if (testId==1) {
+			} else if (testId==2) {
 				tsk->Initialize(tw::idx4(1,1,2).array,tw::idx4(4,1,4).array,tw::idx4(1,1,0).array);
 				ms->Resize(*tsk,tw::vec3(0,0,0),tw::vec3(0.8,0.2,0.8),2);
 				ms->SetupTimeInfo(0.1);
 				return true;
-			} else if (testId==2) {
+			} else if (testId==3) {
 				tsk->Initialize(tw::idx4(1,1,2).array,tw::idx4(4,4,4).array,tw::idx4(1,1,0).array);
 				ms->Resize(*tsk,tw::vec3(0,0,0),tw::vec3(0.8,0.8,0.8),2);
 				ms->SetupTimeInfo(0.1);
@@ -366,7 +366,7 @@ bool ComputeTool::SetTestGrid(tw::tool_type theType,tw::Int testId,MetricSpace *
 			}
 			return false;
 		default:
-			if (testId>0)
+			if (testId>1)
 				return false;
 			tsk->Initialize(tw::idx4(1,1,2).array,tw::idx4(4,4,4).array,tw::idx4(1,1,0).array);
 			ms->Resize(*tsk,tw::vec3(0,0,0),tw::vec3(0.8,0.8,0.8),2);

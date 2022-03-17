@@ -26,7 +26,7 @@
         {
             "name": "LinuxGCC",
             "includePath": [
-                "${workspaceFolder}/**"
+                "${workspaceFolder}/core/source/**"
             ],
             "defines": ["USE_DESKTOP","USE_OPENMP","VBITS=256"],
             "compilerArgs": [

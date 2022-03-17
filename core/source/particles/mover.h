@@ -23,10 +23,13 @@ struct Mover:ComputeTool
 	virtual void Advance();
 
 	virtual void InitTest();
+	virtual void EncodingTest();
 	virtual void MinimizePrimitiveScalarTest();
 	virtual void MinimizePrimitiveVectorTest();
 	virtual void TranslationTest();
-	virtual bool Test();
+	virtual void UniformETest();
+	virtual void UniformBTest();
+	virtual bool Test(tw::Int& id);
 	virtual void CloseTest();
 };
 
@@ -46,7 +49,7 @@ struct UnitaryMover:Mover
 {
 	UnitaryMover(const std::string& name,MetricSpace *m,Task *tsk): Mover(name,m,tsk) {}
 	virtual void Advance();
-	virtual bool Test() { return false; }
+	virtual void InitTest();
 };
 
 struct PGCMover:Mover
@@ -60,7 +63,7 @@ struct BohmianMover:Mover
 {
 	BohmianMover(const std::string& name,MetricSpace *m,Task *tsk): Mover(name,m,tsk) {}
 	virtual void Advance();
-	virtual bool Test() { return false; }
+	virtual bool Test(tw::Int& id) { return false; }
 };
 
 /////////////////////////////////////
