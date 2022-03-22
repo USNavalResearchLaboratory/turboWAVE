@@ -79,6 +79,12 @@ void GridReader::UpdateTask(Task& tsk)
 	}
 }
 
+void GridReader::UpdateSpace(MetricSpace& ms)
+{
+	// whatever not handled by Resize method
+	ms.adaptiveGrid = adaptiveGrid;
+	ms.adaptiveTimestep = adaptiveTimestep;
+}
 
 ////////////////////////
 //  SIMULATION CLASS  //
@@ -966,6 +972,7 @@ void Simulation::InputFileFirstPass()
 						foundGrid = true;
 						grid.Read(inputString,preamble);
 						grid.UpdateTask(*this);
+						grid.UpdateSpace(*this);
 					}
 					if (preamble.words[0]=="warp")
 					{

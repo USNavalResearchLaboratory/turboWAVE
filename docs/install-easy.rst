@@ -29,6 +29,10 @@ The following should work in any operating system, assuming compilers are instal
 	* For now use OpenMP for the accelerator.
 	* The installer can configure for GPGPU, but you may need to fulfill some prerequisites as root for the compiler to succeed.
 
+.. note::
+
+	ANSI escape sequences provide color and formatting.  This works out of the box with most shells.  As of this writing, one way to get the correct formatting in PowerShell (mostly) is by issuing ``Set-ItemProperty HKCU:\Console VirtualTerminalLevel -Type DWORD 1``.
+
 Upgrade
 -------
 

@@ -354,6 +354,10 @@ class base_tasks(dictionary_view):
                 self.set('Set Version','done')
                 if git_is_detached(self.package_path):
                     self.cmd.info('Notice','Local repo in detached state.  This can be fixed during cleanup.')
+        toolsv = self.conf.data['Tools Version'].split('.')
+        corev = tag.split('.')
+        if toolsv[0]!=corev[0] or toolsv[1]!=corev[1]:
+            self.cmd.info('Notice','Core and tool version mismatch.  For best results match core and tools to within a minor version number.')
 
     def Configure(self):
         if self.get('Set Version')!='done':
@@ -739,6 +743,11 @@ class Application(tk.Frame):
         w = master.winfo_width()
         h = master.winfo_height()
         master.geometry('+%d+%d' % (ws/2-w/2,hs/2-h/2))
+        tst = self.conf.data['Tools Version']
+        if 'a' in tst or 'b' in tst or 'rc' in tst:
+            confirm = self.cmd.affirm('Tools version is unstable, proceed anyway')
+            if confirm=='n':
+                self.master.destroy()
     def quit(self):
         if not self.tasks.finished():
             confirm = self.cmd.affirm('There are incomplete tasks, do you want to quit?')
@@ -968,6 +977,11 @@ class term_command:
         return s
     def run(self):
         key_focus = self.tasks
+        tst = self.conf.data['Tools Version']
+        if 'a' in tst or 'b' in tst or 'rc' in tst:
+            confirm = self.affirm('Tools version is unstable, proceed anyway')
+            if confirm=='n':
+                return
         while True:
             self.titlebar.display()
             self.conf.display()

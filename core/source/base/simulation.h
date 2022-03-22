@@ -20,6 +20,7 @@ class GridReader
 	GridReader(tw::UnitConverter& uc);
 	void Read(std::stringstream& inputString,tw::input::Preamble& pre);
 	void UpdateTask(Task& tsk);
+	void UpdateSpace(MetricSpace& ms);
 	tw::vec3 GlobalCorner() { return globalCorner; }
 	tw::vec3 GlobalSize() { return tw::vec3(spacing.x*req_dim[1],spacing.y*req_dim[2],spacing.z*req_dim[3]); }
 	tw::grid::geometry Geometry() { return geo; }
