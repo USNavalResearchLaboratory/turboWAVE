@@ -355,7 +355,10 @@ class base_tasks(dictionary_view):
                 if git_is_detached(self.package_path):
                     self.cmd.info('Notice','Local repo in detached state.  This can be fixed during cleanup.')
         toolsv = self.conf.data['Tools Version'].split('.')
-        corev = tag.split('.')
+        if '(' in tag:
+            corev = ((tag.split('(')[1]).split(')')[0]).split('.')
+        else:
+            corev = tag.split('.')
         if toolsv[0]!=corev[0] or toolsv[1]!=corev[1]:
             self.cmd.info('Notice','Core and tool version mismatch.  For best results match core and tools to within a minor version number.')
 
@@ -594,7 +597,9 @@ class base_tasks(dictionary_view):
             os.remove(str(d))
         d = self.build_path / '*.d'
         if self.cmd.affirm('Delete '+str(d)+'?')=='y':
-            os.remove(str(d))
+            dep_list = glob.glob(str(d))
+            for f in dep_list:
+                os.remove(f)
         if git_is_detached(self.package_path):
             if self.cmd.affirm('Restore local repository to master?')=='y':
                 save_dir = os.getcwd()

@@ -16,11 +16,7 @@ The following should work in any operating system, assuming compilers are instal
 #. Run the installer
 
 	* Type ``twinstall`` for installations on a local machine, or a remote machine with tolerable X forwarding.
-	* Type ``twinstall --terminal`` for installation on a remote machine where X forwarding fails or is too slow.
-
-	.. note::
-
-		As of this writing, the ``--terminal`` option is not compatible with Windows PowerShell.  You can use a third party terminal emulator (e.g. PuTTY) instead.  Correct rendering of lines can depend on terminal settings.
+	* Type ``twinstall --terminal`` for installation on a remote machine where X forwarding fails or is too slow (not available in PowerShell).
 
 #. Use the installer to complete the sequence of steps in the ``Tasks`` area.
 
@@ -29,9 +25,9 @@ The following should work in any operating system, assuming compilers are instal
 	* For now use OpenMP for the accelerator.
 	* The installer can configure for GPGPU, but you may need to fulfill some prerequisites as root for the compiler to succeed.
 
-.. note::
+.. note:: Pretty PowerShell
 
-	ANSI escape sequences provide color and formatting.  This works out of the box with most shells.  As of this writing, one way to get the correct formatting in PowerShell (mostly) is by issuing ``Set-ItemProperty HKCU:\Console VirtualTerminalLevel -Type DWORD 1``.
+	To get color working try ``Set-ItemProperty HKCU:\Console VirtualTerminalLevel -Type DWORD 1``.  To get Unicode characters working try ``$OutputEncoding = [console]::InputEncoding = [console]::OutputEncoding = New-Object System.Text.UTF8Encoding`` (put this in the ``$PROFILE`` file to make it persist). If unicode is still not displayed correctly, start cycling fonts (right-click title bar and choose ``Properties``).
 
 Upgrade
 -------

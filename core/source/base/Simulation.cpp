@@ -344,19 +344,19 @@ void Simulation::Test()
 			{
 				std::string gridStr("    "+std::to_string(this->globalCells[1])+"x"+std::to_string(this->globalCells[2])+"x"+std::to_string(this->globalCells[3])+" grid");
 				tw_out = alt_out;
-				try
+				tw::Int testId = 1;
+				do
 				{
-					tool = CreateTool("test_tool",m.second);
-				}
-				catch (tw::FatalError& e)
-				{
-					test_out << gridStr + "    " << term::yellow << "tool rejected the environment" << term::reset_all << std::endl;
-					tool = NULL;
-				}
-				if (tool!=NULL)
-				{
-					tw::Int testId = 1;
-					do
+					try
+					{
+						tool = CreateTool("test_tool",m.second);
+					}
+					catch (tw::FatalError& e)
+					{
+						test_out << gridStr + "    " << term::yellow << "tool rejected the environment" << term::reset_all << std::endl;
+						tool = NULL;
+					}
+					if (tool!=NULL)
 					{
 						try
 						{
@@ -372,9 +372,9 @@ void Simulation::Test()
 							test_report << ++failure_count << ". " << m.first << " grid " << gridId << std::endl;
 							test_report << e.what() << std::endl;
 						}
-					} while (testId>1);
-					RemoveTool(tool);
-				}
+						RemoveTool(tool);
+					}
+				} while (testId>1);
 				MPI_Barrier(MPI_COMM_WORLD);
 				tw_out = save_out;
 				*tw_out << test_out.str();
@@ -395,19 +395,19 @@ void Simulation::Test()
 			{
 				std::string gridStr("    "+std::to_string(this->globalCells[1])+"x"+std::to_string(this->globalCells[2])+"x"+std::to_string(this->globalCells[3])+" grid");
 				tw_out = alt_out;
-				try
+				tw::Int testId = 1;
+				do
 				{
-	 				module = Module::CreateObjectFromType("test_module",m.second,this);
-				}
-				catch (tw::FatalError& e)
-				{
-					test_out << "    " << term::yellow << "module rejected the environment" << term::reset_all << std::endl;
-					module = NULL;
-				}
-				if (module!=NULL)
-				{
-					tw::Int testId = 1;
-					do
+					try
+					{
+	 					module = Module::CreateObjectFromType("test_module",m.second,this);
+					}
+					catch (tw::FatalError& e)
+					{
+						test_out << "    " << term::yellow << "module rejected the environment" << term::reset_all << std::endl;
+						module = NULL;
+					}
+					if (module!=NULL)
 					{
 						try
 						{
@@ -423,9 +423,9 @@ void Simulation::Test()
 							test_report << ++failure_count << ". " << m.first << " grid " << gridId << std::endl;
 							test_report << e.what() << std::endl;
 						}
-					} while (testId>1);
-					delete module;
-				}
+						delete module;
+					}
+				} while (testId>1);
 				MPI_Barrier(MPI_COMM_WORLD);
 				tw_out = save_out;
 				*tw_out << test_out.str();
@@ -440,11 +440,12 @@ void Simulation::Test()
 	if (test_report.str().size()>0)
 		*tw_out << term::bold << term::red << "Unit Tests Failing" << std::endl << std::endl << term::reset_all << test_report.str();
 	else
-		*tw_out << term::bold << term::green << "Unit Tests Passing" << term::reset_all << " - " << failure_count << " failed, " << success_count << " succeeded" << std::endl;
+		*tw_out << term::bold << term::green << "Unit Tests Passing" << term::reset_all << " - " << success_count << " succeeded, " << failure_count << " failed" << std::endl;
 	delete alt_out;
 	MPI_Barrier(MPI_COMM_WORLD);
-	assert(failure_count==0);
 	completed = true;
+	if (test_report.str().size()>0)
+		exit(1);
 }
 
 void Simulation::PrepareSimulation()

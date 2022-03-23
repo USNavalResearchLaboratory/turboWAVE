@@ -36,6 +36,8 @@ struct Fluid:Module
 
 	virtual void Report(Diagnostic&);
 	virtual bool Test(tw::Int& id);
+	void AdvectionTest();
+	void ConservationTest();
 };
 
 struct EquilibriumGroup;

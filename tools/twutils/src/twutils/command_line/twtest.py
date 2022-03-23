@@ -416,15 +416,14 @@ def UnitTest(args):
 		print('Running all Unit Tests')
 		print('----------------------')
 		cmd = ['tw3d','-n','2','--unit-test','--all']
-		compl = subprocess.run(cmd,stdout=subprocess.PIPE,stderr=subprocess.PIPE,universal_newlines=True)
+		compl = subprocess.run(cmd,stdout=subprocess.PIPE,stderr=subprocess.PIPE,universal_newlines=True,encoding='utf_8')
 
 		# Check the results
 		if compl.returncode==0:
 			passing = compl.stdout.count(term.ok)
-			missing = compl.stdout.count(term.yellow)
 			failing = compl.stdout.count(term.err)
 			print('    ' + term.ok + ' ' + term.green + 'passing' + term.reset_all)
-			print('    {} passing, {} failing, {} missing'.format(passing,failing,missing))
+			print('    {} passing, {} failing'.format(passing,failing))
 		else:
 			print('    ' + term.err + ' ' + term.red + 'failure' + term.reset_all)
 			err_report['unit tests'] = {}

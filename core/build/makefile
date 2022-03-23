@@ -413,7 +413,7 @@ ifdef BINARY_PATH_ABS
 	cp tw3d $(BINARY_PATH_ABS)$(PATH_SEP)
 endif
 ifdef WORK_PATH_ABS
-	cp $(SOURCEDIR)$(PATH_SEP)**$(PATH_SEP)*.cl '$(WORK_PATH_ABS)$(PATH_SEP)'
+	cp $(SOURCEDIR)/**/*.cl '$(WORK_PATH_ABS)$(PATH_SEP)'
 endif
 
 clean:

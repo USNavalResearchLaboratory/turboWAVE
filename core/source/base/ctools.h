@@ -10,12 +10,12 @@ static const long ndiv = (1+(im-1)/ntab);
 #define ASSERT_NEAR(actual,expected,tol) assertClose(actual,expected,tol,__FILE__,__LINE__,__func__,testName)
 #define ASSERT_GTREQ(actual,expected) assertGtrEq(actual,expected,__FILE__,__LINE__,__func__,testName)
 #define ASSERT_LESSEQ(actual,expected) assertLessEq(actual,expected,__FILE__,__LINE__,__func__,testName)
-#define ASSERT_FORCE() testName = __func__
+#define REGISTER_TEST() testName = __func__
 
 inline void assertFailed(tw::Float actual,tw::Float expected,const std::string& expr,const std::string& file,int line,const std::string& func)
 {
 	std::ostringstream mess;
-	mess << std::endl << term::red << term::err << term::reset_color << " function " << term::cyan << func << term::reset_color << std::endl; 
+	mess << std::endl << term::err << " function " << term::red << func << term::reset_color << std::endl; 
 	mess << "  Assertion " << actual << " (actual) " << expr << " " << expected << " (expected) failed." << std::endl;
 	mess << "  File: " << file <<  " , Line: " << line << std::endl;
 	throw tw::FatalError(mess.str());

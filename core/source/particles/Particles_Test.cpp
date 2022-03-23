@@ -62,6 +62,7 @@ void Species::ReflectionTest()
 
 void Species::MoveWindowTest()
 {
+	REGISTER_TEST();
 	laser = NULL;
 	chi = NULL;
 	qo_j4 = NULL;
@@ -101,5 +102,4 @@ void Species::MoveWindowTest()
 	delete EM;
 	delete sources;
 	delete rho00;
-	ASSERT_FORCE();
 }
