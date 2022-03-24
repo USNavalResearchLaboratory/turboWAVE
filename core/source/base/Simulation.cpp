@@ -438,7 +438,7 @@ void Simulation::Test()
 
 	*tw_out << std::endl;
 	if (test_report.str().size()>0)
-		*tw_out << term::bold << term::red << "Unit Tests Failing" << std::endl << std::endl << term::reset_all << test_report.str();
+		*tw_err << term::bold << term::red << "Unit Tests Failing" << term::reset_all << std::endl << std::endl << test_report.str();
 	else
 		*tw_out << term::bold << term::green << "Unit Tests Passing" << term::reset_all << " - " << success_count << " succeeded, " << failure_count << " failed" << std::endl;
 	delete alt_out;

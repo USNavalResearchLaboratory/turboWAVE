@@ -444,6 +444,9 @@ def UnitTest(args):
 	except:
 		traceback.print_exc()
 		print('unrecoverable error')
+		return 1
+	
+	return len(err_report)
 
 def CITest(args):
 	'''Runs tests with CITEST line and spot checks results.
@@ -529,6 +532,9 @@ def CITest(args):
 	except:
 		traceback.print_exc()
 		print('unrecoverable error')
+		return 1
+	
+	return len(err_report)
 
 def panic(mess):
 	print(term.red+'ERROR: '+term.reset_all+mess)
@@ -583,11 +589,14 @@ def main():
 	if not os.path.isdir(args['--root']):
 		panic('requested root directory ('+args['--root']+') does not exist.')
 
+	errCount = 0
 	if args['--unit']:
-		UnitTest(args)
+		errCount += UnitTest(args)
 	if args['--integration']:
 		print()
-		CITest(args)
+		errCount += CITest(args)
 	if args['--sea-trials']:
 		print()
 		SeaTrials(args)
+
+	return errCount
