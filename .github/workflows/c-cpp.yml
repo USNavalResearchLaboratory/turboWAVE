@@ -39,4 +39,4 @@ jobs:
       working-directory: ./core/build
       run: ./tw3d -n 2 --unit-test --all
     - name: turbowave integration testing
-      run: twtest --integration --root . --command tw3d -n 4
+      run: twtest --integration --root . --command ./core/build/tw3d -n 4
