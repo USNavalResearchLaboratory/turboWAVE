@@ -24,9 +24,9 @@ profile: tw3d_profile install
 
 # Uncomment exactly one platform
 
-PLATFORM = OSX
+#PLATFORM = OSX
 #PLATFORM = WIN
-#PLATFORM = LINUX
+PLATFORM = LINUX
 #PLATFORM = OPENMPI
 #PLATFORM = INTELMPI
 #PLATFORM = CRAY
@@ -41,7 +41,7 @@ HARDWARE_ACCEL = OMP
 #HARDWARE_ACCEL = RADEON_PRO
 
 # VBITS mapping: AVX512 : 512 , AVX/AVX2 : 256 , SSE/SSE2 : 128 , scalar : 64
-VBITS = 256
+VBITS = 512
 
 # Select byte ordering of the target processor (usually LITTLE)
 ENDIANNESS = LITTLE

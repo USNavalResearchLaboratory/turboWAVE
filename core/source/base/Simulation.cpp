@@ -175,6 +175,11 @@ Simulation::~Simulation()
 		((std::ofstream*)tw_out)->close();
 	if (dynamic_cast<std::stringstream*>(tw_out))
 		delete tw_out;
+
+	if (dynamic_cast<std::ofstream*>(tw_err))
+		((std::ofstream*)tw_err)->close();
+	if (dynamic_cast<std::stringstream*>(tw_err))
+		delete tw_err;
 }
 
 void Simulation::SetupIO()

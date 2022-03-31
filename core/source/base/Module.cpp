@@ -327,18 +327,18 @@ Module* Module::CreateObjectFromType(const std::string& name,tw::module_type the
 	return ans;
 }
 
-bool Module::SetTestGrid(tw::module_type theType,tw::Int testId,Simulation *sim)
+bool Module::SetTestGrid(tw::module_type theType,tw::Int gridId,Simulation *sim)
 {
 	switch (theType)
 	{
 		case tw::module_type::species:
-			if (testId==1)
+			if (gridId==1)
 			{
 				sim->Initialize(tw::idx4(1,1,2).array,tw::idx4(4,1,4).array,tw::idx4(1,1,0).array);
 				sim->Resize(*sim,tw::vec3(0,0,0),tw::vec3(0.8,0.2,0.8),2);
 				sim->SetupTimeInfo(0.1);
 				return true;
-			} else if (testId==2) {
+			} else if (gridId==2) {
 				sim->Initialize(tw::idx4(1,1,2).array,tw::idx4(4,4,4).array,tw::idx4(1,1,0).array);
 				sim->Resize(*sim,tw::vec3(0,0,0),tw::vec3(0.8,0.8,0.8),2);
 				sim->SetupTimeInfo(0.1);
@@ -346,7 +346,7 @@ bool Module::SetTestGrid(tw::module_type theType,tw::Int testId,Simulation *sim)
 			}
 			return false;
 		default:
-			if (testId>1)
+			if (gridId>1)
 				return false;
 			sim->Initialize(tw::idx4(1,1,2).array,tw::idx4(4,4,4).array,tw::idx4(1,1,0).array);
 			sim->Resize(*sim,tw::vec3(0,0,0),tw::vec3(0.8,0.8,0.8),2);

@@ -23,7 +23,9 @@ The integration tests are very small simulations that should be thought of as te
 
 would check that the electric field x-component minimum is -0.024, and that the maximum is 0.024, with a tolerance of 0.001.  Example invocation::
 
-	twtest --integration --root ~/path/to/turboWAVE --command tw3d -n 4
+	twtest --integration --root ~/path/to/local/repo --command tw3d -n 4
+
+where ``path/to/local/repo`` is to be replaced with your own local repository path.
 
 Sea Trials
 ----------
@@ -36,17 +38,19 @@ The ``TWTEST`` token tells ``twtest`` to process this line.  The ``matplotlib`` 
 
 The sea trials can be invoked as follows::
 
-	twtest --sea-trials --root ~/path/to/turboWAVE --command tw3d -n 16
+	twtest --sea-trials --root ~/path/to/local/repo --command tw3d -n 16
 
-Due to the large number of simulations to be run this may take a few hours.  You can limit the test to specific categories using the ``--categories`` option::
+where ``path/to/local/repo`` is to be replaced with your own local repository path.  Due to the large number of simulations to be run this may take a few hours.  You can limit the test to specific categories using the ``--categories`` option::
 
-	twtest --sea-trials --root ~/path/to/turboWAVE --categories pic,hydro --command tw3d -n 16
+	twtest --sea-trials --root ~/path/to/local/repo --categories pic,hydro --command tw3d -n 16
 
 This would test all the examples in the ``hydro`` and ``pic`` directories.
 
 If turboWAVE is compiled against an external MPI library, simply substitute the appropriate command::
 
-	twtest --sea-trials --root ~/path/to/turboWAVE --categories pic,hydro --command mpirun -np 16 tw3d -c 2
+	twtest --sea-trials --root ~/path/to/local/repo --categories pic,hydro --command mpirun -np 16 tw3d -c 2
+
+where ``path/to/local/repo`` is to be replaced with your own local repository path.
 
 .. note::
 

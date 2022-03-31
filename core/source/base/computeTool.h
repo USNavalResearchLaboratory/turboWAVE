@@ -83,7 +83,7 @@ struct ComputeTool
 	static std::map<std::string,tw::tool_type> Map();
 	static tw::tool_type CreateTypeFromInput(const tw::input::Preamble& preamble);
 	static ComputeTool* CreateObjectFromType(const std::string& name,tw::tool_type theType,MetricSpace *ms,Task *tsk);
-	static bool SetTestGrid(tw::tool_type theType,tw::Int testId,MetricSpace *ms,Task *tsk);
+	static bool SetTestGrid(tw::tool_type theType,tw::Int gridId,MetricSpace *ms,Task *tsk);
 };
 
 struct BoundedTool : ComputeTool

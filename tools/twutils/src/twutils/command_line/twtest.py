@@ -41,7 +41,7 @@ def print_usage():
 	print('  --categories <cat1,cat2,...>  limit to explicit categories')
 	print()
 	print('ARGS:')
-	print('  <tw_root>   path to turboWAVE root directory.')
+	print('  <tw_root>   path to turboWAVE local repository.')
 	print('  <cmd>       command line to execute for each test.')
 	print()
 	print('EXAMPLES:')

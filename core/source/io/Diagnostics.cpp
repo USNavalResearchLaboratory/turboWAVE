@@ -805,7 +805,7 @@ void PhaseSpaceDiagnostic::Start()
 
 	tw::vec3 phaseSpaceMin(bounds[0],bounds[2],bounds[4]);
 	tw::vec3 phaseSpaceSize(bounds[1]-bounds[0],bounds[3]-bounds[2],bounds[5]-bounds[4]);
-	fxp.Initialize(DiscreteSpace(dims[1],dims[2],dims[3],phaseSpaceMin,phaseSpaceSize),task);
+	fxp.Initialize(DiscreteSpace(dims[1],dims[2],dims[3],phaseSpaceMin,phaseSpaceSize,1),task);
 	fxp.SetBoundaryConditions(tw::grid::x,tw::bc::fld::dirichletCell,tw::bc::fld::dirichletCell);
 	fxp.SetBoundaryConditions(tw::grid::y,tw::bc::fld::dirichletCell,tw::bc::fld::dirichletCell);
 	fxp.SetBoundaryConditions(tw::grid::z,tw::bc::fld::dirichletCell,tw::bc::fld::dirichletCell);

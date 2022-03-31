@@ -1,6 +1,35 @@
 What's New
 //////////
 
+What's New in 4.7
+=================
+
+#. Continuous-integration workflow, including unit testing, and small scale integration testing suitable for github servers
+
+	* The ``twtest`` runner remains, but is modified to be continuous-integration friendly
+	* Unit tests are a custom framework loosely patterned after `Google Test <https://google.github.io/googletest/>`_
+
+#. Makefile is modernized
+
+	* Automatic header dependency calculations
+	* Automatic discovery of source files
+	* Out of source build
+
+#. Source tree factorization
+
+	* Cannot be avoided any longer with so many sources!
+
+Gotchas
+-------
+
+#. You can no longer run ``make`` from ``core/source``, run it from ``core/build`` instead.
+
+#. If you have a custom modified ``makefile`` it will likely require significant modification, please refer to the new ``makefile``.
+
+#. Support for Windows ``nmake`` is on hold, and therefore the Intel compiler on Windows may be problematic.
+
+#. Executables compiled with GCC sometimes seg-fault out of the unit tests.  The disassembly at the point of the fault, along with valgrind testing, suggests this is due to a compiler bug.  We will keep an eye on this.
+
 What's New in 4.6
 =================
 
