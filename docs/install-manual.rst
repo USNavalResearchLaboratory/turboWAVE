@@ -78,12 +78,12 @@ Python DataViewer
 #. Copy :samp:`{turboWAVE}/tools/DataViewer.ipynb` to :samp:`~/bin`
 #. Create a directory :samp:`~/.jupyter/custom/` and copy :samp:`{turboWAVE}/tools/config-files/custom.css` to the new directory.
 
-Input File Syntax Highlights
+Input File Language Support
 ----------------------------
 
-You can add syntax highlights for ``Atom``, ``micro``, ``nano``, and ``vim`` editors.  Syntax highlights assign different colors to different input file elements, such as comments, macros, keywords, etc..  This often makes the file easier to read and helps identify errors.
+You can add language support for turboWAVE input files in various editors.
 
-#. To enable turboWAVE input file syntax highlights with the :samp:`Atom` editor, go to the package installation screen and search for the :samp:`language-turbowave` package.  Press the button to install the package.
+#. For ``VS Code`` and ``Atom``, language support can be installed using the editor's own GUI, search for ``turbowave``.
 
 #. To enable turboWAVE input file syntax highlights with the :samp:`micro` editor
 
@@ -99,6 +99,16 @@ You can add syntax highlights for ``Atom``, ``micro``, ``nano``, and ``vim`` edi
 	* Copy :samp:`{turboWAVE}/tools/config-files/filetype.vim` to ``%HomePath%\vimfiles\`` (Windows) or ``~/.vim/`` (others)
 	* Copy :samp:`{turboWAVE}/tools/config-files/turbowave.vim` to ``%HomePath%\vimfiles\syntax\`` or ``~/.vim/syntax/`` (others).
 
+#. To enable turboWAVE input file syntax highlights with the :samp:`neovim` editor
+
+	* Following is only tested on Linux as of this writing
+	* Install the ``nvim-treesitter`` package.  You can use your favorite ``neovim`` package manager, or clone ``nvim-treesitter`` into ``~/.local/share/nvim/site/pack/ts/start`` (Linux).
+	* Copy :samp:`{turbowave}/tools/config-files/init.vim` to ``~/.config/nvim`` (edit the settings if you like).
+	* Copy ``highlights.scm`` from ``tree-sitter-turbowave`` to ``~/.local/share/nvim/site/queries/turbowave``.
+	* Create a file ``~/.config/nvim/ftdetect/turbowave.vim`` with contents ``au BufRead,BufNewFile *.tw set filetype=turbowave``.
+	* Start a new ``nvim`` session and run the command ``:TSInstall turbowave``.
+	* You can run ``:checkhealth nvim-treesitter`` to see if it worked and diagnose any problems.  The list of parsers should include ``turbowave``.
+
 Core Installation
 =================
 
@@ -110,26 +120,14 @@ The basic installation workflow is build from source, and copy files into user s
 Configuration
 -------------
 
-For manual installations, configuration is done by directly editing ``makefile``, or in case of the Intel compiler on Windows, ``win.make``.  Editing the ``makefile`` is usually easy.  In most cases, you only have to adjust the constants in the input variables block, which is prominently identified by comments.
+For manual installations, configuration is done by directly editing ``core/build/makefile``.  Editing the ``makefile`` is usually easy.  In most cases, you only have to adjust the constants in the input variables block, which is prominently identified by comments.
 
 If the ``makefile`` senses an activated conda environment, it copies the executable binary into that environment.  Otherwise, it tries to copy the executable to an *existing* directory ``~/bin`` (``~\Scripts`` on Windows).  OpenCL kernel files are copied to an *existing* directory ``~/Run``.  You can change these directories by editing ``BINARY_PATH`` and ``WORK_PATH`` constants.
 
 Compiler Notes
 --------------
 
-We support several compilers for desktop turboWAVE.  Explicit instructions are given for the following OS/compiler combinations:
-
-.. csv-table:: Table I. Desktop C++ Compilers.
-	:header: "Umbrella", "Compiler Command", "Operating Systems"
-
-	"GNU", ``g++``, "Linux, MacOS"
-	"LLVM", ``clang++``, "Linux, Windows"
-	"Intel Parallel Studio", ``icl``, "Windows"
-	"Microsoft Visual Studio", ``cl``, "Windows"
-
-The GNU and LLVM compilers can be freely downloaded.  Intel and Microsoft compilers
-are commercial products, but typically offer free trial downloads.  Other combinations
-are possible, these are merely the ones that are tested and directly supported.
+For desktop turboWAVE, it is recommended to use either GNU ``g++`` or LLVM ``clang++`` compilers. The Intel compiler may work, but is not being tested at present.  Support for ``nmake`` is dropped, as of this writing.
 
 On HPC systems, we expect a suitable compiler to be pre-installed by the system
 administrators, although there may be modules to load, unload, or swap.

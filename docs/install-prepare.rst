@@ -63,8 +63,8 @@ Install MacPorts GCC
 #. If you want to use Homebrew skip this section.
 #. Perform internet search to find MacPorts installation instructions and carry out
 #. In the terminal type :samp:`sudo port selfupdate`
-#. :samp:`sudo port install gcc10`
-#. :samp:`sudo port select --set gcc mp-gcc10`
+#. :samp:`sudo port install gcc11`
+#. :samp:`sudo port select --set gcc mp-gcc11`
 
 Install Anaconda
 ----------------

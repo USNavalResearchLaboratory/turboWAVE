@@ -1,0 +1,84 @@
+#define $theta 29.2[deg]
+
+steps = 60000
+timestep = 0.038
+dump period = 0
+moving window = no
+neutralize = no
+unit density = 1.74e21
+xboundary = ( periodic , periodic )
+yboundary = ( periodic , periodic )
+zboundary = ( absorbing , absorbing )
+
+// wp^-1 = 0.42495 fs
+// c/wp = 0.12740 um
+// E_br = 4.01112 TV/m
+
+new grid
+{
+	corner = ( -0.5 , -0.5 , 0 )
+	dimensions = ( 1 , 1 , 32768 )
+	cell size = ( 1.0 , 1.0 , 0.04 )
+	decomposition = ( 1 , 1 , 16 )
+}
+
+new region rect 'r1'
+{
+	bounds = ( -100 100 -1 1 100 900 )
+}
+
+new coulomb electromagnetic module 'em'
+{
+}
+
+new hermite gauss for 'em'
+{
+	a = ( 0 5.3e-4 0 ) // 7 mJ, r0 = 3 mm, 80 fs FWHM
+	w = 1
+	r0 = ( 1e5 1e5 )
+	focus position = ( 0 0 0 )
+	delay = 0
+	risetime = 244 // 244 = 80 fs FWHM
+	holdtime = 0.0
+	falltime = 244
+}
+
+// 2 oscillator model for BBO
+
+new bound 'osc1'
+{
+	resonance = ( 7.312 7.312 8.039 )
+	damping = ( 0 0 0 )
+	strength = ( 5.12 5.12 4.91 )
+	a1 = ( 0 0 0 0 -1147.12 -26007.56 )
+	a2 = ( -26007.56 26007.56 0 -1147.12 0 0 )
+	a3 = ( -604.85 -604.85 -889.87 0 0 0 )
+	theta = $theta
+	phi = 30[deg]
+}
+
+new bound 'osc2'
+{
+	resonance = (3.46e-06 3.46e-06 3.48e-05)
+	damping = (0 0 0)
+	strength = (2.55 2.55 3.85)
+	theta = $theta
+	phi = 30[deg]
+}
+
+generate uniform 'osc1'
+{
+	density = 18.04
+	clipping region = 'r1'
+}
+
+generate uniform 'osc2'
+{
+	density = .0018
+	clipping region = 'r1'
+}
+
+new box diagnostic
+{
+	period = 1000
+}

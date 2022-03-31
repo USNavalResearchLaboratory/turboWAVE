@@ -168,7 +168,7 @@ class base_config(dictionary_view):
         self.choices['Byte Order'] = ['Little Endian','Big Endian']
         self.data['Tools Version'] = pkg_resources.get_distribution('twutils').version
         self.data['Core Version'] = ''
-        self.data['Source Path'] = ''
+        self.data['Build Path'] = ''
         self.data['Platform'] = self.choices['Platform'][0]
         self.data['Compiler'] = self.choices['Compiler'][0]
         self.data['Accelerator'] = self.choices['Accelerator'][0]
@@ -270,22 +270,22 @@ class base_tasks(dictionary_view):
         primitive_path = self.AskDirectory()
         if type(primitive_path)==tuple:
             return
-        self.source_path = pathlib.Path(primitive_path) / 'turboWAVE' / 'core' / 'source'
+        self.build_path = pathlib.Path(primitive_path) / 'turboWAVE' / 'core' / 'build'
         self.package_path = pathlib.Path(primitive_path) / 'turboWAVE'
-        verified_path = glob.glob(str(self.source_path))
+        verified_path = glob.glob(str(self.build_path))
         if len(verified_path)==0:
-            self.source_path = pathlib.Path(primitive_path) / 'core' / 'source'
+            self.build_path = pathlib.Path(primitive_path) / 'core' / 'build'
             self.package_path = pathlib.Path(primitive_path)
-            verified_path = glob.glob(str(self.source_path))
+            verified_path = glob.glob(str(self.build_path))
         if len(verified_path)==0:
             ans = self.cmd.affirm('Path is '+primitive_path+'\nTW source not found, would you like to retrieve it?')
             if ans=='y':
                 dest = str(pathlib.Path(primitive_path) / 'turboWAVE')
                 self.cmd.display('Cloning repository...')
                 compl = subprocess.run(["git","clone",source_url,dest],stdout=subprocess.PIPE,stderr=subprocess.STDOUT,universal_newlines=True)
-                self.source_path = pathlib.Path(dest) / 'core' / 'source'
+                self.build_path = pathlib.Path(dest) / 'core' / 'build'
                 self.package_path = pathlib.Path(dest)
-                verified_path = glob.glob(str(self.source_path))
+                verified_path = glob.glob(str(self.build_path))
                 if git_err_handler(compl,self.cmd):
                     verified_path = []
                 self.cmd.display('')
@@ -307,10 +307,10 @@ class base_tasks(dictionary_view):
             else:
                 self.cmd.info('Warning','TW source found, but working tree not clean.\nYou can continue if you know what you are doing.')
         if len(verified_path)>0:
-            self.conf.set('Source Path',verified_path[0])
+            self.conf.set('Build Path',verified_path[0])
             self.set('Get Components','done')
         else:
-            self.conf.set('Source Path','')
+            self.conf.set('Build Path','')
             self.cmd.err('Get components did not succeed.')
 
     def StartSetVersion(self):
@@ -354,6 +354,13 @@ class base_tasks(dictionary_view):
                 self.set('Set Version','done')
                 if git_is_detached(self.package_path):
                     self.cmd.info('Notice','Local repo in detached state.  This can be fixed during cleanup.')
+        toolsv = self.conf.data['Tools Version'].split('.')
+        if '(' in tag:
+            corev = ((tag.split('(')[1]).split(')')[0]).split('.')
+        else:
+            corev = tag.split('.')
+        if toolsv[0]!=corev[0] or toolsv[1]!=corev[1]:
+            self.cmd.info('Notice','Core and tool version mismatch.  For best results match core and tools to within a minor version number.')
 
     def Configure(self):
         if self.get('Set Version')!='done':
@@ -369,11 +376,11 @@ class base_tasks(dictionary_view):
         if self.conf.get('Platform')=='Windows' and self.conf.get('Compiler')=='Intel':
             maker = 'MS'
         if maker=='MS':
-            makefile_in = str(self.source_path / 'win.make')
-            makefile_out = str(self.source_path / 'win.make.edited')
+            makefile_in = str(self.build_path / 'win.make')
+            makefile_out = str(self.build_path / 'win.make.edited')
         if maker=='GNU':
-            makefile_in = str(self.source_path / 'makefile')
-            makefile_out = str(self.source_path / 'makefile.edited')
+            makefile_in = str(self.build_path / 'makefile')
+            makefile_out = str(self.build_path / 'makefile.edited')
         with open(makefile_in,'r') as f:
             makefile = f.read()
         key_on = ['Platform','Compiler','Accelerator','Vectors','Packager','Byte Order']
@@ -395,11 +402,13 @@ class base_tasks(dictionary_view):
                 # Don't care about preserving unused values, safest to just overwrite the first value found.
                 makefile = re.sub('\n[#\s]*'+var+'\s*=\s*[\w\d]+','\n'+var+' = '+val,makefile,count=1)
         if self.conf.get('Packager')=='Homebrew' and self.conf.get('Compiler')=='GNU':
-            gcc_glob = '/usr/local/opt/gcc/bin/g++-*'
+            gcc_glob_list = ['/usr/local/opt/**/g++-*','/opt/homebrew/**/g++-*']
             gcc_re = r'\/usr\/local\/opt\/gcc\/bin\/g\+\+-\d+'
-            brew_gcc = glob.glob(gcc_glob)
+            brew_gcc = []
+            for gcc_glob in gcc_glob_list:
+                brew_gcc += glob.glob(gcc_glob,recursive=True)
             if len(brew_gcc)==0:
-                self.cmd.err('Did not find GCC of the form '+gcc_glob)
+                self.cmd.err('Did not find GCC of the form '+gcc_glob_list)
                 return
             gcc_sel = brew_gcc[0]
             if len(brew_gcc)>1:
@@ -427,7 +436,7 @@ class base_tasks(dictionary_view):
         if self.cmd.affirm('Compiler progress will appear in shell window.\nPlease wait for completion.\nReady to proceed?')=='y':
             self.cmd.display('Compiling...')
             save_dir = os.getcwd()
-            os.chdir(self.source_path)
+            os.chdir(self.build_path)
             maker = 'GNU'
             if self.conf.get('Platform')=='Windows' and self.conf.get('Compiler')=='Intel':
                 maker = 'MS'
@@ -449,13 +458,16 @@ class base_tasks(dictionary_view):
                 leave_shell()
                 self.cmd.display('')
                 if maker=='MS':
-                    self.cmd.err('Could not find nmake. Try running twinstall from Intel shell.')
+                    self.cmd.err('nmake is not supported in the synced core version.')#self.cmd.err('Could not find nmake. Try running twinstall from Intel shell.')
                 else:
                     self.cmd.err('Could not find make, perhaps it is not installed?')
             except RuntimeError:
                 leave_shell()
                 self.cmd.display('')
-                self.cmd.err('There was an error while trying to compile.')
+                if maker=='MS':
+                    self.cmd.err('nmake is not supported in the synced core version.')
+                else:
+                    self.cmd.err('There was an error while trying to compile.')
             except Exception as ex:
                 leave_shell()
                 self.cmd.display('')
@@ -482,7 +494,7 @@ class base_tasks(dictionary_view):
             src_exe = 'tw3d'
             dst_exe = 'tw3d'
             install_path = pathlib.Path(os.environ['CONDA_PREFIX']) / 'bin' / dst_exe
-        repo_path = self.source_path / src_exe
+        repo_path = self.build_path / src_exe
         # tw3d executable
         if self.conf.get('Platform')=='Cray':
             dv_dir = self.AskDirectory('Select executable install location',str(pathlib.Path.home()))
@@ -556,8 +568,8 @@ class base_tasks(dictionary_view):
             if len(glob.glob(str(dest_path)))==0:
                 os.makedirs(dest_path,exist_ok=True)
             shutil.copy(repo_path,dest_path)
-        # Atom highlighting
-        self.cmd.info('Notice','Syntax highlights are also available for Atom, simply search for "language-turbowave" in the Atom package manager.')
+        # Other highlighting
+        self.cmd.info('Notice','Syntax highlights are available for Atom and VS Code, search for "turbowave" in the respective package managers.')
 
     def Clean(self):
         if self.get('Install Files')!='done':
@@ -572,17 +584,22 @@ class base_tasks(dictionary_view):
             makefile_name = 'makefile.edited'
             obj_ext = '.o'
             exe_name = 'tw3d'
-        d = self.source_path / makefile_name
+        d = self.build_path / makefile_name
         if self.cmd.affirm('Delete '+str(d)+'?')=='y':
             os.remove(str(d))
-        d = self.source_path / ('*' + obj_ext)
+        d = self.build_path / ('*' + obj_ext)
         if self.cmd.affirm('Delete '+str(d)+'?')=='y':
             obj_list = glob.glob(str(d))
             for f in obj_list:
                 os.remove(f)
-        d = self.source_path / exe_name
+        d = self.build_path / exe_name
         if self.cmd.affirm('Delete '+str(d)+'?')=='y':
             os.remove(str(d))
+        d = self.build_path / '*.d'
+        if self.cmd.affirm('Delete '+str(d)+'?')=='y':
+            dep_list = glob.glob(str(d))
+            for f in dep_list:
+                os.remove(f)
         if git_is_detached(self.package_path):
             if self.cmd.affirm('Restore local repository to master?')=='y':
                 save_dir = os.getcwd()
@@ -731,6 +748,11 @@ class Application(tk.Frame):
         w = master.winfo_width()
         h = master.winfo_height()
         master.geometry('+%d+%d' % (ws/2-w/2,hs/2-h/2))
+        tst = self.conf.data['Tools Version']
+        if 'a' in tst or 'b' in tst or 'rc' in tst:
+            confirm = self.cmd.affirm('Tools version is unstable, proceed anyway')
+            if confirm=='n':
+                self.master.destroy()
     def quit(self):
         if not self.tasks.finished():
             confirm = self.cmd.affirm('There are incomplete tasks, do you want to quit?')
@@ -960,6 +982,11 @@ class term_command:
         return s
     def run(self):
         key_focus = self.tasks
+        tst = self.conf.data['Tools Version']
+        if 'a' in tst or 'b' in tst or 'rc' in tst:
+            confirm = self.affirm('Tools version is unstable, proceed anyway')
+            if confirm=='n':
+                return
         while True:
             self.titlebar.display()
             self.conf.display()

@@ -1,0 +1,117 @@
+// Keep the following line for continuous integration testing
+// CITEST Ez.npy range=-2.94,4.41 tolerance=0.01
+
+steps = 200
+timestep = 0.1
+dump period = 0
+moving window = yes
+neutralize = yes
+unit density = 2e17
+
+xboundary = ( axisymmetric , absorbing )
+yboundary = ( periodic , periodic )
+zboundary = ( absorbing , absorbing )
+
+// wp^-1 = 39.636 fs
+// c/wp = 11.883 um
+// E_br = 43.004 GV/m
+
+new grid
+{
+	corner = ( 0.0 , -3.14 , -25.6 )
+	dimensions = ( 40 , 1 , 128 )
+	cell size = ( 0.6 , 6.28 , 0.2 )
+	decomposition = ( 2 , 1 , 2 )
+	geometry = cylindrical
+}
+
+new curvilinear direct solver 'em'
+{
+	new eigenmode elliptic solver 'eig-poisson'
+	{
+		xboundary = ( neumann dirichlet )
+		zboundary = ( open open )
+	}
+}
+
+new pgc laser module 'pgc'
+{
+	carrier frequency = 80
+	new eigenmode propagator 'eig-propagator'
+	{
+		damping time = 1.0
+		absorbing layers = 8
+	}
+}
+
+new hermite gauss pulse for 'pgc'
+{
+	a = ( 5.0 0.0 0.0 )
+	w = 80
+	r0 = ( 5 , 5 )
+	delay = 1
+	risetime = 5
+	holdtime = 0
+	falltime = 5
+}
+
+new species 'He'
+{
+	charge = 0.0
+	mass = 7344
+	particles per cell = ( 4 1 4 ) when density = 1.0
+	xboundary = ( reflecting , reflecting )
+}
+
+new species 'He[+]'
+{
+	charge = 1.0
+	mass = 7343
+	particles per cell = ( 4 1 4 ) when density = 1.0
+	xboundary = ( reflecting , reflecting )
+}
+
+new species 'He[2+]'
+{
+	charge = 2.0
+	mass = 7342
+	particles per cell = ( 4 1 4 ) when density = 1.0
+	xboundary = ( reflecting , reflecting )
+}
+
+new species 'e'
+{
+	particles per cell = ( 4 1 4 ) when density = 1.0
+	xboundary = ( reflecting , reflecting )
+}
+
+new adk ionization for 'He'
+{
+	ionization potential = 24.587 [eV]
+	protons = 2
+	electrons = 2
+	ion species = 'He[+]'
+	electron species = 'e'
+}
+
+new adk ionization for 'He[+]'
+{
+	ionization potential = 54.418 [eV]
+	protons = 1
+	electrons = 1
+	ion species = 'He[2+]'
+	electron species = 'e'
+}
+
+generate piecewise 'He'
+{
+	zdensity = { 1 , 1 }
+	zpoints = { 0.0 , 1e10 }
+	particle weight = variable
+}
+
+new box diagnostic
+{
+	period = 200
+	galilean velocity = ( 0 , 0 , 1 )
+}

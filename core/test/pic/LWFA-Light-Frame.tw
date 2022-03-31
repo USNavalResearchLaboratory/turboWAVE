@@ -1,0 +1,76 @@
+// Keep the following line for generating twtest reports
+// TWTEST matplotlib zxyt=0,: zpz.npy dr=5.0
+
+steps = 2000
+timestep = 0.04
+dump period = 0
+moving window = yes
+neutralize = yes
+unit density = 1e19
+
+xboundary = ( periodic , periodic )
+yboundary = ( periodic , periodic )
+zboundary = ( reflecting , reflecting )
+
+// wp^-1 = 5.60883 fs
+// c/wp = 1.68265 um
+// E_br = 304.208 GV/m
+
+new grid
+{
+	corner = ( -64 , -0.5 , -51.2 )
+	dimensions = ( 256 , 1 , 1024 )
+	cell size = ( 0.5 , 1.0 , 0.05 )
+	decomposition = ( 2 , 1 , 2 )
+}
+
+new region rect 'r1'
+{
+	bounds = -40 40 -1e5 1e5 10 40
+	move with window = false
+}
+
+new direct electromagnetic module 'em'
+{
+	layers = 8 8 0 0 0 0
+	reflection coefficient = 1e-4 1e-4 1e-4 1e-4 1e-4 1e-4
+}
+
+new hermite gauss for 'em'
+{
+	a = 2.5 0.0 0.0
+	w = 5.0
+	r0 = ( 10 , 1e5 )
+	delay = 1
+	risetime = 3
+	holdtime = 0
+	falltime = 3
+}
+
+new species 'e'
+{
+	particles per cell = 4 1 4 when density = 1
+}
+
+generate uniform 'e'
+{
+	clipping region = 'r1'
+	density = 1.0
+	loading = deterministic
+}
+
+new box diagnostic 'box'
+{
+	period = 100
+	galilean velocity = ( 0 , 0 , 1 )
+}
+
+new phase space diagnostic for 'e'
+{
+	filename = zpz
+	period = 100
+	galilean velocity = ( 0.0 , 0.0 , 1.0 )
+	axes = ( pz , y , z )
+	dimensions = ( 200 , 1 , 200 )
+	bounds = ( 1 , 20 , -0.5 , 0.5 , -50 , 0 )
+}

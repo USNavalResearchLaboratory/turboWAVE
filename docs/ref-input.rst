@@ -252,10 +252,6 @@ Top level directives may include statements to create modules or tools, as well 
 
 	:param int dp: Write out checkpoint data every ``dp`` steps.  If zero do not save any checkpoints.
 
-.. py:function:: output level = lvl
-
-	:param int lvl: If 0 then only MPI rank 0 writes an output file (to stdout).  If lvl > 0 than every MPI process produces an output file.
-
 .. _boundaries:
 .. py:function:: xboundary = ( b1 , b2 )
 

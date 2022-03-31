@@ -1,0 +1,42 @@
+name: C/C++ CI
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set up Python 3.10
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.10'
+    - name: Add conda to system path
+      run: |
+        # $CONDA is an environment variable pointing to the root of the miniconda directory
+        echo $CONDA/bin >> $GITHUB_PATH
+    - name: Install dependencies
+      run: |
+        conda install -c dfxgordon twutils
+    - name: configure
+      working-directory: ./core/build
+      run: |
+        sed -i -e "s|PLATFORM *= *\w\+|PLATFORM = LINUX|g" makefile
+        sed -i -e "s|HARDWARE_ACCEL *= *\w\+|HARDWARE_ACCEL = OMP|g" makefile
+        sed -i -e "s|VBITS *= *[0-9]\+|VBITS = 256|g" makefile
+        sed -i -e "s|ENDIANNESS *= *\w\+|ENDIANNESS = LITTLE|g" makefile
+        sed -i -e "s|COMPILER_PREF *= *\w\+|COMPILER_PREF = GNU|g" makefile
+    - name: make
+      working-directory: ./core/build
+      run: make tw3d_debug
+    - name: turbowave unit testing
+      working-directory: ./core/build
+      run: ./tw3d -n 2 --unit-test --all
+    - name: turbowave integration testing
+      run: twtest --integration --root . --command ./core/build/tw3d -n 4

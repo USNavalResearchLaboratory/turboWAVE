@@ -1,0 +1,73 @@
+// Keep the following line for continuous integration testing
+// CITEST air.npy range=0.1,4.2 tolerance=0.1
+
+// SPARC simulation illustrating 1D cylindrical shock
+// Approach is to create uniform air and deposit energy on axis
+// Comparison can be made with the cylindrical Taylor-Sedov solution R(t) = (KU/nm)^1/4 * t^1/2
+// Here, U is energy per unit length, K = 1.07 for cv*m = 2.5
+// Using parameters below R(t) = 1.86*t^1/2 in mks units
+// Mass and energy should be conserved to several digits
+steps = 1000
+timestep = 10000
+dtmax = 30000
+maxtime = 7e5
+dump period = 0
+neutralize = yes
+unit density = 2.8e+19
+
+xboundary = ( axisymmetric  reflecting )
+yboundary = ( periodic  periodic )
+zboundary = ( periodic  periodic )
+
+// wp^-1 = 3.350 fs
+// c/wp = 1.004 um
+// E_br = 5.088e6 kV/cm
+
+new grid
+{
+	corner = ( 0 , -3.1416 , -0.5 )
+	dimensions = ( 400 , 1 , 1 )
+	cell size = ( 2 , 6.2832 , 1 )
+	decomposition = ( 1  1  1 )
+	geometry = cylindrical
+	adaptive timestep = on
+}
+
+new hydrodynamics
+{
+	epsilon factor = 1e-5
+	radiation model = none
+}
+
+new chemical air
+{
+	charge = 0.0
+	mass = 51078.5
+	cv = 2.5
+	thermometric conductivity = 0.2[cm2/s]
+	kinematic viscosity = 0.15[cm2/s]
+}
+
+generate uniform air
+{
+	density = 1.0
+	temperature = 300[K]
+}
+
+generate gaussian air
+{
+	type = energy
+	density = 1.15e10[J/m3]
+	size = (20 20 20)
+	// Integration over region gives 14.4 J/m
+}
+
+new box diagnostic
+{
+	time period = 2e5
+}
+
+new energy diagnostic
+{
+	time period = 2e5
+}

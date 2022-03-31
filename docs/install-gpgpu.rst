@@ -20,20 +20,7 @@ To run on GPGPU you must prepare a special executable.  The procedure for severa
 GPGPU on MacOS
 ==============
 
-Driver
-------
-
-For MacOS there is nothing to do, OpenCL is supported out of the box.
-
-Compile with OpenCL
--------------------
-
-#. Edit :samp:`{turboWAVE}/core/source/makefile`
-#. In the makefile, you must comment/uncomment lines to select platform, hardware acceleration, compiler, and package manager.  You will only be editing the lines between :samp:`BEGIN INPUT VARIABLES BLOCK` and :samp:`END INPUT VARIABLES BLOCK`.  In a makefile, comments are preceded by :samp:`#`.  For this installation, only :samp:`PLATFORM = OSX` and :samp:`HARDWARE_ACCEL = APPLE_CL`, should be uncommented.
-#. Open a new terminal window and navigate to :samp:`{turboWAVE}/core/source`
-#. Type :samp:`make clean`
-#. Type :samp:`make`
-#. The makefile should automatically copy the executable into your :samp:`~/bin` directory for later use.  The OpenCL kernel files will be copied into :samp:`~/Run`.  The OpenCL enabled code will not run without the kernel files.
+Apple deprecated OpenCL some years ago, situation is unclear at present.
 
 NVIDIA GPGPU on RHEL/CentOS 8
 =============================
@@ -76,17 +63,9 @@ AMD GPGPU on RHEL/CentOS 8
 Driver
 -------
 
-#. Install AMD ROCm
-
-	* Perform internet search to find the installation instructions and carry out.  As of this writing the simplest way appears to be to use the script ``rocminstall.py``, see `<https://github.com/srinivamd/rocminstaller>`_.
-	* Be sure to test the installation per the installation instructions.
-	* This may involve multiple restarts.
-
-#. Create a symbolic link to the ROCm installation
-
-	* :samp:`cd /opt && ls`
-	* The output should include a directory in the form :samp:`rocm-{x.y.z}`.
-	* If there is no symbolic link :samp:`rocm` create it using :samp:`sudo ln -s rocm-{x.y.z} rocm`
+#. Download the driver for your GPU from the AMD website.
+#. Follow the instructions from AMD to install the driver **with OpenCL**.
+	* As of this writing, the link is `here <https://amdgpu-install.readthedocs.io>`_.  You must specify a command line option ``--opencl=pal`` or ``--opencl=legacy`` depending on your GPU.  You must also use the ``amdgpu-pro-install`` variant of the install script.
 
 Compile with OpenCL
 -------------------
@@ -105,10 +84,7 @@ Driver
 ------
 
 	#. :samp:`sudo apt update`
-	#. :samp:`sudo apt install nvidia-driver-{XXX} libnvidia-compute-{XXX} nvidia-opencl-dev`
-
-		* Replace :samp:`{XXX}` with version number, e.g., 450
-
+	#. :samp:`sudo apt install nvidia-opencl-icd nvidia-opencl-dev`
 	#. :samp:`sudo apt update`
 
 Compile with OpenCL
@@ -127,17 +103,9 @@ AMD GPGPU on Ubuntu 20.04
 Driver
 -------
 
-#. Install AMD ROCm
-
-	* Perform internet search to find the installation instructions and carry out.  As of this writing the simplest way appears to be to use the script ``rocminstall.py``, see `<https://github.com/srinivamd/rocminstaller>`_.
-	* Be sure to test the installation per the installation instructions.
-	* This may involve multiple restarts.
-
-#. Create a symbolic link to the ROCm installation
-
-	* :samp:`cd /opt && ls`
-	* The output should include a directory in the form :samp:`rocm-{x.y.z}`.
-	* If there is no symbolic link :samp:`rocm` create it using :samp:`sudo ln -s rocm-{x.y.z} rocm`
+#. Download the driver for your GPU from the AMD website.
+#. Follow the instructions from AMD to install the driver **with OpenCL**.
+	* As of this writing, the link is `here <https://amdgpu-install.readthedocs.io>`_.  You must specify a command line option ``--opencl=pal`` or ``--opencl=legacy`` depending on your GPU.  You must also use the ``amdgpu-pro-install`` variant of the install script.
 
 Compile with OpenCL
 -------------------

@@ -1,10 +1,12 @@
 .DS_Store
+core/build/*.d
 *.o
 *.obj
 *.pyc
 *.dvdat
 *.npy
 *.egg-info
+*.log
 .ipynb_checkpoints
 __pycache__
 tw3d

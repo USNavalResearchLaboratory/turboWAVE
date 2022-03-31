@@ -10,12 +10,23 @@ An important distinction in creating geometries is whether an object is defined 
 .. glossary::
 
 	Parameter Space
-		The turboWAVE parameter space is a copy of :math:`{\mathbb R}^3` where the three axes are curvilinear coordinates.  In other words, a curvilinear coordinate system is regarded as a Cartesian space.  As an example, suppose the turboWAVE grid is 2D cylindrical :math:`rz`.  Creating a circle in this parameter space would correspond to creating a ring in real space.
+		Objects in parameter space are defined in a specific coordinate system, and become a different object when the coordinate system is changed.  For example, the circle is defined in Cartesian coordinates as :math:`x^2+z^2=1`.  If cylindrical coordinates are used, the equation retains its form, :math:`\varrho^2+z^2=1`, which implies the geometry of the object changes.  This can sometimes be used to advantage, e.g., one can create a torus in real space using a circle in parameter space, :math:`(\varrho-5)^2+z^2=1`.
 
 	Real Space
-		The turboWAVE real space is the Euclidean space of the simulated world.  If a sphere is created in real space, it remains a sphere no matter what the grid geometry is.
+		Objects in real space are the same object regardless of coordinates.  If a sphere is created in real space, it remains a sphere no matter what the grid geometry is.
 
 At present most objects are created in parameter space.  This distinction is only important on a curvilinear grid.
+
+When defining geometry using the input file, 3-tuples are often used to specify spatial coordinates.  The meaning of the tuple components depends on the coordinate system, as shown in Table I.
+
+.. csv-table:: Table I. Input File Tuple Coordinate Mappings.
+	:header: "System", "Tuple Order", "Comment"
+	:delim: ;
+
+	"Cartesian";  :math:`(x,y,z)`; :math:`{\bf e}_x\times{\bf e}_y = {\bf e}_z`
+	"Cylindrical";  :math:`(\varrho,\varphi,z)`; :math:`\varrho^2 = x^2 + y^2`
+	"Spherical";  :math:`(r,\varphi,\theta)`; "Polar angle is last"
+
 
 TurboWAVE CAD Viewer
 --------------------

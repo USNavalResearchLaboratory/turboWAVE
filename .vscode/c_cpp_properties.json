@@ -1,0 +1,68 @@
+{
+    "configurations": [
+        {
+            "name": "MacPortsGCC",
+            "includePath": [
+                "${workspaceFolder}/core/source/**"
+            ],
+            "defines": ["USE_DESKTOP","USE_OPENMP","VBITS=256"],
+            "compilerArgs": [
+                "-I${workspaceFolder}/core/source/base",
+                "-I${workspaceFolder}/core/source/concurrency",
+                "-I${workspaceFolder}/core/source/io",
+                "-I${workspaceFolder}/core/source/particles",
+                "-I${workspaceFolder}/core/source/solver",
+                "-I${workspaceFolder}/core/source/sparc"
+            ],
+            "macFrameworkPath": [
+                "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/System/Library/Frameworks"
+            ],
+            "compilerPath": "/opt/local/bin/gcc",
+            "cStandard": "c17",
+            "cppStandard": "c++17",
+            "intelliSenseMode": "macos-clang-x64",
+            "configurationProvider": "ms-vscode.makefile-tools"
+        },
+        {
+            "name": "WindowsLLVM",
+            "includePath": [
+                "${workspaceFolder}/core/source/**"
+            ],
+            "defines": ["USE_DESKTOP","USE_OPENMP","VBITS=256"],
+            "compilerArgs": [
+                "-I${workspaceFolder}/core/source/base",
+                "-I${workspaceFolder}/core/source/concurrency",
+                "-I${workspaceFolder}/core/source/io",
+                "-I${workspaceFolder}/core/source/particles",
+                "-I${workspaceFolder}/core/source/solver",
+                "-I${workspaceFolder}/core/source/sparc"
+            ],
+            "compilerPath": "c:/Program Files/LLVM/bin/clang",
+            "cStandard": "c17",
+            "cppStandard": "c++17",
+            "intelliSenseMode": "gcc-x64",
+            "configurationProvider": "ms-vscode.makefile-tools"
+        },
+        {
+            "name": "LinuxGCC",
+            "includePath": [
+                "${workspaceFolder}/core/source/**"
+            ],
+            "defines": ["USE_DESKTOP","USE_OPENMP","VBITS=256"],
+            "compilerArgs": [
+                "-I${workspaceFolder}/core/source/base",
+                "-I${workspaceFolder}/core/source/concurrency",
+                "-I${workspaceFolder}/core/source/io",
+                "-I${workspaceFolder}/core/source/particles",
+                "-I${workspaceFolder}/core/source/solver",
+                "-I${workspaceFolder}/core/source/sparc"
+            ],
+            "compilerPath": "/usr/bin/gcc",
+            "cStandard": "c17",
+            "cppStandard": "c++17",
+            "intelliSenseMode": "gcc-x64",
+            "configurationProvider": "ms-vscode.makefile-tools"
+        }
+    ],
+    "version": 4
+}

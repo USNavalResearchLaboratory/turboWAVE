@@ -66,6 +66,8 @@ Developer Reference
 	dev-tool
 	dev-field
 	dev-space
+	dev-metric-space
+	dev-testing
 
 Background
 ----------
