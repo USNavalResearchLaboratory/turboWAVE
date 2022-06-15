@@ -28,10 +28,10 @@ void ParticleBundle::CopyBack()
 		refs[i]->q.x[1] = x[1][i];
 		refs[i]->q.x[2] = x[2][i];
 		refs[i]->q.x[3] = x[3][i];
-		refs[i]->p[0] = u[0][i]*m0;
-		refs[i]->p[1] = u[1][i]*m0;
-		refs[i]->p[2] = u[2][i]*m0;
-		refs[i]->p[3] = u[3][i]*m0;
+		refs[i]->p[0] = u[0][i]*(sqr(m0)+tw::tiny)/(m0+tw::tiny);
+		refs[i]->p[1] = u[1][i]*(sqr(m0)+tw::tiny)/(m0+tw::tiny);
+		refs[i]->p[2] = u[2][i]*(sqr(m0)+tw::tiny)/(m0+tw::tiny);
+		refs[i]->p[3] = u[3][i]*(sqr(m0)+tw::tiny)/(m0+tw::tiny);
 		// If particle left MPI domain, add to transfer list, and mark for disposal
 		if (domainMask[i]==0.0)
 		{

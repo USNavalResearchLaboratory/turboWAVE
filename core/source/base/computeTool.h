@@ -37,8 +37,10 @@ namespace tw
 		boxDiagnostic,particleOrbits,phaseSpaceDiagnostic,volumeDiagnostic,pointDiagnostic,
 		// Quantum
 		randomState,freeState,boundState,tabulatedState,
+		// Quantum Electrodynamics
+		photonGenerator,pairCreator,
 		// Movers
-		borisMover,pgcMover,unitaryMover,bohmianMover
+		borisMover,pgcMover,unitaryMover,bohmianMover,photonMover
 	};
 }
 

@@ -146,10 +146,13 @@ std::map<std::string,tw::tool_type> ComputeTool::Map()
 		{"qstate bound",tw::tool_type::boundState},
 		{"qstate random",tw::tool_type::randomState},
 		{"qstate tabulated",tw::tool_type::tabulatedState},
+		{"photon generator",tw::tool_type::photonGenerator},
+		{"pair creator",tw::tool_type::pairCreator},
 		{"boris mover",tw::tool_type::borisMover},
 		{"pgc mover",tw::tool_type::pgcMover},
 		{"unitary mover",tw::tool_type::unitaryMover},
-		{"bohmian mover",tw::tool_type::bohmianMover}
+		{"bohmian mover",tw::tool_type::bohmianMover},
+		{"photon mover",tw::tool_type::photonMover}
 	};
 }
 
@@ -319,6 +322,12 @@ ComputeTool* ComputeTool::CreateObjectFromType(const std::string& name,tw::tool_
 		case tw::tool_type::tabulatedState:
 			ans = new TabulatedState(name,ms,tsk);
 			break;
+		case tw::tool_type::photonGenerator:
+			ans = new PhotonGenerator(name,ms,tsk);
+			break;
+		case tw::tool_type::pairCreator:
+			ans = new PairCreator(name,ms,tsk);
+			break;
 		case tw::tool_type::borisMover:
 			ans = new BorisMover(name,ms,tsk);
 			break;
@@ -330,6 +339,9 @@ ComputeTool* ComputeTool::CreateObjectFromType(const std::string& name,tw::tool_
 			break;
 		case tw::tool_type::bohmianMover:
 			ans = new BohmianMover(name,ms,tsk);
+			break;
+		case tw::tool_type::photonMover:
+			ans = new PhotonMover(name,ms,tsk);
 			break;
 	}
 	return ans;

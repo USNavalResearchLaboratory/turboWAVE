@@ -38,6 +38,7 @@ struct Species:Module
 
 	Mover* mover;
 	Ionizer* ionizer;
+	QED* qed;
 
 	Field* EM; // Ex,Ey,Ez,Bx,By,Bz
 	Field* sources; // rho,Jx,Jy,Jz
@@ -101,6 +102,7 @@ struct Kinetics:Module
 	virtual void Update();
 	virtual void MoveWindow();
 	void Ionize();
+	void ProcessQED();
 
 	void TransferParticles();
 	tw::Float KineticEnergy(const Region& theRgn);

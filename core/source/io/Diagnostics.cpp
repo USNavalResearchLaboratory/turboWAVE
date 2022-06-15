@@ -865,6 +865,7 @@ void PhaseSpaceDiagnostic::Finish()
 
 void PhaseSpaceDiagnostic::Particle(const struct Particle& par,tw::Float m0,tw::Float tp)
 {
+	m0 = (sqr(m0)+tw::tiny)/(m0+tw::tiny);
 	weights_3D weights;
 	tw::vec4 x(tp,space->PositionFromPrimitive(par.q));
 	tw::vec4 v(par.p/m0);

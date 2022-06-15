@@ -52,6 +52,7 @@ namespace tw
 	static const tw::Float small_pos = 1e9*std::numeric_limits<tw::Float>::min();
 	static const tw::Float big_neg = -1e-9*std::numeric_limits<tw::Float>::max();
 	static const tw::Float big_pos = 1e-9*std::numeric_limits<tw::Float>::max();
+	static const tw::Float tiny = std::numeric_limits<tw::Float>::epsilon();
 	class FatalError : public std::exception
 	{
 		char messg[256];

@@ -12,3 +12,4 @@
 #include "slicer.h"
 #include "tiler.h"
 #include "mover.h"
+#include "qed.h"

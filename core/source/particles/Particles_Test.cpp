@@ -96,7 +96,7 @@ void Species::MoveWindowTest()
 		ASSERT_EQ(transfer[0].dst[2],0);
 		ASSERT_EQ(transfer[0].dst[3],-1);
 	}
-	
+
 	// Simulate message passing the transfer particle
 
 	// Finish move window test

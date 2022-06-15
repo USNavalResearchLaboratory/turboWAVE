@@ -86,3 +86,9 @@ void BundlePusherBohmian::Push()
 	// update x(n) to x(n+1) using vel(n+1/2)
 	translate(x,vel);
 }
+
+void BundlePusherPhoton::Push()
+{
+	velocity(vel,u);
+	translate(x,vel);
+}

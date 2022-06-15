@@ -84,6 +84,7 @@ void Kinetics::Update()
 	// Assume source arrays are weighted by volume or zero
 
 	Ionize();
+	ProcessQED();
 	for (i=0;i<species.size();i++)
 	{
 		if (owner->stepNow%species[i]->sortPeriod==0)
@@ -296,6 +297,157 @@ void Kinetics::Ionize()
 	}
 }
 
+void Kinetics::ProcessQED()
+{
+	Species *s1, *s2;
+	weights_3D weights;
+
+	tw::vec3 E, B, vel;
+	std::valarray<tw::Float> temp(6);
+
+	tw::Float eta, chi, Py, Pf;
+	tw::Float gamma, omega, energy;
+	tw::Float frac, rate, probability;
+
+	tw::vec3 k3u;
+	tw::vec4 k4;
+
+	tw::Float prefactor = (cgs::qe*cgs::hbar)/sqr(cgs::me)/sqr(sqr(cgs::c));
+
+	for (tw::Int s=0;s<species.size();s++)
+	{
+		QED *qed = species[s]->qed;
+
+		// Photon generation
+
+		if (qed!=NULL && !qed->photon_name.empty())
+		{
+			std::vector<Particle>& fermion = species[s]->particle;
+			s1 = (Species*)owner->GetModule(qed->photon_name);
+
+			for (tw::Int i=0;i<fermion.size();i++)
+			{
+				// Gather momentum & local field components of current fermion
+				Particle& part = fermion[i];
+
+				gamma = sqrt(1.0 + Norm(part.p.spatial()));
+				vel = part.p.spatial()/gamma/species[s]->restMass;
+
+				owner->GetWeights(&weights,part.q);
+				species[s]->EM->Interpolate(temp,Element(0,2),weights);
+
+				for (tw::Int n=0;n<3;n++)
+					vel[n] = vel[n] * tw::dims::velocity >> native >> cgs;
+				for (tw::Int n=0;n<3;n++)
+					temp[n] = temp[n] * tw::dims::electric_field >> native >> cgs;
+				for (tw::Int n=3;n<6;n++)
+					temp[n] = temp[n] * tw::dims::magnetic_field >> native >> cgs;
+
+				E.x = temp[0]; E.y = temp[1]; E.z = temp[2];
+				B.x = temp[3]; B.y = temp[4]; B.z = temp[5];
+
+				// Calculate fermion quantum parameter
+				eta = prefactor*gamma*sqrt(Norm((cgs::c)*E + (vel|B)) - sqr(vel^E));
+
+				// Calculate instantaneous photo-emission rate & probability
+				rate = qed->CalculateRate(eta,gamma);
+				probability = rate*dt;
+
+				// Generate a photon if the emission criterion is satisfied
+				if (probability > owner->uniformDeviate->Next())
+				{
+					do {
+						Py = owner->uniformDeviate->Next();
+						chi = qed->NewQParameter(eta,Py);
+					} while (chi < 0.0f);
+
+					k3u = part.p.spatial();
+					k3u /= Magnitude(k3u) + tw::tiny;
+
+					energy = 2.0*chi*cub(cgs::me)*std::pow(cgs::c,5)/(cgs::qe*cgs::hbar);
+					energy /= sqrt(Norm(E + (k3u|B)) - sqr(k3u^E));
+					energy = energy * tw::dims::energy >> cgs >> native;
+
+					if (energy > qed->photon_cutoff_energy)
+					{
+						k4[0] = energy;
+						for (int n=1;n<4;n++)
+							k4[n] = energy*k3u[n-1];
+
+						s1->AddParticle(part.number,part.q,k4,tw::vec4(0.0));
+
+						// Update fermion momentum (radiation damping)
+						part.p -= k4;
+					}
+				}
+			}
+		}
+
+		// Pair creation
+
+		if (qed!=NULL && !qed->electron_name.empty() && !qed->positron_name.empty())
+		{
+			std::vector<Particle>& photon = species[s]->particle;
+			s1 = (Species*)owner->GetModule(qed->electron_name);
+			s2 = (Species*)owner->GetModule(qed->positron_name);
+
+			std::vector<tw::Int> photonsToKill;
+
+			for (tw::Int i=0;i<photon.size();i++)
+			{
+				// Gather wavevector and local field components of current photon
+				Particle& part = photon[i];
+
+				k3u = part.p.spatial();
+				k3u /= Magnitude(k3u) + tw::tiny;
+
+				omega = (part.p[0] * tw::dims::energy >> native >> cgs)/cgs::hbar;
+
+				owner->GetWeights(&weights,part.q);
+				species[s]->EM->Interpolate(temp,Element(0,2),weights);
+
+				for (tw::Int n=0;n<3;n++)
+					temp[n] = temp[n] * tw::dims::electric_field >> native >> cgs;
+				for (tw::Int n=3;n<6;n++)
+					temp[n] = temp[n] * tw::dims::magnetic_field >> native >> cgs;
+
+				E.x = temp[0]; E.y = temp[1]; E.z = temp[2];
+				B.x = temp[3]; B.y = temp[4]; B.z = temp[5];
+
+				// Calculate photon quantum parameter
+				chi = prefactor*(cgs::hbar/cgs::me/2.0)*(omega/cgs::c);
+				chi *= sqrt(Norm(E + (k3u|B)) - sqr(k3u^E));
+
+				// Calculate instantaneous pair-creation rate & probability
+				rate = qed->CalculateRate(chi,cgs::hbar*omega);
+				probability = rate*dt;
+
+				// Generate an electron-positron pair if the emission criterion is satisfied
+				if (probability > owner->uniformDeviate->Next())
+				{
+					do {
+						Pf = owner->uniformDeviate->Next();
+						frac = qed->NewQParameter(chi,Pf);
+					} while (frac < 0.0f);
+
+					tw::vec4 p4a = frac*part.p;
+					tw::vec4 p4b = (1.0f-frac)*part.p;
+
+					s1->AddParticle(part.number,part.q,p4a,tw::vec4(0.0));
+					s2->AddParticle(part.number,part.q,p4b,tw::vec4(0.0));
+
+					// Mark the parent photon for annihilation
+					photonsToKill.push_back(i);
+				}
+			}
+
+			// Annihilate photons
+			for (tw::Int i=0;i<photonsToKill.size();i++)
+				photon.erase(photon.begin() + i);
+		}
+	}
+}
+
 tw::vec3 LaserSolver::GetIonizationKick(const tw::Float& a2,const tw::Float& q0,const tw::Float& m0)
 {
 	tw::Float phase;
@@ -406,6 +558,7 @@ Species::Species(const std::string& name,Simulation* sim) : Module(name,sim)
 
 	mover = NULL;
 	ionizer = NULL;
+	qed = NULL;
 
 	EM = NULL;
 	sources = NULL;
@@ -437,6 +590,8 @@ Species::~Species()
 		owner->RemoveTool(mover);
 	if (ionizer!=NULL)
 		owner->RemoveTool(ionizer);
+	if (qed!=NULL)
+		owner->RemoveTool(qed);
 }
 
 void Species::VerifyInput()
@@ -448,6 +603,8 @@ void Species::VerifyInput()
 			ionizer = dynamic_cast<Ionizer*>(tool);
 		if (mover==NULL)
 			mover = dynamic_cast<Mover*>(tool);
+		if (qed==NULL)
+			qed = dynamic_cast<QED*>(tool);
 	}
 }
 
@@ -462,12 +619,14 @@ void Species::Initialize()
 	// Choose a mover if none was specified
 	if (mover==NULL)
 	{
-		if (EM!=NULL && sources!=NULL && laser==NULL && qo_j4==NULL)
+		if (EM!=NULL && sources!=NULL && laser==NULL && qo_j4==NULL && restMass!=0.0f && charge!=0.0f)
 			mover = (Mover*)owner->CreateTool("Boris-mover",tw::tool_type::borisMover);
 		if (EM!=NULL && sources!=NULL && laser!=NULL && qo_j4==NULL)
 			mover = (Mover*)owner->CreateTool("PGC-mover",tw::tool_type::pgcMover);
 		if (qo_j4!=NULL)
 			mover = (Mover*)owner->CreateTool("Bohmian-mover",tw::tool_type::bohmianMover);
+		if (restMass==0.0f && charge==0.0f)
+			mover = (Mover*)owner->CreateTool("Photon-mover",tw::tool_type::photonMover);
 	}
 
 	// Copy pointers to the mover tool

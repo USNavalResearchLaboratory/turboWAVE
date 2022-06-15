@@ -66,6 +66,12 @@ struct BohmianMover:Mover
 	virtual bool Test(tw::Int& id) { return false; }
 };
 
+struct PhotonMover:Mover
+{
+	PhotonMover(const std::string& name,MetricSpace *m,Task *tsk): Mover(name,m,tsk) {}
+	virtual void Advance();
+};
+
 /////////////////////////////////////
 // Bundle Movers - pusher + tiler  //
 // These are created by the mover  //
@@ -125,5 +131,17 @@ struct BundleMoverBohmian2D : BundleTilerBohmian2D,BundlePusherBohmian
 struct BundleMoverBohmian3D : BundleTilerBohmian3D,BundlePusherBohmian
 {
 	BundleMoverBohmian3D(Mover *owner) : BundleTilerBohmian3D(owner), BundlePusherBohmian(owner), ParticleBundle(owner) {}
+	void Move();
+};
+
+struct BundleMoverPhoton2D : BundleTilerEM2D,BundlePusherPhoton
+{
+	BundleMoverPhoton2D(Mover *owner) : BundleTilerEM2D(owner), BundlePusherPhoton(owner), ParticleBundle(owner) {}
+	void Move();
+};
+
+struct BundleMoverPhoton3D : BundleTilerEM3D,BundlePusherPhoton
+{
+	BundleMoverPhoton3D(Mover *owner) : BundleTilerEM3D(owner), BundlePusherPhoton(owner), ParticleBundle(owner) {}
 	void Move();
 };

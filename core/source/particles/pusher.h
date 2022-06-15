@@ -64,6 +64,13 @@ struct BundlePusherBohmian : virtual ParticleBundle
 	void Push();
 };
 
+struct BundlePusherPhoton : virtual ParticleBundle
+{
+	BundlePusherPhoton(Mover *owner) : ParticleBundle(owner) { ; }
+	void velocity(tw::Float vel[3][N],tw::Float u[4][N]);
+	void Push();
+};
+
 
 ///////////////////////////////////////////
 // UNITARY PUSHER
@@ -418,4 +425,18 @@ inline void BundlePusherBohmian::bohm_velocity(tw::Float vel[3][N],tw::Float u[4
 			vel[c][i] = 1.5*vn - 0.5*u[c+1][i]; // extrapolate to n+1/2
 			u[c+1][i] = vn;
 		}
+}
+
+
+///////////////////////////////////////////
+// PHOTON PUSHER
+//////////////////////////////////////////
+
+
+inline void BundlePusherPhoton::velocity(tw::Float vel[3][N],tw::Float u[4][N])
+{
+	for (int c=0;c<3;c++)
+		#pragma omp simd aligned(vel,u:AB)
+		for (int i=0;i<N;i++)
+			vel[c][i] = u[c+1][i]/u[0][i];
 }

@@ -235,6 +235,14 @@ void BohmianMover::Advance()
 		DoTasks<BundleMoverBohmian3D>();
 }
 
+void PhotonMover::Advance()
+{
+	if (space->Dim(2)==1)
+		DoTasks<BundleMoverPhoton2D>();
+	else
+		DoTasks<BundleMoverPhoton3D>();
+}
+
 ///////////////////////////
 //                       //
 //     BUNDLE MOVERS     //
@@ -395,4 +403,18 @@ void BundleMoverBohmian3D::Move()
 	GatherJ4(J,w0);
 	Push();
 	owner->space->MinimizePrimitive(cell,ijk,x,domainMask);
+}
+
+void BundleMoverPhoton2D::Move()
+{
+	PrepareGather();
+	Push();
+	PrepareScatter();
+}
+
+void BundleMoverPhoton3D::Move()
+{
+	PrepareGather();
+	Push();
+	PrepareScatter();
 }
