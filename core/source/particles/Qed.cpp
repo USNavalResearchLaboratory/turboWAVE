@@ -39,8 +39,8 @@ void PhotonGenerator::Initialize()
 		  eta: fermions, chi: photons
 
 		Functions
-		  Py(eta,chi): cumulative probability of emitting a chi-photon by an eta-fermion
-		  h(eta): synchrotron function used to calculate the photo-emission rate
+		  Py(eta,chi): Cumulative probability of emitting a chi-photon by an eta-fermion.
+		  h(eta): Synchrotron function used to calculate the photo-emission rate.
 
 		Look-up tables
 			LT1: element (i,j): chi[j] corresponding to eta[i]
@@ -69,8 +69,6 @@ void PhotonGenerator::Initialize()
 		LT1.push_back(temp_row);
 	} table.close();
 
-	// std::cout << "- Loaded <" + tableName + ">" << std::endl;
-
 	// Load LT2
 
 	tableName = tablesPath + "mmc2.table";
@@ -89,8 +87,6 @@ void PhotonGenerator::Initialize()
 			temp_row.push_back(std::pow(10,num));
 		temp_matrix.push_back(temp_row);
 	} table.close();
-
-	// std::cout << "- Loaded <" + tableName + ">" << std::endl;
 
 	for (int j=0;j<temp_matrix[0].size();j++)
 	{
@@ -119,8 +115,6 @@ void PhotonGenerator::Initialize()
 		temp_matrix.push_back(temp_row);
 	} table.close();
 
-	// std::cout << "- Loaded <" + tableName + ">" << std::endl;
-
 	for (int j=0;j<temp_matrix[0].size();j++)
 		eta_vector.push_back(std::pow(10,temp_matrix[0][j]));
 
@@ -145,9 +139,9 @@ void PairCreator::Initialize()
 		  eta: fermions, chi: photons
 
 		Functions
-		  Pf(chi,f): cumulative probability of a chi-photon giving fractions f & 1-f of
+		  Pf(chi,f): Cumulative probability of a chi-photon giving fractions f & 1-f of
 		  	its energy to the electron & positron, respectively, of a newly-generated pair.
-		  T(chi): emissivity function used to calculate the pair-creation rate
+		  T(chi): Emissivity function used to calculate the pair-creation rate.
 
 		Look-up tables
 			LT4: element (i,j): Pf(chi[i],f[j])
@@ -179,8 +173,6 @@ void PairCreator::Initialize()
 		temp_matrix.push_back(temp_row);
 	} table.close();
 
-	// std::cout << "- Loaded <" + tableName + ">" << std::endl;
-
 	for (int j=0;j<temp_matrix[0].size();j++)
 		chi_vector.push_back(std::pow(10,temp_matrix[0][j]));
 	for (int j=0;j<temp_matrix[1].size();j++)
@@ -209,8 +201,6 @@ void PairCreator::Initialize()
 		temp_matrix.push_back(temp_row);
 	} table.close();
 
-	// std::cout << "- Loaded <" + tableName + ">" << std::endl;
-
 	for (int j=0;j<temp_matrix[0].size();j++)
 	{
 		temp_row.clear();
@@ -224,20 +214,23 @@ tw::Float QED::CalculateRate(tw::Float a,tw::Float b) {return 0.0f;}
 
 tw::Float PhotonGenerator::CalculateRate(tw::Float eta,tw::Float gamma)
 {
-	tw::Float rate;
-
-	// Fermion quantum parameter out of table range
-	if (eta <= LT2[0].front() || eta >= LT2[0].back())
-		return 0.0f;
+	tw::Float rate, synch;
 
 	// Interpolate synchrotron function value
-	tw::Float x[2], y[2];
-	int Idx = NearestIdx(LT2[0],eta);
+	if (eta <= LT2[0].front())
+		synch = LT2[1][0];
+	else if (eta >= LT2[0].back())
+		synch = LT2[1].back();
+	else
+	{
+		tw::Float x[2], y[2];
+		int Idx = NearestIdx(LT2[0],eta);
 
-	x[0] = LT2[0][Idx-1]; x[1] = LT2[0][Idx];
-	y[0] = LT2[1][Idx-1]; y[1] = LT2[1][Idx];
+		x[0] = LT2[0][Idx-1]; x[1] = LT2[0][Idx];
+		y[0] = LT2[1][Idx-1]; y[1] = LT2[1][Idx];
 
-	tw::Float synch = y[0] + (eta-x[0])*(y[1]-y[0])/(x[1]-x[0]);
+		synch = y[0] + (eta-x[0])*(y[1]-y[0])/(x[1]-x[0]);
+	}
 
 	rate = sqrt(3.0)*(alpha_f/lambda_C)*cgs::c*eta*synch/gamma;
 	rate = rate * tw::dims::frequency >> cgs >> native;
@@ -247,20 +240,23 @@ tw::Float PhotonGenerator::CalculateRate(tw::Float eta,tw::Float gamma)
 
 tw::Float PairCreator::CalculateRate(tw::Float chi,tw::Float energy)
 {
-	tw::Float rate;
-
-	// Photon quantum parameter out of table range
-	if (chi <= LT5[0].front() || chi >= LT5[0].back())
-		return 0.0f;
+	tw::Float rate, emiss;
 
 	// Interpolate pair emissivity value
-	tw::Float x[2], y[2];
-	int Idx = NearestIdx(LT5[0],chi);
+	if (chi <= LT5[0].front())
+		return 0.0f;
+	else if (chi >= LT5[0].back())
+		emiss = LT5[1].back();
+	else
+	{
+		tw::Float x[2], y[2];
+		int Idx = NearestIdx(LT5[0],chi);
 
-	x[0] = LT5[0][Idx-1]; x[1] = LT5[0][Idx];
-	y[0] = LT5[1][Idx-1]; y[1] = LT5[1][Idx];
+		x[0] = LT5[0][Idx-1]; x[1] = LT5[0][Idx];
+		y[0] = LT5[1][Idx-1]; y[1] = LT5[1][Idx];
 
-	tw::Float emiss = y[0] + (chi-x[0])*(y[1]-y[0])/(x[1]-x[0]);
+		emiss = y[0] + (chi-x[0])*(y[1]-y[0])/(x[1]-x[0]);
+	}
 
 	rate = 2.0*pi*(alpha_f/lambda_C)*cgs::me*cub(cgs::c)*chi*emiss/energy;
 	rate = rate * tw::dims::frequency >> cgs >> native;
@@ -276,11 +272,11 @@ tw::Float PhotonGenerator::NewQParameter(tw::Float eta,tw::Float Py)
 	tw::Float chi;
 
 	// Fermion quantum parameter out of table range
-	if (eta <= eta_vector.front() || eta >= eta_vector.back())
+	if (eta <= eta_vector.front())
 		return 0.0f;
 
 	// Look up cumulative emission probability & quantum parameter values from table
-	int i = NearestIdx(eta_vector,eta);
+	int i = (eta < eta_vector.back()) ? NearestIdx(eta_vector,eta) : eta_vector.size()-1;
 	int j1 = NearestIdx(LT3[i-1],Py);
 	int j2 = NearestIdx(LT3[i],Py);
 
@@ -315,11 +311,11 @@ tw::Float PairCreator::NewQParameter(tw::Float chi,tw::Float Pf)
 	tw::Float frac;
 
 	// Photon quantum parameter out of table range
-	if (chi <= chi_vector.front() || chi >= chi_vector.back())
+	if (chi <= chi_vector.front())
 		return 0.5f;
 
 	// Look up cumulative creation probability & energy fraction values from table
-	int i = NearestIdx(chi_vector,chi);
+	int i = (chi < chi_vector.back()) ? NearestIdx(chi_vector,chi) : chi_vector.size()-1;
 	int j1 = NearestIdx(LT4[i-1],Pf);
 	int j2 = NearestIdx(LT4[i],Pf);
 

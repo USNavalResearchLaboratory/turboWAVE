@@ -106,9 +106,9 @@ inline tw::Float QuadraticRoot2(const tw::Float& a,const tw::Float& b,const tw::
 inline int NearestIdx(const std::vector<tw::Float>& vector, tw::Float value)
 {
 	auto const iter = std::lower_bound(vector.begin(), vector.end(), value);
-    if (iter == vector.end())
-    	return -1;
-    return iter - vector.begin();
+	if (iter == vector.end())
+		return -1;
+	return iter - vector.begin();
 }
 
 inline void ReverseBytes(char *bytes,tw::Int n)

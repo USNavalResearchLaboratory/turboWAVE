@@ -74,6 +74,7 @@ struct Species:Module
 	tw::Float AddDensityRandom(const LoadingData& theData);
 	void DepositInitialCharge(const tw::vec3& pos,tw::Float macroCharge);
 	void CalculateDensity(ScalarField& dens);
+	tw::Float KineticEnergy(const Region& theRgn);
 
 	virtual void ReadInputFileDirective(std::stringstream& inputString,const std::string& command);
 	virtual void ReadCheckpoint(std::ifstream& inFile);

@@ -1081,7 +1081,7 @@ tw::Float Species::AddDensity(const LoadingData& theData)
 		r_primitive = theData.subGrid[j];
 		r = r_primitive*cellSize + cellCenter;
 		p = initialMomenta[i];
-		p[0] = sqr(restMass) + Norm(p.spatial());
+		p[0] = sqrt(sqr(restMass) + Norm(p.spatial()));
 		q.x[0] = 0.0; // TODO get the time
 		q.x[1] = r_primitive.x;
 		q.x[2] = r_primitive.y;
@@ -1133,7 +1133,7 @@ tw::Float Species::AddDensityRandom(const LoadingData& theData)
 		p[2] = thermalMomentum.y*owner->gaussianDeviate->Next();
 		p[3] = thermalMomentum.z*owner->gaussianDeviate->Next();
 		p += tw::vec4(0.0,driftMomentum);
-		p[0] = sqr(restMass) + Norm(p.spatial());
+		p[0] = sqrt(sqr(restMass) + Norm(p.spatial()));
 		q.x[0] = 0.0; // TODO get the time
 		q.x[1] = r_primitive.x;
 		q.x[2] = r_primitive.y;
@@ -1280,6 +1280,16 @@ void Species::CalculateDensity(ScalarField& dens)
 	dens.Smooth(*owner,smoothing,compensation);
 }
 
+tw::Float Species::KineticEnergy(const Region& theRgn)
+{
+	tw::Float ans = 0.0;
+	const tw::Float m0 = restMass;
+	for (auto par : particle)
+		if (theRgn.Inside(owner->PositionFromPrimitive(par.q),*owner))
+			ans += par.number * (par.p[0] - m0);
+	return ans;
+}
+
 void Species::Report(Diagnostic& diagnostic)
 {
 	Module::Report(diagnostic);
@@ -1287,6 +1297,7 @@ void Species::Report(Diagnostic& diagnostic)
 	ScalarField temp;
 
 	diagnostic.Float("N_"+name,particle.size(),false);
+	diagnostic.Float("Kinetic_"+name,KineticEnergy(*diagnostic.theRgn),false);
 	CalculateDensity(temp);
 	diagnostic.Field(name,temp,0,tw::dims::density,"$n_{\\rm "+name+"}$");
 

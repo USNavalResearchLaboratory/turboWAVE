@@ -1388,6 +1388,10 @@ void Dirac::Report(Diagnostic& diagnostic)
 	diagnostic.Field("psi1_r",psi_r,1,tw::dims::none,"$\\Re\\psi_1$");
 	diagnostic.Field("psi2_r",psi_r,2,tw::dims::none,"$\\Re\\psi_2$");
 	diagnostic.Field("psi3_r",psi_r,3,tw::dims::none,"$\\Re\\psi_3$");
+	diagnostic.Field("psi0_i",psi_i,0,tw::dims::none,"$\\Im\\psi_0$");
+	diagnostic.Field("psi1_i",psi_i,1,tw::dims::none,"$\\Im\\psi_1$");
+	diagnostic.Field("psi2_i",psi_i,2,tw::dims::none,"$\\Im\\psi_2$");
+	diagnostic.Field("psi3_i",psi_i,3,tw::dims::none,"$\\Im\\psi_3$");
 }
 
 void Dirac::StartDiagnostics()

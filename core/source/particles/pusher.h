@@ -332,10 +332,14 @@ inline void BundlePusherBoris::rotation3(tw::Float s[3][N],tw::Float t[3][N],tw:
 }
 inline void BundlePusherBoris::velocity(tw::Float vel[3][N],tw::Float u[4][N])
 {
+	#pragma omp simd aligned(u:AB)
+	for (int i=0;i<N;i++)
+		u[0][i] = sqrt(1.0 + u[1][i]*u[1][i] + u[2][i]*u[2][i] + u[3][i]*u[3][i]);
+
 	for (int c=0;c<3;c++)
 		#pragma omp simd aligned(vel,u:AB)
 		for (int i=0;i<N;i++)
-			vel[c][i] = u[c+1][i]/sqrt(1.0 + u[1][i]*u[1][i] + u[2][i]*u[2][i] + u[3][i]*u[3][i]);
+			vel[c][i] = u[c+1][i]/u[0][i];
 }
 
 
