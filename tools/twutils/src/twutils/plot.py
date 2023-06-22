@@ -1,11 +1,9 @@
 """Module to setup plots based on npy and accompanying metadata.
 Primary interaction is through the plotter class."""
 
-import sys
 import os
 import json
 import warnings
-import importlib
 import numpy as np
 from scipy import constants as C
 
@@ -47,7 +45,7 @@ def get_axis_info(slicing_spec):
     Argument is a 4 character string giving the axis order (field component is always last).
     Return a 5 element axis array of integers, with encoding t=0,x=1,y=2,z=3,component=4.
     Example: 'zxyt' would give [3,1,2,0,4]."""
-    axes = np.array([0,0,0,0,0]).astype(np.int)
+    axes = np.array([0,0,0,0,0]).astype(int)
     for i in range(4):
         axes[i] = axis_num(slicing_spec[i])
     axes[4] = 4
@@ -64,13 +62,13 @@ def get_mesh_pts(grid_file_path,dims):
             for line in f:
                 l = line.split(' ')
                 if l[0]=='t':
-                    ans[0] += [np.float(l[-1])]
+                    ans[0] += [float(l[-1])]
                 if l[0]=='axis1' and len(ans[1])==0:
-                    ans[1] = [np.float(x) for x in l[2:]]
+                    ans[1] = [float(x) for x in l[2:]]
                 if l[0]=='axis2' and len(ans[2])==0:
-                    ans[2] = [np.float(x) for x in l[2:]]
+                    ans[2] = [float(x) for x in l[2:]]
                 if l[0]=='axis3' and len(ans[3])==0:
-                    ans[3] = [np.float(x) for x in l[2:]]
+                    ans[3] = [float(x) for x in l[2:]]
         if len(ans[0])==dims[0] and len(ans[1])==dims[1] and len(ans[2])==dims[2] and len(ans[3])==dims[3]:
             return [np.array(ans[0]),np.array(ans[1]),np.array(ans[2]),np.array(ans[3])]
         else:

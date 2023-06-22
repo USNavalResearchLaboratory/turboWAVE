@@ -169,7 +169,7 @@ struct weights_3D
 /// Superclasses can add a secondary encoding to resolve higher
 /// dimensional storage patterns. For example, `Field` adds another encoding to
 /// define how its components are packed.
-struct DiscreteSpace
+struct DiscreteSpace : Testable
 {
 	protected:
 

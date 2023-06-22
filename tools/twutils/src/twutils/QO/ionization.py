@@ -214,23 +214,23 @@ class Ionization(AtomicUnits):
 		dw = 2*np.pi/(Nt*dt)
 		# Get the complexified spectrum and carrier frequency
 		Ew = np.fft.fft(E,axis=0)
-		Ew[np.int(Nt/2):,...] = 0.0 # eliminate negative frequencies before extracting carrier
+		Ew[int(Nt/2):,...] = 0.0 # eliminate negative frequencies before extracting carrier
 		if w00==0.0:
 			# Compute a suitable carrier frequency based on intensity weighting
 			if ndims==1:
 				indices = np.arange(0,Nt)
 			else:
 				indices = np.einsum('i,jk',np.arange(0,Nt),np.ones(Ew.shape[1:]))
-			carrier_idx = np.int(np.average(indices,weights=np.abs(Ew)**2))
+			carrier_idx = int(np.average(indices,weights=np.abs(Ew)**2))
 			w0 = carrier_idx*dw
 		else:
 			# Carrier frequency is set by caller
 			w0 = w00
-			carrier_idx = np.int(w0/dw)
+			carrier_idx = int(w0/dw)
 		# Bandpass filtering
 		if bandwidth!=1.0:
-			low_idx = np.int((w0-0.5*bandwidth*w0)/dw)
-			high_idx = np.int((w0+0.5*bandwidth*w0)/dw)
+			low_idx = int((w0-0.5*bandwidth*w0)/dw)
+			high_idx = int((w0+0.5*bandwidth*w0)/dw)
 			Ew[:low_idx] = 0.0
 			Ew[high_idx:] = 0.0
 		# Form the complex envelope in time

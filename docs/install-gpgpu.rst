@@ -17,6 +17,22 @@ To run on GPGPU you must prepare a special executable.  The procedure for severa
 	#. OpenMP threads cannot be used.  The number of OpenMP threads must be one.
 	#. If you want to control the particular OpenCL platform and device, use the command line arguments.  Otherwise turboWAVE will select the first available.
 
+GPGPU on Windows
+================
+
+#. Install CMake (Meson may use it for library search)
+
+	* Make sure `cmake` is in the path
+
+#. Install the latest drivers for the GPGPU
+#. Install the ICD loader into the conda environment
+
+	* `conda install -c conda-forge khronos-opencl-icd-loader`
+
+#. Navigate to `build` and run `meson configure -Docl=true`
+#. `meson compile`
+#. `meson install`
+
 GPGPU on MacOS
 ==============
 

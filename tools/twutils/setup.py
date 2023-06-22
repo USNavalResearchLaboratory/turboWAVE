@@ -5,7 +5,7 @@ with open('README.md','r',encoding='utf-8') as fh:
 	long_description = fh.read()
 
 setup(name='twutils',
-	version='4.7.0',
+	version='4.8.0',
 	license='PUBLIC-DOMAIN',
 	author='Daniel Gordon',
 	author_email='daniel.gordon@nrl.navy.mil',
@@ -15,11 +15,20 @@ setup(name='twutils',
 	url='https://github.com/USNavalResearchLaboratory/turboWAVE',
 	classifiers=[
 		'Programming Language :: Python :: 3',
-		],
+	],
 	package_dir={'':'src'},
 	packages=find_packages(where='src'),
 	python_requires='>=3.8',
-	install_requires=['scipy>=1.5','matplotlib>=3.3','jupyter>=1','ipympl>=0.5','pillow>=8','h5py'],
+	install_requires=[
+		'scipy>=1.10',
+		'matplotlib>=3.7',
+		'jupyter>=1',
+		'ipympl>=0.9',
+		'pillow>=9',
+		'h5py',
+		'meson>=1.1',
+		'khronos-opencl-icd-loader>=2023.04.17'
+	],
 	include_package_data=True,
 	entry_points = { 'console_scripts': [
 		'twinstall=twutils.command_line.twinstall:main',

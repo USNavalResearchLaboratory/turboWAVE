@@ -3,7 +3,7 @@ struct BundleTilerEM2D : BundleSlicerEM
 	float F_tile[3][3][6];
 	float J_tile[5][5][4];
 
-	BundleTilerEM2D(Mover *owner) : BundleSlicerEM(owner), ParticleBundle(owner) {}
+	BundleTilerEM2D(Mover *owner) : ParticleBundle(owner), BundleSlicerEM(owner) {}
 	void LoadFTile();
 	void ResetJTile();
 	void StoreJTile();
@@ -16,7 +16,7 @@ struct BundleTilerEM3D : BundleSlicerEM
 	float F_tile[3][3][3][6];
 	float J_tile[5][5][5][4];
 
-	BundleTilerEM3D(Mover *owner) : BundleSlicerEM(owner), ParticleBundle(owner) {}
+	BundleTilerEM3D(Mover *owner) : ParticleBundle(owner), BundleSlicerEM(owner) {}
 	void LoadFTile();
 	void ResetJTile();
 	void StoreJTile();
@@ -29,7 +29,7 @@ struct BundleTilerPGC2D : BundleSlicerPGC
 	float las_tile[3][3][8];
 	float chi_tile[5][5];
 
-	BundleTilerPGC2D(Mover *owner) : BundleSlicerPGC(owner) , ParticleBundle(owner) {}
+	BundleTilerPGC2D(Mover *owner) : ParticleBundle(owner), BundleSlicerPGC(owner)  {}
 	void LoadLaserTile();
 	void ResetChiTile();
 	void StoreChiTile();
@@ -42,7 +42,7 @@ struct BundleTilerPGC3D : BundleSlicerPGC
 	float las_tile[3][3][3][8];
 	float chi_tile[5][5][5];
 
-	BundleTilerPGC3D(Mover *owner) : BundleSlicerPGC(owner) , ParticleBundle(owner) {}
+	BundleTilerPGC3D(Mover *owner) : ParticleBundle(owner), BundleSlicerPGC(owner)  {}
 	void LoadLaserTile();
 	void ResetChiTile();
 	void StoreChiTile();
@@ -53,7 +53,7 @@ struct BundleTilerPGC3D : BundleSlicerPGC
 struct BundleTilerBohmian2D : BundleSlicerBohmian
 {
 	float tile[3][3][4];
-	BundleTilerBohmian2D(Mover *owner) : BundleSlicerBohmian(owner) , ParticleBundle(owner) {}
+	BundleTilerBohmian2D(Mover *owner) : ParticleBundle(owner), BundleSlicerBohmian(owner)  {}
 	void LoadTile();
 	void GatherJ4(float J[4][N],const float w0[3][3][N]);
 };
@@ -61,7 +61,7 @@ struct BundleTilerBohmian2D : BundleSlicerBohmian
 struct BundleTilerBohmian3D : BundleSlicerBohmian
 {
 	float tile[3][3][3][4];
-	BundleTilerBohmian3D(Mover *owner) : BundleSlicerBohmian(owner) , ParticleBundle(owner) {}
+	BundleTilerBohmian3D(Mover *owner) : ParticleBundle(owner), BundleSlicerBohmian(owner)  {}
 	void LoadTile();
 	void GatherJ4(float J[4][N],const float w0[3][3][N]);
 };

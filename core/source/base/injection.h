@@ -233,6 +233,7 @@ struct HermiteGauss : Wave
 	HermiteGauss(const std::string& name,MetricSpace *m,Task *tsk);
 	virtual void Initialize();
 	virtual tw::Complex PrimitivePhasor(const tw::vec4& x4) const;
+	virtual bool Test(tw::Int& id);
 };
 
 struct LaguerreGauss : Wave

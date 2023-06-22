@@ -297,9 +297,9 @@ void PGCSolver::Report(Diagnostic& diagnostic)
 	for (auto cell : InteriorCellRange(*this))
 	{
 		const tw::Complex aNow = half*(a0(cell)+a1(cell));
-		const tw::Complex dtau = dti*(a1(cell)-a0(cell));
+		//const tw::Complex dtau = dti*(a1(cell)-a0(cell));
 		const tw::Complex dzeta = half*(a0(cell,0,3) + a1(cell,0,3)) + ii*half*(a0(cell,1,3) + a1(cell,1,3));
-		const tw::Complex eNow = ii*laserFreq*aNow - (dtau-dzeta);
+		//const tw::Complex eNow = ii*laserFreq*aNow - (dtau-dzeta);
 		const tw::Complex bNow = ii*laserFreq*aNow + dzeta;
 		temp(cell) = imag( conj(aNow)*bNow - aNow*conj(bNow) );
 	}

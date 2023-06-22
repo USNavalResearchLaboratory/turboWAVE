@@ -42,7 +42,7 @@ namespace tw
 	};
 }
 
-struct ComputeTool
+struct ComputeTool : Testable
 {
 	MetricSpace *space;
 	Task *task;
@@ -54,9 +54,6 @@ struct ComputeTool
 	// Allow for a region
 	std::string region_name;
 	Region *theRgn;
-
-	// Test info
-	std::string testName;
 
 	// OpenCL Support
 	private:

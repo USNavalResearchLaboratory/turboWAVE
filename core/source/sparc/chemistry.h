@@ -31,7 +31,7 @@ struct Reaction : PrimitiveReaction
 	sparc::eos_set catalyst;
 	tw::Int numBodies;
 
-	~Reaction();
+	virtual ~Reaction();
 	virtual void ReadInputFile(std::stringstream& inputString,const tw::UnitConverter& uc);
 };
 
@@ -43,6 +43,7 @@ struct Excitation : PrimitiveReaction
 	sparc::material m1,m2;
 	tw::Float level;
 
+	virtual ~Excitation() {}
 	virtual void ReadInputFile(std::stringstream& inputString,const tw::UnitConverter& uc);
 };
 
@@ -56,5 +57,6 @@ struct Collision
 	tw::Float crossSection;
 	tw::Float ks,T_ref,n_ref;
 
+	virtual ~Collision() {}
 	virtual void ReadInputFile(std::stringstream& inputString,const tw::UnitConverter& uc);
 };

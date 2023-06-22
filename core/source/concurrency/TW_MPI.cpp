@@ -373,9 +373,9 @@ int MPI_Gather(void *sb,int scount,MPI_Datatype sdt,void *rb,int rcount,MPI_Data
 	if (comm==MPI_COMM_WORLD)
 		comm = TW_MPI_FindCommWorld();
 
-	int i,j,num;
+	int i,num;
 	MPI_Status status;
-	int rsize = TW_MPI_GetDataSize(rdt);
+	//int rsize = TW_MPI_GetDataSize(rdt);
 	int ssize = TW_MPI_GetDataSize(sdt);
 	MPI_Comm_size(comm,&num);
 	if (comm->rank==root)
@@ -398,10 +398,10 @@ int MPI_Scatter(void *sb,int scount,MPI_Datatype sdt,void *rb,int rcount,MPI_Dat
 	if (comm==MPI_COMM_WORLD)
 		comm = TW_MPI_FindCommWorld();
 
-	int i,j,num;
+	int i,num;
 	MPI_Status status;
 	int rsize = TW_MPI_GetDataSize(rdt);
-	int ssize = TW_MPI_GetDataSize(sdt);
+	//int ssize = TW_MPI_GetDataSize(sdt);
 	MPI_Comm_size(comm,&num);
 	if (comm->rank==root)
 	{

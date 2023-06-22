@@ -300,7 +300,7 @@ class StationaryStateTool:
 		return np.abs(np.modf(self.jzam)[0])==0.0
 
 	def GetEnergy(self,energy_guess,scale_factor):
-		nr_max = np.int(self.nr + 1)
+		nr_max = int(self.nr + 1)
 		# Find requested state; sorting energies identifies nr
 		if self.spin0():
 			mat = KGMatrix(self.cylindrical,self.grid,scale_factor*self.phi,self.qorb,self.morb,self.lam,self.jzam,self.Bz)
@@ -308,7 +308,7 @@ class StationaryStateTool:
 			mat = DiracMatrix(self.cylindrical,self.grid,scale_factor*self.phi,self.qorb,self.morb,self.jam,self.lam,self.jzam,self.Bz)
 		vals,vecs = eigs(mat.tocsc(),k=nr_max,sigma=energy_guess,which='LM')
 		sorted_indices = np.argsort(vals)
-		idx = sorted_indices[np.int(self.nr)]
+		idx = sorted_indices[int(self.nr)]
 		En = np.real(vals[idx])
 		return En
 
@@ -322,7 +322,7 @@ class StationaryStateTool:
 		:returns: En,f,g,sorted (En is the selected eigenvalue, sorted are the first few eigenvalues)'''
 
 		num_pts = self.grid.shape[0]-2
-		nr_max = np.int(self.nr + 4)
+		nr_max = int(self.nr + 4)
 
 		# Find requested state; sorting energies identifies nr
 
@@ -333,7 +333,7 @@ class StationaryStateTool:
 		vals,vecs = eigs(mat.tocsc(),k=nr_max,sigma=energy_guess,which='LM')
 
 		sorted_indices = np.argsort(vals)
-		idx = sorted_indices[np.int(self.nr)]
+		idx = sorted_indices[int(self.nr)]
 		f = vecs[:num_pts,idx]
 		g = vecs[num_pts:,idx]
 		En = np.real(vals[idx])
@@ -394,7 +394,7 @@ class StationaryStateTool:
 
 		:parameter float Z: atomic number, purely for labeling
 		:returns: string with the filename'''
-		file_name = 'z'+str(np.int(Z))
+		file_name = 'z'+str(int(Z))
 		if self.cylindrical:
 			file_name += '_c'
 			if self.spin0():
@@ -404,8 +404,8 @@ class StationaryStateTool:
 		else:
 			file_name += '_s'
 			angular_num = self.lam
-		file_name += str(np.int(self.nr))
-		file_name += str(np.int(angular_num))
+		file_name += str(int(self.nr))
+		file_name += str(int(angular_num))
 		if not self.spin0():
 			if self.cylindrical:
 				if self.jzam>self.lam:

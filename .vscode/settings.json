@@ -50,6 +50,12 @@
         "typeinfo": "cpp",
         "utility": "cpp",
         "valarray": "cpp",
-        "iomanip": "cpp"
-    }
+        "iomanip": "cpp",
+        "iterator": "cpp",
+        "xtree": "cpp",
+        "regex": "cpp",
+        "xstring": "cpp",
+        "xutility": "cpp"
+    },
+    "mesonbuild.configureOnOpen": true
 }

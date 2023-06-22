@@ -21,7 +21,7 @@
             "cStandard": "c17",
             "cppStandard": "c++17",
             "intelliSenseMode": "macos-clang-x64",
-            "configurationProvider": "ms-vscode.makefile-tools"
+            "configurationProvider": "mesonbuild.mesonbuild"
         },
         {
             "name": "WindowsLLVM",
@@ -41,7 +41,7 @@
             "cStandard": "c17",
             "cppStandard": "c++17",
             "intelliSenseMode": "gcc-x64",
-            "configurationProvider": "ms-vscode.makefile-tools"
+            "configurationProvider": "mesonbuild.mesonbuild"
         },
         {
             "name": "LinuxGCC",
@@ -61,7 +61,7 @@
             "cStandard": "c17",
             "cppStandard": "c++17",
             "intelliSenseMode": "gcc-x64",
-            "configurationProvider": "ms-vscode.makefile-tools"
+            "configurationProvider": "mesonbuild.mesonbuild"
         }
     ],
     "version": 4

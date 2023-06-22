@@ -280,7 +280,7 @@ void GlobalIntegrator<T>::SetMatrix(tw::Int system,std::valarray<T>& a,std::vala
 template <class T>
 void ComputeAlphasAndBetas(tw::comm *strip,tw::Int systems,T* mpi_packet)
 {
-	tw::Int i,j,index,dsn,ds=8*systems,ss=8;
+	tw::Int i,j,index,ds=8*systems,ss=8;
 	tw::Int domains = strip->Get_size();
 	tw::Int L = strip->Get_size() - 1;
 	tw::Int currDomain = strip->Get_rank();

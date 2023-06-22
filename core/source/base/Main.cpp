@@ -387,10 +387,9 @@ int main(int argc,char *argv[])
 {
 	int numMPIThreads=1,numOMPThreads=1;
 	bool interactive = true;
-	tw::Int i,outputLevel=0,errorCheckingLevel=0,numCompleted=0;
+	tw::Int i,outputLevel=0,errorCheckingLevel=0;
 	std::string arg,inputFileName("stdin"),restartFileName("tw::none"),platform("cuda"),device("tesla"),unitTest("tw::none");
 	std::set_new_handler(&out_of_store);
-	tw::Int bitsPerFloat = sizeof(tw::Float)*8;
 
 	try
 	{

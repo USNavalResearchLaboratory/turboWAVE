@@ -16,7 +16,7 @@ import glob
 import subprocess
 import re
 import copy
-import pkg_resources
+import importlib.metadata
 try:
     import curses
     has_curses = True
@@ -36,17 +36,11 @@ enter_keys = [ord('\n'),ord('\r')]
 panel_width = 80
 
 source_url = 'https://github.com/USNavalResearchLaboratory/turboWAVE.git'
-incompatibility_matrix = {
-    'Windows' : ['GNU','Cray','CUDA','Apple CL','AMD ROCm','Homebrew','MacPorts'],
-    'Linux' : ['Cray','Apple CL','Homebrew','MacPorts'],
-    'MacOS' : ['Cray','Intel','CUDA','AMD ROCm','None'],
-    'Cray' : ['GNU','LLVM','Apple CL','AMD ROCm','Homebrew','MacPorts'],
-    'OpenMPI Cluster' : ['Cray','Apple CL','Homebrew','MacPorts'],
-    'IntelMPI Cluster' : ['Cray','Apple CL','Homebrew','MacPorts']
-}
 help_str = '''This program configures, compiles, and installs turboWAVE core.
 Press the buttons in the "Tasks" frame in order from top to bottom.
-This will lead you through the necessary steps.'''
+This will lead you through the necessary steps.
+To switch compilers, exit and set the CXX environment variable.
+For OpenCL, be sure to install GPU drivers.'''
 config_affirm='''The dropdown menus in the "Current Configuration" frame can be used to edit the configuration.
 We have tried to choose the best options by detecting the environment.
 Are you satisfied with the selections?'''
@@ -102,8 +96,10 @@ class dictionary_view:
         self.trouble = []
         self.title = 'Selection'
         self.data = {}
+        #human readable choices in form category:choices
         self.choices = {}
-        self.unpretty = {}
+        #map human readable choices to Meson options as category:choice:options
+        self.choice_map = {}
         self.widgets = {}
         self.selectable = []
     def highlight(self,i0):
@@ -134,52 +130,43 @@ class base_config(dictionary_view):
     def __init__(self):
         super().__init__()
         self.title = 'Current Configuration'
-        self.unpretty['None'] = 'NONE'
-        self.unpretty['Linux'] = 'LINUX'
-        self.unpretty['Windows'] = 'WIN'
-        self.unpretty['MacOS'] = 'OSX'
-        self.unpretty['Cray'] = 'CRAY'
-        self.unpretty['OpenMPI Cluster'] = 'OPENMPI'
-        self.unpretty['IntelMPI Cluster'] = 'INTELMPI'
-        self.unpretty['GNU'] = 'GNU'
-        self.unpretty['LLVM'] = 'LLVM_CLANG'
-        self.unpretty['Intel'] = 'INTEL'
-        self.unpretty['Cray'] = 'CRAY'
-        self.unpretty['OpenMP'] = 'OMP'
-        self.unpretty['CUDA'] = 'CUDA'
-        self.unpretty['Apple CL'] = 'APPLE_CL'
-        self.unpretty['AMD ROCm'] = 'RADEON_PRO'
-        self.unpretty['Homebrew'] = 'HOMEBREW'
-        self.unpretty['MacPorts'] = 'MACPORTS'
-        self.unpretty['Scalar'] = '64'
-        self.unpretty['SSE'] = '128'
-        self.unpretty['SSE2'] = '128'
-        self.unpretty['AVX'] = '256'
-        self.unpretty['AVX2'] = '256'
-        self.unpretty['AVX512'] = '512'
-        self.unpretty['Little Endian'] = 'LITTLE'
-        self.unpretty['Big Endian'] = 'BIG'
-        self.choices['Platform'] = ['Linux','Windows','MacOS','Cray','OpenMPI Cluster','IntelMPI Cluster']
-        self.choices['Compiler'] = ['GNU','LLVM','Intel','Cray']
-        self.choices['Accelerator'] = ['OpenMP','CUDA','Apple CL','AMD ROCm']
-        self.choices['Packager'] = ['None','Homebrew','MacPorts']
+        self.choices['Platform'] = ['Linux','MacOS','Windows','HPC']
+        self.choices['Accelerator'] = ['OpenMP','OpenCL']
         # the list of vectors is assumed to be in order of ascending preference
-        self.choices['Vectors'] = ['Scalar','SSE','SSE2','AVX','AVX2','AVX512']
+        self.choices['Vectors'] = ['SSE','SSE2','AVX','AVX2','AVX512']
         self.choices['Byte Order'] = ['Little Endian','Big Endian']
-        self.data['Tools Version'] = pkg_resources.get_distribution('twutils').version
+        self.choice_map['Platform'] = {
+            'Linux': ['-Dhpc=false'],
+            'Mac': ['-Dhpc=false'],
+            'Windows': ['-Dhpc=false'],
+            'HPC': ['-Dhpc=true']
+        }
+        self.choice_map['Accelerator'] = {
+            'OpenMP': ['-Domp=true','-Docl=false'],
+            'OpenCL': ['-Domp=true','-Docl=true']
+        }
+        self.choice_map['Vectors'] = {
+            'SSE': ['-Dvbits=128'],
+            'SSE2': ['-Dvbits=128'],
+            'AVX': ['-Dvbits=256'],
+            'AVX2': ['-Dvbits=256'],
+            'AVX512': ['-Dvbits=512']
+        }
+        self.choice_map['Byte Order'] = {
+            'Little Endian': ['-Dbigendian=false'],
+            'Big Endian': ['-Dbigendian=true']
+        }
+        self.data['Tools Version'] = importlib.metadata.version('twutils')
         self.data['Core Version'] = ''
         self.data['Build Path'] = ''
         self.data['Platform'] = self.choices['Platform'][0]
-        self.data['Compiler'] = self.choices['Compiler'][0]
         self.data['Accelerator'] = self.choices['Accelerator'][0]
         self.data['Vectors'] = self.choices['Vectors'][0]
-        self.data['Packager'] = self.choices['Packager'][0]
         self.data['Byte Order'] = self.choices['Byte Order'][0]
-        self.selectable = ['Platform','Compiler','Accelerator','Vectors','Packager','Byte Order']
+        self.selectable = ['Platform','Accelerator','Vectors','Byte Order']
         # Try to initialize the configuration based on environment
         if 'linux' in sys.platform:
             self.data['Platform'] = 'Linux'
-            self.data['Compiler'] = 'LLVM'
             compl = subprocess.run(['lscpu'],stdout=subprocess.PIPE,stderr=subprocess.STDOUT,universal_newlines=True)
             for v in reversed(self.choices['Vectors']):
                 if re.search(r'\b'+v,compl.stdout,flags=re.IGNORECASE)!=None:
@@ -187,8 +174,6 @@ class base_config(dictionary_view):
                     break
         if 'darwin' in sys.platform:
             self.data['Platform'] = 'MacOS'
-            self.data['Compiler'] = 'GNU'
-            self.data['Packager'] = 'Homebrew'
             compl = subprocess.run(['sysctl','machdep.cpu'],stdout=subprocess.PIPE,stderr=subprocess.STDOUT,universal_newlines=True)
             for v in reversed(self.choices['Vectors']):
                 if re.search(r'\b'+v,compl.stdout,flags=re.IGNORECASE)!=None:
@@ -196,7 +181,6 @@ class base_config(dictionary_view):
                     break
         if 'win32' in sys.platform:
             self.data['Platform'] = 'Windows'
-            self.data['Compiler'] = 'LLVM'
             self.data['Vectors'] = 'AVX2'
         if sys.byteorder=='big':
             self.data['Byte Order'] = 'Big Endian'
@@ -206,8 +190,6 @@ class base_config(dictionary_view):
         self.backup = copy.copy(self.data)
     def restore_params(self):
         self.data = copy.copy(self.backup)
-    def get_make_val(self,key):
-        return self.unpretty[self.data[key]]
     def get_params(self):
         ans = []
         for key in self.data:
@@ -221,12 +203,7 @@ class base_config(dictionary_view):
         self.tasks.dirty_config()
     def verify(self):
         self.set_ok()
-        if self.data['Compiler'] in incompatibility_matrix[self.data['Platform']]:
-            self.set_trouble('Compiler')
-        if self.data['Packager'] in incompatibility_matrix[self.data['Platform']]:
-            self.set_trouble('Packager')
-        if self.data['Accelerator'] in incompatibility_matrix[self.data['Platform']]:
-            self.set_trouble('Accelerator')
+        # formerly incompatibility matrix was here
         return len(self.trouble)
 
 class base_tasks(dictionary_view):
@@ -236,7 +213,7 @@ class base_tasks(dictionary_view):
         self.highlighted = 0
         self.data['Get Components'] = 'not started'
         self.data['Set Version'] = 'not started'
-        self.data['Configure Makefile'] = 'not started'
+        self.data['Configure Build'] = 'not started'
         self.data['Compile Code'] = 'not started'
         self.data['Install Files'] = 'not started'
         self.data['Cleanup'] = 'not started'
@@ -245,8 +222,8 @@ class base_tasks(dictionary_view):
         self.cmd = cmd
         self.conf = conf
     def dirty_config(self):
-        if self.get('Configure Makefile')=='done':
-            self.set('Configure Makefile','incomplete')
+        if self.get('Configure Build')=='done':
+            self.set('Configure Build','incomplete')
         if self.get('Compile Code')=='done':
             self.set('Compile Code','incomplete')
         if self.get('Install Files')=='done':
@@ -270,22 +247,22 @@ class base_tasks(dictionary_view):
         primitive_path = self.AskDirectory()
         if type(primitive_path)==tuple:
             return
-        self.build_path = pathlib.Path(primitive_path) / 'turboWAVE' / 'core' / 'build'
+        self.src_path = pathlib.Path(primitive_path) / 'turboWAVE' / 'core' / 'source'
         self.package_path = pathlib.Path(primitive_path) / 'turboWAVE'
-        verified_path = glob.glob(str(self.build_path))
+        verified_path = glob.glob(str(self.src_path))
         if len(verified_path)==0:
-            self.build_path = pathlib.Path(primitive_path) / 'core' / 'build'
+            self.src_path = pathlib.Path(primitive_path) / 'core' / 'source'
             self.package_path = pathlib.Path(primitive_path)
-            verified_path = glob.glob(str(self.build_path))
+            verified_path = glob.glob(str(self.src_path))
         if len(verified_path)==0:
             ans = self.cmd.affirm('Path is '+primitive_path+'\nTW source not found, would you like to retrieve it?')
             if ans=='y':
                 dest = str(pathlib.Path(primitive_path) / 'turboWAVE')
                 self.cmd.display('Cloning repository...')
                 compl = subprocess.run(["git","clone",source_url,dest],stdout=subprocess.PIPE,stderr=subprocess.STDOUT,universal_newlines=True)
-                self.build_path = pathlib.Path(dest) / 'core' / 'build'
+                self.src_path = pathlib.Path(dest) / 'core' / 'source'
                 self.package_path = pathlib.Path(dest)
-                verified_path = glob.glob(str(self.build_path))
+                verified_path = glob.glob(str(self.src_path))
                 if git_err_handler(compl,self.cmd):
                     verified_path = []
                 self.cmd.display('')
@@ -362,112 +339,70 @@ class base_tasks(dictionary_view):
         if toolsv[0]!=corev[0] or toolsv[1]!=corev[1]:
             self.cmd.info('Notice','Core and tool version mismatch.  For best results match core and tools to within a minor version number.')
 
-    def Configure(self):
+    def Configure(self,enter_shell,leave_shell):
         if self.get('Set Version')!='done':
             self.cmd.err('Please complete <Set Version> first.')
             return
-        self.set('Configure Makefile','incomplete')
-        if self.cmd.affirm(config_affirm)=='n':
-            return
-        if self.conf.verify()>0:
-            self.cmd.err('There are features selected that are incompatible with the platform.')
-            return
-        maker = 'GNU'
-        if self.conf.get('Platform')=='Windows' and self.conf.get('Compiler')=='Intel':
-            maker = 'MS'
-        if maker=='MS':
-            makefile_in = str(self.build_path / 'win.make')
-            makefile_out = str(self.build_path / 'win.make.edited')
-        if maker=='GNU':
-            makefile_in = str(self.build_path / 'makefile')
-            makefile_out = str(self.build_path / 'makefile.edited')
-        with open(makefile_in,'r') as f:
-            makefile = f.read()
-        key_on = ['Platform','Compiler','Accelerator','Vectors','Packager','Byte Order']
-        unpretty = {'Platform':'PLATFORM',
-            'Compiler':'COMPILER_PREF',
-            'Accelerator':'HARDWARE_ACCEL',
-            'Vectors':'VBITS',
-            'Packager':'PACKAGE_PREF',
-            'Byte Order':'ENDIANNESS'}
-        not_found = []
-        for k in key_on:
-            var = unpretty[k]
-            val = self.conf.get_make_val(k)
-            if re.search('\n[#\s]*' + var + '\s*=\s*',makefile)==None:
-                not_found += [var]
+        self.set('Configure Build','incomplete')
+        if self.cmd.affirm('Configure progress will appear in shell window.\nPlease wait for completion.\nReady to proceed?')=='y':
+            self.cmd.display('Configuring...')
+            save_dir = os.getcwd()
+            os.chdir(self.src_path)
+            enter_shell()
+            try:
+                if subprocess.run(['meson','setup','build'],universal_newlines=True)!=0:
+                    raise RuntimeError
+                os.chdir(self.src_path / 'build')
+                if subprocess.run(['meson','configure','--buildtype=release'])!=0:
+                    raise RuntimeError
+                key_on = ['Platform','Accelerator','Vectors','Byte Order']
+                for k in key_on:
+                    choice = self.choices[k]
+                    for opt in self.choice_map[k][choice]:
+                        if subprocess.run(['meson','configure',opt],universal_newlines=True)!=0:
+                            raise RuntimeError
+                self.set('Configure Build','done')
+            except FileNotFoundError:
+                leave_shell()
+                self.cmd.display('')
+                self.cmd.err('File not found, perhaps meson installation needs attention?')
+            except RuntimeError:
+                leave_shell()
+                self.cmd.display('')
+                self.cmd.err('There was an error while trying to configure.')
+            except Exception as ex:
+                leave_shell()
+                self.cmd.display('')
+                self.cmd.err('Unexpected error '+type(ex).__name__+', force exit.')
+                exit(1)
             else:
-                # Comment out all the values
-                makefile = re.sub('\n[#\s]*'+var,'\n#'+var,makefile)
-                # Don't care about preserving unused values, safest to just overwrite the first value found.
-                makefile = re.sub('\n[#\s]*'+var+'\s*=\s*[\w\d]+','\n'+var+' = '+val,makefile,count=1)
-        if self.conf.get('Packager')=='Homebrew' and self.conf.get('Compiler')=='GNU':
-            gcc_glob_list = ['/usr/local/opt/**/g++-*','/opt/homebrew/**/g++-*']
-            gcc_re = r'\/usr\/local\/opt\/gcc\/bin\/g\+\+-\d+'
-            brew_gcc = []
-            for gcc_glob in gcc_glob_list:
-                brew_gcc += glob.glob(gcc_glob,recursive=True)
-            if len(brew_gcc)==0:
-                self.cmd.err('Did not find GCC of the form '+gcc_glob_list)
-                return
-            gcc_sel = brew_gcc[0]
-            if len(brew_gcc)>1:
-                brew_callback = lambda sel : (gcc_sel := sel,)[0]
-                self.popup(brew_gcc,brew_callback)
-            if re.search(gcc_re,makefile)==None:
-                not_found += [gcc_sel]
-            else:
-                makefile = re.sub(gcc_re,gcc_sel,makefile)
-        if len(not_found)==0:
-            with open(makefile_out,'w') as f:
-                f.write(makefile)
-                self.set('Configure Makefile','done')
-        else:
-            missing = ''
-            for s in not_found:
-                missing += s + ','
-            self.cmd.err('Did not find variables:'+missing[:-1]+'\nThis probably means core and tools are out of sync.\nYou might try a different version.')
-
+                leave_shell()
+                self.cmd.display('')
+            os.chdir(save_dir)
     def Compile(self,enter_shell,leave_shell):
-        if self.get('Configure Makefile')!='done':
-            self.cmd.err('Please complete <Configure Makefile> first')
+        if self.get('Configure Build')!='done':
+            self.cmd.err('Please complete <Configure Build> first')
             return
         self.set('Compile Code','incomplete')
         if self.cmd.affirm('Compiler progress will appear in shell window.\nPlease wait for completion.\nReady to proceed?')=='y':
             self.cmd.display('Compiling...')
             save_dir = os.getcwd()
-            os.chdir(self.build_path)
-            maker = 'GNU'
-            if self.conf.get('Platform')=='Windows' and self.conf.get('Compiler')=='Intel':
-                maker = 'MS'
+            os.chdir(self.src_path / 'build')
             enter_shell()
             try:
-                if maker=='GNU':
-                    compl = subprocess.run(['make','-f','makefile.edited','clean'],universal_newlines=True)
-                    compl = subprocess.run(['make','-f','makefile.edited','tw3d_release'],universal_newlines=True)
-                    if compl.returncode==0:
-                        self.set('Compile Code','done')
-                if maker=='MS':
-                    compl = subprocess.run(['nmake','/F','win.make.edited','clean'],universal_newlines=True)
-                    compl = subprocess.run(['nmake','/F','win.make.edited','tw3d'],universal_newlines=True)
-                    if compl.returncode==0:
-                        self.set('Compile Code','done')
+                compl = subprocess.run(['meson','compile'],universal_newlines=True)
+                if compl.returncode==0:
+                    self.set('Compile Code','done')
                 if self.get('Compile Code')!='done':
                     raise RuntimeError
             except FileNotFoundError:
                 leave_shell()
                 self.cmd.display('')
-                if maker=='MS':
-                    self.cmd.err('nmake is not supported in the synced core version.')#self.cmd.err('Could not find nmake. Try running twinstall from Intel shell.')
-                else:
-                    self.cmd.err('Could not find make, perhaps it is not installed?')
+                self.cmd.err('File not found, perhaps meson installation needs attention?')
             except RuntimeError:
                 leave_shell()
                 self.cmd.display('')
-                if maker=='MS':
-                    self.cmd.err('nmake is not supported in the synced core version.')
-                else:
-                    self.cmd.err('There was an error while trying to compile.')
+                self.cmd.err('There was an error while trying to compile.')
             except Exception as ex:
                 leave_shell()
                 self.cmd.display('')
@@ -484,19 +419,16 @@ class base_tasks(dictionary_view):
             return
         self.set('Install Files','incomplete')
         if self.conf.get('Platform')=='Windows':
-            if self.conf.get('Compiler')=='Intel':
-                src_exe = 'tw3d.exe'
-            else:
-                src_exe = 'tw3d'
+            src_exe = 'tw3d.exe'
             dst_exe = 'tw3d.exe'
             install_path = pathlib.Path(os.environ['CONDA_PREFIX']) / 'Scripts' / dst_exe
         else:
             src_exe = 'tw3d'
             dst_exe = 'tw3d'
             install_path = pathlib.Path(os.environ['CONDA_PREFIX']) / 'bin' / dst_exe
-        repo_path = self.build_path / src_exe
+        repo_path = self.src_path / 'build' / src_exe
         # tw3d executable
-        if self.conf.get('Platform')=='Cray':
+        if self.conf.get('Platform')=='HPC':
             dv_dir = self.AskDirectory('Select executable install location',str(pathlib.Path.home()))
             if type(dv_dir)!=tuple:
                 shutil.copy(repo_path,dv_dir)
@@ -569,37 +501,19 @@ class base_tasks(dictionary_view):
                 os.makedirs(dest_path,exist_ok=True)
             shutil.copy(repo_path,dest_path)
         # Other highlighting
-        self.cmd.info('Notice','Syntax highlights are available for Atom and VS Code, search for "turbowave" in the respective package managers.')
+        self.cmd.info('Notice','Syntax highlights are available for VS Code, search for "turbowave" in the extension manager.')
 
     def Clean(self):
         if self.get('Install Files')!='done':
             self.cmd.err('Please complete <Install Files> first.')
             return
         self.set('Cleanup','incomplete')
-        if self.conf.get('Platform')=='Windows' and self.conf.get('Compiler')=='Intel':
-            makefile_name = 'win.make.edited'
-            obj_ext = '.obj'
-            exe_name = 'tw3d.exe'
-        else:
-            makefile_name = 'makefile.edited'
-            obj_ext = '.o'
-            exe_name = 'tw3d'
-        d = self.build_path / makefile_name
-        if self.cmd.affirm('Delete '+str(d)+'?')=='y':
-            os.remove(str(d))
-        d = self.build_path / ('*' + obj_ext)
-        if self.cmd.affirm('Delete '+str(d)+'?')=='y':
-            obj_list = glob.glob(str(d))
-            for f in obj_list:
-                os.remove(f)
-        d = self.build_path / exe_name
-        if self.cmd.affirm('Delete '+str(d)+'?')=='y':
-            os.remove(str(d))
-        d = self.build_path / '*.d'
-        if self.cmd.affirm('Delete '+str(d)+'?')=='y':
-            dep_list = glob.glob(str(d))
-            for f in dep_list:
-                os.remove(f)
+        if self.cmd.affirm('Wipe residual build products ?')=='y':
+            save_dir = os.getcwd()
+            os.chdir(self.src_path)
+            if subprocess.run(['meson','setup','build','--wipe'])!=0:
+                self.cmd.err('wipe operation returned an error')
+            os.chdir(save_dir)
         if git_is_detached(self.package_path):
             if self.cmd.affirm('Restore local repository to master?')=='y':
                 save_dir = os.getcwd()
@@ -694,7 +608,7 @@ class gui_tasks(base_tasks,gui_dictionary_view):
             self.widgets[key] = (button,status)
         self.widgets['Get Components'][0].configure(command=self.GetComponents)
         self.widgets['Set Version'][0].configure(command=self.StartSetVersion)
-        self.widgets['Configure Makefile'][0].configure(command=self.Configure)
+        self.widgets['Configure Build'][0].configure(command=self.Configure)
         self.widgets['Compile Code'][0].configure(command=lambda : self.Compile(self.enter_shell,self.exit_shell))
         self.widgets['Install Files'][0].configure(command=self.Install)
         self.widgets['Cleanup'][0].configure(command=self.Clean)
@@ -1019,7 +933,7 @@ class term_command:
                 self.tasks.GetComponents()
             if sel=='Set Version':
                 self.tasks.StartSetVersion()
-            if sel=='Configure Makefile':
+            if sel=='Configure Build':
                 self.tasks.Configure()
             if sel=='Compile Code':
                 self.tasks.Compile(self.tasks.enter_shell,self.tasks.exit_shell)
@@ -1052,7 +966,7 @@ def main():
         exit(0)
 
     if '--version' in sys.argv or '-v' in sys.argv:
-        print('twinstall is provided by twutils, version '+pkg_resources.get_distribution('twutils').version)
+        print('twinstall is provided by twutils, version '+importlib.metadata.version('twutils'))
         exit(0)
 
     if '--terminal' in sys.argv or '-t' in sys.argv:

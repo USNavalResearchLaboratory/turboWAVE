@@ -339,6 +339,31 @@ void Simulation::Test()
 	ComputeTool *tool;
 	Module *module;
 
+	// Testables that are not ComputeTool or Module
+	// TODO: we need to unify handling of all testables.
+
+	*tw_out << std::endl << "testing " << term::bold << term::cyan << "metric space" << term::reset_all << std::endl;
+ 	Initialize(tw::idx4(1,1,2).array,tw::idx4(4,1,4).array,tw::idx4(1,1,0).array);
+	Resize(*this,tw::vec3(0,0,0),tw::vec3(0.8,0.2,0.8),2);
+	SetupTimeInfo(0.1);
+	tw::Int testId = 1;
+	try {
+		if (MetricSpace::Test(testId)) {
+			success_count++;
+			test_out << "    " << term::ok << " " << term::green << "metric space" << term::reset_all << std::endl;
+		}
+	} catch (tw::FatalError& e) {
+		test_out << "    " << term::err << " " << term::red << "metric space" << term::reset_all << std::endl;
+		test_report << ++failure_count << ". metric space" << std::endl;
+		test_report << e.what() << std::endl;
+	}
+	MPI_Barrier(MPI_COMM_WORLD);
+	*tw_out << test_out.str();
+	test_out.str("");
+	test_out.clear();
+
+	// Test ComputeTools
+
 	for (auto m : ComputeTool::Map())
 	{
 		if (unitTest==m.first || unitTest=="--all")
@@ -389,6 +414,8 @@ void Simulation::Test()
 			}
 		}
 	}
+
+	// Test Modules
 
 	for (auto m : Module::Map())
 	{
@@ -1149,7 +1176,6 @@ void Simulation::ReadInputFile()
 	// Lock();
 
 	std::string com1,word;
-	Profile* theProfile;
 	std::stringstream inputString;
 
 	(*tw_out) << "Reading Input File..." << std::endl << std::endl;

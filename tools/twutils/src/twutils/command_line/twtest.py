@@ -187,10 +187,10 @@ def parse_input_file(ex_path):
 						key = keyval.split('=')[0]
 						val = keyval.split('=')[1]
 						if key=='dr':
-							input_dict['fig'][-1]['dyn_range'] = np.float(val)
+							input_dict['fig'][-1]['dyn_range'] = float(val)
 						if key=='range':
 							r = val.split(',')
-							input_dict['fig'][-1]['val_range'] = ( np.float(r[0]) , np.float(r[1]) )
+							input_dict['fig'][-1]['val_range'] = ( float(r[0]) , float(r[1]) )
 						if key=='color':
 							input_dict['fig'][-1]['color'] = val
 						if key=='units':

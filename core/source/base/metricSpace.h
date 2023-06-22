@@ -59,6 +59,7 @@ public:
 	void WriteCheckpoint(std::ofstream& outFile);
 	void AttachUnits(tw::units sys,tw::Float unitDensityCGS);
 	void AttachWarp(warp_base *w);
+	bool Test(tw::Int& id);
 
 	#ifdef USE_OPENCL
 	void InitializeMetricsBuffer(cl_context ctx,tw::Float dt);

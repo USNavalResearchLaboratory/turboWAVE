@@ -516,7 +516,10 @@ void Schroedinger::Update()
 			tw::Int j = i > 2 ? i-2 : i+1; // 2 , 3 , 1
 			tw::Int k = i > 1 ? i-1 : i+2; // 3 , 1 , 2
 			DiscreteSpace mpi_layout;
-			mpi_layout.Resize(owner->localCells[j],owner->localCells[k],1,corner,size);
+			tw::Int dim[4] = { 1, owner->localCells[j], owner->localCells[k], 1 };
+			tw::Int gdim[4] = { 1, owner->globalCells[j], owner->globalCells[k], 1 };
+			tw::Int dom[4] = { 1, owner->domains[j], owner->domains[k], 1 };
+			mpi_layout.Resize(dim,gdim,dom,globalCorner,globalSize);
 			mpi_packet.Initialize(16,mpi_layout,owner);
 			mpi_packet.InitializeComputeBuffer();
 			clSetKernelArg(applyDenominator,9,sizeof(cl_mem),&mpi_packet.computeBuffer);

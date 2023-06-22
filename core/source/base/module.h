@@ -34,9 +34,6 @@ struct Module:DiscreteSpace
 	std::vector<Wave*> wave;
 	std::vector<Conductor*> conductor;
 
-	// Test data
-	std::string testName;
-
 	// OpenCL Support
 	private:
 	std::string programFilename;

@@ -104,8 +104,8 @@ void YeePropagatorPML::CenteredFields(Field& F,Field& A)
 
 void YeePropagatorPML::AdvanceE(Field& A,Field& PMLx,Field& PMLy,Field& PMLz,Field& j4)
 {
-	const tw::Int xDim = A.Dim(1);
-	const tw::Int yDim = A.Dim(2);
+	//const tw::Int xDim = A.Dim(1);
+	//const tw::Int yDim = A.Dim(2);
 	const tw::Int zDim = A.Dim(3);
 
 	const tw::vec3 freq(dxi(*space),dyi(*space),dzi(*space));

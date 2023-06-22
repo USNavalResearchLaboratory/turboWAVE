@@ -165,7 +165,6 @@ void Region::ReadInputFileBlock(std::stringstream& inputString)
 void Region::ReadInputFileDirective(std::stringstream& inputString,const std::string& com)
 {
 	std::string word;
-	tw::Float theta;
 
 	if (com=="bounds")
 	{
