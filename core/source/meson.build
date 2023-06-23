@@ -1,7 +1,7 @@
 project('turbowave','cpp')
 
 conf_data = configuration_data()
-conf_data.set('TW_VERSION_STRING','4.8.0')
+conf_data.set('TW_VERSION_STRING','"4.8.0"')
 conf_data.set('BIGENDIAN',get_option('bigendian'))
 conf_data.set('VBITS',get_option('vbits'))
 conf_data.set('USE_DESKTOP',not get_option('hpc'))

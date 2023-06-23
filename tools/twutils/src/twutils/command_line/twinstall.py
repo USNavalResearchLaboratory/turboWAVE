@@ -98,8 +98,6 @@ class dictionary_view:
         self.data = {}
         #human readable choices in form category:choices
         self.choices = {}
-        #map human readable choices to Meson options as category:choice:options
-        self.choice_map = {}
         self.widgets = {}
         self.selectable = []
     def highlight(self,i0):
@@ -129,30 +127,55 @@ class dictionary_view:
 class base_config(dictionary_view):
     def __init__(self):
         super().__init__()
+        #map human readable choices to environment variables as category:choice:vars
+        self.choice2env = {}
+        #map human readable choices to Meson options as category:choice:options
+        self.choice2opt = {}
         self.title = 'Current Configuration'
         self.choices['Platform'] = ['Linux','MacOS','Windows','HPC']
         self.choices['Accelerator'] = ['OpenMP','OpenCL']
         # the list of vectors is assumed to be in order of ascending preference
         self.choices['Vectors'] = ['SSE','SSE2','AVX','AVX2','AVX512']
         self.choices['Byte Order'] = ['Little Endian','Big Endian']
-        self.choice_map['Platform'] = {
+        self.choice2env['Platform'] = {
+            'Linux': [],
+            'MacOS': [('CXX','g++')],
+            'Windows': [],
+            'HPC': []
+        }
+        self.choice2env['Accelerator'] = {
+            'OpenMP': [],
+            'OpenCL': []
+        }
+        self.choice2env['Vectors'] = {
+            'SSE': [],
+            'SSE2': [],
+            'AVX': [],
+            'AVX2': [],
+            'AVX512': []
+        }
+        self.choice2env['Byte Order'] = {
+            'Little Endian': [],
+            'Big Endian': []
+        }
+        self.choice2opt['Platform'] = {
             'Linux': ['-Dhpc=false'],
-            'Mac': ['-Dhpc=false'],
+            'MacOS': ['-Dhpc=false'],
             'Windows': ['-Dhpc=false'],
             'HPC': ['-Dhpc=true']
         }
-        self.choice_map['Accelerator'] = {
+        self.choice2opt['Accelerator'] = {
             'OpenMP': ['-Domp=true','-Docl=false'],
             'OpenCL': ['-Domp=true','-Docl=true']
         }
-        self.choice_map['Vectors'] = {
+        self.choice2opt['Vectors'] = {
             'SSE': ['-Dvbits=128'],
             'SSE2': ['-Dvbits=128'],
             'AVX': ['-Dvbits=256'],
             'AVX2': ['-Dvbits=256'],
             'AVX512': ['-Dvbits=512']
         }
-        self.choice_map['Byte Order'] = {
+        self.choice2opt['Byte Order'] = {
             'Little Endian': ['-Dbigendian=false'],
             'Big Endian': ['-Dbigendian=true']
         }
@@ -350,16 +373,24 @@ class base_tasks(dictionary_view):
             os.chdir(self.src_path)
             enter_shell()
             try:
-                if subprocess.run(['meson','setup','build'],universal_newlines=True)!=0:
-                    raise RuntimeError
-                os.chdir(self.src_path / 'build')
-                if subprocess.run(['meson','configure','--buildtype=release'])!=0:
-                    raise RuntimeError
                 key_on = ['Platform','Accelerator','Vectors','Byte Order']
                 for k in key_on:
-                    choice = self.choices[k]
-                    for opt in self.choice_map[k][choice]:
-                        if subprocess.run(['meson','configure',opt],universal_newlines=True)!=0:
+                    choice = self.conf.get(k)
+                    for env in self.conf.choice2env[k][choice]:
+                        os.environ[env[0]] = env[1]
+                compl = subprocess.run(['meson','setup','build','--wipe'],universal_newlines=True)
+                if compl.returncode!=0:
+                    raise RuntimeError
+                os.chdir(self.src_path / 'build')
+                compl = subprocess.run(['meson','configure','--buildtype=release'])
+                if compl.returncode!=0:
+                    raise RuntimeError
+                for k in key_on:
+                    choice = self.conf.get(k)
+                    for opt in self.conf.choice2opt[k][choice]:
+                        print('Setting option '+opt)
+                        compl = subprocess.run(['meson','configure',opt],universal_newlines=True)
+                        if compl.returncode!=0:
                             raise RuntimeError
                 self.set('Configure Build','done')
             except FileNotFoundError:
@@ -369,11 +400,11 @@ class base_tasks(dictionary_view):
             except RuntimeError:
                 leave_shell()
                 self.cmd.display('')
-                self.cmd.err('There was an error while trying to configure.')
+                self.cmd.err('There was an error while trying to configure')
             except Exception as ex:
                 leave_shell()
                 self.cmd.display('')
-                self.cmd.err('Unexpected error '+type(ex).__name__+', force exit.')
+                self.cmd.err('Unexpected error '+type(ex).__name__+', '+type(ex).__cause__+', force exit.')
                 exit(1)
             else:
                 leave_shell()
@@ -511,7 +542,8 @@ class base_tasks(dictionary_view):
         if self.cmd.affirm('Wipe residual build products ?')=='y':
             save_dir = os.getcwd()
             os.chdir(self.src_path)
-            if subprocess.run(['meson','setup','build','--wipe'])!=0:
+            compl = subprocess.run(['meson','setup','build','--wipe'])
+            if compl.returncode!=0:
                 self.cmd.err('wipe operation returned an error')
             os.chdir(save_dir)
         if git_is_detached(self.package_path):
@@ -608,7 +640,7 @@ class gui_tasks(base_tasks,gui_dictionary_view):
             self.widgets[key] = (button,status)
         self.widgets['Get Components'][0].configure(command=self.GetComponents)
         self.widgets['Set Version'][0].configure(command=self.StartSetVersion)
-        self.widgets['Configure Build'][0].configure(command=self.Configure)
+        self.widgets['Configure Build'][0].configure(command=lambda : self.Configure(self.enter_shell,self.exit_shell))
         self.widgets['Compile Code'][0].configure(command=lambda : self.Compile(self.enter_shell,self.exit_shell))
         self.widgets['Install Files'][0].configure(command=self.Install)
         self.widgets['Cleanup'][0].configure(command=self.Clean)
@@ -934,7 +966,7 @@ class term_command:
             if sel=='Set Version':
                 self.tasks.StartSetVersion()
             if sel=='Configure Build':
-                self.tasks.Configure()
+                self.tasks.Configure(self.tasks.enter_shell,self.tasks.exit_shell)
             if sel=='Compile Code':
                 self.tasks.Compile(self.tasks.enter_shell,self.tasks.exit_shell)
             if sel=='Install Files':
@@ -978,3 +1010,5 @@ def main():
         ttk.Style().theme_use('default')
         app = Application(master=root)
         app.mainloop()
+
+main()
