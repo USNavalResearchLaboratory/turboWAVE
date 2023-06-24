@@ -39,8 +39,7 @@ source_url = 'https://github.com/USNavalResearchLaboratory/turboWAVE.git'
 help_str = '''This program configures, compiles, and installs turboWAVE core.
 Press the buttons in the "Tasks" frame in order from top to bottom.
 This will lead you through the necessary steps.
-To switch compilers, exit and set the CXX environment variable.
-For OpenCL, be sure to install GPU drivers.'''
+This program assumes OpenMP enabled compiler is installed.'''
 config_affirm='''The dropdown menus in the "Current Configuration" frame can be used to edit the configuration.
 We have tried to choose the best options by detecting the environment.
 Are you satisfied with the selections?'''
@@ -131,21 +130,54 @@ class base_config(dictionary_view):
         self.choice2env = {}
         #map human readable choices to Meson options as category:choice:options
         self.choice2opt = {}
+        self.mac_cxx = 'g++'
         self.title = 'Current Configuration'
         self.choices['Platform'] = ['Linux','MacOS','Windows','HPC']
-        self.choices['Accelerator'] = ['OpenMP','OpenCL']
         # the list of vectors is assumed to be in order of ascending preference
         self.choices['Vectors'] = ['SSE','SSE2','AVX','AVX2','AVX512']
         self.choices['Byte Order'] = ['Little Endian','Big Endian']
+        self.data['Tools Version'] = importlib.metadata.version('twutils')
+        self.data['Core Version'] = ''
+        self.data['Build Path'] = ''
+        self.data['Platform'] = self.choices['Platform'][0]
+        self.data['Vectors'] = self.choices['Vectors'][0]
+        self.data['Byte Order'] = self.choices['Byte Order'][0]
+        self.selectable = ['Platform','Vectors','Byte Order']
+        # Try to initialize the configuration based on environment
+        if 'linux' in sys.platform:
+            self.data['Platform'] = 'Linux'
+            compl = subprocess.run(['lscpu'],stdout=subprocess.PIPE,stderr=subprocess.STDOUT,universal_newlines=True)
+            for v in reversed(self.choices['Vectors']):
+                if re.search(r'\b'+v,compl.stdout,flags=re.IGNORECASE)!=None:
+                    self.data['Vectors'] = v
+                    break
+        if 'darwin' in sys.platform:
+            self.data['Platform'] = 'MacOS'
+            # this works with M1/M2 for now as it will default to SSE which is correct.
+            # in future we may need to adjust the search strings.
+            compl = subprocess.run(['sysctl','machdep.cpu'],stdout=subprocess.PIPE,stderr=subprocess.STDOUT,universal_newlines=True)
+            for v in reversed(self.choices['Vectors']):
+                if re.search(r'\b'+v,compl.stdout,flags=re.IGNORECASE)!=None:
+                    self.data['Vectors'] = v
+                    break
+            # because Apple's clang always wants to take over we have to find homebrew/macports explicitly
+            gcc_glob_list = ['/opt/local/bin/g++','/usr/local/opt/**/g++-*','/opt/homebrew/**/g++-*']
+            gcc_candidates = []
+            for gcc_glob in gcc_glob_list:
+                gcc_candidates += glob.glob(gcc_glob,recursive=True)
+            if len(gcc_candidates)>0:
+                # take first one, popup not available in here
+                self.mac_cxx = gcc_candidates[0]
+        if 'win32' in sys.platform:
+            self.data['Platform'] = 'Windows'
+            self.data['Vectors'] = 'AVX2'
+        if sys.byteorder=='big':
+            self.data['Byte Order'] = 'Big Endian'
         self.choice2env['Platform'] = {
             'Linux': [],
-            'MacOS': [('CXX','g++')],
+            'MacOS': [('CXX',self.mac_cxx)],
             'Windows': [],
             'HPC': []
-        }
-        self.choice2env['Accelerator'] = {
-            'OpenMP': [],
-            'OpenCL': []
         }
         self.choice2env['Vectors'] = {
             'SSE': [],
@@ -164,10 +196,6 @@ class base_config(dictionary_view):
             'Windows': ['-Dhpc=false'],
             'HPC': ['-Dhpc=true']
         }
-        self.choice2opt['Accelerator'] = {
-            'OpenMP': ['-Domp=true','-Docl=false'],
-            'OpenCL': ['-Domp=true','-Docl=true']
-        }
         self.choice2opt['Vectors'] = {
             'SSE': ['-Dvbits=128'],
             'SSE2': ['-Dvbits=128'],
@@ -179,34 +207,6 @@ class base_config(dictionary_view):
             'Little Endian': ['-Dbigendian=false'],
             'Big Endian': ['-Dbigendian=true']
         }
-        self.data['Tools Version'] = importlib.metadata.version('twutils')
-        self.data['Core Version'] = ''
-        self.data['Build Path'] = ''
-        self.data['Platform'] = self.choices['Platform'][0]
-        self.data['Accelerator'] = self.choices['Accelerator'][0]
-        self.data['Vectors'] = self.choices['Vectors'][0]
-        self.data['Byte Order'] = self.choices['Byte Order'][0]
-        self.selectable = ['Platform','Accelerator','Vectors','Byte Order']
-        # Try to initialize the configuration based on environment
-        if 'linux' in sys.platform:
-            self.data['Platform'] = 'Linux'
-            compl = subprocess.run(['lscpu'],stdout=subprocess.PIPE,stderr=subprocess.STDOUT,universal_newlines=True)
-            for v in reversed(self.choices['Vectors']):
-                if re.search(r'\b'+v,compl.stdout,flags=re.IGNORECASE)!=None:
-                    self.data['Vectors'] = v
-                    break
-        if 'darwin' in sys.platform:
-            self.data['Platform'] = 'MacOS'
-            compl = subprocess.run(['sysctl','machdep.cpu'],stdout=subprocess.PIPE,stderr=subprocess.STDOUT,universal_newlines=True)
-            for v in reversed(self.choices['Vectors']):
-                if re.search(r'\b'+v,compl.stdout,flags=re.IGNORECASE)!=None:
-                    self.data['Vectors'] = v
-                    break
-        if 'win32' in sys.platform:
-            self.data['Platform'] = 'Windows'
-            self.data['Vectors'] = 'AVX2'
-        if sys.byteorder=='big':
-            self.data['Byte Order'] = 'Big Endian'
     def connect(self,tasks):
         self.tasks = tasks
     def backup_params(self):
@@ -373,7 +373,7 @@ class base_tasks(dictionary_view):
             os.chdir(self.src_path)
             enter_shell()
             try:
-                key_on = ['Platform','Accelerator','Vectors','Byte Order']
+                key_on = ['Platform','Vectors','Byte Order']
                 for k in key_on:
                     choice = self.conf.get(k)
                     for env in self.conf.choice2env[k][choice]:
@@ -649,7 +649,10 @@ class gui_tasks(base_tasks,gui_dictionary_view):
     def exit_shell(self):
         print('Reached Completion. Stop Shell Output.')
     def AskDirectory(self,title='Select Working Directory',initialdir=str(pathlib.Path.home())):
-        return tkinter.filedialog.askdirectory(title=title,initialdir=initialdir)
+        ans = tkinter.filedialog.askdirectory(title=title,initialdir=initialdir)
+        if ans=='':
+            ans = ()
+        return ans
 
 class gui_command:
     def __init__(self,master):
@@ -1010,5 +1013,3 @@ def main():
         ttk.Style().theme_use('default')
         app = Application(master=root)
         app.mainloop()
-
-main()

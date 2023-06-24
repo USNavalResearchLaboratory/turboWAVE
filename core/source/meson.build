@@ -40,7 +40,7 @@ executable(
     'tw3d',
     src_all,
     include_directories : incdir,
-    cpp_args: '-std=c++17',
+    cpp_args: ['-std=c++17'],
     dependencies: deps,
     install: true
 )

@@ -20,14 +20,13 @@ setup(name='twutils',
 	packages=find_packages(where='src'),
 	python_requires='>=3.8',
 	install_requires=[
+		'numpy>=1.22',
 		'scipy>=1.10',
 		'matplotlib>=3.7',
 		'jupyter>=1',
-		'ipympl>=0.9',
 		'pillow>=9',
 		'h5py',
-		'meson>=1.1',
-		'khronos-opencl-icd-loader>=2023.04.17'
+		'meson>=1.1'
 	],
 	include_package_data=True,
 	entry_points = { 'console_scripts': [

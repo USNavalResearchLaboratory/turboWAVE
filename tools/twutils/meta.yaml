@@ -30,10 +30,9 @@ requirements:
     - matplotlib >=3.7
     - pillow >=9
     - python >=3.8
+    - numpy >=1.22
     - scipy >=1.10
     - meson >=1.1
-    - cmake >=3.22
-    - khronos-opencl-icd-loader
     - git >=2
 
 test:

@@ -25,8 +25,8 @@ Conda Build
 
 To build and test the conda package locally:
 * Edit `meta.yaml` as appropriate, especially update the version
-* From the `tools` directory type `conda build twutils -c conda-forge` (this is slow)
+* From the `tools` directory type `conda build twutils` (may be slow)
 * Create directory somewhere: `local-channel/noarch/`
 * Copy `miniconda3/conda-bld/noarch/twutils-<x.x.x>-py_0.tar.bz2` to `local-channel/noarch/`
 * `conda index .` from `local-channel`
-* `conda create -n tw -c file://full/path/to/local-channel -c conda-forge twutils`
+* `conda create -n tw -c file://full/path/to/local-channel twutils`

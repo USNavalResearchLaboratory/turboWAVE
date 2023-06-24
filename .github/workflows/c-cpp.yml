@@ -23,7 +23,7 @@ jobs:
         echo $CONDA/bin >> $GITHUB_PATH
     - name: Install dependencies
       run: |
-        conda install -c dfxgordon -c conda-forge twutils
+        conda install -c dfxgordon twutils
     - name: setup
       working-directory: ./core/source
       run: meson setup build
@@ -37,4 +37,4 @@ jobs:
       working-directory: ./core/source/build
       run: ./tw3d -n 2 --unit-test --all
     - name: turbowave integration testing
-      run: twtest --integration --root . --command ./core/build/tw3d -n 4
+      run: twtest --integration --root . --command ./core/source/build/tw3d -n 4
