@@ -218,9 +218,9 @@ void Task::Initialize(tw::Int *doms,tw::Int *gcells,tw::Int *cyclic)
 	gpu = devices[whichDevice];
 	context = clCreateContext(NULL,1,&gpu,NULL,NULL,&err);
 	// Following is the updated function
-	commandQueue = clCreateCommandQueueWithProperties(context,gpu,NULL,&err);
+	//commandQueue = clCreateCommandQueueWithProperties(context,gpu,NULL,&err);
 	// Following is the deprecated function
-	//commandQueue = clCreateCommandQueue(context,gpu,0,&err);
+	commandQueue = clCreateCommandQueue(context,gpu,0,&err);
 
 	// Create kernels
 	std::string buildLog;
@@ -278,7 +278,10 @@ void Task::InitializeCLProgram(cl_program& program,const std::string& fileName,s
 	}
 	std::string header_and_source = CLDefinitions(gpu) + sourceString;
 	sourceText.resize(header_and_source.size()+1);
-	strcpy_s(&sourceText[0],sourceText.size(),header_and_source.c_str());
+	// Following is the updated function
+	//strcpy_s(&sourceText[0],sourceText.size(),header_and_source.c_str());
+	// Following is the deprecated function
+	strcpy(&sourceText[0],header_and_source.c_str());
 	sourceList[0] = &sourceText[0];
 
 	program = clCreateProgramWithSource(context,1,(const char**)&sourceList[0],NULL,&err);

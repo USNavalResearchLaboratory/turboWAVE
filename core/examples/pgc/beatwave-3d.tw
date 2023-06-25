@@ -2,6 +2,7 @@
 // NERSC Edison: 11 nodes, 7.5 minutes
 // NERSC Cori-Haswell: 8 nodes, 7.2 minutes
 // NERSC Cori-KNL: 8 nodes, 10 minutes
+// NERSC Perlmutter-CPU: 2 nodes, 10 minutes
 steps = 1000
 timestep = 0.08
 dump period = 0
@@ -71,7 +72,7 @@ new species 'e'
 	mass = 1
 	emission temperature = ( 0.1 , 0.1 , 0.1 )
 	particles per cell = ( 2 , 2 , 4 ) when density = 1
-	zboundary = emitting emitting
+	zboundary = (emitting emitting)
 }
 
 generate uniform 'e'

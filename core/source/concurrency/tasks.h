@@ -245,19 +245,19 @@ struct Task
 
 	void Lock()
 	{
-		#ifdef USING_TW_MPI
+		#ifdef USE_TW_MPI
 		TW_MPI_Lock();
 		#endif
 	}
 	void Unlock()
 	{
-		#ifdef USING_TW_MPI
+		#ifdef USE_TW_MPI
 		TW_MPI_Unlock();
 		#endif
 	}
 	void Complete()
 	{
-		#ifdef USING_TW_MPI
+		#ifdef USE_TW_MPI
 		TW_MPI_ThreadRef(strip[0].comm_cart,strip[0].Get_rank())->Complete();
 		#endif
 	}

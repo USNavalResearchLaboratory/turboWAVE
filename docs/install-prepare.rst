@@ -6,29 +6,18 @@ The turboWAVE installer assumes Anaconda and a modern C++ compiler are available
 High Performance Computing (HPC)
 ================================
 
-On HPC systems, the necessary components should already be prepared.  However, one sometimes has to load appropriate modules using the ``module load`` command.  Look for modules supporting Anaconda and a C++ compiler.  Choose compiler versions that support C++17 (usually the latest stable version is best).  The installer is designed to work with Cray systems.  For others it may be necessary to perform a manual install.
+On HPC systems, the necessary components should already be prepared.  However, one sometimes has to load appropriate modules using the ``module load`` command.  Look for modules supporting Anaconda and a C++ compiler.
 
 .. tip::
 
 	Non-GCC compilers sometimes rely on GCC for the standard library.  If you are trying to load an updated non-GCC compiler, you may need to load GCC as well.
 
-Linux - CentOS 8
-================
-
-#. Open a terminal window
-#. :samp:`sudo dnf install gcc make libomp-devel`
-#. :samp:`sudo dnf install llvm clang`
-#. Download Anaconda3 or Miniconda3 from the internet and install
-#. :samp:`conda update conda`
-
-For other RPM based distributions the procedure should be the same.  Note Enterprise Linux 7 variants will not work without the developer toolset.
-
-Linux - Ubuntu 20.04
-====================
+Linux - Ubuntu
+==============
 
 #. Open a terminal window
 #. :samp:`sudo apt update`
-#. :samp:`sudo apt install g++ make libomp-dev`
+#. :samp:`sudo apt install g++ libomp-dev`
 #. :samp:`sudo apt install llvm clang`
 #. Download Anaconda3 or Miniconda3 from the internet and install
 #. :samp:`conda update conda`
@@ -63,8 +52,10 @@ Install MacPorts GCC
 #. If you want to use Homebrew skip this section.
 #. Perform internet search to find MacPorts installation instructions and carry out
 #. In the terminal type :samp:`sudo port selfupdate`
-#. :samp:`sudo port install gcc11`
-#. :samp:`sudo port select --set gcc mp-gcc11`
+#. :samp:`sudo port install gcc12`
+#. :samp:`sudo port select --set gcc mp-gcc12`
+
+In the above you can substitute a later version for ``12``, if available.
 
 Install Anaconda
 ----------------
@@ -72,7 +63,7 @@ Install Anaconda
 #. Download Anaconda3 or Miniconda3 from the internet and install
 #. In the terminal type ``conda update conda``
 
-Windows 10
+Windows 11
 ==========
 
 Visual Studio
@@ -96,34 +87,11 @@ Install Anaconda
 ----------------
 
 #. Run Anaconda3 or Miniconda3 installer from internet, accept defaults.
-#. Open a new PowerShell window
-#. If you get an error you likely need to update the Execution Policy
-
-	* :samp:`Set-ExecutionPolicy Bypass -Scope CurrentUser`
-	* Respond affirmatively to the prompt, close and reopen the PowerShell
-
+#. Open the special Anaconda PowerShell terminal
 #. :samp:`conda update conda`
-#. :samp:`conda init powershell`
 
-Notes on Text Editors
-----------------------
-
-Most turboWAVE text files, such as input file examples, have UNIX line feeds.  This is no problem for WordPad (set word wrap to no wrap), but Notepad may not display them properly.  Installing a developer-oriented text editor (e.g. Atom, Sublime) might be useful.  You can install various terminal-style editors by opening an administrator PowerShell window and executing any or all of the following::
-
-	choco install emacs
-	choco install micro
-	choco install vim
-
-Install LLVM (free)
--------------------
+Install LLVM
+------------
 
 #. Open an administrator PowerShell window.
 #. :samp:`choco install llvm`
-#. :samp:`choco install make`
-
-Install Intel (may require purchase)
-------------------------------------
-
-#. Download and install Intel Parallel Studio.
-
-	* The Intel compiler is a commercial product, but you may be able to use it freely on a trial basis.

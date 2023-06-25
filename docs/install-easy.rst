@@ -20,14 +20,14 @@ The following should work in any operating system, assuming compilers are instal
 
 #. Use the installer to complete the sequence of steps in the ``Tasks`` area.
 
-	* You can usually accept default responses.
-	* On Cray, the platform and vector type popups should be set manually.
-	* For now use OpenMP for the accelerator.
-	* The installer can configure for GPGPU, but you may need to fulfill some prerequisites as root for the compiler to succeed.
-
 .. note:: Pretty PowerShell
 
 	To get color working try ``Set-ItemProperty HKCU:\Console VirtualTerminalLevel -Type DWORD 1``.  To get Unicode characters working try ``$OutputEncoding = [console]::InputEncoding = [console]::OutputEncoding = New-Object System.Text.UTF8Encoding`` (put this in the ``$PROFILE`` file to make it persist). If unicode is still not displayed correctly, start cycling fonts (right-click title bar and choose ``Properties``).
+
+Runtime
+-------
+
+When ``twinstall`` is used, the executable installs to the conda environment.  As a result, when outside the environment, the executable will not be found.  However, one should understand that the executable itself does not depend on Anaconda or Python in any way.  It can be manually installed anywhere.
 
 Upgrade
 -------

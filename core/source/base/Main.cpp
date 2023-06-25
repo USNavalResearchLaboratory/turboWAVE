@@ -263,7 +263,7 @@ void CommandHandler::Evaluate(const Arg& arg,
 // (used with internal MPI) //
 //////////////////////////////
 
-#ifdef USING_TW_MPI
+#ifdef USE_TW_MPI
 
 struct Launcher : tw::Thread
 {
@@ -328,7 +328,7 @@ void TW_Interactive::Run()
 // Standard MPI Launch //
 /////////////////////////
 
-#ifndef USING_TW_MPI
+#ifndef USE_TW_MPI
 int main(int argc,char *argv[])
 {
 	int numOMPThreads=0; // indicates -c argument was not given
@@ -382,7 +382,7 @@ int main(int argc,char *argv[])
 // Internal MPI Launch //
 /////////////////////////
 
-#ifdef USING_TW_MPI
+#ifdef USE_TW_MPI
 int main(int argc,char *argv[])
 {
 	int numMPIThreads=1,numOMPThreads=1;

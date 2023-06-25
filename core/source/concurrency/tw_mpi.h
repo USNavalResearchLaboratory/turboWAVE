@@ -1,6 +1,6 @@
 // TurboWAVE non-conforming implementation of MPI
 
-#define USING_TW_MPI
+#define USE_TW_MPI
 
 static const int MAX_THREADS = 256;
 static const int MPI_PROC_NULL = -3;

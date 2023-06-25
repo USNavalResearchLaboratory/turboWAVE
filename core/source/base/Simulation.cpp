@@ -214,7 +214,7 @@ void Simulation::SetupIO()
 
 void Simulation::Run()
 {
-	#ifdef USING_TW_MPI
+	#ifdef USE_TW_MPI
 	// Wait until master thread is done
 	// TODO: fold this into TW_MPI's MPI_init
 	TW_MPI_Lock();
@@ -306,7 +306,7 @@ void Simulation::Run()
 
 void Simulation::Test()
 {
-	#ifdef USING_TW_MPI
+	#ifdef USE_TW_MPI
 	// Wait until master thread is done
 	// TODO: fold this into TW_MPI's MPI_init
 	TW_MPI_Lock();

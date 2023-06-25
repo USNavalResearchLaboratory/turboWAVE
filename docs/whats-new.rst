@@ -1,6 +1,25 @@
 What's New
 //////////
 
+What's New in 4.8
+=================
+
+#. Maintenance updates for Python and Jupyter tools
+
+#. TurboWAVE now uses `Meson <https://mesonbuild.com/>`_ as the build system
+
+	* The `twinstall` script has been updated accordingly
+	* The `Ninja <https://ninja-build.org/>`_ backend is used by default
+
+Gotchas
+-------
+
+#. `makefile` is replaced by `meson.build`, `make` is replaced by `meson`
+
+#. Repository contains no `build` directory, it is created by Meson on the fly
+
+#. `twinstall` has fewer options, for more fine grained control interact with Meson directly
+
 What's New in 4.7
 =================
 

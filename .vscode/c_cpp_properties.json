@@ -24,6 +24,29 @@
             "configurationProvider": "mesonbuild.mesonbuild"
         },
         {
+            "name": "BrewGCC-ARM",
+            "includePath": [
+                "${workspaceFolder}/core/source/**"
+            ],
+            "defines": ["USE_DESKTOP","USE_OPENMP","VBITS=128"],
+            "compilerArgs": [
+                "-I${workspaceFolder}/core/source/base",
+                "-I${workspaceFolder}/core/source/concurrency",
+                "-I${workspaceFolder}/core/source/io",
+                "-I${workspaceFolder}/core/source/particles",
+                "-I${workspaceFolder}/core/source/solver",
+                "-I${workspaceFolder}/core/source/sparc"
+            ],
+            "macFrameworkPath": [
+                "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/System/Library/Frameworks"
+            ],
+            "compilerPath": "/opt/homebrew/bin/g++-13",
+            "cStandard": "c17",
+            "cppStandard": "c++17",
+            "intelliSenseMode": "macos-clang-x64",
+            "configurationProvider": "mesonbuild.mesonbuild"
+        },
+        {
             "name": "WindowsLLVM",
             "includePath": [
                 "${workspaceFolder}/core/source/**"
