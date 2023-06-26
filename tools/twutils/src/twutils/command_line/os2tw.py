@@ -187,9 +187,9 @@ def main():
         if key=='root':
             root_dir = val
         if key=='n1':
-            n1_mks = 1e6*np.float(val)
+            n1_mks = 1e6*float(val)
         if key=='dt':
-            dt = np.float(val)
+            dt = float(val)
         if key=='nfac':
             nfac = int(val)
     if 'n1' not in keys_found:

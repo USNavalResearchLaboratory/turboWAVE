@@ -1,0 +1,62 @@
+{% set name = "twutils" %}
+{% set version = "4.8.0" %}
+
+package:
+  name: "{{ name|lower }}"
+  version: "{{ version }}"
+
+source:
+  path: .
+
+build:
+  noarch: python
+  number: 0
+  entry_points:
+    - twinstall=twutils.command_line.twinstall:main
+    - twplot=twutils.command_line.twplot:main
+    - twtest=twutils.command_line.twtest:main
+    - twscan=twutils.command_line.twscan:main
+    - os2tw=twutils.command_line.os2tw:main
+    - wigner=twutils.command_line.wigner:main
+  script: "{{ PYTHON }} -m pip install . -vv"
+
+requirements:
+  host:
+    - pip
+    - python >=3.8
+  run:
+    - h5py
+    - jupyter >=1
+    - matplotlib >=3.7
+    - pillow >=9
+    - python >=3.8
+    - numpy >=1.22
+    - scipy >=1.10
+    - meson >=1.1
+    - git >=2
+
+test:
+  imports:
+    - twutils
+    - twutils.QO
+    - twutils.command_line
+  commands:
+    - twinstall --help
+    - twplot --help
+    - twtest --help
+    - twscan --help
+    - os2tw --help
+    - wigner --help
+
+about:
+  home: "https://github.com/USNavalResearchLaboratory/turboWAVE"
+  license: PUBLIC-DOMAIN
+  license_family: PUBLIC-DOMAIN
+  license_file: 
+  summary: "TurboWAVE utilities"
+  doc_url: "https://turbowave.readthedocs.io/en/latest/"
+  dev_url: 
+
+extra:
+  recipe-maintainers:
+    - dfgordon

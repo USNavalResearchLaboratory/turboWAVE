@@ -23,6 +23,7 @@ struct Region
 	tw::Float temp_bounds[6];
 
 	Region(std::vector<Region*>& ml);
+	virtual ~Region() {}
 	virtual bool Inside(const tw::vec3& pos,const MetricSpace& ds) const
 	{
 		bool ans = intersection;

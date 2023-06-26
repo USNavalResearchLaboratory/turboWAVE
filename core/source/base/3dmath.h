@@ -744,7 +744,7 @@ namespace tw
 			tw::Float ctheta = n.z;
 			tw::Float stheta = sqrt(1.0-n.z*n.z);
 			tw::Float cphi = n.x/stheta;
-			tw::Float sphi = sqrt(1.0 - cphi*cphi);
+			//tw::Float sphi = sqrt(1.0 - cphi*cphi);
 			tw::Float ctheta2 = sqrt(0.5*(1+ctheta));
 			tw::Float stheta2 = sqrt(0.5*(1-ctheta));
 			tw::Float cphi2 = sqrt(0.5*(1+cphi));

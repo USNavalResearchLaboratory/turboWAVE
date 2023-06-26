@@ -157,7 +157,6 @@ void Collision::ReadInputFile(std::stringstream& inputString,const tw::UnitConve
 	// metallic collision example
 	// new collision = e <-> Cu[+] , metallic , ks = 2.4 , fermi_energy_ev = 7.0 , ref_density = 1e23
 
-	tw::Int i;
 	std::string word,species;
 	tw::UnitConverter cgs(tw::units::cgs,native);
 

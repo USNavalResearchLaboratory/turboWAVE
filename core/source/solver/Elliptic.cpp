@@ -342,7 +342,7 @@ void IterativePoissonSolver::Solve(ScalarField& phi,ScalarField& source,tw::Floa
 	const tw::Int zDim = space->Dim(3);
 
 	tw::Float residual,normResidual;
-	tw::Float domega,rp1,rp2;
+	//tw::Float domega,rp1,rp2;
 	std::valarray<tw::Float> D(7);
 
 	normSource = 0.0;

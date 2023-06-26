@@ -109,7 +109,7 @@ void MetricSpace::Resize(Task& task,
 			break;
 	}
 	#ifdef USE_OPENCL
-	InitializeMetricsBuffer(context,dt);
+	InitializeMetricsBuffer(task.context,dt);
 	#endif
 }
 
@@ -248,7 +248,7 @@ void MetricSpace::SetCartesianGeometry()
 	car = 1.0; cyl = 0.0; sph = 0.0;
 	tw::Int i,sx=mnum[1],sz=mnum[3];
 	tw::Float *xpos = &gpos[mnum[0]*1];
-	tw::Float *ypos = &gpos[mnum[0]*2];
+	//tw::Float *ypos = &gpos[mnum[0]*2];
 	tw::Float *zpos = &gpos[mnum[0]*3];
 	tw::Float *xwidth = &width[mnum[0]*1];
 	tw::Float *ywidth = &width[mnum[0]*2];
@@ -315,7 +315,7 @@ void MetricSpace::SetCylindricalGeometry()
 	car = 0.0; cyl = 1.0; sph = 0.0;
 	tw::Int i,sx=mnum[1],sz=mnum[3];
 	tw::Float *xpos = &gpos[mnum[0]*1];
-	tw::Float *ypos = &gpos[mnum[0]*2];
+	//tw::Float *ypos = &gpos[mnum[0]*2];
 	tw::Float *zpos = &gpos[mnum[0]*3];
 	tw::Float *xwidth = &width[mnum[0]*1];
 	tw::Float *ywidth = &width[mnum[0]*2];
@@ -391,7 +391,7 @@ void MetricSpace::SetSphericalGeometry()
 	car = 0.0; cyl = 0.0; sph = 1.0;
 	tw::Int i,sx=mnum[1],sz=mnum[3];
 	tw::Float *xpos = &gpos[mnum[0]*1];
-	tw::Float *ypos = &gpos[mnum[0]*2];
+	//tw::Float *ypos = &gpos[mnum[0]*2];
 	tw::Float *zpos = &gpos[mnum[0]*3];
 	tw::Float *xwidth = &width[mnum[0]*1];
 	tw::Float *ywidth = &width[mnum[0]*2];

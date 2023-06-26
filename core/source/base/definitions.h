@@ -1,5 +1,4 @@
 #ifndef _did_definitions
-#define TW_VERSION_STRING "4.7.0"
 
 /////////////////////////////////////////////////////////////////////
 //                                                                 //
@@ -18,6 +17,7 @@
 //                                                                 //
 /////////////////////////////////////////////////////////////////////
 
+#include <config.h>
 //#include <stdint.h>
 #include <memory.h>
 #include <cassert>
@@ -149,25 +149,6 @@ namespace tw
 		#include <CL/cl.h>
 	#endif
 
-	inline std::string CLDoublePragma(cl_device_id theDevice)
-	{
-		char buff[4096];
-		size_t buffSize;
-		std::string extensionList;
-		if (sizeof(tw::Float)==4)
-			return "";
-		else
-		{
-			clGetDeviceInfo(theDevice,CL_DEVICE_EXTENSIONS,sizeof(buff),buff,&buffSize);
-			extensionList = std::string(buff,buffSize-1);
-			extensionList = buff;
-			if (extensionList.find("cl_amd_fp64")!=std::string::npos)
-				return "#pragma OPENCL EXTENSION cl_amd_fp64 : enable\n";
-			if (extensionList.find("cl_khr_fp64")!=std::string::npos)
-				return "#pragma OPENCL EXTENSION cl_khr_fp64 : enable\n";
-			return "";
-		}
-	}
 	inline std::string CLBasicTypes()
 	{
 		std::string types_string;
@@ -243,8 +224,7 @@ namespace tw
 	inline std::string CLDefinitions(cl_device_id theDevice)
 	{
 		std::string definitions_string;
-		definitions_string = CLDoublePragma(theDevice) + '\n';
-		definitions_string += CLBasicTypes() + '\n';
+		definitions_string = CLBasicTypes() + '\n';
 		definitions_string += CLDiscreteSpace() + '\n';
 		definitions_string += CLMetrics() + '\n';
 		definitions_string += CLStrip() + '\n';

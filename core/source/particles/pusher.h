@@ -19,7 +19,7 @@ struct BundlePusherPGC : BundlePusherBoris
 	alignas(AB) float chi[N];
 	alignas(AB) tw::Float avgGam[N];
 
-	BundlePusherPGC(Mover *owner) : BundlePusherBoris(owner) , ParticleBundle(owner) { ; }
+	BundlePusherPGC(Mover *owner) : ParticleBundle(owner), BundlePusherBoris(owner)  { ; }
 	void avg_gam_1(tw::Float avgGam[N],tw::Float vel[3][N],tw::Float u[4][N],float F[6][N],float las[8][N]);
 	void avg_gam_2(tw::Float avgGam[N],tw::Float u[4][N],float las[8][N]);
 	void impulse(tw::Float u[4][N],float F[6][N],float las[8][N],tw::Float avgGam[N]);

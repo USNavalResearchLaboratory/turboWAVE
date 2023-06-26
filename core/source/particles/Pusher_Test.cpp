@@ -11,8 +11,8 @@ void Mover::UniformETest()
 	InitTest();
 	const tw::Float tolerance = 1e-3;
 	// Create uniform electric field
-    for (auto cell : CellRange(*space,true))
-        (*EM)(cell,2) = 1.0;
+	for (auto cell : CellRange(*space,true))
+		(*EM)(cell,2) = 1.0;
 	Primitive q;
 	tw::vec3 r0(Corner(*space) + tw::vec3(dx(*space)/2,dy(*space)/2,dz(*space)/2));
 	tw::vec4 p0(1,0,0,0);
@@ -32,8 +32,8 @@ void Mover::UniformBTest()
 	InitTest();
 	const tw::Float tolerance = 1e-3;
 	// Create uniform magnetic field
-    for (auto cell : CellRange(*space,true))
-        (*EM)(cell,4) = 1.0;
+	for (auto cell : CellRange(*space,true))
+		(*EM)(cell,4) = 1.0;
 	Primitive q;
 	tw::vec3 r0(Corner(*space) + tw::vec3(dx(*space)/2,dy(*space)/2,dz(*space)/2));
 	tw::vec4 p0(sqrt(2),0,0,1);

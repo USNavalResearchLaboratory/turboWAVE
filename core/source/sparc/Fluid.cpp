@@ -713,7 +713,6 @@ void Chemical::LoadInternalEnergy(Field& hydro,Field& eos)
 	// Therefore eos has to be rebuilt after calling this routine.
 
 	sparc::HydroManager *master = (sparc::HydroManager*)(super->super);
-	tw::Float add;
 
 	for (auto prof : profile)
 	{

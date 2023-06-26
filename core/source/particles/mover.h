@@ -80,31 +80,31 @@ struct PhotonMover:Mover
 
 struct BundleMoverBoris2D : BundleTilerEM2D,BundlePusherBoris
 {
-	BundleMoverBoris2D(Mover *owner) : BundleTilerEM2D(owner), BundlePusherBoris(owner), ParticleBundle(owner) {}
+	BundleMoverBoris2D(Mover *owner) : ParticleBundle(owner), BundleTilerEM2D(owner), BundlePusherBoris(owner) {}
 	void Move();
 };
 
 struct BundleMoverBoris3D : BundleTilerEM3D,BundlePusherBoris
 {
-	BundleMoverBoris3D(Mover *owner) : BundleTilerEM3D(owner), BundlePusherBoris(owner), ParticleBundle(owner) {}
+	BundleMoverBoris3D(Mover *owner) : ParticleBundle(owner), BundleTilerEM3D(owner), BundlePusherBoris(owner) {}
 	void Move();
 };
 
 struct BundleMoverUnitary2D : BundleTilerEM2D,BundlePusherUnitary
 {
-	BundleMoverUnitary2D(Mover *owner) : BundleTilerEM2D(owner), BundlePusherUnitary(owner), ParticleBundle(owner) {}
+	BundleMoverUnitary2D(Mover *owner) : ParticleBundle(owner), BundleTilerEM2D(owner), BundlePusherUnitary(owner) {}
 	void Move();
 };
 
 struct BundleMoverUnitary3D : BundleTilerEM3D,BundlePusherUnitary
 {
-	BundleMoverUnitary3D(Mover *owner) : BundleTilerEM3D(owner), BundlePusherUnitary(owner), ParticleBundle(owner) {}
+	BundleMoverUnitary3D(Mover *owner) : ParticleBundle(owner), BundleTilerEM3D(owner), BundlePusherUnitary(owner) {}
 	void Move();
 };
 
 struct BundleMoverPGC2D : BundleTilerPGC2D,BundleTilerEM2D,BundlePusherPGC
 {
-	BundleMoverPGC2D(Mover *owner) : BundleTilerPGC2D(owner), BundleTilerEM2D(owner), BundlePusherPGC(owner), ParticleBundle(owner) {}
+	BundleMoverPGC2D(Mover *owner) : ParticleBundle(owner), BundleTilerPGC2D(owner), BundleTilerEM2D(owner), BundlePusherPGC(owner) {}
 	// For PGC we have to call two slicers explicitly
 	void LoadFieldSlice(tw::Int low[4],tw::Int high[4],tw::Int ignorable[4]);
 	void InitSourceSlice(tw::Int low[4],tw::Int high[4],tw::Int ignorable[4]);
@@ -114,7 +114,7 @@ struct BundleMoverPGC2D : BundleTilerPGC2D,BundleTilerEM2D,BundlePusherPGC
 
 struct BundleMoverPGC3D : BundleTilerPGC3D,BundleTilerEM3D,BundlePusherPGC
 {
-	BundleMoverPGC3D(Mover *owner) : BundleTilerPGC3D(owner), BundleTilerEM3D(owner), BundlePusherPGC(owner), ParticleBundle(owner) {}
+	BundleMoverPGC3D(Mover *owner) : ParticleBundle(owner), BundleTilerPGC3D(owner), BundleTilerEM3D(owner), BundlePusherPGC(owner) {}
 	// For PGC we have to call two slicers explicitly
 	void LoadFieldSlice(tw::Int low[4],tw::Int high[4],tw::Int ignorable[4]);
 	void InitSourceSlice(tw::Int low[4],tw::Int high[4],tw::Int ignorable[4]);
@@ -124,13 +124,13 @@ struct BundleMoverPGC3D : BundleTilerPGC3D,BundleTilerEM3D,BundlePusherPGC
 
 struct BundleMoverBohmian2D : BundleTilerBohmian2D,BundlePusherBohmian
 {
-	BundleMoverBohmian2D(Mover *owner) : BundleTilerBohmian2D(owner), BundlePusherBohmian(owner), ParticleBundle(owner) {}
+	BundleMoverBohmian2D(Mover *owner) : ParticleBundle(owner), BundleTilerBohmian2D(owner), BundlePusherBohmian(owner) {}
 	void Move();
 };
 
 struct BundleMoverBohmian3D : BundleTilerBohmian3D,BundlePusherBohmian
 {
-	BundleMoverBohmian3D(Mover *owner) : BundleTilerBohmian3D(owner), BundlePusherBohmian(owner), ParticleBundle(owner) {}
+	BundleMoverBohmian3D(Mover *owner) : ParticleBundle(owner), BundleTilerBohmian3D(owner), BundlePusherBohmian(owner) {}
 	void Move();
 };
 

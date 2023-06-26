@@ -56,9 +56,9 @@ def RotateX(v,q):
 
 class basis:
 	def __init__(self):
-		self.u = np.array([1,0,0]).astype(np.float)
-		self.v = np.array([0,1,0]).astype(np.float)
-		self.w = np.array([0,0,1]).astype(np.float)
+		self.u = np.array([1,0,0]).astype(float)
+		self.v = np.array([0,1,0]).astype(float)
+		self.w = np.array([0,0,1]).astype(float)
 	def AboutX(self,q):
 		RotateX(self.u,q)
 		RotateX(self.v,q)
@@ -76,8 +76,8 @@ class tw_rgn:
 	type = 'none'
 	def __init__(self,name):
 		self.name = name
-		self.center = np.array([0,0,0]).astype(np.float)
-		self.rbox = np.array([0,0,0]).astype(np.float)
+		self.center = np.array([0,0,0]).astype(float)
+		self.rbox = np.array([0,0,0]).astype(float)
 		self.complement = False
 		self.orientation = basis()
 		self.occ_shape = None
@@ -85,8 +85,8 @@ class tw_rgn:
 		self.elements = []
 	def ParseItem(self,words,i):
 		if words[i]=='bounds':
-			p1 = np.array([np.float(words[i+1]),np.float(words[i+3]),np.float(words[i+5])])
-			p2 = np.array([np.float(words[i+2]),np.float(words[i+4]),np.float(words[i+6])])
+			p1 = np.array([float(words[i+1]),float(words[i+3]),float(words[i+5])])
+			p2 = np.array([float(words[i+2]),float(words[i+4]),float(words[i+6])])
 			self.center = 0.5*(p1 + p2)
 			self.rbox = 0.5*(p2 - p1)
 			return 7
@@ -94,20 +94,20 @@ class tw_rgn:
 			print('ERROR: Direct assignment to center illegal.  Use translation instead.')
 			exit(1)
 		if words[i]=='translation':
-			self.center[0] += np.float(words[i+1])
-			self.center[1] += np.float(words[i+2])
-			self.center[2] += np.float(words[i+3])
+			self.center[0] += float(words[i+1])
+			self.center[1] += float(words[i+2])
+			self.center[2] += float(words[i+3])
 			return 4
 		if words[i]=='rotation':
 			if words[i+2]=='x':
-				self.orientation.AboutX(np.float(words[i+3])*np.pi/180)
-				RotateX(self.center,np.float(words[i+3])*np.pi/180)
+				self.orientation.AboutX(float(words[i+3])*np.pi/180)
+				RotateX(self.center,float(words[i+3])*np.pi/180)
 			if words[i+2]=='y':
-				self.orientation.AboutY(np.float(words[i+3])*np.pi/180)
-				RotateY(self.center,np.float(words[i+3])*np.pi/180)
+				self.orientation.AboutY(float(words[i+3])*np.pi/180)
+				RotateY(self.center,float(words[i+3])*np.pi/180)
 			if words[i+2]=='z':
-				self.orientation.AboutZ(np.float(words[i+3])*np.pi/180)
-				RotateZ(self.center,np.float(words[i+3])*np.pi/180)
+				self.orientation.AboutZ(float(words[i+3])*np.pi/180)
+				RotateZ(self.center,float(words[i+3])*np.pi/180)
 			return 4
 		if words[i]=='complement':
 			self.complement = words[i+1]=='true' or words[i+1]=='yes' or words[i+1]=='on'
@@ -158,16 +158,16 @@ class tw_domain(tw_rgn):
 	type = 'domain'
 	def ParseItem(self,words,i):
 		if words[i]=='corner':
-			self.corner = np.array([0,0,0]).astype(np.float)
-			self.corner[0] = np.float(words[i+1])
-			self.corner[1] = np.float(words[i+2])
-			self.corner[2] = np.float(words[i+3])
+			self.corner = np.array([0,0,0]).astype(float)
+			self.corner[0] = float(words[i+1])
+			self.corner[1] = float(words[i+2])
+			self.corner[2] = float(words[i+3])
 			return 4
 		if words[i]=='dimensions':
-			self.dim = np.array([np.float(words[i+1]),np.float(words[i+2]),np.float(words[i+3])])
+			self.dim = np.array([float(words[i+1]),float(words[i+2]),float(words[i+3])])
 			return 4
 		if words[i]=='cell':
-			self.dr = np.array([np.float(words[i+2]),np.float(words[i+3]),np.float(words[i+4])])
+			self.dr = np.array([float(words[i+2]),float(words[i+3]),float(words[i+4])])
 			return 5
 		if words[i]=='geometry':
 			return 2
@@ -197,7 +197,7 @@ class tw_circ(tw_rgn):
 	type = 'circ'
 	def ParseItem(self,words,i):
 		if words[i]=='radius':
-			self.radius = np.float(words[i+1])
+			self.radius = float(words[i+1])
 			return 2
 		return tw_rgn.ParseItem(self,words,i)
 	def CreateShape(self):
@@ -208,10 +208,10 @@ class tw_cyl(tw_rgn):
 	type = 'cylinder'
 	def ParseItem(self,words,i):
 		if words[i]=='radius':
-			self.radius = np.float(words[i+1])
+			self.radius = float(words[i+1])
 			return 2
 		if words[i]=='length':
-			self.length = np.float(words[i+1])
+			self.length = float(words[i+1])
 			return 2
 		return tw_rgn.ParseItem(self,words,i)
 	def CreateShape(self):
@@ -225,10 +225,10 @@ class tw_rounded_cyl(tw_rgn):
 	type = 'rounded_cylinder'
 	def ParseItem(self,words,i):
 		if words[i]=='radius':
-			self.radius = np.float(words[i+1])
+			self.radius = float(words[i+1])
 			return 2
 		if words[i]=='length':
-			self.length = np.float(words[i+1])
+			self.length = float(words[i+1])
 			return 2
 		return tw_rgn.ParseItem(self,words,i)
 	def CreateShape(self):
@@ -246,13 +246,13 @@ class tw_cyl_shell(tw_rgn):
 	type = 'cylindrical_shell'
 	def ParseItem(self,words,i):
 		if words[i]=='inner':
-			self.inner_radius = np.float(words[i+2])
+			self.inner_radius = float(words[i+2])
 			return 3
 		if words[i]=='outer':
-			self.outer_radius = np.float(words[i+2])
+			self.outer_radius = float(words[i+2])
 			return 3
 		if words[i]=='length':
-			self.length = np.float(words[i+1])
+			self.length = float(words[i+1])
 			return 2
 		return tw_rgn.ParseItem(self,words,i)
 	def CreateShape(self):
@@ -268,10 +268,10 @@ class tw_torus(tw_rgn):
 	type = 'torus'
 	def ParseItem(self,words,i):
 		if words[i]=='minor':
-			self.minor_radius = np.float(words[i+2])
+			self.minor_radius = float(words[i+2])
 			return 3
 		if words[i]=='major':
-			self.major_radius = np.float(words[i+2])
+			self.major_radius = float(words[i+2])
 			return 3
 		return tw_rgn.ParseItem(self,words,i)
 	def CreateShape(self):
@@ -282,13 +282,13 @@ class tw_cone(tw_rgn):
 	type = 'cone'
 	def ParseItem(self,words,i):
 		if words[i]=='length':
-			self.length = np.float(words[i+1])
+			self.length = float(words[i+1])
 			return 2
 		if words[i]=='tip':
-			self.tip_radius = np.float(words[i+2])
+			self.tip_radius = float(words[i+2])
 			return 3
 		if words[i]=='base':
-			self.base_radius = np.float(words[i+2])
+			self.base_radius = float(words[i+2])
 			return 3
 		return tw_rgn.ParseItem(self,words,i)
 	def CreateShape(self):
@@ -358,13 +358,13 @@ while i<len(words):
 		temp = words[i].split('%')[1]
 		if temp[-1]=='m':
 			if temp[-2]=='u':
-				words[i] = str(1e-6*np.float(temp[:-2])/lengthUnitMKS)
+				words[i] = str(1e-6*float(temp[:-2])/lengthUnitMKS)
 			if temp[-2]=='m':
-				words[i] = str(1e-3*np.float(temp[:-2])/lengthUnitMKS)
+				words[i] = str(1e-3*float(temp[:-2])/lengthUnitMKS)
 			if temp[-2]=='c':
-				words[i] = str(1e-2*np.float(temp[:-2])/lengthUnitMKS)
+				words[i] = str(1e-2*float(temp[:-2])/lengthUnitMKS)
 			if temp[-2].isdecimal():
-				words[i] = str(np.float(temp[:-1])/lengthUnitMKS)
+				words[i] = str(float(temp[:-1])/lengthUnitMKS)
 			print('Substitution:',old_word,'replaced with',words[i])
 	i += 1
 

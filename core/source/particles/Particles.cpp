@@ -55,7 +55,7 @@ bool Kinetics::InspectResource(void* resource,const std::string& description)
 
 void Kinetics::MoveWindow()
 {
-	tw::Int i,j;
+	tw::Int i;
 	Module::MoveWindow();
 
 	// rho00 must be prepared to receive deposition from incoming particles
@@ -114,7 +114,7 @@ void Kinetics::Update()
 
 void Kinetics::TransferParticles()
 {
-	tw::Int i,j,displ,a;
+	tw::Int i,displ,a;
 
 	tw::Int dst,src;
 	tw::Int numToSend,sendSize,recvSize;
@@ -869,10 +869,9 @@ void Species::ComputeTransferParticleDestinations()
 void Species::PrepareTransfer(std::vector<TransferParticle>& accumulator,std::vector<tw::Int>& tally,tw::Int ax,tw::Int displ)
 {
 	// displ is -1 for downward transfer, +1 for upward transfer
-	tw::Int i;
 	tw::Int numToSend = 0;
 
-	for (i=0;i<transfer.size();i++)
+	for (tw::Int i=0;i<transfer.size();i++)
 	{
 		if (transfer[i].dst[ax]==displ)
 		{
@@ -885,9 +884,7 @@ void Species::PrepareTransfer(std::vector<TransferParticle>& accumulator,std::ve
 
 void Species::FinishTransfer(TransferParticle* inBuffer,tw::Int numToReceive,tw::Int ax,tw::Int displ)
 {
-	tw::Int i;
-
-	for (i=0;i<numToReceive;i++)
+	for (tw::Int i=0;i<numToReceive;i++)
 	{
 		// put the result on the transfer list
 		transfer.push_back(inBuffer[i]);
@@ -900,8 +897,7 @@ void Species::CollectTransfers()
 	// The list of transfer particles includes any transfer particle that touched this node,
 	// including particles that originated on this node.
 	// This gives all nodes the opportunity to process the particle, if desired.
-	tw::Int i,ax;
-	for (i=0;i<transfer.size();i++)
+	for (tw::Int i=0;i<transfer.size();i++)
 		if (transfer[i].dst[0]==owner->strip[0].Get_rank())
 			AddParticle(transfer[i]);
 	transfer.clear();
@@ -1043,7 +1039,7 @@ tw::Float Species::AddDensity(const LoadingData& theData)
 	const tw::Float densNow = theData.densNow;
 	const tw::vec3 thermalMomentum = theData.thermalMomentum;
 	const tw::vec3 driftMomentum = theData.driftMomentum;
-	const bool neutralize = theData.neutralize;
+	//const bool neutralize = theData.neutralize;
 	const tw::Int pointsInSubGrid = theData.pointsInSubGrid;
 
 	tw::vec3 r_primitive,r;
@@ -1103,7 +1099,7 @@ tw::Float Species::AddDensityRandom(const LoadingData& theData)
 	const tw::Float densToAdd = theData.densToAdd;
 	const tw::vec3 thermalMomentum = theData.thermalMomentum;
 	const tw::vec3 driftMomentum = theData.driftMomentum;
-	const bool neutralize = theData.neutralize;
+	//const bool neutralize = theData.neutralize;
 
 	tw::vec3 r_primitive,r;
 	Primitive q;

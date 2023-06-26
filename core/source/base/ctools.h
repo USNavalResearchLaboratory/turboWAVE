@@ -1,10 +1,14 @@
-static long MaxSeed() { return 2147483647; }
+inline long MaxSeed() { return 2147483647; }
 static const long ia = 16807;
 static const long im = 2147483647;
 static const long iq = 127773;
 static const long ir = 2836;
 static const long ntab = 32;
 static const long ndiv = (1+(im-1)/ntab);
+
+struct Testable {
+	std::string testName;
+};
 
 #define ASSERT_EQ(actual,expected) assertEqualInt(actual,expected,__FILE__,__LINE__,__func__,testName)
 #define ASSERT_NEAR(actual,expected,tol) assertClose(actual,expected,tol,__FILE__,__LINE__,__func__,testName)

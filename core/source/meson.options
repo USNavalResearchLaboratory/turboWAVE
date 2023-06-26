@@ -1,0 +1,7 @@
+option('vbits', type: 'combo', choices: ['128','256','512'], value: '256', description: 'width of vector unit')
+option('bigendian', type: 'boolean', value: false, description: 'endianness of this system')
+option('hpc', type: 'boolean', value: false, description: 'tweak for cluster')
+option('omp', type: 'boolean', value: true, description: 'use OpenMP')
+option('ocl', type: 'boolean', value: false, description: 'use OpenCL')
+option('twsf', type: 'boolean', value: false, description: 'use internal special functions')
+option('headers', type: 'string', value: '', description: 'ad-hoc header path')

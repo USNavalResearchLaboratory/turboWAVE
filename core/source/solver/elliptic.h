@@ -57,6 +57,7 @@ struct PoissonSolver:EllipticSolver
 	PoissonSolver(const std::string& name,MetricSpace *m,Task *tsk);
 	virtual ~PoissonSolver();
 	virtual void Solve(ScalarField& phi,ScalarField& source,tw::Float mul);
+	virtual bool Test(tw::Int& id);
 };
 
 struct EigenmodePoissonSolver:EllipticSolver

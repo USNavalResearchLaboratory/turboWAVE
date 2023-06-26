@@ -48,7 +48,7 @@ def WignerTransform(A,ds,eta0):
     # Then, integration over consistent phase space units (dimensionless product) gives the actual fluence.
     # The frequency variable is assumed to be an angular frequency (e.g. rad/s)
     N = A.shape[0]
-    M = np.int(N/2) + 1
+    M = int(N/2) + 1
     corr = np.zeros((N,M)).astype(np.complex)
     Ai = np.zeros(N*2-1).astype(np.complex)
     Ai[::2] = A

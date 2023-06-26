@@ -966,7 +966,6 @@ void CurvilinearDirectSolver::SetSingularPointsB()
 
 void CurvilinearDirectSolver::Update()
 {
-	tw::Int i,j,k,r,kg;
 	tw::vec3 S;
 
 	// Add electric antenna currents

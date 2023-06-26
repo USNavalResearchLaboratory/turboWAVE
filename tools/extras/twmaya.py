@@ -75,7 +75,7 @@ for i,s in enumerate(primitive_slices):
 	if s=='x':
 		slices.append(np.arange(0,num))
 	else:
-		slices.append(np.array([np.int(s)]))
+		slices.append(np.array([int(s)]))
 
 # Check existing image files and clean
 

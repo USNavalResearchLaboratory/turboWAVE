@@ -20,7 +20,13 @@ Scripts
 5. twtest: script to run a test suite
 6. os2tw: script to convert OSIRIS outputs to turboWAVE outputs
 
-Known Issues
+Conda Build
 ------------
 
-The twinstall script depends on git.  The pypi package cannot account for this, while the conda package can.  So if one uses pip rather than conda, git must be installed beforehand.
+To build and test the conda package locally:
+* Edit `setup.py` and `meta.yaml` as appropriate, especially update the version
+* From the `tools` directory type `conda build twutils` (may be slow)
+* Create directory somewhere: `local-channel/noarch/`
+* Copy `miniconda3/conda-bld/noarch/twutils-<x.x.x>-py_0.tar.bz2` to `local-channel/noarch/`
+* `conda index .` from `local-channel`
+* `conda create -n tw -c file://full/path/to/local-channel twutils`
