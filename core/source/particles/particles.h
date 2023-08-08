@@ -6,6 +6,7 @@ struct Kinetics;
 
 struct LoadingData
 {
+	tw::Int timeLevel;
 	tw::cell cell;
 	tw::Float C0,C1,C2,densToAdd,densNow,particleDensity;
 	tw::vec3 thermalMomentum,driftMomentum;
@@ -72,8 +73,9 @@ struct Species:Module
 	void GenerateParticles(bool init);
 	tw::Float AddDensity(const LoadingData& theData);
 	tw::Float AddDensityRandom(const LoadingData& theData);
-	void DepositInitialCharge(const tw::vec3& pos,tw::Float macroCharge);
+	void DepositInitialCharge(const tw::vec4& pos,tw::Float macroCharge);
 	void CalculateDensity(ScalarField& dens);
+	void CalculateEnergyDensity(ScalarField& dens);
 	tw::Float KineticEnergy(const Region& theRgn);
 
 	virtual void ReadInputFileDirective(std::stringstream& inputString,const std::string& command);
@@ -83,6 +85,7 @@ struct Species:Module
 	virtual void WarningMessage(std::ostream *theStream);
 
 	virtual bool Test(tw::Int& id);
+	void EncodingTest();
 	void ReflectionTest();
 	void MoveWindowTest();
 };

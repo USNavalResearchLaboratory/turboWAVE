@@ -29,6 +29,7 @@ struct Mover:ComputeTool
 	virtual void TranslationTest();
 	virtual void UniformETest();
 	virtual void UniformBTest();
+	virtual void PlaneWaveTest();
 	virtual bool Test(tw::Int& id);
 	virtual void CloseTest();
 };
@@ -70,6 +71,7 @@ struct PhotonMover:Mover
 {
 	PhotonMover(const std::string& name,MetricSpace *m,Task *tsk): Mover(name,m,tsk) {}
 	virtual void Advance();
+	virtual void InitTest();
 };
 
 /////////////////////////////////////
@@ -81,25 +83,25 @@ struct PhotonMover:Mover
 struct BundleMoverBoris2D : BundleTilerEM2D,BundlePusherBoris
 {
 	BundleMoverBoris2D(Mover *owner) : ParticleBundle(owner), BundleTilerEM2D(owner), BundlePusherBoris(owner) {}
-	void Move();
+	void Move(tw::Float dts);
 };
 
 struct BundleMoverBoris3D : BundleTilerEM3D,BundlePusherBoris
 {
 	BundleMoverBoris3D(Mover *owner) : ParticleBundle(owner), BundleTilerEM3D(owner), BundlePusherBoris(owner) {}
-	void Move();
+	void Move(tw::Float dts);
 };
 
 struct BundleMoverUnitary2D : BundleTilerEM2D,BundlePusherUnitary
 {
 	BundleMoverUnitary2D(Mover *owner) : ParticleBundle(owner), BundleTilerEM2D(owner), BundlePusherUnitary(owner) {}
-	void Move();
+	void Move(tw::Float dts);
 };
 
 struct BundleMoverUnitary3D : BundleTilerEM3D,BundlePusherUnitary
 {
 	BundleMoverUnitary3D(Mover *owner) : ParticleBundle(owner), BundleTilerEM3D(owner), BundlePusherUnitary(owner) {}
-	void Move();
+	void Move(tw::Float dts);
 };
 
 struct BundleMoverPGC2D : BundleTilerPGC2D,BundleTilerEM2D,BundlePusherPGC
@@ -109,7 +111,7 @@ struct BundleMoverPGC2D : BundleTilerPGC2D,BundleTilerEM2D,BundlePusherPGC
 	void LoadFieldSlice(tw::Int low[4],tw::Int high[4],tw::Int ignorable[4]);
 	void InitSourceSlice(tw::Int low[4],tw::Int high[4],tw::Int ignorable[4]);
 	void DepositSourceSlice(bool needsAtomic);
-	void Move();
+	void Move(tw::Float dts);
 };
 
 struct BundleMoverPGC3D : BundleTilerPGC3D,BundleTilerEM3D,BundlePusherPGC
@@ -119,29 +121,29 @@ struct BundleMoverPGC3D : BundleTilerPGC3D,BundleTilerEM3D,BundlePusherPGC
 	void LoadFieldSlice(tw::Int low[4],tw::Int high[4],tw::Int ignorable[4]);
 	void InitSourceSlice(tw::Int low[4],tw::Int high[4],tw::Int ignorable[4]);
 	void DepositSourceSlice(bool needsAtomic);
-	void Move();
+	void Move(tw::Float dts);
 };
 
 struct BundleMoverBohmian2D : BundleTilerBohmian2D,BundlePusherBohmian
 {
 	BundleMoverBohmian2D(Mover *owner) : ParticleBundle(owner), BundleTilerBohmian2D(owner), BundlePusherBohmian(owner) {}
-	void Move();
+	void Move(tw::Float dts);
 };
 
 struct BundleMoverBohmian3D : BundleTilerBohmian3D,BundlePusherBohmian
 {
 	BundleMoverBohmian3D(Mover *owner) : ParticleBundle(owner), BundleTilerBohmian3D(owner), BundlePusherBohmian(owner) {}
-	void Move();
+	void Move(tw::Float dts);
 };
 
 struct BundleMoverPhoton2D : BundleTilerEM2D,BundlePusherPhoton
 {
-	BundleMoverPhoton2D(Mover *owner) : BundleTilerEM2D(owner), BundlePusherPhoton(owner), ParticleBundle(owner) {}
-	void Move();
+	BundleMoverPhoton2D(Mover *owner) : ParticleBundle(owner), BundleTilerEM2D(owner), BundlePusherPhoton(owner) {}
+	void Move(tw::Float dts);
 };
 
 struct BundleMoverPhoton3D : BundleTilerEM3D,BundlePusherPhoton
 {
-	BundleMoverPhoton3D(Mover *owner) : BundleTilerEM3D(owner), BundlePusherPhoton(owner), ParticleBundle(owner) {}
-	void Move();
+	BundleMoverPhoton3D(Mover *owner) : ParticleBundle(owner), BundleTilerEM3D(owner), BundlePusherPhoton(owner) {}
+	void Move(tw::Float dts);
 };

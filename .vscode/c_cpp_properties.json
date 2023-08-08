@@ -63,7 +63,7 @@
             "compilerPath": "c:/Program Files/LLVM/bin/clang",
             "cStandard": "c17",
             "cppStandard": "c++17",
-            "intelliSenseMode": "gcc-x64",
+            "intelliSenseMode": "windows-clang-x64",
             "configurationProvider": "mesonbuild.mesonbuild"
         },
         {

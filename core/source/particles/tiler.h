@@ -7,7 +7,18 @@ struct BundleTilerEM2D : BundleSlicerEM
 	void LoadFTile();
 	void ResetJTile();
 	void StoreJTile();
+	/// @brief load field tensor from tile for N particles
+	/// @param F this is shorthand for F*q*dt/2/m, where F is a field amplitude
+	/// @param w0 weight factors for N particles
+	/// @param l0 wall weights for N particles
+	/// @param qmdth (q/m)*(dt/2)
 	void GatherF(float F[6][N],const float w0[3][3][N],const float l0[3][3][N],const float qmdth);
+	/// @brief scatter current for N particles into tile
+	/// @param J amps to deposit, the tile will receive coulombs in cell and amps in wall
+	/// @param w0 weight factors for N particles at start of step
+	/// @param w1 weight factors for N particles at end of step
+	/// @param cellMask used to mask out particles that need scalar processing
+	/// @param dti inverse time step
 	void ScatterJ4(const float J[4][N],const float w0[3][3][N],const float w1[3][3][N],const float cellMask[N],const float& dti);
 };
 
@@ -33,7 +44,7 @@ struct BundleTilerPGC2D : BundleSlicerPGC
 	void LoadLaserTile();
 	void ResetChiTile();
 	void StoreChiTile();
-	void GatherLaser(float las[8][N],const float w0[3][3][N],const float q2m2);
+	void GatherLaser(float las[8][N],const float w0[3][3][N],const float q2m2dth);
 	void ScatterChi(const float chi[N],const float w0[3][3][N],const float w1[3][3][N],const float cellMask[N]);
 };
 
@@ -46,7 +57,7 @@ struct BundleTilerPGC3D : BundleSlicerPGC
 	void LoadLaserTile();
 	void ResetChiTile();
 	void StoreChiTile();
-	void GatherLaser(float las[8][N],const float w0[3][3][N],const float q2m2);
+	void GatherLaser(float las[8][N],const float w0[3][3][N],const float q2m2dth);
 	void ScatterChi(const float chi[N],const float w0[3][3][N],const float w1[3][3][N],const float cellMask[N]);
 };
 

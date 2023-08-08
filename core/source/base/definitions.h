@@ -42,8 +42,8 @@
 namespace tw
 {
 	typedef double Float;
-	typedef int32_t Int;
-	typedef uint32_t Uint;
+	typedef int64_t Int;
+	typedef uint64_t Uint;
 	typedef std::complex<tw::Float> Complex;
 	static const tw::Int cache_align_bytes = 64;
 	static const tw::Int vec_align_bytes = VBITS/8; // if not matched to hardware can lead to failures

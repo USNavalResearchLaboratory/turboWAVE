@@ -86,16 +86,6 @@ struct Particle
 
 	/// Constructor, parameters shadow the member variables
 	Particle(const float number,const Primitive& q,const tw::vec4& p,const tw::vec4& s) noexcept;
-	/// Assertions verifying that the primitive is minimized and in bounds
-	void Assert(tw::Int beg,tw::Int end)
-	{
-		const float max_displ = 0.5f + std::numeric_limits<float>::epsilon();
-		assert(q.cell>=beg && q.cell<end);
-		assert(fabs(q.x[1]) < max_displ);
-		assert(fabs(q.x[2]) < max_displ);
-		assert(fabs(q.x[3]) < max_displ);
-	}
-
 	void ReadCheckpoint(std::ifstream& inFile);
 	void WriteCheckpoint(std::ofstream& outFile);
 
@@ -107,16 +97,18 @@ struct Particle
 };
 
 /// Used to pack data for message passing of particles
-/// To avoid inconsistencies arising from FP comparisons on different nodes
-/// the destination information is computed on the source domain and packaged with the particle
-/// The position is kept as a double precision global coordinate until final call to `AddParticle`
+/// The destination information is computed on the source node and packaged with
+/// the particle.  No floating point operations other than copying should be needed.
 struct TransferParticle
 {
 	/// `dst[0]` is rank of starting domain upon construction; gets set to destination domain later.
 	/// `dst[1..3]` are -1, 0, or 1, giving direction of movement or no movement.
 	tw::Int dst[4];
-	tw::vec4 x,p,s;
-	float number;
+	float number; ///< particles per macroparticle divided by \f$n_0(c/wp)^3\f$
+	tw::Int ijk[4]; ///< topological indices referenced on the source node
+	float x[4]; ///< for transfers, the relative cell position can be kept without change
+	tw::vec4 p; ///< for tansfers, momentum can be kept unchanged
+	tw::vec4 s; //< for transfers, polarization can be kept unchanged
 };
 
 /// Used to create sorting map within a thread for subsets of particle lists
@@ -200,7 +192,7 @@ struct DiscreteSpace : Testable
 	tw::Int ufg[4]; ///< indices of upper far ghost cells
 	tw::Int lng[4]; ///< indices of lower near ghost cells
 	tw::Int ung[4]; ///< indices of upper near ghost cells
-	tw::Int layers[4]; ///< number of ghost cell layers, `layers[0]` holds maximum layers
+	tw::Int layers[4]; ///< number of ghost cell layers, assumed all the same some places
 	tw::Int ignorable[4]; ///< 1 if axis is ignorable, 0 otherwise
 
 	public:
@@ -215,32 +207,35 @@ struct DiscreteSpace : Testable
 	void Resize(Task& task,const tw::vec3& gcorner,const tw::vec3& gsize,tw::Int ghostCellLayers=2);
 	/// Change the time step.  Use `Simulation::UpdateTimestep` to do this for all modules.
 	void SetupTimeInfo(tw::Float dt0) { dt = dt0; dth = 0.5*dt0; dti = 1.0/dt0; }
-	/// Encode the cell with topological indices `(i,j,k)`
-	tw::Int EncodeCell(tw::Int i,tw::Int j,tw::Int k) const { return (i-lfg[1])*encodingStride[1] + (j-lfg[2])*encodingStride[2] + (k-lfg[3])*encodingStride[3]; }
-	/// Decode `cell` to produce topological indices `(ijk[1],ijk[2],ijk[3])`. This assumes z-packed encoding, i.e., `decodingStride[3]=1`.
+	/// Encode the cell with topological indices `(n,i,j,k)`
+	tw::Int EncodeCell(tw::Int n,tw::Int i,tw::Int j,tw::Int k) const {
+		return (n-lfg[0])*encodingStride[0] + (i-lfg[1])*encodingStride[1] + (j-lfg[2])*encodingStride[2] + (k-lfg[3])*encodingStride[3];
+	}
+	/// Decode `cell` to produce topological indices `(ijk[0..4])`. This assumes z-packed encoding, i.e., `decodingStride[3]=1`.
 	void DecodeCell(const tw::Int& cell,tw::Int ijk[4]) const
 	{
-		ijk[1] = lfg[1] + cell / decodingStride[1];
+		ijk[0] = lfg[0] + cell / decodingStride[0];
+		ijk[1] = lfg[1] + (cell % decodingStride[0]) / decodingStride[1];
 		ijk[2] = lfg[2] + (cell % decodingStride[1]) / decodingStride[2];
-		ijk[3] = lfg[3] + (cell % decodingStride[1]) % decodingStride[2];
+		ijk[3] = lfg[3] + (cell % decodingStride[2]) / decodingStride[3];
 	}
-	/// Decode `cell` to produce topological indices `(i,j,k)`. This assumes z-packed encoding, i.e., `decodingStride[3]=1`.
-	void DecodeCell(const tw::Int& cell,tw::Int *i,tw::Int *j,tw::Int *k) const
+	/// Decode `cell` to produce topological indices `(n,i,j,k)`. This assumes z-packed encoding, i.e., `decodingStride[3]=1`.
+	void DecodeCell(const tw::Int& cell,tw::Int *n,tw::Int *i,tw::Int *j,tw::Int *k) const
 	{
-		*i = lfg[1] + cell / decodingStride[1];
+		*n = lfg[0] + cell / decodingStride[0];
+		*i = lfg[1] + (cell % decodingStride[0]) / decodingStride[1];
 		*j = lfg[2] + (cell % decodingStride[1]) / decodingStride[2];
-		*k = lfg[3] + (cell % decodingStride[1]) % decodingStride[2];
+		*k = lfg[3] + (cell % decodingStride[2]) / decodingStride[3];
 	}
-	/// Decode `q` to produce topological indices `(ijk[1],ijk[2],ijk[3])`. This assumes z-packed encoding, i.e., `decodingStride[3]=1`.
+	/// Decode `q` to produce topological indices `(ijk[0..4])`. This assumes z-packed encoding, i.e., `decodingStride[3]=1`.
 	void DecodeCell(const Primitive& q,tw::Int ijk[4]) const { DecodeCell(q.cell,ijk); }
-	/// Decode `q` to produce topological indices `(i,j,k)`. This assumes z-packed encoding, i.e., `decodingStride[3]=1`.
-	void DecodeCell(const Primitive& q,tw::Int *i,tw::Int *j,tw::Int *k) const { DecodeCell(q.cell,i,j,k); }
+	/// Decode `q` to produce topological indices `(n,i,j,k)`. This assumes z-packed encoding, i.e., `decodingStride[3]=1`.
+	void DecodeCell(const Primitive& q,tw::Int *n,tw::Int *i,tw::Int *j,tw::Int *k) const { DecodeCell(q.cell,n,i,j,k); }
 	bool RefCellInDomain(const Primitive& q) const;
-	void SetPrimitiveWithPosition(Primitive& q,const tw::vec3& pos) const;
-	void UpdatePrimitiveWithPosition(Primitive& q,const tw::vec3& pos) const;
-	tw::vec3 PositionFromPrimitive(const Primitive& q) const;
+	void SetPrimitiveWithPosition(Primitive& q,const tw::vec4& pos) const;
+	tw::vec4 PositionFromPrimitive(const Primitive& q) const;
 	void MinimizePrimitive(Primitive& q) const;
-	void MinimizePrimitive(tw::Int *cell,tw::Int ijk[4][tw::max_bundle_size],float x[4][tw::max_bundle_size],float domainMask[tw::max_bundle_size]) const;
+	void MinimizePrimitive(tw::Int cell[tw::max_bundle_size],tw::Int ijk[4][tw::max_bundle_size],float x[4][tw::max_bundle_size],float domainMask[tw::max_bundle_size]) const;
 	tw::Int Dim(const tw::Int& ax) const { return dim[ax]; }
 	tw::Int Num(const tw::Int& ax) const { return num[ax]; }
 	tw::Int Ignorable(const tw::Int& ax) const { return ignorable[ax]; }
@@ -266,7 +261,7 @@ struct DiscreteSpace : Testable
 	tw::Int Dimensionality();
 	bool PowersOfTwo();
 	bool TransversePowersOfTwo();
-	void GetWeights(weights_3D* weights,const tw::vec3& P);
+	void GetWeights(weights_3D* weights,const tw::vec4& P);
 	void GetWeights(weights_3D* weights,const Primitive& q);
 	void GetWeights(float w[3][3][tw::max_bundle_size],float x[4][tw::max_bundle_size]);
 	void GetWallWeights(float w[3][3][tw::max_bundle_size],float x[4][tw::max_bundle_size]);
@@ -322,38 +317,28 @@ inline bool DiscreteSpace::RefCellInDomain(const Primitive& q) const
 			((ijk[3]>=1 && ijk[3]<=dim[3]) || dim[3]==1);
 }
 
-inline tw::vec3 DiscreteSpace::PositionFromPrimitive(const Primitive& q) const
+inline tw::vec4 DiscreteSpace::PositionFromPrimitive(const Primitive& q) const
 {
 	tw::Int ijk[4];
-	tw::vec3 ans;
+	tw::vec4 ans;
+	const tw::vec4 dx(dt,spacing);
+	const tw::vec4 x0(0.0,corner);
 	DecodeCell(q,ijk);
-	ans[0] = corner[0] + spacing[0] * (tw::Float(q.x[1]) + tw::Float(ijk[1]) - tw::Float(0.5));
-	ans[1] = corner[1] + spacing[1] * (tw::Float(q.x[2]) + tw::Float(ijk[2]) - tw::Float(0.5));
-	ans[2] = corner[2] + spacing[2] * (tw::Float(q.x[3]) + tw::Float(ijk[3]) - tw::Float(0.5));
+	for (tw::Int i=0;i<4;i++)
+		ans[i] = x0[i] + dx[i] * (tw::Float(q.x[i]) + tw::Float(ijk[i]) - tw::Float(0.5));
 	return ans;
 }
 
-inline void DiscreteSpace::SetPrimitiveWithPosition(Primitive& q,const tw::vec3& P) const
+inline void DiscreteSpace::SetPrimitiveWithPosition(Primitive& q,const tw::vec4& P) const
 {
-	const tw::vec3 PLoc = P - corner;
-	const tw::Int i = tw::Int(floor(PLoc.x*freq.x)) + 1;
-	const tw::Int j = tw::Int(floor(PLoc.y*freq.y)) + 1;
-	const tw::Int k = tw::Int(floor(PLoc.z*freq.z)) + 1;
-	q.cell = EncodeCell(i,j,k);
-	q.x[1] = PLoc.x*freq.x - tw::Float(i) + tw::Float(0.5);
-	q.x[2] = PLoc.y*freq.y - tw::Float(j) + tw::Float(0.5);
-	q.x[3] = PLoc.z*freq.z - tw::Float(k) + tw::Float(0.5);
-}
-
-inline void DiscreteSpace::UpdatePrimitiveWithPosition(Primitive& q,const tw::vec3& P) const
-{
-	// This routine does NOT change the reference cell, i.e., primitive is not minimized
 	tw::Int ijk[4];
-	const tw::vec3 PLoc = P - corner;
-	DecodeCell(q,ijk);
-	q.x[1] = PLoc[0]*freq[0] - tw::Float(ijk[1]) + tw::Float(0.5);
-	q.x[2] = PLoc[1]*freq[1] - tw::Float(ijk[2]) + tw::Float(0.5);
-	q.x[3] = PLoc[2]*freq[2] - tw::Float(ijk[3]) + tw::Float(0.5);
+	const tw::vec4 k4(dti,freq);
+	const tw::vec4 PLoc(P - tw::vec4(0.0,corner));
+	for (tw::Int i=0;i<4;i++)
+		ijk[i] = tw::Int(floor(PLoc[i]*k4[i])) + 1;
+	q.cell = EncodeCell(ijk[0],ijk[1],ijk[2],ijk[3]);
+	for (tw::Int i=0;i<4;i++)
+		q.x[i] = PLoc[i]*k4[i] - tw::Float(ijk[i]) + tw::Float(0.5);
 }
 
 /// Bundle version of `MinimizePrimitive`.  The bundle version also sets the `domainMask` to 0
@@ -368,10 +353,10 @@ inline void DiscreteSpace::MinimizePrimitive(tw::Int cell[tw::max_bundle_size],t
 	#pragma omp simd aligned(cell,ijk:AB)
 	for (par=0;par<N;par++)
 	{
-		DecodeCell(cell[par],&ijk[1][par],&ijk[2][par],&ijk[3][par]);
+		DecodeCell(cell[par],&ijk[0][par],&ijk[1][par],&ijk[2][par],&ijk[3][par]);
 		domainMask[par] = 1.0f;
 	}
-	for (ax=1;ax<=3;ax++)
+	for (ax=0;ax<4;ax++)
 	{
 		#pragma omp simd aligned(ijk,x,domainMask,pos,neg,displ,max_displ:AB)
 		for (par=0;par<N;par++)
@@ -390,7 +375,7 @@ inline void DiscreteSpace::MinimizePrimitive(tw::Int cell[tw::max_bundle_size],t
 	}
 	#pragma omp simd aligned(cell,ijk:AB)
 	for (par=0;par<N;par++)
-		cell[par] = EncodeCell(ijk[1][par],ijk[2][par],ijk[3][par]);
+		cell[par] = EncodeCell(ijk[0][par],ijk[1][par],ijk[2][par],ijk[3][par]);
 }
 
 /// Change the reference cell to the one containing the particle centroid.
@@ -402,7 +387,7 @@ inline void DiscreteSpace::MinimizePrimitive(Primitive& q) const
 	tw::Int ax,ijk[4],displ,max_displ,pos,neg;
 	const float eps = std::numeric_limits<float>::epsilon();
 	DecodeCell(q.cell,ijk);
-	for (ax=1;ax<=3;ax++)
+	for (ax=0;ax<4;ax++)
 	{
 		const float x = q.x[ax];
 		pos = x>0.0f;
@@ -415,10 +400,10 @@ inline void DiscreteSpace::MinimizePrimitive(Primitive& q) const
 		ijk[ax] += displ * (1-ignorable[ax]);
 		q.x[ax] -= displ;
 	}
-	q.cell = EncodeCell(ijk[1],ijk[2],ijk[3]);
+	q.cell = EncodeCell(ijk[0],ijk[1],ijk[2],ijk[3]);
 }
 
-inline void DiscreteSpace::GetWeights(weights_3D* weights,const tw::vec3& P)
+inline void DiscreteSpace::GetWeights(weights_3D* weights,const tw::vec4& P)
 {
 	Primitive q;
 	SetPrimitiveWithPosition(q,P);

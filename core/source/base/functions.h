@@ -10,8 +10,8 @@ namespace tw
 
 	inline tw::Float cyl_bessel_j(tw::Int n,tw::Float x)
 	{
-		if (n==0) return j0(x);
-		if (n==1) return j1(x);
+		if (n==0) return _j0(x);
+		if (n==1) return _j1(x);
 		return 0;
 	}
 

@@ -2,6 +2,7 @@
 
 DiscreteSpace::DiscreteSpace()
 {
+	ignorable[0] = 0;
 	ignorable[1] = 0;
 	ignorable[2] = 0;
 	ignorable[3] = 0;
@@ -9,8 +10,8 @@ DiscreteSpace::DiscreteSpace()
 
 DiscreteSpace::DiscreteSpace(tw::Int xDim,tw::Int yDim,tw::Int zDim,const tw::vec3& corner,const tw::vec3& size,tw::Int ghostCellLayers)
 {
-	const tw::Int ldim[4] = { 0, xDim, yDim, zDim };
-	const tw::Int gdim[4] = { 0, xDim, yDim, zDim };
+	const tw::Int ldim[4] = { 1, xDim, yDim, zDim };
+	const tw::Int gdim[4] = { 1, xDim, yDim, zDim };
 	const tw::Int dom[4] = { 0, 0, 0, 0 };
 	Resize(ldim,gdim,dom,corner,size,ghostCellLayers);
 }
@@ -28,18 +29,12 @@ void DiscreteSpace::Resize(Task& task,const tw::vec3& gcorner,const tw::vec3& gs
 
 void DiscreteSpace::Resize(const tw::Int dim[4],const tw::Int gdim[4],const tw::Int dom[4],const tw::vec3& gcorner,const tw::vec3& gsize,tw::Int ghostCellLayers)
 {
-	// init unused elements so later assignments are memcheck clean.
-	this->dim[0] = num[0] = 0;
-	ignorable[0] = 0;
-	lfg[0] = ufg[0] = lng[0] = ung[0] = 0;
-	decodingStride[0] = encodingStride[0] = 0;
-
-	layers[0] = ghostCellLayers;
+	this->dim[0] = dim[0];
 	this->dim[1] = dim[1];
 	this->dim[2] = dim[2];
 	this->dim[3] = dim[3];
 
-	for (tw::Int i=1;i<=3;i++)
+	for (tw::Int i=0;i<4;i++)
 	{
 		if (dim[i]==1)
 		{
@@ -60,11 +55,12 @@ void DiscreteSpace::Resize(const tw::Int dim[4],const tw::Int gdim[4],const tw::
 		num[i] = ufg[i] - lfg[i] + 1;
 	}
 
+	decodingStride[0] = num[1]*num[2]*num[3];
 	decodingStride[1] = num[2]*num[3];
 	decodingStride[2] = num[3];
 	decodingStride[3] = 1;
 
-	for (tw::Int i=1;i<=3;i++)
+	for (tw::Int i=0;i<4;i++)
 	{
 		encodingStride[i] = (dim[i]==1 ? 0 : decodingStride[i]);
 		ignorable[i] = (dim[i]==1 ? 1 : 0);

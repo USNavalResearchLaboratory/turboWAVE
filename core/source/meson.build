@@ -6,11 +6,14 @@ project('turbowave','cpp','c',
 
 # Meson philosophy is to give the source list explicitly.
 # We can always copy and paste from a glob elsewhere.
-src_base = ['base/3DFields.cpp', 'base/ComputeTool.cpp', 'base/DiscreteSpace.cpp', 'base/FFT.cpp', 'base/Functions.cpp', 'base/Injection.cpp', 'base/Injection_Test.cpp', 'base/Main.cpp', 'base/MetricSpace.cpp', 'base/MetricSpace_Test.cpp', 'base/Module.cpp', 'base/Region.cpp', 'base/Simulation.cpp']
+src_base = ['base/3DFields.cpp', 'base/ComputeTool.cpp', 'base/DiscreteSpace.cpp', 'base/FFT.cpp', 'base/Functions.cpp', 'base/Injection.cpp',
+    'base/Injection_Test.cpp', 'base/Main.cpp', 'base/MetricSpace.cpp', 'base/MetricSpace_Test.cpp', 'base/Module.cpp', 'base/Region.cpp', 'base/Simulation.cpp']
 src_con = ['concurrency/Tasks.cpp']
 src_io = ['io/Diagnostics.cpp', 'io/Input.cpp', 'io/Units.cpp']
-src_par = ['particles/Bundle.cpp', 'particles/Mover.cpp', 'particles/Mover_Test.cpp', 'particles/Particles.cpp', 'particles/Particles_Test.cpp', 'particles/Pusher.cpp', 'particles/Pusher_Test.cpp', 'particles/Slicer.cpp', 'particles/Tiler.cpp']
-src_solv = ['solver/Electrostatic.cpp', 'solver/Elliptic.cpp', 'solver/Elliptic_Test.cpp', 'solver/FieldSolve.cpp', 'solver/Hyperbolic.cpp', 'solver/LaserSolve.cpp', 'solver/Numerics.cpp', 'solver/Parabolic.cpp', 'solver/Qstate.cpp', 'solver/Quantum.cpp', 'solver/SolidState.cpp']
+src_par = ['particles/Bundle.cpp', 'particles/Mover.cpp', 'particles/Mover_Test.cpp', 'particles/Particles.cpp', 'particles/Particles_Test.cpp',
+    'particles/Pusher.cpp', 'particles/Pusher_Test.cpp', 'particles/Slicer.cpp', 'particles/Tiler.cpp', 'particles/QED.cpp']
+src_solv = ['solver/Electrostatic.cpp', 'solver/Elliptic.cpp', 'solver/Elliptic_Test.cpp', 'solver/FieldSolve.cpp', 'solver/Hyperbolic.cpp',
+    'solver/LaserSolve.cpp', 'solver/Numerics.cpp', 'solver/Parabolic.cpp', 'solver/Qstate.cpp', 'solver/Quantum.cpp', 'solver/SolidState.cpp']
 src_sparc = ['sparc/Chemistry.cpp', 'sparc/Fluid.cpp', 'sparc/Fluid_Test.cpp', 'sparc/Physics.cpp', 'sparc/Physics_Test.cpp']
 
 conf_data = configuration_data()
@@ -23,7 +26,7 @@ conf_data.set('USE_OPENMP',get_option('omp'))
 conf_data.set('USE_OPENCL',get_option('ocl'))
 conf_data.set('USE_TWSF',get_option('twsf'))
 
-if get_option('headers')!=''    
+if get_option('headers')!=''
     incdir = include_directories('base','concurrency','io','particles','solver','sparc',get_option('headers'))
 else
     incdir = include_directories('base','concurrency','io','particles','solver','sparc')

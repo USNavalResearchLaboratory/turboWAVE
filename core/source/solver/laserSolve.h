@@ -7,6 +7,8 @@ struct LaserSolver:Module
 
 	LaserPropagator *propagator;
 
+	bool debug; // usually used to suppress envelope evolution
+
 	LaserSolver(const std::string& name,Simulation* sim);
 	virtual ~LaserSolver();
 	virtual void ExchangeResources();

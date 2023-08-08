@@ -1091,7 +1091,7 @@ void FarFieldDiagnostic::Update()
 					if (rp.z > zmin && rp.z < zmax)
 					{
 						weights_3D w;
-						owner->GetWeights(&w,rp);
+						owner->GetWeights(&w,tw::vec4(tp,rp));
 						J4->Interpolate(j4,w);
 						A(farCell) += tw::vec3(j4[1],j4[2],j4[3]) * dS * dtau / radius;
 					}

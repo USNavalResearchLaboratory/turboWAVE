@@ -117,11 +117,16 @@ void Profile::WriteCheckpoint(std::ofstream& outFile)
 
 tw::vec3 Profile::DriftMomentum(const tw::Float& mass)
 {
-	tw::vec4 v4(0.0,driftMomentum/mass);
-	tw::Float gb2 = v4 ^ v4;
-	v4[0] = sqrt(1.0 + gb2);
-	v4.zBoost(gammaBoost,-1.0);
-	return mass*v4.spatial();
+	tw::Float p2 = driftMomentum ^ driftMomentum;
+	tw::Float p0 = sqrt(mass*mass + p2);
+	tw::vec4 p4(p0,driftMomentum);
+	p4.zBoost(gammaBoost,-1.0);
+	return p4.spatial();
+	// tw::vec4 v4(0.0,driftMomentum/mass);
+	// tw::Float gb2 = v4 ^ v4;
+	// v4[0] = sqrt(1.0 + gb2);
+	// v4.zBoost(gammaBoost,-1.0);
+	// return mass*v4.spatial();
 }
 
 tw::Float Profile::Temperature(const tw::Float& mass)

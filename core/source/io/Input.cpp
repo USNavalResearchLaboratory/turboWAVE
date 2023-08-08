@@ -638,7 +638,7 @@ void tw::input::ExitInputFileBlock(std::stringstream& inputString,bool alreadyEn
 			leftCount++;
 		if (word=="}")
 			rightCount++;
-	} while (leftCount==0 || leftCount>rightCount);
+	} while (!inputString.eof() && (leftCount==0 || leftCount>rightCount));
 }
 
 void tw::input::PopExpectedWord(std::stringstream& inputString,const std::string& word,const std::string& obj)

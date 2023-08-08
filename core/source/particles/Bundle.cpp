@@ -11,10 +11,10 @@ ParticleBundle::ParticleBundle(Mover *owner)
 	this->owner = owner;
 	q0 = owner->q0;
 	m0 = owner->m0;
-	dt = timestep(*owner->space);
-	k[0] = dxi(*owner->space);
-	k[1] = dyi(*owner->space);
-	k[2] = dzi(*owner->space);
+	k[0] = 1/timestep(*owner->space);
+	k[1] = dxi(*owner->space);
+	k[2] = dyi(*owner->space);
+	k[3] = dzi(*owner->space);
 	refs.resize(N);
 	num = 0;
 }

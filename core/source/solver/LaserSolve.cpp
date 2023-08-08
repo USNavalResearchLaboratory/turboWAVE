@@ -20,6 +20,7 @@ LaserSolver::LaserSolver(const std::string& name,Simulation* sim):Module(name,si
 	laserFreq = 10.0;
 	polarizationType = linearPolarization;
 	propagator = NULL;
+	debug = false;
 
 	a0.Initialize(*this,owner);
 	a1.Initialize(*this,owner);
@@ -28,6 +29,7 @@ LaserSolver::LaserSolver(const std::string& name,Simulation* sim):Module(name,si
 	directives.Add("carrier frequency",new tw::input::Float(&laserFreq));
 	std::map<std::string,tw_polarization_type> pol = {{"linear",linearPolarization},{"circular",circularPolarization},{"radial",radialPolarization}};
 	directives.Add("polarization",new tw::input::Enums<tw_polarization_type>(pol,&polarizationType),false);
+	directives.Add("debug",new tw::input::Bool(&debug),false);
 }
 
 LaserSolver::~LaserSolver()
@@ -73,7 +75,8 @@ void LaserSolver::Initialize()
 
 void LaserSolver::Update()
 {
-	propagator->Advance(a0,a1,chi);
+	if (!debug)
+		propagator->Advance(a0,a1,chi);
 }
 
 void LaserSolver::Reset()
@@ -236,7 +239,8 @@ void PGCSolver::Update()
 	chi.UpwardCopy(tw::grid::z,1);
 	chi.ApplyBoundaryCondition();
 
-	propagator->Advance(a0,a1,chi);
+	if (!debug)
+		propagator->Advance(a0,a1,chi);
 	ComputeFinalFields();
 }
 

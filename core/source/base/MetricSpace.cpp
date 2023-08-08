@@ -121,17 +121,21 @@ void MetricSpace::SetTopology(Task& task,const tw::vec3& gcorner,const tw::vec3&
 	// Metric arrays have ghost cell layers even when dim=1.
 	// Hence the topology of the metric data differs from that of other data
 
-	mlb[1] = 1 - layers[0];
-	mlb[2] = 1 - layers[0];
-	mlb[3] = 1 - layers[0];
+	tw::Int maxLayers = 0;
+	for (tw::Int i=0;i<4;i++)
+		maxLayers = layers[i] > maxLayers ? layers[i] : maxLayers;
 
-	mub[1] = dim[1] + layers[0];
-	mub[2] = dim[2] + layers[0];
-	mub[3] = dim[3] + layers[0];
+	mlb[1] = 1 - maxLayers;
+	mlb[2] = 1 - maxLayers;
+	mlb[3] = 1 - maxLayers;
 
-	mnum[1] = dim[1]+2*layers[0];
-	mnum[2] = dim[2]+2*layers[0];
-	mnum[3] = dim[3]+2*layers[0];
+	mub[1] = dim[1] + maxLayers;
+	mub[2] = dim[2] + maxLayers;
+	mub[3] = dim[3] + maxLayers;
+
+	mnum[1] = dim[1]+2*maxLayers;
+	mnum[2] = dim[2]+2*maxLayers;
+	mnum[3] = dim[3]+2*maxLayers;
 
 	mnum[0] = mnum[1];
 	if (mnum[2]>mnum[0])

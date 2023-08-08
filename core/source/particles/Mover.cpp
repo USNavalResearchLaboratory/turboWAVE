@@ -12,15 +12,19 @@ Mover::Mover(const std::string& name,MetricSpace *m,Task *tsk) : ComputeTool(nam
 		ignorable[i] = space->Ignorable(i);
 }
 
+/// @brief Add particle to transfer list, assuming it is in extended domain
+/// @param src the particle to add
 void Mover::AddTransferParticle(const Particle& src)
 {
-	tw::Int ijk[4];
+	// we could have x out of normal range if there is an algorithm that moves particles
+	// far enough to escape the extended domain
 	TransferParticle dest;
-	space->DecodeCell(src.q,ijk);
+	space->DecodeCell(src.q,dest.ijk);
 	dest.dst[0] = task->strip[0].Get_rank();
 	for (tw::Int i=1;i<=3;i++)
-		dest.dst[i] = tw::Int(ijk[i]>space->Dim(i)) - tw::Int(ijk[i]<1);
-	dest.x = tw::vec4(0.0,space->PositionFromPrimitive(src.q));
+		dest.dst[i] = tw::Int(dest.ijk[i]>space->Dim(i)) - tw::Int(dest.ijk[i]<1);
+	for (tw::Int i=0;i<=3;i++)
+		dest.x[i] = src.q.x[i];
 	dest.p = src.p;
 	dest.s = src.s;
 	dest.number = src.number;
@@ -140,7 +144,7 @@ void Mover::MoveSlice(tw::Int tasks,tw::Int tid,tw::Int bounds_data[][8])
 		next = i==last ? i : i+1;
 		if (i==last || b.Complete((*particle)[map[next-first].idx]))
 		{
-			b.Move();
+			b.Move(timestep(*space));
 			b.CopyBack();
 			b.Reset();
 		}
@@ -249,56 +253,56 @@ void PhotonMover::Advance()
 //                       //
 ///////////////////////////
 
-void BundleMoverBoris2D::Move()
+void BundleMoverBoris2D::Move(tw::Float dts)
 {
-	const float qmdth = 0.5*q0*dt/m0;
-	const tw::Float dti = 1.0/dt;
+	const float qmdth = 0.5*q0*dts/m0;
+	const tw::Float dti = 1.0/dts;
 	PrepareGather();
 	LoadFTile();
 	GatherF(F,w0,l0,qmdth);
-	Push();
+	Push(dts);
 	PrepareScatter();
 	ResetJTile();
 	ScatterJ4(J,w0,w1,cellMask,dti);
 	StoreJTile();
 }
 
-void BundleMoverBoris3D::Move()
+void BundleMoverBoris3D::Move(tw::Float dts)
 {
-	const float qmdth = 0.5*q0*dt/m0;
-	const tw::Float dti = 1.0/dt;
+	const float qmdth = 0.5*q0*dts/m0;
+	const tw::Float dti = 1.0/dts;
 	PrepareGather();
 	LoadFTile();
 	GatherF(F,w0,l0,qmdth);
-	Push();
+	Push(dts);
 	PrepareScatter();
 	ResetJTile();
 	ScatterJ4(J,w0,w1,cellMask,dti);
 	StoreJTile();
 }
 
-void BundleMoverUnitary2D::Move()
+void BundleMoverUnitary2D::Move(tw::Float dts)
 {
-	const float qmdth = 0.5*q0*dt/m0;
-	const tw::Float dti = 1.0/dt;
+	const float qmdth = 0.5*q0*dts/m0;
+	const tw::Float dti = 1.0/dts;
 	PrepareGather();
 	LoadFTile();
-	GatherF(F,w0,l0,qmdth);
-	Push();
+	GatherF(F0,w0,l0,qmdth);
+	Push(dts);
 	PrepareScatter();
 	ResetJTile();
 	ScatterJ4(J,w0,w1,cellMask,dti);
 	StoreJTile();
 }
 
-void BundleMoverUnitary3D::Move()
+void BundleMoverUnitary3D::Move(tw::Float dts)
 {
-	const float qmdth = 0.5*q0*dt/m0;
-	const tw::Float dti = 1.0/dt;
+	const float qmdth = 0.5*q0*dts/m0;
+	const tw::Float dti = 1.0/dts;
 	PrepareGather();
 	LoadFTile();
-	GatherF(F,w0,l0,qmdth);
-	Push();
+	GatherF(F0,w0,l0,qmdth);
+	Push(dts);
 	PrepareScatter();
 	ResetJTile();
 	ScatterJ4(J,w0,w1,cellMask,dti);
@@ -323,17 +327,17 @@ void BundleMoverPGC2D::DepositSourceSlice(bool needsAtomic)
 	BundleSlicerPGC::DepositSourceSlice(needsAtomic);
 }
 
-void BundleMoverPGC2D::Move()
+void BundleMoverPGC2D::Move(tw::Float dts)
 {
-	const float qmdth = 0.5*q0*dt/m0;
-	const tw::Float dti = 1.0/dt;
-	const float q2m2 = sqr(q0/m0);
+	const float qmdth = 0.5*q0*dts/m0;
+	const tw::Float dti = 1.0/dts;
+	const float q2m2dth = 0.5*dts*sqr(q0/m0);
 	PrepareGather();
 	LoadFTile();
 	GatherF(F,w0,l0,qmdth);
 	LoadLaserTile();
-	GatherLaser(las,w0,q2m2);
-	Push();
+	GatherLaser(las,w0,q2m2dth);
+	Push(dts);
 	PrepareScatter();
 	ResetJTile();
 	ScatterJ4(J,w0,w1,cellMask,dti);
@@ -361,17 +365,17 @@ void BundleMoverPGC3D::DepositSourceSlice(bool needsAtomic)
 	BundleSlicerPGC::DepositSourceSlice(needsAtomic);
 }
 
-void BundleMoverPGC3D::Move()
+void BundleMoverPGC3D::Move(tw::Float dts)
 {
-	const float qmdth = 0.5*q0*dt/m0;
-	const tw::Float dti = 1.0/dt;
-	const float q2m2 = sqr(q0/m0);
+	const float qmdth = 0.5*q0*dts/m0;
+	const tw::Float dti = 1.0/dts;
+	const float q2m2dth = 0.5*dts*sqr(q0/m0);
 	PrepareGather();
 	LoadFTile();
 	GatherF(F,w0,l0,qmdth);
 	LoadLaserTile();
-	GatherLaser(las,w0,q2m2);
-	Push();
+	GatherLaser(las,w0,q2m2dth);
+	Push(dts);
 	PrepareScatter();
 	ResetJTile();
 	ScatterJ4(J,w0,w1,cellMask,dti);
@@ -381,7 +385,7 @@ void BundleMoverPGC3D::Move()
 	StoreChiTile();
 }
 
-void BundleMoverBohmian2D::Move()
+void BundleMoverBohmian2D::Move(tw::Float dts)
 {
 	PadBundle();
 	cell0 = cell[0];
@@ -389,11 +393,11 @@ void BundleMoverBohmian2D::Move()
 	owner->space->GetWeights(w0,x);
 	LoadTile();
 	GatherJ4(J,w0);
-	Push();
+	Push(dts);
 	owner->space->MinimizePrimitive(cell,ijk,x,domainMask);
 }
 
-void BundleMoverBohmian3D::Move()
+void BundleMoverBohmian3D::Move(tw::Float dts)
 {
 	PadBundle();
 	cell0 = cell[0];
@@ -401,20 +405,20 @@ void BundleMoverBohmian3D::Move()
 	owner->space->GetWeights(w0,x);
 	LoadTile();
 	GatherJ4(J,w0);
-	Push();
+	Push(dts);
 	owner->space->MinimizePrimitive(cell,ijk,x,domainMask);
 }
 
-void BundleMoverPhoton2D::Move()
+void BundleMoverPhoton2D::Move(tw::Float dts)
 {
 	PrepareGather();
-	Push();
+	Push(dts);
 	PrepareScatter();
 }
 
-void BundleMoverPhoton3D::Move()
+void BundleMoverPhoton3D::Move(tw::Float dts)
 {
 	PrepareGather();
-	Push();
+	Push(dts);
 	PrepareScatter();
 }

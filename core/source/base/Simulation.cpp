@@ -306,6 +306,7 @@ void Simulation::Run()
 
 void Simulation::Test()
 {
+	// TODO: errors on ranks other than 0 are not reported
 	#ifdef USE_TW_MPI
 	// Wait until master thread is done
 	// TODO: fold this into TW_MPI's MPI_init

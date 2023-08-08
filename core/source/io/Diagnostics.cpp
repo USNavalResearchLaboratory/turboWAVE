@@ -315,7 +315,7 @@ void Diagnostic::Field(const std::string& fieldName,const struct Field& F,const 
 {
 }
 
-void Diagnostic::Particle(const struct Particle& par,tw::Float m0,tw::Float tp)
+void Diagnostic::Particle(const struct Particle& par,tw::Float m0)
 {
 }
 
@@ -434,12 +434,12 @@ PointDiagnostic::PointDiagnostic(const std::string& name,MetricSpace *ms,Task *t
 
 void PointDiagnostic::Field(const std::string& fieldName,const struct Field& F,const tw::Int c,tw::dims unit,const std::string& pretty)
 {
-	tw::vec3 r = thePoint + vGalileo*t;
-	if (space->IsPointWithinInterior(r)) // assumes uniform grid
+	tw::vec4 x4(t,thePoint + vGalileo*t);
+	if (space->IsPointWithinInterior(x4.spatial())) // assumes uniform grid
 	{
 		std::valarray<tw::Float> ans(1);
 		weights_3D w;
-		space->GetWeights(&w,r);
+		space->GetWeights(&w,x4);
 		F.Interpolate(ans,Element(c),w);
 		labels.push_back(fieldName);
 		values.push_back(ans[0]);
@@ -704,7 +704,7 @@ void ParticleOrbits::Finish()
 			writer.write_header(xname,shape);
 			headerWritten = true;
 		}
-		false_shape[2] = pts;
+		false_shape[3] = pts;
 		writer.add_frame(xname,(char*)&parBuffer[0],false_shape);
 		for (tw::Int i=0;i<task->strip[0].Get_size();i++)
 		{
@@ -713,7 +713,7 @@ void ParticleOrbits::Finish()
 				task->strip[0].Recv(&pts,sizeof(tw::Int),i);
 				parBuffer.resize(pts);
 				task->strip[0].Recv(&parBuffer[0],sizeof(float)*pts,i);
-				false_shape[2] = pts;
+				false_shape[3] = pts;
 				writer.add_frame(xname,(char*)&parBuffer[0],false_shape);
 			}
 		}
@@ -723,9 +723,9 @@ void ParticleOrbits::Finish()
 	}
 }
 
-void ParticleOrbits::Particle(const struct Particle& par,tw::Float m0,tw::Float tp)
+void ParticleOrbits::Particle(const struct Particle& par,tw::Float m0)
 {
-	tw::vec4 x(tp,space->PositionFromPrimitive(par.q));
+	tw::vec4 x(space->PositionFromPrimitive(par.q));
 	tw::vec4 p(par.p);
 	// Boosts will work in Cartesian or cylindrical, but not spherical.
 	x.zBoost(gammaBoost,1.0);
@@ -744,8 +744,8 @@ void ParticleOrbits::Particle(const struct Particle& par,tw::Float m0,tw::Float 
 			parData.push_back(x[3]);
 			parData.push_back(p[3]);
 			// TODO: support tags
-			//parData.push_back(par.aux1);
-			//parData.push_back(par.aux2);
+			parData.push_back(1.0);
+			parData.push_back(1.0);
 		}
 }
 
@@ -863,11 +863,11 @@ void PhaseSpaceDiagnostic::Finish()
 	headerWritten = true;
 }
 
-void PhaseSpaceDiagnostic::Particle(const struct Particle& par,tw::Float m0,tw::Float tp)
+void PhaseSpaceDiagnostic::Particle(const struct Particle& par,tw::Float m0)
 {
 	m0 = (sqr(m0)+tw::tiny)/(m0+tw::tiny);
 	weights_3D weights;
-	tw::vec4 x(tp,space->PositionFromPrimitive(par.q));
+	tw::vec4 x(space->PositionFromPrimitive(par.q));
 	tw::vec4 v(par.p/m0);
 	x.zBoost(gammaBoost,1.0);
 	v.zBoost(gammaBoost,1.0);
@@ -882,11 +882,11 @@ void PhaseSpaceDiagnostic::Particle(const struct Particle& par,tw::Float m0,tw::
 			{{tw::grid::t,x[0]},{tw::grid::x,x[1]},{tw::grid::y,x[2]},{tw::grid::z,x[3]},
 			{tw::grid::mass,m0*v[0]},{tw::grid::px,m0*v[1]},{tw::grid::py,m0*v[2]},{tw::grid::pz,m0*v[3]},
 			{tw::grid::g,v[0]},{tw::grid::gbx,v[1]},{tw::grid::gby,v[2]},{tw::grid::gbz,v[3]}};
-		tw::vec3 q(m[ax[1]],m[ax[2]],m[ax[3]]);
-		if (dims[1]==1) q.x = 0.5*(bounds[0]+bounds[1]);
-		if (dims[2]==1) q.y = 0.5*(bounds[2]+bounds[3]);
-		if (dims[3]==1) q.z = 0.5*(bounds[4]+bounds[5]);
-		if (q.x>=bounds[0] && q.x<=bounds[1] && q.y>=bounds[2] && q.y<=bounds[3] && q.z>=bounds[4] && q.z<=bounds[5])
+		tw::vec4 q(0.0,m[ax[1]],m[ax[2]],m[ax[3]]);
+		if (dims[1]==1) q[1] = 0.5*(bounds[0]+bounds[1]);
+		if (dims[2]==1) q[2] = 0.5*(bounds[2]+bounds[3]);
+		if (dims[3]==1) q[3] = 0.5*(bounds[4]+bounds[5]);
+		if (q[1]>=bounds[0] && q[1]<=bounds[1] && q[2]>=bounds[2] && q[2]<=bounds[3] && q[3]>=bounds[4] && q[3]<=bounds[5])
 		{
 			fxp.GetWeights(&weights,q);
 			fxp.InterpolateOnto( par.number/dV, weights );

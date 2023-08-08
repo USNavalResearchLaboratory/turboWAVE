@@ -75,6 +75,11 @@ inline tw::Float cub(const tw::Float& a)
 	return a*a*a;
 }
 
+inline tw::Float quad(const tw::Float& a)
+{
+	return a*a*a*a;
+}
+
 inline tw::Float SafeDiv(const tw::Float& numerator,const tw::Float& denominator)
 {
 	return numerator / (denominator + tw::small_pos);
