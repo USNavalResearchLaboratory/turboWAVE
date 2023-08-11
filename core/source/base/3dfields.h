@@ -585,6 +585,8 @@ struct Field:DiscreteSpace
 		InterpolateOnto(val,All(*this),weights);
 	}
 
+	template<tw::Int X,tw::Int Y,tw::Int Z>
+	friend void add_const_vec(Field& vf,const tw::vec3& v0);
 	template<tw::Int T,tw::Int X,tw::Int Y,tw::Int Z>
 	friend void conserved_current_to_dens(Field& current,const MetricSpace& m);
 	template <tw::Int C,tw::Int X,tw::Int Y,tw::Int Z>
@@ -638,6 +640,26 @@ void Field::AdjustTridiagonalForBoundaries(const Element& e,const tw::grid::axis
 			T2[N] += T3[N] * F[1][2] / (1.0 - F[1][1]);
 			T1[N] += T3[N] * F[1][3] / (1.0 - F[1][1]);
 			source[N] -= T3[N] * C[1] * val / (1.0 - F[1][1]);
+		}
+	}
+}
+
+template <tw::Int X,tw::Int Y,tw::Int Z>
+inline void add_const_vec(Field& vf,const tw::vec3& v0)
+{
+	#pragma omp parallel
+	{
+		for (auto v : VectorStripRange<3>(vf,true))
+		{
+			#pragma omp simd
+			for (tw::Int k=0;k<=vf.UNG(3);k++)
+				vf(v,k,X) += v0.x;
+			#pragma omp simd
+			for (tw::Int k=0;k<=vf.UNG(3);k++)
+				vf(v,k,Y) += v0.y;
+			#pragma omp simd
+			for (tw::Int k=0;k<=vf.UNG(3);k++)
+				vf(v,k,Z) += v0.z;
 		}
 	}
 }

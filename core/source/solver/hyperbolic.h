@@ -10,7 +10,7 @@ struct YeePropagatorPML:ComputeTool
 
 	void AdvanceE(Field& A,Field& PMLx,Field& PMLy,Field& PMLz,Field& j4);
 	void AdvanceB(Field& A,Field& PMLx,Field& PMLy,Field& PMLz);
-	void PrepCenteredFields(Field& F,Field& A);
+	void PrepCenteredFields(Field& F,Field& A,tw::vec3& E0,tw::vec3& B0);
 	void CenteredFields(Field& F,Field& A);
 	void UpdateInteriorBoundaryE(Field& A,const ScalarField& conductor);
 	void UpdateInteriorBoundaryB(Field& A,const ScalarField& conductor);

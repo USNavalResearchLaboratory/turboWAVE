@@ -12,7 +12,7 @@ struct Electromagnetic:FieldSolver
 	Field F,sources;
 	ScalarField scratch1,scratch2,conductorMask;
 
-	tw::vec3 dipoleCenter;
+	tw::vec3 dipoleCenter,externalE,externalB;
 	tw::Float gammaBeam;
 
 	Electromagnetic(const std::string& name,Simulation* sim);

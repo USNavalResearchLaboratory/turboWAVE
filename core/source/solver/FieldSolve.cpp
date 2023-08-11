@@ -67,6 +67,8 @@ Electromagnetic::Electromagnetic(const std::string& name,Simulation* sim):FieldS
 	#endif
 
 	directives.Add("dipole center",new tw::input::Vec3(&dipoleCenter),false);
+	directives.Add("external E",new tw::input::Vec3(&externalE),false);
+	directives.Add("external B",new tw::input::Vec3(&externalB),false);
 	directives.Add("gamma beam",new tw::input::Float(&gammaBeam),false);
 }
 
@@ -686,7 +688,7 @@ void DirectSolver::Initialize()
 	add_curlE<0,1,2,7,9,11>(A0,A,*owner,0.5);
 	A.CopyFromNeighbors();
 	A.ApplyBoundaryCondition();
-	yeeTool->PrepCenteredFields(F,A);
+	yeeTool->PrepCenteredFields(F,A,externalE,externalB);
 
 	LoadVectorPotential<0,1,2>(A0,dth);
 	#pragma omp parallel
@@ -787,7 +789,7 @@ void DirectSolver::Update()
 
 	// Save the old magnetic field so final fields can be centered
 
-	yeeTool->PrepCenteredFields(F,A);
+	yeeTool->PrepCenteredFields(F,A,externalE,externalB);
 
 	// Advance the magnetic field
 

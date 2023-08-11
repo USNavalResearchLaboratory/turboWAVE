@@ -5,7 +5,11 @@
             "includePath": [
                 "${workspaceFolder}/core/source/**"
             ],
-            "defines": ["USE_DESKTOP","USE_OPENMP","VBITS=256"],
+            "defines": [
+                "USE_DESKTOP",
+                "USE_OPENMP",
+                "VBITS=256"
+            ],
             "compilerArgs": [
                 "-I${workspaceFolder}/core/source/base",
                 "-I${workspaceFolder}/core/source/concurrency",
@@ -28,7 +32,11 @@
             "includePath": [
                 "${workspaceFolder}/core/source/**"
             ],
-            "defines": ["USE_DESKTOP","USE_OPENMP","VBITS=128"],
+            "defines": [
+                "USE_DESKTOP",
+                "USE_OPENMP",
+                "VBITS=128"
+            ],
             "compilerArgs": [
                 "-I${workspaceFolder}/core/source/base",
                 "-I${workspaceFolder}/core/source/concurrency",
@@ -51,7 +59,11 @@
             "includePath": [
                 "${workspaceFolder}/core/source/**"
             ],
-            "defines": ["USE_DESKTOP","USE_OPENMP","VBITS=256"],
+            "defines": [
+                "USE_DESKTOP",
+                "USE_OPENMP",
+                "VBITS=256"
+            ],
             "compilerArgs": [
                 "-I${workspaceFolder}/core/source/base",
                 "-I${workspaceFolder}/core/source/concurrency",
@@ -71,7 +83,11 @@
             "includePath": [
                 "${workspaceFolder}/core/source/**"
             ],
-            "defines": ["USE_DESKTOP","USE_OPENMP","VBITS=256"],
+            "defines": [
+                "USE_DESKTOP",
+                "USE_OPENMP",
+                "VBITS=256"
+            ],
             "compilerArgs": [
                 "-I${workspaceFolder}/core/source/base",
                 "-I${workspaceFolder}/core/source/concurrency",

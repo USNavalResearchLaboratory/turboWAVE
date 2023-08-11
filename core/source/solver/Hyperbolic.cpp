@@ -188,9 +188,11 @@ void YeePropagatorPML::AdvanceB(Field& A,Field& PMLx,Field& PMLy,Field& PMLz)
 	A.UpwardCopy(tw::grid::z,Element(6,11),1);
 }
 
-void YeePropagatorPML::PrepCenteredFields(Field& F,Field& A)
+void YeePropagatorPML::PrepCenteredFields(Field& F,Field& A,tw::vec3& E0,tw::vec3& B0)
 {
 	F = 0.0;
+	add_const_vec<0,1,2>(F,E0);
+	add_const_vec<3,4,5>(F,B0);
 	AddMulFieldData(F,Element(3),A,Element(6),0.5);
 	AddMulFieldData(F,Element(3),A,Element(7),0.5);
 	AddMulFieldData(F,Element(4),A,Element(8),0.5);
