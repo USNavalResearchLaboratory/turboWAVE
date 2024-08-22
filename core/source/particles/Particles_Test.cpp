@@ -51,15 +51,15 @@ void Species::ReflectionTest()
 	bc1[3] = par::reflecting;
 	const tw::Float tolerance = 1e-5;
 	Primitive q0;
-	tw::vec3 dr(0,0,0.35*dz(*this));
-	tw::vec4 r0(-0.5*dt,Corner(*this) - dr);
-	tw::vec4 rexpect(0.5*dt,Corner(*this) + dr);
+	tw::vec4 dr(0.5*this->dx(0),0,0,0.35*this->dx(3));
+	tw::vec4 r0 = this->Corner() - dr;
+	tw::vec4 rexpect = this->Corner() + dr;
 	tw::vec4 p0(sqrt(2),0,0,-1);
 	tw::vec4 s0(1,0,0,0);
 	SetPrimitiveWithPosition(q0,r0);
 	ASSERT_NEAR(q0.x[0], 0.0, tolerance);
 	ASSERT_NEAR(q0.x[3], 0.15, tolerance);
-	AddParticle(1.0,q0,p0,s0);
+	AddParticle(1.0,q0,p0,s0,0.0);
 	mover->AddTransferParticle(particle[0]);
 	ASSERT_NEAR(transfer[0].x[0], q0.x[0], tolerance);
 	ASSERT_NEAR(transfer[0].x[3], q0.x[3], tolerance);
@@ -109,13 +109,13 @@ void Species::MoveWindowTest()
 	tw::vec4 p0(1,0,0,0),s0(1,0,0,0);
 	if (owner->strip[3].Get_rank()==1)
 	{
-		r0 = tw::vec4(-0.5*dt,0.0,0.0,Corner(*this).z);
+		r0 = tw::vec4(-0.5*this->dx(0),0,0,this->Corner()[3]);
 		SetPrimitiveWithPosition(q0,r0);
-		AddParticle(1.0,q0,p0,s0);
+		AddParticle(1.0,q0,p0,s0,0.0);
 		BeginMoveWindow();
 		ASSERT_EQ(particle.size(),0);
 		ASSERT_EQ(transfer.size(),1);
-		ASSERT_NEAR(transfer[0].x[3], r0[3] - dz(*this), tolerance);
+		ASSERT_NEAR(transfer[0].x[3], r0[3] - this->dx(3), tolerance);
 		ASSERT_EQ(transfer[0].dst[0],1);
 		ASSERT_EQ(transfer[0].dst[1],0);
 		ASSERT_EQ(transfer[0].dst[2],0);

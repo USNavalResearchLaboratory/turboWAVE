@@ -18,8 +18,6 @@
 unit density = 2.8e19 // only used if post-processing wants to display plasma units
 native units = natural
 
-steps = 8000
-timestep = 0.02655350991
 dump period = 0
 moving window = no
 neutralize = yes
@@ -36,10 +34,11 @@ zboundary = ( periodic , periodic )
 
 new grid
 {
-	corner = ( -14.8952172976 -14.8952172976 -0.5 )
-	dimensions = ( 1000 1000 1 )
-	cell size = ( 0.10621403964 0.10621403964 1.0 )
-	decomposition = ( 2 , 10 , 1 )
+	origin = ( 0, 0, 0, 0.5 )
+	shift = ( 0, -14.8952172976, -14.8952172976, 0 )
+	dimensions = ( 8000 1000 1000 1 )
+	cell size = ( 0.02655350991, 0.10621403964 0.10621403964 1.0 )
+	decomposition = ( 1, 2 , 10 , 1 )
 	geometry = cartesian
 }
 
@@ -55,10 +54,10 @@ new klein gordon module 'tdkge'
 
 new plane wave for 'tdkge'
 {
-	direction = 1 0 0
-	a = 0.0 -28.8538676419 0.0
+	direction = (1 0 0)
+	a = (0.0 -28.8538676419 0.0)
 	w = 0.0147889707624
-	focus position = -14.8952172976  0 0
+	focus position = (-14.8952172976  0 0)
 	delay = 0
 	risetime = 0.42485615856
 	holdtime = 424.85615856
@@ -67,10 +66,10 @@ new plane wave for 'tdkge'
 }
 new plane wave for 'tdkge'
 {
-	direction = 1 0 0
-	a = 0.0 28.8538676419 0.0
+	direction = (1 0 0)
+	a = (0.0 28.8538676419 0.0)
 	w = 0.0
-	focus position = -14.8952172976  0 0
+	focus position = (-14.8952172976  0 0)
 	delay = 0
 	risetime = 0.42485615856
 	holdtime = 424.85615856

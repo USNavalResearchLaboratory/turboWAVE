@@ -5,8 +5,6 @@
 #define $r0 6.0
 #define $t0 40
 
-steps = 1000
-timestep = 0.08
 dump period = 0
 moving window = no
 neutralize = yes
@@ -22,10 +20,11 @@ zboundary = ( absorbing , absorbing )
 
 new grid
 {
-	corner = ( -32.0 , -0.50 , 0.0 )
-	dimensions = ( 128 , 1 , 512 )
-	cell size = ( 0.5 , 1.0 , 0.1 )
-	decomposition = ( 2 , 1 , 4 )
+	origin = ( 0.5 , 0.5 , 0.5 , 0.0 )
+	shift = ( 0.0 , 0.0 , 0.0 , 0.0 )
+	dimensions = ( 1000 , 128 , 1 , 512 )
+	cell size = ( 0.08 , 0.5 , 1.0 , 0.1 )
+	decomposition = ( 1 , 2 , 1 , 4 )
 }
 
 new coulomb electromagnetic module 'coul'

@@ -4,8 +4,6 @@
 // SPARC input file to model laser excitation of an Argon plasma
 // This includes photo and collisional ionization
 // Increasing laser intensity may require timestep reduction
-steps = 2000
-timestep = 100 [fs]
 dtmax = 100 [fs]
 dump period = 0
 moving window = no
@@ -22,10 +20,10 @@ zboundary = ( absorbing  absorbing )
 
 new grid
 {
-	corner = ( 0.0 , -3.1416 , -0.5 )
-	dimensions = ( 2000 1 1 )
-	cell size = ( 0.2 6.2832 1.0 )
-	decomposition = ( 1  1  1 )
+	origin = ( 0 , 0 , 0.5 , 0.5 )
+	dimensions = ( 2000, 2000, 1, 1 )
+	cell size = ( 100 [fs], 0.2, 6.2832, 1.0 )
+	decomposition = ( 1, 1, 1, 1 )
 	geometry = cylindrical
 	adaptive timestep = off
 }

@@ -1,11 +1,11 @@
 struct Mover;
 
+// The purpose of the particle bundle is to allow for efficient vectorization of the pusher
+// Several inlined functions are needed due to OpenMP inability to work with member variables
+// Evidently this is related to uninstantiated variables being tagged as aligned
+// The workaround is to pass members back in as arguments
 struct ParticleBundle
 {
-	// The purpose of the particle bundle is to allow for efficient vectorization of the pusher
-	// Several inlined functions are needed due to OpenMP inability to work with member variables
-	// Evidently this is related to uninstantiated variables being tagged as aligned
-	// The workaround is to pass members back in as arguments
 	Mover *owner;
 	tw::Float q0,m0,k[4];
 	tw::Int num,cell0,ijk0[4];

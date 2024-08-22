@@ -23,8 +23,6 @@
 native units = plasma
 unit density = $cgs_density
 
-steps = $steps
-timestep = $dt
 dump period = 0
 moving window = no
 // The immobile background cannot be used in a boosted frame.
@@ -44,10 +42,11 @@ zboundary = ( absorbing , absorbing )
 
 new grid
 {
-	corner001 = ( -51.2 , -0.5 , $Lp )
-	dimensions = ( $nx , 1 , $nz )
-	cell size = ( $dx , 1.0 , $dz )
-	decomposition = ( 16 , 1 , 1 )
+	origin = (0, 0.5, 0.5, 1)
+	shift = (0, 0, 0, $Lp)
+	dimensions = ($steps, $nx, 1, $nz)
+	cell size = ($dt, $dx, 1.0, $dz)
+	decomposition = (1, 16, 1, 1)
 }
 
 new coulomb field solver 'em'

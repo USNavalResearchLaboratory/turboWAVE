@@ -149,6 +149,7 @@ std::map<std::string,tw::tool_type> ComputeTool::Map()
 		{"photon generator",tw::tool_type::photonGenerator},
 		{"pair creator",tw::tool_type::pairCreator},
 		{"boris mover",tw::tool_type::borisMover},
+		{"hc mover",tw::tool_type::hcMover},
 		{"pgc mover",tw::tool_type::pgcMover},
 		{"unitary mover",tw::tool_type::unitaryMover},
 		{"bohmian mover",tw::tool_type::bohmianMover},
@@ -331,6 +332,9 @@ ComputeTool* ComputeTool::CreateObjectFromType(const std::string& name,tw::tool_
 		case tw::tool_type::borisMover:
 			ans = new BorisMover(name,ms,tsk);
 			break;
+		case tw::tool_type::hcMover:
+			ans = new HCMover(name,ms,tsk);
+			break;
 		case tw::tool_type::pgcMover:
 			ans = new PGCMover(name,ms,tsk);
 			break;
@@ -354,35 +358,31 @@ bool ComputeTool::SetTestGrid(tw::tool_type theType,tw::Int gridId,MetricSpace *
 		case tw::tool_type::ellipticSolver1D:
 			if (gridId>1)
 				return false;
-			tsk->Initialize(tw::idx4(1,1,2).array,tw::idx4(1,1,4).array,tw::idx4(1,1,0).array);
-			ms->Resize(*tsk,tw::vec3(0,0,0),tw::vec3(0.2,0.2,0.8),2);
-			ms->SetupTimeInfo(0.1);
+			tsk->Initialize(tw::idx4(1,1,1,2).array,tw::idx4(1,1,1,4).array,tw::idx4(0,1,1,0).array);
+			ms->Resize(*tsk,tw::vec4(0,0,0,0),tw::vec4(0.1,0.2,0.2,0.8),2);
 			return true;
 		case tw::tool_type::pgcMover:
+		case tw::tool_type::hcMover:
 		case tw::tool_type::borisMover:
 			if (gridId==1) {
-				tsk->Initialize(tw::idx4(1,1,2).array,tw::idx4(1,1,4).array,tw::idx4(1,1,0).array);
-				ms->Resize(*tsk,tw::vec3(0,0,0),tw::vec3(0.2,0.2,0.8),2);
-				ms->SetupTimeInfo(0.1);
+				tsk->Initialize(tw::idx4(1,1,1,2).array,tw::idx4(1,1,1,4).array,tw::idx4(0,1,1,0).array);
+				ms->Resize(*tsk,tw::vec4(0,0,0,0),tw::vec4(0.1,0.2,0.2,0.8),2);
 				return true;
 			} else if (gridId==2) {
-				tsk->Initialize(tw::idx4(1,1,2).array,tw::idx4(4,1,4).array,tw::idx4(1,1,0).array);
-				ms->Resize(*tsk,tw::vec3(0,0,0),tw::vec3(0.8,0.2,0.8),2);
-				ms->SetupTimeInfo(0.1);
+				tsk->Initialize(tw::idx4(1,1,1,2).array,tw::idx4(1,4,1,4).array,tw::idx4(0,1,1,0).array);
+				ms->Resize(*tsk,tw::vec4(0,0,0,0),tw::vec4(0.1,0.8,0.2,0.8),2);
 				return true;
 			} else if (gridId==3) {
-				tsk->Initialize(tw::idx4(1,1,2).array,tw::idx4(4,4,4).array,tw::idx4(1,1,0).array);
-				ms->Resize(*tsk,tw::vec3(0,0,0),tw::vec3(0.8,0.8,0.8),2);
-				ms->SetupTimeInfo(0.1);
+				tsk->Initialize(tw::idx4(1,1,1,2).array,tw::idx4(1,4,4,4).array,tw::idx4(0,1,1,0).array);
+				ms->Resize(*tsk,tw::vec4(0,0,0,0),tw::vec4(0.1,0.8,0.8,0.8),2);
 				return true;
 			}
 			return false;
 		default:
 			if (gridId>1)
 				return false;
-			tsk->Initialize(tw::idx4(1,1,2).array,tw::idx4(4,4,4).array,tw::idx4(1,1,0).array);
-			ms->Resize(*tsk,tw::vec3(0,0,0),tw::vec3(0.8,0.8,0.8),2);
-			ms->SetupTimeInfo(0.1);
+			tsk->Initialize(tw::idx4(1,1,1,2).array,tw::idx4(1,4,4,4).array,tw::idx4(0,1,1,0).array);
+			ms->Resize(*tsk,tw::vec4(0,0,0,0),tw::vec4(0.1,0.8,0.8,0.8),2);
 			return true;
 	}
 }

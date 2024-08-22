@@ -11,7 +11,7 @@ src_base = ['base/3DFields.cpp', 'base/ComputeTool.cpp', 'base/DiscreteSpace.cpp
 src_con = ['concurrency/Tasks.cpp']
 src_io = ['io/Diagnostics.cpp', 'io/Input.cpp', 'io/Units.cpp']
 src_par = ['particles/Bundle.cpp', 'particles/Mover.cpp', 'particles/Mover_Test.cpp', 'particles/Particles.cpp', 'particles/Particles_Test.cpp',
-    'particles/Pusher.cpp', 'particles/Pusher_Test.cpp', 'particles/Slicer.cpp', 'particles/Tiler.cpp', 'particles/QED.cpp']
+    'particles/Pusher.cpp', 'particles/Pusher_Test.cpp', 'particles/Slicer.cpp', 'particles/Tiler.cpp', 'particles/Qed.cpp']
 src_solv = ['solver/Electrostatic.cpp', 'solver/Elliptic.cpp', 'solver/Elliptic_Test.cpp', 'solver/FieldSolve.cpp', 'solver/Hyperbolic.cpp',
     'solver/LaserSolve.cpp', 'solver/Numerics.cpp', 'solver/Parabolic.cpp', 'solver/Qstate.cpp', 'solver/Quantum.cpp', 'solver/SolidState.cpp']
 src_sparc = ['sparc/Chemistry.cpp', 'sparc/Fluid.cpp', 'sparc/Fluid_Test.cpp', 'sparc/Physics.cpp', 'sparc/Physics_Test.cpp']

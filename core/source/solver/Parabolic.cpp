@@ -112,12 +112,13 @@ void EigenmodePropagator::Advance(ComplexField& a0,ComplexField& a1,ComplexField
 	const tw::Int xDim = space->Dim(1);
 	const tw::Int yDim = space->Dim(2);
 	const tw::Int zDim = space->Dim(3);
+	const tw::Float dz = space->dx(3);
 
 	std::valarray<tw::Float> localEig(xDim+2),chi_ref(zDim+2);
 
-	const tw::Complex T1 = -(1+causality)/(2*dz(*space)*dt);
-	const tw::Complex T2 = ii*w0/dt + causality/(dz(*space)*dt);
-	const tw::Complex T3 = (1-causality)/(2*dz(*space)*dt);
+	const tw::Complex T1 = -(1+causality)/(2*dz*dt);
+	const tw::Complex T2 = ii*w0/dt + causality/(dz*dt);
+	const tw::Complex T3 = (1-causality)/(2*dz*dt);
 
 	if (space->car!=1.0)
 	{

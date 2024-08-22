@@ -149,6 +149,7 @@ void Fluid::Initialize()
 	{
 		tw::vec3 pos,A0,A1;
 		tw::Float density;
+		const tw::Float dth = 0.5*dx(0);
 
 		for (auto cell : EntireCellRange(*this))
 		{
@@ -216,6 +217,7 @@ void Fluid::Initialize()
 
 void Fluid::MoveWindow()
 {
+	const tw::Float dth = 0.5*dx(0);
 	Module::MoveWindow();
 	#pragma omp parallel
 	{
@@ -283,6 +285,9 @@ void Fluid::Update()
 	tw::bc::fld bc;
 	tw::Float field,ionizedDensity;
 
+	const tw::Float dt = dx(0);
+	const tw::Float dti = dk(0);
+	const tw::Float dth = 0.5*dx(0);
 	const tw::Float q0 = charge;
 	const tw::Float m0 = mass;
 	const tw::Float m0i = 1.0/m0;
@@ -1207,7 +1212,7 @@ void sparc::HydroManager::Reset()
 			didGenerate += grp->GenerateFluid(state1,eos1);
 		if (didGenerate)
 		{
-			EOSAdvance(dt); // gets eos0 using state0 and state1
+			EOSAdvance(dx(0)); // gets eos0 using state0 and state1
 			eos1 = eos0;
 			state0 = state1;
 		}
@@ -1444,7 +1449,7 @@ void sparc::HydroManager::ComputeRadiativeSources()
 	#pragma omp parallel
 	{
 		const tw::Float stef_boltz = 5.67e-8; // W/m^2/K^4
-		const tw::vec3 R = GlobalPhysicalSize(*owner);
+		const tw::vec3 R = owner->GlobalPhysicalSize().spatial();
 		const tw::vec3 Rmks(R.x*tw::dims::length>>native>>mks,R.y*tw::dims::length>>native>>mks,R.z*tw::dims::length>>native>>mks);
 		const tw::Float Vmks = owner->car*Rmks.x*Rmks.y*Rmks.z + owner->cyl*pi*sqr(Rmks.x)*Rmks.z + owner->sph*1.33*pi*cub(Rmks.x);
 		const tw::Float Smks = owner->car*2*(Rmks.x*Rmks.y + Rmks.y*Rmks.z + Rmks.z*Rmks.x) + owner->cyl*(2*pi*sqr(Rmks.x)+2*pi*Rmks.x*Rmks.z) + owner->sph*4*pi*sqr(Rmks.x);
@@ -1814,7 +1819,7 @@ tw::Float sparc::HydroManager::EstimateTimeStep()
 		tw::Float dts;
 
 		if (owner->IsFirstStep())
-			dtMax[tid] = owner->dt0;
+			dtMax[tid] = owner->dx(0);
 		else
 			dtMax[tid] = owner->dtMax;
 
@@ -1901,7 +1906,7 @@ tw::Float sparc::HydroManager::EstimateTimeStep()
 	// If the critical time step is reached, switch to fixed time step and hope for the best!
 	if (dtMaxAllNodes < owner->dtCritical)
 	{
-		dtMaxAllNodes = owner->dt0; // use the starting time step
+		dtMaxAllNodes = owner->dx(0); // use the starting time step
 		owner->adaptiveTimestep = false; // no more adaptive stepping after this
 	}
 	// Don't let it fall below the minimum time step
@@ -2166,6 +2171,7 @@ void sparc::HydroManager::FirstOrderAdvance(tw::Float dt,bool computeSources)
 
 void sparc::HydroManager::Update()
 {
+	const tw::Float dt = dx(0);
 	tw::Float dts;
 
 	if (!owner->adaptiveTimestep)

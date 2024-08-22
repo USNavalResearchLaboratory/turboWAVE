@@ -29,6 +29,7 @@ struct Species:Module
 	tw::Float targetDensity;
 	tw::Float minimumDensity;
 	tw::Float accelerationTime,accelerationImpulse,accelerationForceNow;
+	tw::Float numberCreated;
 	tw::bc::par bc0[4],bc1[4];
 	bool mobile,radiationDamping;
 	tw::Float meanFreePath;
@@ -56,7 +57,7 @@ struct Species:Module
 	virtual bool InspectResource(void* resource,const std::string& description);
 	virtual void VerifyInput();
 	virtual void Initialize();
-	void AddParticle(const float& number,const Primitive& q,const tw::vec4& p,const tw::vec4& s);
+	void AddParticle(const float& number,const Primitive& q,const tw::vec4& p,const tw::vec4& s,const tw::Float& Qparam);
 	void AddParticle(const TransferParticle& newParticle);
 	void CleanParticleList();
 
@@ -76,7 +77,9 @@ struct Species:Module
 	void DepositInitialCharge(const tw::vec4& pos,tw::Float macroCharge);
 	void CalculateDensity(ScalarField& dens);
 	void CalculateEnergyDensity(ScalarField& dens);
+	void CalculateQuantumParameter(ScalarField& dens);
 	tw::Float KineticEnergy(const Region& theRgn);
+	tw::Float ParticleNumber(const Region& theRgn);
 
 	virtual void ReadInputFileDirective(std::stringstream& inputString,const std::string& command);
 	virtual void ReadCheckpoint(std::ifstream& inFile);

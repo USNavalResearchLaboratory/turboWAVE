@@ -291,7 +291,7 @@ void BundleTilerEM3D::ScatterJ4(const float J[4][N],const float w0[3][3][N],cons
 		}
 }
 
-void BundleTilerPGC2D::GatherLaser(float las[8][N],const float w[3][3][N],const float q2m2dth)
+void BundleTilerPGC2D::GatherLaser(float las[8][N],const float w[3][3][N],const float q2m2dth,const float q2m2h)
 {
 	alignas(AB) float factorNow[N];
 	ZeroArray(las,0,7);
@@ -310,8 +310,8 @@ void BundleTilerPGC2D::GatherLaser(float las[8][N],const float w[3][3][N],const 
 				las[3][n] += factorNow[n]*las_tile[i][k][3]*q2m2dth;
 				las[4][n] += factorNow[n]*las_tile[i][k][4]*q2m2dth;
 				las[5][n] += factorNow[n]*las_tile[i][k][5]*q2m2dth;
-				las[6][n] += factorNow[n]*las_tile[i][k][6]*q2m2dth;
-				las[7][n] += factorNow[n]*las_tile[i][k][7]*q2m2dth;
+				las[6][n] += factorNow[n]*las_tile[i][k][6]*q2m2h;
+				las[7][n] += factorNow[n]*las_tile[i][k][7]*q2m2h;
 			}
 		}
 }
@@ -361,7 +361,7 @@ void BundleTilerPGC2D::ScatterChi(const float chi[N],const float w0[3][3][N],con
 		}
 }
 
-void BundleTilerPGC3D::GatherLaser(float las[8][N],const float w[3][3][N],const float q2m2dth)
+void BundleTilerPGC3D::GatherLaser(float las[8][N],const float w[3][3][N],const float q2m2dth,const float q2m2h)
 {
 	alignas(AB) float factorNow[N];
 	ZeroArray(las,0,7);
@@ -381,8 +381,8 @@ void BundleTilerPGC3D::GatherLaser(float las[8][N],const float w[3][3][N],const 
 					las[3][n] += factorNow[n]*las_tile[i][j][k][3]*q2m2dth;
 					las[4][n] += factorNow[n]*las_tile[i][j][k][4]*q2m2dth;
 					las[5][n] += factorNow[n]*las_tile[i][j][k][5]*q2m2dth;
-					las[6][n] += factorNow[n]*las_tile[i][j][k][6]*q2m2dth;
-					las[7][n] += factorNow[n]*las_tile[i][j][k][7]*q2m2dth;
+					las[6][n] += factorNow[n]*las_tile[i][j][k][6]*q2m2h;
+					las[7][n] += factorNow[n]*las_tile[i][j][k][7]*q2m2h;
 				}
 			}
 }

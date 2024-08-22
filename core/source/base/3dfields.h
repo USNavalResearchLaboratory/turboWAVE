@@ -152,11 +152,27 @@ struct Slice
 	void Translate(tw::Int x,tw::Int y,tw::Int z);
 	T& operator () (const tw::Int& x,const tw::Int& y,const tw::Int& z,const tw::Int& c)
 	{
-		return data[(c-e.low) + (x-lb[1])*encodingStride[1] + (y-lb[2])*encodingStride[2] + (z-lb[3])*encodingStride[3]];
+		const tw::Int idx = (c-e.low) + (x-lb[1])*encodingStride[1] + (y-lb[2])*encodingStride[2] + (z-lb[3])*encodingStride[3];
+		// if (idx < 0 || idx > data.size()) {
+		// 	std::cout << "bad slice access " << idx << "," << data.size() << std::endl;
+		// 	std::cout << "coords " << x << "," << y << "," << z << "," << c << std::endl;
+		// 	std::cout << "lbounds " << lb[1] << "," << lb[2] << "," << lb[3] << "," << e.low << std::endl;
+		// 	std::cout << "ubounds " << ub[1] << "," << ub[2] << "," << ub[3] << "," << e.high << std::endl;
+		// 	std::cout << "strides " << encodingStride[1] << "," << encodingStride[2] << "," << encodingStride[3] << std::endl;
+		// }
+		return data[idx];
 	}
 	T operator () (const tw::Int& x,const tw::Int& y,const tw::Int& z,const tw::Int& c) const
 	{
-		return data[(c-e.low) + (x-lb[1])*encodingStride[1] + (y-lb[2])*encodingStride[2] + (z-lb[3])*encodingStride[3]];
+		const tw::Int idx = (c-e.low) + (x-lb[1])*encodingStride[1] + (y-lb[2])*encodingStride[2] + (z-lb[3])*encodingStride[3];
+		// if (idx < 0 || idx > data.size()) {
+		// 	std::cout << "bad slice access " << idx << "," << data.size() << std::endl;
+		// 	std::cout << "coords " << x << "," << y << "," << z << "," << c - e.low << std::endl;
+		// 	std::cout << "lbounds " << lb[1] << "," << lb[2] << "," << lb[3] << std::endl;
+		// 	std::cout << "ubounds " << ub[1] << "," << ub[2] << "," << ub[3] << std::endl;
+		// 	std::cout << "strides " << encodingStride[1] << "," << encodingStride[2] << "," << encodingStride[3] << std::endl;
+		// }
+		return data[idx];
 	}
 	Slice<T>& operator = (T a)
 	{
@@ -257,32 +273,32 @@ struct Field:DiscreteSpace
 	tw::Float operator () (const tw::cell& cell,const tw::Int& c,const tw::Int& ax) const
 	{
 		const tw::Int idx = cell.Index(c,stride);
-		return 0.5*freq[ax-1]*( array[idx + stride[ax]] - array[idx - stride[ax]] );
+		return 0.5*freq[ax]*( array[idx + stride[ax]] - array[idx - stride[ax]] );
 	}
 	tw::Float operator () (const tw::xstrip<1>& v,const tw::Int& s,const tw::Int& c,const tw::Int& ax) const
 	{
 		const tw::Int idx = v.Index1(s,c,stride);
-		return 0.5*freq[ax-1]*( array[idx + stride[ax]] - array[idx - stride[ax]] );
+		return 0.5*freq[ax]*( array[idx + stride[ax]] - array[idx - stride[ax]] );
 	}
 	tw::Float operator () (const tw::xstrip<3>& v,const tw::Int& s,const tw::Int& c,const tw::Int& ax) const
 	{
 		const tw::Int idx = v.Index3(s,c,stride);
-		return 0.5*freq[ax-1]*( array[idx + stride[ax]] - array[idx - stride[ax]] );
+		return 0.5*freq[ax]*( array[idx + stride[ax]] - array[idx - stride[ax]] );
 	}
 	tw::Float d2(const tw::strip& strip,const tw::Int& s,const tw::Int& c,const tw::Int& ax) const
 	{
 		const tw::Int idx = strip.Index(s,c,stride);
-		return freq[ax-1]*freq[ax-1]*( array[idx - stride[ax]] - 2.0*array[idx] + array[idx + stride[ax]] );
+		return freq[ax]*freq[ax]*( array[idx - stride[ax]] - 2.0*array[idx] + array[idx + stride[ax]] );
 	}
 	tw::Float d2(const tw::xstrip<1>& v,const tw::Int& s,const tw::Int& c,const tw::Int& ax) const
 	{
 		const tw::Int idx = v.Index1(s,c,stride);
-		return freq[ax-1]*freq[ax-1]*( array[idx - stride[ax]] - 2.0*array[idx] + array[idx + stride[ax]] );
+		return freq[ax]*freq[ax]*( array[idx - stride[ax]] - 2.0*array[idx] + array[idx + stride[ax]] );
 	}
 	tw::Float d2(const tw::xstrip<3>& v,const tw::Int& s,const tw::Int& c,const tw::Int& ax) const
 	{
 		const tw::Int idx = v.Index3(s,c,stride);
-		return freq[ax-1]*freq[ax-1]*( array[idx - stride[ax]] - 2.0*array[idx] + array[idx + stride[ax]] );
+		return freq[ax]*freq[ax]*( array[idx - stride[ax]] - 2.0*array[idx] + array[idx + stride[ax]] );
 	}
 	// Unit directional offset
 	tw::Float fwd(const tw::cell& cell,const tw::Int& c,const tw::Int& ax) const
@@ -297,17 +313,17 @@ struct Field:DiscreteSpace
 	tw::Float dfwd(const tw::strip& strip,const tw::Int& s,const tw::Int& c,const tw::Int& ax) const
 	{
 		tw::Int idx = strip.Index(s,c,stride);
-		return freq[ax-1]*( array[idx + stride[ax]] - array[idx] );
+		return freq[ax]*( array[idx + stride[ax]] - array[idx] );
 	}
 	tw::Float dfwd(const tw::xstrip<3>& v,const tw::Int& s,const tw::Int& c,const tw::Int& ax) const
 	{
 		tw::Int idx = v.Index3(s,c,stride);
-		return freq[ax-1]*( array[idx + stride[ax]] - array[idx] );
+		return freq[ax]*( array[idx + stride[ax]] - array[idx] );
 	}
 	tw::Float dbak(const tw::xstrip<3>& v,const tw::Int& s,const tw::Int& c,const tw::Int& ax) const
 	{
 		tw::Int idx = v.Index3(s,c,stride);
-		return freq[ax-1]*( array[idx] - array[idx - stride[ax]] );
+		return freq[ax]*( array[idx] - array[idx - stride[ax]] );
 	}
 	tw::Float sfwd(const tw::xstrip<1>& v,const tw::Int& s,const tw::Int& c,const tw::Int& ax) const
 	{
@@ -1168,6 +1184,8 @@ template <class T>
 void Slice<T>::Resize(const Element& e,tw::Int low[4],tw::Int high[4],tw::Int ignorable[4])
 {
 	this->e = e;
+	lb[0] = low[0];
+	ub[0] = high[0];
 	lb[1] = low[1];
 	ub[1] = high[1];
 	lb[2] = low[2];

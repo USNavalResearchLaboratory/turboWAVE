@@ -18,27 +18,28 @@ zboundary = ( reflecting , reflecting )
 
 new grid
 {
-	corner = ( -64 , -0.5 , -51.2 )
-	dimensions = ( 256 , 1 , 1024 )
-	cell size = ( 0.5 , 1.0 , 0.05 )
-	decomposition = ( 2 , 1 , 2 )
+	origin = ( 0 , 0.5 , 0.5 , 1 )
+	shift = (0,0,0,0)
+	dimensions = ( 2000 , 256 , 1 , 1024 )
+	cell size = ( 0.04 , 0.5 , 1.0 , 0.05 )
+	decomposition = ( 1 , 2 , 1 , 2 )
 }
 
 new region rect 'r1'
 {
-	bounds = -40 40 -1e5 1e5 10 40
+	bounds = (-40 40 -1e5 1e5 10 40)
 	move with window = false
 }
 
 new direct electromagnetic module 'em'
 {
-	layers = 8 8 0 0 0 0
-	reflection coefficient = 1e-4 1e-4 1e-4 1e-4 1e-4 1e-4
+	layers = (8 8 0 0 0 0)
+	reflection coefficient = (1e-4 1e-4 1e-4 1e-4 1e-4 1e-4)
 }
 
 new hermite gauss for 'em'
 {
-	a = 2.5 0.0 0.0
+	a = (2.5 0.0 0.0)
 	w = 5.0
 	r0 = ( 10 , 1e5 )
 	delay = 1
@@ -49,7 +50,7 @@ new hermite gauss for 'em'
 
 new species 'e'
 {
-	particles per cell = 4 1 4 when density = 1
+	particles per cell = (4 1 4) when density = 1
 }
 
 generate uniform 'e'

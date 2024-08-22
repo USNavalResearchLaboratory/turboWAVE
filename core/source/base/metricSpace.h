@@ -41,7 +41,7 @@ struct MetricSpace:DiscreteSpace
 	~MetricSpace();
 
 private:
-	void SetTopology(Task& task,const tw::vec3& gcorner,const tw::vec3& gsize,tw::Int ghostCellLayers);
+	void SetTopology(Task& task,const tw::vec4& gcorner,const tw::vec4& gsize,tw::Int ghostCellLayers);
 	void Allocate();
 	void SetSpacings(Task& task);
 	void UpdateHulls(Task& task);
@@ -51,8 +51,8 @@ private:
 	void SetSphericalGeometry();
 public:
 	void Resize(Task& task,
-		const tw::vec3& gcorner,
-		const tw::vec3& gsize,
+		const tw::vec4& gcorner,
+		const tw::vec4& gsize,
 		tw::Int ghostCellLayers=2,
 		tw::grid::geometry geo=tw::grid::cartesian);
 	void ReadCheckpoint(std::ifstream& inFile);

@@ -98,15 +98,15 @@ void Mover::TranslationTest()
 	const tw::Float tolerance = 1e-5;
 	// Now check the motion
 	Primitive q0;
-	tw::vec4 r0(0.5*timestep(*space),Corner(*space) + tw::vec3(0*dx(*space),.01*dy(*space),0*dz(*space)));
+	tw::vec4 r0 = space->Corner() + tw::vec4(0.5*space->dx(0),0,.01*space->dx(2),0);
 	tw::vec4 p0(sqrt(2),0,0,-1);
 	tw::vec4 s0(1,0,0,0);
 	tw::Float numDens=1.0;
 	space->SetPrimitiveWithPosition(q0,r0);
-	particle->push_back(Particle(numDens,q0,p0,s0));
+	particle->push_back(Particle(numDens,q0,p0,s0,1,0.0));
 	Advance();
 	tw::vec4 x = space->PositionFromPrimitive((*particle)[0].q);
-	ASSERT_NEAR(x[3] , r0[3]-timestep(*space)/p0[0] , tolerance);
+	ASSERT_NEAR(x[3] , r0[3]-space->dx(0)/p0[0] , tolerance);
 	ASSERT_EQ((*particle)[0].number , 0.0);
 	ASSERT_EQ(transfer->size() , 1);
 	ASSERT_NEAR((*transfer)[0].number , numDens, tolerance);
@@ -157,6 +157,15 @@ bool Mover::Test(tw::Int& id)
 }
 
 void BorisMover::InitTest()
+{
+	Mover::InitTest();
+	EM = new Field;
+	sources = new Field;
+	EM->Initialize(6,*space,task);
+	sources->Initialize(4,*space,task);
+}
+
+void HCMover::InitTest()
 {
 	Mover::InitTest();
 	EM = new Field;

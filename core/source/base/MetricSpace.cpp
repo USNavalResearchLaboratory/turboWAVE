@@ -87,8 +87,8 @@ void MetricSpace::StripUpdateProtocol(cl_kernel k,cl_command_queue q,tw::Int axi
 /// The `gsize` should be the size of the hull assuming uniform spacing.
 /// It will be adjusted automatically to account for warps.
 void MetricSpace::Resize(Task& task,
-	const tw::vec3& gcorner,
-	const tw::vec3& gsize,
+	const tw::vec4& gcorner,
+	const tw::vec4& gsize,
 	tw::Int ghostCellLayers,
 	tw::grid::geometry geo)
 {
@@ -114,7 +114,7 @@ void MetricSpace::Resize(Task& task,
 }
 
 /// Setup topological information only (step 1)
-void MetricSpace::SetTopology(Task& task,const tw::vec3& gcorner,const tw::vec3& gsize,tw::Int ghostCellLayers)
+void MetricSpace::SetTopology(Task& task,const tw::vec4& gcorner,const tw::vec4& gsize,tw::Int ghostCellLayers)
 {
 	DiscreteSpace::Resize(task,gcorner,gsize,ghostCellLayers);
 
@@ -161,12 +161,9 @@ void MetricSpace::Allocate()
 /// N.b. spacings are coordinates, not arc lengths.
 void MetricSpace::SetSpacings(Task& task)
 {
-	for (tw::Int i=mlb[1];i<=mub[1];i++)
-		dX(i,1) = spacing.x;
-	for (tw::Int i=mlb[2];i<=mub[2];i++)
-		dX(i,2) = spacing.y;
-	for (tw::Int i=mlb[3];i<=mub[3];i++)
-		dX(i,3) = spacing.z;
+	for (tw::Int ax=1;ax<=3;ax++)
+		for (tw::Int i=mlb[ax];i<=mub[ax];i++)
+			dX(i,ax) = spacing[ax];
 	for (auto warp : warps)
 	{
 		tw::Int ax = tw::grid::naxis(warp->ax);
@@ -186,7 +183,7 @@ void MetricSpace::UpdateHulls(Task& task)
 	size = 0.0;
 	for (tw::Int ax=1;ax<=3;ax++)
 		for (tw::Int i=1;i<=dim[ax];i++)
-			size[ax-1] += dX(i,ax);
+			size[ax] += dX(i,ax);
 
 	// Perform message passing to determine the effect of non-uniform cell widths
 	// on the global domain size and the coordinates of the local domain corner.
@@ -194,8 +191,8 @@ void MetricSpace::UpdateHulls(Task& task)
 
 	tw::Int axis,src,dst;
 	tw::Float inData,outData;
-	tw::Float lsize[4] = { 0.0 , size.x , size.y , size.z };
-	tw::Float gcorn[4] = { 0.0 , globalCorner.x , globalCorner.y , globalCorner.z };
+	tw::Float lsize[4] = { size[0] , size[1] , size[2] , size[3] };
+	tw::Float gcorn[4] = { globalCorner[0] , globalCorner[1] , globalCorner[2] , globalCorner[3] };
 	tw::Float lcorn[4];
 	tw::Float gsize[4];
 
@@ -229,8 +226,8 @@ void MetricSpace::UpdateHulls(Task& task)
 			if (task.domainIndex[axis]!=0)
 				task.finiteStrip[axis].Send(&gsize[axis],sizeof(tw::Float),dst);
 		}
-		corner[axis-1] = lcorn[axis];
-		globalSize[axis-1] = gsize[axis];
+		corner[axis] = lcorn[axis];
+		globalSize[axis] = gsize[axis];
 	}
 }
 
@@ -239,7 +236,7 @@ void MetricSpace::SetupPositionArrays()
 {
 	for (tw::Int ax=1;ax<=3;ax++)
 	{
-		X(mlb[ax],ax) = corner[ax-1] - dX(mlb[ax]+1,ax) - 0.5*dX(mlb[ax],ax);
+		X(mlb[ax],ax) = corner[ax] - dX(mlb[ax]+1,ax) - 0.5*dX(mlb[ax],ax);
 		for (tw::Int i=mlb[ax]+1;i<=mub[ax];i++)
 			X(i,ax) = X(i-1,ax) + 0.5*dX(i-1,ax) + 0.5*dX(i,ax);
 	}

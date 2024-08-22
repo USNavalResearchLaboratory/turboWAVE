@@ -5,8 +5,6 @@
 // Suitable application of FFT should give acoustic dispersion relation
 // Typical sound speed in copper is 4600 m/s
 // (test of accuracy of Mie-Gruneisen EOS)
-steps = 100000
-timestep = 1000
 dtmax = 1500
 maxtime = 7.5e7
 dump period = 0
@@ -23,10 +21,10 @@ zboundary = ( periodic  periodic )
 
 new grid
 {
-	corner = ( -1024 , -3.1416 , -0.5 )
-	dimensions = ( 2048 , 1 , 1 )
-	cell size = ( 1 , 6.2832 , 1 )
-	decomposition = ( 1  1  1 )
+	origin = ( 0 , 0.5 , 0.5 , 0.5 )
+	dimensions = ( 100000 , 2048 , 1 , 1 )
+	cell size = ( 1000 , 1 , 1 , 1 )
+	decomposition = ( 1  1  1  1 )
 	geometry = cartesian
 	adaptive timestep = on
 }

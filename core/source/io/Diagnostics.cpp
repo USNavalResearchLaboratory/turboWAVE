@@ -435,7 +435,7 @@ PointDiagnostic::PointDiagnostic(const std::string& name,MetricSpace *ms,Task *t
 void PointDiagnostic::Field(const std::string& fieldName,const struct Field& F,const tw::Int c,tw::dims unit,const std::string& pretty)
 {
 	tw::vec4 x4(t,thePoint + vGalileo*t);
-	if (space->IsPointWithinInterior(x4.spatial())) // assumes uniform grid
+	if (space->IsPointWithinInterior(x4)) // assumes uniform grid
 	{
 		std::valarray<tw::Float> ans(1);
 		weights_3D w;
@@ -672,6 +672,8 @@ ParticleOrbits::ParticleOrbits(const std::string& name,MetricSpace *ms,Task *tsk
 	filename = "par";
 	minGamma = 1.0;
 	directives.Add("minimum gamma",new tw::input::Float(&minGamma));
+	directives.Add("nodes",new tw::input::List<std::vector<tw::Int>>(&nodes));
+	directives.Add("ids",new tw::input::List<std::vector<tw::Int>>(&ids));
 }
 
 void ParticleOrbits::Start()
@@ -731,22 +733,34 @@ void ParticleOrbits::Particle(const struct Particle& par,tw::Float m0)
 	x.zBoost(gammaBoost,1.0);
 	p.zBoost(gammaBoost,1.0);
 	tw::vec3 x3 = x.spatial();
-	if (theRgn->Inside(x3,*space))
-		if (p[0] >= m0*minGamma)
-		{
-			space->CurvilinearToCartesian(&x3);
-			x3 -= vGalileo*x[0];
-			x = tw::vec4(x[0],x3);
-			parData.push_back(x[1]);
-			parData.push_back(p[1]);
-			parData.push_back(x[2]);
-			parData.push_back(p[2]);
-			parData.push_back(x[3]);
-			parData.push_back(p[3]);
-			// TODO: support tags
-			parData.push_back(1.0);
-			parData.push_back(1.0);
-		}
+	uint64_t node = par.tag & 0xffffffff;
+	uint64_t id = par.tag >> 32;
+	if (!theRgn->Inside(x3,*space))
+		return;
+	if (p[0] < m0*minGamma)
+		return;
+	bool in_nodes = false;
+	for (auto n : nodes)
+		in_nodes |= n==node;
+	in_nodes |= nodes.size()==0;
+	bool in_ids = false;
+	for (auto i : ids)
+		in_ids |= i==id;
+	in_ids |= ids.size()==0;
+	if (!in_nodes || !in_ids)
+		return;
+	space->CurvilinearToCartesian(&x3);
+	x3 -= vGalileo*x[0]; // TODO: doesn't work?
+	x = tw::vec4(x[0],x3);
+	parData.push_back(x[1]);
+	parData.push_back(p[1]);
+	parData.push_back(x[2]);
+	parData.push_back(p[2]);
+	parData.push_back(x[3]);
+	parData.push_back(p[3]);
+	parData.push_back(par.Qparam);
+	parData.push_back(float(node));
+	parData.push_back(float(id));
 }
 
 void ParticleOrbits::ReadCheckpoint(std::ifstream& inFile)
@@ -789,7 +803,7 @@ void PhaseSpaceDiagnostic::Start()
 	{
 		std::map<tw::grid::axis,tw::dims> m = {{tw::grid::t,tw::dims::time},{tw::grid::x,tw::dims::length},{tw::grid::y,tw::dims::length},{tw::grid::z,tw::dims::length},
 			{tw::grid::mass,tw::dims::energy},{tw::grid::px,tw::dims::momentum},{tw::grid::py,tw::dims::momentum},{tw::grid::pz,tw::dims::momentum},
-			{tw::grid::g,tw::dims::none},{tw::grid::gbx,tw::dims::none},{tw::grid::gby,tw::dims::none},{tw::grid::gbz,tw::dims::none}};
+			{tw::grid::g,tw::dims::none},{tw::grid::gbx,tw::dims::none},{tw::grid::gby,tw::dims::none},{tw::grid::gbz,tw::dims::none},{tw::grid::Qp,tw::dims::none}};
 		npy_writer writer;
 		std::string xname = filename + ".npy";
 		writer.write_header(xname,dims);
@@ -804,8 +818,8 @@ void PhaseSpaceDiagnostic::Start()
 		// don't set headerWritten until end of Finish() due to grid file
 	}
 
-	tw::vec3 phaseSpaceMin(bounds[0],bounds[2],bounds[4]);
-	tw::vec3 phaseSpaceSize(bounds[1]-bounds[0],bounds[3]-bounds[2],bounds[5]-bounds[4]);
+	tw::vec4 phaseSpaceMin(0.0,bounds[0],bounds[2],bounds[4]);
+	tw::vec4 phaseSpaceSize(1.0,bounds[1]-bounds[0],bounds[3]-bounds[2],bounds[5]-bounds[4]);
 	fxp.Initialize(DiscreteSpace(dims[1],dims[2],dims[3],phaseSpaceMin,phaseSpaceSize,1),task);
 	fxp.SetBoundaryConditions(tw::grid::x,tw::bc::fld::dirichletCell,tw::bc::fld::dirichletCell);
 	fxp.SetBoundaryConditions(tw::grid::y,tw::bc::fld::dirichletCell,tw::bc::fld::dirichletCell);
@@ -881,7 +895,7 @@ void PhaseSpaceDiagnostic::Particle(const struct Particle& par,tw::Float m0)
 		std::map<tw::grid::axis,tw::Float> m =
 			{{tw::grid::t,x[0]},{tw::grid::x,x[1]},{tw::grid::y,x[2]},{tw::grid::z,x[3]},
 			{tw::grid::mass,m0*v[0]},{tw::grid::px,m0*v[1]},{tw::grid::py,m0*v[2]},{tw::grid::pz,m0*v[3]},
-			{tw::grid::g,v[0]},{tw::grid::gbx,v[1]},{tw::grid::gby,v[2]},{tw::grid::gbz,v[3]}};
+			{tw::grid::g,v[0]},{tw::grid::gbx,v[1]},{tw::grid::gby,v[2]},{tw::grid::gbz,v[3]},{tw::grid::Qp,par.Qparam}};
 		tw::vec4 q(0.0,m[ax[1]],m[ax[2]],m[ax[3]]);
 		if (dims[1]==1) q[1] = 0.5*(bounds[0]+bounds[1]);
 		if (dims[2]==1) q[2] = 0.5*(bounds[2]+bounds[3]);

@@ -191,8 +191,8 @@ struct Wave : ComputeTool
 			for (tw::Int j=0;j<yzones;j++)
 			{
 				x4p = x4;
-				x4p[1] += (i-0.5*xzones+0.5)*GlobalPhysicalSize(*space).x;
-				x4p[2] += (j-0.5*yzones+0.5)*GlobalPhysicalSize(*space).y;
+				x4p[1] += (i-0.5*xzones+0.5)*space->GlobalPhysicalSize()[1];
+				x4p[2] += (j-0.5*yzones+0.5)*space->GlobalPhysicalSize()[2];
 				A3 += PrimitiveVector(x4p);
 			}
 		tw::vec4 A4(0.0,A3);

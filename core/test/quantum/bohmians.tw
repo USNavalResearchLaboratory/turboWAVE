@@ -11,8 +11,6 @@
 unit density = 2.8e19 // only used if post-processing wants to display plasma units
 native units = atomic
 
-steps = 25000
-timestep = 0.01
 dump period = 0
 
 xboundary = ( axisymmetric , absorbing )
@@ -21,10 +19,11 @@ zboundary = ( absorbing , absorbing )
 
 new grid
 {
-	corner = ( 0 , -3.1416 , -20.48 )
-	dimensions = ( 512 , 1 , 2048 )
-	cell size = ( 0.02 , 6.2832 , 0.02 )
-	decomposition = ( 4 , 1 , 8 )
+	origin = ( 0 , 0 , 0.5 , 1 )
+	shift = (0,0,0,0)
+	dimensions = ( 25000 , 512 , 1 , 2048 )
+	cell size = ( 0.01 , 0.02 , 6.2832 , 0.02 )
+	decomposition = ( 1 , 4 , 1 , 8 )
 	geometry = cylindrical
 }
 
@@ -36,30 +35,30 @@ new schroedinger equation module 'tdse'
 	new qstate random 'random_state'
 	{
 		amplitude = ( 1.0 , 0.0 )
-		size = 5.0 5.0 5.0
+		size = (5.0 5.0 5.0)
 	}
 }
 
 new population diagnostic 'pop'
 {
-	new qstate bound '1s'
+	new qstate bound '_1s'
 	{
-		nr_j_l_m = 0.0 0.0 0.0 0.0
-		amplitude = 1.0 0.0
+		nr_j_l_m = (0.0 0.0 0.0 0.0)
+		amplitude = (1.0 0.0)
 	}
-	new qstate bound '2p'
+	new qstate bound '_2p'
 	{
-		nr_j_l_m = 0.0 1.0 1.0 0.0
-		amplitude = 1.0 0.0
+		nr_j_l_m = (0.0 1.0 1.0 0.0)
+		amplitude = (1.0 0.0)
 	}
 }
 
 new plane wave for 'tdse'
 {
-	direction = 1 0 0
-	a = 0.0 0.0 0.05
+	direction = (1 0 0)
+	a = (0.0 0.0 0.05)
 	w = 0.369
-	focus position = 0 0 0
+	focus position = (0 0 0)
 	delay = 20
 	risetime = 0.01
 	holdtime = 1e10
@@ -69,10 +68,10 @@ new plane wave for 'tdse'
 
 new plane wave for 'tdse'
 {
-	direction = 1 0 0
-	a = 0.0 0.0 -0.05
+	direction = (1 0 0)
+	a = (0.0 0.0 -0.05)
 	w = 0.0
-	focus position = 0 0 0
+	focus position = (0 0 0)
 	delay = 20
 	risetime = 0.01
 	holdtime = 1e10
@@ -82,13 +81,13 @@ new plane wave for 'tdse'
 
 new species test
 {
-	particles per cell = 4 4 1 when density = 1
+	particles per cell = (4 4 1) when density = 1
 }
 
 generate gaussian test
 {
 	density = 1.0
-	size = 1.0 1.0 1.0
+	size = (1.0 1.0 1.0)
 	// following loading conditions cause density to be commensurate with |psi|^2
 	t0 = 20.01
 	loading = statistical

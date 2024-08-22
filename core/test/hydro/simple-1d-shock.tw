@@ -7,8 +7,6 @@
 // Here, U is energy per unit length, K = 1.07 for cv*m = 2.5
 // Using parameters below R(t) = 1.86*t^1/2 in mks units
 // Mass and energy should be conserved to several digits
-steps = 1000
-timestep = 10000
 dtmax = 30000
 maxtime = 7e5
 dump period = 0
@@ -25,10 +23,11 @@ zboundary = ( periodic  periodic )
 
 new grid
 {
-	corner = ( 0 , -3.1416 , -0.5 )
-	dimensions = ( 400 , 1 , 1 )
-	cell size = ( 2 , 6.2832 , 1 )
-	decomposition = ( 1  1  1 )
+	origin = ( 0 , 0 , 0.5 , 0.5 )
+	shift = (0,0,0,0)
+	dimensions = ( 1000 , 400 , 1 , 1 )
+	cell size = ( 10000 , 2 , 6.2832 , 1 )
+	decomposition = ( 1  1  1  1 )
 	geometry = cylindrical
 	adaptive timestep = on
 }

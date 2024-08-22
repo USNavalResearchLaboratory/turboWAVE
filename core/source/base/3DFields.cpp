@@ -1150,13 +1150,13 @@ void AddMulFieldData(Field& dst,const Element& e_dst,Field& src,const Element& e
 tw::Float ScalarField::AxialEigenvalue(tw::Int z)
 {
 	// eigenvalues for sine and cosine transforms are the same
-	return eigenvalue_FST(task->GlobalCellIndex(z,3)-1,task->globalCells[3],freq.z);
+	return eigenvalue_FST(task->GlobalCellIndex(z,3)-1,task->globalCells[3],freq[3]);
 }
 
 tw::Float ScalarField::Eigenvalue(tw::Int x,tw::Int y)
 {
 	// eigenvalues for sine and cosine transforms are the same
-	return eigenvalue_FST(task->GlobalCellIndex(x,1)-1,task->globalCells[1],freq.x) + eigenvalue_FST(task->GlobalCellIndex(y,2)-1,task->globalCells[2],freq.y);
+	return eigenvalue_FST(task->GlobalCellIndex(x,1)-1,task->globalCells[1],freq[1]) + eigenvalue_FST(task->GlobalCellIndex(y,2)-1,task->globalCells[2],freq[2]);
 }
 
 tw::Float ScalarField::CyclicEigenvalue(tw::Int x,tw::Int y)
@@ -1165,12 +1165,12 @@ tw::Float ScalarField::CyclicEigenvalue(tw::Int x,tw::Int y)
 	x = task->GlobalCellIndex(x,1);
 	y = task->GlobalCellIndex(y,2);
 
-	ans = eigenvalue_RFFT(x-1,task->globalCells[1],freq.x);
+	ans = eigenvalue_RFFT(x-1,task->globalCells[1],freq[1]);
 
 	if (x==1 || x==2)
-		ans += eigenvalue_RFFT(y-1,task->globalCells[2],freq.y);
+		ans += eigenvalue_RFFT(y-1,task->globalCells[2],freq[2]);
 	else
-		ans += eigenvalue_CFFT(y-1,task->globalCells[2],freq.y);
+		ans += eigenvalue_CFFT(y-1,task->globalCells[2],freq[2]);
 
 	return ans;
 }
@@ -1182,17 +1182,17 @@ tw::Float ScalarField::CyclicEigenvalue(tw::Int x,tw::Int y,tw::Int z)
 	y = task->GlobalCellIndex(y,2);
 	z = task->GlobalCellIndex(z,3);
 
-	ans = eigenvalue_RFFT(x-1,task->globalCells[1],freq.x);
+	ans = eigenvalue_RFFT(x-1,task->globalCells[1],freq[1]);
 
 	if (x==1 || x==2)
-		ans += eigenvalue_RFFT(y-1,task->globalCells[2],freq.y);
+		ans += eigenvalue_RFFT(y-1,task->globalCells[2],freq[2]);
 	else
-		ans += eigenvalue_CFFT(y-1,task->globalCells[2],freq.y);
+		ans += eigenvalue_CFFT(y-1,task->globalCells[2],freq[2]);
 
 	if ((x==1 || x==2) && (y==1 || y==2))
-		ans += eigenvalue_RFFT(z-1,task->globalCells[3],freq.z);
+		ans += eigenvalue_RFFT(z-1,task->globalCells[3],freq[3]);
 	else
-		ans += eigenvalue_CFFT(z-1,task->globalCells[3],freq.z);
+		ans += eigenvalue_CFFT(z-1,task->globalCells[3],freq[3]);
 
 	return ans;
 }
@@ -1423,7 +1423,7 @@ tw::Float ComplexField::CyclicEigenvalue(tw::Int x,tw::Int y)
 {
 	x = task->GlobalCellIndex(x,1);
 	y = task->GlobalCellIndex(y,2);
-	return eigenvalue_CFFT(x-1,task->globalCells[1],freq.x) + eigenvalue_CFFT(y-1,task->globalCells[2],freq.y);
+	return eigenvalue_CFFT(x-1,task->globalCells[1],freq[1]) + eigenvalue_CFFT(y-1,task->globalCells[2],freq[2]);
 }
 
 tw::Float ComplexField::CyclicEigenvalue(tw::Int x,tw::Int y,tw::Int z)
@@ -1431,7 +1431,7 @@ tw::Float ComplexField::CyclicEigenvalue(tw::Int x,tw::Int y,tw::Int z)
 	x = task->GlobalCellIndex(x,1);
 	y = task->GlobalCellIndex(y,2);
 	z = task->GlobalCellIndex(z,3);
-	return eigenvalue_CFFT(x-1,task->globalCells[1],freq.x) + eigenvalue_CFFT(y-1,task->globalCells[2],freq.y) + eigenvalue_CFFT(z-1,task->globalCells[3],freq.z);
+	return eigenvalue_CFFT(x-1,task->globalCells[1],freq[1]) + eigenvalue_CFFT(y-1,task->globalCells[2],freq[2]) + eigenvalue_CFFT(z-1,task->globalCells[3],freq[3]);
 }
 
 void ComplexField::TransverseFFT()

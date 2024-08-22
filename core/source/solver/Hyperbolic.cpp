@@ -108,7 +108,6 @@ void YeePropagatorPML::AdvanceE(Field& A,Field& PMLx,Field& PMLy,Field& PMLz,Fie
 	//const tw::Int yDim = A.Dim(2);
 	const tw::Int zDim = A.Dim(3);
 
-	const tw::vec3 freq(dxi(*space),dyi(*space),dzi(*space));
 	tw::Float sx,tx,sy,ty;
 	std::valarray<tw::Float> sz(space->Num(3)),tz(space->Num(3));
 	PMLz.GetStrip(sz,tw::strip(1,PMLz,0,0,0),0);
@@ -149,8 +148,6 @@ void YeePropagatorPML::AdvanceB(Field& A,Field& PMLx,Field& PMLy,Field& PMLz)
 	const tw::Int xN1 = A.UNG(1);
 	const tw::Int yN1 = A.UNG(2);
 	const tw::Int zN1 = A.UNG(3);
-
-	const tw::vec3 freq(dxi(*space),dyi(*space),dzi(*space));
 
 	tw::Float sx,tx,sy,ty;
 	std::valarray<tw::Float> sz(space->Num(3)),tz(space->Num(3));
@@ -226,7 +223,7 @@ void YeePropagatorPML::UpdateExteriorBoundary(Field& A,Field& PMLx,Field& PMLy,F
 	const tw::Int yDim = A.Dim(2);
 	const tw::Int zDim = A.Dim(3);
 
-	const tw::vec3 freq(dxi(*space),dyi(*space),dzi(*space));
+	const tw::vec3 freq(space->dk(1),space->dk(2),space->dk(3));
 
 	tw::Int i,j,k;
 

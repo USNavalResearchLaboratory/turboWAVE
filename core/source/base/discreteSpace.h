@@ -22,26 +22,26 @@ namespace tw
 	namespace grid
 	{
 		enum geometry {cartesian,cylindrical,spherical};
-		enum axis { t,x,y,z,mass,px,py,pz,g,gbx,gby,gbz }; // (x,y,z) map to (r,phi,z) or (r,phi,theta) in cases of curvilinear geometry
+		enum axis { t,x,y,z,mass,px,py,pz,g,gbx,gby,gbz,Qp }; // (x,y,z) map to (r,phi,z) or (r,phi,theta) in cases of curvilinear geometry
 		enum side { low , high };
 		inline std::map<std::string,axis> axis_map()
 		{
-			return {{"t",t},{"x",x},{"y",y},{"z",z},{"mass",mass},{"px",px},{"py",py},{"pz",pz},{"g",g},{"gbx",gbx},{"gby",gby},{"gbz",gbz}};
+			return {{"t",t},{"x",x},{"y",y},{"z",z},{"mass",mass},{"px",px},{"py",py},{"pz",pz},{"g",g},{"gbx",gbx},{"gby",gby},{"gbz",gbz},{"Qp",Qp}};
 		}
 		inline std::string pretty_axis_label(const tw::grid::axis& axis)
 		{
-			std::map<tw::grid::axis,std::string> m = {{t,"$t$"},{x,"$x$"},{y,"$y$"},{z,"$z$"},{mass,"$\\gamma m$"},{px,"$p_x$"},{py,"$p_y$"},{pz,"$p_z$"},{g,"$\\gamma$"},{gbx,"$\\gamma\\beta_x$"},{gby,"$\\gamma\\beta_y$"},{gbz,"$\\gamma\\beta_z$"}};
+			std::map<tw::grid::axis,std::string> m = {{t,"$t$"},{x,"$x$"},{y,"$y$"},{z,"$z$"},{mass,"$\\gamma m$"},{px,"$p_x$"},{py,"$p_y$"},{pz,"$p_z$"},{g,"$\\gamma$"},{gbx,"$\\gamma\\beta_x$"},{gby,"$\\gamma\\beta_y$"},{gbz,"$\\gamma\\beta_z$"},{Qp,"$\\chi$"}};
 			return m[axis];
 		}
 		inline tw::Int naxis(const tw::grid::axis& axis)
 		{
-			std::map<tw::grid::axis,tw::Int> M = {{t,0},{x,1},{y,2},{z,3},{mass,4},{px,5},{py,6},{pz,7},{g,8},{gbx,9},{gby,10},{gbz,11}};
+			std::map<tw::grid::axis,tw::Int> M = {{t,0},{x,1},{y,2},{z,3},{mass,4},{px,5},{py,6},{pz,7},{g,8},{gbx,9},{gby,10},{gbz,11},{Qp,12}};
 			return M[axis];
 		}
 
 		inline axis enumaxis(tw::Int ax)
 		{
-			std::map<tw::Int,axis> M = {{0,y},{1,x},{2,y},{3,z},{4,mass},{5,px},{6,py},{7,pz},{8,g},{9,gbx},{10,gby},{11,gbz}};
+			std::map<tw::Int,axis> M = {{0,y},{1,x},{2,y},{3,z},{4,mass},{5,px},{6,py},{7,pz},{8,g},{9,gbx},{10,gby},{11,gbz},{12,Qp}};
 			return M[ax];
 		}
 	}
@@ -82,10 +82,12 @@ struct Particle
 	float number; ///< particles per macroparticle divided by \f$n_0(c/wp)^3\f$
 	Primitive q; ///< abstraction for the spatial coordinate
 	tw::vec4 p; ///< momentum , always known in Cartesian coordinates
-	tw::vec4 s; //< polarization, always known in Cartesian coordinates
+	tw::vec4 s; ///< polarization, always known in Cartesian coordinates
+	uint64_t tag; ///< unique identifier, low 32 bits is the node of origin
+	tw::Float Qparam; //< quantum parameter
 
 	/// Constructor, parameters shadow the member variables
-	Particle(const float number,const Primitive& q,const tw::vec4& p,const tw::vec4& s) noexcept;
+	Particle(const float number,const Primitive& q,const tw::vec4& p,const tw::vec4& s,const uint64_t tag,const tw::Float& Qparam) noexcept;
 	void ReadCheckpoint(std::ifstream& inFile);
 	void WriteCheckpoint(std::ofstream& outFile);
 
@@ -108,7 +110,9 @@ struct TransferParticle
 	tw::Int ijk[4]; ///< topological indices referenced on the source node
 	float x[4]; ///< for transfers, the relative cell position can be kept without change
 	tw::vec4 p; ///< for tansfers, momentum can be kept unchanged
-	tw::vec4 s; //< for transfers, polarization can be kept unchanged
+	tw::vec4 s; ///< for transfers, polarization can be kept unchanged
+	uint64_t tag; ///< for transfers, tag can be kept unchanged
+	tw::Float Qparam; //< for transfers, quantum parameter can be kept unchanged
 };
 
 /// Used to create sorting map within a thread for subsets of particle lists
@@ -167,15 +171,12 @@ struct DiscreteSpace : Testable
 {
 	protected:
 
-	tw::Float dt; ///< timestep
-	tw::Float dth; ///< half timestep
-	tw::Float dti; ///< inverse timestep
-	tw::vec3 corner; ///< position where all coordinates are minimized on the local domain
-	tw::vec3 size; ///< length of the local domain along each axis
-	tw::vec3 globalCorner; ///< position where all coordinates are minimized on the global domain
-	tw::vec3 globalSize; ///< length of the global domain along each axis
-	tw::vec3 spacing; ///< center-to-center cell separation along each axis (uniform grids only)
-	tw::vec3 freq; ///< inverse of spacing component by component (uniform grids only)
+	tw::vec4 corner; ///< position where all coordinates are minimized on the local domain
+	tw::vec4 size; ///< length of the local domain along each axis
+	tw::vec4 globalCorner; ///< position where all coordinates are minimized on the global domain
+	tw::vec4 globalSize; ///< length of the global domain along each axis
+	tw::vec4 spacing; ///< center-to-center cell separation along each axis (uniform grids only)
+	tw::vec4 freq; ///< inverse of spacing component by component (uniform grids only)
 	/// `dim[1..3]` are the number of cells along each axis.
 	/// When a `Field` is derived, `dim[0]` becomes the number of components.
 	tw::Int dim[4];
@@ -200,13 +201,13 @@ struct DiscreteSpace : Testable
 	/// Create an empty `DiscreteSpace`
 	DiscreteSpace();
 	/// Create a `DiscreteSpace` with purely *local* coordinates.
-	DiscreteSpace(tw::Int xDim,tw::Int yDim,tw::Int zDim,const tw::vec3& corner,const tw::vec3& size,tw::Int ghostCellLayers=2);
+	DiscreteSpace(tw::Int xDim,tw::Int yDim,tw::Int zDim,const tw::vec4& corner,const tw::vec4& size,tw::Int ghostCellLayers=2);
 	/// Change the topology and coordinates.
-	void Resize(const tw::Int dim[4],const tw::Int gdim[4],const tw::Int dom[4],const tw::vec3& gcorner,const tw::vec3& gsize,tw::Int ghostCellLayers=2);
+	void Resize(const tw::Int dim[4],const tw::Int gdim[4],const tw::Int dom[4],const tw::vec4& gcorner,const tw::vec4& gsize,tw::Int ghostCellLayers=2);
 	/// Change the coordinates, inheriting the `Task` topology.
-	void Resize(Task& task,const tw::vec3& gcorner,const tw::vec3& gsize,tw::Int ghostCellLayers=2);
+	void Resize(Task& task,const tw::vec4& gcorner,const tw::vec4& gsize,tw::Int ghostCellLayers=2);
 	/// Change the time step.  Use `Simulation::UpdateTimestep` to do this for all modules.
-	void SetupTimeInfo(tw::Float dt0) { dt = dt0; dth = 0.5*dt0; dti = 1.0/dt0; }
+	void SetupTimeInfo(tw::Float dt0) { spacing[0] = dt0; freq[0] = 1.0/dt0; }
 	/// Encode the cell with topological indices `(n,i,j,k)`
 	tw::Int EncodeCell(tw::Int n,tw::Int i,tw::Int j,tw::Int k) const {
 		return (n-lfg[0])*encodingStride[0] + (i-lfg[1])*encodingStride[1] + (j-lfg[2])*encodingStride[2] + (k-lfg[3])*encodingStride[3];
@@ -244,20 +245,14 @@ struct DiscreteSpace : Testable
 	tw::Int UNG(const tw::Int& ax) const { return ung[ax]; }
 	tw::Int LFG(const tw::Int& ax) const { return lfg[ax]; }
 	tw::Int UFG(const tw::Int& ax) const { return ufg[ax]; }
-	tw::Float dx0(const tw::Int& ax) const { return spacing[ax-1]; }
-	friend tw::Float timestep(const DiscreteSpace& A) { return A.dt; }
-	friend tw::Float dx(const DiscreteSpace& A)  { return A.spacing.x; }
-	friend tw::Float dy(const DiscreteSpace& A)  { return A.spacing.y; }
-	friend tw::Float dz(const DiscreteSpace& A)  { return A.spacing.z; }
-	friend tw::Float dxi(const DiscreteSpace& A)  { return A.freq.x; }
-	friend tw::Float dyi(const DiscreteSpace& A)  { return A.freq.y; }
-	friend tw::Float dzi(const DiscreteSpace& A)  { return A.freq.z; }
-	friend tw::vec3 PhysicalSize(const DiscreteSpace& A)  { return A.size; }
-	friend tw::vec3 GlobalPhysicalSize(const DiscreteSpace& A)  { return A.globalSize; }
-	friend tw::vec3 Corner(const DiscreteSpace& A) { return A.corner; }
-	friend tw::vec3 GlobalCorner(const DiscreteSpace& A)  { return A.globalCorner; }
+	tw::Float dx(const tw::Int& ax) const { return spacing[ax]; }
+	tw::Float dk(const tw::Int& ax) const { return freq[ax]; }
+	tw::vec4 PhysicalSize() { return size; }
+	tw::vec4 GlobalPhysicalSize() { return globalSize; }
+	tw::vec4 Corner() { return corner; }
+	tw::vec4 GlobalCorner() { return globalCorner; }
 	bool IsRefCellWithin(const Primitive& q,tw::Int inset) const;
-	bool IsPointWithinInterior(const tw::vec3& P);
+	bool IsPointWithinInterior(const tw::vec4& P);
 	tw::Int Dimensionality();
 	bool PowersOfTwo();
 	bool TransversePowersOfTwo();
@@ -287,10 +282,10 @@ inline bool DiscreteSpace::IsRefCellWithin(const Primitive& q,tw::Int inset) con
 	return ans;
 }
 
-inline bool DiscreteSpace::IsPointWithinInterior(const tw::vec3& P)
+inline bool DiscreteSpace::IsPointWithinInterior(const tw::vec4& P)
 {
-	const tw::vec3 PLoc = P - corner;
-	return (PLoc.x>=0.0 && PLoc.x<size.x && PLoc.y>=0.0 && PLoc.y<size.y && PLoc.z>=0.0 && PLoc.z<size.z);
+	const tw::vec4 PLoc = P - corner;
+	return PLoc[1]>=0.0 && PLoc[1]<size[1] && PLoc[2]>=0.0 && PLoc[2]<size[2] && PLoc[3]>=0.0 && PLoc[3]<size[3];
 }
 
 inline tw::Int DiscreteSpace::Dimensionality()
@@ -321,24 +316,21 @@ inline tw::vec4 DiscreteSpace::PositionFromPrimitive(const Primitive& q) const
 {
 	tw::Int ijk[4];
 	tw::vec4 ans;
-	const tw::vec4 dx(dt,spacing);
-	const tw::vec4 x0(0.0,corner);
 	DecodeCell(q,ijk);
 	for (tw::Int i=0;i<4;i++)
-		ans[i] = x0[i] + dx[i] * (tw::Float(q.x[i]) + tw::Float(ijk[i]) - tw::Float(0.5));
+		ans[i] = corner[i] + spacing[i] * (tw::Float(q.x[i]) + tw::Float(ijk[i]) - tw::Float(0.5));
 	return ans;
 }
 
 inline void DiscreteSpace::SetPrimitiveWithPosition(Primitive& q,const tw::vec4& P) const
 {
 	tw::Int ijk[4];
-	const tw::vec4 k4(dti,freq);
-	const tw::vec4 PLoc(P - tw::vec4(0.0,corner));
+	const tw::vec4 PLoc(P - corner);
 	for (tw::Int i=0;i<4;i++)
-		ijk[i] = tw::Int(floor(PLoc[i]*k4[i])) + 1;
+		ijk[i] = tw::Int(floor(PLoc[i]*freq[i])) + 1;
 	q.cell = EncodeCell(ijk[0],ijk[1],ijk[2],ijk[3]);
 	for (tw::Int i=0;i<4;i++)
-		q.x[i] = PLoc[i]*k4[i] - tw::Float(ijk[i]) + tw::Float(0.5);
+		q.x[i] = PLoc[i]*freq[i] - tw::Float(ijk[i]) + tw::Float(0.5);
 }
 
 /// Bundle version of `MinimizePrimitive`.  The bundle version also sets the `domainMask` to 0

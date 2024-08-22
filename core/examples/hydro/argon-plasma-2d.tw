@@ -4,8 +4,6 @@
 // SPARC input file to model relaxation of a 2D axisymmetric Argon plasma
 // if you want electrostatic field, set plasma model = quasineutral
 // This also demonstrates grid warps that push all boundaries further away.
-steps = 3000
-timestep = 0.1 [ns]
 dtmax = 1 [ns]
 dump period = 0
 moving window = no
@@ -22,10 +20,11 @@ zboundary = ( absorbing  absorbing )
 
 new grid
 {
-	corner = ( 0.0 , -3.1416 , -1000.0 )
-	dimensions = ( 60 1 120 )
-	cell size = ( 0.5 6.2832 0.5 )
-	decomposition = ( 2  1  4 )
+	origin = ( 0, 0, 0.5, 0 )
+	shift = ( 0, 0, 0, -1000 )
+	dimensions = ( 3000, 60, 1, 120 )
+	cell size = ( 0.01 [ns], 0.5, 6.2832, 0.5 )
+	decomposition = ( 1, 2, 1, 4 )
 	geometry = cylindrical
 	adaptive timestep = on
 }

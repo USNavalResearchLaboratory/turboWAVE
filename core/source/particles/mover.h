@@ -46,6 +46,13 @@ struct BorisMover:Mover
 	virtual void InitTest();
 };
 
+struct HCMover:Mover
+{
+	HCMover(const std::string& name,MetricSpace *m,Task *tsk): Mover(name,m,tsk) {}
+	virtual void Advance();
+	virtual void InitTest();
+};
+
 struct UnitaryMover:Mover
 {
 	UnitaryMover(const std::string& name,MetricSpace *m,Task *tsk): Mover(name,m,tsk) {}
@@ -89,6 +96,18 @@ struct BundleMoverBoris2D : BundleTilerEM2D,BundlePusherBoris
 struct BundleMoverBoris3D : BundleTilerEM3D,BundlePusherBoris
 {
 	BundleMoverBoris3D(Mover *owner) : ParticleBundle(owner), BundleTilerEM3D(owner), BundlePusherBoris(owner) {}
+	void Move(tw::Float dts);
+};
+
+struct BundleMoverHC2D : BundleTilerEM2D,BundlePusherHC
+{
+	BundleMoverHC2D(Mover *owner) : ParticleBundle(owner), BundleTilerEM2D(owner), BundlePusherHC(owner) {}
+	void Move(tw::Float dts);
+};
+
+struct BundleMoverHC3D : BundleTilerEM3D,BundlePusherHC
+{
+	BundleMoverHC3D(Mover *owner) : ParticleBundle(owner), BundleTilerEM3D(owner), BundlePusherHC(owner) {}
 	void Move(tw::Float dts);
 };
 

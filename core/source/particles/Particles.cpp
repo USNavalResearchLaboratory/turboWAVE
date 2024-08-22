@@ -259,13 +259,13 @@ void Kinetics::Ionize()
 					a2 = Fp[6];
 					w0 = *species[s]->carrierFrequency;
 					if (theLaserSolver->polarizationType==circularPolarization)
-						probability += dt*ionizer->InstantRate(w0,w0*sqrt(0.5*a2));
+						probability += this->dx(0)*ionizer->InstantRate(w0,w0*sqrt(0.5*a2));
 					else
-						probability += dt*ionizer->AverageRate(w0,w0*sqrt(a2));
+						probability += this->dx(0)*ionizer->AverageRate(w0,w0*sqrt(a2));
 				}
 				species[s]->EM->Interpolate(temp,Element(0,2),weights);
 				E.x = temp[0]; E.y = temp[1]; E.z = temp[2];
-				probability += dt*ionizer->InstantRate(1e-6,Magnitude(E));
+				probability += this->dx(0)*ionizer->InstantRate(1e-6,Magnitude(E));
 				gamma = sqrt(sqr(curr.p[0]/m0) + 0.5*sqr(q0/m0)*a2);
 				// Starting velocity is that of the neutral
 				vel = curr.p.spatial()/(gamma*m0);
@@ -274,7 +274,7 @@ void Kinetics::Ionize()
 					momentum = s1->restMass*gamma*vel;
 					if (theLaserSolver)
 						momentum += theLaserSolver->GetIonizationKick(a2,s1->charge,s1->restMass);
-					s1->AddParticle(curr.number,curr.q,tw::vec4(gamma*s1->restMass,momentum),tw::vec4(0.0));
+					s1->AddParticle(curr.number,curr.q,tw::vec4(gamma*s1->restMass,momentum),tw::vec4(0.0),0.0);
 
 					// For the electron, account for depletion of the field due to ionization energy.
 					// This comes from a displacement satisfying dr.QE = dU, where dU = ionization energy.
@@ -285,7 +285,7 @@ void Kinetics::Ionize()
 					momentum = s2->restMass*gamma*vel;
 					if (theLaserSolver)
 						momentum += theLaserSolver->GetIonizationKick(a2,s2->charge,s2->restMass);
-					s2->AddParticle(curr.number,curr.q,tw::vec4(gamma*s2->restMass,momentum),tw::vec4(0.0));
+					s2->AddParticle(curr.number,curr.q,tw::vec4(gamma*s2->restMass,momentum),tw::vec4(0.0),0.0);
 
 					// Throw away the neutral
 					particle[i] = particle.back();
@@ -347,18 +347,18 @@ void Kinetics::ProcessQED()
 				B.x = temp[3]; B.y = temp[4]; B.z = temp[5];
 
 				// Calculate fermion quantum parameter
-				eta = prefactor*gamma*sqrt(Norm((cgs::c)*E + (vel|B)) - sqr(vel^E));
+				part.Qparam = prefactor*gamma*sqrt(Norm((cgs::c)*E + (vel|B)) - sqr(vel^E));
 
 				// Calculate instantaneous photo-emission rate & probability
-				rate = qed->CalculateRate(eta,gamma);
-				probability = rate*dt;
+				rate = qed->CalculateRate(part.Qparam,gamma);
+				probability = rate*this->dx(0);
 
 				// Generate a photon if the emission criterion is satisfied
 				if (probability > owner->uniformDeviate->Next())
 				{
 					do {
 						Py = owner->uniformDeviate->Next();
-						chi = qed->NewQParameter(eta,Py);
+						chi = qed->NewQParameter(part.Qparam,Py);
 					} while (chi < 0.0f);
 
 					k3u = part.p.spatial();
@@ -374,18 +374,24 @@ void Kinetics::ProcessQED()
 						for (int n=1;n<4;n++)
 							k4[n] = energy*k3u[n-1];
 
-						s1->AddParticle(part.number,part.q,k4,tw::vec4(0.0));
+						s1->AddParticle(part.number,part.q,k4,tw::vec4(0.0),chi);
 
 						// Update fermion momentum (radiation damping)
 						part.p -= k4;
 						part.p[0] = sqrt(sqr(s1->restMass) + Norm(part.p.spatial()));
+
+						// Update fermion quantum parameter
+						gamma = sqrt(1.0 + Norm(part.p.spatial()));
+						vel = part.p.spatial()/gamma/species[s]->restMass;
+						for (tw::Int n=0;n<3;n++)
+							vel[n] = vel[n] * tw::dims::velocity >> native >> cgs;
+						part.Qparam = prefactor*gamma*sqrt(Norm((cgs::c)*E + (vel|B)) - sqr(vel^E));
 					}
 				}
 			}
 		}
 
 		// Pair creation
-
 		if (qed!=NULL && !qed->electron_name.empty() && !qed->positron_name.empty())
 		{
 			std::vector<Particle>& photon = species[s]->particle;
@@ -414,26 +420,41 @@ void Kinetics::ProcessQED()
 				B.x = temp[3]; B.y = temp[4]; B.z = temp[5];
 
 				// Calculate photon quantum parameter
-				chi = prefactor*(cgs::hbar/cgs::me/2.0)*(omega/cgs::c);
-				chi *= sqrt(Norm(E + (k3u|B)) - sqr(k3u^E));
+				part.Qparam = prefactor*(cgs::hbar/cgs::me/2.0)*(omega/cgs::c);
+				part.Qparam *= sqrt(Norm(E + (k3u|B)) - sqr(k3u^E));
 
 				// Calculate instantaneous pair-creation rate & probability
-				rate = qed->CalculateRate(chi,cgs::hbar*omega);
-				probability = rate*dt;
+				rate = qed->CalculateRate(part.Qparam,cgs::hbar*omega);
+				probability = rate*this->dx(0);
 
 				// Generate an electron-positron pair if the emission criterion is satisfied
 				if (probability > owner->uniformDeviate->Next())
 				{
 					do {
 						Pf = owner->uniformDeviate->Next();
-						frac = qed->NewQParameter(chi,Pf);
+						frac = qed->NewQParameter(part.Qparam,Pf);
 					} while (frac < 0.0f);
 
 					tw::vec4 p4a = frac*part.p;
 					tw::vec4 p4b = (1.0f-frac)*part.p;
 
-					s1->AddParticle(part.number,part.q,p4a,tw::vec4(0.0));
-					s2->AddParticle(part.number,part.q,p4b,tw::vec4(0.0));
+					// calculate fermion 1 quantum parameter
+					gamma = sqrt(1.0 + Norm(p4a.spatial()));
+					vel = p4a.spatial()/gamma;
+					for (tw::Int n=0;n<3;n++)
+						vel[n] = vel[n] * tw::dims::velocity >> native >> cgs;
+					eta = prefactor*gamma*sqrt(Norm((cgs::c)*E + (vel|B)) - sqr(vel^E));
+					// create fermion 1
+					s1->AddParticle(part.number,part.q,p4a,tw::vec4(0.0),eta);
+
+					// calculate fermion 2 quantum parameter
+					gamma = sqrt(1.0 + Norm(p4b.spatial()));
+					vel = p4b.spatial()/gamma;
+					for (tw::Int n=0;n<3;n++)
+						vel[n] = vel[n] * tw::dims::velocity >> native >> cgs;
+					eta = prefactor*gamma*sqrt(Norm((cgs::c)*E + (vel|B)) - sqr(vel^E));
+					// create fermion 2
+					s2->AddParticle(part.number,part.q,p4b,tw::vec4(0.0),eta);
 
 					// Mark the parent photon for annihilation
 					photon[i].number = 0.0;
@@ -502,12 +523,14 @@ void Kinetics::WriteCheckpoint(std::ofstream& outFile)
 ////////////////////
 
 
-Particle::Particle(const float number,const Primitive& q,const tw::vec4& p,const tw::vec4& s) noexcept
+Particle::Particle(const float number,const Primitive& q,const tw::vec4& p,const tw::vec4& s,const uint64_t tag,const tw::Float& Qparam) noexcept
 {
 	this->number = number;
 	this->q = q;
 	this->p = p;
 	this->s = s;
+	this->tag = tag;
+	this->Qparam = Qparam;
 }
 
 void Particle::ReadCheckpoint(std::ifstream& inFile)
@@ -537,6 +560,7 @@ Species::Species(const std::string& name,Simulation* sim) : Module(name,sim)
 	minimumDensity = 0.0;
 	targetDensity = 1.0;
 	accelerationTime = accelerationImpulse = accelerationForceNow = 0.0;
+	numberCreated = 0.0;
 	meanFreePath = 0.0; // means infinity
 	count = 1;
 	sortPeriod = 10;
@@ -698,10 +722,11 @@ bool Species::InspectResource(void* resource,const std::string& description)
 	return false;
 }
 
-void Species::AddParticle(const float& number,const Primitive& q,const tw::vec4& p,const tw::vec4& s)
+void Species::AddParticle(const float& number,const Primitive& q,const tw::vec4& p,const tw::vec4& s,const tw::Float& Qparam)
 {
-	particle.emplace_back(number,q,p,s);
-	count++; // formerly used for tagging, not used as of this writing
+	numberCreated += number;
+	count++;
+	particle.emplace_back(number,q,p,s,(count << 32) + owner->strip[0].Get_rank(),Qparam);
 }
 
 /// @brief Add the transfer particle to the final destination's particle list
@@ -729,7 +754,7 @@ void Species::AddParticle(const TransferParticle& xfer)
 	}
 	tw::Int cell = EncodeCell(ijk[0],ijk[1],ijk[2],ijk[3]);
 	Primitive q(cell,x[0],x[1],x[2],x[3]);
-	particle.emplace_back(xfer.number,q,xfer.p,xfer.s);
+	particle.emplace_back(xfer.number,q,xfer.p,xfer.s,xfer.tag,xfer.Qparam);
 	// don't update count because the transfer particle already has its identifier in aux1 and aux2
 }
 
@@ -1081,7 +1106,7 @@ tw::Float Species::AddDensity(const LoadingData& theData)
 		q.cell = EncodeCell(theData.timeLevel,theData.cell.dcd1(),theData.cell.dcd2(),theData.cell.dcd3());
 		const tw::vec4 x = PositionFromPrimitive(q);
 		const tw::Float N = theData.GeometryFactor(x[1],cellCenter.x)*particleDensity*cellVolume;
-		AddParticle(N,q,p,tw::vec4(0.0));
+		AddParticle(N,q,p,tw::vec4(0.0),0.0);
 		DepositInitialCharge(x,N*charge);
 	}
 
@@ -1136,7 +1161,7 @@ tw::Float Species::AddDensityRandom(const LoadingData& theData)
 		q.cell = EncodeCell(theData.timeLevel,theData.cell.dcd1(),theData.cell.dcd2(),theData.cell.dcd3());
 		const tw::vec4 x = PositionFromPrimitive(q);
 		const tw::Float N = theData.GeometryFactor(x[1],cellCenter.x)*particleDensity*cellVolume;
-		AddParticle(N,q,p,tw::vec4(0.0));
+		AddParticle(N,q,p,tw::vec4(0.0),0.0);
 		DepositInitialCharge(x,N*charge);
 	}
 
@@ -1212,6 +1237,7 @@ void Species::ReadInputFileDirective(std::stringstream& inputString,const std::s
 void Species::ReadCheckpoint(std::ifstream& inFile)
 {
 	Module::ReadCheckpoint(inFile);
+	inFile.read((char *)&numberCreated,sizeof(tw::Float));
 	inFile.read((char *)&accelerationForceNow,sizeof(tw::Float));
 	inFile.read((char *)&count,sizeof(tw::Int));
 
@@ -1221,7 +1247,7 @@ void Species::ReadCheckpoint(std::ifstream& inFile)
 	inFile.read((char *)&num,sizeof(tw::Int));
 	for (tw::Int i=0;i<num;i++)
 	{
-		particle.emplace_back(0.0,Primitive(0,0.0,0.0,0.0,0.0),tw::vec4(0.0),tw::vec4(0.0));
+		particle.emplace_back(0.0,Primitive(0,0.0,0.0,0.0,0.0),tw::vec4(0.0),tw::vec4(0.0),1,0.0);
 		particle.back().ReadCheckpoint(inFile);
 	}
 }
@@ -1229,6 +1255,7 @@ void Species::ReadCheckpoint(std::ifstream& inFile)
 void Species::WriteCheckpoint(std::ofstream& outFile)
 {
 	Module::WriteCheckpoint(outFile);
+	outFile.write((char *)&numberCreated,sizeof(tw::Float));
 	outFile.write((char *)&accelerationForceNow,sizeof(tw::Float));
 	outFile.write((char *)&count,sizeof(tw::Int));
 
@@ -1293,6 +1320,30 @@ void Species::CalculateEnergyDensity(ScalarField& dens)
 	dens.Smooth(*owner,smoothing,compensation);
 }
 
+void Species::CalculateQuantumParameter(ScalarField& dens)
+{
+	Primitive q;
+	weights_3D w;
+	dens.Initialize(*this,owner);
+	for (auto par : particle)
+	{
+		if (RefCellInDomain(par.q))
+		{
+			dens.GetWeights(&w,par.q);
+			dens.InterpolateOnto(par.number*par.Qparam,w);
+		}
+	}
+	transfer.clear();
+	dens.SetBoundaryConditions(tw::grid::x,fld::dirichletCell,fld::dirichletCell);
+	dens.SetBoundaryConditions(tw::grid::y,fld::dirichletCell,fld::dirichletCell);
+	dens.SetBoundaryConditions(tw::grid::z,fld::dirichletCell,fld::dirichletCell);
+	dens.DepositFromNeighbors();
+	dens.ApplyFoldingCondition();
+	dens.DivideCellVolume(*owner);
+	dens.ApplyBoundaryCondition();
+	dens.Smooth(*owner,smoothing,compensation);
+}
+
 tw::Float Species::KineticEnergy(const Region& theRgn)
 {
 	tw::Float ans = 0.0;
@@ -1300,6 +1351,15 @@ tw::Float Species::KineticEnergy(const Region& theRgn)
 	for (auto par : particle)
 		if (theRgn.Inside(owner->PositionFromPrimitive(par.q).spatial(),*owner))
 			ans += par.number * (par.p[0] - m0);
+	return ans;
+}
+
+tw::Float Species::ParticleNumber(const Region& theRgn)
+{
+	tw::Float ans = 0.0;
+	for (auto par : particle)
+		if (theRgn.Inside(owner->PositionFromPrimitive(par.q).spatial(),*owner))
+			ans += par.number;
 	return ans;
 }
 
@@ -1311,10 +1371,14 @@ void Species::Report(Diagnostic& diagnostic)
 
 	diagnostic.Float("N_"+name,particle.size(),false);
 	diagnostic.Float("Kinetic_"+name,KineticEnergy(*diagnostic.theRgn),false);
+	diagnostic.Float("Number_"+name,ParticleNumber(*diagnostic.theRgn),false);
+	diagnostic.Float("Creation_"+name,numberCreated,false);
 	CalculateDensity(temp);
 	diagnostic.Field(name,temp,0,tw::dims::density,"$n_{\\rm "+name+"}$");
 	CalculateEnergyDensity(temp);
 	diagnostic.Field("u_"+name,temp,0,tw::dims::energy_density,"$u_{\\rm "+name+"}$");
+	CalculateQuantumParameter(temp);
+	diagnostic.Field("Q_"+name,temp,0,tw::dims::none,"$Q_{\\rm "+name+"}$");
 
 	if (qo_j4!=NULL)
 	{

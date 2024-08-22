@@ -115,15 +115,13 @@ Configuration
 
 	* For MacOS you probably need to set ``CXX`` to the full path of the Homebrew or MacPorts compiler.
 
-#. ``cd build``
-
 #. Set options
 
-	* Options are set using :samp:`meson configure -D{key}={value}`
+	* Options are set using :samp:`meson configure -D{key}={value} build`
 	* Set vector width, e.g., if you have AVX512, set ``vbits=512``
 	* To use turboWAVE's internal MPI set ``hpc=false``
 	* To use external MPI, set ``hpc=true`` (suitable library must be installed)
-	* To see all available options type ``meson configure``
+	* To see all available options type ``meson configure build``
 
 Performance Tuning Parameters
 -----------------------------
@@ -137,9 +135,9 @@ There are a few parameters hard coded in source that can be used to tune perform
 Build and Install
 -----------------
 
-#. From the ``build`` directory type ``meson compile``
+#. From the ``source`` directory type ``meson compile -C build``, or from the ``build`` directory type ``meson compile``
 
-#. The executable can be installed to a per-OS standard location with ``meson install``.  Otherwise copy it to your preferred runtime location.
+#. The executable can be installed to a per-OS standard location with ``meson install``.  You can use ``meson configure`` to change the default install location.  You can also simply move the executable.
 
 Core Install for HPC
 ====================

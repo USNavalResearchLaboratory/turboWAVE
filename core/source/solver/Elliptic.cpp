@@ -73,8 +73,8 @@ void EllipticSolver::ZeroModeGhostCellValues(tw::Float *phi0,tw::Float *phiN1,Sc
 	for (k=1;k<=source.Dim(3);k++)
 	{
 		kg = task->GlobalCellIndex(k,3);
-		*phi0 += 0.5*mul*sqr(dz(source))*source(1,1,k)*fabs(tw::Float(kg));
-		*phiN1 += 0.5*mul*sqr(dz(source))*source(1,1,k)*fabs(tw::Float(kN1-kg));
+		*phi0 += 0.5*mul*sqr(source.dx(3))*source(1,1,k)*fabs(tw::Float(kg));
+		*phiN1 += 0.5*mul*sqr(source.dx(3))*source(1,1,k)*fabs(tw::Float(kN1-kg));
 	}
 
 	task->strip[3].AllSum(phi0,phi0,sizeof(tw::Float),0);
@@ -468,7 +468,7 @@ void PoissonSolver::Solve(ScalarField& phi,ScalarField& source,tw::Float mul)
 	// Solve on single node
 
 	tw::Float temp,eigenvalue,a,b,c,phi0,phiN1;
-	tw::Float dz2 = sqr( gammaBeam * dz(phi) );
+	tw::Float dz2 = sqr( gammaBeam * phi.dx(3) );
 	a = 1.0/dz2;
 	b = -2.0/dz2;
 	c = 1.0/dz2;

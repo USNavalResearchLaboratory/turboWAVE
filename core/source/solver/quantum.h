@@ -154,6 +154,8 @@ void Dirac::LeapFrog(tw::Float sgn)
 	static const tw::Float q0 = H.qorb;
 	static const tw::Float m0 = H.morb;
 	static const tw::Int AB = tw::vec_align_bytes;
+	static const tw::Float dt = dx(0);
+	static const tw::Float dth = 0.5*dx(0);
 	#pragma omp parallel firstprivate(sgn)
 	{
 		alignas(AB) tw::Float Ur[dim[1]],Ui[dim[1]];

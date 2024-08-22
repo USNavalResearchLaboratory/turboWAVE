@@ -875,9 +875,9 @@ Conductor::Conductor(const std::string& name,MetricSpace *m,Task *tsk) : Compute
 	affectsA = true;
 	currentType = EM::current::electric;
 	pulseShape.delay = 0.0;
-	pulseShape.risetime = 0.01*timestep(*m);
-	pulseShape.holdtime = 1e10*timestep(*m);
-	pulseShape.falltime = 0.01*timestep(*m);
+	pulseShape.risetime = 0.01*m->dx(0);
+	pulseShape.holdtime = 1e10*m->dx(0);
+	pulseShape.falltime = 0.01*m->dx(0);
 	gaussianRadius = tw::big_pos;
 	f = tw::big_pos;
 	ks = 0.0;
@@ -1054,7 +1054,7 @@ void LindmanBoundary::Initialize(Task *task,MetricSpace *ms,std::vector<Wave*> *
 	assert(ax>=1 && ax<=3);
 	tw::Int bdim[4] = { 0, ms->Dim(1), ms->Dim(2), ms->Dim(3) };
 	bdim[ax] = 1;
-	boundaryMemory.Initialize(9, DiscreteSpace(bdim[1],bdim[2],bdim[3],Corner(*ms),PhysicalSize(*ms)), task);
+	boundaryMemory.Initialize(9, DiscreteSpace(bdim[1],bdim[2],bdim[3],ms->Corner(),ms->PhysicalSize()), task);
 	boundaryMemory.SetBoundaryConditions(tw::grid::x,fld::none,fld::none);
 	boundaryMemory.SetBoundaryConditions(tw::grid::y,fld::none,fld::none);
 	boundaryMemory.SetBoundaryConditions(tw::grid::z,fld::none,fld::none);
@@ -1081,9 +1081,9 @@ void LindmanBoundary::UpdateBoundaryMemory(Field& A,tw::Float dt)
 		strip.Decode(0,&i,&j,&k);
 		for (s=0;s<3;s++)
 		{
-			dtt =  dxi(A)*dxi(A)*(boundaryMemory(i-1,j,k,3+s) - 2.0*boundaryMemory(i,j,k,3+s) + boundaryMemory(i+1,j,k,3+s));
-			dtt += dyi(A)*dyi(A)*(boundaryMemory(i,j-1,k,3+s) - 2.0*boundaryMemory(i,j,k,3+s) + boundaryMemory(i,j+1,k,3+s));
-			dtt += dzi(A)*dzi(A)*(boundaryMemory(i,j,k-1,3+s) - 2.0*boundaryMemory(i,j,k,3+s) + boundaryMemory(i,j,k+1,3+s));
+			dtt =  A.dk(1)*A.dk(1)*(boundaryMemory(i-1,j,k,3+s) - 2.0*boundaryMemory(i,j,k,3+s) + boundaryMemory(i+1,j,k,3+s));
+			dtt += A.dk(2)*A.dk(2)*(boundaryMemory(i,j-1,k,3+s) - 2.0*boundaryMemory(i,j,k,3+s) + boundaryMemory(i,j+1,k,3+s));
+			dtt += A.dk(3)*A.dk(3)*(boundaryMemory(i,j,k-1,3+s) - 2.0*boundaryMemory(i,j,k,3+s) + boundaryMemory(i,j,k+1,3+s));
 			dtt =  dt*dt*(beta[s]*dtt + alpha[s]*source);
 			boundaryMemory(i,j,k,6+s) = 2.0*boundaryMemory(i,j,k,3+s) - boundaryMemory(i,j,k,s) + dtt;
 		}
@@ -1099,7 +1099,7 @@ void LindmanBoundary::UpdateBoundaryMemory(Field& A,tw::Float dt)
 void LindmanBoundary::Set(Field& A,tw::Float t0,tw::Float dt)
 {
 	tw::Int ax = tw::grid::naxis(axis);
-	tw::Float sgn,correction,ds[4] = {dt,dx(A),dy(A),dz(A)};
+	tw::Float sgn,correction,ds[4] = {dt,A.dx(1),A.dx(2),A.dx(3)};
 	tw::Int i,j,k,s,s0,s1;
 	tw::vec3 pos,Ain;
 
@@ -1248,7 +1248,7 @@ void Warp::Initialize()
 tw::Float Warp::AddedCellWidth(tw::Int globalCell)
 {
 	const tw::Int N = rng[1] - rng[0] + 1;
-	const tw::Float h = space->dx0(tw::grid::naxis(ax));
+	const tw::Float h = space->dx(tw::grid::naxis(ax));
 	const tw::Float A = (1.0/gridSum)*(L/h - N);
 	if (globalCell>=rng[0] && globalCell<=rng[1])
 	{

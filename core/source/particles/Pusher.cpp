@@ -17,8 +17,8 @@ tw::Int set_subcycles(float F0[6][tw::max_bundle_size])
 	for (int c=0;c<6;c++)
 		for (int i=0;i<N;i++)
 		{
-			if (sqr(F0[c][i])>max2)
-				max2 = sqr(F0[c][i]);
+			if (sqr(2*F0[c][i])>max2)
+				max2 = sqr(2*F0[c][i]);
 		}
 	tw::Int subcycles = 1 + tw::Int(sqrt(max2));
 	const float subi = 1.0f/subcycles;
@@ -127,6 +127,23 @@ void BundlePusherUnitary::dilate_timestep(float F0[6][N],float F[6][N],tw::Float
 		F[4][i] *= ds[3][i];
 		F[5][i] *= ds[3][i];
 	}
+}
+
+void BundlePusherHC::Push(tw::Float dts)
+{
+	int subcycles = set_subcycles(F);
+	for (int sub=0;sub<subcycles;sub++)
+	{
+		impulse(u,F);
+		gamma_new(gammaNew,b,u,F);
+		rotation1(t,gammaNew,F);
+		rotation2(s,t);
+		rotation3(s,t,vel,u);
+		impulse(u,F);
+	}
+	velocity(vel,u);
+	translate(x,vel,dts);
+	load_j4(J,number,vel);
 }
 
 void BundlePusherUnitary::Push(tw::Float dts)

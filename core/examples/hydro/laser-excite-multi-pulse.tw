@@ -5,8 +5,6 @@
 // This includes photo and collisional ionization
 // Illustrates adaptive timestep awareness of laser pulses.
 
-steps = 40000
-timestep = 1[fs]
 dtmax = 50[ps]
 maxtime = 200[ns]
 dump period = 0
@@ -24,10 +22,10 @@ zboundary = ( absorbing  absorbing )
 
 new grid
 {
-	corner = ( 0.0 , -3.1416 , -0.5 )
-	dimensions = ( 2000 1 1 )
-	cell size = ( 0.2 6.2832 1.0 )
-	decomposition = ( 1  1  1 )
+	origin = ( 0, 0, 0.5, 0.5 )
+	dimensions = ( 40000, 2000, 1, 1 )
+	cell size = ( 1[fs], 0.2, 6.2832, 1.0 )
+	decomposition = ( 1, 1, 1, 1 )
 	geometry = cylindrical
 	adaptive timestep = on
 }

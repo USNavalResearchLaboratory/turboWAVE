@@ -139,7 +139,7 @@ void AtomicPhysics::FormPotentials(tw::Float t)
 			A0 = A1 = tw::vec3(-0.5*r_cart.y*H.B0.z,0.5*r_cart.x*H.B0.z,0.0);
 			for (tw::Int s=0;s<wave.size();s++)
 			{
-				A0 += wave[s]->VectorPotential(t-dt,r_cart);
+				A0 += wave[s]->VectorPotential(t-dx(0),r_cart);
 				A1 += wave[s]->VectorPotential(t,r_cart);
 			}
 			r_curv = owner->Pos(cell);
@@ -284,6 +284,8 @@ void AtomicPhysics::WriteCheckpoint(std::ofstream& outFile)
 void AtomicPhysics::Report(Diagnostic& diagnostic)
 {
 	tw::vec3 ENow,ANow;
+	const tw::Float dt = dx(0);
+	const tw::Float dti = 1/dt;
 	for (auto w : wave)
 	{
 		ANow += w->VectorPotential(owner->elapsedTime,tw::vec3(0,0,0));
@@ -428,8 +430,8 @@ void Schroedinger::Initialize()
 
 	// Solve for the lowest energy s-state on a spherical grid.
 	// This is used only to print the numerical ground state energy level.
-	const tw::Float maxR = owner->SphericalRadius(GlobalCorner(*owner)+GlobalPhysicalSize(*owner));
-	const tw::Float dr = dx(*owner) * owner->ScaleFactor(1,tw::vec3(tw::small_pos,0.0,0.0));
+	const tw::Float maxR = owner->SphericalRadius((owner->GlobalCorner()+owner->GlobalPhysicalSize()).spatial());
+	const tw::Float dr = dx(1) * owner->ScaleFactor(1,tw::vec3(tw::small_pos,0.0,0.0));
 	const tw::Float r = maxR>30.0 ? 30.0 : maxR;
 	const tw::Int dim = MyCeil(r/dr);
 	std::valarray<tw::Float> eigenvector(dim),phi_r(dim);
@@ -562,6 +564,7 @@ void Schroedinger::Update()
 #else
 void Schroedinger::Update()
 {
+	const tw::Float dt = dx(0);
 	tw::Complex dtc = owner->elapsedTime < timeRelaxingToGround ? -ii*dt : dt;
 	FormPotentials(owner->elapsedTime);
 	J4 = 0.0;
@@ -784,6 +787,7 @@ void Pauli::Update()
 {
 	// KNOWN PROBLEM: we have to add spin term to current density
 
+	const tw::Float dt = dx(0);
 	tw::Complex dtc = owner->elapsedTime < timeRelaxingToGround ? -ii*dt : dt;
 	FormPotentials(owner->elapsedTime);
 	J4 = 0.0;
@@ -943,6 +947,7 @@ void KleinGordon::Initialize()
 	for (auto cell : InteriorCellRange(*this))
 	{
 		const tw::vec3 pos = owner->Pos(cell);
+		const tw::Float dth = 0.5*dx(0);
 		for (auto w : waveFunction)
 		{
 			psi_r(cell,0) += real(w->Amplitude(H,pos,0.0,0));
@@ -1046,6 +1051,8 @@ void KleinGordon::Update()
 	static const tw::Float q0 = H.qorb;
 	static const tw::Float m0 = H.morb;
 	static const tw::Int AB = tw::vec_align_bytes;
+	const tw::Float dt = dx(0);
+	const tw::Float dth = 0.5*dt;
 	#pragma omp parallel
 	{
 		alignas(AB) tw::Float Ur[dim[1]],Ui[dim[1]],Dr[dim[1]],Di[dim[1]];
@@ -1104,6 +1111,7 @@ void KleinGordon::Update()
 			#pragma omp simd aligned(Dr,Di:AB)
 			for (tw::Int i=1;i<=dim[1];i++)
 			{
+				const tw::vec3 freq(dk(1),dk(2),dk(3));
 				// Evaluate i(Dk)^2 assuming div(A)=0
 				// This adds i*del^2(psi)
 				Dr[i-1] = -(psi_i.d2(v,i,0,1) + psi_i.d2(v,i,0,2) + psi_i.d2(v,i,0,3));
@@ -1217,6 +1225,7 @@ void Dirac::Initialize()
 
 	#pragma omp parallel
 	{
+		const tw::Float dth = 0.5*dx(0);
 		for (auto cell : InteriorCellRange(*this))
 		{
 			tw::vec3 pos = owner->Pos(cell);
@@ -1357,6 +1366,8 @@ void Dirac::Update()
 	// Advance psi0,psi1 to n+1/2 using psi2(n),psi3(n),A(n)
 	// Advance psi2,psi3 to n+1 using psi0(n+1/2),psi1(n+1/2),A(n+1/2)
 
+	const tw::Float dt = dx(0);
+	
 	LeapFrog<0,1,2,3>(1.0);
 	psi_r.CopyFromNeighbors(Element(0,1));
 	psi_r.ApplyBoundaryCondition(Element(0,1));

@@ -2,8 +2,6 @@
 // Here we are showing how to extract data at a single instant
 // (see end of this file)
 // if you want electrostatic field, set plasma model = quasineutral
-steps = 3000
-timestep = 0.1[ns]
 dtmax = 1[ns]
 dump period = 0
 moving window = no
@@ -20,10 +18,10 @@ zboundary = ( absorbing  absorbing )
 
 new grid
 {
-	corner = ( 0.0 , -3.1416 , -50.0 )
-	dimensions = ( 100 1 200 )
-	cell size = ( 0.5 6.2832 0.5 )
-	decomposition = ( 2  1  4 )
+	origin = ( 0 , 0 , 0.5 , 0.5 )
+	dimensions = ( 3000, 100, 1, 200 )
+	cell size = ( 0.1[ns], 0.5, 6.2832, 0.5 )
+	decomposition = ( 1, 2, 1, 4 )
 	geometry = cylindrical
 	adaptive timestep = on
 }

@@ -40,7 +40,7 @@ namespace tw
 		// Quantum Electrodynamics
 		photonGenerator,pairCreator,
 		// Movers
-		borisMover,pgcMover,unitaryMover,bohmianMover,photonMover
+		borisMover,hcMover,pgcMover,unitaryMover,bohmianMover,photonMover
 	};
 }
 

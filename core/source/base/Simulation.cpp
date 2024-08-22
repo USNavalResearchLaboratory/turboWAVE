@@ -10,25 +10,17 @@
 
 GridReader::GridReader(tw::UnitConverter& uc)
 {
-	globalCorner = 0.0;
 	adaptiveGrid = adaptiveTimestep = false;
 	geo = tw::grid::cartesian;
+	absoluteRef = 0.0;
 
-	// allow user to choose any of 8 corners with strings like corner001, corner010, etc.
-	auto corner_str = [&] (tw::Int i,tw::Int j,tw::Int k)
-	{
-		return "corner" + std::to_string(i) + std::to_string(j) + std::to_string(k);
-	};
-	for (tw::Int i=0;i<2;i++)
-		for (tw::Int j=0;j<2;j++)
-			for (tw::Int k=0;k<2;k++)
-				directives.Add(corner_str(i,j,k),new tw::input::Numbers<tw::Float>(&cornerSet[i][j][k][0],3),false);
-	directives.Add("corner",new tw::input::Numbers<tw::Float>(&globalCorner[0],3),false);
-	directives.Add("cell size",new tw::input::Numbers<tw::Float>(&spacing[0],3));
+	directives.Add("origin",new tw::input::Numbers<tw::Float>(&relativeRef[0],4));
+	directives.Add("shift",new tw::input::Numbers<tw::Float>(&absoluteRef[0],4),false);
+	directives.Add("cell size",new tw::input::Numbers<tw::Float>(&spacing[0],4));
 	directives.Add("adaptive timestep",new tw::input::Bool(&adaptiveTimestep),false);
 	directives.Add("adaptive grid",new tw::input::Bool(&adaptiveGrid),false);
-	directives.Add("dimensions",new tw::input::Numbers<tw::Int>(&req_dim[1],3));
-	directives.Add("decomposition",new tw::input::Numbers<tw::Int>(&req_dom[1],3));
+	directives.Add("dimensions",new tw::input::Numbers<tw::Int>(&req_dim[0],4));
+	directives.Add("decomposition",new tw::input::Numbers<tw::Int>(&req_dom[0],4));
 	std::map<std::string,tw::grid::geometry> geo_map = {{"cartesian",tw::grid::cartesian},{"cylindrical",tw::grid::cylindrical},{"spherical",tw::grid::spherical}};
 	directives.Add("geometry",new tw::input::Enums<tw::grid::geometry>(geo_map,&geo),false);
 	directives.AttachUnits(uc);
@@ -39,11 +31,6 @@ void GridReader::Read(std::stringstream& inputString,tw::input::Preamble& preamb
 	std::string com2;
 	if (preamble.words.size()!=1)
 		throw tw::FatalError("Ill-formed grid block.");
-	// allow user to choose any of 8 corners with strings like corner001, corner010, etc.
-	auto corner_str = [&] (tw::Int i,tw::Int j,tw::Int k)
-	{
-		return "corner" + std::to_string(i) + std::to_string(j) + std::to_string(k);
-	};
 	do
 	{
 		com2 = directives.ReadNext(inputString);
@@ -53,21 +40,23 @@ void GridReader::Read(std::stringstream& inputString,tw::input::Preamble& preamb
 			throw tw::FatalError("Keyword <"+com2+"> inside grid block is not allowed.");
 	} while (com2!="}");
 	directives.ThrowErrorIfMissingKeys("grid");
-	tw::Int corners_given = directives.TestKey("corner") ? 1 : 0;
-	for (tw::Int i=0;i<2;i++)
-		for (tw::Int j=0;j<2;j++)
-			for (tw::Int k=0;k<2;k++)
-			{
-				if (directives.TestKey(corner_str(i,j,k)))
-				{
-					corners_given++;
-					if (corners_given>1)
-						throw tw::FatalError("Grid geometry is overspecified.");
-					globalCorner.x = cornerSet[i][j][k].x - req_dim[1]*spacing.x*i;
-					globalCorner.y = cornerSet[i][j][k].y - req_dim[2]*spacing.y*j;
-					globalCorner.z = cornerSet[i][j][k].z - req_dim[3]*spacing.z*k;
-				}
-			}
+	if (req_dom[0]!=1)
+		throw tw::FatalError("Time decomposition must be 1");
+}
+
+tw::vec4 GridReader::GlobalSize()
+{
+	return tw::vec4(
+		spacing[0] * req_dim[0],
+		spacing[1] * req_dim[1],
+		spacing[2] * req_dim[2],
+		spacing[3] * req_dim[3]
+	);
+}
+
+tw::vec4 GridReader::GlobalCorner()
+{
+	return absoluteRef - relativeRef*GlobalSize();
 }
 
 void GridReader::UpdateTask(Task& tsk)
@@ -109,8 +98,6 @@ Simulation::Simulation(const std::string& test_name,
 	clippingRegion.push_back(new EntireRegion(clippingRegion));
 
 	nativeUnits = tw::units::plasma;
-	dt0 = 0.1;
-	SetupTimeInfo(dt0);
 	dtCritical = tw::small_pos;
 	dtMin = tw::small_pos;
 	dtMax = tw::big_pos;
@@ -127,7 +114,6 @@ Simulation::Simulation(const std::string& test_name,
 	completed = false;
 
 	stepNow = 0;
-	stepsToTake = 32;
 	lastTime = 0;
 	dumpPeriod = 0;
 
@@ -140,7 +126,6 @@ Simulation::Simulation(const std::string& test_name,
 
 	outerDirectives.Add("native units",new tw::input::Enums<tw::units>(tw::get_unit_map(),&nativeUnits),false);
 	outerDirectives.Add("unit density",new tw::input::Float(&unitDensityCGS));
-	outerDirectives.Add("timestep",new tw::input::Float(&dt0));
 	outerDirectives.Add("xboundary",new tw::input::Enums<tw::bc::par>(tw::bc::par_map(),&bc0[1],&bc1[1]));
 	outerDirectives.Add("yboundary",new tw::input::Enums<tw::bc::par>(tw::bc::par_map(),&bc0[2],&bc1[2]));
 	outerDirectives.Add("zboundary",new tw::input::Enums<tw::bc::par>(tw::bc::par_map(),&bc0[3],&bc1[3]));
@@ -148,7 +133,6 @@ Simulation::Simulation(const std::string& test_name,
 	outerDirectives.Add("dtmax",new tw::input::Float(&dtMax),false);
 	outerDirectives.Add("dtcrit",new tw::input::Float(&dtCritical),false);
 	outerDirectives.Add("maxtime",new tw::input::Float(&elapsedTimeMax),false);
-	outerDirectives.Add("steps",new tw::input::Int(&stepsToTake));
 	outerDirectives.Add("dump period",new tw::input::Int(&dumpPeriod),false);
 	outerDirectives.Add("neutralize",new tw::input::Bool(&neutralize),false);
 	outerDirectives.Add("window speed",new tw::input::Float(&signalSpeed),false);
@@ -257,7 +241,7 @@ void Simulation::Run()
 		(*tw_out) << "Enter 'help' for list of interactive commands." << std::endl << std::endl;
 		#endif
 
-		while (stepNow <= stepsToTake && elapsedTime < elapsedTimeMax)
+		while (stepNow <= dim[0] && elapsedTime < elapsedTimeMax)
 		{
 			if ((GetSeconds() > lastTime + 5) && strip[0].Get_rank()==0)
 			{
@@ -344,9 +328,8 @@ void Simulation::Test()
 	// TODO: we need to unify handling of all testables.
 
 	*tw_out << std::endl << "testing " << term::bold << term::cyan << "metric space" << term::reset_all << std::endl;
- 	Initialize(tw::idx4(1,1,2).array,tw::idx4(4,1,4).array,tw::idx4(1,1,0).array);
-	Resize(*this,tw::vec3(0,0,0),tw::vec3(0.8,0.2,0.8),2);
-	SetupTimeInfo(0.1);
+ 	Initialize(tw::idx4(1,1,1,2).array,tw::idx4(1,4,1,4).array,tw::idx4(0,1,1,0).array);
+	Resize(*this,tw::vec4(0,0,0,0),tw::vec4(0.1,0.8,0.2,0.8),2);
 	tw::Int testId = 1;
 	try {
 		if (MetricSpace::Test(testId)) {
@@ -639,7 +622,7 @@ void Simulation::InteractiveCommand(const std::string& cmd,std::ostream *theStre
 	if (cmd=="status" || cmd=="")
 	{
 		*theStream << "Current step: " << stepNow << std::endl;
-		*theStream << "Current step size: " << dt << std::endl;
+		*theStream << "Current step size: " << spacing[0] << std::endl;
 		*theStream << "Current elapsed time: " << elapsedTime << std::endl;
 		for (auto m : module)
 			m->StatusMessage(theStream);
@@ -659,8 +642,8 @@ void Simulation::InteractiveCommand(const std::string& cmd,std::ostream *theStre
 	}
 	if (cmd=="metrics")
 	{
-		*theStream << "Steps to take: " << stepsToTake << std::endl;
-		*theStream << "Steps remaining: " << stepsToTake - stepNow << std::endl;
+		*theStream << "Steps to take: " << dim[0] << std::endl;
+		*theStream << "Steps remaining: " << dim[0] - stepNow << std::endl;
 		*theStream << "Global grid size: " << globalCells[1] << "," << globalCells[2] << "," << globalCells[3] << std::endl;
 		*theStream << "Local grid size: " << localCells[1] << "," << localCells[2] << "," << localCells[3] << std::endl;
 		*theStream << "MPI Domains: " << domains[1] << "," << domains[2] << "," << domains[3] << std::endl;
@@ -683,19 +666,20 @@ void Simulation::FundamentalCycle()
 	for (auto m : module)
 		m->Update();
 
-	elapsedTime += dt;
-	signalPosition += signalSpeed*dt;
-	antiSignalPosition -= signalSpeed*dt;
+	corner[0] += spacing[0];
+	elapsedTime += spacing[0];
+	signalPosition += signalSpeed*spacing[0];
+	antiSignalPosition -= signalSpeed*spacing[0];
 	stepNow++;
 
 	if (adaptiveGrid)
 		for (auto m : module)
 			m->AdaptGrid();
 
-	if (movingWindow && signalPosition>=(windowPosition + spacing.z) && dim[3]>1)
+	if (movingWindow && signalPosition>=(windowPosition + spacing[3]) && dim[3]>1)
 		MoveWindow();
 
-	if (!movingWindow && antiSignalPosition<=(antiWindowPosition - spacing.z) && dim[3]>1)
+	if (!movingWindow && antiSignalPosition<=(antiWindowPosition - spacing[3]) && dim[3]>1)
 		AntiMoveWindow();
 
 	// RESTART MECHANISM
@@ -835,15 +819,16 @@ bool Simulation::RemoveTool(ComputeTool *theTool)
 void Simulation::MoveWindow()
 {
 	tw::Int i;
-	windowPosition += spacing.z;
-	corner.z += spacing.z;
-	globalCorner.z += spacing.z;
+	windowPosition += spacing[3];
+	corner[3] += spacing[3];
+	globalCorner[3] += spacing[3];
+	
 	for (i=lfg[3];i<=ufg[3];i++)
-		X(i,3) += spacing.z;
+		X(i,3) += spacing[3];
 
 	for (i=0;i<clippingRegion.size();i++)
 		if (clippingRegion[i]->moveWithWindow)
-			clippingRegion[i]->Translate(tw::vec3(0,0,spacing.z));
+			clippingRegion[i]->Translate(tw::vec3(0,0,spacing[3]));
 		else
 			clippingRegion[i]->Initialize(*this,this);
 
@@ -854,7 +839,7 @@ void Simulation::MoveWindow()
 void Simulation::AntiMoveWindow()
 {
 	tw::Int i;
-	antiWindowPosition -= spacing.z;
+	antiWindowPosition -= spacing[3];
 
 	for (i=0;i<module.size();i++)
 		module[i]->AntiMoveWindow();
@@ -867,7 +852,7 @@ void Simulation::ReadCheckpoint(std::ifstream& inFile)
 	MetricSpace::ReadCheckpoint(inFile);
 	inFile.read((char *)&stepNow,sizeof(tw::Int));
 	stepNow++;
-	stepsToTake += stepNow-1;
+	dim[0] += stepNow-1;
 	inFile.read((char *)&elapsedTime,sizeof(tw::Float));
 	inFile.read((char *)&signalPosition,sizeof(tw::Float));
 	inFile.read((char *)&windowPosition,sizeof(tw::Float));
@@ -1031,7 +1016,6 @@ void Simulation::InputFileFirstPass()
 		if (!foundGrid)
 			throw tw::FatalError("Grid directive was not found.");
 
-		UpdateTimestep(dt0);
 		periodic[1] = bc0[1]==tw::bc::par::periodic ? 1 : 0;
 		periodic[2] = bc0[2]==tw::bc::par::periodic ? 1 : 0;
 		periodic[3] = bc0[3]==tw::bc::par::periodic ? 1 : 0;
@@ -1315,7 +1299,7 @@ void Simulation::Diagnose()
 
 	bool doing_diagnostics=false;
 	for (auto d : diagnostic)
-		doing_diagnostics = doing_diagnostics || d->WriteThisStep(elapsedTime,dt,stepNow);
+		doing_diagnostics = doing_diagnostics || d->WriteThisStep(elapsedTime,spacing[0],stepNow);
 	if (doing_diagnostics)
 	{
 		for (auto m : module)
@@ -1338,11 +1322,11 @@ void Simulation::Diagnose()
 
 	for (auto d : diagnostic)
 	{
-		if (d->WriteThisStep(elapsedTime,dt,stepNow))
+		if (d->WriteThisStep(elapsedTime,spacing[0],stepNow))
 		{
 			d->Start();
 			d->Float("time",elapsedTime,true);
-			d->Float("dt",dt,true);
+			d->Float("dt",spacing[0],true);
 			d->Float("zwindow",windowPosition,true);
 			for (auto m : module)
 				if (has_diagnostic(m,d))

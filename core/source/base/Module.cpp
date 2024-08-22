@@ -83,24 +83,23 @@ void Module::Initialize()
 
 void Module::MoveWindow()
 {
-	corner.z += spacing.z;
-	globalCorner.z += spacing.z;
+	corner[3] += spacing[3];
+	globalCorner[3] += spacing[3];
 }
 
 void Module::ReadCheckpoint(std::ifstream& inFile)
 {
 	DiscreteSpace::ReadCheckpoint(inFile);
-	inFile.read((char *)&dt,sizeof(dt));
-	inFile.read((char *)&dth,sizeof(dth));
-	dti = 1.0/dt;
+	inFile.read((char *)&spacing,sizeof(spacing));
+	inFile.read((char *)&freq,sizeof(freq));
 }
 
 void Module::WriteCheckpoint(std::ofstream& outFile)
 {
 	outFile << name << " ";
 	DiscreteSpace::WriteCheckpoint(outFile);
-	outFile.write((char *)&dt,sizeof(dt));
-	outFile.write((char *)&dth,sizeof(dth));
+	outFile.write((char *)&spacing,sizeof(spacing));
+	outFile.write((char *)&freq,sizeof(freq));
 }
 
 void Module::VerifyInput()
@@ -334,23 +333,20 @@ bool Module::SetTestGrid(tw::module_type theType,tw::Int gridId,Simulation *sim)
 		case tw::module_type::species:
 			if (gridId==1)
 			{
-				sim->Initialize(tw::idx4(1,1,2).array,tw::idx4(4,1,4).array,tw::idx4(1,1,0).array);
-				sim->Resize(*sim,tw::vec3(0,0,0),tw::vec3(0.8,0.2,0.8),2);
-				sim->SetupTimeInfo(0.1);
+				sim->Initialize(tw::idx4(1,1,1,2).array,tw::idx4(1,4,1,4).array,tw::idx4(0,1,1,0).array);
+				sim->Resize(*sim,tw::vec4(0,0,0,0),tw::vec4(0.1,0.8,0.2,0.8),2);
 				return true;
 			} else if (gridId==2) {
-				sim->Initialize(tw::idx4(1,1,2).array,tw::idx4(4,4,4).array,tw::idx4(1,1,0).array);
-				sim->Resize(*sim,tw::vec3(0,0,0),tw::vec3(0.8,0.8,0.8),2);
-				sim->SetupTimeInfo(0.1);
+				sim->Initialize(tw::idx4(1,1,1,2).array,tw::idx4(1,4,4,4).array,tw::idx4(0,1,1,0).array);
+				sim->Resize(*sim,tw::vec4(0,0,0,0),tw::vec4(0.1,0.8,0.8,0.8),2);
 				return true;
 			}
 			return false;
 		default:
 			if (gridId>1)
 				return false;
-			sim->Initialize(tw::idx4(1,1,2).array,tw::idx4(4,4,4).array,tw::idx4(1,1,0).array);
-			sim->Resize(*sim,tw::vec3(0,0,0),tw::vec3(0.8,0.8,0.8),2);
-			sim->SetupTimeInfo(0.1);
+			sim->Initialize(tw::idx4(1,1,1,2).array,tw::idx4(1,4,4,4).array,tw::idx4(0,1,1,0).array);
+			sim->Resize(*sim,tw::vec4(0,0,0,0),tw::vec4(0.1,0.8,0.8,0.8),2);
 			return true;
 	}
 }

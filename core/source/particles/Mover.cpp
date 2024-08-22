@@ -28,6 +28,7 @@ void Mover::AddTransferParticle(const Particle& src)
 	dest.p = src.p;
 	dest.s = src.s;
 	dest.number = src.number;
+	dest.tag = src.tag;
 	transfer->push_back(dest);
 }
 
@@ -144,7 +145,7 @@ void Mover::MoveSlice(tw::Int tasks,tw::Int tid,tw::Int bounds_data[][8])
 		next = i==last ? i : i+1;
 		if (i==last || b.Complete((*particle)[map[next-first].idx]))
 		{
-			b.Move(timestep(*space));
+			b.Move(space->dx(0));
 			b.CopyBack();
 			b.Reset();
 		}
@@ -215,6 +216,14 @@ void BorisMover::Advance()
 		DoTasks<BundleMoverBoris3D>();
 }
 
+void HCMover::Advance()
+{
+	if (space->Dim(2)==1)
+		DoTasks<BundleMoverHC2D>();
+	else
+		DoTasks<BundleMoverHC3D>();
+}
+
 void UnitaryMover::Advance()
 {
 	if (space->Dim(2)==1)
@@ -281,6 +290,34 @@ void BundleMoverBoris3D::Move(tw::Float dts)
 	StoreJTile();
 }
 
+void BundleMoverHC2D::Move(tw::Float dts)
+{
+	const float qmdth = 0.5*q0*dts/m0;
+	const tw::Float dti = 1.0/dts;
+	PrepareGather();
+	LoadFTile();
+	GatherF(F,w0,l0,qmdth);
+	Push(dts);
+	PrepareScatter();
+	ResetJTile();
+	ScatterJ4(J,w0,w1,cellMask,dti);
+	StoreJTile();
+}
+
+void BundleMoverHC3D::Move(tw::Float dts)
+{
+	const float qmdth = 0.5*q0*dts/m0;
+	const tw::Float dti = 1.0/dts;
+	PrepareGather();
+	LoadFTile();
+	GatherF(F,w0,l0,qmdth);
+	Push(dts);
+	PrepareScatter();
+	ResetJTile();
+	ScatterJ4(J,w0,w1,cellMask,dti);
+	StoreJTile();
+}
+
 void BundleMoverUnitary2D::Move(tw::Float dts)
 {
 	const float qmdth = 0.5*q0*dts/m0;
@@ -332,11 +369,12 @@ void BundleMoverPGC2D::Move(tw::Float dts)
 	const float qmdth = 0.5*q0*dts/m0;
 	const tw::Float dti = 1.0/dts;
 	const float q2m2dth = 0.5*dts*sqr(q0/m0);
+	const float q2m2h = 0.5*sqr(q0/m0);
 	PrepareGather();
 	LoadFTile();
 	GatherF(F,w0,l0,qmdth);
 	LoadLaserTile();
-	GatherLaser(las,w0,q2m2dth);
+	GatherLaser(las,w0,q2m2dth,q2m2h);
 	Push(dts);
 	PrepareScatter();
 	ResetJTile();
@@ -370,11 +408,12 @@ void BundleMoverPGC3D::Move(tw::Float dts)
 	const float qmdth = 0.5*q0*dts/m0;
 	const tw::Float dti = 1.0/dts;
 	const float q2m2dth = 0.5*dts*sqr(q0/m0);
+	const float q2m2h = 0.5*sqr(q0/m0);
 	PrepareGather();
 	LoadFTile();
 	GatherF(F,w0,l0,qmdth);
 	LoadLaserTile();
-	GatherLaser(las,w0,q2m2dth);
+	GatherLaser(las,w0,q2m2dth,q2m2h);
 	Push(dts);
 	PrepareScatter();
 	ResetJTile();

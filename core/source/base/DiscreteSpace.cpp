@@ -8,7 +8,7 @@ DiscreteSpace::DiscreteSpace()
 	ignorable[3] = 0;
 }
 
-DiscreteSpace::DiscreteSpace(tw::Int xDim,tw::Int yDim,tw::Int zDim,const tw::vec3& corner,const tw::vec3& size,tw::Int ghostCellLayers)
+DiscreteSpace::DiscreteSpace(tw::Int xDim,tw::Int yDim,tw::Int zDim,const tw::vec4& corner,const tw::vec4& size,tw::Int ghostCellLayers)
 {
 	const tw::Int ldim[4] = { 1, xDim, yDim, zDim };
 	const tw::Int gdim[4] = { 1, xDim, yDim, zDim };
@@ -22,12 +22,12 @@ DiscreteSpace::DiscreteSpace(tw::Int xDim,tw::Int yDim,tw::Int zDim,const tw::ve
 // 	Resize(task,gcorner,gsize,ghostCellLayers);
 // }
 
-void DiscreteSpace::Resize(Task& task,const tw::vec3& gcorner,const tw::vec3& gsize,tw::Int ghostCellLayers)
+void DiscreteSpace::Resize(Task& task,const tw::vec4& gcorner,const tw::vec4& gsize,tw::Int ghostCellLayers)
 {
 	Resize(task.localCells,task.globalCells,task.domainIndex,gcorner,gsize,ghostCellLayers);
 }
 
-void DiscreteSpace::Resize(const tw::Int dim[4],const tw::Int gdim[4],const tw::Int dom[4],const tw::vec3& gcorner,const tw::vec3& gsize,tw::Int ghostCellLayers)
+void DiscreteSpace::Resize(const tw::Int dim[4],const tw::Int gdim[4],const tw::Int dom[4],const tw::vec4& gcorner,const tw::vec4& gsize,tw::Int ghostCellLayers)
 {
 	this->dim[0] = dim[0];
 	this->dim[1] = dim[1];
@@ -68,26 +68,23 @@ void DiscreteSpace::Resize(const tw::Int dim[4],const tw::Int gdim[4],const tw::
 
 	globalCorner = gcorner;
 	globalSize = gsize;
-	for (tw::Int i=1;i<=3;i++)
+	for (tw::Int i=0;i<4;i++)
 	{
-		spacing[i-1] = globalSize[i-1]/gdim[i];
-		freq[i-1] = 1/spacing[i-1];
-		size[i-1] = dim[i]*spacing[i-1];
-		corner[i-1] = gcorner[i-1] + dom[i]*size[i-1];
+		spacing[i] = globalSize[i]/gdim[i];
+		freq[i] = 1/spacing[i];
+		size[i] = dim[i]*spacing[i];
+		corner[i] = gcorner[i] + dom[i]*size[i];
 	}
 }
 
 void DiscreteSpace::ReadCheckpoint(std::ifstream& inFile)
 {
-	inFile.read((char*)&dt,sizeof(dt));
-	inFile.read((char*)&dth,sizeof(dth));
-	inFile.read((char*)&dti,sizeof(dti));
-	inFile.read((char*)&corner,sizeof(tw::vec3));
-	inFile.read((char*)&size,sizeof(tw::vec3));
-	inFile.read((char*)&globalCorner,sizeof(tw::vec3));
-	inFile.read((char*)&globalSize,sizeof(tw::vec3));
-	inFile.read((char*)&spacing,sizeof(tw::vec3));
-	inFile.read((char*)&freq,sizeof(tw::vec3));
+	inFile.read((char*)&corner,sizeof(tw::vec4));
+	inFile.read((char*)&size,sizeof(tw::vec4));
+	inFile.read((char*)&globalCorner,sizeof(tw::vec4));
+	inFile.read((char*)&globalSize,sizeof(tw::vec4));
+	inFile.read((char*)&spacing,sizeof(tw::vec4));
+	inFile.read((char*)&freq,sizeof(tw::vec4));
 	inFile.read((char*)num,sizeof(num));
 	inFile.read((char*)dim,sizeof(dim));
 	inFile.read((char*)lfg,sizeof(lfg));
@@ -102,15 +99,12 @@ void DiscreteSpace::ReadCheckpoint(std::ifstream& inFile)
 
 void DiscreteSpace::WriteCheckpoint(std::ofstream& outFile)
 {
-	outFile.write((char*)&dt,sizeof(dt));
-	outFile.write((char*)&dth,sizeof(dth));
-	outFile.write((char*)&dti,sizeof(dti));
-	outFile.write((char*)&corner,sizeof(tw::vec3));
-	outFile.write((char*)&size,sizeof(tw::vec3));
-	outFile.write((char*)&globalCorner,sizeof(tw::vec3));
-	outFile.write((char*)&globalSize,sizeof(tw::vec3));
-	outFile.write((char*)&spacing,sizeof(tw::vec3));
-	outFile.write((char*)&freq,sizeof(tw::vec3));
+	outFile.write((char*)&corner,sizeof(tw::vec4));
+	outFile.write((char*)&size,sizeof(tw::vec4));
+	outFile.write((char*)&globalCorner,sizeof(tw::vec4));
+	outFile.write((char*)&globalSize,sizeof(tw::vec4));
+	outFile.write((char*)&spacing,sizeof(tw::vec4));
+	outFile.write((char*)&freq,sizeof(tw::vec4));
 	outFile.write((char*)num,sizeof(num));
 	outFile.write((char*)dim,sizeof(dim));
 	outFile.write((char*)lfg,sizeof(lfg));

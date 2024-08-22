@@ -51,6 +51,8 @@ void LaserSolver::Initialize()
 {
 	tw::vec3 pos;
 	tw::Float polarizationFactor;
+	const tw::Float dt = dx(0);
+	const tw::Float dth = 0.5*dt;
 
 	Module::Initialize();
 	propagator->SetData(laserFreq,dt,polarizationType,owner->movingWindow);
@@ -199,6 +201,7 @@ void PGCSolver::MoveWindow()
 
 void PGCSolver::AntiMoveWindow()
 {
+	const tw::Float dth = 0.5*dx(0);
 	for (auto s : StripRange(*this,3,strongbool::yes))
 	{
 		tw::Float polarizationFactor = polarizationType==circularPolarization ? 1.414 : 1.0;
@@ -229,6 +232,7 @@ void PGCSolver::Update()
 	chi.Smooth(*owner,smoothing,compensation);
 	#pragma omp parallel
 	{
+		const tw::Float dth = 0.5*dx(0);
 		for (auto s : StripRange(*this,3,strongbool::yes))
 		{
 			for (tw::Int k=1;k<=dim[3];k++)
@@ -248,6 +252,7 @@ void PGCSolver::ComputeFinalFields()
 {
 	#pragma omp parallel
 	{
+		const tw::Float dth = 0.5*dx(0);
 		for (auto s : StripRange(*this,3,strongbool::yes))
 		{
 			for (tw::Int k=1;k<=dim[3];k++)
@@ -287,6 +292,8 @@ void PGCSolver::Report(Diagnostic& diagnostic)
 	ScalarField temp;
 	temp.Initialize(*this,owner);
 
+	const tw::Float dti = dk(0);
+	const tw::Float dth = 0.5*dx(0);
 	for (auto cell : InteriorCellRange(*this))
 	{
 		const tw::Complex aNow = half*(a0(cell)+a1(cell));

@@ -1,8 +1,6 @@
 // Keep the following line for generating twtest reports
 // TWTEST matplotlib zxyt=0,: phi.npy
 
-steps = 300
-timestep = 0.08
 dump period = 0
 moving window = no
 neutralize = yes
@@ -18,10 +16,10 @@ zboundary = ( absorbing , absorbing )
 
 new grid
 {
-	corner = ( -16.0 , -0.5 , 0.0 )
-	dimensions = ( 128 , 1 , 256 )
-	cell size = ( 0.25 , 1.0 , 0.1 )
-	decomposition = ( 1 , 1 , 1 )
+	origin = ( 0.5, 0.5, 0.5, 0.0 )
+	dimensions = ( 300 , 128 , 1 , 256 )
+	cell size = ( 0.08 , 0.25 , 1.0 , 0.1 )
+	decomposition = ( 1 , 1 , 1 , 1 )
 }
 
 new coulomb electromagnetic module 'em'
@@ -30,7 +28,7 @@ new coulomb electromagnetic module 'em'
 
 new facr elliptic solver for 'em'
 {
-	zboundary = open open
+	zboundary = (open open)
 }
 
 new pgc laser module 'pgc'
@@ -40,7 +38,7 @@ new pgc laser module 'pgc'
 
 new hermite gauss pulse for 'pgc'
 {
-	a = 0.5 0.0 0.0
+	a = (0.5 0.0 0.0)
 	r0 = ( 5 , 1e5 )
 	w = 50
 	risetime = 3
@@ -53,9 +51,9 @@ new hermite gauss pulse for 'pgc'
 
 new species 'e'
 {
-	particles per cell = 4 1 4 when density = 1
-	emission temperature = .01 .01 .01
-	zboundary = emitting emitting
+	particles per cell = ( 4 1 4 ) when density = 1
+	emission temperature = ( .01 .01 .01 )
+	zboundary = (emitting emitting)
 }
 
 generate uniform 'e'

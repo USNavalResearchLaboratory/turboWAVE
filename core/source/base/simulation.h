@@ -12,17 +12,16 @@ class GridReader
 {
 	tw::input::DirectiveReader directives;
 	tw::grid::geometry geo;
-	tw::vec3 cornerSet[2][2][2];
 	tw::Int req_dim[4],req_dom[4];
-	tw::vec3 globalCorner,spacing;
+	tw::vec4 relativeRef,absoluteRef,spacing;
 	bool adaptiveTimestep,adaptiveGrid;
 	public:
 	GridReader(tw::UnitConverter& uc);
 	void Read(std::stringstream& inputString,tw::input::Preamble& pre);
 	void UpdateTask(Task& tsk);
 	void UpdateSpace(MetricSpace& ms);
-	tw::vec3 GlobalCorner() { return globalCorner; }
-	tw::vec3 GlobalSize() { return tw::vec3(spacing.x*req_dim[1],spacing.y*req_dim[2],spacing.z*req_dim[3]); }
+	tw::vec4 GlobalCorner();
+	tw::vec4 GlobalSize();
 	tw::grid::geometry Geometry() { return geo; }
 };
 
@@ -31,7 +30,7 @@ struct Simulation:Task,MetricSpace
 	std::ostream *tw_out,*tw_err;
 	tw::input::DirectiveReader outerDirectives;
 
-	tw::Float dt0,dtMin,dtMax,dtCritical,elapsedTime,elapsedTimeMax;
+	tw::Float dtMin,dtMax,dtCritical,elapsedTime,elapsedTimeMax;
 	tw::Float signalPosition,windowPosition,signalSpeed;
 	tw::Float antiSignalPosition,antiWindowPosition;
 	tw::Float unitDensityCGS;
@@ -41,7 +40,7 @@ struct Simulation:Task,MetricSpace
 	bool completed;
 	tw::Int outputLevel,errorCheckingLevel;
 
-	tw::Int stepsToTake,stepNow;
+	tw::Int stepNow;
 	tw::Int lastTime;
 
 	tw::Int dumpPeriod;
@@ -137,7 +136,7 @@ struct Simulation:Task,MetricSpace
 		// Actual steps taken = stepsToTake+1
 		// This allows us to write both the initial condition and the last available data.
 		// If there is a restart the initial step is stepsToTake+1 and 1 less step is taken.
-		return stepNow == stepsToTake;
+		return stepNow == dim[0];
 	}
 
 	bool Completed()
@@ -148,12 +147,12 @@ struct Simulation:Task,MetricSpace
 
 inline tw::Float Simulation::ToLab(tw::Float zeta,tw::Float relativeTime)
 {
-	return zeta + antiWindowPosition - windowPosition + signalSpeed*(elapsedTime + relativeTime - dth);
+	return zeta + antiWindowPosition - windowPosition + signalSpeed*(elapsedTime + relativeTime - 0.5*spacing[0]);
 }
 
 inline tw::Float Simulation::ToLight(tw::Float z,tw::Float relativeTime)
 {
-	return z + windowPosition - antiWindowPosition - signalSpeed*(elapsedTime + relativeTime - dth);
+	return z + windowPosition - antiWindowPosition - signalSpeed*(elapsedTime + relativeTime - 0.5*spacing[0]);
 }
 
 template <class T,class U>
@@ -162,10 +161,10 @@ U Simulation::ValueOnLabGrid(T& A,tw::strip s,tw::Int k,tw::Float relativeTime)
 	// Take a quantity known on the light grid and get its value in a cell of the lab grid
 	tw::Int klight;
 	tw::Float z,zeta,w;
-	z = Pos(s,k).z - corner.z;
+	z = Pos(s,k).z - corner[3];
 	zeta = ToLight(z,relativeTime);
-	klight = MyFloor(zeta*freq.z + 0.5001);
-	w = 0.5 - zeta*freq.z + tw::Float(klight);
+	klight = MyFloor(zeta*freq[3] + 0.5001);
+	w = 0.5 - zeta*freq[3] + tw::Float(klight);
 	return w*A(s,klight) + (one - w)*A(s,klight+1);
 }
 
@@ -175,9 +174,9 @@ U Simulation::ValueOnLightGrid(T& A,tw::strip s,tw::Int k,tw::Float relativeTime
 	// Take a quantity known on the lab grid and get its value in a cell of the light grid
 	tw::Int klab;
 	tw::Float z,zeta,w;
-	zeta = Pos(s,k).z - corner.z;
+	zeta = Pos(s,k).z - corner[3];
 	z = ToLab(zeta,relativeTime);
-	klab = MyFloor(z*freq.z + 0.4999);
-	w = 0.5 - z*freq.z + tw::Float(klab);
+	klab = MyFloor(z*freq[3] + 0.4999);
+	w = 0.5 - z*freq[3] + tw::Float(klab);
 	return w*A(s,klab) + (one - w)*A(s,klab+1);
 }

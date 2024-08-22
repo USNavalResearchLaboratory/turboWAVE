@@ -233,6 +233,7 @@ void BoundElectrons::Update()
 		tw::vec3 qEm,r0,r1,FNL;
 		tw::vec4 j4;
 		tw::Float RR[7];
+		const tw::Float dt = dx(0);
 
 		for (auto v : VectorStripRange<3>(*this,false))
 			for (tw::Int k=1;k<=zLast;k++)
@@ -267,9 +268,9 @@ void BoundElectrons::Update()
 					crystalBasis.ExpressInStdBasis(&r1);
 
 					// charge in high-side adjacent cell last step
-					const tw::vec3 Q0 = 0.5*q0*dens(v,k)*owner->dS(v,k,0)*r0*freq;
+					const tw::vec3 Q0 = 0.5*q0*dens(v,k)*owner->dS(v,k,0)*r0*freq.spatial();
 					// charge in high-side adjacent cell this step
-					const tw::vec3 Q1 = 0.5*q0*dens(v,k)*owner->dS(v,k,0)*r1*freq;
+					const tw::vec3 Q1 = 0.5*q0*dens(v,k)*owner->dS(v,k,0)*r1*freq.spatial();
 					// current in either cell wall
 					const tw::vec3 I3 = (Q1 - Q0)/dt;
 
@@ -351,7 +352,8 @@ void BoundElectrons::Report(Diagnostic& diagnostic)
 
 	ScalarField temp;
 	temp.Initialize(*this,owner);
-
+	tw::Float dt = dx(0);
+	
 	for (auto cell : InteriorCellRange(*this))
 	{
 		const tw::vec3 vel = oscStrength*(R1.Vec3(cell,0) - R0.Vec3(cell,0))/dt;

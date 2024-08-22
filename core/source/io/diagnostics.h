@@ -108,6 +108,7 @@ struct PhaseSpaceDiagnostic : Diagnostic
 struct ParticleOrbits : Diagnostic
 {
 	tw::Float minGamma;
+	std::vector<tw::Int> nodes,ids;
 	std::vector<float> parData;
 
 	ParticleOrbits(const std::string& name,MetricSpace *ms,Task *tsk);
