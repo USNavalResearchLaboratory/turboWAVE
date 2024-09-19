@@ -666,7 +666,14 @@ void Simulation::FundamentalCycle()
 	for (auto m : module)
 		m->Update();
 
-	corner[0] += spacing[0];
+	// TODO: we don't advance the time corner because the particle cell is being
+	// encoded with the time level as well.  It might make more sense to hold the
+	// particle's index at 0 and advance the corner instead.  But then we might need
+	// to update the time box for everything that inherits DiscreteSpace, such as Module.
+	// There is further confusion in the fact that the dimension of the time box is
+	// steps to take, not steps stored in memory.
+	//corner[0] += spacing[0];
+
 	elapsedTime += spacing[0];
 	signalPosition += signalSpeed*spacing[0];
 	antiSignalPosition -= signalSpeed*spacing[0];
