@@ -81,7 +81,7 @@ struct Species:Module
 	tw::Float KineticEnergy(const Region& theRgn);
 	tw::Float ParticleNumber(const Region& theRgn);
 
-	virtual void ReadInputFileDirective(std::stringstream& inputString,const std::string& command);
+	virtual bool ReadInputFileDirective(const TSTreeCursor *curs,const std::string& src);
 	virtual void ReadCheckpoint(std::ifstream& inFile);
 	virtual void WriteCheckpoint(std::ofstream& outFile);
 	virtual void Report(Diagnostic&);

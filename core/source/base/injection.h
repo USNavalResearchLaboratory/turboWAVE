@@ -50,7 +50,7 @@ public:
 	tw::vec3 Translate_Rotate(const tw::vec3& pos);
 	virtual tw::Float GetValue(const tw::vec3& pos,const MetricSpace& ds);
 	bool TimeGate(tw::Float t,tw::Float *add);
-	virtual void ReadInputFileDirective(std::stringstream& inputString,const std::string& command);
+	virtual bool ReadInputFileDirective(const TSTreeCursor *curs,const std::string& src);
 	virtual void ReadCheckpoint(std::ifstream& inFile);
 	virtual void WriteCheckpoint(std::ofstream& outFile);
 };

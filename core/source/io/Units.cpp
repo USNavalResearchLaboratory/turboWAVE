@@ -22,63 +22,49 @@ tw::dnum::dnum(tw::Float v,const tw::dnum_units& t)
 	unit_system = t.unit_system;
 }
 
-tw::dnum::dnum(const std::string& s)
-{
-	std::istringstream temp(s);
-	temp >> *this;
+/// @brief parse dimensional number at cursor, also works on bare decimal node
+/// @param curs cursor, should be on either dimension node or decimal node
+/// @param src the text of the source document
+tw::dnum::dnum(TSTreeCursor *curs,const std::string& src) {
+	std::map<std::string,tw::dnum_units> umap = tw::umap();
+	if (tw::input::node_kind(curs) == "decimal") {
+		value = std::stod(input::node_text(curs,src));
+		prefix = 1.0;
+		unit_dimension = tw::dims::none;
+		unit_system = tw::units::mks;
+	} else if (tw::input::node_kind(curs) == "dimension") {
+		if (ts_tree_cursor_goto_first_child(curs)) {
+			value = std::stod(input::node_text(curs,src));
+			if (ts_tree_cursor_goto_next_sibling(curs)) {
+				tw::dnum_units units = umap[input::node_text(curs,src)];
+				prefix = units.prefix;
+				unit_dimension = units.unit_dimension;
+				unit_system = units.unit_system;
+			}
+			ts_tree_cursor_goto_parent(curs);
+		} else {
+			throw tw::FatalError(input::missing(curs));
+		}
+	} else {
+		throw tw::FatalError("expected number at " + input::loc_str(curs));
+	}
 }
 
-std::istream& operator >> (std::istream& is,tw::dnum& d)
-{
-	// Function to read a dimensional number off the input stream.
-	// Accept several forms, e.g., %-1.0[V], -1.0[V], -1.0 [V].
-	// The '%' prefix is deprecated but still allowed, old specifiers no longer allowed.
-	tw::Float raw_val;
-	std::size_t endpos;
-	std::string word,val,units;
+tw::dnum::dnum(const std::string& src) {
 	std::map<std::string,tw::dnum_units> umap = tw::umap();
-
-	is >> word;
-	val = word;
-	units = "";
-	// If there is a '%' prefix remove it
-	if (word.size()>1)
-	{
-		if (word[0]=='-' && word[1]=='%')
-		{
-			word[1] = '-';
-			val = word.substr(1);
-		}
-		if (word[0]=='%')
-		{
-			val = word.substr(1);
-		}
+	auto s = src.find('[');
+	if (s==std::string::npos) {
+		value = std::stod(src);
+		prefix = 1.0;
+		unit_dimension = tw::dims::none;
+		unit_system = tw::units::mks;
+		return;
 	}
-	try { raw_val = std::stod(val,&endpos); }
-	catch (std::invalid_argument) { throw tw::FatalError("Invalid number : " + word); }
-	if (endpos<val.size())
-		units = val.substr(endpos);
-	else
-	{
-		is >> units;
-		if (umap.find(units)==umap.end())
-		{
-			is.seekg(-units.size(),std::ios::cur);
-			units = "";
-		}
-	}
-	if (units=="")
-	{
-		d = tw::dnum(raw_val,tw::dnum_units());
-	}
-	else
-	{
-		if (umap.find(units)==umap.end())
-			throw tw::FatalError("Unrecognized Units " + units);
-		if (umap.find(units)!=umap.end())
-			d = tw::dnum(raw_val,umap[units]);
-	}
-	return is;
+	value = std::stod(src);
+	tw::dnum_units units = umap[src.substr(s)];
+	prefix = units.prefix;
+	unit_dimension = units.unit_dimension;
+	unit_system = units.unit_system;
 }
 
 /////////////////////////////

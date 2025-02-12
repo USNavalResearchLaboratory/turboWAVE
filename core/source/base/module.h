@@ -60,9 +60,9 @@ struct Module:DiscreteSpace
 	void InitializeCLProgram(const std::string& filename);
 
 	virtual void VerifyInput();
-	virtual void ReadInputFileBlock(std::stringstream& inputString);
-	virtual bool ReadQuasitoolBlock(const tw::input::Preamble& preamble,std::stringstream& inputString);
-	virtual void ReadInputFileDirective(std::stringstream& inputString,const std::string& command);
+	virtual void ReadInputFileBlock(TSTreeCursor *curs,const std::string& src);
+	virtual bool ReadInputFileDirective(const TSTreeCursor *curs,const std::string& src);
+	virtual bool ReadQuasitoolBlock(const TSTreeCursor *curs,const std::string& src);
 	virtual void ReadCheckpoint(std::ifstream& inFile);
 	virtual void WriteCheckpoint(std::ofstream& outFile);
 
@@ -76,7 +76,6 @@ struct Module:DiscreteSpace
 	static bool SingularType(tw::module_type theType);
 	static bool AutoModuleType(tw::module_type theType);
 	static tw::module_type RequiredSupermoduleType(tw::module_type submoduleType);
-	static bool QuasitoolNeedsModule(const tw::input::Preamble& preamble);
 	static tw::module_type CreateTypeFromInput(const tw::input::Preamble& preamble);
 	static Module* CreateObjectFromType(const std::string& name,tw::module_type theType,Simulation* sim);
 	static bool SetTestGrid(tw::module_type theType,tw::Int gridId,Simulation* sim);

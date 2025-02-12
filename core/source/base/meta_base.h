@@ -1,3 +1,4 @@
+#include <tree_sitter/api.h>
 #include "definitions.h"
 #include "ctools.h"
 #include "tasks.h"

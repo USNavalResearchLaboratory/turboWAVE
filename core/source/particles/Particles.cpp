@@ -599,8 +599,10 @@ Species::Species(const std::string& name,Simulation* sim) : Module(name,sim)
 	directives.Add("charge",new tw::input::Float(&charge),false);
 	directives.Add("minimum density",new tw::input::Float(&minimumDensity),false);
 	directives.Add("emission temperature",new tw::input::Vec3(&emissionTemp),false);
-	directives.Add("accelerate to",new tw::input::Custom,false);
-	directives.Add("particles per cell",new tw::input::Custom);
+	directives.Add("acceleration time",new tw::input::Float(&accelerationTime),false);
+	directives.Add("acceleration momentum",new tw::input::Float(&accelerationImpulse),false);
+	directives.Add("particles per cell",new tw::input::Vec3(&distributionInCell),true);
+	directives.Add("when density",new tw::input::Custom);
 }
 
 Species::~Species()
@@ -1213,25 +1215,24 @@ void Species::FinishMoveWindow()
 				}
 }
 
-void Species::ReadInputFileDirective(std::stringstream& inputString,const std::string& command)
+bool Species::ReadInputFileDirective(const TSTreeCursor *curs0,const std::string& src)
 {
-	std::string word;
-	tw::dnum density,momentum,time;
-	Module::ReadInputFileDirective(inputString,command);
-	if (command=="particles per cell") // eg, particles per cell = 3 3 1 when density = 1.0
-	{
-		inputString >> word;
-		inputString >> distributionInCell.x >> distributionInCell.y >> distributionInCell.z;
-		inputString >> word >> word >> word;
-		inputString >> density;
-		targetDensity = (density >> native) / (distributionInCell.x*distributionInCell.y*distributionInCell.z);
+	if (Module::ReadInputFileDirective(curs0,src))
+		return true;
+
+	if (tw::input::node_kind(curs0)=="assignment") {
+		TSTreeCursor curs = ts_tree_cursor_copy(curs0);
+		ts_tree_cursor_goto_first_child(&curs);
+		if (tw::input::node_text(&curs,src) == "when density") {
+			// needs to be run together as `particles per cell = 3 3 1 when density = 1.0`
+			// so that the distributionInCell is known.
+			tw::input::Float directive(&targetDensity);
+			directive.Read(&curs,src,"when density",native);
+			targetDensity /= (distributionInCell.x*distributionInCell.y*distributionInCell.z);
+			return true;
+		}
 	}
-	if (command=="accelerate to") // eg, accelerate to 100.0 in 10.0
-	{
-		inputString >> momentum >> word >> time;
-		accelerationImpulse = momentum >> native;
-		accelerationTime = time >> native;
-	}
+	return false;	
 }
 
 void Species::ReadCheckpoint(std::ifstream& inFile)

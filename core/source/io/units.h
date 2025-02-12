@@ -87,8 +87,9 @@ namespace tw
 		tw::units unit_system;
 	public:
 		dnum();
+		dnum(const std::string& src);
 		dnum(tw::Float v,const tw::dnum_units& d);
-		dnum(const std::string& s);
+		dnum(TSTreeCursor *curs,const std::string &src);
 		friend tw::Float operator >> (const tw::dnum& d,const tw::UnitConverter& uc);
 		friend class tw::UnitConverter;
 	};

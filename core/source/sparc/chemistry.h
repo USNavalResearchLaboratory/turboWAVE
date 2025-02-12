@@ -5,6 +5,8 @@ namespace sparc
 
 // Quasitools for chemical reactions and collisions
 
+tw::Float ReadChemList(TSTreeCursor *curs,const std::string& src,std::vector<std::string>& names);
+
 struct SubReaction
 {
 	std::vector<std::string> reactant_names,product_names;
@@ -21,7 +23,7 @@ struct PrimitiveReaction
 	tw::Float unit_T_eV,unit_rate_cgs; // normalization help for janev
 
 	tw::Float PrimitiveRate(tw::Float T);
-	void ReadRate(std::stringstream& inputString,tw::Int numBodies,const tw::UnitConverter& uc);
+	void ReadRate(TSTreeCursor *curs,const std::string& src,tw::Int numBodies,const tw::UnitConverter& uc);
 };
 
 struct Reaction : PrimitiveReaction
@@ -32,7 +34,7 @@ struct Reaction : PrimitiveReaction
 	tw::Int numBodies;
 
 	virtual ~Reaction();
-	virtual void ReadInputFile(std::stringstream& inputString,const tw::UnitConverter& uc);
+	virtual void ReadInputFile(TSTreeCursor *curs,const std::string& src,const tw::UnitConverter& uc);
 };
 
 struct Excitation : PrimitiveReaction
@@ -44,7 +46,7 @@ struct Excitation : PrimitiveReaction
 	tw::Float level;
 
 	virtual ~Excitation() {}
-	virtual void ReadInputFile(std::stringstream& inputString,const tw::UnitConverter& uc);
+	virtual void ReadInputFile(TSTreeCursor *curs,const std::string& src,const tw::UnitConverter& uc);
 };
 
 struct Collision
@@ -58,5 +60,5 @@ struct Collision
 	tw::Float ks,T_ref,n_ref;
 
 	virtual ~Collision() {}
-	virtual void ReadInputFile(std::stringstream& inputString,const tw::UnitConverter& uc);
+	virtual void ReadInputFile(TSTreeCursor *curs,const std::string& src,const tw::UnitConverter& uc);
 };

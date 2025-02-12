@@ -58,21 +58,28 @@ void ComputeTool::InitializeCLProgram(const std::string& filename)
 	#endif
 }
 
-void ComputeTool::ReadInputFileDirective(std::stringstream& inputString,const std::string& command)
+/// @brief called if an assignment was not handled normally
+/// @param curs on a directive, probably a custom assignment
+/// @param src source document
+/// @returns whether any directive was handled
+bool ComputeTool::ReadInputFileDirective(const TSTreeCursor *curs,const std::string& src)
 {
-	// Handle any directives that cannot be handled by DirectiveReader
+	return false;
 }
 
-void ComputeTool::ReadInputFileBlock(std::stringstream& inputString)
+/// @brief read all directives in the block
+/// @param curs can be on block or on first child of block
+/// @param src source document
+void ComputeTool::ReadInputFileBlock(TSTreeCursor *curs,const std::string& src)
 {
-	std::string com;
+	if (tw::input::node_kind(curs)=="block") {
+		ts_tree_cursor_goto_first_child(curs);
+	}
 	do
 	{
-		com = directives.ReadNext(inputString);
-		if (com=="tw::EOF")
-			throw tw::FatalError("Encountered EOF while processing <"+name+">.");
-		ReadInputFileDirective(inputString,com);
-	} while (com!="}");
+		if (!directives.ReadNext(curs,src))
+			ReadInputFileDirective(curs,src);
+	} while (ts_tree_cursor_goto_next_sibling(curs));
 	directives.ThrowErrorIfMissingKeys(name);
 }
 
@@ -159,15 +166,9 @@ std::map<std::string,tw::tool_type> ComputeTool::Map()
 
 tw::tool_type ComputeTool::CreateTypeFromInput(const tw::input::Preamble& preamble)
 {
-	// Look for a ComputeTool key on a preamble (words between new and opening brace) and return the type of tool.
-	const tw::Int max_words = preamble.words.size();
 	std::map<std::string,tw::tool_type> tool_map = ComputeTool::Map();
-	for (tw::Int i=1;i<=max_words;i++)
-	{
-		std::string key(tw::input::GetPhrase(preamble.words,i));
-		if (tool_map.find(key)!=tool_map.end())
-			return tool_map[key];
-	}
+	if (tool_map.find(preamble.obj_key)!=tool_map.end())
+		return tool_map[preamble.obj_key];
 	return tw::tool_type::none;
 }
 

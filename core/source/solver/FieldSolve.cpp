@@ -51,7 +51,8 @@ Electromagnetic::Electromagnetic(const std::string& name,Simulation* sim):FieldS
 		(sim->globalCells[1]==1 ? 0.0 : 1.0)*sqr(dk(1)) +
 		(sim->globalCells[2]==1 ? 0.0 : 1.0)*sqr(dk(2)) +
 		(sim->globalCells[3]==1 ? 0.0 : 1.0)*sqr(dk(3))))
-		throw tw::FatalError("Courant condition is violated.");
+		throw tw::FatalError("Courant condition is violated " + 
+			std::to_string(dk(0)) + " " + std::to_string(dk(3)));
 
 	F.Initialize(6,*this,owner);
 	sources.Initialize(4,*this,owner);

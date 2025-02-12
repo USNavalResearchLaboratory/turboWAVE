@@ -149,22 +149,29 @@ Region* Region::FindRegion(std::vector<Region*>& ml,const std::string& name)
 	return NULL;
 }
 
-void Region::ReadInputFileBlock(std::stringstream& inputString)
+/// @brief read all directives in the block
+/// @param curs can be on block or on first child of block
+/// @param src source document
+void Region::ReadInputFileBlock(TSTreeCursor *curs,const std::string& src)
 {
-	std::string com;
+	if (tw::input::node_kind(curs)=="block") {
+		ts_tree_cursor_goto_first_child(curs);
+	}
 	do
 	{
-		com = directives.ReadNext(inputString);
-		if (com=="tw::EOF")
-			throw tw::FatalError("Encountered EOF while processing <"+name+">.");
-		ReadInputFileDirective(inputString,com);
-	} while (com!="}");
+		directives.ReadNext(curs,src);
+		// following is unconditional, see comments up top
+		TSTreeCursor curs1 = ts_tree_cursor_copy(curs);
+		ReadInputFileDirective(&curs1,src);
+	} while (ts_tree_cursor_goto_next_sibling(curs));
 	directives.ThrowErrorIfMissingKeys(name);
 }
 
-void Region::ReadInputFileDirective(std::stringstream& inputString,const std::string& com)
+void Region::ReadInputFileDirective(const TSTreeCursor *curs0,const std::string& src)
 {
-	std::string word;
+	TSTreeCursor curs = ts_tree_cursor_copy(curs0);
+	ts_tree_cursor_goto_first_child(&curs);
+	std::string com = tw::input::node_text(&curs,src);
 
 	if (com=="bounds")
 	{
@@ -193,23 +200,17 @@ void Region::ReadInputFileDirective(std::stringstream& inputString,const std::st
 	if (com=="elements")
 	{
 		Region *curr;
-		inputString >> word;
-		if (word!="=")
-			throw tw::FatalError("Expected <=> after <elements>.");
-		inputString >> word;
-		if (word!="{")
-			throw tw::FatalError("Expected <{> at start of list.");
-		do {
-			inputString >> word;
-			if (inputString.eof())
-				throw tw::FatalError("Encountered EOF while processing <"+name+">.");
-			if (word!="}")
-			{
-				tw::input::StripQuotes(word);
-				curr = FindRegion(masterList,word);
-				composite.push_back(curr);
-			}
-		} while (word!="}");
+		tw::input::next_named_node(&curs,false);
+		if (tw::input::node_kind(&curs) != "list") {
+			throw tw::FatalError("expected `elements` to be a list while processing region");
+		}
+		ts_tree_cursor_goto_first_child(&curs);
+		while (tw::input::next_named_node(&curs,false)) {
+			std::string elName = tw::input::node_text(&curs,src);
+			tw::input::StripQuotes(elName);
+			curr = FindRegion(masterList,elName);
+			composite.push_back(curr);
+		}
 	}
 	if (com=="translation") // eg, translation = 1 0 0
 	{
@@ -285,9 +286,9 @@ BoxArrayRegion::BoxArrayRegion(std::vector<Region*>& ml) : Region(ml)
 	directives.Add("spacing",new tw::input::Vec3(&spacing));
 }
 
-void BoxArrayRegion::ReadInputFileDirective(std::stringstream& inputString,const std::string& com)
+void BoxArrayRegion::ReadInputFileDirective(const TSTreeCursor *curs,const std::string& src)
 {
-	Region::ReadInputFileDirective(inputString,com);
+	Region::ReadInputFileDirective(curs,src);
 	rbox = 0.5*size;
 }
 
@@ -315,9 +316,9 @@ TorusRegion::TorusRegion(std::vector<Region*>& ml) : Region(ml)
 	directives.Add("major radius",new tw::input::Float(&majorRadius));
 }
 
-void TorusRegion::ReadInputFileDirective(std::stringstream& inputString,const std::string& com)
+void TorusRegion::ReadInputFileDirective(const TSTreeCursor *curs,const std::string& src)
 {
-	Region::ReadInputFileDirective(inputString,com);
+	Region::ReadInputFileDirective(curs,src);
 	rbox = tw::vec3(majorRadius+minorRadius,majorRadius+minorRadius,minorRadius);
 }
 
@@ -345,9 +346,9 @@ ConeRegion::ConeRegion(std::vector<Region*>& ml) : Region(ml)
 	directives.Add("base radius",new tw::input::Float(&majorRadius));
 }
 
-void ConeRegion::ReadInputFileDirective(std::stringstream& inputString,const std::string& com)
+void ConeRegion::ReadInputFileDirective(const TSTreeCursor *curs,const std::string& src)
 {
-	Region::ReadInputFileDirective(inputString,com);
+	Region::ReadInputFileDirective(curs,src);
 	rbox.x = rbox.y = majorRadius;
 }
 
@@ -375,9 +376,9 @@ TangentOgiveRegion::TangentOgiveRegion(std::vector<Region*>& ml) : Region(ml)
 	directives.Add("body radius",new tw::input::Float(&bodyRadius));
 }
 
-void TangentOgiveRegion::ReadInputFileDirective(std::stringstream& inputString,const std::string& com)
+void TangentOgiveRegion::ReadInputFileDirective(const TSTreeCursor *curs,const std::string& src)
 {
-	Region::ReadInputFileDirective(inputString,com);
+	Region::ReadInputFileDirective(curs,src);
 	rbox.x = rbox.y = bodyRadius;
 }
 
@@ -405,9 +406,9 @@ CylindricalShellRegion::CylindricalShellRegion(std::vector<Region*>& ml) : Regio
 	directives.Add("outer radius",new tw::input::Float(&outerRadius));
 }
 
-void CylindricalShellRegion::ReadInputFileDirective(std::stringstream& inputString,const std::string& com)
+void CylindricalShellRegion::ReadInputFileDirective(const TSTreeCursor *curs,const std::string& src)
 {
-	Region::ReadInputFileDirective(inputString,com);
+	Region::ReadInputFileDirective(curs,src);
 	rbox.x = rbox.y = outerRadius;
 }
 

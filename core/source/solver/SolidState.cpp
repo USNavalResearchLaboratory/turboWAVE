@@ -303,23 +303,26 @@ void BoundElectrons::Update()
 }
 #endif
 
-void BoundElectrons::ReadInputFileDirective(std::stringstream& inputString,const std::string& command)
+bool BoundElectrons::ReadInputFileDirective(const TSTreeCursor *curs0,const std::string& src)
 {
-	tw::dnum x,y,z;
-	std::string word;
+	if (Module::ReadInputFileDirective(curs0,src))
+		return true;
 
-	Module::ReadInputFileDirective(inputString,command);
-
-	if (command=="basis")
-	{
-		inputString >> word;
-		inputString >> x >> y >> z;
-		crystalBasis.u = tw::vec3(x>>native,y>>native,z>>native);
-		inputString >> x >> y >> z;
-		crystalBasis.v = tw::vec3(x>>native,y>>native,z>>native);
-		inputString >> x >> y >> z;
-		crystalBasis.w = tw::vec3(x>>native,y>>native,z>>native);
+	if (tw::input::node_kind(curs0)=="assignment") {
+		TSTreeCursor curs = ts_tree_cursor_copy(curs0);
+		ts_tree_cursor_goto_first_child(&curs);
+		if (tw::input::node_text(&curs,src) == "basis") {
+			std::valarray<tw::Float> components(9);
+			tw::input::Numbers<tw::Float> directive(&components[0],9);
+			directive.Read(&curs,src,"basis",native);
+			crystalBasis.u = tw::vec3(&components[0]);
+			crystalBasis.v = tw::vec3(&components[3]);
+			crystalBasis.w = tw::vec3(&components[6]);
+			return true;
+		}
 	}
+
+	return false;
 }
 
 void BoundElectrons::ReadCheckpoint(std::ifstream& inFile)

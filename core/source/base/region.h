@@ -67,8 +67,8 @@ struct Region
 	static Region* CreateObjectFromString(std::vector<Region*>& ml,const std::string& str);
 	static Region* FindRegion(std::vector<Region*>& ml,const std::string& name);
 
-	virtual void ReadInputFileBlock(std::stringstream& inputString);
-	virtual void ReadInputFileDirective(std::stringstream& inputString,const std::string& command);
+	virtual void ReadInputFileBlock(TSTreeCursor *curs,const std::string& src);
+	virtual void ReadInputFileDirective(const TSTreeCursor *curs,const std::string& src);
 	virtual void ReadCheckpoint(std::ifstream& inFile);
 	virtual void WriteCheckpoint(std::ofstream& outFile);
 };
@@ -151,7 +151,7 @@ struct CylindricalShellRegion:Region
 		rho = sqrt(p.x*p.x + p.y*p.y);
 		return complement ^ ( rho < outerRadius && rho > innerRadius && sqr(p.z) < sqr(rbox.z));
 	}
-	virtual void ReadInputFileDirective(std::stringstream& inputString,const std::string& command);
+	virtual void ReadInputFileDirective(const TSTreeCursor *curs,const std::string& src);
 	virtual void ReadCheckpoint(std::ifstream& inFile);
 	virtual void WriteCheckpoint(std::ofstream& outFile);
 };
@@ -213,7 +213,7 @@ struct BoxArrayRegion:Region
 		bool ans = p.x - tw::Float(i)*spacing.x < size.x && p.y - tw::Float(j)*spacing.y < size.y && p.z - tw::Float(k)*spacing.z < size.z;
 		return complement ^ ans;
 	}
-	virtual void ReadInputFileDirective(std::stringstream& inputString,const std::string& command);
+	virtual void ReadInputFileDirective(const TSTreeCursor *curs,const std::string& src);
 	virtual void ReadCheckpoint(std::ifstream& inFile);
 	virtual void WriteCheckpoint(std::ofstream& outFile);
 };
@@ -231,7 +231,7 @@ struct TorusRegion:Region
 		return complement ^ ( rho > majorRadius-minorRadius && rho < majorRadius+minorRadius &&
 			sqr(p.z) < sqr(minorRadius)-sqr(rho-majorRadius));
 	}
-	virtual void ReadInputFileDirective(std::stringstream& inputString,const std::string& command);
+	virtual void ReadInputFileDirective(const TSTreeCursor *curs,const std::string& src);
 	virtual void ReadCheckpoint(std::ifstream& inFile);
 	virtual void WriteCheckpoint(std::ofstream& outFile);
 };
@@ -249,7 +249,7 @@ struct ConeRegion:Region
 		rOfz = minorRadius - (p.z - rbox.z)*(majorRadius-minorRadius)/(2.0*rbox.z);
 		return complement ^ ( rho < rOfz && sqr(p.z) < sqr(rbox.z));
 	}
-	virtual void ReadInputFileDirective(std::stringstream& inputString,const std::string& command);
+	virtual void ReadInputFileDirective(const TSTreeCursor *curs,const std::string& src);
 	virtual void ReadCheckpoint(std::ifstream& inFile);
 	virtual void WriteCheckpoint(std::ofstream& outFile);
 };
@@ -278,7 +278,7 @@ struct TangentOgiveRegion:Region
 			rOfz = sqrt(sqr(tipRadius)-sqr(p.z-x0));
 		return complement ^ (rho < rOfz);
 	}
-	virtual void ReadInputFileDirective(std::stringstream& inputString,const std::string& command);
+	virtual void ReadInputFileDirective(const TSTreeCursor *curs,const std::string& src);
 	virtual void ReadCheckpoint(std::ifstream& inFile);
 	virtual void WriteCheckpoint(std::ofstream& outFile);
 };

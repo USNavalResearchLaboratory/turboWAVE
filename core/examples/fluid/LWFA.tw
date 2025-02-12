@@ -5,6 +5,7 @@ dump period = 0
 moving window = yes
 neutralize = yes
 unit density = 1.1e+17
+native units = cgs
 
 xboundary = ( periodic , periodic )
 yboundary = ( periodic , periodic )

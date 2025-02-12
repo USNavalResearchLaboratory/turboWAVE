@@ -14,21 +14,23 @@ class GridReader
 	tw::grid::geometry geo;
 	tw::Int req_dim[4],req_dom[4];
 	tw::vec4 relativeRef,absoluteRef,spacing;
-	bool adaptiveTimestep,adaptiveGrid;
+	bool adaptiveTimestep,adaptiveGrid,found;
 	public:
 	GridReader(tw::UnitConverter& uc);
-	void Read(std::stringstream& inputString,tw::input::Preamble& pre);
+	bool Read(const TSTreeCursor *curs,const std::string& src);
 	void UpdateTask(Task& tsk);
 	void UpdateSpace(MetricSpace& ms);
 	tw::vec4 GlobalCorner();
 	tw::vec4 GlobalSize();
 	tw::grid::geometry Geometry() { return geo; }
+	bool FoundGrid() { return found; }
 };
 
-struct Simulation:Task,MetricSpace
+struct Simulation:Task,MetricSpace,tw::input::Visitor
 {
 	std::ostream *tw_out,*tw_err;
 	tw::input::DirectiveReader outerDirectives;
+	GridReader *gridReader;
 
 	tw::Float dtMin,dtMax,dtCritical,elapsedTime,elapsedTimeMax;
 	tw::Float signalPosition,windowPosition,signalSpeed;
@@ -38,7 +40,8 @@ struct Simulation:Task,MetricSpace
 
 	bool neutralize,movingWindow;
 	bool completed;
-	tw::Int outputLevel,errorCheckingLevel;
+	tw::Int outputLevel,errorCheckingLevel,inputFilePass;
+	std::string src; // current input document
 
 	tw::Int stepNow;
 	tw::Int lastTime;
@@ -77,7 +80,7 @@ struct Simulation:Task,MetricSpace
 	bool MangleToolName(std::string& name);
 	ComputeTool* CreateTool(const std::string& basename,tw::tool_type theType);
 	ComputeTool* GetTool(const std::string& name,bool attaching);
-	void ToolFromDirective(std::vector<ComputeTool*>& tool,std::stringstream& inputString,const std::string& command);
+	void ToolFromDirective(std::vector<ComputeTool*>& tool,TSTreeCursor *curs,const std::string& src);
 	bool RemoveTool(ComputeTool *theTool);
 
 	tw::Float ToLab(tw::Float zeta,tw::Float relativeTime);
@@ -87,8 +90,10 @@ struct Simulation:Task,MetricSpace
 	template <class T,class U>
 	U ValueOnLightGrid(T& A,tw::strip s,tw::Int k,tw::Float relativeTime);
 
+	tw::input::navigation visit(TSTreeCursor *curs);
+	tw::input::navigation descend(TSTreeCursor *curs);
 	void InputFileFirstPass();
-	void NestedDeclaration(const std::string& com,std::stringstream& inputString,Module *sup);
+	void NestedDeclaration(TSTreeCursor *curs,const std::string& src,Module *sup);
 	Module* RecursiveAutoSuper(tw::module_type reqType,const std::string& basename);
 	void ReadInputFile();
 	void ReadCheckpoint(std::ifstream& inFile);

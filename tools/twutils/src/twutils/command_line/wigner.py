@@ -49,8 +49,8 @@ def WignerTransform(A,ds,eta0):
     # The frequency variable is assumed to be an angular frequency (e.g. rad/s)
     N = A.shape[0]
     M = int(N/2) + 1
-    corr = np.zeros((N,M)).astype(np.complex)
-    Ai = np.zeros(N*2-1).astype(np.complex)
+    corr = np.zeros((N,M)).astype(complex)
+    Ai = np.zeros(N*2-1).astype(complex)
     Ai[::2] = A
     Ai[1::2] = 0.5*(np.roll(Ai,1)+np.roll(Ai,-1))[1::2]
     for j in range(M):

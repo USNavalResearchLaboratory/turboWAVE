@@ -2192,25 +2192,26 @@ void sparc::HydroManager::Update()
 	LaserAdvance(dt);
 }
 
-bool sparc::HydroManager::ReadQuasitoolBlock(const tw::input::Preamble& preamble,std::stringstream& inputString)
+bool sparc::HydroManager::ReadQuasitoolBlock(const TSTreeCursor *curs0,const std::string& src)
 {
-	std::string key(preamble.words[0]);
+	std::string key = tw::input::node_kind(curs0);
+	TSTreeCursor curs = ts_tree_cursor_copy(curs0);
 	if (key=="reaction")
 	{
 		reaction.push_back(new Reaction);
-		reaction.back()->ReadInputFile(inputString,native);
+		reaction.back()->ReadInputFile(&curs,src,native);
 		return true;
 	}
 	if (key=="excitation")
 	{
 		excitation.push_back(new Excitation);
-		excitation.back()->ReadInputFile(inputString,native);
+		excitation.back()->ReadInputFile(&curs,src,native);
 		return true;
 	}
 	if (key=="collision")
 	{
 		collision.push_back(new Collision);
-		collision.back()->ReadInputFile(inputString,native);
+		collision.back()->ReadInputFile(&curs,src,native);
 		return true;
 	}
 	return false;

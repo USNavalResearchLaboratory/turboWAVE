@@ -71,8 +71,8 @@ struct ComputeTool : Testable
 	virtual void Initialize();
 	virtual void WarningMessage(std::ostream *theStream);
 	virtual void StatusMessage(std::ostream *theStream) {;}
-	virtual void ReadInputFileBlock(std::stringstream& inputString);
-	virtual void ReadInputFileDirective(std::stringstream& inputString,const std::string& command);
+	virtual void ReadInputFileBlock(TSTreeCursor *curs,const std::string& src);
+	virtual bool ReadInputFileDirective(const TSTreeCursor *curs,const std::string& src);
 	virtual void ReadCheckpoint(std::ifstream& inFile);
 	virtual void WriteCheckpoint(std::ofstream& outFile);
 	virtual bool Test(tw::Int& id);

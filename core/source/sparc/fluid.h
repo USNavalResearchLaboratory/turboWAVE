@@ -208,7 +208,7 @@ struct HydroManager:Module
 	virtual void Update();
 
 	virtual void VerifyInput();
-	virtual bool ReadQuasitoolBlock(const tw::input::Preamble& preamble,std::stringstream& inputString);
+	virtual bool ReadQuasitoolBlock(const TSTreeCursor *curs,const std::string& src);
 	virtual void ReadCheckpoint(std::ifstream& inFile);
 	virtual void WriteCheckpoint(std::ofstream& outFile);
 

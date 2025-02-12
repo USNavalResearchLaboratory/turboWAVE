@@ -77,22 +77,34 @@ void Profile::Initialize()
 {
 }
 
-void Profile::ReadInputFileDirective(std::stringstream& inputString,const std::string& com)
+bool Profile::ReadInputFileDirective(const TSTreeCursor *curs0,const std::string& src)
 {
-	std::string word;
-	if (com=="particle weight")
-	{
-		inputString >> word >> word;
-		if (word!="variable" && word!="fixed")
-			throw tw::FatalError("Invalid type <"+word+"> while processing key <particle weight>.");
-		variableCharge = (word=="variable" ? true : false);
+	TSTreeCursor curs = ts_tree_cursor_copy(curs0);
+	if (!tw::input::next_named_node(&curs,true))
+		return false;
+	std::string outer = tw::input::node_kind(&curs);
+	if (outer != "assignment")
+		throw tw::FatalError("Expected assignment, got " + outer + ", at " + tw::input::loc_str(curs0));
+	ts_tree_cursor_goto_first_child(&curs);
+	std::string com = tw::input::node_text(&curs,src);
+	if (com=="particle weight") {
+		std::string weighting;
+		tw::input::String directive(&weighting);
+		directive.Read(&curs,src,"particle weight",native);
+		if (weighting!="variable" && weighting!="fixed")
+			throw tw::FatalError("Invalid type <"+weighting+"> while processing key <particle weight>.");
+		variableCharge = (weighting=="variable" ? true : false);
+		return true;
 	}
 	if (com=="euler angles") // eg, euler angles = ( 45[deg] 90[deg] 30[deg] )
 	{
-		tw::dnum alpha,beta,gamma;
-		inputString >> alpha >> beta >> gamma;
-		orientation.SetWithEulerAngles( alpha >> native , beta >> native , gamma >> native );
+		tw::vec3 angles;
+		tw::input::Vec3 directive(&angles);
+		directive.Read(&curs,src,"euler angles",native);
+		orientation.SetWithEulerAngles( angles.x , angles.y , angles.z );
+		return true;
 	}
+	return false;
 }
 
 void Profile::ReadCheckpoint(std::ifstream& inFile)

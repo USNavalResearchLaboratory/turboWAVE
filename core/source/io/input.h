@@ -2,40 +2,140 @@ namespace tw
 {
 	namespace input
 	{
+		enum class navigation {
+			gotoSelf,
+			gotoChild,
+			gotoSibling,
+			gotoParentSibling,
+			descend,
+			exit,
+			abort
+		};
+		class Visitor {
+			public:
+			virtual navigation visit(TSTreeCursor *curs) = 0;
+			virtual navigation descend(TSTreeCursor *curs) = 0;
+		};
+		class MacroVisitor : public Visitor {
+			std::string src;
+			std::map<std::string,std::string> dict;
+			std::string expandedDeck;
+			bool didChange;
+			public:
+			void init() { didChange = false; }
+			bool done() { return didChange == false; }
+			std::string get() { return expandedDeck; }
+			virtual navigation visit(TSTreeCursor *curs);
+			virtual navigation descend(TSTreeCursor *curs);
+		};
+		inline std::string trim(const std::string& str) {
+			const std::string whitespace = " \t\n\r\f\v";
+			size_t first = str.find_first_not_of(whitespace);
+			if (first == std::string::npos) {
+				return "";
+			}
+			size_t last = str.find_last_not_of(whitespace);
+			return str.substr(first, (last - first + 1));
+		}
+		inline std::string loc_str(const TSTreeCursor *curs) {
+			TSNode n = ts_tree_cursor_current_node(curs);
+			TSPoint p = ts_node_start_point(n);
+			return std::to_string(p.row) + "," + std::to_string(p.column);
+		}
+		inline std::string missing(const TSTreeCursor *curs) {
+			return "something missing at " + loc_str(curs);
+		}
+		inline std::string node_text(TSNode node,const std::string& src) {
+			const int s = ts_node_start_byte(node);
+			const int e = ts_node_end_byte(node);
+			return src.substr(s,e-s);
+		}
+		inline std::string node_text(const TSTreeCursor *curs,const std::string &src) {
+			const int s = ts_node_start_byte(ts_tree_cursor_current_node(curs));
+			const int e = ts_node_end_byte(ts_tree_cursor_current_node(curs));
+			return src.substr(s,e-s);
+		}
+		inline std::string node_kind(const TSTreeCursor *curs) {
+			return ts_node_type(ts_tree_cursor_current_node(curs));
+		}
+		/// @brief goto the next named node, optionally accepting the current node
+		/// @param curs tree cursor
+		/// @param include_curr whether to accept the current node
+		/// @return was a named node found
+		inline bool next_named_node(TSTreeCursor *curs,bool include_curr) {
+			if (include_curr) {
+				if (ts_node_is_named(ts_tree_cursor_current_node(curs))) {
+					return true;
+				}
+			}
+			while (ts_tree_cursor_goto_next_sibling(curs)) {
+				if (ts_node_is_named(ts_tree_cursor_current_node(curs))) {
+					return true;
+				}
+			}
+			return false;
+		}
+		/// @brief advance to the next named sibling and return the text, or throw error
+		inline std::string next_named_node_text(TSTreeCursor *curs,const std::string &src) {
+			if (next_named_node(curs,false)) {
+				return node_text(curs,src);
+			} else {
+				throw tw::FatalError(missing(curs));
+			}
+		}
+		/// @brief advance to the next named sibling and return the type, or throw error
+		inline std::string next_named_node_kind(TSTreeCursor *curs) {
+			if (next_named_node(curs,false)) {
+				return node_kind(curs);
+			} else {
+				throw tw::FatalError(missing(curs));
+			}
+		}
 		void StripQuotes(std::string& str);
+		/// @brief Directive is a base class for several child classes.
+		/// Directive and its derivatives provide mainly the virtual function Read(...).
+		/// Read(...) is invoked by the DirectiveReader class, which maintains a hash table of string-keys and pointers to Directive instances.
+		/// This hash table is the basis for reading data from the input file.
 		struct Directive
 		{
-			// Directive is a base class for several child classes.
-			// Directive and its derivatives provide mainly the virtual function Read(...).
-			// Read(...) is invoked by the DirectiveReader class, which maintains a hash table of string-keys and pointers to Directive instances.
-			// This hash table is the basis for reading data from the input file.
 			virtual ~Directive()
 			{
 			}
-			virtual void Read(std::stringstream& in,const std::string& key,const tw::UnitConverter& native)
+			/// @brief parse and capture data if this is an assignment
+			/// @param curs on first child of assignment node
+			/// @param src source document
+			/// @param key the text of the current node
+			/// @param native converter for native units
+			/// @return was the assignment processed, e.g., will be false for custom directive
+			virtual bool Read(TSTreeCursor *curs,const std::string& src,const std::string& key,const tw::UnitConverter& native)
 			{
-				std::string word;
-				in >> word;
-				if (word!="=")
-					throw tw::FatalError("Expected equals sign after key <"+key+">");
+				return true;
 			}
 		};
 		struct Custom : Directive
 		{
-			virtual void Read(std::stringstream& in,const std::string& key,const tw::UnitConverter& native)
+			virtual bool Read(TSTreeCursor *curs,const std::string& src,const std::string& key,const tw::UnitConverter& native)
 			{
-				// Do not consume the equals sign or any other token.  Do nothing.
+				return false;
 			}
 		};
 		struct String : Directive
 		{
 			std::string *str;
 			String(std::string *s) { str=s; }
-			virtual void Read(std::stringstream& in,const std::string& key,const tw::UnitConverter& native)
+			virtual bool Read(TSTreeCursor *curs,const std::string& src,const std::string& key,const tw::UnitConverter& native)
 			{
-				Directive::Read(in,key,native);
-				in >> *str;
-				StripQuotes(*str);
+				if (next_named_node(curs,false)) {
+					if (tw::input::node_kind(curs) == "string_literal") {
+						*str = node_text(curs,src);
+						StripQuotes(*str);
+					} else {
+						throw tw::FatalError("expected string at " + loc_str(curs));
+					}
+				} else {
+					throw tw::FatalError(missing(curs));
+				}
+				return true;
 			}
 		};
 		template <class T> // any type supported by input streams
@@ -44,23 +144,25 @@ namespace tw
 			T *dat;
 			tw::Int num;
 			Numbers(T *d,tw::Int n) { num=n; dat=d; }
-			virtual void Read(std::stringstream& in,const std::string& key,const tw::UnitConverter& native)
+			virtual bool Read(TSTreeCursor *curs,const std::string& src,const std::string& key,const tw::UnitConverter& native)
 			{
-				Directive::Read(in,key,native);
-				for (tw::Int i=0;i<num;i++)
-				{
-					if (std::is_floating_point<T>::value)
-					{
-						tw::dnum dimensional_number;
-						in >> dimensional_number;
-						dat[i] = dimensional_number >> native;
-					}
-					else
-					{
-						if (!(in >> dat[i]))
-							throw tw::FatalError("Invalid data type for key <"+key+">");
+				next_named_node(curs,false);
+				if (num>1) {
+					if (tw::input::node_kind(curs) == "tuple") {
+						ts_tree_cursor_goto_first_child(curs);
+					} else {
+						throw tw::FatalError("expected tuple at " + loc_str(curs));
 					}
 				}
+				for (tw::Int i=0;i<num;i++) {
+					if (next_named_node(curs,true)) {
+						dat[i] = tw::dnum(curs,src) >> native;
+					} else {
+						throw tw::FatalError(missing(curs));
+					}
+					ts_tree_cursor_goto_next_sibling(curs);
+				}
+				return true;
 			}
 		};
 		struct Int : Numbers<tw::Int>
@@ -87,42 +189,34 @@ namespace tw
 		struct List : Directive
 		{
 			// T is a standard container, or any class with resize, subscript, and value_type.
-			// The contained type has to support input streams.
 			T *dat;
 			List(T *d) { dat=d; }
-			virtual void Read(std::stringstream& in,const std::string& key,const tw::UnitConverter& native)
+			virtual bool Read(TSTreeCursor *curs,const std::string& src,const std::string& key,const tw::UnitConverter& native)
 			{
-				Directive::Read(in,key,native);
-				std::string word;
-				in >> word;
-				if (word!="{")
-					throw tw::FatalError("Expected curly-brace at start of list.");
-				// We are using streams to convert strings to data polymorphically.
 				std::vector<typename T::value_type> temp;
 				std::vector<typename T::value_type> dummy(1);
-				while (!in.eof() && word!="}")
-				{
-					in >> word;
-					if (!in.eof() && word!="}")
-					{
-						in.seekg(-word.size(),std::ios::cur);
-						if (std::is_floating_point<typename T::value_type>::value)
-						{
-							tw::dnum dimensional_number;
-							in >> dimensional_number;
-							dummy[0] = dimensional_number >> native;
+				if (next_named_node(curs,false)) {
+					if (ts_node_type(ts_tree_cursor_current_node(curs))=="list") {
+						if (ts_tree_cursor_goto_first_child(curs)) {
+							next_named_node(curs,true);
+							do {
+								dummy[0] = tw::dnum(curs,src) >> native;
+								temp.push_back(dummy[0]);
+							} while (next_named_node(curs,false));
+							ts_tree_cursor_goto_parent(curs);
+						} else {
+							throw tw::FatalError("empty list at " + loc_str(curs));
 						}
-						else
-						{
-							if (!(in >> dummy[0]))
-								throw tw::FatalError("Invalid data type for key <"+key+">");
-						}
-						temp.push_back(dummy[0]);
+					} else {
+						throw tw::FatalError("expected list at " + loc_str(curs));
 					}
+				} else {
+					throw tw::FatalError(missing(curs));
 				}
 				dat->resize(temp.size());
 				for (tw::Int i=0;i<temp.size();i++)
 					(*dat)[i] = temp[i];
+				return true;
 			}
 		};
 		template <class T>
@@ -140,39 +234,42 @@ namespace tw
 			{
 				delete emap;
 			}
-			virtual void Read(std::stringstream& in,const std::string& key,const tw::UnitConverter& native)
+			virtual bool Read(TSTreeCursor *curs,const std::string& src,const std::string& key,const tw::UnitConverter& native)
 			{
-				Directive::Read(in,key,native);
-				std::string word;
+				if (next_named_node_kind(curs) == "tuple") {
+					ts_tree_cursor_goto_first_child(curs);
+				}
+				next_named_node(curs,true);
 				auto read_one = [&] (T *d)
 				{
 					if (d!=NULL)
 					{
-						in >> word;
+						std::string word = node_text(curs,src);
 						if (emap->find(word)==emap->end())
 							throw tw::FatalError("Invalid type <"+word+"> while reading key <"+key+">");
 						*d = (*emap)[word];
+						next_named_node(curs,false);
 					}
 				};
 				read_one(dat1);
 				read_one(dat2);
 				read_one(dat3);
+				return true;
 			}
 		};
 		struct Bool : Directive
 		{
 			bool *dat;
 			Bool(bool *d) { dat=d; }
-			virtual void Read(std::stringstream& in,const std::string& key,const tw::UnitConverter& native)
+			virtual bool Read(TSTreeCursor *curs,const std::string& src,const std::string& key,const tw::UnitConverter& native)
 			{
-				Directive::Read(in,key,native);
-				std::string word;
+				std::string word = next_named_node_text(curs,src);
 				std::multimap<std::string,bool> m = {{"on",true},{"true",true},{"yes",true},{"off",false},{"false",false},{"no",false}};
-				in >> word;
 				auto p = m.find(word);
 				if (p==m.end())
 					throw tw::FatalError("Invalid boolean value <"+word+"> while reading key <"+key+">");
 				*dat = p->second;
+				return true;
 			}
 		};
 		class DirectiveReader
@@ -188,8 +285,8 @@ namespace tw
 			void AttachUnits(const tw::UnitConverter& native);
 			void Reset();
 			void Add(const std::string& key,tw::input::Directive *dir,bool required=true);
-			std::string ReadNext(std::stringstream& in);
-			void ReadAll(std::stringstream& in);
+			bool ReadNext(const TSTreeCursor *curs,const std::string& src);
+			void ReadAll(TSTreeCursor *curs,const std::string& src);
 			bool TestKey(const std::string& test);
 			void ThrowErrorIfMissingKeys(const std::string& src);
 		};
@@ -197,8 +294,7 @@ namespace tw
 		{
 			// encapsulates information about how an object is being created in the input file
 			bool attaching;
-			std::string str,obj_name,owner_name,end_token,err_prefix;
-			std::vector<std::string> words;
+			std::string obj_key,obj_name,owner_name;
 		};
 		struct FileEnv
 		{
@@ -211,31 +307,18 @@ namespace tw
 			bool FindAndOpen(const std::string& fileName,std::stringstream& contents) const;
 		};
 
-		tw::Float GetUnitDensityCGS(const std::string& in);
-		tw::units GetNativeUnits(const std::string& in);
+		TSTree* GetTree(const std::string& src);
+		void WalkTree(const TSTree *tree,Visitor *visitor);
 
-		std::string include_regex();
-		std::string define_key_regex();
-		std::string define_regex();
-		std::string ifdef_regex();
-		std::string ifndef_regex();
-		std::string else_regex();
-		std::string endif_regex();
-		void StripComments(std::string& in_out);
-		void PreprocessorSyntaxCheck(const std::string& in);
-		void IncludeFiles(const FileEnv& file_env,std::string& in_out);
-		void AddMacro(const std::string& line,std::map<std::string,std::string>& macros);
-		void EnterConditional(std::string& line,std::stringstream& in,std::stringstream& out,std::map<std::string,std::string>& macros);
-		std::map<std::string,std::string> StripConditionalCode(std::string& in_out);
-		void MacroSubstitution(std::string& in_out,const std::map<std::string,std::string>& macros);
-		void PreprocessString(std::string& in_out);
-		void PreprocessInputFile(const FileEnv& file_env,std::stringstream& out);
+		tw::Float GetUnitDensityCGS(TSTree *tree,const std::string& src);
+		tw::units GetNativeUnits(TSTree *tree,const std::string& src);
 
-		Preamble EnterInputFileBlock(const std::string& com,std::stringstream& inputString,const std::string& end_tokens);
-		void ExitInputFileBlock(std::stringstream& inputString,bool alreadyEntered);
+		std::string MacroSubstitution(const std::string& src);
 
-		std::string GetPhrase(const std::vector<std::string>& words,tw::Int num_words);
-		void PopExpectedWord(std::stringstream& inputString,const std::string& word,const std::string& obj);
-		void PythonRange(std::string& source,tw::Float *v0,tw::Float *v1);
+		Preamble GetPreamble(TSTreeCursor *curs,const std::string& src);
+
+		std::string PythonRange(TSTreeCursor *curs,const std::string& src,tw::Float *v0,tw::Float *v1);
+
+		void ThrowParsingError(const TSTreeCursor *curs,const std::string& src,const std::string& messg);
 	}
 }

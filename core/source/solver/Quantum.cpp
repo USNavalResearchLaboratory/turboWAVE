@@ -43,7 +43,9 @@ AtomicPhysics::AtomicPhysics(const std::string& name,Simulation* sim):Module(nam
 	directives.Add("keep a2 term",new tw::input::Bool(&keepA2Term),false);
 	directives.Add("dipole approximation",new tw::input::Bool(&dipoleApproximation),false);
 	directives.Add("relaxation time",new tw::input::Float(&timeRelaxingToGround),false);
-	directives.Add("soft core potential charge",new tw::input::Custom,false);
+	// following two are often written as `soft core potential , charge = 1 , radius = 1`, which parses the same
+	directives.Add("soft core potential charge",new tw::input::Float(&H.qnuc),false);
+	directives.Add("radius",new tw::input::Float(&H.rnuc),false);
 	directives.Add("bachelet potential",new tw::input::Custom,false);
 }
 
@@ -225,26 +227,32 @@ void AtomicPhysics::VerifyInput()
 		photonPropagator = (LorentzPropagator*)owner->CreateTool("default_photons",tw::tool_type::lorentzPropagator);
 }
 
-void AtomicPhysics::ReadInputFileDirective(std::stringstream& inputString,const std::string& command)
+bool AtomicPhysics::ReadInputFileDirective(const TSTreeCursor *curs0,const std::string& src)
 {
 	tw::dnum q,r;
 	std::string word;
-	Module::ReadInputFileDirective(inputString,command);
-	// note: examples of charge are geared toward atomic units
-	// if using natural units, unit of charge is sqrt(alpha) ~ 0.085
-	if (command=="soft core potential charge") // eg, soft core potential , charge = 1.0 , radius = 0.01
-	{
-		inputString >> word >> q >> word >> word >> r;
-		H.qnuc = q >> native;
-		H.rnuc = r >> native;
+
+	if (Module::ReadInputFileDirective(curs0,src))
+		return true;
+
+	if (tw::input::node_kind(curs0)=="assignment") {
+		TSTreeCursor curs = ts_tree_cursor_copy(curs0);
+		ts_tree_cursor_goto_first_child(&curs);
+		if (tw::input::node_text(&curs,src) == "bachelet potential") {
+			// eg, bachelet potential = 1.0 1.0 1.0 0.1 0.5
+			std::valarray<tw::Float> components(5);
+			tw::input::Numbers<tw::Float> directive(&components[0],5);
+			directive.Read(&curs,src,"bachelet potential",native);
+			H.qnuc = components[0];
+			H.c1 = components[1];
+			H.c2 = components[2];
+			H.a1 = components[3];
+			H.a2 = components[4];
+			return true;
+		}
 	}
-	if (command=="bachelet potential") // eg, bachelet potential = 1.0 1.0 1.0 0.1 0.5
-	{
-		inputString >> word;
-		inputString >> q;
-		inputString >> H.c1 >> H.c2 >> H.a1 >> H.a2;
-		H.qnuc = q >> native;
-	}
+
+	return false;
 }
 
 void AtomicPhysics::ReadCheckpoint(std::ifstream& inFile)

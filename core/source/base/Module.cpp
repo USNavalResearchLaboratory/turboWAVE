@@ -124,36 +124,49 @@ void Module::VerifyInput()
 	}
 }
 
-void Module::ReadInputFileBlock(std::stringstream& inputString)
+/// @brief called if an assignment was not handled normally
+/// @param curs on a directive, get, new, generate, or custom assignment
+/// @param src source document
+/// @returns whether any directive was handled
+bool Module::ReadInputFileDirective(const TSTreeCursor *curs0,const std::string& src)
 {
-	std::string com;
-	do
-	{
-		com = directives.ReadNext(inputString);
-		if (com=="tw::EOF")
-			throw tw::FatalError("Encountered EOF while processing <"+name+">.");
-		ReadInputFileDirective(inputString,com);
-	} while (com!="}");
-	directives.ThrowErrorIfMissingKeys(name);
-}
+	std::string command = tw::input::node_kind(curs0);
+	// Get an existing tool by searching for a name -- ``get = <name>``
+	if (command=="get") {
+		TSTreeCursor curs = ts_tree_cursor_copy(curs0);
+		owner->ToolFromDirective(moduleTool,&curs,src);
+		return true;
+	}
 
-bool Module::ReadQuasitoolBlock(const tw::input::Preamble& preamble,std::stringstream& inputString)
-{
+	// Take care of nested declarations
+	if (command=="new" || command=="generate") {
+		TSTreeCursor curs = ts_tree_cursor_copy(curs0);
+		owner->NestedDeclaration(&curs,src,this);
+		return true;
+	}
+
 	return false;
 }
 
-void Module::ReadInputFileDirective(std::stringstream& inputString,const std::string& command)
+/// @brief read all directives in the block
+/// @param curs can be on block or on first child of block
+/// @param src source document
+void Module::ReadInputFileBlock(TSTreeCursor *curs,const std::string& src)
 {
-	// Handle whatever the DirectiveReader object did not.
-	// This includes keywords "get" and "new"
+	if (tw::input::node_kind(curs)=="block") {
+		ts_tree_cursor_goto_first_child(curs);
+	}
+	do
+	{
+		if (!directives.ReadNext(curs,src))
+			ReadInputFileDirective(curs,src);
+	} while (ts_tree_cursor_goto_next_sibling(curs));
+	directives.ThrowErrorIfMissingKeys(name);
+}
 
-	// Get an existing tool by searching for a name -- ``get = <name>``
-	if (command=="get")
-		owner->ToolFromDirective(moduleTool,inputString,command);
-
-	// Take care of nested declarations
-	if (command=="new" || command=="generate")
-		owner->NestedDeclaration(command,inputString,this);
+bool Module::ReadQuasitoolBlock(const TSTreeCursor *curs,const std::string& src)
+{
+	return false;
 }
 
 void Module::StartDiagnostics()
@@ -208,15 +221,6 @@ tw::module_type Module::RequiredSupermoduleType(const tw::module_type submoduleT
 		return containmentMap[submoduleType];
 }
 
-bool Module::QuasitoolNeedsModule(const tw::input::Preamble& preamble)
-{
-	bool ans = false;
-	ans = ans || (preamble.words[0]=="reaction");
-	ans = ans || (preamble.words[0]=="collision");
-	ans = ans || (preamble.words[0]=="excitation");
-	return ans;
-}
-
 std::map<std::string,tw::module_type> Module::Map()
 {
 	return
@@ -243,16 +247,25 @@ std::map<std::string,tw::module_type> Module::Map()
 	};
 }
 
+/// @brief weak matching of the input file key (legacy compatibility)
+/// @param preamble data extracted while parsing object
+/// @return the corresponding module_type enumeration
 tw::module_type Module::CreateTypeFromInput(const tw::input::Preamble& preamble)
 {
-	// Look for a Module key on a preamble (words between new and opening brace) and return the type of module.
-	const tw::Int max_words = preamble.words.size();
+	// strategy is to lop off trailing words until we get a match
 	std::map<std::string,tw::module_type> module_map = Module::Map();
-	for (tw::Int i=1;i<=max_words;i++)
-	{
-		std::string key(tw::input::GetPhrase(preamble.words,i));
-		if (module_map.find(key)!=module_map.end())
-			return module_map[key];
+	std::string key_now = preamble.obj_key;
+	while (true) {
+		if (module_map.find(key_now)!=module_map.end()) {
+			return module_map[key_now];
+		} else {
+			auto p = key_now.rfind(' ');
+			if (p != std::string::npos) {
+				key_now = key_now.substr(0,p);
+			} else {
+				break;
+			}
+		}
 	}
 	return tw::module_type::none;
 }
