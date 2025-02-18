@@ -1063,7 +1063,10 @@ void KleinGordon::Update()
 	const tw::Float dth = 0.5*dt;
 	#pragma omp parallel
 	{
-		alignas(AB) tw::Float Ur[dim[1]],Ui[dim[1]],Dr[dim[1]],Di[dim[1]];
+		tw::Float *Ur = tw::alloc_aligned_floats(dim[1],AB);
+		tw::Float *Ui = tw::alloc_aligned_floats(dim[1],AB);
+		tw::Float *Dr = tw::alloc_aligned_floats(dim[1],AB);
+		tw::Float *Di = tw::alloc_aligned_floats(dim[1],AB);
 		// Update psi
 		for (auto v : VectorStripRange<1>(*this,false))
 		{
@@ -1091,6 +1094,10 @@ void KleinGordon::Update()
 				psi_i(v,i,0) += dth*Di[i-1];
 			}
 		}
+		tw::free_aligned_floats(Ur);
+		tw::free_aligned_floats(Ui);
+		tw::free_aligned_floats(Dr);
+		tw::free_aligned_floats(Di);
 	}
 
 	psi_r.CopyFromNeighbors(Element(0));
@@ -1104,7 +1111,11 @@ void KleinGordon::Update()
 
 	#pragma omp parallel
 	{
-		alignas(AB) tw::Float Ur[dim[1]],Ui[dim[1]],Dr[dim[1]],Di[dim[1]];
+
+		tw::Float *Ur = tw::alloc_aligned_floats(dim[1],AB);
+		tw::Float *Ui = tw::alloc_aligned_floats(dim[1],AB);
+		tw::Float *Dr = tw::alloc_aligned_floats(dim[1],AB);
+		tw::Float *Di = tw::alloc_aligned_floats(dim[1],AB);
 		// Update chi
 		for (auto v : VectorStripRange<1>(*this,false))
 		{
@@ -1149,6 +1160,10 @@ void KleinGordon::Update()
 				psi_i(v,i,1) += dth*Di[i-1];
 			}
 		}
+		tw::free_aligned_floats(Ur);
+		tw::free_aligned_floats(Ui);
+		tw::free_aligned_floats(Dr);
+		tw::free_aligned_floats(Di);
 	}
 
 	psi_r.CopyFromNeighbors(Element(1));

@@ -1,5 +1,4 @@
 #include "meta_base.h"
-#include <regex>
 
 extern "C" {
 	TSLanguage *tree_sitter_turbowave();
@@ -42,9 +41,14 @@ void tw::input::DirectiveReader::Reset()
 	keysFound.clear();
 }
 
-void tw::input::DirectiveReader::Add(const std::string& key,tw::input::Directive *dir,bool required)
+/// @brief This important function adds an assignment to the reader.  Modules and tools will use this
+///        to setup automatic parsing of the input file.
+/// @param key input file key triggering this assignment
+/// @param assignment specific subclass of Assignment object
+/// @param required is this assignment required
+void tw::input::DirectiveReader::Add(const std::string& key,tw::input::Assignment *assignment,bool required)
 {
-	dmap[key] = dir;
+	dmap[key] = assignment;
 	// count number of words in this key
 	std::string word;
 	std::stringstream s(key);
@@ -345,6 +349,9 @@ std::string tw::input::PythonRange(TSTreeCursor *curs,const std::string& src,tw:
 void tw::input::StripQuotes(std::string& str)
 {
 	bool needed = false;
+	if (str.length() == 0) {
+		return;
+	}
 	if (str.front()=='\'' && str.back()=='\'')
 		needed = true;
 	if (str.front()=='\"' && str.back()=='\"')

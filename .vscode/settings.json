@@ -74,7 +74,10 @@
         "xloctime": "cpp",
         "xmemory": "cpp",
         "xstddef": "cpp",
-        "xtr1common": "cpp"
+        "xtr1common": "cpp",
+        "charconv": "cpp",
+        "format": "cpp",
+        "optional": "cpp"
     },
     "mesonbuild.configureOnOpen": true,
     "C_Cpp.default.compileCommands": "c:\\Users\\gordon\\Codes\\tw-versions\\turboWAVE\\core\\source\\build/compile_commands.json"

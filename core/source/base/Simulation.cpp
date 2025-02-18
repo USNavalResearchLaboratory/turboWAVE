@@ -949,10 +949,21 @@ void Simulation::WriteCheckpoint(std::ofstream& outFile)
 
 /// @brief main visitor callback for AST walker
 /// @param curs cursor, typically passed from walker
+/// @param inputFilePass 0=syntax, 1=grid, 2=objects
 /// @return action for the walker to take upon exit
 tw::input::navigation Simulation::visit(TSTreeCursor *curs) {
 
-	if (inputFilePass == 1) {
+	if (inputFilePass == 0) {
+		TSNode node = ts_tree_cursor_current_node(curs);
+		if (ts_node_has_error(node)) {
+			return tw::input::navigation::gotoChild;
+		} else if (ts_node_is_error(node)) {
+			throw tw::FatalError("syntax error at " + tw::input::loc_str(curs));
+		}
+		return tw::input::navigation::gotoSibling;
+
+
+	} else if (inputFilePass == 1) {
 		if (tw::input::node_kind(curs) == "input_file") {
 			return tw::input::navigation::gotoChild;
 		} else if (tw::input::node_kind(curs) == "assignment") {
@@ -1088,8 +1099,10 @@ tw::input::navigation Simulation::visit(TSTreeCursor *curs) {
 		} else if (typ == "reaction" || typ == "collision" || typ == "excitation") {
 			for (tw::Int i=0;i<module.size();i++)
 				module[i]->ReadQuasitoolBlock(curs,src);
+			return tw::input::navigation::gotoSibling;
 		} else {
 			tw::input::ThrowParsingError(curs,src,"unhandled directive");
+			return tw::input::navigation::exit; // compiler doesn't know above line throws
 		}
 
 
@@ -1129,6 +1142,8 @@ void Simulation::InputFileFirstPass()
 		outerDirectives.Reset();
 		gridReader = new GridReader(units);
 
+		inputFilePass = 0;
+		tw::input::WalkTree(tree,this);
 		inputFilePass = 1;
 		tw::input::WalkTree(tree,this);
 

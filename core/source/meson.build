@@ -1,7 +1,7 @@
 project('turbowave','cpp','c',
-    meson_version: '>=1.1.0',  
+    meson_version: '>=1.7.0',  
     version: '"4.8.0"',
-    default_options: ['cpp_std=c++17','buildtype=release']
+    default_options: ['cpp_std=c++20','buildtype=release']
 )
 
 # Meson philosophy is to give the source list explicitly.
@@ -9,7 +9,7 @@ project('turbowave','cpp','c',
 src_base = ['base/3DFields.cpp', 'base/ComputeTool.cpp', 'base/DiscreteSpace.cpp', 'base/FFT.cpp', 'base/Functions.cpp', 'base/Injection.cpp',
     'base/Injection_Test.cpp', 'base/Main.cpp', 'base/MetricSpace.cpp', 'base/MetricSpace_Test.cpp', 'base/Module.cpp', 'base/Region.cpp', 'base/Simulation.cpp']
 src_con = ['concurrency/Tasks.cpp']
-src_io = ['io/Diagnostics.cpp', 'io/Input.cpp', 'io/Units.cpp', 'io/parser.c', 'io/tree-sitter/lib/src/lib.c']
+src_io = ['io/Diagnostics.cpp', 'io/Input.cpp', 'io/Assignment.cpp', 'io/Units.cpp', 'io/parser.c', 'io/tree-sitter/lib/src/lib.c']
 src_par = ['particles/Bundle.cpp', 'particles/Mover.cpp', 'particles/Mover_Test.cpp', 'particles/Particles.cpp', 'particles/Particles_Test.cpp',
     'particles/Pusher.cpp', 'particles/Pusher_Test.cpp', 'particles/Slicer.cpp', 'particles/Tiler.cpp', 'particles/Qed.cpp']
 src_solv = ['solver/Electrostatic.cpp', 'solver/Elliptic.cpp', 'solver/Elliptic_Test.cpp', 'solver/FieldSolve.cpp', 'solver/Hyperbolic.cpp',

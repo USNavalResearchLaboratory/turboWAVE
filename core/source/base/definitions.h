@@ -35,6 +35,7 @@
 #include <exception>
 #include <string>
 #include <cctype>
+#include <format>
 #ifdef USE_OPENMP
 #include <omp.h>
 #endif
@@ -68,6 +69,21 @@ namespace tw
 			return messg;
 		}
 	};
+	#ifdef _WIN32
+	inline tw::Float * alloc_aligned_floats(size_t count,size_t alignment) {
+		return (tw::Float*)_aligned_malloc(count*sizeof(tw::Float),alignment);
+	}
+	inline void free_aligned_floats(tw::Float *ptr) {
+		_aligned_free(ptr);
+	}
+	#else
+	inline tw::Float * alloc_aligned_floats(size_t count,size_t alignment) {
+		return (tw::Float*)std::aligned_alloc(alignment,count*sizeof(tw::Float));
+	}
+	inline void free_aligned_floats(tw::Float *ptr) {
+		free(ptr);
+	}
+	#endif
 }
 // Define a strongly typed boolean for better type checking in some situations
 enum class strongbool { yes , no };

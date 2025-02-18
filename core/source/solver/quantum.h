@@ -158,9 +158,12 @@ void Dirac::LeapFrog(tw::Float sgn)
 	static const tw::Float dth = 0.5*dx(0);
 	#pragma omp parallel firstprivate(sgn)
 	{
-		alignas(AB) tw::Float Ur[dim[1]],Ui[dim[1]];
-		alignas(AB) tw::Float D1r[dim[1]],D1i[dim[1]];
-		alignas(AB) tw::Float D2r[dim[1]],D2i[dim[1]];
+		tw::Float *Ur = tw::alloc_aligned_floats(dim[1],AB);
+		tw::Float *Ui = tw::alloc_aligned_floats(dim[1],AB);
+		tw::Float *D1r = tw::alloc_aligned_floats(dim[1],AB);
+		tw::Float *D1i = tw::alloc_aligned_floats(dim[1],AB);
+		tw::Float *D2r = tw::alloc_aligned_floats(dim[1],AB);
+		tw::Float *D2i = tw::alloc_aligned_floats(dim[1],AB);
 
 		for (auto v : VectorStripRange<1>(*this,false))
 		{
@@ -210,6 +213,13 @@ void Dirac::LeapFrog(tw::Float sgn)
 				psi_i(v,i,OUT2) += dth*D2i[i-1];
 			}
 		}
+
+		tw::free_aligned_floats(Ur);
+		tw::free_aligned_floats(Ui);
+		tw::free_aligned_floats(D1r);
+		tw::free_aligned_floats(D1i);
+		tw::free_aligned_floats(D2r);
+		tw::free_aligned_floats(D2i);
 	}
 }
 

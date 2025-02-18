@@ -222,8 +222,8 @@ tw::Float GaussianProfile::GetValue(const tw::vec3& pos,const MetricSpace& ds)
 ChannelProfile::ChannelProfile(const std::string& name,MetricSpace *m,Task *tsk):Profile(name,m,tsk)
 {
 	directives.Add("coefficients",new tw::input::Numbers<tw::Float>(&coeff[0],4));
-	directives.Add("zpoints",new tw::input::List<std::valarray<tw::Float>>(&z));
-	directives.Add("zdensity",new tw::input::List<std::valarray<tw::Float>>(&fz));
+	directives.Add("zpoints",new tw::input::NumberList<std::valarray<tw::Float>>(&z));
+	directives.Add("zdensity",new tw::input::NumberList<std::valarray<tw::Float>>(&fz));
 }
 
 void ChannelProfile::ReadCheckpoint(std::ifstream& inFile)
@@ -266,8 +266,8 @@ tw::Float ChannelProfile::GetValue(const tw::vec3& pos,const MetricSpace& ds)
 ColumnProfile::ColumnProfile(const std::string& name,MetricSpace *m,Task *tsk):Profile(name,m,tsk)
 {
 	directives.Add("size",new tw::input::Vec3(&beamSize));
-	directives.Add("zpoints",new tw::input::List<std::valarray<tw::Float>>(&z));
-	directives.Add("zdensity",new tw::input::List<std::valarray<tw::Float>>(&fz));
+	directives.Add("zpoints",new tw::input::NumberList<std::valarray<tw::Float>>(&z));
+	directives.Add("zdensity",new tw::input::NumberList<std::valarray<tw::Float>>(&fz));
 }
 
 void ColumnProfile::ReadCheckpoint(std::ifstream& inFile)
@@ -309,12 +309,12 @@ tw::Float ColumnProfile::GetValue(const tw::vec3& pos,const MetricSpace& ds)
 
 PiecewiseProfile::PiecewiseProfile(const std::string& name,MetricSpace *m,Task *tsk) : Profile(name,m,tsk)
 {
-	directives.Add("xpoints",new tw::input::List<std::valarray<tw::Float>>(&x),false);
-	directives.Add("ypoints",new tw::input::List<std::valarray<tw::Float>>(&y),false);
-	directives.Add("zpoints",new tw::input::List<std::valarray<tw::Float>>(&z),false);
-	directives.Add("xdensity",new tw::input::List<std::valarray<tw::Float>>(&fx),false);
-	directives.Add("ydensity",new tw::input::List<std::valarray<tw::Float>>(&fy),false);
-	directives.Add("zdensity",new tw::input::List<std::valarray<tw::Float>>(&fz),false);
+	directives.Add("xpoints",new tw::input::NumberList<std::valarray<tw::Float>>(&x),false);
+	directives.Add("ypoints",new tw::input::NumberList<std::valarray<tw::Float>>(&y),false);
+	directives.Add("zpoints",new tw::input::NumberList<std::valarray<tw::Float>>(&z),false);
+	directives.Add("xdensity",new tw::input::NumberList<std::valarray<tw::Float>>(&fx),false);
+	directives.Add("ydensity",new tw::input::NumberList<std::valarray<tw::Float>>(&fy),false);
+	directives.Add("zdensity",new tw::input::NumberList<std::valarray<tw::Float>>(&fz),false);
 }
 
 void PiecewiseProfile::Initialize()
@@ -684,7 +684,7 @@ Wave::Wave(const std::string& name,MetricSpace *m,Task *tsk) : ComputeTool(name,
 	std::map<std::string,tw::profile::shape> shape = {{"quintic",tw::profile::shape::quintic},{"sech",tw::profile::shape::sech},{"sin2",tw::profile::shape::sin2}};
 	directives.Add("shape",new tw::input::Enums<tw::profile::shape>(shape,&pulseShape.whichProfile),false);
 	directives.Add("zones",new tw::input::Int(&zones),false);
-	directives.Add("spectral phase",new tw::input::List<std::valarray<tw::Float>>(&pulseShape.spectral_phase_coeff),false);
+	directives.Add("spectral phase",new tw::input::NumberList<std::valarray<tw::Float>>(&pulseShape.spectral_phase_coeff),false);
 	directives.Add("sample points",new tw::input::Int(&pulseShape.samplePoints),false);
 }
 
@@ -894,12 +894,12 @@ Conductor::Conductor(const std::string& name,MetricSpace *m,Task *tsk) : Compute
 	f = tw::big_pos;
 	ks = 0.0;
 	temperature = 0.0;
-	directives.Add("px",new tw::input::List<std::valarray<tw::Float>>(&Px),false);
-	directives.Add("py",new tw::input::List<std::valarray<tw::Float>>(&Py),false);
-	directives.Add("pz",new tw::input::List<std::valarray<tw::Float>>(&Pz),false);
-	directives.Add("potential",new tw::input::List<std::valarray<tw::Float>>(&potential),false);
-	directives.Add("w",new tw::input::List<std::valarray<tw::Float>>(&angFreq),false);
-	directives.Add("phase",new tw::input::List<std::valarray<tw::Float>>(&phase),false);
+	directives.Add("px",new tw::input::NumberList<std::valarray<tw::Float>>(&Px),false);
+	directives.Add("py",new tw::input::NumberList<std::valarray<tw::Float>>(&Py),false);
+	directives.Add("pz",new tw::input::NumberList<std::valarray<tw::Float>>(&Pz),false);
+	directives.Add("potential",new tw::input::NumberList<std::valarray<tw::Float>>(&potential),false);
+	directives.Add("w",new tw::input::NumberList<std::valarray<tw::Float>>(&angFreq),false);
+	directives.Add("phase",new tw::input::NumberList<std::valarray<tw::Float>>(&phase),false);
 	directives.Add("delay",new tw::input::Float(&pulseShape.delay),false);
 	directives.Add("risetime",new tw::input::Float(&pulseShape.risetime),false);
 	directives.Add("holdtime",new tw::input::Float(&pulseShape.holdtime),false);

@@ -23,7 +23,7 @@
             ],
             "compilerPath": "/opt/local/bin/gcc",
             "cStandard": "c17",
-            "cppStandard": "c++17",
+            "cppStandard": "c++20",
             "intelliSenseMode": "macos-clang-x64",
             "configurationProvider": "mesonbuild.mesonbuild"
         },
@@ -50,7 +50,7 @@
             ],
             "compilerPath": "/opt/homebrew/bin/g++-13",
             "cStandard": "c17",
-            "cppStandard": "c++17",
+            "cppStandard": "c++20",
             "intelliSenseMode": "macos-clang-x64",
             "configurationProvider": "mesonbuild.mesonbuild"
         },
@@ -74,9 +74,8 @@
             ],
             "compilerPath": "c:/Program Files/LLVM/bin/clang",
             "cStandard": "c17",
-            "cppStandard": "c++17",
-            "intelliSenseMode": "windows-clang-x64",
-            "configurationProvider": "mesonbuild.mesonbuild"
+            "cppStandard": "c++20",
+            "intelliSenseMode": "windows-clang-x64"
         },
         {
             "name": "LinuxGCC",
@@ -98,7 +97,7 @@
             ],
             "compilerPath": "/usr/bin/gcc",
             "cStandard": "c17",
-            "cppStandard": "c++17",
+            "cppStandard": "c++20",
             "intelliSenseMode": "gcc-x64",
             "configurationProvider": "mesonbuild.mesonbuild"
         }

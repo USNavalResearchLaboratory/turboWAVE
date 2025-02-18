@@ -470,7 +470,7 @@ BoxDiagnostic::BoxDiagnostic(const std::string& name,MetricSpace *ms,Task *tsk) 
 	average = false;
 	filename = "tw::none";
 	directives.Add("average",new tw::input::Bool(&average),false);
-	directives.Add("reports",new tw::input::List<std::vector<std::string>>(&reports),false);
+	directives.Add("reports",new tw::input::StringList<std::vector<std::string>>(&reports),false);
 }
 
 void BoxDiagnostic::GetGlobalIndexing(tw::Int pts[4],tw::Int glb[6])
@@ -672,8 +672,8 @@ ParticleOrbits::ParticleOrbits(const std::string& name,MetricSpace *ms,Task *tsk
 	filename = "par";
 	minGamma = 1.0;
 	directives.Add("minimum gamma",new tw::input::Float(&minGamma));
-	directives.Add("nodes",new tw::input::List<std::vector<tw::Int>>(&nodes));
-	directives.Add("ids",new tw::input::List<std::vector<tw::Int>>(&ids));
+	directives.Add("nodes",new tw::input::NumberList<std::vector<tw::Int>>(&nodes));
+	directives.Add("ids",new tw::input::NumberList<std::vector<tw::Int>>(&ids));
 }
 
 void ParticleOrbits::Start()

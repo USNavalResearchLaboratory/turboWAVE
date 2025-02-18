@@ -6,6 +6,8 @@
 #include "functions.h"
 #include "fft.h"
 #include "units.h"
+#include "ts_convenience.h"
+#include "assignment.h"
 #include "input.h"
 #include "discreteSpace.h"
 #include "tw_iterator.h"

@@ -93,8 +93,6 @@ Reaction::~Reaction()
 void Reaction::ReadInputFile(TSTreeCursor *curs,const std::string& src,const tw::UnitConverter& native)
 {
 	std::string word;
-	tw::Float sign,energy;
-	bool rhs;
 	numBodies = 0;
 	tw::UnitConverter cgs(tw::units::cgs,native);
 

@@ -192,7 +192,8 @@ void Mover::DoTasks()
 	//BunchTasks(task_map);
 
 	// following has first,last,x0,x1,y0,y1,z0,z1
-	tw::Int bounds_data[concurrent_tasks][8];
+	assert(concurrent_tasks<=128);
+	tw::Int bounds_data[128][8];
 	for (tw::Int c=0;c<total_sets;c++)
 	{
 		tw::Int tasks_in_set = c<concurrent_sets ? concurrent_tasks : remainder_tasks;
