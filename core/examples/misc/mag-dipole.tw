@@ -4,8 +4,6 @@
 unit density = 2.8e19 // only used if post-processing wants to display plasma units
 native units = natural
 
-steps = 200
-timestep = 0.1
 dump period = 0
 moving window = no
 
@@ -19,10 +17,10 @@ zboundary = ( absorbing , absorbing )
 
 new grid
 {
-	corner = ( -12.8 , -12.8 , -12.8 )
-	dimensions = ( 128 , 128 , 128)
-	cell size = ( 0.2 , 0.2 , 0.2 )
-	decomposition = ( 2 , 2 , 2 )
+	origin = ( 0, 0.5, 0.5, 0.5)
+	dimensions = ( 200, 128 , 128 , 128)
+	cell size = ( 0.1, 0.2 , 0.2 , 0.2 )
+	decomposition = ( 1, 2, 2, 2 )
 }
 
 new dirac equation module 'dirac'
@@ -30,16 +28,16 @@ new dirac equation module 'dirac'
 	soft core potential , charge = 1.0 , radius = 1.0
 	new qstate random
 	{
-		size = 10 10 10
+		size = (10 10 10)
 	}
 }
 
 new multipole for 'dirac'
 {
-	mode = 1 0
-	a = 0.0 1.0 0.0
+	mode = (1 0)
+	a = (0.0 1.0 0.0)
 	w = 1.0
-	focus position = 0 0 0
+	focus position = (0 0 0)
 	delay = 10
 	risetime = 6.28
 	holdtime = 0
@@ -49,5 +47,5 @@ new multipole for 'dirac'
 new box diagnostic
 {
 	period = 10
-	skip = 2 2 2
+	skip = (2 2 2)
 }

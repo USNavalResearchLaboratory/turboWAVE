@@ -1,14 +1,43 @@
+module;
 #include "meta_base.h"
-#include "computeTool.h"
-#include "hyperbolic.h"
 
+export module hyperbolic;
+import compute_tool;
+import fields;
 
-//////////////////////////////////////////
-//                                      //
-//    Tool for Computing Yee Update     //
-//                                      //
-//////////////////////////////////////////
+export struct YeePropagatorPML:ComputeTool
+{
+	YeePropagatorPML(const std::string& name,MetricSpace *m,Task *tsk);
 
+	#ifdef USE_OPENCL
+	virtual ~YeePropagatorPML();
+	cl_kernel k_advanceE,k_prepCenteredFields,k_advanceB,k_centeredFields;
+	void SetupComputeKernels(Field& F,Field& A,Field& PMLx,Field& PMLy,Field& PMLz,Field& j4);
+	#endif
+
+	void AdvanceE(Field& A,Field& PMLx,Field& PMLy,Field& PMLz,Field& j4);
+	void AdvanceB(Field& A,Field& PMLx,Field& PMLy,Field& PMLz);
+	void PrepCenteredFields(Field& F,Field& A,tw::vec3& E0,tw::vec3& B0);
+	void CenteredFields(Field& F,Field& A);
+	void UpdateInteriorBoundaryE(Field& A,const ScalarField& conductor);
+	void UpdateInteriorBoundaryB(Field& A,const ScalarField& conductor);
+	void UpdateExteriorBoundary(Field& A,Field& PMLx,Field& PMLy,Field& PMLz);
+};
+
+export struct LorentzPropagator:ComputeTool
+{
+	LorentzPropagator(const std::string& name,MetricSpace *m,Task *tsk);
+
+	#ifdef USE_OPENCL
+	virtual ~LorentzPropagator();
+	cl_kernel k_advance,k_swap,k_midstep,k_undoMidstep;
+	void SetupComputeKernels(Field& A4,Field& Ao4,Field& j4);
+	#endif
+
+	void Advance(Field& A4,Field& Ao4,Field& j4,const tw::Float mult,const tw::Float dt);
+	void MidstepEstimate(Field& A4,Field& Ao4);
+	void UndoMidstepEstimate(Field& A4,Field& Ao4);
+};
 
 YeePropagatorPML::YeePropagatorPML(const std::string& name,MetricSpace *m,Task *tsk) : ComputeTool(name,m,tsk)
 {
@@ -108,7 +137,6 @@ void YeePropagatorPML::AdvanceE(Field& A,Field& PMLx,Field& PMLy,Field& PMLz,Fie
 	//const tw::Int yDim = A.Dim(2);
 	const tw::Int zDim = A.Dim(3);
 
-	const tw::vec3 freq(dxi(*space),dyi(*space),dzi(*space));
 	tw::Float sx,tx,sy,ty;
 	std::valarray<tw::Float> sz(space->Num(3)),tz(space->Num(3));
 	PMLz.GetStrip(sz,tw::strip(1,PMLz,0,0,0),0);
@@ -150,8 +178,6 @@ void YeePropagatorPML::AdvanceB(Field& A,Field& PMLx,Field& PMLy,Field& PMLz)
 	const tw::Int yN1 = A.UNG(2);
 	const tw::Int zN1 = A.UNG(3);
 
-	const tw::vec3 freq(dxi(*space),dyi(*space),dzi(*space));
-
 	tw::Float sx,tx,sy,ty;
 	std::valarray<tw::Float> sz(space->Num(3)),tz(space->Num(3));
 	PMLz.GetStrip(sz,tw::strip(1,PMLz,0,0,0),3);
@@ -188,9 +214,11 @@ void YeePropagatorPML::AdvanceB(Field& A,Field& PMLx,Field& PMLy,Field& PMLz)
 	A.UpwardCopy(tw::grid::z,Element(6,11),1);
 }
 
-void YeePropagatorPML::PrepCenteredFields(Field& F,Field& A)
+void YeePropagatorPML::PrepCenteredFields(Field& F,Field& A,tw::vec3& E0,tw::vec3& B0)
 {
 	F = 0.0;
+	add_const_vec<0,1,2>(F,E0);
+	add_const_vec<3,4,5>(F,B0);
 	AddMulFieldData(F,Element(3),A,Element(6),0.5);
 	AddMulFieldData(F,Element(3),A,Element(7),0.5);
 	AddMulFieldData(F,Element(4),A,Element(8),0.5);
@@ -224,7 +252,7 @@ void YeePropagatorPML::UpdateExteriorBoundary(Field& A,Field& PMLx,Field& PMLy,F
 	const tw::Int yDim = A.Dim(2);
 	const tw::Int zDim = A.Dim(3);
 
-	const tw::vec3 freq(dxi(*space),dyi(*space),dzi(*space));
+	const tw::vec3 freq(space->dk(1),space->dk(2),space->dk(3));
 
 	tw::Int i,j,k;
 

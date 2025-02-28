@@ -1,7 +1,8 @@
-#include "meta_base.h"
-#include "computeTool.h"
-#include "physics.h"
+module;
 
+#include "meta_base.h"
+
+module physics;
 
 bool ADK::Test(tw::Int& id)
 {

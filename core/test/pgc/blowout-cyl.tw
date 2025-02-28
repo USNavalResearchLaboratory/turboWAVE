@@ -1,8 +1,6 @@
 // Keep the following line for continuous integration testing
 // CITEST Ez.npy range=-2.94,4.41 tolerance=0.01
 
-steps = 200
-timestep = 0.1
 dump period = 0
 moving window = yes
 neutralize = yes
@@ -18,10 +16,10 @@ zboundary = ( absorbing , absorbing )
 
 new grid
 {
-	corner = ( 0.0 , -3.14 , -25.6 )
-	dimensions = ( 40 , 1 , 128 )
-	cell size = ( 0.6 , 6.28 , 0.2 )
-	decomposition = ( 2 , 1 , 2 )
+	origin = ( 0 , 0 , 0.5 , 1 )
+	dimensions = ( 200 , 40 , 1 , 128 )
+	cell size = ( 0.1 , 0.6 , 6.28 , 0.2 )
+	decomposition = ( 1 , 2 , 1 , 2 )
 	geometry = cylindrical
 }
 

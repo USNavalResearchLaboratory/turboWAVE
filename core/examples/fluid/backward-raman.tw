@@ -4,8 +4,6 @@
 native units = plasma
 unit density = 1e18
 
-steps = 10000
-timestep = 0.049
 dump period = 0
 moving window = no
 neutralize = yes
@@ -20,10 +18,10 @@ zboundary = ( absorbing , absorbing )
 
 new grid
 {
-	corner = ( -0.5 , -0.5 , 0.0 )
-	dimensions = ( 1 , 1 , 4000 )
-	cell size = ( 1.0 , 1.0 , 0.05 )
-	decomposition = ( 1 , 1 , 1 )
+	origin = ( 0 , 0.5 , 0.5 , 0.0 )
+	dimensions = ( 10000 , 1 , 1 , 4000 )
+	cell size = ( 0.049 , 1.0 , 1.0 , 0.05 )
+	decomposition = ( 1 , 1 , 1 , 1 )
 }
 
 new coulomb electromagnetic module 'coul'
@@ -32,12 +30,12 @@ new coulomb electromagnetic module 'coul'
 
 new facr elliptic solver for 'coul'
 {
-	zboundary = dirichlet neumann
+	zboundary = (dirichlet neumann)
 }
 
 new plane wave for 'coul' // probe
 {
-	a = 1e-3 0.0 0.0
+	a = (1e-3 0.0 0.0)
 	w = 2.0
 	risetime = 10
 	holdtime = 0
@@ -49,7 +47,7 @@ new plane wave for 'coul' // probe
 
 new plane wave for 'coul' // pump
 {
-	a = 0.08 0.0 0.0
+	a = (0.08 0.0 0.0)
 	w = 3.0
 	risetime = 50
 	holdtime = 300

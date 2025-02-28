@@ -1,8 +1,34 @@
-#include "simulation.h"
-#include "fieldSolve.h"
-#include "electrostatic.h"
+module;
+
+#include "meta_base.h"
+
+export module electrostatic;
+import twmodule;
+import fields;
+import elliptic;
+import field_solve;
+import diagnostics;
+
 using namespace tw::bc;
 
+export struct Electrostatic:FieldSolver
+{
+	Field F,J4;
+	ScalarField phi,source;
+
+	Electrostatic(const std::string& name,Simulation* sim);
+	virtual void Initialize();
+	virtual void ExchangeResources();
+	virtual void Reset();
+	virtual void Update();
+	virtual void ReadCheckpoint(std::ifstream& inFile);
+	virtual void WriteCheckpoint(std::ofstream& outFile);
+
+	virtual void SetupInitialPotential();
+	virtual void ComputeFinalFields();
+
+	virtual void Report(Diagnostic&);
+};
 
 ///////////////////////////////
 //                           //
@@ -10,7 +36,6 @@ using namespace tw::bc;
 // (General Curvilinear)     //
 //                           //
 ///////////////////////////////
-
 
 Electrostatic::Electrostatic(const std::string& name,Simulation* sim):FieldSolver(name,sim)
 {
@@ -115,14 +140,14 @@ void Electrostatic::Report(Diagnostic& diagnostic)
 		energyDensity(cell) = 0.5*Norm(F.Vec3(cell,0));
 	diagnostic.VolumeIntegral("FieldEnergy",energyDensity,0);
 	diagnostic.VolumeIntegral("TotalCharge",J4,0);
-	diagnostic.Field("phi",phi,0,tw::dims::scalar_potential,"$\\phi$");
-	diagnostic.Field("Ex",F,0,tw::dims::electric_field,"$E_x$");
-	diagnostic.Field("Ey",F,1,tw::dims::electric_field,"$E_y$");
-	diagnostic.Field("Ez",F,2,tw::dims::electric_field,"$E_z$");
-	diagnostic.Field("rho",J4,0,tw::dims::charge_density,"$\\rho$");
-	diagnostic.Field("Jx",J4,1,tw::dims::current_density,"$j_x$");
-	diagnostic.Field("Jy",J4,2,tw::dims::current_density,"$j_y$");
-	diagnostic.Field("Jz",J4,3,tw::dims::current_density,"$j_z$");
+	diagnostic.ReportField("phi",phi,0,tw::dims::scalar_potential,"$\\phi$");
+	diagnostic.ReportField("Ex",F,0,tw::dims::electric_field,"$E_x$");
+	diagnostic.ReportField("Ey",F,1,tw::dims::electric_field,"$E_y$");
+	diagnostic.ReportField("Ez",F,2,tw::dims::electric_field,"$E_z$");
+	diagnostic.ReportField("rho",J4,0,tw::dims::charge_density,"$\\rho$");
+	diagnostic.ReportField("Jx",J4,1,tw::dims::current_density,"$j_x$");
+	diagnostic.ReportField("Jy",J4,2,tw::dims::current_density,"$j_y$");
+	diagnostic.ReportField("Jz",J4,3,tw::dims::current_density,"$j_z$");
 }
 
 void Electrostatic::SetupInitialPotential()

@@ -1,8 +1,6 @@
 // Keep the following line for generating twtest reports
 // TWTEST matplotlib zxyt=0,: Ez.npy
 
-steps = 2000
-timestep = 0.04
 dump period = 0
 moving window = no
 neutralize = yes
@@ -18,31 +16,31 @@ zboundary = ( reflecting , reflecting )
 
 new grid
 {
-	corner = ( -64 , -0.5 , 0.0 )
-	dimensions = ( 256 , 1 , 1024 )
-	cell size = ( 0.5 , 1.0 , 0.05 )
-	decomposition = ( 2 , 1 , 2 )
+	origin = ( 0, 0.5, 0.5, 0 )
+	dimensions = ( 2000, 256, 1, 1024 )
+	cell size = ( 0.04, 0.5, 1.0, 0.05 )
+	decomposition = ( 1, 2, 1, 2 )
 }
 
 new region rect r1
 {
-	bounds = -1e5 , 1e5 , -1e5 , 1e5 , 10 , 40
+	bounds = (-1e5 , 1e5 , -1e5 , 1e5 , 10 , 40)
 }
 
 new region rect antenna_rect
 {
-	bounds = -40 , 40 , -1e5 , 1e5 , 5.01 , 5.04
+	bounds = (-40 , 40 , -1e5 , 1e5 , 5.01 , 5.04)
 }
 
 new direct electromagnetic module 'em'
 {
-	layers = 8 8 0 0 8 8
-	reflection coefficient = 1e-4 1e-4 1e-4 1e-4 1e-4 1e-4
+	layers = (8 8 0 0 8 8)
+	reflection coefficient = (1e-4 1e-4 1e-4 1e-4 1e-4 1e-4)
 }
 
 new species 'e'
 {
-	particles per cell = 4 1 4 when density = 1
+	particles per cell = (4 1 4) when density = 1
 }
 
 generate uniform 'e'

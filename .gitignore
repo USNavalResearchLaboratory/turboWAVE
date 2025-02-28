@@ -1,6 +1,9 @@
 .DS_Store
-core/build/*.d
+./build
+core/build
 core/source/build
+core/out
+core/source/out
 *.o
 *.obj
 *.pyc

@@ -77,7 +77,7 @@ void Task::Initialize(tw::Int *doms,tw::Int *gcells,tw::Int *cyclic)
 	finiteStrip[2].InitializeStrip(finiteStrip[0],2);
 	finiteStrip[3].InitializeStrip(finiteStrip[0],3);
 
-	for (i=1;i<=3;i++)
+	for (i=0;i<4;i++)
 	{
 		localCells[i] = globalCells[i] / domains[i];
 		cornerCell[i] = 1 + domainIndex[i]*localCells[i];

@@ -1,10 +1,233 @@
+module;
+
 #include "meta_base.h"
-#include "computeTool.h"
-#include "bundle.h"
-#include "pusher.h"
-#include "slicer.h"
-#include "tiler.h"
-#include "mover.h"
+
+export module tiler;
+import bundle;
+import fields;
+
+export struct BundleTilerEM2D : virtual ParticleBundle
+{
+	float F_tile[3][3][6];
+	float J_tile[5][5][4];
+
+	BundleTilerEM2D(const MoverParams& mov) : ParticleBundle(mov) {}
+	void LoadFTile(const Slice<float>&);
+	void ResetJTile();
+	void StoreJTile(Slice<float>&);
+	/// @brief load field tensor from tile for N particles
+	/// @param F this is shorthand for F*q*dt/2/m, where F is a field amplitude
+	/// @param w0 weight factors for N particles
+	/// @param l0 wall weights for N particles
+	/// @param qmdth (q/m)*(dt/2)
+	void GatherF(float F[6][N], const float w0[3][3][N], const float l0[3][3][N], const float qmdth);
+	/// @brief scatter current for N particles into tile
+	/// @param J amps to deposit, the tile will receive coulombs in cell and amps in wall
+	/// @param w0 weight factors for N particles at start of step
+	/// @param w1 weight factors for N particles at end of step
+	/// @param cellMask used to mask out particles that need scalar processing
+	/// @param dti inverse time step
+	void ScatterJ4(const float J[4][N], const float w0[3][3][N], const float w1[3][3][N], const float cellMask[N], const float& dti);
+};
+
+export struct BundleTilerEM3D : virtual ParticleBundle
+{
+	float F_tile[3][3][3][6];
+	float J_tile[5][5][5][4];
+
+	BundleTilerEM3D(const MoverParams& mov) : ParticleBundle(mov) {}
+	void LoadFTile(const Slice<float>&);
+	void ResetJTile();
+	void StoreJTile(Slice<float>&);
+	/// @brief load field tensor from tile for N particles
+	/// @param F this is shorthand for F*q*dt/2/m, where F is a field amplitude
+	/// @param w0 weight factors for N particles
+	/// @param l0 wall weights for N particles
+	/// @param qmdth (q/m)*(dt/2)
+	void GatherF(float F[6][N], const float w0[3][3][N], const float l0[3][3][N], const float qmdth);
+	/// @brief scatter current for N particles into tile
+	/// @param J amps to deposit, the tile will receive coulombs in cell and amps in wall
+	/// @param w0 weight factors for N particles at start of step
+	/// @param w1 weight factors for N particles at end of step
+	/// @param cellMask used to mask out particles that need scalar processing
+	/// @param dti inverse time step
+	void ScatterJ4(const float J[4][N], const float w0[3][3][N], const float w1[3][3][N], const float cellMask[N], const float& dti);
+};
+
+export struct BundleTilerPGC2D : virtual ParticleBundle
+{
+	float las_tile[3][3][8];
+	float chi_tile[5][5];
+
+	BundleTilerPGC2D(const MoverParams& mov) : ParticleBundle(mov) {}
+	void LoadLaserTile(const Slice<float>&);
+	void ResetChiTile();
+	void StoreChiTile(Slice<float>&);
+	/// @brief load laser envelope data from tile for N particles
+	/// @param las [q2m2dth*grad(a^2(n)), q2m2dth*grad(a^2(n+1/2)), q2m2h*a^2(n), q2m2h*a^2(n+1/2)]
+	/// @param w0 weight factors for N particles
+	/// @param q2m2dth (q^2/m^2)*(dt/2), n.b. we are usually updating u = p/m
+	/// @param q2m2h (q^2/m^2)*(1/2)
+	void GatherLaser(float las[8][N], const float w0[3][3][N], const float q2m2dth, const float q2m2h);
+	/// @brief scatter current susceptibility for N particles into tile
+	/// @param chi current susceptibility defined by -q0*q0*number/m0/avgGam
+	/// @param w0 weight factors for N particles at start of step
+	/// @param w1 weight factors for N particles at end of step
+	/// @param cellMask used to mask out particles that need scalar processing
+	void ScatterChi(const float chi[N], const float w0[3][3][N], const float w1[3][3][N], const float cellMask[N]);
+};
+
+export struct BundleTilerPGC3D : virtual ParticleBundle
+{
+	float las_tile[3][3][3][8];
+	float chi_tile[5][5][5];
+
+	BundleTilerPGC3D(const MoverParams& mov) : ParticleBundle(mov) {}
+	void LoadLaserTile(const Slice<float>&);
+	void ResetChiTile();
+	void StoreChiTile(Slice<float>&);
+	/// @brief load laser envelope data from tile for N particles
+	/// @param las [q2m2dth*grad(a^2(n)), q2m2dth*grad(a^2(n+1/2)), q2m2h*a^2(n), q2m2h*a^2(n+1/2)]
+	/// @param w0 weight factors for N particles
+	/// @param q2m2dth (q^2/m^2)*(dt/2), n.b. we are usually updating u = p/m
+	/// @param q2m2h (q^2/m^2)*(1/2)
+	void GatherLaser(float las[8][N], const float w0[3][3][N], const float q2m2dth, const float q2m2h);
+	/// @brief scatter current susceptibility for N particles into tile
+	/// @param chi current susceptibility defined by -q0*q0*number/m0/avgGam
+	/// @param w0 weight factors for N particles at start of step
+	/// @param w1 weight factors for N particles at end of step
+	/// @param cellMask used to mask out particles that need scalar processing
+	void ScatterChi(const float chi[N], const float w0[3][3][N], const float w1[3][3][N], const float cellMask[N]);
+};
+
+export struct BundleTilerBohmian2D : virtual ParticleBundle
+{
+	float tile[3][3][4];
+	BundleTilerBohmian2D(const MoverParams& mov) : ParticleBundle(mov) {}
+	void LoadTile(const Slice<float>&);
+	void GatherJ4(float J[4][N], const float w0[3][3][N]);
+};
+
+export struct BundleTilerBohmian3D : virtual ParticleBundle
+{
+	float tile[3][3][3][4];
+	BundleTilerBohmian3D(const MoverParams& mov) : ParticleBundle(mov) {}
+	void LoadTile(const Slice<float>&);
+	void GatherJ4(float J[4][N], const float w0[3][3][N]);
+};
+
+//////////
+inline void BundleTilerEM2D::LoadFTile(const Slice<float>& Fx)
+{
+	for (tw::Int i = 0; i < 3; i++)
+		for (tw::Int k = 0; k < 3; k++)
+			for (tw::Int s = 0; s < 6; s++)
+				F_tile[i][k][s] = Fx(ijk0[1] - 1 + i, 0, ijk0[3] - 1 + k, s);
+}
+inline void BundleTilerEM2D::ResetJTile()
+{
+	for (tw::Int i = 0; i < 5; i++)
+		for (tw::Int k = 0; k < 5; k++)
+			for (tw::Int s = 0; s < 4; s++)
+				J_tile[i][k][s] = 0.0f;
+}
+inline void BundleTilerEM2D::StoreJTile(Slice<float>& Jx)
+{
+	for (tw::Int i = 0; i < 5; i++)
+		for (tw::Int k = 0; k < 5; k++)
+			for (tw::Int s = 0; s < 4; s++)
+				Jx(ijk0[1] - 2 + i, 0, ijk0[3] - 2 + k, s) += J_tile[i][k][s];
+}
+
+//////////
+inline void BundleTilerEM3D::LoadFTile(const Slice<float>& Fx)
+{
+	for (tw::Int i = 0; i < 3; i++)
+		for (tw::Int j = 0; j < 3; j++)
+			for (tw::Int k = 0; k < 3; k++)
+				for (tw::Int s = 0; s < 6; s++)
+					F_tile[i][j][k][s] = Fx(ijk0[1] - 1 + i, ijk0[2] - 1 + j, ijk0[3] - 1 + k, s);
+}
+inline void BundleTilerEM3D::ResetJTile()
+{
+	for (tw::Int i = 0; i < 5; i++)
+		for (tw::Int j = 0; j < 5; j++)
+			for (tw::Int k = 0; k < 5; k++)
+				for (tw::Int s = 0; s < 4; s++)
+					J_tile[i][j][k][s] = 0.0f;
+}
+inline void BundleTilerEM3D::StoreJTile(Slice<float>& Jx)
+{
+	for (tw::Int i = 0; i < 5; i++)
+		for (tw::Int j = 0; j < 5; j++)
+			for (tw::Int k = 0; k < 5; k++)
+				for (tw::Int s = 0; s < 4; s++)
+					Jx(ijk0[1] - 2 + i, ijk0[2] - 2 + j, ijk0[3] - 2 + k, s) += J_tile[i][j][k][s];
+}
+
+//////////
+inline void BundleTilerPGC2D::LoadLaserTile(const Slice<float>& lasx)
+{
+	for (tw::Int i = 0; i < 3; i++)
+		for (tw::Int k = 0; k < 3; k++)
+			for (tw::Int s = 0; s < 8; s++)
+				las_tile[i][k][s] = lasx(ijk0[1] - 1 + i, 0, ijk0[3] - 1 + k, s);
+}
+inline void BundleTilerPGC2D::ResetChiTile()
+{
+	for (tw::Int i = 0; i < 5; i++)
+		for (tw::Int k = 0; k < 5; k++)
+			chi_tile[i][k] = 0.0f;
+}
+inline void BundleTilerPGC2D::StoreChiTile(Slice<float>& chix)
+{
+	for (tw::Int i = 0; i < 5; i++)
+		for (tw::Int k = 0; k < 5; k++)
+			chix(ijk0[1] - 2 + i, 0, ijk0[3] - 2 + k, 0) += chi_tile[i][k];
+}
+
+//////////
+inline void BundleTilerPGC3D::LoadLaserTile(const Slice<float>& lasx)
+{
+	for (tw::Int i = 0; i < 3; i++)
+		for (tw::Int j = 0; j < 3; j++)
+			for (tw::Int k = 0; k < 3; k++)
+				for (tw::Int s = 0; s < 8; s++)
+					las_tile[i][j][k][s] = lasx(ijk0[1] - 1 + i, ijk0[2] - 1 + j, ijk0[3] - 1 + k, s);
+}
+inline void BundleTilerPGC3D::ResetChiTile()
+{
+	for (tw::Int i = 0; i < 5; i++)
+		for (tw::Int j = 0; j < 5; j++)
+			for (tw::Int k = 0; k < 5; k++)
+				chi_tile[i][j][k] = 0.0f;
+}
+inline void BundleTilerPGC3D::StoreChiTile(Slice<float>& chix)
+{
+	for (tw::Int i = 0; i < 5; i++)
+		for (tw::Int j = 0; j < 5; j++)
+			for (tw::Int k = 0; k < 5; k++)
+				chix(ijk0[1] - 2 + i, ijk0[2] - 2 + j, ijk0[3] - 2 + k, 0) += chi_tile[i][j][k];
+}
+
+//////////
+inline void BundleTilerBohmian2D::LoadTile(const Slice<float>& Jx)
+{
+	for (tw::Int i = 0; i < 3; i++)
+		for (tw::Int k = 0; k < 3; k++)
+			for (tw::Int s = 0; s < 4; s++)
+				tile[i][k][s] = Jx(ijk0[1] - 1 + i, 0, ijk0[3] - 1 + k, s);
+}
+
+//////////
+inline void BundleTilerBohmian3D::LoadTile(const Slice<float>& Jx)
+{
+	for (tw::Int i = 0; i < 3; i++)
+		for (tw::Int j = 0; j < 3; j++)
+			for (tw::Int k = 0; k < 3; k++)
+				for (tw::Int s = 0; s < 4; s++)
+					tile[i][j][k][s] = Jx(ijk0[1] - 1 + i, ijk0[2] - 1 + j, ijk0[3] - 1 + k, s);
+}
 
 void BundleTilerEM2D::GatherF(float F[6][N],const float w[3][3][N],const float l[3][3][N],const float qmdth)
 {
@@ -291,7 +514,7 @@ void BundleTilerEM3D::ScatterJ4(const float J[4][N],const float w0[3][3][N],cons
 		}
 }
 
-void BundleTilerPGC2D::GatherLaser(float las[8][N],const float w[3][3][N],const float q2m2)
+void BundleTilerPGC2D::GatherLaser(float las[8][N],const float w[3][3][N],const float q2m2dth,const float q2m2h)
 {
 	alignas(AB) float factorNow[N];
 	ZeroArray(las,0,7);
@@ -304,14 +527,14 @@ void BundleTilerPGC2D::GatherLaser(float las[8][N],const float w[3][3][N],const 
 			#pragma omp simd aligned(las,factorNow:AB)
 			for (tw::Int n=0;n<N;n++)
 			{
-				las[0][n] += factorNow[n]*las_tile[i][k][0]*q2m2;
-				las[1][n] += factorNow[n]*las_tile[i][k][1]*q2m2;
-				las[2][n] += factorNow[n]*las_tile[i][k][2]*q2m2;
-				las[3][n] += factorNow[n]*las_tile[i][k][3]*q2m2;
-				las[4][n] += factorNow[n]*las_tile[i][k][4]*q2m2;
-				las[5][n] += factorNow[n]*las_tile[i][k][5]*q2m2;
-				las[6][n] += factorNow[n]*las_tile[i][k][6]*q2m2;
-				las[7][n] += factorNow[n]*las_tile[i][k][7]*q2m2;
+				las[0][n] += factorNow[n]*las_tile[i][k][0]*q2m2dth;
+				las[1][n] += factorNow[n]*las_tile[i][k][1]*q2m2dth;
+				las[2][n] += factorNow[n]*las_tile[i][k][2]*q2m2dth;
+				las[3][n] += factorNow[n]*las_tile[i][k][3]*q2m2dth;
+				las[4][n] += factorNow[n]*las_tile[i][k][4]*q2m2dth;
+				las[5][n] += factorNow[n]*las_tile[i][k][5]*q2m2dth;
+				las[6][n] += factorNow[n]*las_tile[i][k][6]*q2m2h;
+				las[7][n] += factorNow[n]*las_tile[i][k][7]*q2m2h;
 			}
 		}
 }
@@ -361,7 +584,7 @@ void BundleTilerPGC2D::ScatterChi(const float chi[N],const float w0[3][3][N],con
 		}
 }
 
-void BundleTilerPGC3D::GatherLaser(float las[8][N],const float w[3][3][N],const float q2m2)
+void BundleTilerPGC3D::GatherLaser(float las[8][N],const float w[3][3][N],const float q2m2dth,const float q2m2h)
 {
 	alignas(AB) float factorNow[N];
 	ZeroArray(las,0,7);
@@ -375,14 +598,14 @@ void BundleTilerPGC3D::GatherLaser(float las[8][N],const float w[3][3][N],const 
 				#pragma omp simd aligned(las,factorNow:AB)
 				for (tw::Int n=0;n<N;n++)
 				{
-					las[0][n] += factorNow[n]*las_tile[i][j][k][0]*q2m2;
-					las[1][n] += factorNow[n]*las_tile[i][j][k][1]*q2m2;
-					las[2][n] += factorNow[n]*las_tile[i][j][k][2]*q2m2;
-					las[3][n] += factorNow[n]*las_tile[i][j][k][3]*q2m2;
-					las[4][n] += factorNow[n]*las_tile[i][j][k][4]*q2m2;
-					las[5][n] += factorNow[n]*las_tile[i][j][k][5]*q2m2;
-					las[6][n] += factorNow[n]*las_tile[i][j][k][6]*q2m2;
-					las[7][n] += factorNow[n]*las_tile[i][j][k][7]*q2m2;
+					las[0][n] += factorNow[n]*las_tile[i][j][k][0]*q2m2dth;
+					las[1][n] += factorNow[n]*las_tile[i][j][k][1]*q2m2dth;
+					las[2][n] += factorNow[n]*las_tile[i][j][k][2]*q2m2dth;
+					las[3][n] += factorNow[n]*las_tile[i][j][k][3]*q2m2dth;
+					las[4][n] += factorNow[n]*las_tile[i][j][k][4]*q2m2dth;
+					las[5][n] += factorNow[n]*las_tile[i][j][k][5]*q2m2dth;
+					las[6][n] += factorNow[n]*las_tile[i][j][k][6]*q2m2h;
+					las[7][n] += factorNow[n]*las_tile[i][j][k][7]*q2m2h;
 				}
 			}
 }

@@ -1,31 +1,303 @@
+module;
+
 #include "meta_base.h"
-#include "computeTool.h"
-#include "bundle.h"
-#include "pusher.h"
-#include "slicer.h"
-#include "tiler.h"
-#include "mover.h"
+
+export module mover;
+import compute_tool;
+import fields;
+import bundle;
+import pusher;
+import tiler;
+
+/// @brief Orchestrates moving particle bundles.  The `Advance` function associated with
+/// a specific subclass will invoke `DoTasks` with a template argument that selects
+/// a particular bundle mover.
+export struct Mover:ComputeTool
+{
+	tw::Float q0,m0;
+	tw::Int ignorable[4];
+	// Following particles and fields are owned by the parent Species module
+	std::vector<Particle> *particle;
+	std::vector<TransferParticle> *transfer;
+	Field *ESField,*EM,*sources,*laser,*chi,*qo_j4;
+	Mover(const std::string& name,MetricSpace *m,Task *tsk);
+	MoverParams GetParams();
+	void AddTransferParticle(const Particle& src);
+	template <class MoverType>
+	void CopyBack(MoverType *b);
+	void GetSubarrayBounds(std::vector<ParticleRef>& sorted,tw::Int low[4],tw::Int high[4],tw::Int layers);
+	void SpreadTasks(std::vector<tw::Int>& task_map);
+	void BunchTasks(std::vector<tw::Int>& task_map);
+	template <class MoverType>
+	void MoveSlice(tw::Int tasks,tw::Int tid,tw::Int bounds_data[][8]);
+	template <class MoverType>
+	void DoTasks();
+	virtual void Advance() {}
+
+	virtual void InitTest();
+	virtual void EncodingTest();
+	virtual void MinimizePrimitiveScalarTest();
+	virtual void MinimizePrimitiveVectorTest();
+	virtual void TranslationTest();
+	virtual void UniformETest();
+	virtual void UniformBTest();
+	virtual void PlaneWaveTest();
+	virtual bool Test(tw::Int& id);
+	virtual void CloseTest();
+};
+
+// Subclasses of the Mover Tool
+// These are simple dispatchers. Their only purpose is to make the
+// appropriate templated call to DoTasks().  The template argument is one
+// of the BundleMover* classes.
+
+export struct BorisMover:Mover
+{
+	BorisMover(const std::string& name,MetricSpace *m,Task *tsk): Mover(name,m,tsk) {}
+	virtual void Advance();
+	virtual void InitTest();
+};
+
+export struct HCMover:Mover
+{
+	HCMover(const std::string& name,MetricSpace *m,Task *tsk): Mover(name,m,tsk) {}
+	virtual void Advance();
+	virtual void InitTest();
+};
+
+export struct UnitaryMover:Mover
+{
+	UnitaryMover(const std::string& name,MetricSpace *m,Task *tsk): Mover(name,m,tsk) {}
+	virtual void Advance();
+	virtual void InitTest();
+};
+
+export struct PGCMover:Mover
+{
+	PGCMover(const std::string& name,MetricSpace *m,Task *tsk): Mover(name,m,tsk) {}
+	virtual void Advance();
+	virtual void InitTest();
+};
+
+export struct BohmianMover:Mover
+{
+	BohmianMover(const std::string& name,MetricSpace *m,Task *tsk): Mover(name,m,tsk) {}
+	virtual void Advance();
+	virtual bool Test(tw::Int& id) { return false; }
+};
+
+export struct PhotonMover:Mover
+{
+	PhotonMover(const std::string& name,MetricSpace *m,Task *tsk): Mover(name,m,tsk) {}
+	virtual void Advance();
+	virtual void InitTest();
+};
+
+/////////////////////////////////////
+// Bundle Movers - pusher + tiler  //
+// These are created by the mover  //
+// tool, and invoked by template   //
+/////////////////////////////////////
+
+struct BundleMoverBoris2D : BundleTilerEM2D,BundlePusherBoris
+{
+	Slice<float> Fx,Jx;
+	BundleMoverBoris2D(const MoverParams& mov) : ParticleBundle(mov), BundleTilerEM2D(mov), BundlePusherBoris(mov) {}
+	void LoadFieldSlice(tw::Int low[4],tw::Int high[4],tw::Int ignorable[4]);
+	void InitSourceSlice(tw::Int low[4],tw::Int high[4],tw::Int ignorable[4]);
+	void DepositSourceSlice(bool needsAtomic);
+	void Move(tw::Float dts);
+};
+
+struct BundleMoverBoris3D : BundleTilerEM3D,BundlePusherBoris
+{
+	Slice<float> Fx,Jx;
+	BundleMoverBoris3D(const MoverParams& mov) : ParticleBundle(mov), BundleTilerEM3D(mov), BundlePusherBoris(mov) {}
+	void LoadFieldSlice(tw::Int low[4],tw::Int high[4],tw::Int ignorable[4]);
+	void InitSourceSlice(tw::Int low[4],tw::Int high[4],tw::Int ignorable[4]);
+	void DepositSourceSlice(bool needsAtomic);
+	void Move(tw::Float dts);
+};
+
+struct BundleMoverHC2D : BundleTilerEM2D,BundlePusherHC
+{
+	Slice<float> Fx,Jx;
+	BundleMoverHC2D(const MoverParams& mov) : ParticleBundle(mov), BundleTilerEM2D(mov), BundlePusherHC(mov) {}
+	void LoadFieldSlice(tw::Int low[4],tw::Int high[4],tw::Int ignorable[4]);
+	void InitSourceSlice(tw::Int low[4],tw::Int high[4],tw::Int ignorable[4]);
+	void DepositSourceSlice(bool needsAtomic);
+	void Move(tw::Float dts);
+};
+
+struct BundleMoverHC3D : BundleTilerEM3D,BundlePusherHC
+{
+	Slice<float> Fx,Jx;
+	BundleMoverHC3D(const MoverParams& mov) : ParticleBundle(mov), BundleTilerEM3D(mov), BundlePusherHC(mov) {}
+	void LoadFieldSlice(tw::Int low[4],tw::Int high[4],tw::Int ignorable[4]);
+	void InitSourceSlice(tw::Int low[4],tw::Int high[4],tw::Int ignorable[4]);
+	void DepositSourceSlice(bool needsAtomic);
+	void Move(tw::Float dts);
+};
+
+struct BundleMoverUnitary2D : BundleTilerEM2D,BundlePusherUnitary
+{
+	Slice<float> Fx,Jx;
+	BundleMoverUnitary2D(const MoverParams& mov) : ParticleBundle(mov), BundleTilerEM2D(mov), BundlePusherUnitary(mov) {}
+	void LoadFieldSlice(tw::Int low[4],tw::Int high[4],tw::Int ignorable[4]);
+	void InitSourceSlice(tw::Int low[4],tw::Int high[4],tw::Int ignorable[4]);
+	void DepositSourceSlice(bool needsAtomic);
+	void Move(tw::Float dts);
+};
+
+struct BundleMoverUnitary3D : BundleTilerEM3D,BundlePusherUnitary
+{
+	Slice<float> Fx,Jx;
+	BundleMoverUnitary3D(const MoverParams& mov) : ParticleBundle(mov), BundleTilerEM3D(mov), BundlePusherUnitary(mov) {}
+	void LoadFieldSlice(tw::Int low[4],tw::Int high[4],tw::Int ignorable[4]);
+	void InitSourceSlice(tw::Int low[4],tw::Int high[4],tw::Int ignorable[4]);
+	void DepositSourceSlice(bool needsAtomic);
+	void Move(tw::Float dts);
+};
+
+struct BundleMoverPGC2D : BundleTilerPGC2D,BundleTilerEM2D,BundlePusherPGC
+{
+	Slice<float> Fx,Jx,lasx,chix;
+	BundleMoverPGC2D(const MoverParams& mov) : ParticleBundle(mov), BundleTilerPGC2D(mov), BundleTilerEM2D(mov), BundlePusherPGC(mov) {}
+	void LoadFieldSlice(tw::Int low[4],tw::Int high[4],tw::Int ignorable[4]);
+	void InitSourceSlice(tw::Int low[4],tw::Int high[4],tw::Int ignorable[4]);
+	void DepositSourceSlice(bool needsAtomic);
+	void Move(tw::Float dts);
+};
+
+struct BundleMoverPGC3D : BundleTilerPGC3D,BundleTilerEM3D,BundlePusherPGC
+{
+	Slice<float> Fx,Jx,lasx,chix;
+	BundleMoverPGC3D(const MoverParams& mov) : ParticleBundle(mov), BundleTilerPGC3D(mov), BundleTilerEM3D(mov), BundlePusherPGC(mov) {}
+	// For PGC we have to call two slicers explicitly
+	void LoadFieldSlice(tw::Int low[4],tw::Int high[4],tw::Int ignorable[4]);
+	void InitSourceSlice(tw::Int low[4],tw::Int high[4],tw::Int ignorable[4]);
+	void DepositSourceSlice(bool needsAtomic);
+	void Move(tw::Float dts);
+};
+
+struct BundleMoverBohmian2D : BundleTilerBohmian2D,BundlePusherBohmian
+{
+	Slice<float> Jx;
+	BundleMoverBohmian2D(const MoverParams& mov) : ParticleBundle(mov), BundleTilerBohmian2D(mov), BundlePusherBohmian(mov) {}
+	void LoadFieldSlice(tw::Int low[4],tw::Int high[4],tw::Int ignorable[4]);
+	void InitSourceSlice(tw::Int low[4],tw::Int high[4],tw::Int ignorable[4]);
+	void DepositSourceSlice(bool needsAtomic);
+	void Move(tw::Float dts);
+};
+
+struct BundleMoverBohmian3D : BundleTilerBohmian3D,BundlePusherBohmian
+{
+	Slice<float> Jx;
+	BundleMoverBohmian3D(const MoverParams& mov) : ParticleBundle(mov), BundleTilerBohmian3D(mov), BundlePusherBohmian(mov) {}
+	void LoadFieldSlice(tw::Int low[4],tw::Int high[4],tw::Int ignorable[4]);
+	void InitSourceSlice(tw::Int low[4],tw::Int high[4],tw::Int ignorable[4]);
+	void DepositSourceSlice(bool needsAtomic);
+	void Move(tw::Float dts);
+};
+
+struct BundleMoverPhoton2D : BundleTilerEM2D,BundlePusherPhoton
+{
+	Slice<float> Fx,Jx;
+	BundleMoverPhoton2D(const MoverParams& mov) : ParticleBundle(mov), BundleTilerEM2D(mov), BundlePusherPhoton(mov) {}
+	void LoadFieldSlice(tw::Int low[4],tw::Int high[4],tw::Int ignorable[4]);
+	void InitSourceSlice(tw::Int low[4],tw::Int high[4],tw::Int ignorable[4]);
+	void DepositSourceSlice(bool needsAtomic);
+	void Move(tw::Float dts);
+};
+
+struct BundleMoverPhoton3D : BundleTilerEM3D,BundlePusherPhoton
+{
+	Slice<float> Fx,Jx;
+	BundleMoverPhoton3D(const MoverParams& mov) : ParticleBundle(mov), BundleTilerEM3D(mov), BundlePusherPhoton(mov) {}
+	void LoadFieldSlice(tw::Int low[4],tw::Int high[4],tw::Int ignorable[4]);
+	void InitSourceSlice(tw::Int low[4],tw::Int high[4],tw::Int ignorable[4]);
+	void DepositSourceSlice(bool needsAtomic);
+	void Move(tw::Float dts);
+};
 
 Mover::Mover(const std::string& name,MetricSpace *m,Task *tsk) : ComputeTool(name,m,tsk)
 {
-	for (tw::Int i=0;i<4;i++)
-		ignorable[i] = space->Ignorable(i);
+	for (auto i=0;i<4;i++)
+		ignorable[i] = m->Ignorable(i);
 }
 
+MoverParams Mover::GetParams() {
+	MoverParams ans;
+	ans.chi = chi;
+	ans.EM = EM;
+	ans.ESField = ESField;
+	for (auto i=0;i<4;i++)
+		ans.ignorable[i] = ignorable[i];
+	ans.laser = laser;
+	ans.m0 = m0;
+	ans.q0 = q0;
+	ans.ms = space;
+	ans.qo_j4 = qo_j4;
+	ans.sources = sources;
+	return ans;
+}
+
+/// @brief Add particle to transfer list, assuming it is in extended domain
+/// @param src the particle to add
 void Mover::AddTransferParticle(const Particle& src)
 {
-	tw::Int ijk[4];
+	// we could have x out of normal range if there is an algorithm that moves particles
+	// far enough to escape the extended domain
 	TransferParticle dest;
-	space->DecodeCell(src.q,ijk);
+	space->DecodeCell(src.q,dest.ijk);
 	dest.dst[0] = task->strip[0].Get_rank();
 	for (tw::Int i=1;i<=3;i++)
-		dest.dst[i] = tw::Int(ijk[i]>space->Dim(i)) - tw::Int(ijk[i]<1);
-	dest.x = tw::vec4(0.0,space->PositionFromPrimitive(src.q));
-	dest.p = tw::vec4(0.0,src.p);
+		dest.dst[i] = tw::Int(dest.ijk[i]>space->Dim(i)) - tw::Int(dest.ijk[i]<1);
+	for (tw::Int i=0;i<=3;i++)
+		dest.x[i] = src.q.x[i];
+	dest.p = src.p;
+	dest.s = src.s;
 	dest.number = src.number;
-	dest.aux1 = src.aux1;
-	dest.aux2 = src.aux2;
+	dest.tag = src.tag;
 	transfer->push_back(dest);
+}
+
+template <class MoverType>
+void Mover::CopyBack(MoverType *b)
+{
+	for (int i=0;i<b->num;i++)
+	{
+		b->refs[i]->q.cell = b->cell[i];
+		b->refs[i]->q.x[0] = b->x[0][i];
+		b->refs[i]->q.x[1] = b->x[1][i];
+		b->refs[i]->q.x[2] = b->x[2][i];
+		b->refs[i]->q.x[3] = b->x[3][i];
+		b->refs[i]->p[0] = b->u[0][i]*(sqr(m0)+tw::tiny)/(m0+tw::tiny);
+		b->refs[i]->p[1] = b->u[1][i]*(sqr(m0)+tw::tiny)/(m0+tw::tiny);
+		b->refs[i]->p[2] = b->u[2][i]*(sqr(m0)+tw::tiny)/(m0+tw::tiny);
+		b->refs[i]->p[3] = b->u[3][i]*(sqr(m0)+tw::tiny)/(m0+tw::tiny);
+		// If particle left MPI domain, add to transfer list, and mark for disposal
+		if (b->domainMask[i]==0.0)
+		{
+			#pragma omp critical
+			{
+				AddTransferParticle(*(b->refs[i]));
+			}
+			// mark for disposal only after copying to transfer list
+			b->refs[i]->number = 0.0;
+		}
+		// else
+		// {
+		// 	tw::Int ijk[4];
+		// 	space->DecodeCell(b->refs[i]->q,ijk);
+		// 	ASSERT_GTREQ(ijk[1],1);
+		// 	ASSERT_LESSEQ(ijk[1],space->Dim(1));
+		// 	ASSERT_GTREQ(ijk[2],1);
+		// 	ASSERT_LESSEQ(ijk[2],space->Dim(2));
+		// 	ASSERT_GTREQ(ijk[3],1);
+		// 	ASSERT_LESSEQ(ijk[3],space->Dim(3));
+		// }
+	}
 }
 
 void Mover::GetSubarrayBounds(std::vector<ParticleRef>& sorted,tw::Int low[4],tw::Int high[4],tw::Int layers)
@@ -110,12 +382,12 @@ void Mover::SpreadTasks(std::vector<tw::Int>& task_map)
 	}
 }
 
-template <class BundleType>
+template <class MoverType>
 void Mover::MoveSlice(tw::Int tasks,tw::Int tid,tw::Int bounds_data[][8])
 {
 	tw::Int first,last,next,low[4],high[4];
 	std::vector<ParticleRef> map;
-	BundleType b(this);
+	MoverType b(GetParams());
 	first = bounds_data[tid][0];
 	last = bounds_data[tid][1];
 	map.reserve(last-first+1);
@@ -141,8 +413,8 @@ void Mover::MoveSlice(tw::Int tasks,tw::Int tid,tw::Int bounds_data[][8])
 		next = i==last ? i : i+1;
 		if (i==last || b.Complete((*particle)[map[next-first].idx]))
 		{
-			b.Move();
-			b.CopyBack();
+			b.Move(space->dx(0));
+			CopyBack(&b);
 			b.Reset();
 		}
 	}
@@ -167,7 +439,7 @@ void Mover::MoveSlice(tw::Int tasks,tw::Int tid,tw::Int bounds_data[][8])
 	b.DepositSourceSlice(needs_atomic);
 }
 
-template <class BundleType>
+template <class MoverType>
 void Mover::DoTasks()
 {
 	if (particle->size()==0)
@@ -188,7 +460,8 @@ void Mover::DoTasks()
 	//BunchTasks(task_map);
 
 	// following has first,last,x0,x1,y0,y1,z0,z1
-	tw::Int bounds_data[concurrent_tasks][8];
+	assert(concurrent_tasks<=128);
+	tw::Int bounds_data[128][8];
 	for (tw::Int c=0;c<total_sets;c++)
 	{
 		tw::Int tasks_in_set = c<concurrent_sets ? concurrent_tasks : remainder_tasks;
@@ -197,203 +470,8 @@ void Mover::DoTasks()
 			tw::Int t = tw::GetOMPThreadNum();
 			tw::Int task_idx = task_map[c*concurrent_tasks + t];
 			tw::GetOMPTaskLoopRange(task_idx,num_par,num_tasks,&bounds_data[t][0],&bounds_data[t][1]);
-			MoveSlice<BundleType>(tasks_in_set,t,bounds_data);
+			MoveSlice<MoverType>(tasks_in_set,t,bounds_data);
 		}
 	}
 }
 
-void Mover::Advance() {}
-
-void BorisMover::Advance()
-{
-	if (space->Dim(2)==1)
-		DoTasks<BundleMoverBoris2D>();
-	else
-		DoTasks<BundleMoverBoris3D>();
-}
-
-void UnitaryMover::Advance()
-{
-	if (space->Dim(2)==1)
-		DoTasks<BundleMoverUnitary2D>();
-	else
-		DoTasks<BundleMoverUnitary3D>();
-}
-
-void PGCMover::Advance()
-{
-	if (space->Dim(2)==1)
-		DoTasks<BundleMoverPGC2D>();
-	else
-		DoTasks<BundleMoverPGC3D>();
-}
-
-void BohmianMover::Advance()
-{
-	if (space->Dim(2)==1)
-		DoTasks<BundleMoverBohmian2D>();
-	else
-		DoTasks<BundleMoverBohmian3D>();
-}
-
-///////////////////////////
-//                       //
-//     BUNDLE MOVERS     //
-//                       //
-///////////////////////////
-
-void BundleMoverBoris2D::Move()
-{
-	const float qmdth = 0.5*q0*dt/m0;
-	const tw::Float dti = 1.0/dt;
-	PrepareGather();
-	LoadFTile();
-	GatherF(F,w0,l0,qmdth);
-	Push();
-	PrepareScatter();
-	ResetJTile();
-	ScatterJ4(J,w0,w1,cellMask,dti);
-	StoreJTile();
-}
-
-void BundleMoverBoris3D::Move()
-{
-	const float qmdth = 0.5*q0*dt/m0;
-	const tw::Float dti = 1.0/dt;
-	PrepareGather();
-	LoadFTile();
-	GatherF(F,w0,l0,qmdth);
-	Push();
-	PrepareScatter();
-	ResetJTile();
-	ScatterJ4(J,w0,w1,cellMask,dti);
-	StoreJTile();
-}
-
-void BundleMoverUnitary2D::Move()
-{
-	const float qmdth = 0.5*q0*dt/m0;
-	const tw::Float dti = 1.0/dt;
-	PrepareGather();
-	LoadFTile();
-	GatherF(F,w0,l0,qmdth);
-	Push();
-	PrepareScatter();
-	ResetJTile();
-	ScatterJ4(J,w0,w1,cellMask,dti);
-	StoreJTile();
-}
-
-void BundleMoverUnitary3D::Move()
-{
-	const float qmdth = 0.5*q0*dt/m0;
-	const tw::Float dti = 1.0/dt;
-	PrepareGather();
-	LoadFTile();
-	GatherF(F,w0,l0,qmdth);
-	Push();
-	PrepareScatter();
-	ResetJTile();
-	ScatterJ4(J,w0,w1,cellMask,dti);
-	StoreJTile();
-}
-
-void BundleMoverPGC2D::LoadFieldSlice(tw::Int low[4],tw::Int high[4],tw::Int ignorable[4])
-{
-	BundleSlicerEM::LoadFieldSlice(low,high,ignorable);
-	BundleSlicerPGC::LoadFieldSlice(low,high,ignorable);
-}
-
-void BundleMoverPGC2D::InitSourceSlice(tw::Int low[4],tw::Int high[4],tw::Int ignorable[4])
-{
-	BundleSlicerEM::InitSourceSlice(low,high,ignorable);
-	BundleSlicerPGC::InitSourceSlice(low,high,ignorable);
-}
-
-void BundleMoverPGC2D::DepositSourceSlice(bool needsAtomic)
-{
-	BundleSlicerEM::DepositSourceSlice(needsAtomic);
-	BundleSlicerPGC::DepositSourceSlice(needsAtomic);
-}
-
-void BundleMoverPGC2D::Move()
-{
-	const float qmdth = 0.5*q0*dt/m0;
-	const tw::Float dti = 1.0/dt;
-	const float q2m2 = sqr(q0/m0);
-	PrepareGather();
-	LoadFTile();
-	GatherF(F,w0,l0,qmdth);
-	LoadLaserTile();
-	GatherLaser(las,w0,q2m2);
-	Push();
-	PrepareScatter();
-	ResetJTile();
-	ScatterJ4(J,w0,w1,cellMask,dti);
-	StoreJTile();
-	ResetChiTile();
-	ScatterChi(chi,w0,w1,cellMask);
-	StoreChiTile();
-}
-
-void BundleMoverPGC3D::LoadFieldSlice(tw::Int low[4],tw::Int high[4],tw::Int ignorable[4])
-{
-	BundleSlicerEM::LoadFieldSlice(low,high,ignorable);
-	BundleSlicerPGC::LoadFieldSlice(low,high,ignorable);
-}
-
-void BundleMoverPGC3D::InitSourceSlice(tw::Int low[4],tw::Int high[4],tw::Int ignorable[4])
-{
-	BundleSlicerEM::InitSourceSlice(low,high,ignorable);
-	BundleSlicerPGC::InitSourceSlice(low,high,ignorable);
-}
-
-void BundleMoverPGC3D::DepositSourceSlice(bool needsAtomic)
-{
-	BundleSlicerEM::DepositSourceSlice(needsAtomic);
-	BundleSlicerPGC::DepositSourceSlice(needsAtomic);
-}
-
-void BundleMoverPGC3D::Move()
-{
-	const float qmdth = 0.5*q0*dt/m0;
-	const tw::Float dti = 1.0/dt;
-	const float q2m2 = sqr(q0/m0);
-	PrepareGather();
-	LoadFTile();
-	GatherF(F,w0,l0,qmdth);
-	LoadLaserTile();
-	GatherLaser(las,w0,q2m2);
-	Push();
-	PrepareScatter();
-	ResetJTile();
-	ScatterJ4(J,w0,w1,cellMask,dti);
-	StoreJTile();
-	ResetChiTile();
-	ScatterChi(chi,w0,w1,cellMask);
-	StoreChiTile();
-}
-
-void BundleMoverBohmian2D::Move()
-{
-	PadBundle();
-	cell0 = cell[0];
-	owner->space->DecodeCell(cell0,ijk0);
-	owner->space->GetWeights(w0,x);
-	LoadTile();
-	GatherJ4(J,w0);
-	Push();
-	owner->space->MinimizePrimitive(cell,ijk,x,domainMask);
-}
-
-void BundleMoverBohmian3D::Move()
-{
-	PadBundle();
-	cell0 = cell[0];
-	owner->space->DecodeCell(cell0,ijk0);
-	owner->space->GetWeights(w0,x);
-	LoadTile();
-	GatherJ4(J,w0);
-	Push();
-	owner->space->MinimizePrimitive(cell,ijk,x,domainMask);
-}

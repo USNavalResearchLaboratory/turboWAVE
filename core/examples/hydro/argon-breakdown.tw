@@ -13,8 +13,6 @@
 
 #define $T0 300[K]
 
-steps = 20000
-timestep = 1 [ps]
 dtmax = 1 [ns]
 maxtime = 400 [ns]
 dump period = 0
@@ -32,10 +30,10 @@ zboundary = ( absorbing  absorbing )
 
 new grid
 {
-	corner = ( -500 , -500 , 0.0 )
-	dimensions = ( 1 1 1000 )
-	cell size = ( 1000.0 1000.0 1.0 )
-	decomposition = ( 1  1  1 )
+	origin = ( 0 , 0.5 , 0.5 , 0 )
+	dimensions = ( 20000 1 1 1000 )
+	cell size = ( 1 [ps] 1000.0 1000.0 1.0 )
+	decomposition = ( 1  1  1  1 )
 	geometry = cartesian
 	adaptive timestep = on
 }

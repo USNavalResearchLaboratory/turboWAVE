@@ -4,8 +4,6 @@
 // Same physical problem as 1d shock example (numerical parameters coarsened somewhat)
 // Asymmetries intentionally put into wall boundary conditions and initial conditions
 // Due to boundary conditions mass and energy can be lost
-steps = 5000
-timestep = 30 [ps]
 dtmax = 100 [ps]
 maxtime = 100 [ns]
 dump period = 0
@@ -23,10 +21,10 @@ zboundary = ( open  open )
 
 new grid
 {
-	corner = ( -500 , -500 , -0.5 )
-	dimensions = ( 200 200 1 )
-	cell size = ( 5 5 1 )
-	decomposition = ( 2  2  1 )
+	origin = ( 0 , 0.5 , 0.5 , 0.5 )
+	dimensions = ( 5000, 200, 200, 1 )
+	cell size = ( 30 [ps], 5, 5, 1 )
+	decomposition = ( 1, 2, 2, 1 )
 	geometry = cartesian
 	adaptive timestep = on
 }

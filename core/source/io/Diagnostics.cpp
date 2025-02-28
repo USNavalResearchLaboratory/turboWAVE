@@ -1,5 +1,133 @@
-#include "simulation.h"
-#include <iomanip>
+module;
+
+#include "meta_base.h"
+
+export module diagnostics;
+
+import input;
+import compute_tool;
+import fields;
+
+// Diagnostics are implemented as ComputeTool objects.
+// The flow of control starts from Simulation, which calls Module::Report for every Module.
+// The Module::Report function recieves a pointer to a given Diagnostic object (one call for every Diagnostic instance).
+// The Module::Report function makes a call to a method of Diagnostic for each data set it would like to report.
+// The Diagnostic object is responsible for interpreting the data set, extracting relevant subsets, and writing to disk.
+
+class meta_writer
+{
+	tw::UnitConverter native,mks,cgs,plasma,atomic,natural;
+public:
+	meta_writer(const tw::UnitConverter& units);
+	std::string s(const std::string& raw);
+	void start_entry(const std::string& name,const std::string& diagnostic_name);
+	void define_axis(const std::string& name,tw::Int ax,const std::string& label,tw::dims units,bool last=false);
+	std::string refine_label(const std::string& name,const tw::vec3& vGalileo,const tw::grid::geometry& geo);
+	void finish_entry();
+};
+
+export class npy_writer
+{
+public:
+	std::string form_header(tw::Int shape[4]);
+	void write_header(const std::string& name,tw::Int shape[4]);
+	void update_shape(const std::string& name,tw::Int shape[4]);
+	void get_frame(const std::string& name,char *gData,tw::Int shape[4],tw::Int frame);
+	void set_frame(const std::string& name,const char *gData,tw::Int shape[4],tw::Int frame);
+	void add_frame(const std::string& name,const char *gData,tw::Int shape[4]);
+};
+
+export struct Diagnostic : ComputeTool
+{
+	std::string filename;
+	tw::Int skip[4];
+	tw::Float t,tRef,t0,t1,timePeriod,gammaBoost;
+	tw::vec3 vGalileo;
+	bool headerWritten;
+
+	Diagnostic(const std::string& name,MetricSpace *ms,Task *tsk);
+	bool WriteThisStep(tw::Float elapsedTime,tw::Float dt,tw::Int stepNow);
+	void StartGridFile(std::ofstream& grid);
+	virtual void Start();
+	virtual void Finish();
+	virtual void ReportNumber(const std::string& label,tw::Float val,bool avg);
+	virtual void ReportField(const std::string& fieldName,const Field& F,const tw::Int c,const tw::dims unit = tw::dims::none,const std::string& pretty = "tw::none");
+	virtual void ReportParticle(const Particle& par,tw::Float m0);
+	virtual tw::Float VolumeIntegral(const std::string& fieldName,const Field& F,const tw::Int c);
+	virtual tw::Float FirstMoment(const std::string& fieldName,const Field& F,const tw::Int c,const tw::vec3& r0,const tw::grid::axis axis);
+	virtual void ReadCheckpoint(std::ifstream& inFile);
+	virtual void WriteCheckpoint(std::ofstream& outFile);
+};
+
+struct TextTableBase : Diagnostic
+{
+	tw::Int numSigFigs;
+	std::vector<std::string> labels;
+	std::vector<tw::Float> values;
+	std::vector<bool> avg;
+
+	TextTableBase(const std::string& name,MetricSpace *ms,Task *tsk);
+	virtual void Start();
+	virtual void Finish();
+	virtual void ReportNumber(const std::string& label,tw::Float val,bool avg);
+};
+
+export struct VolumeDiagnostic : TextTableBase
+{
+	VolumeDiagnostic(const std::string& name,MetricSpace *ms,Task *tsk);
+	virtual tw::Float VolumeIntegral(const std::string& fieldName,const Field& F,const tw::Int c);
+	virtual tw::Float FirstMoment(const std::string& fieldName,const Field& F,const tw::Int c,const tw::vec3& r0,const tw::grid::axis axis);
+};
+
+export struct PointDiagnostic : TextTableBase
+{
+	tw::vec3 thePoint;
+
+	PointDiagnostic(const std::string& name,MetricSpace *ms,Task *tsk);
+	virtual void ReportField(const std::string& fieldName,const Field& F,const tw::Int c,const tw::dims unit = tw::dims::none,const std::string& pretty = "tw::none");
+	virtual void ReadCheckpoint(std::ifstream& inFile);
+	virtual void WriteCheckpoint(std::ofstream& outFile);
+};
+
+export struct BoxDiagnostic : Diagnostic
+{
+	bool average;
+	std::vector<std::string> reports;
+
+	BoxDiagnostic(const std::string& name,MetricSpace *ms,Task *tsk);
+	virtual void Finish();
+	void GetLocalIndexing(const tw::Int pts[4],const tw::Int glb[6],tw::Int loc[6],const tw::Int coords[4]);
+	void GetGlobalIndexing(tw::Int pts[4],tw::Int glb[6]);
+	virtual void ReportField(const std::string& fieldName,const Field& F,const tw::Int c,const tw::dims unit = tw::dims::none,const std::string& pretty = "tw::none");
+};
+
+export struct PhaseSpaceDiagnostic : Diagnostic
+{
+	tw::Float bounds[6];
+	tw::Int dims[4];
+	tw::grid::axis ax[4];
+	bool accumulate;
+	ScalarField fxp;
+
+	PhaseSpaceDiagnostic(const std::string& name,MetricSpace *ms,Task *tsk);
+	virtual void Start();
+	virtual void Finish();
+	virtual void ReportParticle(const Particle& par,tw::Float m0);
+};
+
+export struct ParticleOrbits : Diagnostic
+{
+	tw::Float minGamma;
+	std::vector<tw::Int> nodes,ids;
+	std::vector<float> parData;
+
+	ParticleOrbits(const std::string& name,MetricSpace *ms,Task *tsk);
+	virtual void Start();
+	virtual void Finish();
+	virtual void ReportParticle(const Particle& par,tw::Float m0);
+	virtual void ReadCheckpoint(std::ifstream& inFile);
+	virtual void WriteCheckpoint(std::ofstream& outFile);
+};
 
 ////////////////////////////////////////////////////////////////
 // Dictionary for storing metadata associated with .npy files //
@@ -109,7 +237,7 @@ std::string npy_writer::form_header(tw::Int shape[4])
 	std::stringstream dict;
 	dict << "{'descr': '<f4', 'fortran_order': False, 'shape': (";
 	for (tw::Int i=0;i<4;i++)
-		dict << std::setw(10) << std::setfill(' ') << shape[i] << ",";
+		dict << std::format("{:10},",shape[i]);
 	dict << "), }";
 	HEADER_LEN = dict.str().size();
 	while ((HEADER_LEN+8+type_size+1)%64)
@@ -271,11 +399,11 @@ void Diagnostic::Finish()
 {
 }
 
-void Diagnostic::Float(const std::string& label,tw::Float val,bool average)
+void Diagnostic::ReportNumber(const std::string& label,tw::Float val,bool average)
 {
 }
 
-tw::Float Diagnostic::VolumeIntegral(const std::string& fieldName,const struct Field& F,const tw::Int c)
+tw::Float Diagnostic::VolumeIntegral(const std::string& fieldName,const Field& F,const tw::Int c)
 {
 	tw::Float ans = 0.0;
 	tw::Int x0,x1,y0,y1,z0,z1;
@@ -288,7 +416,7 @@ tw::Float Diagnostic::VolumeIntegral(const std::string& fieldName,const struct F
 	return ans;
 }
 
-tw::Float Diagnostic::FirstMoment(const std::string& fieldName,const struct Field& F,const tw::Int c,const tw::vec3& r0,const tw::grid::axis axis)
+tw::Float Diagnostic::FirstMoment(const std::string& fieldName,const Field& F,const tw::Int c,const tw::vec3& r0,const tw::grid::axis axis)
 {
 	tw::Float ans = 0.0;
 	const tw::Int ax = tw::grid::naxis(axis);
@@ -311,11 +439,11 @@ tw::Float Diagnostic::FirstMoment(const std::string& fieldName,const struct Fiel
 	return ans;
 }
 
-void Diagnostic::Field(const std::string& fieldName,const struct Field& F,const tw::Int c,tw::dims unit,const std::string& pretty)
+void Diagnostic::ReportField(const std::string& fieldName,const Field& F,const tw::Int c,tw::dims unit,const std::string& pretty)
 {
 }
 
-void Diagnostic::Particle(const struct Particle& par,tw::Float m0,tw::Float tp)
+void Diagnostic::ReportParticle(const Particle& par,tw::Float m0)
 {
 }
 
@@ -394,9 +522,9 @@ void TextTableBase::Finish()
 	}
 }
 
-void TextTableBase::Float(const std::string& label,tw::Float val,bool average)
+void TextTableBase::ReportNumber(const std::string& label,tw::Float val,bool average)
 {
-	Diagnostic::Float(label,val,average);
+	Diagnostic::ReportNumber(label,val,average);
 	labels.push_back(label);
 	values.push_back(val);
 	avg.push_back(average);
@@ -407,7 +535,7 @@ VolumeDiagnostic::VolumeDiagnostic(const std::string& name,MetricSpace *ms,Task 
 	filename = "energy";
 }
 
-tw::Float VolumeDiagnostic::VolumeIntegral(const std::string& fieldName,const struct Field& F,const tw::Int c)
+tw::Float VolumeDiagnostic::VolumeIntegral(const std::string& fieldName,const Field& F,const tw::Int c)
 {
 	const tw::Float ans = Diagnostic::VolumeIntegral(fieldName,F,c);
 	labels.push_back(fieldName);
@@ -416,7 +544,7 @@ tw::Float VolumeDiagnostic::VolumeIntegral(const std::string& fieldName,const st
 	return ans;
 }
 
-tw::Float VolumeDiagnostic::FirstMoment(const std::string& fieldName,const struct Field& F,const tw::Int c,const tw::vec3& r0,const tw::grid::axis axis)
+tw::Float VolumeDiagnostic::FirstMoment(const std::string& fieldName,const Field& F,const tw::Int c,const tw::vec3& r0,const tw::grid::axis axis)
 {
 	const tw::Float ans = Diagnostic::FirstMoment(fieldName,F,c,r0,axis);
 	labels.push_back(fieldName);
@@ -432,14 +560,14 @@ PointDiagnostic::PointDiagnostic(const std::string& name,MetricSpace *ms,Task *t
 	directives.Add("point",new tw::input::Vec3(&thePoint));
 }
 
-void PointDiagnostic::Field(const std::string& fieldName,const struct Field& F,const tw::Int c,tw::dims unit,const std::string& pretty)
+void PointDiagnostic::ReportField(const std::string& fieldName,const Field& F,const tw::Int c,tw::dims unit,const std::string& pretty)
 {
-	tw::vec3 r = thePoint + vGalileo*t;
-	if (space->IsPointWithinInterior(r)) // assumes uniform grid
+	tw::vec4 x4(t,thePoint + vGalileo*t);
+	if (space->IsPointWithinInterior(x4)) // assumes uniform grid
 	{
 		std::valarray<tw::Float> ans(1);
 		weights_3D w;
-		space->GetWeights(&w,r);
+		space->GetWeights(&w,x4);
 		F.Interpolate(ans,Element(c),w);
 		labels.push_back(fieldName);
 		values.push_back(ans[0]);
@@ -470,7 +598,7 @@ BoxDiagnostic::BoxDiagnostic(const std::string& name,MetricSpace *ms,Task *tsk) 
 	average = false;
 	filename = "tw::none";
 	directives.Add("average",new tw::input::Bool(&average),false);
-	directives.Add("reports",new tw::input::List<std::vector<std::string>>(&reports),false);
+	directives.Add("reports",new tw::input::StringList<std::vector<std::string>>(&reports),false);
 }
 
 void BoxDiagnostic::GetGlobalIndexing(tw::Int pts[4],tw::Int glb[6])
@@ -515,7 +643,7 @@ void BoxDiagnostic::GetLocalIndexing(const tw::Int pts[4],const tw::Int glb[6],t
 	}
 }
 
-void BoxDiagnostic::Field(const std::string& fieldName,const struct Field& F,const tw::Int c,tw::dims unit,const std::string& pretty)
+void BoxDiagnostic::ReportField(const std::string& fieldName,const Field& F,const tw::Int c,tw::dims unit,const std::string& pretty)
 {
 	if (reports.size()>0)
 		if (std::find(reports.begin(),reports.end(),fieldName)==reports.end())
@@ -672,6 +800,8 @@ ParticleOrbits::ParticleOrbits(const std::string& name,MetricSpace *ms,Task *tsk
 	filename = "par";
 	minGamma = 1.0;
 	directives.Add("minimum gamma",new tw::input::Float(&minGamma));
+	directives.Add("nodes",new tw::input::NumberList<std::vector<tw::Int>>(&nodes));
+	directives.Add("ids",new tw::input::NumberList<std::vector<tw::Int>>(&ids));
 }
 
 void ParticleOrbits::Start()
@@ -704,7 +834,7 @@ void ParticleOrbits::Finish()
 			writer.write_header(xname,shape);
 			headerWritten = true;
 		}
-		false_shape[2] = pts;
+		false_shape[3] = pts;
 		writer.add_frame(xname,(char*)&parBuffer[0],false_shape);
 		for (tw::Int i=0;i<task->strip[0].Get_size();i++)
 		{
@@ -713,7 +843,7 @@ void ParticleOrbits::Finish()
 				task->strip[0].Recv(&pts,sizeof(tw::Int),i);
 				parBuffer.resize(pts);
 				task->strip[0].Recv(&parBuffer[0],sizeof(float)*pts,i);
-				false_shape[2] = pts;
+				false_shape[3] = pts;
 				writer.add_frame(xname,(char*)&parBuffer[0],false_shape);
 			}
 		}
@@ -723,29 +853,42 @@ void ParticleOrbits::Finish()
 	}
 }
 
-void ParticleOrbits::Particle(const struct Particle& par,tw::Float m0,tw::Float tp)
+void ParticleOrbits::ReportParticle(const Particle& par,tw::Float m0)
 {
-	tw::vec4 x(tp,space->PositionFromPrimitive(par.q));
-	tw::vec4 v(sqrt(1+Norm(par.p)/(m0*m0)),par.p/m0);
+	tw::vec4 x(space->PositionFromPrimitive(par.q));
+	tw::vec4 p(par.p);
 	// Boosts will work in Cartesian or cylindrical, but not spherical.
 	x.zBoost(gammaBoost,1.0);
-	v.zBoost(gammaBoost,1.0);
+	p.zBoost(gammaBoost,1.0);
 	tw::vec3 x3 = x.spatial();
-	if (theRgn->Inside(x3,*space))
-		if (v[0] >= minGamma)
-		{
-			space->CurvilinearToCartesian(&x3);
-			x3 -= vGalileo*x[0];
-			x = tw::vec4(x[0],x3);
-			parData.push_back(x[1]);
-			parData.push_back(m0*v[1]);
-			parData.push_back(x[2]);
-			parData.push_back(m0*v[2]);
-			parData.push_back(x[3]);
-			parData.push_back(m0*v[3]);
-			parData.push_back(par.aux1);
-			parData.push_back(par.aux2);
-		}
+	uint64_t node = par.tag & 0xffffffff;
+	uint64_t id = par.tag >> 32;
+	if (!theRgn->Inside(x3,*space))
+		return;
+	if (p[0] < m0*minGamma)
+		return;
+	bool in_nodes = false;
+	for (auto n : nodes)
+		in_nodes |= n==node;
+	in_nodes |= nodes.size()==0;
+	bool in_ids = false;
+	for (auto i : ids)
+		in_ids |= i==id;
+	in_ids |= ids.size()==0;
+	if (!in_nodes || !in_ids)
+		return;
+	space->CurvilinearToCartesian(&x3);
+	x3 -= vGalileo*x[0]; // TODO: doesn't work?
+	x = tw::vec4(x[0],x3);
+	parData.push_back(x[1]);
+	parData.push_back(p[1]);
+	parData.push_back(x[2]);
+	parData.push_back(p[2]);
+	parData.push_back(x[3]);
+	parData.push_back(p[3]);
+	parData.push_back(par.Qparam);
+	parData.push_back(float(node));
+	parData.push_back(float(id));
 }
 
 void ParticleOrbits::ReadCheckpoint(std::ifstream& inFile)
@@ -788,7 +931,7 @@ void PhaseSpaceDiagnostic::Start()
 	{
 		std::map<tw::grid::axis,tw::dims> m = {{tw::grid::t,tw::dims::time},{tw::grid::x,tw::dims::length},{tw::grid::y,tw::dims::length},{tw::grid::z,tw::dims::length},
 			{tw::grid::mass,tw::dims::energy},{tw::grid::px,tw::dims::momentum},{tw::grid::py,tw::dims::momentum},{tw::grid::pz,tw::dims::momentum},
-			{tw::grid::g,tw::dims::none},{tw::grid::gbx,tw::dims::none},{tw::grid::gby,tw::dims::none},{tw::grid::gbz,tw::dims::none}};
+			{tw::grid::g,tw::dims::none},{tw::grid::gbx,tw::dims::none},{tw::grid::gby,tw::dims::none},{tw::grid::gbz,tw::dims::none},{tw::grid::Qp,tw::dims::none}};
 		npy_writer writer;
 		std::string xname = filename + ".npy";
 		writer.write_header(xname,dims);
@@ -803,8 +946,8 @@ void PhaseSpaceDiagnostic::Start()
 		// don't set headerWritten until end of Finish() due to grid file
 	}
 
-	tw::vec3 phaseSpaceMin(bounds[0],bounds[2],bounds[4]);
-	tw::vec3 phaseSpaceSize(bounds[1]-bounds[0],bounds[3]-bounds[2],bounds[5]-bounds[4]);
+	tw::vec4 phaseSpaceMin(0.0,bounds[0],bounds[2],bounds[4]);
+	tw::vec4 phaseSpaceSize(1.0,bounds[1]-bounds[0],bounds[3]-bounds[2],bounds[5]-bounds[4]);
 	fxp.Initialize(DiscreteSpace(dims[1],dims[2],dims[3],phaseSpaceMin,phaseSpaceSize,1),task);
 	fxp.SetBoundaryConditions(tw::grid::x,tw::bc::fld::dirichletCell,tw::bc::fld::dirichletCell);
 	fxp.SetBoundaryConditions(tw::grid::y,tw::bc::fld::dirichletCell,tw::bc::fld::dirichletCell);
@@ -862,11 +1005,12 @@ void PhaseSpaceDiagnostic::Finish()
 	headerWritten = true;
 }
 
-void PhaseSpaceDiagnostic::Particle(const struct Particle& par,tw::Float m0,tw::Float tp)
+void PhaseSpaceDiagnostic::ReportParticle(const Particle& par,tw::Float m0)
 {
+	m0 = (sqr(m0)+tw::tiny)/(m0+tw::tiny);
 	weights_3D weights;
-	tw::vec4 x(tp,space->PositionFromPrimitive(par.q));
-	tw::vec4 v(sqrt(1+Norm(par.p)/(m0*m0)),par.p/m0);
+	tw::vec4 x(space->PositionFromPrimitive(par.q));
+	tw::vec4 v(par.p/m0);
 	x.zBoost(gammaBoost,1.0);
 	v.zBoost(gammaBoost,1.0);
 	const tw::Float dV = (bounds[1]-bounds[0])*(bounds[3]-bounds[2])*(bounds[5]-bounds[4])/(dims[1]*dims[2]*dims[3]);
@@ -879,12 +1023,12 @@ void PhaseSpaceDiagnostic::Particle(const struct Particle& par,tw::Float m0,tw::
 		std::map<tw::grid::axis,tw::Float> m =
 			{{tw::grid::t,x[0]},{tw::grid::x,x[1]},{tw::grid::y,x[2]},{tw::grid::z,x[3]},
 			{tw::grid::mass,m0*v[0]},{tw::grid::px,m0*v[1]},{tw::grid::py,m0*v[2]},{tw::grid::pz,m0*v[3]},
-			{tw::grid::g,v[0]},{tw::grid::gbx,v[1]},{tw::grid::gby,v[2]},{tw::grid::gbz,v[3]}};
-		tw::vec3 q(m[ax[1]],m[ax[2]],m[ax[3]]);
-		if (dims[1]==1) q.x = 0.5*(bounds[0]+bounds[1]);
-		if (dims[2]==1) q.y = 0.5*(bounds[2]+bounds[3]);
-		if (dims[3]==1) q.z = 0.5*(bounds[4]+bounds[5]);
-		if (q.x>=bounds[0] && q.x<=bounds[1] && q.y>=bounds[2] && q.y<=bounds[3] && q.z>=bounds[4] && q.z<=bounds[5])
+			{tw::grid::g,v[0]},{tw::grid::gbx,v[1]},{tw::grid::gby,v[2]},{tw::grid::gbz,v[3]},{tw::grid::Qp,par.Qparam}};
+		tw::vec4 q(0.0,m[ax[1]],m[ax[2]],m[ax[3]]);
+		if (dims[1]==1) q[1] = 0.5*(bounds[0]+bounds[1]);
+		if (dims[2]==1) q[2] = 0.5*(bounds[2]+bounds[3]);
+		if (dims[3]==1) q[3] = 0.5*(bounds[4]+bounds[5]);
+		if (q[1]>=bounds[0] && q[1]<=bounds[1] && q[2]>=bounds[2] && q[2]<=bounds[3] && q[3]>=bounds[4] && q[3]<=bounds[5])
 		{
 			fxp.GetWeights(&weights,q);
 			fxp.InterpolateOnto( par.number/dV, weights );

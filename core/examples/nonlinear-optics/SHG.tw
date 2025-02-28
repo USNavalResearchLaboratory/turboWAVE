@@ -1,7 +1,5 @@
 #define $theta 29.2[deg]
 
-steps = 60000
-timestep = 0.038
 dump period = 0
 moving window = no
 neutralize = no
@@ -16,10 +14,10 @@ zboundary = ( absorbing , absorbing )
 
 new grid
 {
-	corner = ( -0.5 , -0.5 , 0 )
-	dimensions = ( 1 , 1 , 32768 )
-	cell size = ( 1.0 , 1.0 , 0.04 )
-	decomposition = ( 1 , 1 , 16 )
+	origin = ( 0, 0.5, 0.5, 0 )
+	dimensions = ( 60000, 1, 1, 32768 )
+	cell size = ( 0.038, 1.0, 1.0, 0.04 )
+	decomposition = ( 1, 1, 1, 16 )
 }
 
 new region rect 'r1'

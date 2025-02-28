@@ -6,8 +6,6 @@
 // Increasing laser intensity may require timestep reduction
 // If you want electrostatic fields, set plasma model = quasineutral
 // (quasineutral model will be slow)
-steps = 2000
-timestep = 100[fs]
 dtmax = 100[fs]
 dump period = 0
 moving window = no
@@ -24,10 +22,10 @@ zboundary = ( absorbing  absorbing )
 
 new grid
 {
-	corner = ( 0.0 , -3.1416 , -2000 )
-	dimensions = ( 100 1 200 )
-	cell size = ( 1.0 6.2832 20.0 )
-	decomposition = ( 2  1  4 )
+	origin = ( 0 , 0 , 0.5 , 0.5 )
+	dimensions = ( 2000, 100, 1, 200 )
+	cell size = ( 100 [fs], 1.0, 6.2832, 20.0 )
+	decomposition = ( 1, 2, 1, 4 )
 	geometry = cylindrical
 	adaptive timestep = off
 }

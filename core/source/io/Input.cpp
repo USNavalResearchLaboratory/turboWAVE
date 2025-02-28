@@ -1,5 +1,111 @@
+module;
+
 #include "meta_base.h"
-#include <regex>
+
+export module input;
+
+export import assignment;
+
+export namespace tw
+{
+	namespace input
+	{
+		enum class navigation {
+			gotoSelf,
+			gotoChild,
+			gotoSibling,
+			gotoParentSibling,
+			descend,
+			exit,
+			abort
+		};
+		class Visitor {
+			public:
+			virtual navigation visit(TSTreeCursor *curs) = 0;
+			virtual navigation descend(TSTreeCursor *curs) = 0;
+		};
+		class MacroVisitor : public Visitor {
+			std::string src;
+			std::map<std::string,std::string> dict;
+			std::string expandedDeck;
+			bool didChange;
+			public:
+			void init() { didChange = false; }
+			bool done() { return didChange == false; }
+			std::string get() { return expandedDeck; }
+			virtual navigation visit(TSTreeCursor *curs);
+			virtual navigation descend(TSTreeCursor *curs);
+		};
+		inline std::string trim(const std::string& str) {
+			const std::string whitespace = " \t\n\r\f\v";
+			size_t first = str.find_first_not_of(whitespace);
+			if (first == std::string::npos) {
+				return "";
+			}
+			size_t last = str.find_last_not_of(whitespace);
+			return str.substr(first, (last - first + 1));
+		}
+		/// @brief Assignments can be added to this object for automatic parsing
+		class DirectiveReader
+		{
+			tw::Int maxKeyWords;
+			std::vector<std::string> requiredKeys;
+			std::map<std::string,tw::Int> keysFound;
+			std::map<std::string,tw::input::Assignment*> dmap;
+			tw::UnitConverter native;
+		public:
+			DirectiveReader();
+			~DirectiveReader();
+			void AttachUnits(const tw::UnitConverter& native);
+			void Reset();
+			void Add(const std::string& key,tw::input::Assignment *dir,bool required=true);
+			bool ReadNext(const TSTreeCursor *curs,const std::string& src);
+			void ReadAll(TSTreeCursor *curs,const std::string& src);
+			bool TestKey(const std::string& test);
+			void ThrowErrorIfMissingKeys(const std::string& src);
+		};
+		/// @brief encapsulates information about how an object is being created in the input file
+		struct Preamble
+		{
+			bool attaching;
+			std::string obj_key,obj_name,owner_name;
+		};
+		/// @brief encapsulates finding and opening files
+		struct FileEnv
+		{
+			std::string inputFileName;
+			std::vector<std::string> searchPaths;
+			FileEnv(const std::string& inputFileName);
+			bool OpenDeck(std::string& contents) const;
+			bool FindAndOpen(const std::string& fileName,std::string& contents) const;
+			bool FindAndOpen(const std::string& fileName,std::stringstream& contents) const;
+		};
+
+		TSTree* GetTree(const std::string& src);
+		void WalkTree(const TSTree *tree,Visitor *visitor);
+
+		tw::Float GetUnitDensityCGS(TSTree *tree,const std::string& src);
+		tw::units GetNativeUnits(TSTree *tree,const std::string& src);
+		std::string MacroSubstitution(const std::string& src);
+		Preamble GetPreamble(TSTreeCursor *curs,const std::string& src);
+		std::string PythonRange(TSTreeCursor *curs,const std::string& src,tw::Float *v0,tw::Float *v1);
+		void ThrowParsingError(const TSTreeCursor *curs,const std::string& src,const std::string& messg);
+	}
+}
+
+extern "C" {
+	TSLanguage *tree_sitter_turbowave();
+}
+
+void tw::input::ThrowParsingError(const TSTreeCursor *curs,const std::string& src,const std::string& messg) {
+	std::string xmessg("While parsing ");
+	xmessg += tw::input::node_kind(curs) + " = " + tw::input::node_text(curs,src);
+	xmessg += "\n";
+	xmessg += "on line " + std::to_string(ts_node_start_point(ts_tree_cursor_current_node(curs)).row);
+	xmessg += ":\n" + messg;
+	throw tw::FatalError(xmessg);
+}
+
 
 ////////////////////////
 //                    //
@@ -28,9 +134,14 @@ void tw::input::DirectiveReader::Reset()
 	keysFound.clear();
 }
 
-void tw::input::DirectiveReader::Add(const std::string& key,tw::input::Directive *dir,bool required)
+/// @brief This important function adds an assignment to the reader.  Modules and tools will use this
+///        to setup automatic parsing of the input file.
+/// @param key input file key triggering this assignment
+/// @param assignment specific subclass of Assignment object
+/// @param required is this assignment required
+void tw::input::DirectiveReader::Add(const std::string& key,tw::input::Assignment *assignment,bool required)
 {
-	dmap[key] = dir;
+	dmap[key] = assignment;
 	// count number of words in this key
 	std::string word;
 	std::stringstream s(key);
@@ -49,43 +160,40 @@ void tw::input::DirectiveReader::Add(const std::string& key,tw::input::Directive
 		requiredKeys.push_back(key);
 }
 
-std::string tw::input::DirectiveReader::ReadNext(std::stringstream& in)
+/// @brief process an assignment
+/// @param curs cursor on a directive
+/// @param src text of the source document
+/// @return false if directive not an assignment, or custom assignment
+bool tw::input::DirectiveReader::ReadNext(const TSTreeCursor *curs0,const std::string& src)
 {
-	std::string word,key;
-	in >> key;
-	if (in.eof())
-		return "tw::EOF";
-	if (key=="}" || key=="new" || key=="get" || key=="generate" || key=="open")
-		return key;
-	tw::Int word_count = 0;
-	do
-	{
-		word_count++;
-		if (dmap.find(key)!=dmap.end()) // key has been found
-		{
+	TSTreeCursor curs = ts_tree_cursor_copy(curs0);
+	if (tw::input::node_kind(&curs) == "assignment") {
+		ts_tree_cursor_goto_first_child(&curs);
+		std::string key = input::node_text(&curs,src);
+		if (dmap.find(key)!=dmap.end()) {
 			keysFound[key] = 0;
 			if (native.ne==0.0)
 				throw tw::FatalError("DirectiveReader class is missing units while processing key <"+key+">.");
-			dmap[key]->Read(in,key,native);
-			return key;
+			return dmap[key]->Read(&curs,src,key,native);
+		} else {
+			throw tw::FatalError("Unknown key <"+key+">.");
 		}
-		if (word_count<maxKeyWords)
-		{
-			in >> word;
-			key += " " + word;
-		}
-	} while(word_count<maxKeyWords);
-	throw tw::FatalError("Unexpected directive: <"+key+">.");
-	return key;
+	} else {
+		return false;
+	}
 }
 
-void tw::input::DirectiveReader::ReadAll(std::stringstream& in)
+/// @brief read all assignments in this block
+/// @param curs current cursor position is on first child in block
+/// @param src text of the source document
+/// @throw if non-assignment encountered
+void tw::input::DirectiveReader::ReadAll(TSTreeCursor *curs,const std::string& src)
 {
-	std::string s;
-	do
-	{
-		s = ReadNext(in);
-	} while(s!="}");
+	do {
+		if (!ReadNext(curs,src)) {
+			throw tw::FatalError("non-assignment encountered");
+		}
+	} while (ts_tree_cursor_goto_next_sibling(curs));
 }
 
 bool tw::input::DirectiveReader::TestKey(const std::string& test)
@@ -169,482 +277,202 @@ bool tw::input::FileEnv::FindAndOpen(const std::string& fileName,std::stringstre
 	return false;
 }
 
-tw::Float tw::input::GetUnitDensityCGS(const std::string& in)
-{
-	// Following regex has 6 capture groups.
-	// Group 2 is the mantissa, with 3,4,5 being alternatives within it.
-	// Group 6 is either the exponent or white space.
-	std::regex ex(R"((\bunit\s+density\s*=\s*)(([+-]?\d*\.\d+)|([+-]?\d+\.\d*)|([+-]?\d+))([eE][+-]?\d+|\s))");
-	std::smatch match;
-	if (std::regex_search(in,match,ex))
-		return std::stod(match[2].str()+match[6].str(),NULL);
-	else
-		throw tw::FatalError("The <unit density> parameter is missing or ill-formed.");
-}
-
-tw::units tw::input::GetNativeUnits(const std::string& in)
-{
-	std::map<std::string,tw::units> m = tw::get_unit_map();
-	std::regex ex(R"((\bnative\s+units\s*=\s*)(\w+))");
-	std::smatch match;
-	if (!std::regex_search(in,match,ex))
-		return tw::units::plasma;
-	else
-		if (m.find(match[2].str())==m.end())
-			throw tw::FatalError("Unkown system of units <"+match[2].str()+">.");
-	return m[match[2].str()];
-}
-
-void tw::input::StripComments(std::string& in_out)
-{
-	// Strip comments : does not preserve number of lines
-	// The following blindly matches any comment, whether quoted or not.
-	// TW has always used the blind version, continue with that for now.
-	std::regex ex_blind(R"(\/\/.*?(\n|\r\n)|\/\*(.|\s)*?\*\/)");
-	try
-	{
-		in_out = std::regex_replace(in_out,ex_blind,std::string("\n"));
-	}
-	catch (...)
-	{
-		throw tw::FatalError("Error trying to strip comments.  Perhaps C-style comment wasn't closed.");
-	}
-}
-
-// The following regex are intended to be processed line by line.
-std::string tw::input::include_regex()
-{
-	return R"(([ \t]*#include[ \t]+)([^"']\S+[^"' \t]|"\S*"|'\S*')([ \t]*))";
-}
-std::string tw::input::define_key_regex()
-{
-	return R"(([^-+,=(){} \t][^,=(){} \t]+))";
-}
-std::string tw::input::define_regex()
-{
-	// group 2 is the key, group 5 is the value (if present)
-	return R"(([ \t]*#define[ \t]+))" + define_key_regex() + R"((([ \t]*)(.*)))";
-}
-std::string tw::input::ifdef_regex()
-{
-	return R"(([ \t]*#ifdef[ \t]+))" + define_key_regex() + R"(([ \t]*))";
-}
-std::string tw::input::ifndef_regex()
-{
-	return R"(([ \t]*#ifndef[ \t]+))" + define_key_regex() + R"(([ \t]*))";
-}
-std::string tw::input::else_regex()
-{
-	return R"([ \t]*#else[ \t]*)";
-}
-std::string tw::input::endif_regex()
-{
-	return R"([ \t]*#endif[ \t]*)";
-}
-
-void tw::input::PreprocessorSyntaxCheck(const std::string& in)
-{
-	std::regex appearance(R"(.*(#include|#define|#ifdef|#ifndef|#else|#endif).*)");
-	std::smatch match;
-	std::stringstream temp(in);
-	std::string line;
-	tw::Int if_depth=0,else_depth=0;
-	while (!temp.eof())
-	{
-		std::getline(temp,line);
-		if (!temp.eof())
-		{
-			if (std::regex_search(line,appearance))
-			{
-				// First just check syntax of this line only
-				bool good_inc = std::regex_match(line,std::regex(include_regex()));
-				bool good_def = std::regex_match(line,std::regex(define_regex()));
-				bool good_ifdef = std::regex_match(line,std::regex(ifdef_regex()));
-				bool good_ifndef = std::regex_match(line,std::regex(ifndef_regex()));
-				bool good_else = std::regex_match(line,std::regex(else_regex()));
-				bool good_endif = std::regex_match(line,std::regex(endif_regex()));
-				// Then if everything is OK check nesting, otherwise throw error
-				if (good_inc || good_def || good_ifdef || good_ifndef || good_else || good_endif)
-				{
-					if (good_ifdef || good_ifndef)
-						if_depth++;
-					if (good_else)
-						else_depth++;
-					if (good_endif)
-					{
-						if_depth--;
-						if (else_depth)
-							else_depth--;
+tw::Float tw::input::GetUnitDensityCGS(TSTree *tree,const std::string& src) {
+	TSTreeCursor curs = ts_tree_cursor_new(ts_tree_root_node(tree));
+	if (ts_tree_cursor_goto_first_child(&curs)) {
+		do {
+			if (tw::input::node_kind(&curs) == "assignment") {
+				ts_tree_cursor_goto_first_child(&curs);
+				if (input::node_text(&curs,src) == "unit density") {
+					ts_tree_cursor_goto_next_sibling(&curs);
+					ts_tree_cursor_goto_next_sibling(&curs);
+					if (tw::input::node_kind(&curs) == "decimal") {
+						return std::stod(input::node_text(&curs,src));
+					} else {
+						throw tw::FatalError("expected raw value for unit density");
 					}
-					if (if_depth<0)
-						throw tw::FatalError("There is an extra #endif");
-					if (else_depth>if_depth)
-						throw tw::FatalError("There is an extra #else");
 				}
-				else
-					throw tw::FatalError("Preprocessor directive badly formed: "+line);
+				ts_tree_cursor_goto_parent(&curs);
 			}
+		} while (ts_tree_cursor_goto_next_sibling(&curs));
+		throw tw::FatalError("could not find unit density assignment");
+	}
+	throw tw::FatalError("empty input file");
+}
+
+tw::units tw::input::GetNativeUnits(TSTree *tree,const std::string& src) {
+	std::map<std::string,tw::units> m = tw::get_unit_map();
+	TSTreeCursor curs = ts_tree_cursor_new(ts_tree_root_node(tree));
+	if (ts_tree_cursor_goto_first_child(&curs)) {
+		do {
+			if (tw::input::node_kind(&curs) == "assignment") {
+				ts_tree_cursor_goto_first_child(&curs);
+				if (input::node_text(&curs,src) == "native units") {
+					ts_tree_cursor_goto_next_sibling(&curs);
+					ts_tree_cursor_goto_next_sibling(&curs);
+					if (tw::input::node_kind(&curs) == "identifier") {
+						std::string txt = input::node_text(&curs,src);
+						if (m.find(txt) == m.end())
+							throw tw::FatalError("Unknown system of units <" + txt + ">.");
+						else
+							return m[txt];
+					} else {
+						throw tw::FatalError("expected identifier for native units");
+					}
+				}
+			}
+		} while (ts_tree_cursor_goto_next_sibling(&curs));
+		return tw::units::plasma;
+	}
+	throw tw::FatalError("empty input file");
+}
+
+void tw::input::WalkTree(const TSTree *tree,Visitor *visitor) {
+	TSTreeCursor curs = ts_tree_cursor_new(ts_tree_root_node(tree));
+	navigation choice = navigation::gotoSelf;
+	while (choice!=navigation::exit && choice!=navigation::abort) {
+		if (choice == navigation::gotoSelf) {
+			choice = visitor->visit(&curs);
+		} else if (choice == navigation::descend) {
+			choice = visitor->descend(&curs);
+		} else if (choice == navigation::gotoChild && ts_tree_cursor_goto_first_child(&curs)) {
+			choice = visitor->visit(&curs);
+		} else if (choice == navigation::gotoParentSibling && ts_tree_cursor_goto_parent(&curs) && ts_tree_cursor_goto_next_sibling(&curs)) {
+			choice = visitor->visit(&curs);
+		} else if (choice == navigation::gotoSibling && ts_tree_cursor_goto_next_sibling(&curs)) {
+			choice = visitor->visit(&curs);
+		} else if (ts_tree_cursor_goto_next_sibling(&curs)) {
+			choice = visitor->visit(&curs);
+		} else if (ts_tree_cursor_goto_parent(&curs)) {
+			choice = navigation::gotoSibling;
+		} else {
+			choice = navigation::exit;
 		}
 	}
-	if (if_depth)
-		throw tw::FatalError("Missing " + std::to_string(if_depth) + " #endif " + (if_depth==1?"level":"levels"));
 }
 
-void tw::input::AddMacro(const std::string& line,std::map<std::string,std::string>& macros)
-{
-	std::string key,val;
-	std::smatch match;
-	if (std::regex_match(line,match,std::regex(define_regex())))
-	{
-		key = match[2].str();
-		val = match[5].str();
-		if (key==val)
+tw::input::navigation tw::input::MacroVisitor::visit(TSTreeCursor *curs) {
+	TSNode node = ts_tree_cursor_current_node(curs);
+	if (tw::input::node_kind(curs)=="define") {
+		std::string key = tw::input::node_text(ts_node_child(node,1),src);
+		// value node is hidden and may resolve to a sequence of any length,
+		// so we simply go to end of the parent.
+		const int s = ts_node_start_byte(ts_node_child(node,2));
+		const int e = ts_node_end_byte(node);
+		std::string val = src.substr(s,e);
+		if (key==trim(val))
 			throw tw::FatalError("Macro cannot refer to itself ("+key+")");
-		if (macros.find(key)==macros.end())
-			macros[key] = val;
+		if (dict.find(key)==dict.end())
+			dict[key] = val;
 		else
 			throw tw::FatalError("Macro "+key+" was already used.");
+		expandedDeck += tw::input::node_text(node,src);
+		expandedDeck += " ";
+		return tw::input::navigation::gotoSibling;
 	}
+	if (tw::input::node_kind(curs)=="define_ref") {
+		std::string key = tw::input::node_text(node,src);
+		if (dict.find(key)==dict.end()) {
+			throw tw::FatalError("Macro "+key+" not defined.");
+		}
+		expandedDeck += trim(dict[key]);
+		expandedDeck += " ";
+		return tw::input::navigation::gotoSibling;
+	}
+	if (ts_node_child_count(node)==0) {
+		expandedDeck += tw::input::node_text(node,src);
+	}
+	return tw::input::navigation::gotoChild;
 }
 
-void tw::input::EnterConditional(std::string& line,std::stringstream& in,std::stringstream& out,std::map<std::string,std::string>& macros)
-{
-	// Keep or clear lines until matching #endif is encountered.
-	// Continue to build macros as we go.
-	// Call this recursively if further conditionals encountered.
-	bool keeping,is_ifdef,is_ifndef,is_else,is_endif;
-	tw::Int depth=1;
-	std::smatch match;
-	out << std::endl; // clear the conditional that got us here
-	if (std::regex_match(line,match,std::regex(ifdef_regex())))
-		keeping = macros.find(match[2].str())!=macros.end();
-	if (std::regex_match(line,match,std::regex(ifndef_regex()))) // can't use else, must generate the match
-		keeping = macros.find(match[2].str())==macros.end();
-	do
-	{
-		std::getline(in,line);
-		is_ifdef = std::regex_match(line,std::regex(ifdef_regex()));
-		is_ifndef = std::regex_match(line,std::regex(ifndef_regex()));
-		is_else = std::regex_match(line,std::regex(else_regex()));
-		is_endif = std::regex_match(line,std::regex(endif_regex()));
-		if (is_else)
-		{
-			keeping = !keeping;
-			out << std::endl;
-		}
-		else if (is_endif)
-		{
-			depth--;
-			out << std::endl;
-		}
-		else
-		{
-			if (keeping)
-			{
-				AddMacro(line,macros);
-				if (is_ifdef || is_ifndef)
-					EnterConditional(line,in,out,macros);
-				else
-					out << line << std::endl;
-			}
-			else
-			{
-				if (is_ifdef || is_ifndef)
-					depth++;
-				out << std::endl;
-			}
-		}
-	} while (depth);
+tw::input::navigation tw::input::MacroVisitor::descend(TSTreeCursor *curs) {
+	return tw::input::navigation::exit;
 }
 
-std::map<std::string,std::string> tw::input::StripConditionalCode(std::string& in_out)
-{
-	// Handle #ifdef and #ifndef blocks
-	// Assume syntax has already been checked
-	// This routine also loads the map of #define constants
-	std::map<std::string,std::string> macros;
-	std::string line;
-	std::stringstream in(in_out),out;
+std::string tw::input::MacroSubstitution(const std::string& src) {
+	tw::input::MacroVisitor visitor;
+	TSParser *parser = ts_parser_new();
+	ts_parser_set_language(parser,tree_sitter_turbowave());
+	std::string new_src(src);
 
-	while (!in.eof())
-	{
-		std::getline(in,line);
-		if (!in.eof())
-		{
-			AddMacro(line,macros);
-			if (std::regex_match(line,std::regex(ifdef_regex())) || std::regex_match(line,std::regex(ifndef_regex())))
-				EnterConditional(line,in,out,macros);
-			else
-				out << line << std::endl;
-		}
-	}
-	in_out = out.str();
-	return macros;
-}
-
-void tw::input::MacroSubstitution(std::string& in_out,const std::map<std::string,std::string>& macros)
-{
-	// assumes syntax has already been checked.
-	// assumes conditionals have already been processed.
-	std::string line;
-	std::stringstream in(in_out),temp;
-	bool found;
-
-	// First eat #define lines
-	while (!in.eof())
-	{
-		std::getline(in,line);
-		if (!in.eof())
-		{
-			if (std::regex_match(line,std::regex(define_regex())))
-				temp << std::endl;
-			else
-				temp << line << std::endl;
-		}
-	}
-	in_out = temp.str();
-
-	// Now replace all the key matches with the values.
 	// Do multiple sweeps to account for macros within macros.
-	do
-	{
-		found = false;
-		for (auto pair : macros)
-		{
-			// first escape any special regex characters in the key
-			std::regex special(R"([.^$|()\[\]{}*+?\\])");
-			std::string escaped = std::regex_replace(pair.first,special,R"(\$&)");
-			// now make the replacement (could be simpler if we had lookbehind)
-			std::regex ex(R"(([-+,=(){}\s]|^))" + escaped + R"((?=[,=(){}\s]|$))");
-			// must beware that pair.second very often starts with a digit!
-			found = found || std::regex_search(in_out,ex);
-			in_out = std::regex_replace(in_out,ex,R"($01)"+pair.second);
-		}
-	} while (found);
+	do {
+		visitor.init();
+		TSTree *tree = ts_parser_parse_string(parser,NULL,new_src.c_str(),new_src.length());
+		tw::input::WalkTree(tree,&visitor);
+		ts_tree_delete(tree);
+		new_src = visitor.get();
+	} while (!visitor.done());
+
+	return visitor.get();
 }
 
-void tw::input::IncludeFiles(const FileEnv& file_env,std::string& in_out)
-{
-	tw::Int count;
-	std::string line,filename;
-	std::smatch match;
-	std::stringstream in,out,temp;
-	do
-	{
-		count = 0;
-		in.clear();
-		in.str(in_out);
-		in.seekg(0,in.beg);
-		out.clear();
-		out.seekp(0,out.beg);
-		while (!in.eof())
-		{
-			std::getline(in,line);
-			if (!in.eof())
-			{
-				if (std::regex_match(line,match,std::regex(include_regex())))
-				{
-					count++;
-					filename = match[2].str();
-					StripQuotes(filename);
-					if (!file_env.FindAndOpen(filename,line))
-						throw tw::FatalError("couldn't open " + filename);
-					PreprocessString(line);
-				}
-				out << line << std::endl;
-			}
-		}
-		in_out = out.str();
-	} while (count);
+TSTree* tw::input::GetTree(const std::string& src) {
+	TSParser * parser = ts_parser_new();
+	ts_parser_set_language(parser,tree_sitter_turbowave());
+	return ts_parser_parse_string(parser,NULL,src.c_str(),src.length());
 }
 
-void tw::input::PreprocessString(std::string& in_out)
+/// @brief read python style range
+/// @param curs on range node
+/// @param src source document
+/// @param v0 start of range, blank resolves to 0
+/// @param v1 end of range, blank resolves to big_pos
+/// @returns name of quantity, e.g., `Te(5:10)` returns "Te"
+std::string tw::input::PythonRange(TSTreeCursor *curs,const std::string& src,tw::Float *v0,tw::Float *v1)
 {
-	std::map<std::string,std::string> macros; // treat as local to a file
-	tw::input::StripComments(in_out);
-	tw::input::PreprocessorSyntaxCheck(in_out);
-	macros = tw::input::StripConditionalCode(in_out);
-	tw::input::MacroSubstitution(in_out,macros);
-	// std::cout << in_out << std::endl << std::endl;
-}
-
-void tw::input::PreprocessInputFile(const FileEnv& file_env,std::stringstream& out)
-{
-	std::string deck;
-
-	if (!file_env.OpenDeck(deck))
-		throw tw::FatalError("couldn't open input file " + file_env.inputFileName);
-
-	tw::input::PreprocessString(deck);
-	tw::input::IncludeFiles(file_env,deck);
-	deck = std::regex_replace(deck,std::regex(R"([\,\(\)])")," ");
-	deck = std::regex_replace(deck,std::regex(R"([\=\{\}])")," $& ");
-
-	out.str(deck);
-}
-
-
-// Read a python.numpy style range, but it is a floating point range
-// thus, blank resolves to 0 or big_pos
-
-void tw::input::PythonRange(std::string& source,tw::Float *v0,tw::Float *v1)
-{
-	size_t colonPos;
-	std::string sub;
-	colonPos = source.find(':');
-
-	if (colonPos==std::string::npos)
-		throw tw::FatalError("Missing colon while reading python style range.");
-	if (colonPos>0)
-	{
-		sub = source.substr(0,colonPos);
-		try {
-			*v0 = std::stod(sub,NULL); }
-		catch (std::invalid_argument) {
-			throw tw::FatalError("Invalid number while reading python style range."); }
-	}
-	else
+	if (tw::input::node_kind(curs) != "range")
+		throw tw::FatalError("expected range node");
+	
+	ts_tree_cursor_goto_first_child(curs);
+	std::string ans = tw::input::node_text(curs,src);
+	ts_tree_cursor_goto_next_sibling(curs); // `(`
+	ts_tree_cursor_goto_next_sibling(curs);
+	if (tw::input::node_text(curs,src)==":")
 		*v0 = 0.0;
-
-	if (source.length() > colonPos+1)
-	{
-		sub = source.substr(colonPos+1,source.length()-colonPos-1);
-		try {
-			*v1 = std::stod(sub,NULL); }
-		catch (std::invalid_argument) {
-			throw tw::FatalError("Invalid number while reading python style range."); }
-	}
+	else
+		*v0 = std::stod(tw::input::node_text(curs,src));
+	if (tw::input::next_named_node(curs,false))
+		*v1 = std::stod(tw::input::node_text(curs,src));
 	else
 		*v1 = tw::big_pos;
+	return ans;
 }
 
-void tw::input::StripQuotes(std::string& str)
-{
-	bool needed = false;
-	if (str.front()=='\'' && str.back()=='\'')
-		needed = true;
-	if (str.front()=='\"' && str.back()=='\"')
-		needed = true;
-	if (needed)
-	{
-		str.pop_back();
-		str = str.substr(1);
-	}
-}
-
-tw::input::Preamble tw::input::EnterInputFileBlock(const std::string& com,std::stringstream& inputString,const std::string& end_tokens)
-{
+/// @brief get opening parts of any new or generate directive
+/// @param curs cursor, should be on parent of the preamble items
+/// @param src source document
+/// @return the preamble data, cursor is left on the block node
+tw::input::Preamble tw::input::GetPreamble(TSTreeCursor *curs,const std::string& src) {
 	tw::input::Preamble ans;
-	std::string word;
-	// Get the word list
-	do
-	{
-		inputString >> word;
-		if (end_tokens.find(word)==std::string::npos)
-			ans.words.push_back(std::string(word));
-	} while (end_tokens.find(word)==std::string::npos && !inputString.eof());
-	ans.end_token = std::string(word);
-	// Form the contiguous string representation
-	ans.str = "";
-	for (auto s : ans.words)
-	{
-		if (ans.str!="")
-			ans.str = ans.str + " " + s;
-		else
-			ans.str = s;
+	std::string root = tw::input::node_kind(curs);
+	ts_tree_cursor_goto_first_child(curs);
+	ans.obj_key = next_named_node_text(curs,src);
+	ans.obj_name = ans.obj_key;
+	ans.owner_name = "";
+	ts_tree_cursor_goto_next_sibling(curs);
+	if (tw::input::node_kind(curs) == "string_literal") {
+		ans.obj_name = node_text(curs,src);
+		ts_tree_cursor_goto_next_sibling(curs);
 	}
-	ans.err_prefix = "While processing <"+ans.str+">: ";
-	if (inputString.eof())
-		throw tw::FatalError(ans.err_prefix+"encountered EOF.");
-	// Check to see if the for keyword is present and in the right position
-	if (ans.words.size()>2)
-		ans.attaching = (ans.words[ans.words.size()-2]=="for" ? true : false);
-	else
+	if (root == "new") {
 		ans.attaching = false;
-	bool keywordFound = false;
-	for (auto s : ans.words)
-		if (s=="new" || s=="generate" || s=="get")
-			throw tw::FatalError(ans.err_prefix+"misplaced keyword <"+s+">.");
-	for (auto s : ans.words)
-		if (s=="for")
-			keywordFound = true;
-	if (keywordFound && !ans.attaching)
-		throw tw::FatalError(ans.err_prefix+"misplaced keyword <for>.");
-	// Apply modifiers based on the command type
-	if (com=="generate")
+	} else if (root == "associative_new") {
 		ans.attaching = true;
-	// Get the object names
-	if (ans.attaching)
-	{
-		std::string option1,option2,testString;
-		if (keywordFound)
-		{
-			// option1 is the word before <for>, which is taken if it is quoted
-			// option2 is the concatenation all the words before <for>
-			option1 = std::string(*(ans.words.end()-3));
-			option2 = "";
-			for (auto iter=ans.words.begin();iter<ans.words.end()-2;++iter)
-				option2.append(*iter+"_");
-			option2.pop_back();
-		}
-		else
-		{
-			// This is a generate block.
-			// option1 is the second to last word, which is taken if it is quoted
-			// option2 is the concatenation of all the words before the last word
-			option1 = std::string(*(ans.words.end()-2));
-			option2 = "";
-			for (auto iter=ans.words.begin();iter<ans.words.end()-1;++iter)
-				option2.append(*iter+"_");
-			option2.pop_back();
-		}
-		testString = std::string(option1);
-		tw::input::StripQuotes(testString);
-		if (testString!=option1)
-			ans.obj_name = std::string(option1);
-		else
-			ans.obj_name = std::string(option2);
-		ans.owner_name = std::string(ans.words.back());
+		ts_tree_cursor_goto_next_sibling(curs);
+		ans.owner_name = node_text(curs,src);
+	} else if (root == "generate") {
+		ans.attaching = true;
+		ans.owner_name = ans.obj_name;
+		ans.obj_name = ans.obj_key;
 	}
-	else
-	{
-		ans.obj_name = std::string(ans.words.back());
-		ans.owner_name = "";
+	while (tw::input::node_kind(curs) != "block") {
+		if (!ts_tree_cursor_goto_next_sibling(curs)) {
+			throw tw::FatalError("missing block");
+		}
 	}
+	tw::input::StripQuotes(ans.obj_key);
 	tw::input::StripQuotes(ans.obj_name);
 	tw::input::StripQuotes(ans.owner_name);
 	return ans;
-}
-
-std::string tw::input::GetPhrase(const std::vector<std::string>& words,tw::Int num_words)
-{
-	std::string ans("");
-	tw::Int num = num_words<=words.size() ? num_words : words.size();
-	for (tw::Int i=0;i<num;i++)
-		ans += words[i] + " ";
-	ans.pop_back();
-	return ans;
-}
-
-void tw::input::ExitInputFileBlock(std::stringstream& inputString,bool alreadyEntered)
-{
-	std::string word;
-	tw::Int leftCount=alreadyEntered?1:0;
-	tw::Int rightCount=0;
-	do
-	{
-		inputString >> word;
-		if (word=="{")
-			leftCount++;
-		if (word=="}")
-			rightCount++;
-	} while (leftCount==0 || leftCount>rightCount);
-}
-
-void tw::input::PopExpectedWord(std::stringstream& inputString,const std::string& word,const std::string& obj)
-{
-	std::string found;
-	inputString >> found;
-	if (found!=word)
-		throw tw::FatalError("Encountered <"+found+"> instead of <"+word+"> while reading <"+obj+">.");
 }

@@ -27,8 +27,8 @@ Declaration
 
 When implementing a new ``ComputeTool``, first carry out the following.
 
-	#. In ``computeTool.h``, introduce a new ``tw::tool_type`` element.  This is a label for the type of tool.
-	#. In ``ComputeTool.cpp``, add a case to the ``CreateObjectFromType`` method for the new type.
+	#. In ``ComputeTool.cpp``, introduce a new ``tw::tool_type`` element.  This is a label for the type of tool.
+	#. In ``Factory.cpp``, add a case to the ``CreateToolFromType`` function for the new type.
 	#. In an appropriate header file, derive the new type from ``ComputeTool``.
 	#. In an appropriate source file, implement the ``ComputeTool``.
 

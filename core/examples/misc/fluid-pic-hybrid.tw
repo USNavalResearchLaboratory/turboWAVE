@@ -1,8 +1,6 @@
 // Keep the following line for generating twtest reports
 // TWTEST matplotlib zxyt=0,: beam.npy
 
-steps = 500
-timestep = 0.08
 dump period = 0
 moving window = yes
 neutralize = yes
@@ -18,10 +16,10 @@ zboundary = ( absorbing , absorbing )
 
 new grid
 {
-	corner = ( -16.0 , -0.5 , -12.8 )
-	dimensions = ( 128 , 1 , 128 )
-	cell size = ( 0.25 , 1 , 0.1 )
-	decomposition = ( 1 , 1 , 1 )
+	origin = ( 0, 0.5, 0.5, 1.0 )
+	dimensions = ( 500, 128 , 1 , 128 )
+	cell size = ( 0.08, 0.25 , 1 , 0.1 )
+	decomposition = ( 1, 1, 1, 1 )
 }
 
 new direct electromagnetic module 'em'
@@ -48,7 +46,7 @@ new hermite gauss for 'pgc'
 
 new species 'beam'
 {
-	particles per cell = 10 1 10 when density = 1e-6
+	particles per cell = (10 1 10) when density = 1e-6
 }
 
 new fluid 'e'
@@ -68,9 +66,9 @@ generate piecewise 'e'
 generate gaussian 'beam'
 {
 	density = 1e-6
-	drift momentum = 0 0 10
-	position = 0 0 -6
-	size = 2 2 2
+	drift momentum = (0 0 10)
+	position = (0 0 -6)
+	size = (2 2 2)
 	particle weight = fixed
 }
 

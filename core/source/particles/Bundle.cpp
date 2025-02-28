@@ -1,71 +1,170 @@
-#include "meta_base.h"
-#include "computeTool.h"
-#include "bundle.h"
-#include "pusher.h"
-#include "slicer.h"
-#include "tiler.h"
-#include "mover.h"
+module;
 
-ParticleBundle::ParticleBundle(Mover *owner)
+#include "meta_base.h"
+
+export module bundle;
+import fields;
+
+export struct MoverParams {
+	MetricSpace* ms;
+	tw::Float q0, m0;
+	tw::Int ignorable[4];
+	Field* ESField, * EM, * sources, * laser, * chi, * qo_j4;
+};
+
+// The purpose of the particle bundle is to allow for efficient vectorization of the pusher
+// Several inlined functions are needed due to OpenMP inability to work with member variables
+// Evidently this is related to uninstantiated variables being tagged as aligned
+// The workaround is to pass members back in as arguments
+export struct ParticleBundle {
+	MoverParams mov;
+	tw::Float k[4];
+	tw::Int num, cell0, ijk0[4];
+	static const tw::Int N = tw::max_bundle_size;
+	static const tw::Int AB = tw::vec_align_bytes;
+	// arrays storing particle state
+	alignas(AB) tw::Int cell[N];
+	alignas(AB) float x[4][N];
+	alignas(AB) tw::Float u[4][N];
+	alignas(AB) float number[N];
+	// temporary arrays used during calculation
+	alignas(AB) float J[4][N];
+	alignas(AB) float domainMask[N];
+	alignas(AB) float cellMask[N];
+	alignas(AB) tw::Int ijk[4][N];
+	alignas(AB) tw::Float vel[4][N];
+	alignas(AB) float w0[3][3][N];
+	alignas(AB) float w1[3][3][N];
+	alignas(AB) float l0[3][3][N];
+
+	std::valarray<Particle*> refs;
+
+	ParticleBundle(const MoverParams& mov);
+	void PadBundle();
+	void Reset();
+	bool Complete(const Particle& par);
+	void Append(Particle& par);
+	void PrepareGather();
+	void PrepareScatter();
+	void translate(float x[4][N], tw::Float vel[4][N], tw::Float dt);
+	void set_cell_mask(float cellMask[N], tw::Int cell0, tw::Int cell[N]);
+	void get_cell_displ(tw::Int dc[3], tw::Int n);
+	void load_j4(float J[4][N], const float number[N], const tw::Float vel[4][N]);
+	void ZeroArray(float q[][N], tw::Int s1, tw::Int s2);
+	void ZeroArray(tw::Float q[][N], tw::Int s1, tw::Int s2);
+};
+
+void ParticleBundle::PadBundle()
 {
-	this->owner = owner;
-	q0 = owner->q0;
-	m0 = owner->m0;
-	dt = timestep(*owner->space);
-	k[0] = dxi(*owner->space);
-	k[1] = dyi(*owner->space);
-	k[2] = dzi(*owner->space);
-	refs.resize(N);
+	const tw::Float m0 = mov.m0;
+	for (int ax = 0; ax < 4; ax++)
+		for (int i = num; i < N; i++)
+		{
+			x[ax][i] = 0.0;
+			u[ax][i] = 0.0;
+		}
+	for (int i = num; i < N; i++)
+	{
+		u[0][i] = m0 == 0.0 ? 1.0 : m0; // u needs to be a good 4-vector
+		u[3][i] = m0 == 0.0 ? 1.0 : 0.0;
+		cell[i] = cell[0];
+		number[i] = 0.0;
+	}
+}
+void ParticleBundle::Reset()
+{
 	num = 0;
 }
-
-void ParticleBundle::CopyBack()
+bool ParticleBundle::Complete(const Particle& par)
 {
-	for (int i=0;i<num;i++)
-	{
-		refs[i]->q.cell = cell[i];
-		refs[i]->q.x[0] = x[1][i];
-		refs[i]->q.x[1] = x[2][i];
-		refs[i]->q.x[2] = x[3][i];
-		refs[i]->p[0] = u[1][i]*m0;
-		refs[i]->p[1] = u[2][i]*m0;
-		refs[i]->p[2] = u[3][i]*m0;
-		// If particle left MPI domain, add to transfer list, and mark for disposal
-		if (domainMask[i]==0.0)
-		{
-			#pragma omp critical
-			{
-				owner->AddTransferParticle(*refs[i]);
-			}
-			// mark for disposal only after copying to transfer list
-			refs[i]->number = 0.0;
-		}
-		// else
-		// {
-		// 	tw::Int ijk[4];
-		// 	owner->space->DecodeCell(refs[i]->q,ijk);
-		// 	ASSERT_GTREQ(ijk[1],1);
-		// 	ASSERT_LESSEQ(ijk[1],owner->space->Dim(1));
-		// 	ASSERT_GTREQ(ijk[2],1);
-		// 	ASSERT_LESSEQ(ijk[2],owner->space->Dim(2));
-		// 	ASSERT_GTREQ(ijk[3],1);
-		// 	ASSERT_LESSEQ(ijk[3],owner->space->Dim(3));
-		// }
-	}
+	return (num && par.q.cell != cell[0]) || num == N;
+}
+void ParticleBundle::Append(Particle& par)
+{
+	const tw::Float m0 = mov.m0;
+	refs[num] = &par;
+	cell[num] = par.q.cell;
+	x[0][num] = par.q.x[0];
+	x[1][num] = par.q.x[1];
+	x[2][num] = par.q.x[2];
+	x[3][num] = par.q.x[3];
+	u[0][num] = par.p[0] * (m0 + tw::tiny) / (sqr(m0) + tw::tiny);
+	u[1][num] = par.p[1] * (m0 + tw::tiny) / (sqr(m0) + tw::tiny);
+	u[2][num] = par.p[2] * (m0 + tw::tiny) / (sqr(m0) + tw::tiny);
+	u[3][num] = par.p[3] * (m0 + tw::tiny) / (sqr(m0) + tw::tiny);
+	number[num] = par.number;
+	num++;
+}
+inline void ParticleBundle::translate(float x[4][N], tw::Float vel[4][N], tw::Float dt)
+{
+	for (int c = 0; c < 4; c++)
+#pragma omp simd aligned(x,vel:AB)
+		for (int i = 0; i < N; i++)
+			x[c][i] += vel[c][i] * dt * k[c];
+}
+inline void ParticleBundle::set_cell_mask(float cellMask[N], tw::Int cell0, tw::Int cell[N])
+{
+	for (int i = 0; i < N; i++)
+		cellMask[i] = float(cell[i] == cell0);
+}
+inline void ParticleBundle::get_cell_displ(tw::Int dc[3], tw::Int n)
+{
+	dc[0] = ijk[1][n] - ijk0[1];
+	dc[1] = ijk[2][n] - ijk0[2];
+	dc[2] = ijk[3][n] - ijk0[3];
+}
+inline void ParticleBundle::load_j4(float J[4][N], const float number[N], const tw::Float vel[4][N])
+{
+	const float q0 = mov.q0;
+#pragma omp simd aligned(J,number:AB)
+	for (int i = 0; i < N; i++)
+		J[0][i] = q0 * number[i];
+#pragma omp simd aligned(J,number,vel:AB)
+	for (int i = 0; i < N; i++)
+		J[1][i] = q0 * number[i] * vel[1][i] * k[1];
+#pragma omp simd aligned(J,number,vel:AB)
+	for (int i = 0; i < N; i++)
+		J[2][i] = q0 * number[i] * vel[2][i] * k[2];
+#pragma omp simd aligned(J,number,vel:AB)
+	for (int i = 0; i < N; i++)
+		J[3][i] = q0 * number[i] * vel[3][i] * k[3];
+}
+inline void ParticleBundle::ZeroArray(float q[][N], tw::Int s1, tw::Int s2)
+{
+	for (tw::Int s = s1; s <= s2; s++)
+		for (tw::Int par = 0; par < N; par++)
+			q[s][par] = 0.0f;
+}
+inline void ParticleBundle::ZeroArray(tw::Float q[][N], tw::Int s1, tw::Int s2)
+{
+	for (tw::Int s = s1; s <= s2; s++)
+		for (tw::Int par = 0; par < N; par++)
+			q[s][par] = 0.0f;
+}
+
+ParticleBundle::ParticleBundle(const MoverParams& mov)
+{
+	this->mov = mov;
+	k[0] = mov.ms->dk(0);
+	k[1] = mov.ms->dk(1);
+	k[2] = mov.ms->dk(2);
+	k[3] = mov.ms->dk(3);
+	refs.resize(N);
+	num = 0;
 }
 
 void ParticleBundle::PrepareGather()
 {
 	PadBundle();
 	cell0 = cell[0];
-	owner->space->DecodeCell(cell0,ijk0);
-	owner->space->GetWeights(w0,x);
-	owner->space->GetWallWeights(l0,x);
+	mov.ms->DecodeCell(cell0,ijk0);
+	mov.ms->GetWeights(w0,x);
+	mov.ms->GetWallWeights(l0,x);
 }
 
 void ParticleBundle::PrepareScatter()
 {
-	owner->space->MinimizePrimitive(cell,ijk,x,domainMask);
-	owner->space->GetWeights(w1,x);
+	mov.ms->MinimizePrimitive(cell,ijk,x,domainMask);
+	mov.ms->GetWeights(w1,x);
 	set_cell_mask(cellMask,cell0,cell);
 }

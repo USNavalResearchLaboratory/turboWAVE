@@ -1,12 +1,287 @@
-#include "simulation.h"
-#include "fieldSolve.h"
-#include "electrostatic.h"
-#include "laserSolve.h"
-#include "fluid.h"
-#include "quantum.h"
-#include "particles.h"
-#include "solidState.h"
+module;
 
+#include "meta_base.h"
+
+export module twmodule;
+import input;
+import compute_tool;
+import region;
+import injection;
+import diagnostics;
+import discrete_space;
+import metric_space;
+import tw_iterator;
+
+namespace tw
+{
+	export enum class module_type {	none,
+					electrostatic,
+					coulombSolver,directSolver,curvilinearDirectSolver,farFieldDiagnostic,
+					qsLaser,pgcLaser,
+					kinetics,species,fluidFields,equilibriumGroup,chemical,sparcHydroManager,
+					boundElectrons,schroedinger,pauli,kleinGordon,dirac,populationDiagnostic};
+	export enum class priority { diagnostic, source, field };
+	inline std::map<tw::priority,tw::Int> priority_sort_map()
+	{
+		std::map<tw::priority,tw::Int> ans = {{priority::diagnostic,100},{priority::source,200},{priority::field,300}};
+		return ans;
+	}
+}
+
+export struct Module;
+
+/// This class reads the grid block from the input file.  The grid block
+/// contains data pertinent to both `Task` and `MetricSpace`, hence the
+/// need for a broker class.
+class GridReader
+{
+	tw::input::DirectiveReader directives;
+	tw::grid::geometry geo;
+	tw::Int req_dim[4],req_dom[4];
+	tw::vec4 relativeRef,absoluteRef,spacing;
+	bool adaptiveTimestep,adaptiveGrid,found;
+	public:
+	GridReader(tw::UnitConverter& uc);
+	bool Read(const TSTreeCursor *curs,const std::string& src);
+	void UpdateTask(Task& tsk);
+	void UpdateSpace(MetricSpace& ms);
+	tw::vec4 GlobalCorner();
+	tw::vec4 GlobalSize();
+	tw::grid::geometry Geometry() { return geo; }
+	bool FoundGrid() { return found; }
+};
+
+export struct Simulation: Task, MetricSpace, tw::input::Visitor
+{
+	tw::Float dtMin,dtMax,dtCritical,elapsedTime,elapsedTimeMax;
+	tw::Float signalPosition,windowPosition,signalSpeed;
+	tw::Float antiSignalPosition,antiWindowPosition;
+	tw::Float unitDensityCGS;
+	tw::units nativeUnits;
+
+	bool neutralize,movingWindow;
+	bool completed;
+	tw::Int outputLevel,errorCheckingLevel;
+	tw::Int stepNow;
+	tw::Int lastTime;
+
+	tw::Int dumpPeriod;
+
+	tw::bc::par bc0[4],bc1[4];
+
+	std::ostream *tw_out,*tw_err;
+	tw::Int inputFilePass;
+	tw::input::DirectiveReader outerDirectives;
+	GridReader *gridReader;
+	std::string src; // current input document
+
+	std::vector<Region*> clippingRegion;
+	std::vector<ComputeTool*> computeTool;
+	std::vector<Module*> module;
+	// Map of the most recently created module of a given type
+	std::map<tw::module_type,Module*> module_map;
+
+	Simulation(const std::string& unitTest,
+		const std::string& inputFileName,
+		const std::string& restartFileName,
+		const std::string& platform,
+		const std::string& device,
+		const tw::Int& outputLevel,
+		const tw::Int& errorCheckingLevel);
+	virtual ~Simulation();
+	void SetupIO();
+	virtual void Run();
+	virtual void Test();
+	void PrepareSimulation();
+	void FundamentalCycle();
+	void MoveWindow();
+	void AntiMoveWindow();
+	void Diagnose();
+
+	bool MangleModuleName(std::string& name);
+	bool CheckModule(const std::string& name);
+	Module* GetModule(const std::string& name);
+
+	bool MangleToolName(std::string& name);
+	ComputeTool* CreateTool(const std::string& basename,tw::tool_type theType);
+	ComputeTool* GetTool(const std::string& name,bool attaching);
+	void ToolFromDirective(std::vector<ComputeTool*>& tool,TSTreeCursor *curs,const std::string& src);
+	bool RemoveTool(ComputeTool *theTool);
+
+	tw::Float ToLab(tw::Float zeta,tw::Float relativeTime);
+	tw::Float ToLight(tw::Float z,tw::Float relativeTime);
+	template <class T,class U>
+	U ValueOnLabGrid(T& A,tw::strip s,tw::Int k,tw::Float relativeTime);
+	template <class T,class U>
+	U ValueOnLightGrid(T& A,tw::strip s,tw::Int k,tw::Float relativeTime);
+
+	tw::input::navigation visit(TSTreeCursor *curs);
+	tw::input::navigation descend(TSTreeCursor *curs);
+	void InputFileFirstPass();
+	void NestedDeclaration(TSTreeCursor *curs,const std::string& src,Module *sup);
+	Module* RecursiveAutoSuper(tw::module_type reqType,const std::string& basename);
+	void ReadInputFile();
+	void ReadCheckpoint(std::ifstream& inFile);
+	void WriteCheckpoint(std::ofstream& outFile);
+	void InteractiveCommand(const std::string& cmd,std::ostream *theStream);
+
+	#ifdef USE_OPENCL
+	void PrintGPUInformation();
+	void CellUpdateProtocol(cl_kernel k)
+	{
+		MetricSpace::CellUpdateProtocol(k,commandQueue);
+	}
+	void ElementUpdateProtocol(cl_kernel k)
+	{
+		MetricSpace::ElementUpdateProtocol(k,commandQueue);
+	}
+	void LocalUpdateProtocol(cl_kernel k)
+	{
+		MetricSpace::LocalUpdateProtocol(k,commandQueue);
+	}
+	void PointUpdateProtocol(cl_kernel k)
+	{
+		MetricSpace::PointUpdateProtocol(k,commandQueue);
+	}
+	void StripUpdateProtocol(cl_kernel k,tw::Int axis,tw::Int stripArgument)
+	{
+		MetricSpace::StripUpdateProtocol(k,commandQueue,axis,stripArgument);
+	}
+	#endif
+
+
+	void UpdateTimestep(tw::Float dt0);
+
+	bool IsFirstStep()
+	{
+		return stepNow == 0;
+	}
+
+	bool IsLastStep()
+	{
+		// Actual steps taken = stepsToTake+1
+		// This allows us to write both the initial condition and the last available data.
+		// If there is a restart the initial step is stepsToTake+1 and 1 less step is taken.
+		return stepNow == dim[0];
+	}
+
+	bool Completed()
+	{
+		return completed;
+	}
+};
+
+tw::Float Simulation::ToLab(tw::Float zeta,tw::Float relativeTime)
+{
+	return zeta + antiWindowPosition - windowPosition + signalSpeed*(elapsedTime + relativeTime - 0.5*spacing[0]);
+}
+
+tw::Float Simulation::ToLight(tw::Float z,tw::Float relativeTime)
+{
+	return z + windowPosition - antiWindowPosition - signalSpeed*(elapsedTime + relativeTime - 0.5*spacing[0]);
+}
+
+template <class T,class U>
+U Simulation::ValueOnLabGrid(T& A,tw::strip s,tw::Int k,tw::Float relativeTime)
+{
+	// Take a quantity known on the light grid and get its value in a cell of the lab grid
+	tw::Int klight;
+	tw::Float z,zeta,w;
+	z = Pos(s,k).z - corner[3];
+	zeta = ToLight(z,relativeTime);
+	klight = MyFloor(zeta*freq[3] + 0.5001);
+	w = 0.5 - zeta*freq[3] + tw::Float(klight);
+	return w*A(s,klight) + (one - w)*A(s,klight+1);
+}
+
+template <class T,class U>
+U Simulation::ValueOnLightGrid(T& A,tw::strip s,tw::Int k,tw::Float relativeTime)
+{
+	// Take a quantity known on the lab grid and get its value in a cell of the light grid
+	tw::Int klab;
+	tw::Float z,zeta,w;
+	zeta = Pos(s,k).z - corner[3];
+	z = ToLab(zeta,relativeTime);
+	klab = MyFloor(z*freq[3] + 0.4999);
+	w = 0.5 - z*freq[3] + tw::Float(klab);
+	return w*A(s,klab) + (one - w)*A(s,klab+1);
+}
+
+struct Module:DiscreteSpace
+{
+	std::string name;
+	Simulation *owner;
+	Module* super;
+	std::vector<Module*> submodule;
+	std::vector<ComputeTool*> moduleTool;
+	tw::input::DirectiveReader directives;
+	tw::UnitConverter native,natural,atomic,plasma,cgs,mks;
+
+	tw::priority updateSequencePriority;
+	tw::Int subSequencePriority;
+	tw::Int smoothing[4],compensation[4];
+	bool suppressNextUpdate;
+
+	// Strongly typed ComputeTool lists that are provided for free
+	std::vector<Profile*> profile;
+	std::vector<Wave*> wave;
+	std::vector<Conductor*> conductor;
+
+	// OpenCL Support
+	private:
+	std::string programFilename;
+	std::string buildLog;
+	public:
+	#ifdef USE_OPENCL
+	cl_program program;
+	#endif
+
+	Module(const std::string& name,Simulation *sim);
+	virtual ~Module();
+	void AddSubmodule(Module* sub);
+	virtual void PublishResource(void* resource,const std::string& description);
+	virtual bool InspectResource(void* resource,const std::string& description);
+	virtual void ExchangeResources() {;}
+	virtual void Initialize();
+	virtual void Reset() {;}
+	virtual void Update() {;}
+	virtual void MoveWindow();
+	virtual void AntiMoveWindow() {;}
+	virtual void AdaptGrid() {;}
+	virtual tw::Float AdaptTimestep() { return 0.0;}
+
+	void InitializeCLProgram(const std::string& filename);
+
+	virtual void VerifyInput();
+	virtual void ReadInputFileBlock(TSTreeCursor *curs,const std::string& src);
+	virtual bool ReadInputFileDirective(const TSTreeCursor *curs,const std::string& src);
+	virtual bool ReadQuasitoolBlock(const TSTreeCursor *curs,const std::string& src);
+	virtual void ReadCheckpoint(std::ifstream& inFile);
+	virtual void WriteCheckpoint(std::ofstream& outFile);
+
+	virtual void StartDiagnostics();
+	virtual void Report(Diagnostic&);
+	virtual void WarningMessage(std::ostream *theStream);
+	virtual void StatusMessage(std::ostream *theStream) {;}
+	virtual bool Test(tw::Int& id);
+
+	static std::map<std::string,tw::module_type> Map();
+	static bool SingularType(tw::module_type theType);
+	static bool AutoModuleType(tw::module_type theType);
+	static tw::module_type RequiredSupermoduleType(tw::module_type submoduleType);
+	static tw::module_type CreateTypeFromInput(const tw::input::Preamble& preamble);
+	static bool SetTestGrid(tw::module_type theType,tw::Int gridId,Simulation *sim);
+};
+
+export struct ModuleComparator
+{
+	bool operator() (Module* const& m1,Module* const& m2)
+	{
+		tw::Int idx1 = tw::priority_sort_map()[m1->updateSequencePriority] + m1->subSequencePriority;
+		tw::Int idx2 = tw::priority_sort_map()[m2->updateSequencePriority] + m2->subSequencePriority;
+		return idx1 < idx2;
+	}
+};
 
 ////////////////////////
 //                    //
@@ -83,24 +358,23 @@ void Module::Initialize()
 
 void Module::MoveWindow()
 {
-	corner.z += spacing.z;
-	globalCorner.z += spacing.z;
+	corner[3] += spacing[3];
+	globalCorner[3] += spacing[3];
 }
 
 void Module::ReadCheckpoint(std::ifstream& inFile)
 {
 	DiscreteSpace::ReadCheckpoint(inFile);
-	inFile.read((char *)&dt,sizeof(dt));
-	inFile.read((char *)&dth,sizeof(dth));
-	dti = 1.0/dt;
+	inFile.read((char *)&spacing,sizeof(spacing));
+	inFile.read((char *)&freq,sizeof(freq));
 }
 
 void Module::WriteCheckpoint(std::ofstream& outFile)
 {
 	outFile << name << " ";
 	DiscreteSpace::WriteCheckpoint(outFile);
-	outFile.write((char *)&dt,sizeof(dt));
-	outFile.write((char *)&dth,sizeof(dth));
+	outFile.write((char *)&spacing,sizeof(spacing));
+	outFile.write((char *)&freq,sizeof(freq));
 }
 
 void Module::VerifyInput()
@@ -125,36 +399,49 @@ void Module::VerifyInput()
 	}
 }
 
-void Module::ReadInputFileBlock(std::stringstream& inputString)
+/// @brief called if an assignment was not handled normally
+/// @param curs on a directive, get, new, generate, or custom assignment
+/// @param src source document
+/// @returns whether any directive was handled
+bool Module::ReadInputFileDirective(const TSTreeCursor *curs0,const std::string& src)
 {
-	std::string com;
-	do
-	{
-		com = directives.ReadNext(inputString);
-		if (com=="tw::EOF")
-			throw tw::FatalError("Encountered EOF while processing <"+name+">.");
-		ReadInputFileDirective(inputString,com);
-	} while (com!="}");
-	directives.ThrowErrorIfMissingKeys(name);
-}
+	std::string command = tw::input::node_kind(curs0);
+	// Get an existing tool by searching for a name -- ``get = <name>``
+	if (command=="get") {
+		TSTreeCursor curs = ts_tree_cursor_copy(curs0);
+		owner->ToolFromDirective(moduleTool,&curs,src);
+		return true;
+	}
 
-bool Module::ReadQuasitoolBlock(const tw::input::Preamble& preamble,std::stringstream& inputString)
-{
+	// Take care of nested declarations
+	if (command=="new" || command=="generate") {
+		TSTreeCursor curs = ts_tree_cursor_copy(curs0);
+		owner->NestedDeclaration(&curs,src,this);
+		return true;
+	}
+
 	return false;
 }
 
-void Module::ReadInputFileDirective(std::stringstream& inputString,const std::string& command)
+/// @brief read all directives in the block
+/// @param curs can be on block or on first child of block
+/// @param src source document
+void Module::ReadInputFileBlock(TSTreeCursor *curs,const std::string& src)
 {
-	// Handle whatever the DirectiveReader object did not.
-	// This includes keywords "get" and "new"
+	if (tw::input::node_kind(curs)=="block") {
+		ts_tree_cursor_goto_first_child(curs);
+	}
+	do
+	{
+		if (!directives.ReadNext(curs,src))
+			ReadInputFileDirective(curs,src);
+	} while (ts_tree_cursor_goto_next_sibling(curs));
+	directives.ThrowErrorIfMissingKeys(name);
+}
 
-	// Get an existing tool by searching for a name -- ``get = <name>``
-	if (command=="get")
-		owner->ToolFromDirective(moduleTool,inputString,command);
-
-	// Take care of nested declarations
-	if (command=="new" || command=="generate")
-		owner->NestedDeclaration(command,inputString,this);
+bool Module::ReadQuasitoolBlock(const TSTreeCursor *curs,const std::string& src)
+{
+	return false;
 }
 
 void Module::StartDiagnostics()
@@ -209,15 +496,6 @@ tw::module_type Module::RequiredSupermoduleType(const tw::module_type submoduleT
 		return containmentMap[submoduleType];
 }
 
-bool Module::QuasitoolNeedsModule(const tw::input::Preamble& preamble)
-{
-	bool ans = false;
-	ans = ans || (preamble.words[0]=="reaction");
-	ans = ans || (preamble.words[0]=="collision");
-	ans = ans || (preamble.words[0]=="excitation");
-	return ans;
-}
-
 std::map<std::string,tw::module_type> Module::Map()
 {
 	return
@@ -244,87 +522,27 @@ std::map<std::string,tw::module_type> Module::Map()
 	};
 }
 
+/// @brief weak matching of the input file key (legacy compatibility)
+/// @param preamble data extracted while parsing object
+/// @return the corresponding module_type enumeration
 tw::module_type Module::CreateTypeFromInput(const tw::input::Preamble& preamble)
 {
-	// Look for a Module key on a preamble (words between new and opening brace) and return the type of module.
-	const tw::Int max_words = preamble.words.size();
+	// strategy is to lop off trailing words until we get a match
 	std::map<std::string,tw::module_type> module_map = Module::Map();
-	for (tw::Int i=1;i<=max_words;i++)
-	{
-		std::string key(tw::input::GetPhrase(preamble.words,i));
-		if (module_map.find(key)!=module_map.end())
-			return module_map[key];
+	std::string key_now = preamble.obj_key;
+	while (true) {
+		if (module_map.find(key_now)!=module_map.end()) {
+			return module_map[key_now];
+		} else {
+			auto p = key_now.rfind(' ');
+			if (p != std::string::npos) {
+				key_now = key_now.substr(0,p);
+			} else {
+				break;
+			}
+		}
 	}
 	return tw::module_type::none;
-}
-
-Module* Module::CreateObjectFromType(const std::string& name,tw::module_type theType,Simulation* sim)
-{
-	Module *ans;
-	switch (theType)
-	{
-		case tw::module_type::none:
-			ans = NULL;
-			break;
-		case tw::module_type::curvilinearDirectSolver:
-			ans = new CurvilinearDirectSolver(name,sim);
-			break;
-		case tw::module_type::electrostatic:
-			ans = new Electrostatic(name,sim);
-			break;
-		case tw::module_type::coulombSolver:
-			ans = new CoulombSolver(name,sim);
-			break;
-		case tw::module_type::directSolver:
-			ans = new DirectSolver(name,sim);
-			break;
-		case tw::module_type::farFieldDiagnostic:
-			ans = new FarFieldDiagnostic(name,sim);
-			break;
-		case tw::module_type::qsLaser:
-			ans = new QSSolver(name,sim);
-			break;
-		case tw::module_type::pgcLaser:
-			ans = new PGCSolver(name,sim);
-			break;
-		case tw::module_type::boundElectrons:
-			ans = new BoundElectrons(name,sim);
-			break;
-		case tw::module_type::fluidFields:
-			ans = new Fluid(name,sim);
-			break;
-		case tw::module_type::equilibriumGroup:
-			ans = new EquilibriumGroup(name,sim);
-			break;
-		case tw::module_type::chemical:
-			ans = new Chemical(name,sim);
-			break;
-		case tw::module_type::sparcHydroManager:
-			ans = new sparc::HydroManager(name,sim);
-			break;
-		case tw::module_type::species:
-			ans = new Species(name,sim);
-			break;
-		case tw::module_type::kinetics:
-			ans = new Kinetics(name,sim);
-			break;
-		case tw::module_type::schroedinger:
-			ans = new Schroedinger(name,sim);
-			break;
-		case tw::module_type::pauli:
-			ans = new Pauli(name,sim);
-			break;
-		case tw::module_type::kleinGordon:
-			ans = new KleinGordon(name,sim);
-			break;
-		case tw::module_type::dirac:
-			ans = new Dirac(name,sim);
-			break;
-		case tw::module_type::populationDiagnostic:
-			ans = new PopulationDiagnostic(name,sim);
-			break;
-	}
-	return ans;
 }
 
 bool Module::SetTestGrid(tw::module_type theType,tw::Int gridId,Simulation *sim)
@@ -334,23 +552,20 @@ bool Module::SetTestGrid(tw::module_type theType,tw::Int gridId,Simulation *sim)
 		case tw::module_type::species:
 			if (gridId==1)
 			{
-				sim->Initialize(tw::idx4(1,1,2).array,tw::idx4(4,1,4).array,tw::idx4(1,1,0).array);
-				sim->Resize(*sim,tw::vec3(0,0,0),tw::vec3(0.8,0.2,0.8),2);
-				sim->SetupTimeInfo(0.1);
+				sim->Initialize(tw::idx4(1,1,1,2).array,tw::idx4(1,4,1,4).array,tw::idx4(0,1,1,0).array);
+				sim->Resize(*sim,tw::vec4(0,0,0,0),tw::vec4(0.1,0.8,0.2,0.8),2);
 				return true;
 			} else if (gridId==2) {
-				sim->Initialize(tw::idx4(1,1,2).array,tw::idx4(4,4,4).array,tw::idx4(1,1,0).array);
-				sim->Resize(*sim,tw::vec3(0,0,0),tw::vec3(0.8,0.8,0.8),2);
-				sim->SetupTimeInfo(0.1);
+				sim->Initialize(tw::idx4(1,1,1,2).array,tw::idx4(1,4,4,4).array,tw::idx4(0,1,1,0).array);
+				sim->Resize(*sim,tw::vec4(0,0,0,0),tw::vec4(0.1,0.8,0.8,0.8),2);
 				return true;
 			}
 			return false;
 		default:
 			if (gridId>1)
 				return false;
-			sim->Initialize(tw::idx4(1,1,2).array,tw::idx4(4,4,4).array,tw::idx4(1,1,0).array);
-			sim->Resize(*sim,tw::vec3(0,0,0),tw::vec3(0.8,0.8,0.8),2);
-			sim->SetupTimeInfo(0.1);
+			sim->Initialize(tw::idx4(1,1,1,2).array,tw::idx4(1,4,4,4).array,tw::idx4(0,1,1,0).array);
+			sim->Resize(*sim,tw::vec4(0,0,0,0),tw::vec4(0.1,0.8,0.8,0.8),2);
 			return true;
 	}
 }

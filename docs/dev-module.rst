@@ -66,8 +66,8 @@ Declaration
 
 When implementing a new ``Module``, first carry out the following.
 
-	#. In ``module.h``, introduce a new ``tw::module_type`` element.  This is as a label for the type of module.
-	#. In ``Module.cpp``, add a case to the static member ``CreateObjectFromType`` for the new type.
+	#. In ``Module.cpp``, introduce a new ``tw::module_type`` element.  This is as a label for the type of module.
+	#. In ``Factory.cpp``, add a case to the function ``CreateModuleFromType`` for the new type.
 	#. If this is a singular module, modify the static member ``SingularType`` in ``Module.cpp`` appropriately.
 	#. In an appropriate header file, derive the new type from ``Module``.
 	#. In an appropriate source file, implement the ``Module``.
@@ -89,7 +89,6 @@ With very little effort the user will be able to create the module and associate
 
 	#. In the module's constructor define the input file directives. For each directive make one call to ``directives.Add(std::string&,tw::input::Directive*)``.
 	#. Add an entry to the hash table returned by ``Map`` in ``Module.cpp``.  This connects the input file keys with the ``tw::module_type``.
-	#. Add a case to the static member ``Module::CreateObjectFromType``.
 
 Containment Support
 ,,,,,,,,,,,,,,,,,,,

@@ -1,4 +1,5 @@
-#include "simulation.h"
+#include "definitions.h"
+import twmodule;
 
 ////////////////////
 // ERROR HANDLING //

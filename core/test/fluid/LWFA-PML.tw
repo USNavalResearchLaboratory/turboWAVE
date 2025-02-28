@@ -1,8 +1,6 @@
 // Keep the following line for continuous integration testing
 // CITEST Ex.npy range=-.024,.024 tolerance=1e-3
 
-steps = 250
-timestep = 0.16
 dump period = 0
 moving window = yes
 neutralize = yes
@@ -18,10 +16,11 @@ zboundary = ( absorbing , absorbing )
 
 new grid
 {
-	corner = ( -16.0 , -0.5 , -25.6 )
-	dimensions = ( 64 , 1 , 128 )
-	cell size = ( 0.5 , 1.0 , 0.2 )
-	decomposition = ( 1 , 1 , 1 )
+	origin = ( 0 , 0.5 , 0.5 , 1 )
+	shift = ( 0 , 0 , 0 , 0 )
+	dimensions = ( 250 , 64 , 1 , 128 )
+	cell size = ( 0.16 , 0.5 , 1.0 , 0.2 )
+	decomposition = ( 1 , 1 , 1 , 1 )
 }
 
 new direct electromagnetic module 'em'

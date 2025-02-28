@@ -7,8 +7,6 @@
 // N.b. in this situation adaptive time stepping is dangerous because
 // rate estimates tend to come out near zero
 // If outer b.c. is reflecting mass and energy should be conserved to several digits
-steps = 10000
-timestep = 2.8e5
 dump period = 0
 moving window = no
 neutralize = yes
@@ -24,10 +22,10 @@ zboundary = ( periodic  periodic )
 
 new grid
 {
-	corner = ( 0.0 , -3.1416 , -0.5 )
-	dimensions = ( 2000 1 1 )
-	cell size = ( 0.5 6.2832 1.0 )
-	decomposition = ( 1  1  1 )
+	origin = ( 0 , 0 , 0.5 , 0.5 )
+	dimensions = ( 10000, 2000, 1, 1 )
+	cell size = ( 2.8e5, 0.5, 6.2832, 1.0 )
+	decomposition = ( 1, 1, 1, 1 )
 	geometry = cylindrical
 	adaptive timestep = off
 }

@@ -1,4 +1,295 @@
+module;
+
 #include "meta_base.h"
+
+export module region;
+import input;
+import metric_space;
+
+enum regionSpec { baseRegion , entireRegion , rectRegion , prismRegion , circRegion , cylinderRegion , cylindricalShellRegion ,
+	roundedCylinderRegion , ellipsoidRegion , trueSphereRegion , boxArrayRegion , torusRegion , coneRegion , tangentOgiveRegion };
+
+export struct Region
+{
+	regionSpec rgnType;
+	std::string name;
+	tw::vec3 center;
+	tw::vec3 rbox;
+	tw::basis orientation;
+	tw::Int rawBounds[6];
+	tw::Int localBounds[6];
+	tw::Int globalBounds[6];
+	bool intersectsDomain;
+	bool complement,intersection,moveWithWindow;
+	std::vector<Region*> composite;
+	std::vector<Region*>& masterList;
+
+	// input processing aids
+	tw::input::DirectiveReader directives;
+	tw::vec3 temp_vec3;
+	tw::Float temp_Float;
+	tw::Float temp_bounds[6];
+
+	Region(std::vector<Region*>& ml);
+	virtual ~Region() {}
+	virtual bool Inside(const tw::vec3& pos,const MetricSpace& ds) const
+	{
+		bool ans = intersection;
+		tw::vec3 p = pos - center;
+		orientation.ExpressInBasis(&p);
+		for (tw::Int i=0;i<composite.size();i++)
+			if (intersection)
+				ans = ans && composite[i]->Inside(p,ds);
+			else
+				ans = ans || composite[i]->Inside(p,ds);
+		return complement ^ ans;
+	}
+	virtual void Initialize(const MetricSpace& ds,Task *tsk);
+	virtual void Translate(const tw::vec3& dr)
+	{
+		center += dr;
+	}
+	void GetBoxLim(tw::Float *low,tw::Float *high,tw::Int ax)
+	{
+		*low = center[ax-1] - rbox[ax-1];
+		*high = center[ax-1] + rbox[ax-1];
+	}
+	void GetGlobalCellBounds(tw::Int g[6]) const
+	{
+		for (tw::Int i=0;i<6;i++)
+			g[i] = globalBounds[i];
+	}
+	void GetLocalCellBounds(tw::Int *x0,tw::Int *x1,tw::Int *y0,tw::Int *y1,tw::Int *z0,tw::Int *z1) const
+	{
+		*x0 = localBounds[0]; *x1 = localBounds[1];
+		*y0 = localBounds[2]; *y1 = localBounds[3];
+		*z0 = localBounds[4]; *z1 = localBounds[5];
+	}
+	void GetRawCellBounds(tw::Int *x0,tw::Int *x1,tw::Int *y0,tw::Int *y1,tw::Int *z0,tw::Int *z1) const
+	{
+		*x0 = rawBounds[0]; *x1 = rawBounds[1];
+		*y0 = rawBounds[2]; *y1 = rawBounds[3];
+		*z0 = rawBounds[4]; *z1 = rawBounds[5];
+	}
+
+	static Region* CreateObjectFromString(std::vector<Region*>& ml,const std::string& str);
+	static Region* FindRegion(std::vector<Region*>& ml,const std::string& name);
+
+	virtual void ReadInputFileBlock(TSTreeCursor *curs,const std::string& src);
+	virtual void ReadInputFileDirective(const TSTreeCursor *curs,const std::string& src);
+	virtual void ReadCheckpoint(std::ifstream& inFile);
+	virtual void WriteCheckpoint(std::ofstream& outFile);
+};
+
+export struct EntireRegion:Region
+{
+	EntireRegion(std::vector<Region*>& ml) : Region(ml)
+	{
+		rgnType = entireRegion;
+	}
+	virtual bool Inside(const tw::vec3& pos,const MetricSpace& ds) const
+	{
+		return complement ^ true;
+	}
+};
+
+export struct RectRegion:Region
+{
+	RectRegion(std::vector<Region*>& ml) : Region(ml)
+	{
+		rgnType = rectRegion;
+	}
+	virtual bool Inside(const tw::vec3& pos,const MetricSpace& ds) const
+	{
+		tw::vec3 p = pos - center;
+		orientation.ExpressInBasis(&p);
+		return complement ^ (fabs(p.x)<rbox.x && fabs(p.y)<rbox.y && fabs(p.z)<rbox.z);
+	}
+};
+
+export struct PrismRegion:Region
+{
+	PrismRegion(std::vector<Region*>& ml) : Region(ml)
+	{
+		rgnType = prismRegion;
+	}
+	virtual bool Inside(const tw::vec3& pos,const MetricSpace& ds) const
+	{
+		tw::vec3 p = pos - center;
+		orientation.ExpressInBasis(&p);
+		return complement ^ (fabs(p.x)<rbox.x && fabs(p.y)<rbox.y && fabs(p.z)<rbox.z*0.5*(rbox.x-p.x)/rbox.x);
+	}
+};
+
+export struct CircRegion:Region
+{
+	CircRegion(std::vector<Region*>& ml) : Region(ml)
+	{
+		rgnType = circRegion;
+	}
+	virtual bool Inside(const tw::vec3& pos,const MetricSpace& ds) const
+	{
+		return complement ^ (Norm(pos-center)<sqr(rbox.x));
+	}
+};
+
+export struct CylinderRegion:Region
+{
+	CylinderRegion(std::vector<Region*>& ml) : Region(ml)
+	{
+		rgnType = cylinderRegion;
+	}
+	virtual bool Inside(const tw::vec3& pos,const MetricSpace& ds) const
+	{
+		tw::vec3 p = pos - center;
+		orientation.ExpressInBasis(&p);
+		return complement ^ (sqr(p.x) + sqr(p.y) < sqr(rbox.x) && fabs(p.z) < rbox.z);
+	}
+};
+
+export struct CylindricalShellRegion:Region
+{
+	tw::Float innerRadius,outerRadius;
+	CylindricalShellRegion(std::vector<Region*>& ml);
+	virtual bool Inside(const tw::vec3& pos,const MetricSpace& ds) const
+	{
+		tw::Float rho;
+		tw::vec3 p = pos - center;
+		orientation.ExpressInBasis(&p);
+		rho = sqrt(p.x*p.x + p.y*p.y);
+		return complement ^ ( rho < outerRadius && rho > innerRadius && sqr(p.z) < sqr(rbox.z));
+	}
+	virtual void ReadInputFileDirective(const TSTreeCursor *curs,const std::string& src);
+	virtual void ReadCheckpoint(std::ifstream& inFile);
+	virtual void WriteCheckpoint(std::ofstream& outFile);
+};
+
+export struct RoundedCylinderRegion:Region
+{
+	RoundedCylinderRegion(std::vector<Region*>& ml) : Region(ml)
+	{
+		rgnType = roundedCylinderRegion;
+	}
+	virtual bool Inside(const tw::vec3& pos,const MetricSpace& ds) const
+	{
+		bool ans;
+		tw::vec3 p = pos - center;
+		orientation.ExpressInBasis(&p);
+		ans = sqr(p.x) + sqr(p.y) < sqr(rbox.x) && fabs(p.z) < rbox.z;
+		ans = ans || Norm(p - tw::vec3(0,0,rbox.z)) < sqr(rbox.x);
+		ans = ans || Norm(p + tw::vec3(0,0,rbox.z)) < sqr(rbox.x);
+		return complement ^ ans;
+	}
+};
+
+export struct EllipsoidRegion:Region
+{
+	EllipsoidRegion(std::vector<Region*>& ml) : Region(ml)
+	{
+		rgnType = ellipsoidRegion;
+	}
+	virtual bool Inside(const tw::vec3& pos,const MetricSpace& ds) const
+	{
+		tw::vec3 p = pos - center;
+		orientation.ExpressInBasis(&p);
+		return complement ^ (sqr(p.x/rbox.x) + sqr(p.y/rbox.y) + sqr(p.z/rbox.z) < 1.0);
+	}
+};
+
+export struct TrueSphere:CircRegion
+{
+	TrueSphere(std::vector<Region*>& ml) : CircRegion(ml)
+	{
+		rgnType = trueSphereRegion;
+	}
+	virtual bool Inside(const tw::vec3& pos,const MetricSpace& ds) const;
+};
+
+export struct BoxArrayRegion:Region
+{
+	tw::vec3 size,spacing;
+
+	BoxArrayRegion(std::vector<Region*>& ml);
+	virtual bool Inside(const tw::vec3& pos,const MetricSpace& ds) const
+	{
+		tw::vec3 p = pos - center;
+		orientation.ExpressInBasis(&p);
+		p += 0.5*size;
+		tw::Int i = MyFloor(p.x/spacing.x);
+		tw::Int j = MyFloor(p.y/spacing.y);
+		tw::Int k = MyFloor(p.z/spacing.z);
+		bool ans = p.x - tw::Float(i)*spacing.x < size.x && p.y - tw::Float(j)*spacing.y < size.y && p.z - tw::Float(k)*spacing.z < size.z;
+		return complement ^ ans;
+	}
+	virtual void ReadInputFileDirective(const TSTreeCursor *curs,const std::string& src);
+	virtual void ReadCheckpoint(std::ifstream& inFile);
+	virtual void WriteCheckpoint(std::ofstream& outFile);
+};
+
+export struct TorusRegion:Region
+{
+	tw::Float majorRadius,minorRadius;
+	TorusRegion(std::vector<Region*>& ml);
+	virtual bool Inside(const tw::vec3& pos,const MetricSpace& ds) const
+	{
+		tw::Float rho;
+		tw::vec3 p = pos - center;
+		orientation.ExpressInBasis(&p);
+		rho = sqrt(p.x*p.x + p.y*p.y);
+		return complement ^ ( rho > majorRadius-minorRadius && rho < majorRadius+minorRadius &&
+			sqr(p.z) < sqr(minorRadius)-sqr(rho-majorRadius));
+	}
+	virtual void ReadInputFileDirective(const TSTreeCursor *curs,const std::string& src);
+	virtual void ReadCheckpoint(std::ifstream& inFile);
+	virtual void WriteCheckpoint(std::ofstream& outFile);
+};
+
+export struct ConeRegion:Region
+{
+	tw::Float majorRadius,minorRadius;
+	ConeRegion(std::vector<Region*>& ml);
+	virtual bool Inside(const tw::vec3& pos,const MetricSpace& ds) const
+	{
+		tw::Float rho,rOfz;
+		tw::vec3 p = pos - center;
+		orientation.ExpressInBasis(&p);
+		rho = sqrt(p.x*p.x + p.y*p.y);
+		rOfz = minorRadius - (p.z - rbox.z)*(majorRadius-minorRadius)/(2.0*rbox.z);
+		return complement ^ ( rho < rOfz && sqr(p.z) < sqr(rbox.z));
+	}
+	virtual void ReadInputFileDirective(const TSTreeCursor *curs,const std::string& src);
+	virtual void ReadCheckpoint(std::ifstream& inFile);
+	virtual void WriteCheckpoint(std::ofstream& outFile);
+};
+
+export struct TangentOgiveRegion:Region
+{
+	tw::Float tipRadius,bodyRadius;
+	TangentOgiveRegion(std::vector<Region*>& ml);
+	virtual bool Inside(const tw::vec3& pos,const MetricSpace& ds) const
+	{
+		tw::Float rho,rOfz,ogiveRadius,x0,xt,yt;
+		tw::vec3 p = pos - center;
+		orientation.ExpressInBasis(&p);
+
+		x0 = 2.0*rbox.z - tipRadius;
+		ogiveRadius = (x0*x0+sqr(bodyRadius)-sqr(tipRadius))/(2.0*(bodyRadius-tipRadius));
+		yt = tipRadius*(ogiveRadius-bodyRadius)/(ogiveRadius-tipRadius);
+		xt = x0 + sqrt(sqr(tipRadius)-yt*yt);
+
+		rho = sqrt(p.x*p.x + p.y*p.y);
+		p.z += rbox.z;
+		rOfz = -1.0;
+		if (p.z>0.0 && p.z<xt)
+			rOfz = sqrt(sqr(ogiveRadius)-p.z*p.z) + bodyRadius - ogiveRadius;
+		if (p.z>=xt && p.z<2.0*rbox.z)
+			rOfz = sqrt(sqr(tipRadius)-sqr(p.z-x0));
+		return complement ^ (rho < rOfz);
+	}
+	virtual void ReadInputFileDirective(const TSTreeCursor *curs,const std::string& src);
+	virtual void ReadCheckpoint(std::ifstream& inFile);
+	virtual void WriteCheckpoint(std::ofstream& outFile);
+};
 
 Region::Region(std::vector<Region*>& ml) : masterList(ml)
 {
@@ -149,22 +440,29 @@ Region* Region::FindRegion(std::vector<Region*>& ml,const std::string& name)
 	return NULL;
 }
 
-void Region::ReadInputFileBlock(std::stringstream& inputString)
+/// @brief read all directives in the block
+/// @param curs can be on block or on first child of block
+/// @param src source document
+void Region::ReadInputFileBlock(TSTreeCursor *curs,const std::string& src)
 {
-	std::string com;
+	if (tw::input::node_kind(curs)=="block") {
+		ts_tree_cursor_goto_first_child(curs);
+	}
 	do
 	{
-		com = directives.ReadNext(inputString);
-		if (com=="tw::EOF")
-			throw tw::FatalError("Encountered EOF while processing <"+name+">.");
-		ReadInputFileDirective(inputString,com);
-	} while (com!="}");
+		directives.ReadNext(curs,src);
+		// following is unconditional, see comments up top
+		TSTreeCursor curs1 = ts_tree_cursor_copy(curs);
+		ReadInputFileDirective(&curs1,src);
+	} while (ts_tree_cursor_goto_next_sibling(curs));
 	directives.ThrowErrorIfMissingKeys(name);
 }
 
-void Region::ReadInputFileDirective(std::stringstream& inputString,const std::string& com)
+void Region::ReadInputFileDirective(const TSTreeCursor *curs0,const std::string& src)
 {
-	std::string word;
+	TSTreeCursor curs = ts_tree_cursor_copy(curs0);
+	ts_tree_cursor_goto_first_child(&curs);
+	std::string com = tw::input::node_text(&curs,src);
 
 	if (com=="bounds")
 	{
@@ -193,23 +491,17 @@ void Region::ReadInputFileDirective(std::stringstream& inputString,const std::st
 	if (com=="elements")
 	{
 		Region *curr;
-		inputString >> word;
-		if (word!="=")
-			throw tw::FatalError("Expected <=> after <elements>.");
-		inputString >> word;
-		if (word!="{")
-			throw tw::FatalError("Expected <{> at start of list.");
-		do {
-			inputString >> word;
-			if (inputString.eof())
-				throw tw::FatalError("Encountered EOF while processing <"+name+">.");
-			if (word!="}")
-			{
-				tw::input::StripQuotes(word);
-				curr = FindRegion(masterList,word);
-				composite.push_back(curr);
-			}
-		} while (word!="}");
+		tw::input::next_named_node(&curs,false);
+		if (tw::input::node_kind(&curs) != "list") {
+			throw tw::FatalError("expected `elements` to be a list while processing region");
+		}
+		ts_tree_cursor_goto_first_child(&curs);
+		while (tw::input::next_named_node(&curs,false)) {
+			std::string elName = tw::input::node_text(&curs,src);
+			tw::input::StripQuotes(elName);
+			curr = FindRegion(masterList,elName);
+			composite.push_back(curr);
+		}
 	}
 	if (com=="translation") // eg, translation = 1 0 0
 	{
@@ -285,9 +577,9 @@ BoxArrayRegion::BoxArrayRegion(std::vector<Region*>& ml) : Region(ml)
 	directives.Add("spacing",new tw::input::Vec3(&spacing));
 }
 
-void BoxArrayRegion::ReadInputFileDirective(std::stringstream& inputString,const std::string& com)
+void BoxArrayRegion::ReadInputFileDirective(const TSTreeCursor *curs,const std::string& src)
 {
-	Region::ReadInputFileDirective(inputString,com);
+	Region::ReadInputFileDirective(curs,src);
 	rbox = 0.5*size;
 }
 
@@ -315,9 +607,9 @@ TorusRegion::TorusRegion(std::vector<Region*>& ml) : Region(ml)
 	directives.Add("major radius",new tw::input::Float(&majorRadius));
 }
 
-void TorusRegion::ReadInputFileDirective(std::stringstream& inputString,const std::string& com)
+void TorusRegion::ReadInputFileDirective(const TSTreeCursor *curs,const std::string& src)
 {
-	Region::ReadInputFileDirective(inputString,com);
+	Region::ReadInputFileDirective(curs,src);
 	rbox = tw::vec3(majorRadius+minorRadius,majorRadius+minorRadius,minorRadius);
 }
 
@@ -345,9 +637,9 @@ ConeRegion::ConeRegion(std::vector<Region*>& ml) : Region(ml)
 	directives.Add("base radius",new tw::input::Float(&majorRadius));
 }
 
-void ConeRegion::ReadInputFileDirective(std::stringstream& inputString,const std::string& com)
+void ConeRegion::ReadInputFileDirective(const TSTreeCursor *curs,const std::string& src)
 {
-	Region::ReadInputFileDirective(inputString,com);
+	Region::ReadInputFileDirective(curs,src);
 	rbox.x = rbox.y = majorRadius;
 }
 
@@ -375,9 +667,9 @@ TangentOgiveRegion::TangentOgiveRegion(std::vector<Region*>& ml) : Region(ml)
 	directives.Add("body radius",new tw::input::Float(&bodyRadius));
 }
 
-void TangentOgiveRegion::ReadInputFileDirective(std::stringstream& inputString,const std::string& com)
+void TangentOgiveRegion::ReadInputFileDirective(const TSTreeCursor *curs,const std::string& src)
 {
-	Region::ReadInputFileDirective(inputString,com);
+	Region::ReadInputFileDirective(curs,src);
 	rbox.x = rbox.y = bodyRadius;
 }
 
@@ -405,9 +697,9 @@ CylindricalShellRegion::CylindricalShellRegion(std::vector<Region*>& ml) : Regio
 	directives.Add("outer radius",new tw::input::Float(&outerRadius));
 }
 
-void CylindricalShellRegion::ReadInputFileDirective(std::stringstream& inputString,const std::string& com)
+void CylindricalShellRegion::ReadInputFileDirective(const TSTreeCursor *curs,const std::string& src)
 {
-	Region::ReadInputFileDirective(inputString,com);
+	Region::ReadInputFileDirective(curs,src);
 	rbox.x = rbox.y = outerRadius;
 }
 

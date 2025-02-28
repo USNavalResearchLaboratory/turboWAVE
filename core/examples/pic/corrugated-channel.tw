@@ -3,8 +3,6 @@
 
 // Radially polarized pulse in corrugated channel
 // (pulse is arbitrary, i.e., not matched)
-steps = 2000
-timestep = 0.08
 dump period = 0
 moving window = no
 neutralize = yes
@@ -16,10 +14,10 @@ zboundary = ( reflecting , reflecting )
 
 new grid
 {
-	corner = ( 0.0 , -3.14159 , 0.0 )
-	dimensions = ( 128 , 1 , 2048 )
-	cell size = ( 0.5 , 6.28318 , 0.1 )
-	decomposition = ( 1 , 1 , 1 )
+	origin = ( 0, 0, 0.5, 0 )
+	dimensions = ( 2000, 128, 1, 2048 )
+	cell size = ( 0.08, 0.5, 6.28318, 0.1 )
+	decomposition = ( 1, 1, 1, 1 )
 	geometry = cylindrical
 }
 
@@ -33,11 +31,11 @@ new eigenmode elliptic solver for 'em'
 
 new hermite gauss for 'em'
 {
-	a = 0.1 0.0 0.0
+	a = (0.1 0.0 0.0)
 	w = 4.0
-	r0 = 20 20
-	mode = 1 0
-	focus position = 0 0 40
+	r0 = (20 20)
+	mode = (1 0)
+	focus position = (0 0 40)
 	delay = 0
 	risetime = 20
 	holdtime = 0
@@ -46,18 +44,18 @@ new hermite gauss for 'em'
 
 new species 'e'
 {
-	particles per cell = 4 1 4 when density = 1.0
+	particles per cell = (4 1 4) when density = 1.0
 }
 
 new region rect 'r1'
 {
-	bounds = 0 50 -1e5 1e5 40 1e5
+	bounds = (0 50 -1e5 1e5 40 1e5)
 	move with window = false
 }
 
 generate corrugated 'e'
 {
-	position = 0 0 40
+	position = (0 0 40)
 	clipping region = 'r1'
 
 	// parameters defining the tapered corrugated channel
@@ -70,8 +68,8 @@ generate corrugated 'e'
 	rchannel = 7.46
 
 	// parameters defining the particle loading
-	thermal momentum = 0.0 0.0 0.0
-	drift momentum = 0.0 0.0 0.0
+	thermal momentum = (0.0 0.0 0.0)
+	drift momentum = (0.0 0.0 0.0)
 	loading = deterministic
 	particle weight = variable
 }

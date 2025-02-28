@@ -1,6 +1,340 @@
+module;
+
 #include "meta_base.h"
 
-void Transform(tw::Float *array,tw::Int pts,tw::Int modes,tw::Int interval,std::valarray<tw::Float>& transform)
+export module numerics;
+import discrete_space;
+import metric_space;
+
+export template <class T>
+class GlobalIntegrator
+{
+	// the domains and systems are indexed from 0
+	// the data is expected to include ghost cells, so the number of pts per "row" is N+2
+
+	tw::comm* strip;
+	tw::Int N, systems;
+	std::valarray<T> v, w;
+	std::valarray<T*> theData;
+	std::valarray<tw::Int> stride; // units of T (beware of passing strides from Field objects)
+
+public:
+	GlobalIntegrator(tw::comm* strip, tw::Int systems, tw::Int cells);
+	void SetData(tw::Int system, T* theData, tw::Int stride);
+	void SetMatrix(tw::Int system, T a, T b, T c, T theta, T eta);
+	void SetMatrix(tw::Int system, T a, std::valarray<T>& b, T c, T theta, T eta);
+	void SetMatrix(tw::Int system, std::valarray<T>& a, std::valarray<T>& b, std::valarray<T>& c);
+	void Parallelize();
+};
+
+export template <class T, class U>
+void TriDiagonal(std::valarray<T>& phi, std::valarray<T>& rho, U a, U b, U c)
+{
+	// invert A * phi = rho
+	// The rows of A are (b,c,0,...)(a,b,c,0,...)(0,a,b,c,0,...)...(0,...,a,b,c)(0,...,a,b)
+
+	tw::Int n = phi.size();
+	std::valarray<U> gam(n);
+
+	if (n == 1)
+	{
+		phi[0] = rho[0] / b;
+		return;
+	}
+
+	tw::Int i;
+	U bet;
+	bet = b;
+	phi[0] = rho[0] / bet;
+	for (i = 1; i <= n - 1; i++)
+	{
+		gam[i] = c / bet;
+		bet = b - a * gam[i];
+		phi[i] = (rho[i] - a * phi[i - 1]) / bet;
+	}
+
+	for (i = n - 2; i >= 0; i--)
+		phi[i] -= gam[i + 1] * phi[i + 1];
+}
+
+export template <class T, class U>
+void TriDiagonal(std::valarray<T>& phi, std::valarray<T>& rho, U a, std::valarray<U>& b, U c)
+{
+	// invert A * phi = rho
+	// The rows of A are (b[0],c,0,...)(a,b[1],c,0,...)(0,a,b[2],c,0,...)...(0,...,a,b[N-2],c)(0,...,a,b[N-1])
+
+	tw::Int n = phi.size();
+	std::valarray<U> gam(n);
+
+	if (n == 1)
+	{
+		phi[0] = rho[0] / b[0];
+		return;
+	}
+
+	tw::Int i;
+	U bet;
+	bet = b[0];
+	phi[0] = rho[0] / bet;
+	for (i = 1; i <= n - 1; i++)
+	{
+		gam[i] = c / bet;
+		bet = b[i] - a * gam[i];
+		phi[i] = (rho[i] - a * phi[i - 1]) / bet;
+	}
+
+	for (i = n - 2; i >= 0; i--)
+		phi[i] -= gam[i + 1] * phi[i + 1];
+}
+
+export template <class T, class U>
+void TriDiagonal(std::valarray<T>& phi, std::valarray<T>& rho, std::valarray<U>& a, std::valarray<U>& b, std::valarray<U>& c)
+{
+	// invert A * phi = rho
+	// The rows of A are (b[0],c[0],0,...)(a[1],b[1],c[1],0,...)(0,a,b,c,0,...)...(0,...,a,b,c)(0,...,a,b)
+
+	tw::Int n = phi.size();
+	std::valarray<U> gam(n);
+
+	if (n == 1)
+	{
+		phi[0] = rho[0] / b[0];
+		return;
+	}
+
+	tw::Int i;
+	U bet;
+	bet = b[0];
+	phi[0] = rho[0] / bet;
+	for (i = 1; i <= n - 1; i++)
+	{
+		gam[i] = c[i - 1] / bet;
+		bet = b[i] - a[i] * gam[i];
+		phi[i] = (rho[i] - a[i] * phi[i - 1]) / bet;
+	}
+
+	for (i = n - 2; i >= 0; i--)
+		phi[i] -= gam[i + 1] * phi[i + 1];
+}
+
+
+/////////////////////////
+//                     //
+//  GLOBAL INTEGRATOR  //
+//                     //
+/////////////////////////
+
+template <class T>
+GlobalIntegrator<T>::GlobalIntegrator(tw::comm* strip, tw::Int systems, tw::Int cells)
+{
+	this->strip = strip;
+	this->systems = systems;
+	N = cells;
+
+	v.resize(systems * (N + 2));
+	w.resize(systems * (N + 2));
+
+	theData.resize(systems);
+	stride.resize(systems);
+}
+
+template <class T>
+void GlobalIntegrator<T>::SetData(tw::Int system, T* row, tw::Int stride)
+{
+	// N.b. the stride is in units of T
+	// When calling from TW beware of Field strides in units of tw::Float
+	// and DiscreteSpace strides in units of cells
+	this->theData[system] = row;
+	this->stride[system] = stride;
+}
+
+template <class T>
+void GlobalIntegrator<T>::SetMatrix(tw::Int system, T a, T b, T c, T theta, T eta)
+{
+	std::valarray<T> u(N), basisVector(N);
+
+	// Set up the inversion vectors for one system
+
+	basisVector = T(0.0);
+	basisVector[0] = theta;
+	TriDiagonal<T, T>(u, basisVector, a, b, c);
+	v[std::slice(system * (N + 2) + 1, N, 1)] = u;
+
+	basisVector[0] = 0.0;
+	basisVector[N - 1] = eta;
+	TriDiagonal<T, T>(u, basisVector, a, b, c);
+	w[std::slice(system * (N + 2) + 1, N, 1)] = u;
+}
+
+template <class T>
+void GlobalIntegrator<T>::SetMatrix(tw::Int system, T a, std::valarray<T>& b, T c, T theta, T eta)
+{
+	std::valarray<T> u(N), basisVector(N);
+
+	// Set up the inversion vectors for one system
+
+	basisVector = T(0.0);
+	basisVector[0] = theta;
+	TriDiagonal<T, T>(u, basisVector, a, b, c);
+	v[std::slice(system * (N + 2) + 1, N, 1)] = u;
+
+	basisVector[0] = 0.0;
+	basisVector[N - 1] = eta;
+	TriDiagonal<T, T>(u, basisVector, a, b, c);
+	w[std::slice(system * (N + 2) + 1, N, 1)] = u;
+}
+
+template <class T>
+void GlobalIntegrator<T>::SetMatrix(tw::Int system, std::valarray<T>& a, std::valarray<T>& b, std::valarray<T>& c)
+{
+	std::valarray<T> u(N), basisVector(N);
+
+	// Set up the inversion vectors for one system
+
+	basisVector = T(0.0);
+	basisVector[0] = a[0];
+	TriDiagonal<T, T>(u, basisVector, a, b, c);
+	v[std::slice(system * (N + 2) + 1, N, 1)] = u;
+
+	basisVector[0] = 0.0;
+	basisVector[N - 1] = c[N - 1];
+	TriDiagonal<T, T>(u, basisVector, a, b, c);
+	w[std::slice(system * (N + 2) + 1, N, 1)] = u;
+}
+
+template <class T>
+void ComputeAlphasAndBetas(tw::comm* strip, tw::Int systems, T* mpi_packet)
+{
+	tw::Int i, j, index, ds = 8 * systems, ss = 8;
+	tw::Int domains = strip->Get_size();
+	tw::Int L = strip->Get_size() - 1;
+	tw::Int currDomain = strip->Get_rank();
+	//bool periodic[2];
+	//strip->Get_periods(1,periodic);
+	tw::Int unknowns = L;//periodic[1] ? L+1 : L;
+	std::valarray<T> source(unknowns), ans(unknowns), a(unknowns), b(unknowns), c(unknowns);
+	std::valarray<T> k(ds * domains);
+
+	strip->Gather(mpi_packet, &k[0], sizeof(T) * ds, 0);
+
+	for (j = 0; j < systems; j++)
+	{
+		// APERIODIC CASE
+
+		if (currDomain == 0 && domains > 1)
+			//if (currDomain==0 && domains>1 && !periodic[1])
+		{
+			// For alphas domain 0 is not used
+			// indices to tridiagonal arguments are therefore offset by -1
+			for (i = 1; i < L; i++)
+			{
+				index = ss * j + ds * i;
+				source[i - 1] = k[index - ds + 5] - k[index - ds + 2] * k[index] + k[index - ds + 2] * k[index + 4] * k[index + 5] / (tw::small_pos + k[index + 2]);
+				a[i - 1] = k[index - ds + 1];
+				b[i - 1] = one - k[index - ds + 2] * k[index + 3] + k[index - ds + 2] * k[index + 1] * k[index + 4] / (tw::small_pos + k[index + 2]);
+				c[i - 1] = k[index - ds + 2] * k[index + 4] / (tw::small_pos + k[index + 2]);
+			}
+			source[L - 1] = k[ss * j + ds * (L - 1) + 5] - k[ss * j + ds * (L - 1) + 2] * k[ss * j + ds * L];
+			a[L - 1] = k[ss * j + ds * (L - 1) + 1];
+			b[L - 1] = one - k[ss * j + ds * (L - 1) + 2] * k[ss * j + ds * L + 3];
+			TriDiagonal<T, T>(ans, source, a, b, c);
+			for (i = 1; i <= L; i++)
+				k[ss * j + ds * i + 6] = ans[i - 1]; // alphas
+
+			// For betas domain L is not used
+			source[0] = k[ss * j + ds] - k[ss * j + ds + 3] * k[ss * j + 5];
+			b[0] = one - k[ss * j + 2] * k[ss * j + ds + 3];
+			c[0] = k[ss * j + ds + 4];
+			for (i = 1; i < L; i++)
+			{
+				index = ss * j + ds * i;
+				source[i] = k[index + ds] - k[index + ds + 3] * k[index + 5] + k[index + ds + 3] * k[index + 1] * k[index] / (tw::small_pos + k[index + 3]);
+				a[i] = k[index + ds + 3] * k[index + 1] / (tw::small_pos + k[index + 3]);
+				b[i] = one - k[index + 2] * k[index + ds + 3] + k[index + ds + 3] * k[index + 1] * k[index + 4] / (tw::small_pos + k[index + 3]);
+				c[i] = k[index + ds + 4];
+			}
+			TriDiagonal<T, T>(ans, source, a, b, c);
+			for (i = 0; i < L; i++)
+				k[ss * j + ds * i + 7] = ans[i]; // betas
+		}
+
+		// PERIODIC CASE (doesn't work)
+
+// 		if (currDomain==0 && periodic[1])
+// 		{
+// 			for (i=0;i<=L;i++)
+// 			{
+// 				index = ss*j + ds*i;
+// 				dsn = i==0 ? -ds*L : ds;
+// 				source[i] = k[index-dsn+5] - k[index-dsn+2]*k[index] + k[index-dsn+2]*k[index+4]*k[index+5]/(tw::small_pos + k[index+2]);
+// 				a[i] = k[index-dsn+1];
+// 				b[i] = 1 - k[index-dsn+2]*k[index+3] + k[index-dsn+2]*k[index+1]*k[index+4]/(tw::small_pos + k[index+2]);
+// 				c[i] = k[index-dsn+2]*k[index+4]/(tw::small_pos + k[index+2]);
+// 			}
+// 			TriDiagonal<T,T>(ans,source,a,b,c);
+// 			for (i=0;i<=L;i++)
+// 				k[ss*j + ds*i + 6] = ans[i]; // alphas
+//
+// 			for (i=0;i<=L;i++)
+// 			{
+// 				index = ss*j + ds*i;
+// 				dsn = i==L ? -ds*L : ds;
+// 				source[i] = k[index+dsn] - k[index+dsn+3]*k[index+5] + k[index+dsn+3]*k[index+1]*k[index]/(tw::small_pos + k[index+3]);
+// 				a[i] = k[index+dsn+3]*k[index+1]/(tw::small_pos + k[index+3]);
+// 				b[i] = 1 - k[index+2]*k[index+dsn+3] + k[index+dsn+3]*k[index+1]*k[index+4]/(tw::small_pos + k[index+3]);
+// 				c[i] = k[index+dsn+4];
+// 			}
+// 			TriDiagonal<T,T>(ans,source,a,b,c);
+// 			for (i=0;i<=L;i++)
+// 				k[ss*j + ds*i + 7] = ans[i]; // betas
+// 		}
+	}
+
+	strip->Scatter(&k[0], mpi_packet, sizeof(T) * ds, 0);
+}
+
+template <class T>
+void GlobalIntegrator<T>::Parallelize()
+{
+	int i, j;
+
+	// make temporary space for calculation of alpha and beta
+	// packet layout : ss=system stride ; domain stride = ss*systems
+	// layout must match assumptions in ComputeAlphasAndBetas
+	tw::Int ss = 8;
+	std::valarray<T> mpi_packet(ss * systems);
+
+	for (j = 0; j < systems; j++)
+	{
+		mpi_packet[0 + ss * j] = theData[j][stride[j]];
+		mpi_packet[1 + ss * j] = v[j * (N + 2) + N];
+		mpi_packet[2 + ss * j] = w[j * (N + 2) + N];
+		mpi_packet[3 + ss * j] = v[j * (N + 2) + 1];
+		mpi_packet[4 + ss * j] = w[j * (N + 2) + 1];
+		mpi_packet[5 + ss * j] = theData[j][N * stride[j]];
+		mpi_packet[6 + ss * j] = 0.0; // alpha, to be computed
+		mpi_packet[7 + ss * j] = 0.0; // beta, to be computed
+	}
+
+	ComputeAlphasAndBetas<T>(strip, systems, &mpi_packet[0]);
+
+	// APPLY THE CORRECTION FACTORS
+
+	for (j = 0; j < systems; j++)
+	{
+		theData[j][0] = mpi_packet[6 + ss * j];
+		for (i = 1; i <= N; i++)
+			theData[j][i * stride[j]] -= mpi_packet[6 + ss * j] * v[j * (N + 2) + i] + mpi_packet[7 + ss * j] * w[j * (N + 2) + i];
+		theData[j][(N + 1) * stride[j]] = mpi_packet[7 + ss * j];
+
+		// N.b. exterior ghost cell calculation only valid for periodic or dirichlet boundary conditions
+		// (interior domains OK for any boundary conditions)
+		// Currently dirichlet b.c. is hard coded as 0
+		// Other cases must be handled outside this routine
+	}
+}
+
+export void Transform(tw::Float *array,tw::Int pts,tw::Int modes,tw::Int interval,std::valarray<tw::Float>& transform)
 {
 	// Truncation of modes assumes eigenvalues sorted with increasing *absolute* value
 	tw::Int p,m;
@@ -17,7 +351,7 @@ void Transform(tw::Float *array,tw::Int pts,tw::Int modes,tw::Int interval,std::
 		array[m*interval] = 0.0;
 }
 
-void ReverseTransform(tw::Float *array,tw::Int pts,tw::Int modes,tw::Int interval,std::valarray<tw::Float>& rev_transform)
+export void ReverseTransform(tw::Float *array,tw::Int pts,tw::Int modes,tw::Int interval,std::valarray<tw::Float>& rev_transform)
 {
 	// Truncation of modes assumes eigenvalues sorted with increasing *absolute* value
 	// This is the same operation as Transform only if pts=modes
@@ -33,93 +367,93 @@ void ReverseTransform(tw::Float *array,tw::Int pts,tw::Int modes,tw::Int interva
 		array[p*interval] = temp[p];
 }
 
-void LeftHalfRotation(ScalarField& A,tw::Int p,tw::Int q,tw::Float c,tw::Float s,tw::Int def1,tw::Int def2)
-{
-	tw::Int i;
-	tw::Float temp;
+// void LeftHalfRotation(ScalarField& A,tw::Int p,tw::Int q,tw::Float c,tw::Float s,tw::Int def1,tw::Int def2)
+// {
+// 	tw::Int i;
+// 	tw::Float temp;
 
-	// First index is column (opposite usual subscript notation)
+// 	// First index is column (opposite usual subscript notation)
 
-	for (i=1+def1;i<=A.Dim(1)-def2;i++)
-	{
-		temp = c*A(i,p,1) - s*A(i,q,1);
-		A(i,q,1) = s*A(i,p,1) + c*A(i,q,1);
-		A(i,p,1) = temp;
-	}
-}
+// 	for (i=1+def1;i<=A.Dim(1)-def2;i++)
+// 	{
+// 		temp = c*A(i,p,1) - s*A(i,q,1);
+// 		A(i,q,1) = s*A(i,p,1) + c*A(i,q,1);
+// 		A(i,p,1) = temp;
+// 	}
+// }
 
-void RightHalfRotation(ScalarField& A,tw::Int p,tw::Int q,tw::Float c,tw::Float s,tw::Int def1,tw::Int def2)
-{
-	tw::Int j;
-	tw::Float temp;
+// void RightHalfRotation(ScalarField& A,tw::Int p,tw::Int q,tw::Float c,tw::Float s,tw::Int def1,tw::Int def2)
+// {
+// 	tw::Int j;
+// 	tw::Float temp;
 
-	// First index is column (opposite usual subscript notation)
+// 	// First index is column (opposite usual subscript notation)
 
-	for (j=1+def1;j<=A.Dim(2)-def2;j++)
-	{
-		temp = c*A(p,j,1) - s*A(q,j,1);
-		A(q,j,1) = s*A(p,j,1) + c*A(q,j,1);
-		A(p,j,1) = temp;
-	}
-}
+// 	for (j=1+def1;j<=A.Dim(2)-def2;j++)
+// 	{
+// 		temp = c*A(p,j,1) - s*A(q,j,1);
+// 		A(q,j,1) = s*A(p,j,1) + c*A(q,j,1);
+// 		A(p,j,1) = temp;
+// 	}
+// }
 
-void QRSweep(ScalarField& A,tw::Int deflation)
-{
-	tw::Int j,p,q,n;
-	tw::Float temp;
-	n = A.Dim(2);
-	std::valarray<tw::Float> s(n+1),c(n+1);
+// void QRSweep(ScalarField& A,tw::Int deflation)
+// {
+// 	tw::Int j,p,q,n;
+// 	tw::Float temp;
+// 	n = A.Dim(2);
+// 	std::valarray<tw::Float> s(n+1),c(n+1);
 
-	// Form the R matrix
-	for (j=2+deflation;j<=n;j++)
-	{
-		p = j-1;
-		q = j;
-		temp = A(p,p,1)/A(p,q,1);
-		s[j] = pow(one + temp*temp,tw::Float(-half));
-		c[j] = sqrt(one - s[j]*s[j]);
-		if (temp>0.0)
-			s[j] *= -1.0;
-		LeftHalfRotation(A,p,q,c[j],s[j],deflation,0);
-	}
+// 	// Form the R matrix
+// 	for (j=2+deflation;j<=n;j++)
+// 	{
+// 		p = j-1;
+// 		q = j;
+// 		temp = A(p,p,1)/A(p,q,1);
+// 		s[j] = pow(one + temp*temp,tw::Float(-half));
+// 		c[j] = sqrt(one - s[j]*s[j]);
+// 		if (temp>0.0)
+// 			s[j] *= -1.0;
+// 		LeftHalfRotation(A,p,q,c[j],s[j],deflation,0);
+// 	}
 
-	// Form RQ
-	for (j=2+deflation;j<=n;j++)
-	{
-		p = j-1;
-		q = j;
-		RightHalfRotation(A,p,q,c[j],s[j],deflation,0);
-	}
-}
+// 	// Form RQ
+// 	for (j=2+deflation;j<=n;j++)
+// 	{
+// 		p = j-1;
+// 		q = j;
+// 		RightHalfRotation(A,p,q,c[j],s[j],deflation,0);
+// 	}
+// }
 
-void QLSweep(ScalarField& A,tw::Int deflation)
-{
-	tw::Int i,p,q,n;
-	tw::Float temp;
-	n = A.Dim(1);
-	std::valarray<tw::Float> s(n+1),c(n+1);
+// void QLSweep(ScalarField& A,tw::Int deflation)
+// {
+// 	tw::Int i,p,q,n;
+// 	tw::Float temp;
+// 	n = A.Dim(1);
+// 	std::valarray<tw::Float> s(n+1),c(n+1);
 
-	// Form the L matrix
-	for (i=2;i<=n-deflation;i++)
-	{
-		p = i-1;
-		q = i;
-		temp = A(p,p,1)/A(q,p,1);
-		s[i] = pow(one + temp*temp,tw::Float(-half));
-		c[i] = sqrt(one - s[i]*s[i]);
-		if (temp>0.0)
-			s[i] *= -1.0;
-		RightHalfRotation(A,p,q,c[i],s[i],0,deflation);
-	}
+// 	// Form the L matrix
+// 	for (i=2;i<=n-deflation;i++)
+// 	{
+// 		p = i-1;
+// 		q = i;
+// 		temp = A(p,p,1)/A(q,p,1);
+// 		s[i] = pow(one + temp*temp,tw::Float(-half));
+// 		c[i] = sqrt(one - s[i]*s[i]);
+// 		if (temp>0.0)
+// 			s[i] *= -1.0;
+// 		RightHalfRotation(A,p,q,c[i],s[i],0,deflation);
+// 	}
 
-	// Form LQ
-	for (i=2;i<=n-deflation;i++)
-	{
-		p = i-1;
-		q = i;
-		LeftHalfRotation(A,p,q,c[i],s[i],0,deflation);
-	}
-}
+// 	// Form LQ
+// 	for (i=2;i<=n-deflation;i++)
+// 	{
+// 		p = i-1;
+// 		q = i;
+// 		LeftHalfRotation(A,p,q,c[i],s[i],0,deflation);
+// 	}
+// }
 
 void GetEigenvector(tw::Float eigenvalue,std::valarray<tw::Float>& vec,std::valarray<tw::Float>& a,std::valarray<tw::Float>& b,std::valarray<tw::Float>& c)
 {
@@ -173,6 +507,27 @@ void NormalizeLeftRight(std::valarray<tw::Float>& left,std::valarray<tw::Float>&
 	for (i=0;i<left.size();i++)
 		norm += left[i]*right[i];
 	left *= 1.0/norm;
+}
+
+void SortEigensystem(std::valarray<tw::Float>& eigenvalues,tw::Float *revTransform)
+{
+	// Sort according to absolute value using simple insertion sort
+	// Also sort revTransform matrix if it is not NULL
+	tw::Int n = eigenvalues.size();
+	for (tw::Int i=1;i<n;i++)
+	{
+		tw::Int j = i;
+		while (fabs(eigenvalues[j-1]) > fabs(eigenvalues[j]))
+		{
+			std::swap(eigenvalues[j],eigenvalues[j-1]);
+			if (revTransform!=NULL)
+				for (tw::Int k=0;k<n;k++)
+					std::swap(revTransform[k*n+j],revTransform[k*n+j-1]);
+			j--;
+			if (j==0)
+				break;
+		}
+	}
 }
 
 void SymmetricTridiagonalEigensystem(std::valarray<tw::Float>& eigenvalues,tw::Float *revTransform,std::valarray<tw::Float>& T1,std::valarray<tw::Float>& T2)
@@ -251,28 +606,7 @@ void SymmetricTridiagonalEigensystem(std::valarray<tw::Float>& eigenvalues,tw::F
 	SortEigensystem(eigenvalues,revTransform);
 }
 
-void SortEigensystem(std::valarray<tw::Float>& eigenvalues,tw::Float *revTransform)
-{
-	// Sort according to absolute value using simple insertion sort
-	// Also sort revTransform matrix if it is not NULL
-	tw::Int n = eigenvalues.size();
-	for (tw::Int i=1;i<n;i++)
-	{
-		tw::Int j = i;
-		while (fabs(eigenvalues[j-1]) > fabs(eigenvalues[j]))
-		{
-			std::swap(eigenvalues[j],eigenvalues[j-1]);
-			if (revTransform!=NULL)
-				for (tw::Int k=0;k<n;k++)
-					std::swap(revTransform[k*n+j],revTransform[k*n+j-1]);
-			j--;
-			if (j==0)
-				break;
-		}
-	}
-}
-
-tw::Float GetSphericalGroundState(std::valarray<tw::Float>& vec,std::valarray<tw::Float>& phi,tw::Float dr)
+export tw::Float GetSphericalGroundState(std::valarray<tw::Float>& vec,std::valarray<tw::Float>& phi,tw::Float dr)
 {
 	// Diagonalize Hamiltonion : H0 = -0.5*del^2 - 1/sqrt(coreRadius^2 + r^2)
 	tw::Int i,dim;
@@ -354,7 +688,7 @@ tw::Float GetSphericalGroundState(std::valarray<tw::Float>& vec,std::valarray<tw
 	return eigenvalue;
 }
 
-tw::Float GetCylindricalGroundState(std::valarray<tw::Float>& vec,std::valarray<tw::Float>& phi,tw::Float dr)
+export tw::Float GetCylindricalGroundState(std::valarray<tw::Float>& vec,std::valarray<tw::Float>& phi,tw::Float dr)
 {
 	// Diagonalize Hamiltonion : H0 = -0.5*del^2 - 1/sqrt(coreRadius^2 + r^2)
 	tw::Int i,dim;
@@ -436,7 +770,7 @@ tw::Float GetCylindricalGroundState(std::valarray<tw::Float>& vec,std::valarray<
 	return eigenvalue;
 }
 
-void ComputeTransformMatrices(tw::bc::fld radial_bc,std::valarray<tw::Float>& eigenvalue,std::valarray<tw::Float>& fwd,std::valarray<tw::Float>& rev,MetricSpace *space,Task *task)
+export void ComputeTransformMatrices(tw::bc::fld radial_bc,std::valarray<tw::Float>& eigenvalue,std::valarray<tw::Float>& fwd,std::valarray<tw::Float>& rev,MetricSpace *space,Task *task)
 {
 	tw::Int i,j,dim;
 	tw::Float dr1,dr2;
@@ -552,307 +886,3 @@ void ComputeTransformMatrices(tw::bc::fld radial_bc,std::valarray<tw::Float>& ei
 		}
 }
 
-
-////////////////////
-//                //
-//   FCT ENGINE   //
-//                //
-////////////////////
-
-
-FCT_Engine::FCT_Engine(tw::Int ax,const MetricSpace& m)
-{
-	cells = m.Dim(ax);
-	V.resize(cells+2);
-	A.resize(cells+2);
-	scratch.resize(cells+2);
-}
-
-void FCT_Engine::Reset(const tw::strip& s,const MetricSpace& m,ScalarField *fluxMask)
-{
-	tw::Int i,ax=s.Axis();
-	cells = m.Dim(ax);
-	// The engine uses V[0] in the clipping stage
-	// The engine never uses A[0]
-	for (i=0;i<=cells+1;i++)
-		V[i] = m.dS(s,i,0);
-	for (i=1;i<=cells+1;i++)
-		A[i] = m.dS(s,i,ax);
-	if (fluxMask!=NULL)
-		for (i=1;i<=cells+1;i++)
-			A[i] *= 1.0 - tw::Float( (*fluxMask)(s,i-1) + (*fluxMask)(s,i) == 1.0 );
-}
-
-void FCT_Engine::Transport(std::valarray<tw::Float>& vel,
-	std::valarray<tw::Float>& rho,
-	std::valarray<tw::Float>& rho1,
-	std::valarray<tw::Float>& diff,
-	std::valarray<tw::Float>& flux,
-	tw::Float dt)
-{
-	// First step in FCT algorithm
-	// vel, rho, rho1, flux, and diff are indexed from 0..cells+1
-	// vel contains velocity in the direction of transport
-	// vel is known at t = 0 for a 1rst order push, at t = 1/2 for a second order push
-	// diff and flux are given at the low-side cell walls, all other quantities at the cell centers
-	// rho is density at t = 0
-	// rho1 is density at t = 0 for a 1rst order push (rho1 = rho), or at t = 1/2 for a 2nd order push
-	// diff is an output giving the diffused "mass" into the low side of each cell
-	// flux is an output giving the transported and diffused "mass" into the low side of each cell
-	// after calling this, the values of the low and high ghost cells for rho must be supplied
-
-	tw::Int i;
-
-	// compute diffused mass
-	#pragma omp simd
-	for (i=1;i<=cells+1;i++)
-		diff[i] = -0.25*A[i]*dt*fabs(vel[i]+vel[i-1])*(rho[i] - rho[i-1]);
-
-	// compute transported mass
-	#pragma omp simd
-	for (i=1;i<=cells+1;i++)
-		flux[i] = A[i]*dt*0.25*(vel[i]+vel[i-1])*(rho1[i]+rho1[i-1]);
-
-	// compute transported density
-	#pragma omp simd
-	for (i=1;i<=cells;i++)
-		rho[i] += (flux[i] - flux[i+1])/V[i];
-
-	// compute transported and diffused mass
-	#pragma omp simd
-	for (i=1;i<=cells+1;i++)
-		flux[i] += diff[i];
-}
-
-void FCT_Engine::Diffuse(std::valarray<tw::Float>& vel,
-	std::valarray<tw::Float>& rho,
-	std::valarray<tw::Float>& diff,
-	tw::Float dt)
-{
-	// vel is the same as for FCT_Engine::Transport
-	// rho is the output from FCT_Engine::Transport, with appropriate ghost cell values
-	// diff is the array output from FCT_Engine::Transport, with appropriate ghost cell values
-	// on output, diff is replaced by the anti-diffused mass into the low-side of each cell
-	// after calling this, the values of the low/high ghost cells for rho must be supplied
-	// HOWEVER, the GLOBAL ghost cells for rho should not be updated (leave them with the undiffused values)
-
-	tw::Int i;
-	scratch = rho;
-
-	// compute transported and diffused density
-	#pragma omp simd
-	for (i=1;i<=cells;i++)
-		rho[i] += (diff[i] - diff[i+1])/V[i];
-
-	// compute anti-diffused mass (re-using diffused mass array)
-	#pragma omp simd
-	for (i=1;i<=cells+1;i++)
-		diff[i] = 0.25*A[i]*dt*fabs(vel[i]+vel[i-1])*(scratch[i] - scratch[i-1]);
-}
-
-void FCT_Engine::Limiter(tw::Float& adiff,const tw::Float& maxLow,const tw::Float& maxHigh)
-{
-	tw::Float pos_channel=adiff,neg_channel=adiff,test;
-
-	tw::Float maxHigh_pos = tw::Float(maxHigh>0.0);
-	tw::Float maxLow_pos = tw::Float(maxLow>0.0);
-
-	test = tw::Float(pos_channel>maxHigh);
-	pos_channel = maxHigh_pos*(test*maxHigh + (1.0-test)*pos_channel);
-	test = tw::Float(pos_channel>maxLow);
-	pos_channel = maxLow_pos*(test*maxLow + (1.0-test)*pos_channel);
-
-	test = tw::Float(neg_channel<maxHigh);
-	neg_channel = (1.0-maxHigh_pos)*(test*maxHigh + (1.0-test)*neg_channel);
-	test = tw::Float(neg_channel<maxLow);
-	neg_channel = (1.0-maxLow_pos)*(test*maxLow + (1.0-test)*neg_channel);
-
-	adiff = pos_channel*tw::Float(adiff>0.0) + neg_channel*tw::Float(adiff<=0.0);
-}
-
-void FCT_Engine::Clip(std::valarray<tw::Float>& rho,std::valarray<tw::Float>& adiff,tw::Float rho00)
-{
-	// Limit the antidiffusive fluxes given in adiff to ensure stability, positivity, etc.
-	// rho00 gives the value in the cell below the low-side ghost cell
-	// rho and adiff are the outputs from FCT_Engine::Diffuse
-	// after calling, high ghost cell for adiff must be supplied
-
-	tw::Int i;
-	tw::Float maxAntiDiffusionLow,maxAntiDiffusionHigh;
-
-	maxAntiDiffusionHigh = (rho[2]-rho[1])*V[1];
-	maxAntiDiffusionLow = (rho[0] - rho00)*V[0];
-	Limiter(adiff[1],maxAntiDiffusionLow,maxAntiDiffusionHigh);
-	#pragma omp simd
-	for (i=2;i<=cells;i++)
-	{
-		maxAntiDiffusionHigh = (rho[i+1]-rho[i])*V[i];
-		maxAntiDiffusionLow = (rho[i-1]-rho[i-2])*V[i-1];
-		Limiter(adiff[i],maxAntiDiffusionLow,maxAntiDiffusionHigh);
-	}
-}
-
-void FCT_Engine::AntiDiffuse(std::valarray<tw::Float>& rho,std::valarray<tw::Float>& adiff,std::valarray<tw::Float>& flux)
-{
-	// adiff are the clipped fluxes from FCT_Engine::Clip
-	// after calling, low and high ghost cells for rho must be supplied
-	// flux is an ouptut giving the true flux through the cell walls
-	// after calling, the low ghost cell for flux must be supplied
-
-	tw::Int i;
-	const tw::Float safety_factor = 0.999999;
-	#pragma omp simd
-	for (i=1;i<=cells;i++)
-		rho[i] += safety_factor*(adiff[i] - adiff[i+1])/V[i];
-	#pragma omp simd
-	for (i=1;i<=cells+1;i++)
-		flux[i] += safety_factor*adiff[i];
-}
-
-
-
-////////////////////
-//                //
-//   FCT DRIVER   //
-//                //
-////////////////////
-
-
-FCT_Driver::FCT_Driver(Field *rho,Field *rho1,Field *vel,ScalarField *fluxMask,MetricSpace *ms)
-{
-	en = All(*rho);
-	vi = 0;
-	this->rho = rho;
-	this->rho1 = rho1;
-	this->vel = vel;
-	this->fluxMask = fluxMask;
-	this->ms = ms;
-	diff = NULL;
-	net_flux = NULL;
-}
-
-FCT_Driver::~FCT_Driver()
-{
-	if (diff!=NULL)
-		delete diff;
-	if (net_flux!=NULL)
-		delete net_flux;
-}
-
-void FCT_Driver::Convect(const tw::grid::axis& axis,tw::bc::fld low,tw::bc::fld high,tw::Float dt)
-{
-	const tw::Int ax = tw::grid::naxis(axis);
-	const tw::Int N = ms->Dim(ax);
-
-	if (diff!=NULL)
-		delete diff;
-	if (net_flux!=NULL)
-		delete net_flux;
-	diff = new Field;
-	net_flux = new Field;
-	diff->Initialize(en.Components(),*rho,rho->task);
-	net_flux->Initialize(en.Components(),*rho,rho->task);
-	diff->SetBoundaryConditions(axis,low,high);
-	net_flux->SetBoundaryConditions(axis,low,high);
-
-	#pragma omp parallel
-	{
-		tw::Int c;
-		std::valarray<tw::Float> va_rho(N+2),va_rho1(N+2),va_vel(N+2),va_diff(N+2),va_flux(N+2);
-		tw::Float va_rho00;
-		FCT_Engine engine(ax,*ms);
-
-		// TRANSPORT
-
-		for (c=en.low;c<=en.high;c++)
-		{
-			for (auto s : StripRange(*ms,ax,strongbool::yes))
-			{
-				engine.Reset(s,*ms,fluxMask);
-				rho->GetStrip(va_rho,s,c);
-				rho1->GetStrip(va_rho1,s,c);
-				vel->GetStrip(va_vel,s,vi);
-				engine.Transport(va_vel,va_rho,va_rho1,va_diff,va_flux,dt);
-				rho->SetStrip(va_rho,s,c);
-				diff->SetStrip(va_diff,s,c-en.low);
-				net_flux->SetStrip(va_flux,s,c-en.low);
-			}
-		}
-		#pragma omp barrier
-		#pragma omp single
-		{
-			rho->DownwardCopy(axis,en,1);
-			rho->UpwardCopy(axis,en,1);
-			rho->ApplyBoundaryCondition(en);
-		}
-
-		// DIFFUSE
-
-		for (c=en.low;c<=en.high;c++)
-		{
-			for (auto s : StripRange(*ms,ax,strongbool::yes))
-			{
-				engine.Reset(s,*ms,fluxMask);
-				rho->GetStrip(va_rho,s,c);
-				diff->GetStrip(va_diff,s,c-en.low);
-				vel->GetStrip(va_vel,s,vi);
-				engine.Diffuse(va_vel,va_rho,va_diff,dt);
-				rho->SetStrip(va_rho,s,c);
-				diff->SetStrip(va_diff,s,c-en.low);
-			}
-		}
-		#pragma omp barrier
-		#pragma omp single
-		{
-			rho->DownwardCopy(axis,en,1);
-			rho->UpwardCopy(axis,en,2); // need 2 low-side ghost cells for clipping operation
-			// leave ghost cell with transported un-diffused value (no call to rho->ApplyBoundaryCondition)
-		}
-
-		// CLIP
-
-		for (c=en.low;c<=en.high;c++)
-		{
-			for (auto s : StripRange(*ms,ax,strongbool::yes))
-			{
-				engine.Reset(s,*ms,fluxMask);
-				rho->GetStrip(va_rho,s,c);
-				diff->GetStrip(va_diff,s,c-en.low);
-				va_rho00 = (*rho)(s,-1,c);
-				engine.Clip(va_rho,va_diff,va_rho00);
-				diff->SetStrip(va_diff,s,c-en.low);
-			}
-		}
-		#pragma omp barrier
-		#pragma omp single
-		{
-			diff->DownwardCopy(axis,1);
-			diff->ApplyBoundaryCondition();
-		}
-
-		// ANTI-DIFFUSE
-
-		for (c=en.low;c<=en.high;c++)
-		{
-			for (auto s : StripRange(*ms,ax,strongbool::yes))
-			{
-				engine.Reset(s,*ms,fluxMask);
-				rho->GetStrip(va_rho,s,c);
-				diff->GetStrip(va_diff,s,c-en.low);
-				net_flux->GetStrip(va_flux,s,c-en.low);
-				engine.AntiDiffuse(va_rho,va_diff,va_flux);
-				rho->SetStrip(va_rho,s,c);
-				net_flux->SetStrip(va_flux,s,c-en.low);
-			}
-		}
-		#pragma omp barrier
-		#pragma omp single
-		{
-			rho->DownwardCopy(axis,en,1);
-			rho->UpwardCopy(axis,en,1);
-			rho->ApplyBoundaryCondition(en);
-			net_flux->UpwardCopy(axis,1);
-			net_flux->ApplyBoundaryCondition();
-		}
-	}
-}

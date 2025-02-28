@@ -466,6 +466,15 @@ Boris Mover
 
 	There are no directives.
 
+Higuera-Cary Mover
+,,,,,,,,,,,,,,,,,,
+
+.. py:function:: new hc mover [<name>] [for <module_name>] { <directives> }
+
+	This is a variation on the Boris mover that uses an estimate for the energy at the half-step that is thought to be more accurate.  This is never chosen by default.
+
+	There are no directives.
+
 PGC Mover
 ,,,,,,,,,,
 

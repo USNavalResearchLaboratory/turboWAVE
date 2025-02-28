@@ -1,5 +1,10 @@
-#include "simulation.h"
-#include "fluid.h"
+module;
+
+#include <meta_base.h>
+
+module fluid;
+import twmodule;
+
 using namespace tw::bc;
 
 bool Fluid::Test(tw::Int& id)
@@ -43,7 +48,7 @@ void Fluid::AdvectionTest()
 	FCT_Driver convector(&state0,&state1,&vel,NULL,owner);
 	convector.SetDensityElements(Element(0));
 	convector.SetVelocityElement(3);
-	convector.Convect(tw::grid::z,fld::dirichletCell,fld::dirichletCell,dth);
+	convector.Convect(tw::grid::z,fld::dirichletCell,fld::dirichletCell,0.5*dx(0));
 
     // check positivity
     tw::Float pos = 1.0;
@@ -88,7 +93,7 @@ void Fluid::ConservationTest()
 	FCT_Driver convector(&state0,&state1,&vel,NULL,owner);
 	convector.SetDensityElements(Element(0));
 	convector.SetVelocityElement(3);
-	convector.Convect(tw::grid::z,fld::dirichletCell,fld::dirichletCell,dth);
+	convector.Convect(tw::grid::z,fld::dirichletCell,fld::dirichletCell,0.5*dx(0));
 
     // check conservation
     tw::Float finalMass = 0.0;

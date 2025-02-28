@@ -1,8 +1,6 @@
 // Keep the following line for generating twtest reports
 // TWTEST matplotlib zxyt=0,: Ex.npy
 
-steps = 4000
-timestep = 0.04
 dump period = 0
 moving window = yes
 neutralize = yes
@@ -18,24 +16,24 @@ zboundary = ( reflecting , reflecting )
 
 new grid
 {
-	corner = ( -25.6 , -0.5 , -12.8 )
-	dimensions = ( 256 , 1 , 256 )
-	cell size = ( 0.2 , 1.0 , 0.05 )
-	decomposition = ( 4 , 1 , 2 )
+	origin = ( 0, 0.5, 0.5, 1.0 )
+	dimensions = ( 4000, 256 , 1 , 256 )
+	cell size = ( 0.04, 0.2 , 1.0 , 0.05 )
+	decomposition = ( 1, 4, 1, 2 )
 }
 
 new direct electromagnetic module 'em'
 {
-	layers = 8 8 0 0 0 0
-	reflection coefficient = 1e-4 1e-4 1e-4 1e-4 1e-4 1e-4
+	layers = (8 8 0 0 0 0)
+	reflection coefficient = (1e-4 1e-4 1e-4 1e-4 1e-4 1e-4)
 }
 
 new hermite gauss for 'em'
 {
-	mode = 0 0
-	a = 1.0 0.0 0.0
+	mode = (0 0)
+	a = (1.0 0.0 0.0)
 	w = 5.0
-	focus position = 0 0 80
+	focus position = (0 0 80)
 	r0 = ( 2 , 1e5 )
 	delay = 84
 	risetime = 3

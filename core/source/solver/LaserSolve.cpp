@@ -1,8 +1,64 @@
-#include "simulation.h"
-#include "fieldSolve.h"
-#include "laserSolve.h"
+module;
+
+#include "meta_base.h"
+
+export module laser_solve;
+import input;
+import twmodule;
+import compute_tool;
+import parabolic;
+import fields;
+import diagnostics;
+
 using namespace tw::bc;
 
+
+export struct LaserSolver:Module
+{
+	tw::Float laserFreq;
+	tw_polarization_type polarizationType;
+	ComplexField a0,a1; // vector potential
+	ComplexField chi; // defined by j = chi*a
+
+	LaserPropagator *propagator;
+
+	bool debug; // usually used to suppress envelope evolution
+
+	LaserSolver(const std::string& name,Simulation* sim);
+	virtual ~LaserSolver();
+	virtual void ExchangeResources();
+	virtual void Initialize();
+	virtual void Reset();
+
+	virtual void VerifyInput();
+	virtual void ReadCheckpoint(std::ifstream& inFile);
+	virtual void WriteCheckpoint(std::ofstream& outFile);
+
+	virtual void Update();
+	tw::vec3 GetIonizationKick(const tw::Float& a2,const tw::Float& q0,const tw::Float& m0);
+};
+
+export struct QSSolver:LaserSolver
+{
+	QSSolver(const std::string& name,Simulation* sim);
+};
+
+export struct PGCSolver:LaserSolver
+{
+	Field F;
+
+	PGCSolver(const std::string& name,Simulation* sim);
+	virtual void ExchangeResources();
+	virtual void Initialize();
+
+	virtual void MoveWindow();
+	virtual void AntiMoveWindow();
+
+	virtual void Update();
+	virtual void ComputeFinalFields();
+
+	virtual void Report(Diagnostic&);
+};
 
 //////////////////////////////
 //                          //
@@ -20,6 +76,7 @@ LaserSolver::LaserSolver(const std::string& name,Simulation* sim):Module(name,si
 	laserFreq = 10.0;
 	polarizationType = linearPolarization;
 	propagator = NULL;
+	debug = false;
 
 	a0.Initialize(*this,owner);
 	a1.Initialize(*this,owner);
@@ -28,6 +85,7 @@ LaserSolver::LaserSolver(const std::string& name,Simulation* sim):Module(name,si
 	directives.Add("carrier frequency",new tw::input::Float(&laserFreq));
 	std::map<std::string,tw_polarization_type> pol = {{"linear",linearPolarization},{"circular",circularPolarization},{"radial",radialPolarization}};
 	directives.Add("polarization",new tw::input::Enums<tw_polarization_type>(pol,&polarizationType),false);
+	directives.Add("debug",new tw::input::Bool(&debug),false);
 }
 
 LaserSolver::~LaserSolver()
@@ -49,6 +107,8 @@ void LaserSolver::Initialize()
 {
 	tw::vec3 pos;
 	tw::Float polarizationFactor;
+	const tw::Float dt = dx(0);
+	const tw::Float dth = 0.5*dt;
 
 	Module::Initialize();
 	propagator->SetData(laserFreq,dt,polarizationType,owner->movingWindow);
@@ -71,9 +131,32 @@ void LaserSolver::Initialize()
 		}
 }
 
+tw::vec3 LaserSolver::GetIonizationKick(const tw::Float& a2,const tw::Float& q0,const tw::Float& m0)
+{
+	tw::Float phase;
+	tw::vec3 ans;
+	if (polarizationType==circularPolarization)
+	{
+		phase = owner->uniformDeviate->Next()*2.0*pi;
+		// remember "a" has been multiplied by sqrt(2) at the beginning
+		ans.x = q0*sqrt(0.5*a2)*cos(phase);
+		ans.y = q0*sqrt(0.5*a2)*sin(phase);
+		ans.z = 0.25*q0*q0*a2/m0;
+	}
+	else
+	{
+		// for linear polarization, assume phase is at zero of vector potential (peak of field)
+		ans.x = 0.0;
+		ans.y = 0.0;
+		ans.z = 0.25*q0*q0*a2/m0;
+	}
+	return ans;
+}
+
 void LaserSolver::Update()
 {
-	propagator->Advance(a0,a1,chi);
+	if (!debug)
+		propagator->Advance(a0,a1,chi);
 }
 
 void LaserSolver::Reset()
@@ -196,6 +279,7 @@ void PGCSolver::MoveWindow()
 
 void PGCSolver::AntiMoveWindow()
 {
+	const tw::Float dth = 0.5*dx(0);
 	for (auto s : StripRange(*this,3,strongbool::yes))
 	{
 		tw::Float polarizationFactor = polarizationType==circularPolarization ? 1.414 : 1.0;
@@ -226,6 +310,7 @@ void PGCSolver::Update()
 	chi.Smooth(*owner,smoothing,compensation);
 	#pragma omp parallel
 	{
+		const tw::Float dth = 0.5*dx(0);
 		for (auto s : StripRange(*this,3,strongbool::yes))
 		{
 			for (tw::Int k=1;k<=dim[3];k++)
@@ -236,7 +321,8 @@ void PGCSolver::Update()
 	chi.UpwardCopy(tw::grid::z,1);
 	chi.ApplyBoundaryCondition();
 
-	propagator->Advance(a0,a1,chi);
+	if (!debug)
+		propagator->Advance(a0,a1,chi);
 	ComputeFinalFields();
 }
 
@@ -244,6 +330,7 @@ void PGCSolver::ComputeFinalFields()
 {
 	#pragma omp parallel
 	{
+		const tw::Float dth = 0.5*dx(0);
 		for (auto s : StripRange(*this,3,strongbool::yes))
 		{
 			for (tw::Int k=1;k<=dim[3];k++)
@@ -283,6 +370,8 @@ void PGCSolver::Report(Diagnostic& diagnostic)
 	ScalarField temp;
 	temp.Initialize(*this,owner);
 
+	const tw::Float dti = dk(0);
+	const tw::Float dth = 0.5*dx(0);
 	for (auto cell : InteriorCellRange(*this))
 	{
 		const tw::Complex aNow = half*(a0(cell)+a1(cell));
@@ -314,7 +403,7 @@ void PGCSolver::Report(Diagnostic& diagnostic)
 			temp(s,k) = -real(dadt - ii*laserFreq*anow);
 		}
 	}
-	diagnostic.Field("e_real",temp,0,tw::dims::electric_field,"$\\Re E$");
+	diagnostic.ReportField("e_real",temp,0,tw::dims::electric_field,"$\\Re E$");
 
 	for (auto s : StripRange(*this,3,strongbool::no))
 	{
@@ -325,11 +414,11 @@ void PGCSolver::Report(Diagnostic& diagnostic)
 			temp(s,k) = -imag(dadt - ii*laserFreq*anow);
 		}
 	}
-	diagnostic.Field("e_imag",temp,0,tw::dims::electric_field,"$\\Im E$");
+	diagnostic.ReportField("e_imag",temp,0,tw::dims::electric_field,"$\\Im E$");
 
-	diagnostic.Field("a_real_raw",a1,0,tw::dims::vector_potential,"$\\Re A$");
-	diagnostic.Field("a_imag_raw",a1,1,tw::dims::vector_potential,"$\\Im A$");
-	diagnostic.Field("a2",F,7,tw::dims::none,"$a^2$");
-	diagnostic.Field("j_real_pert",chi,0,tw::dims::current_density,"$\\Re j$");
-	diagnostic.Field("j_imag_pert",chi,1,tw::dims::current_density,"$\\Im j$");
+	diagnostic.ReportField("a_real_raw",a1,0,tw::dims::vector_potential,"$\\Re A$");
+	diagnostic.ReportField("a_imag_raw",a1,1,tw::dims::vector_potential,"$\\Im A$");
+	diagnostic.ReportField("a2",F,7,tw::dims::none,"$a^2$");
+	diagnostic.ReportField("j_real_pert",chi,0,tw::dims::current_density,"$\\Re j$");
+	diagnostic.ReportField("j_imag_pert",chi,1,tw::dims::current_density,"$\\Im j$");
 }

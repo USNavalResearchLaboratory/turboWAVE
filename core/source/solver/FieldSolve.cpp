@@ -1,6 +1,185 @@
-#include "simulation.h"
-#include "fieldSolve.h"
+module;
+
+#include "meta_base.h"
+
+export module field_solve;
+import input;
+import compute_tool;
+import twmodule;
+import fields;
+import elliptic;
+import hyperbolic;
+import diagnostics;
+import injection;
+
 using namespace tw::bc;
+
+export struct FieldSolver:Module
+{
+	EllipticSolver *ellipticSolver;
+
+	FieldSolver(const std::string& name,Simulation* sim);
+	virtual ~FieldSolver();
+	virtual void VerifyInput();
+};
+
+export struct Electromagnetic:FieldSolver
+{
+	Field F,sources;
+	ScalarField scratch1,scratch2,conductorMask;
+
+	tw::vec3 dipoleCenter,externalE,externalB;
+	tw::Float gammaBeam;
+
+	Electromagnetic(const std::string& name,Simulation* sim);
+	virtual void ExchangeResources();
+	virtual void Initialize();
+	virtual void Reset();
+	virtual void Update();
+	virtual void MoveWindow();
+	virtual void ReadCheckpoint(std::ifstream& inFile);
+	virtual void WriteCheckpoint(std::ofstream& outFile);
+
+	template <tw::Int X,tw::Int Y,tw::Int Z>
+	void LoadVectorPotential(Field& A,tw::Float t);
+	template <tw::Int X,tw::Int Y,tw::Int Z>
+	void CleanDivergence(Field& A,tw::Float charge_multiplier);
+	void InitializeConductors();
+	void SetExteriorBoundaryConditionsE(Field& A,const Element& ex,const Element& ey,const Element& ez);
+	void SetExteriorBoundaryConditionsB(Field& A,const Element& bx,const Element& by,const Element& bz);
+	void ForceQuasistaticVectorPotential(Field& A,ScalarField& DtPhi);
+
+	virtual void StartDiagnostics();
+	virtual void Report(Diagnostic&);
+};
+
+export struct CoulombSolver:Electromagnetic
+{
+	Field A4;
+	LindmanBoundary L1,L2,R1,R2;
+
+	CoulombSolver(const std::string& name,Simulation* sim);
+	virtual void ExchangeResources();
+	virtual void Initialize();
+	virtual void ReadCheckpoint(std::ifstream& inFile);
+	virtual void WriteCheckpoint(std::ofstream& outFile);
+
+	virtual void Update();
+	virtual void ComputeFinalFields();
+	virtual void Report(Diagnostic&);
+};
+
+export struct DirectSolver:Electromagnetic
+{
+	Field A;
+	Field PMLx,PMLy,PMLz;
+	tw::Int layerThickness[6];
+	tw::Float reflectionCoefficient[6];
+	bool enforceChargeConservation;
+
+	YeePropagatorPML *yeeTool;
+
+	DirectSolver(const std::string& name,Simulation* sim);
+	~DirectSolver();
+	virtual void Initialize();
+	virtual void Update();
+	virtual void MoveWindow();
+	virtual void ReadCheckpoint(std::ifstream& inFile);
+	virtual void WriteCheckpoint(std::ofstream& outFile);
+
+	void SetupPML(Field& pml,tw::Int g0,tw::Int gN,tw::Int L0,tw::Int L1,tw::Float R0,tw::Float R1,tw::Float ds);
+};
+
+export struct CurvilinearDirectSolver:DirectSolver
+{
+	CurvilinearDirectSolver(const std::string& name,Simulation* sim);
+	virtual void Initialize();
+	virtual void Update();
+	virtual void SetSingularPointsE();
+	virtual void SetSingularPointsB();
+};
+
+template <tw::Int X,tw::Int Y,tw::Int Z>
+void Electromagnetic::LoadVectorPotential(Field& A,tw::Float t)
+{
+	#pragma omp parallel
+	{
+		tw::Int i,j,k,s;
+		tw::vec3 r1,r2,r3;
+		for (auto cell : CellRange(A,true))
+		{
+			cell.Decode(&i,&j,&k);
+			r1.x = owner->X(i,1) - 0.5*owner->dX(i,1);
+			r1.y = owner->X(j,2);
+			r1.z = owner->X(k,3);
+			r2.x = owner->X(i,1);
+			r2.y = owner->X(j,2) - 0.5*owner->dX(j,2);
+			r2.z = owner->X(k,3);
+			r3.x = owner->X(i,1);
+			r3.y = owner->X(j,2);
+			r3.z = owner->X(k,3) - 0.5*owner->dX(k,3);
+			owner->CurvilinearToCartesian(&r1);
+			owner->CurvilinearToCartesian(&r2);
+			owner->CurvilinearToCartesian(&r3);
+			A(i,j,k,X) = 0.0;
+			A(i,j,k,Y) = 0.0;
+			A(i,j,k,Z) = 0.0;
+			for (s=0;s<wave.size();s++)
+			{
+				A(i,j,k,X) += wave[s]->VectorPotential(t,r1).x;
+				A(i,j,k,Y) += wave[s]->VectorPotential(t,r2).y;
+				A(i,j,k,Z) += wave[s]->VectorPotential(t,r3).z;
+			}
+		}
+	}
+	CleanDivergence<X,Y,Z>(A,0.0);
+}
+
+template <tw::Int X,tw::Int Y,tw::Int Z>
+void Electromagnetic::CleanDivergence(Field& A,tw::Float charge_multiplier)
+{
+	using namespace tw::bc;
+
+	#pragma omp parallel for collapse(3) schedule(static)
+	for (tw::Int i=1;i<=dim[1];i++)
+		for (tw::Int j=1;j<=dim[2];j++)
+			for (tw::Int k=1;k<=dim[3];k++)
+			{
+				scratch1(i,j,k) = charge_multiplier * sources(i,j,k,0);
+				scratch1(i,j,k) -= divE<X,Y,Z>(A,i,j,k,*owner);
+			}
+
+	ellipticSolver->SaveBoundaryConditions();
+	ellipticSolver->SetBoundaryConditions(fld::neumannWall,fld::neumannWall,fld::neumannWall,fld::neumannWall,fld::natural,fld::natural);
+	ellipticSolver->SetFieldsBoundaryConditions(scratch2,Element(0));
+	ellipticSolver->Solve(scratch2,scratch1,1.0);
+	scratch2.ApplyBoundaryCondition();
+	ellipticSolver->RestoreBoundaryConditions();
+
+	add_grad<0,X,Y,Z>(scratch2,A,*owner,1.0);
+
+	A.CopyFromNeighbors(Element(X,Z));
+	A.ApplyBoundaryCondition(Element(X,Z));
+}
+
+export struct FarFieldDiagnostic : Module
+{
+	// In the far field space the index space goes like (t,theta,phi)
+	tw::Float radius,bounds[6];
+	tw::Int dims[3];
+	tw::Int period;
+
+	Vec3Field A;
+	Field *J4;
+
+	FarFieldDiagnostic(const std::string& name,Simulation *sim);
+	virtual void Initialize();
+	virtual bool InspectResource(void *resource,const std::string& description);
+	virtual void ReadCheckpoint(std::ifstream& inFile);
+	virtual void WriteCheckpoint(std::ofstream& outFile);
+	virtual void Update();
+	void SpecialReport();
+};
 
 /////////////////////////////
 // FIELD SOLVER BASE CLASS //
@@ -47,11 +226,12 @@ void FieldSolver::VerifyInput()
 
 Electromagnetic::Electromagnetic(const std::string& name,Simulation* sim):FieldSolver(name,sim)
 {
-	if (1.0/dt <= sqrt(
-		(sim->globalCells[1]==1 ? 0.0 : 1.0)/sqr(dx(*sim)) +
-		(sim->globalCells[2]==1 ? 0.0 : 1.0)/sqr(dy(*sim)) +
-		(sim->globalCells[3]==1 ? 0.0 : 1.0)/sqr(dz(*sim))))
-		throw tw::FatalError("Courant condition is violated.");
+	if (dk(0) <= sqrt(
+		(sim->globalCells[1]==1 ? 0.0 : 1.0)*sqr(dk(1)) +
+		(sim->globalCells[2]==1 ? 0.0 : 1.0)*sqr(dk(2)) +
+		(sim->globalCells[3]==1 ? 0.0 : 1.0)*sqr(dk(3))))
+		throw tw::FatalError("Courant condition is violated " + 
+			std::to_string(dk(0)) + " " + std::to_string(dk(3)));
 
 	F.Initialize(6,*this,owner);
 	sources.Initialize(4,*this,owner);
@@ -67,6 +247,8 @@ Electromagnetic::Electromagnetic(const std::string& name,Simulation* sim):FieldS
 	#endif
 
 	directives.Add("dipole center",new tw::input::Vec3(&dipoleCenter),false);
+	directives.Add("external E",new tw::input::Vec3(&externalE),false);
+	directives.Add("external B",new tw::input::Vec3(&externalB),false);
 	directives.Add("gamma beam",new tw::input::Float(&gammaBeam),false);
 }
 
@@ -189,7 +371,7 @@ void Electromagnetic::ForceQuasistaticVectorPotential(Field& A4,ScalarField& DtP
 	// only works in cartesian, assumes coulomb gauge
 	tw::Int i,j,k,ax;
 	tw::Float beta = sqrt(1.0 - 1.0/sqr(gammaBeam));
-	tw::Float w = beta*dt*freq.z;
+	tw::Float w = beta*dx(0)*dk(3);
 	ScalarField ans,rhs;
 	ans.Initialize(*this,owner);
 	rhs.Initialize(*this,owner);
@@ -277,16 +459,16 @@ void Electromagnetic::Report(Diagnostic& diagnostic)
 	diagnostic.FirstMoment("Dx",sources,0,dipoleCenter,tw::grid::x);
 	diagnostic.FirstMoment("Dy",sources,0,dipoleCenter,tw::grid::y);
 	diagnostic.FirstMoment("Dz",sources,0,dipoleCenter,tw::grid::z);
-	diagnostic.Field("Ex",F,0,tw::dims::electric_field,"$E_x$");
-	diagnostic.Field("Ey",F,1,tw::dims::electric_field,"$E_y$");
-	diagnostic.Field("Ez",F,2,tw::dims::electric_field,"$E_z$");
-	diagnostic.Field("Bx",F,3,tw::dims::magnetic_field,"$B_x$");
-	diagnostic.Field("By",F,4,tw::dims::magnetic_field,"$B_y$");
-	diagnostic.Field("Bz",F,5,tw::dims::magnetic_field,"$B_z$");
-	diagnostic.Field("rho",sources,0,tw::dims::charge_density,"$\\rho$");
-	diagnostic.Field("Jx",sources,1,tw::dims::current_density,"$j_x$");
-	diagnostic.Field("Jy",sources,2,tw::dims::current_density,"$j_y$");
-	diagnostic.Field("Jz",sources,3,tw::dims::current_density,"$j_z$");
+	diagnostic.ReportField("Ex",F,0,tw::dims::electric_field,"$E_x$");
+	diagnostic.ReportField("Ey",F,1,tw::dims::electric_field,"$E_y$");
+	diagnostic.ReportField("Ez",F,2,tw::dims::electric_field,"$E_z$");
+	diagnostic.ReportField("Bx",F,3,tw::dims::magnetic_field,"$B_x$");
+	diagnostic.ReportField("By",F,4,tw::dims::magnetic_field,"$B_y$");
+	diagnostic.ReportField("Bz",F,5,tw::dims::magnetic_field,"$B_z$");
+	diagnostic.ReportField("rho",sources,0,tw::dims::charge_density,"$\\rho$");
+	diagnostic.ReportField("Jx",sources,1,tw::dims::current_density,"$j_x$");
+	diagnostic.ReportField("Jy",sources,2,tw::dims::current_density,"$j_y$");
+	diagnostic.ReportField("Jz",sources,3,tw::dims::current_density,"$j_z$");
 }
 
 
@@ -323,8 +505,8 @@ void CoulombSolver::Initialize()
 
 	// Initialize radiation fields
 
-	LoadVectorPotential<1,2,3>(A4,-dth);
-	LoadVectorPotential<5,6,7>(A4,dth);
+	LoadVectorPotential<1,2,3>(A4,-0.5*dx(0));
+	LoadVectorPotential<5,6,7>(A4,0.5*dx(0));
 
 	// Initialize static fields
 
@@ -361,6 +543,9 @@ void CoulombSolver::WriteCheckpoint(std::ofstream& outFile)
 void CoulombSolver::Update()
 {
 	Electromagnetic::Update();
+	const tw::Float dt = dx(0);
+	const tw::Float dth = 0.5*dt;
+	const tw::Float dti = dk(0);
 
 	// upon entry : A0(-1/2) , A1(1/2) , phi0(-1) , phi1(0) , J(1/2) , rho(1)
 	// upon exit : A0(1/2) , A1(3/2) , phi0(0) , phi1(1)
@@ -418,7 +603,7 @@ void CoulombSolver::Update()
 		L1.Set(A4,owner->elapsedTime+dth,dt);
 		L2.Set(A4,owner->elapsedTime+dth,dt);
 		for (auto strip : StripRange(A4,3,strongbool::no))
-			A4(strip,0,3) = A4(strip,1,3) + spacing.z*(A4.dfwd(strip,0,1,1) + A4.dfwd(strip,0,2,2));
+			A4(strip,0,3) = A4(strip,1,3) + dx(3)*(A4.dfwd(strip,0,1,1) + A4.dfwd(strip,0,2,2));
 	}
 
 	if (owner->n1[3]==MPI_PROC_NULL)
@@ -426,7 +611,7 @@ void CoulombSolver::Update()
 		R1.Set(A4,owner->elapsedTime+dth,dt);
 		R2.Set(A4,owner->elapsedTime+dth,dt);
 		for (auto strip : StripRange(A4,3,strongbool::no))
-			A4(strip,dim[3]+1,3) = A4(strip,dim[3],3) - spacing.z*(A4.dfwd(strip,dim[3],1,1) + A4.dfwd(strip,dim[3],2,2));
+			A4(strip,dim[3]+1,3) = A4(strip,dim[3],3) - dx(3)*(A4.dfwd(strip,dim[3],1,1) + A4.dfwd(strip,dim[3],2,2));
 	}
 
 	A4.DownwardCopy(tw::grid::x,Element(1,3),1);
@@ -445,6 +630,7 @@ void CoulombSolver::Update()
 
 void CoulombSolver::ComputeFinalFields()
 {
+	const tw::Float dti = this->dk(0);
 	#pragma omp parallel
 	{
 		for (auto v : VectorStripRange<3>(*this,false))
@@ -480,7 +666,7 @@ void CoulombSolver::Report(Diagnostic& diagnostic)
 	// Upon entry : A0(-1/2) , A1(1/2) , phi0(-1) , phi1(0)
 	Electromagnetic::Report(diagnostic);
 
-	diagnostic.Field("phi",A4,4,tw::dims::scalar_potential,"$\\phi$");
+	diagnostic.ReportField("phi",A4,4,tw::dims::scalar_potential,"$\\phi$");
 
 	std::map<tw::Int,std::string> xyz = {{1,"x"},{2,"y"},{3,"z"}};
 
@@ -489,12 +675,12 @@ void CoulombSolver::Report(Diagnostic& diagnostic)
 		scratch1 = 0.0;
 		AddMulFieldData(scratch1,Element(0),A4,Element(ax),0.5);
 		AddMulFieldData(scratch1,Element(0),A4,Element(ax+4),0.5);
-		diagnostic.Field("A"+xyz[ax],scratch1,0,tw::dims::vector_potential,"$A_"+xyz[ax]+"$");
+		diagnostic.ReportField("A"+xyz[ax],scratch1,0,tw::dims::vector_potential,"$A_"+xyz[ax]+"$");
 
 		scratch1 = 0.0;
-		AddMulFieldData(scratch1,Element(0),A4,Element(ax),-1.0/dt);
-		AddMulFieldData(scratch1,Element(0),A4,Element(ax+4),1.0/dt);
-		diagnostic.Field("A"+xyz[ax]+"Dot",scratch1,0,tw::dims::electric_field,"$\\dot{A}_"+xyz[ax]+"$");
+		AddMulFieldData(scratch1,Element(0),A4,Element(ax),-dk(0));
+		AddMulFieldData(scratch1,Element(0),A4,Element(ax+4),dk(0));
+		diagnostic.ReportField("A"+xyz[ax]+"Dot",scratch1,0,tw::dims::electric_field,"$\\dot{A}_"+xyz[ax]+"$");
 	}
 }
 
@@ -556,10 +742,10 @@ void DirectSolver::SetupPML(Field& pml,tw::Int g0,tw::Int gN,tw::Int L0,tw::Int 
 	for (i=pml.LFG(1);i<=pml.UFG(1);i++)
 	{
 		pml(i,0,0,0) = 1.0;
-		pml(i,0,0,1) = dt;
+		pml(i,0,0,1) = dx(0);
 		pml(i,0,0,2) = 1.0;
 		pml(i,0,0,3) = 1.0;
-		pml(i,0,0,4) = dt;
+		pml(i,0,0,4) = dx(0);
 		pml(i,0,0,5) = 1.0;
 	}
 
@@ -577,7 +763,7 @@ void DirectSolver::SetupPML(Field& pml,tw::Int g0,tw::Int gN,tw::Int L0,tw::Int 
 			{
 				sigma = maxConductivity * (sqr((p - p0)/delta) + sqr(ds/delta)/12.0);
 				sigma *= ig==0 || ig==L ? 0.5 : 1.0;
-				pml(i,0,0,0) = exp(-sigma*dt);
+				pml(i,0,0,0) = exp(-sigma*dx(0));
 				pml(i,0,0,1) = (1.0 - pml(i,0,0,0))/sigma;
 				pml(i,0,0,2) = 0.0;
 			}
@@ -585,7 +771,7 @@ void DirectSolver::SetupPML(Field& pml,tw::Int g0,tw::Int gN,tw::Int L0,tw::Int 
 			if (ig > 0 && ig <= L)
 			{
 				sigma = maxConductivity * (sqr((p - p0)/delta) + sqr(ds/delta)/12.0);
-				pml(i,0,0,3) = exp(-sigma*dt);
+				pml(i,0,0,3) = exp(-sigma*dx(0));
 				pml(i,0,0,4) = (1.0 - pml(i,0,0,3))/sigma;
 				pml(i,0,0,5) = 0.0;
 			}
@@ -611,7 +797,7 @@ void DirectSolver::SetupPML(Field& pml,tw::Int g0,tw::Int gN,tw::Int L0,tw::Int 
 			{
 				sigma = maxConductivity * (sqr((p - p0)/delta) + sqr(ds/delta)/12.0);
 				sigma *= ig==N1 || ig==N1-L ? 0.5 : 1.0;
-				pml(i,0,0,0) = exp(-sigma*dt);
+				pml(i,0,0,0) = exp(-sigma*dx(0));
 				pml(i,0,0,1) = (1.0 - pml(i,0,0,0))/sigma;
 				pml(i,0,0,2) = 0.0;
 			}
@@ -619,7 +805,7 @@ void DirectSolver::SetupPML(Field& pml,tw::Int g0,tw::Int gN,tw::Int L0,tw::Int 
 			if (ig > N1-L && ig <= N1)
 			{
 				sigma = maxConductivity * (sqr((p - p0)/delta) + sqr(ds/delta)/12.0);
-				pml(i,0,0,3) = exp(-sigma*dt);
+				pml(i,0,0,3) = exp(-sigma*dx(0));
 				pml(i,0,0,4) = (1.0 - pml(i,0,0,3))/sigma;
 				pml(i,0,0,5) = 0.0;
 			}
@@ -644,9 +830,9 @@ void DirectSolver::Initialize()
 
 	// Setup PML media
 
-	SetupPML(PMLx,owner->GlobalCellIndex(0,1),owner->globalCells[1],layerThickness[0],layerThickness[1],reflectionCoefficient[0],reflectionCoefficient[1],spacing.x);
-	SetupPML(PMLy,owner->GlobalCellIndex(0,2),owner->globalCells[2],layerThickness[2],layerThickness[3],reflectionCoefficient[2],reflectionCoefficient[3],spacing.y);
-	SetupPML(PMLz,owner->GlobalCellIndex(0,3),owner->globalCells[3],layerThickness[4],layerThickness[5],reflectionCoefficient[4],reflectionCoefficient[5],spacing.z);
+	SetupPML(PMLx,owner->GlobalCellIndex(0,1),owner->globalCells[1],layerThickness[0],layerThickness[1],reflectionCoefficient[0],reflectionCoefficient[1],spacing[1]);
+	SetupPML(PMLy,owner->GlobalCellIndex(0,2),owner->globalCells[2],layerThickness[2],layerThickness[3],reflectionCoefficient[2],reflectionCoefficient[3],spacing[2]);
+	SetupPML(PMLz,owner->GlobalCellIndex(0,3),owner->globalCells[3],layerThickness[4],layerThickness[5],reflectionCoefficient[4],reflectionCoefficient[5],spacing[3]);
 
 	#ifdef USE_OPENCL
 	A.SendToComputeBuffer();
@@ -658,7 +844,7 @@ void DirectSolver::Initialize()
 
 	// Initialize radiation fields
 
-	LoadVectorPotential<0,1,2>(A0,-dth);
+	LoadVectorPotential<0,1,2>(A0,-0.5*dx(0));
 	#pragma omp parallel
 	{
 		for (auto v : VectorStripRange<3>(*this,true))
@@ -666,12 +852,12 @@ void DirectSolver::Initialize()
 			#pragma omp simd
 			for (tw::Int k=lfg[3];k<=ufg[3];k++)
 			{
-				A(v,k,0) = 0.5*dti*A0(v,k,0);
-				A(v,k,1) = 0.5*dti*A0(v,k,0);
-				A(v,k,2) = 0.5*dti*A0(v,k,1);
-				A(v,k,3) = 0.5*dti*A0(v,k,1);
-				A(v,k,4) = 0.5*dti*A0(v,k,2);
-				A(v,k,5) = 0.5*dti*A0(v,k,2);
+				A(v,k,0) = 0.5*dk(0)*A0(v,k,0);
+				A(v,k,1) = 0.5*dk(0)*A0(v,k,0);
+				A(v,k,2) = 0.5*dk(0)*A0(v,k,1);
+				A(v,k,3) = 0.5*dk(0)*A0(v,k,1);
+				A(v,k,4) = 0.5*dk(0)*A0(v,k,2);
+				A(v,k,5) = 0.5*dk(0)*A0(v,k,2);
 				A(v,k,6) = 0.0;
 				A(v,k,7) = 0.0;
 				A(v,k,8) = 0.0;
@@ -686,9 +872,9 @@ void DirectSolver::Initialize()
 	add_curlE<0,1,2,7,9,11>(A0,A,*owner,0.5);
 	A.CopyFromNeighbors();
 	A.ApplyBoundaryCondition();
-	yeeTool->PrepCenteredFields(F,A);
+	yeeTool->PrepCenteredFields(F,A,externalE,externalB);
 
-	LoadVectorPotential<0,1,2>(A0,dth);
+	LoadVectorPotential<0,1,2>(A0,0.5*dx(0));
 	#pragma omp parallel
 	{
 		for (auto v : VectorStripRange<3>(*this,true))
@@ -696,12 +882,12 @@ void DirectSolver::Initialize()
 			#pragma omp simd
 			for (tw::Int k=lfg[3];k<=ufg[3];k++)
 			{
-				A(v,k,0) -= 0.5*dti*A0(v,k,0);
-				A(v,k,1) -= 0.5*dti*A0(v,k,0);
-				A(v,k,2) -= 0.5*dti*A0(v,k,1);
-				A(v,k,3) -= 0.5*dti*A0(v,k,1);
-				A(v,k,4) -= 0.5*dti*A0(v,k,2);
-				A(v,k,5) -= 0.5*dti*A0(v,k,2);
+				A(v,k,0) -= 0.5*dk(0)*A0(v,k,0);
+				A(v,k,1) -= 0.5*dk(0)*A0(v,k,0);
+				A(v,k,2) -= 0.5*dk(0)*A0(v,k,1);
+				A(v,k,3) -= 0.5*dk(0)*A0(v,k,1);
+				A(v,k,4) -= 0.5*dk(0)*A0(v,k,2);
+				A(v,k,5) -= 0.5*dk(0)*A0(v,k,2);
 				A(v,k,6) = 0.0;
 				A(v,k,7) = 0.0;
 				A(v,k,8) = 0.0;
@@ -771,7 +957,7 @@ void DirectSolver::Update()
 		#endif
 		for (auto c : conductor)
 			if (c->currentType==EM::current::electric)
-				c->DepositSources(sources, owner->elapsedTime, dt);
+				c->DepositSources(sources, owner->elapsedTime, dx(0));
 		#ifdef USE_OPENCL
 		sources.SendToComputeBuffer();
 		#endif
@@ -787,7 +973,7 @@ void DirectSolver::Update()
 
 	// Save the old magnetic field so final fields can be centered
 
-	yeeTool->PrepCenteredFields(F,A);
+	yeeTool->PrepCenteredFields(F,A,externalE,externalB);
 
 	// Advance the magnetic field
 
@@ -815,6 +1001,9 @@ CurvilinearDirectSolver::CurvilinearDirectSolver(const std::string& name,Simulat
 void CurvilinearDirectSolver::Initialize()
 {
 	Field A0;
+	const tw::Float dt = spacing[0];
+	const tw::Float dti = freq[0];
+	const tw::Float dth = 0.5*dt;
 
 	Electromagnetic::Initialize();
 	A0.Initialize(3,*this,owner);
@@ -935,6 +1124,7 @@ void CurvilinearDirectSolver::SetSingularPointsB()
 	// Assume that F holds the old staggered B-field at this point
 	// Then use curlE = -dB/dt to update B
 	tw::Int i,j,k;
+	const tw::Float dt = dx(0);
 	if (owner->gridGeometry==tw::grid::cylindrical && owner->X(0,1)<0.0)
 	{
 		for (k=lfg[3];k<=ufg[3];k++)
@@ -967,6 +1157,7 @@ void CurvilinearDirectSolver::SetSingularPointsB()
 void CurvilinearDirectSolver::Update()
 {
 	tw::vec3 S;
+	const tw::Float dt = dx(0);
 
 	// Add electric antenna currents
 
@@ -1038,8 +1229,8 @@ void FarFieldDiagnostic::Initialize()
 {
 	if (J4==NULL)
 		throw tw::FatalError("Far field diagnostic did not find a source field.");
-	tw::vec3 corner(bounds[0],bounds[2],bounds[4]);
-	tw::vec3 size(bounds[1]-bounds[0],bounds[3]-bounds[2],bounds[5]-bounds[4]);
+	tw::vec4 corner(-0.5*dx(0),bounds[0],bounds[2],bounds[4]);
+	tw::vec4 size(dx(0),bounds[1]-bounds[0],bounds[3]-bounds[2],bounds[5]-bounds[4]);
 	A.Initialize(DiscreteSpace(dims[0],dims[1],dims[2],corner,size,1),owner);
 }
 
@@ -1071,14 +1262,14 @@ void FarFieldDiagnostic::Update()
 	const tw::Float zmin = owner->X(1,3) - 0.5*owner->dX(1,3);
 	const tw::Float zmax = owner->X(Dim(3),3) + 0.5*owner->dX(Dim(3),3);
 	const tw::Float tp = owner->elapsedTime;
-	const tw::Float dtau = dt * tw::Float(period);
+	const tw::Float dtau = dx(0) * tw::Float(period);
 
 	if (owner->stepNow % period==0)
 		for (auto farCell : InteriorCellRange(A))
 		{
-			const tw::Float tNow = bounds[0] + dx(A)*tw::Float(farCell.dcd1());
-			const tw::Float thetaNow = bounds[2] + dy(A)*tw::Float(farCell.dcd2());
-			const tw::Float phiNow = bounds[4] + dz(A)*tw::Float(farCell.dcd3());
+			const tw::Float tNow = bounds[0] + A.dx(1)*tw::Float(farCell.dcd1());
+			const tw::Float thetaNow = bounds[2] + A.dx(2)*tw::Float(farCell.dcd2());
+			const tw::Float phiNow = bounds[4] + A.dx(3)*tw::Float(farCell.dcd3());
 			const tw::vec3 n(sin(thetaNow)*cos(phiNow),sin(thetaNow)*sin(phiNow),cos(thetaNow));
 			#pragma omp parallel
 			{
@@ -1091,7 +1282,7 @@ void FarFieldDiagnostic::Update()
 					if (rp.z > zmin && rp.z < zmax)
 					{
 						weights_3D w;
-						owner->GetWeights(&w,rp);
+						owner->GetWeights(&w,tw::vec4(tp,rp));
 						J4->Interpolate(j4,w);
 						A(farCell) += tw::vec3(j4[1],j4[2],j4[3]) * dS * dtau / radius;
 					}
@@ -1120,8 +1311,8 @@ void FarFieldDiagnostic::SpecialReport()
 		// put vector potential in coulomb gauge and spherical coordinates
 		for (auto farCell : InteriorCellRange(accum))
 		{
-			const tw::Float theta = bounds[2] + dy(A)*tw::Float(farCell.dcd2());
-			const tw::Float phi = bounds[4] + dz(A)*tw::Float(farCell.dcd3());
+			const tw::Float theta = bounds[2] + A.dx(2)*tw::Float(farCell.dcd2());
+			const tw::Float phi = bounds[4] + A.dx(3)*tw::Float(farCell.dcd3());
 			const tw::vec3 nr( sin(theta)*cos(phi) , sin(theta)*sin(phi) , cos(theta) );
 			const tw::vec3 nq( cos(theta)*cos(phi) , cos(theta)*sin(phi) , -sin(theta) );
 			const tw::vec3 nf( -sin(phi) , cos(phi) , 0.0 );

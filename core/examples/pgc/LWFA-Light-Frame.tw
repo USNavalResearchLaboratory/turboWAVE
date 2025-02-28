@@ -1,8 +1,6 @@
 // Keep the following line for generating twtest reports
 // TWTEST matplotlib zxyt=0,: Ez.npy
 
-steps = 500
-timestep = 0.08
 dump period = 0
 moving window = yes
 neutralize = yes
@@ -18,10 +16,10 @@ zboundary = ( absorbing , absorbing )
 
 new grid
 {
-	corner = ( -16.0 , -0.5 , -25.6 )
-	dimensions = ( 128 , 1 , 256 )
-	cell size = ( 0.25 , 1.0 , 0.1 )
-	decomposition = ( 1 , 1 , 1 )
+	origin = ( 0.5, 0.5, 0.5, 1.0 )
+	dimensions = ( 500, 128, 1, 256 )
+	cell size = ( 0.08, 0.25, 1.0, 0.1 )
+	decomposition = ( 1, 1, 1, 1 )
 }
 
 new direct electromagnetic module
@@ -39,7 +37,7 @@ new eigenmode propagator for 'pgc'
 
 new hermite gauss pulse for 'pgc'
 {
-	a = 0.5 0.0 0.0
+	a = ( 0.5, 0.0, 0.0 )
 	r0 = ( 5 , 1e5 )
 	w = 50
 	risetime = 3
@@ -52,7 +50,7 @@ new hermite gauss pulse for 'pgc'
 
 new species 'e'
 {
-	particles per cell = 4 1 4 when density = 1
+	particles per cell = (4 1 4) when density = 1
 }
 
 generate piecewise 'e'

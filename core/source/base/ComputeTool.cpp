@@ -1,5 +1,109 @@
+module;
+
 #include "meta_base.h"
-#include "meta_tools.h"
+
+export module compute_tool;
+import input;
+import region;
+import fields;
+
+// ComputeTool objects provide low level functionality that is accessible to all Modules.
+// They retain pointers to MetricSpace (grid information) and Task (access to MPI communicators).
+// A facility for interfacing with OpenCL kernels is provided.
+
+// Each class of tool has a unique identifier of type tw::tool_type.
+// Each instance of a tool has a unique name encoded as a string.
+// To avoid duplicate names, there is an automatic name mangling mechanism.
+// Automatic mangling relies on always creating a tool via Simulation::CreateTool
+
+// Module and ComputeTool are somewhat similar.
+// ComputeTool is intended to be heavy on computations, light on data ownership.
+// Module is intended to own and manage data, while delegating heavy computations.
+
+export namespace tw
+{
+	enum class tool_type
+	{
+		none,warp,
+		// Profiles
+		uniformProfile,channelProfile,gaussianProfile,columnProfile,piecewiseProfile,corrugatedProfile,
+		// Wave launchers
+		conductor, planeWave, besselBeam, airyDisc, hermiteGauss, laguerreGauss, multipole,
+		// Laser propagators
+		eigenmodePropagator, adiPropagator, isotropicPropagator, schroedingerPropagator,
+		// Elliptic solvers
+		iterativePoissonSolver, facrPoissonSolver, eigenmodePoissonSolver, ellipticSolver1D,
+		// Diffusion
+		generalParabolicPropagator,
+		// Hyperbolic solvers
+		yeePropagatorPML, lorentzPropagator,
+		// Equation of state
+		eosData, eosIdealGas, eosHotElectrons, eosMixture, eosIdealGasMix, eosSimpleMieGruneisen, eosLinearMieGruneisen,
+		eosTillotson,
+		// Ionization
+		mpi, adk, kyh, ppt_tunneling, ppt, pmpb,
+		// Diagnostics
+		boxDiagnostic,particleOrbits,phaseSpaceDiagnostic,volumeDiagnostic,pointDiagnostic,
+		// Quantum
+		randomState,freeState,boundState,tabulatedState,
+		// Quantum Electrodynamics
+		photonGenerator,pairCreator,
+		// Movers
+		borisMover,hcMover,pgcMover,unitaryMover,bohmianMover,photonMover
+	};
+}
+
+export struct ComputeTool : Testable
+{
+	MetricSpace *space;
+	Task *task;
+	std::string name;
+	int refCount; // how many modules currently using
+	tw::input::DirectiveReader directives;
+	tw::UnitConverter native,natural,atomic,plasma,cgs,mks;
+
+	// Allow for a region
+	std::string region_name;
+	Region *theRgn;
+
+	// OpenCL Support
+	private:
+	std::string programFilename;
+	std::string buildLog;
+	public:
+	#ifdef USE_OPENCL
+	cl_program program;
+	#endif
+
+	ComputeTool(const std::string& name,MetricSpace *ms,Task *tsk);
+	virtual ~ComputeTool();
+	virtual void Initialize();
+	virtual void WarningMessage(std::ostream *theStream);
+	virtual void StatusMessage(std::ostream *theStream) {;}
+	virtual void ReadInputFileBlock(TSTreeCursor *curs,const std::string& src);
+	virtual bool ReadInputFileDirective(const TSTreeCursor *curs,const std::string& src);
+	virtual void ReadCheckpoint(std::ifstream& inFile);
+	virtual void WriteCheckpoint(std::ofstream& outFile);
+	virtual bool Test(tw::Int& id);
+
+	void InitializeCLProgram(const std::string& filename);
+
+	static std::map<std::string,tw::tool_type> Map();
+	static tw::tool_type CreateTypeFromInput(const tw::input::Preamble& preamble);
+	static bool SetTestGrid(tw::tool_type theType,tw::Int gridId,MetricSpace *ms,Task *tsk);
+};
+
+export struct BoundedTool : ComputeTool
+{
+	tw::bc::fld x0,x1,y0,y1,z0,z1;
+	tw::bc::fld x0s,x1s,y0s,y1s,z0s,z1s; // saved BC's
+
+	BoundedTool(const std::string& name,MetricSpace *ms,Task *tsk);
+	void SetBoundaryConditions(tw::bc::fld x0,tw::bc::fld x1,tw::bc::fld y0,tw::bc::fld y1,tw::bc::fld z0,tw::bc::fld z1);
+	void SaveBoundaryConditions();
+	void RestoreBoundaryConditions();
+	void SetFieldsBoundaryConditions(Field& F,const Element& e);
+};
 
 //////////////////////////
 //                      //
@@ -58,21 +162,28 @@ void ComputeTool::InitializeCLProgram(const std::string& filename)
 	#endif
 }
 
-void ComputeTool::ReadInputFileDirective(std::stringstream& inputString,const std::string& command)
+/// @brief called if an assignment was not handled normally
+/// @param curs on a directive, probably a custom assignment
+/// @param src source document
+/// @returns whether any directive was handled
+bool ComputeTool::ReadInputFileDirective(const TSTreeCursor *curs,const std::string& src)
 {
-	// Handle any directives that cannot be handled by DirectiveReader
+	return false;
 }
 
-void ComputeTool::ReadInputFileBlock(std::stringstream& inputString)
+/// @brief read all directives in the block
+/// @param curs can be on block or on first child of block
+/// @param src source document
+void ComputeTool::ReadInputFileBlock(TSTreeCursor *curs,const std::string& src)
 {
-	std::string com;
+	if (tw::input::node_kind(curs)=="block") {
+		ts_tree_cursor_goto_first_child(curs);
+	}
 	do
 	{
-		com = directives.ReadNext(inputString);
-		if (com=="tw::EOF")
-			throw tw::FatalError("Encountered EOF while processing <"+name+">.");
-		ReadInputFileDirective(inputString,com);
-	} while (com!="}");
+		if (!directives.ReadNext(curs,src))
+			ReadInputFileDirective(curs,src);
+	} while (ts_tree_cursor_goto_next_sibling(curs));
 	directives.ThrowErrorIfMissingKeys(name);
 }
 
@@ -146,193 +257,23 @@ std::map<std::string,tw::tool_type> ComputeTool::Map()
 		{"qstate bound",tw::tool_type::boundState},
 		{"qstate random",tw::tool_type::randomState},
 		{"qstate tabulated",tw::tool_type::tabulatedState},
+		{"photon generator",tw::tool_type::photonGenerator},
+		{"pair creator",tw::tool_type::pairCreator},
 		{"boris mover",tw::tool_type::borisMover},
+		{"hc mover",tw::tool_type::hcMover},
 		{"pgc mover",tw::tool_type::pgcMover},
 		{"unitary mover",tw::tool_type::unitaryMover},
-		{"bohmian mover",tw::tool_type::bohmianMover}
+		{"bohmian mover",tw::tool_type::bohmianMover},
+		{"photon mover",tw::tool_type::photonMover}
 	};
 }
 
 tw::tool_type ComputeTool::CreateTypeFromInput(const tw::input::Preamble& preamble)
 {
-	// Look for a ComputeTool key on a preamble (words between new and opening brace) and return the type of tool.
-	const tw::Int max_words = preamble.words.size();
 	std::map<std::string,tw::tool_type> tool_map = ComputeTool::Map();
-	for (tw::Int i=1;i<=max_words;i++)
-	{
-		std::string key(tw::input::GetPhrase(preamble.words,i));
-		if (tool_map.find(key)!=tool_map.end())
-			return tool_map[key];
-	}
+	if (tool_map.find(preamble.obj_key)!=tool_map.end())
+		return tool_map[preamble.obj_key];
 	return tw::tool_type::none;
-}
-
-ComputeTool* ComputeTool::CreateObjectFromType(const std::string& name,tw::tool_type theType,MetricSpace *ms,Task *tsk)
-{
-	ComputeTool *ans;
-	switch (theType)
-	{
-		case tw::tool_type::none:
-			ans = NULL;
-			break;
-		case tw::tool_type::warp:
-			ans = new Warp(name,ms,tsk);
-			break;
-		case tw::tool_type::conductor:
-			ans = new Conductor(name,ms,tsk);
-			break;
-		case tw::tool_type::planeWave:
-			ans = new PlaneWave(name,ms,tsk);
-			break;
-		case tw::tool_type::hermiteGauss:
-			ans = new HermiteGauss(name,ms,tsk);
-			break;
-		case tw::tool_type::laguerreGauss:
-			ans = new LaguerreGauss(name,ms,tsk);
-			break;
-		case tw::tool_type::besselBeam:
-			ans = new BesselBeam(name,ms,tsk);
-			break;
-		case tw::tool_type::airyDisc:
-			ans = new AiryDisc(name,ms,tsk);
-			break;
-		case tw::tool_type::multipole:
-			ans = new Multipole(name,ms,tsk);
-			break;
-		case tw::tool_type::uniformProfile:
-			ans = new UniformProfile(name,ms,tsk);
-			break;
-		case tw::tool_type::piecewiseProfile:
-			ans = new PiecewiseProfile(name,ms,tsk);
-			break;
-		case tw::tool_type::channelProfile:
-			ans = new ChannelProfile(name,ms,tsk);
-			break;
-		case tw::tool_type::columnProfile:
-			ans = new ColumnProfile(name,ms,tsk);
-			break;
-		case tw::tool_type::gaussianProfile:
-			ans = new GaussianProfile(name,ms,tsk);
-			break;
-		case tw::tool_type::corrugatedProfile:
-			ans = new CorrugatedProfile(name,ms,tsk);
-			break;
-		case tw::tool_type::eigenmodePropagator:
-			ans = new EigenmodePropagator(name,ms,tsk);
-			break;
-		case tw::tool_type::adiPropagator:
-			ans = new ADIPropagator(name,ms,tsk);
-			break;
-		case tw::tool_type::isotropicPropagator:
-			ans = new IsotropicPropagator(name,ms,tsk);
-			break;
-		case tw::tool_type::generalParabolicPropagator:
-			ans = new ParabolicSolver(name,ms,tsk);
-			break;
-		case tw::tool_type::schroedingerPropagator:
-			ans = new SchroedingerPropagator(name,ms,tsk);
-			break;
-		case tw::tool_type::iterativePoissonSolver:
-			ans = new IterativePoissonSolver(name,ms,tsk);
-			break;
-		case tw::tool_type::ellipticSolver1D:
-			ans = new EllipticSolver1D(name,ms,tsk);
-			break;
-		case tw::tool_type::facrPoissonSolver:
-			ans = new PoissonSolver(name,ms,tsk);
-			break;
-		case tw::tool_type::eigenmodePoissonSolver:
-			ans = new EigenmodePoissonSolver(name,ms,tsk);
-			break;
-		case tw::tool_type::yeePropagatorPML:
-			ans = new YeePropagatorPML(name,ms,tsk);
-			break;
-		case tw::tool_type::lorentzPropagator:
-			ans = new LorentzPropagator(name,ms,tsk);
-			break;
-		case tw::tool_type::eosData:
-			ans = new EOSComponent(name,ms,tsk);
-			break;
-		case tw::tool_type::eosIdealGas:
-			ans = new EOSIdealGas(name,ms,tsk);
-			break;
-		case tw::tool_type::eosHotElectrons:
-			ans = new EOSHotElectrons(name,ms,tsk);
-			break;
-		case tw::tool_type::eosMixture:
-			ans = new EOSMixture(name,ms,tsk);
-			break;
-		case tw::tool_type::eosIdealGasMix:
-			ans = new EOSIdealGasMix(name,ms,tsk);
-			break;
-		case tw::tool_type::eosSimpleMieGruneisen:
-			ans = new EOSSimpleMieGruneisen(name,ms,tsk);
-			break;
-		case tw::tool_type::eosLinearMieGruneisen:
-			ans = new EOSLinearMieGruneisen(name,ms,tsk);
-			break;
-		case tw::tool_type::eosTillotson:
-			ans = new EOSTillotson(name,ms,tsk);
-			break;
-		case tw::tool_type::mpi:
-			ans = new Multiphoton(name,ms,tsk);
-			break;
-		case tw::tool_type::adk:
-			ans = new ADK(name,ms,tsk);
-			break;
-		case tw::tool_type::ppt:
-			ans = new PPT(name,ms,tsk);
-			break;
-		case tw::tool_type::ppt_tunneling:
-			ans = new PPT_Tunneling(name,ms,tsk);
-			break;
-		case tw::tool_type::kyh:
-			ans = new KYH(name,ms,tsk);
-			break;
-		case tw::tool_type::pmpb:
-			ans = new PMPB(name,ms,tsk);
-			break;
-		case tw::tool_type::boxDiagnostic:
-			ans = new BoxDiagnostic(name,ms,tsk);
-			break;
-		case tw::tool_type::pointDiagnostic:
-			ans = new PointDiagnostic(name,ms,tsk);
-			break;
-		case tw::tool_type::volumeDiagnostic:
-			ans = new VolumeDiagnostic(name,ms,tsk);
-			break;
-		case tw::tool_type::particleOrbits:
-			ans = new ParticleOrbits(name,ms,tsk);
-			break;
-		case tw::tool_type::phaseSpaceDiagnostic:
-			ans = new PhaseSpaceDiagnostic(name,ms,tsk);
-			break;
-		case tw::tool_type::boundState:
-			ans = new BoundState(name,ms,tsk);
-			break;
-		case tw::tool_type::freeState:
-			ans = new FreeState(name,ms,tsk);
-			break;
-		case tw::tool_type::randomState:
-			ans = new RandomState(name,ms,tsk);
-			break;
-		case tw::tool_type::tabulatedState:
-			ans = new TabulatedState(name,ms,tsk);
-			break;
-		case tw::tool_type::borisMover:
-			ans = new BorisMover(name,ms,tsk);
-			break;
-		case tw::tool_type::pgcMover:
-			ans = new PGCMover(name,ms,tsk);
-			break;
-		case tw::tool_type::unitaryMover:
-			ans = new UnitaryMover(name,ms,tsk);
-			break;
-		case tw::tool_type::bohmianMover:
-			ans = new BohmianMover(name,ms,tsk);
-			break;
-	}
-	return ans;
 }
 
 bool ComputeTool::SetTestGrid(tw::tool_type theType,tw::Int gridId,MetricSpace *ms,Task *tsk)
@@ -342,35 +283,31 @@ bool ComputeTool::SetTestGrid(tw::tool_type theType,tw::Int gridId,MetricSpace *
 		case tw::tool_type::ellipticSolver1D:
 			if (gridId>1)
 				return false;
-			tsk->Initialize(tw::idx4(1,1,2).array,tw::idx4(1,1,4).array,tw::idx4(1,1,0).array);
-			ms->Resize(*tsk,tw::vec3(0,0,0),tw::vec3(0.2,0.2,0.8),2);
-			ms->SetupTimeInfo(0.1);
+			tsk->Initialize(tw::idx4(1,1,1,2).array,tw::idx4(1,1,1,4).array,tw::idx4(0,1,1,0).array);
+			ms->Resize(*tsk,tw::vec4(0,0,0,0),tw::vec4(0.1,0.2,0.2,0.8),2);
 			return true;
 		case tw::tool_type::pgcMover:
+		case tw::tool_type::hcMover:
 		case tw::tool_type::borisMover:
 			if (gridId==1) {
-				tsk->Initialize(tw::idx4(1,1,2).array,tw::idx4(1,1,4).array,tw::idx4(1,1,0).array);
-				ms->Resize(*tsk,tw::vec3(0,0,0),tw::vec3(0.2,0.2,0.8),2);
-				ms->SetupTimeInfo(0.1);
+				tsk->Initialize(tw::idx4(1,1,1,2).array,tw::idx4(1,1,1,4).array,tw::idx4(0,1,1,0).array);
+				ms->Resize(*tsk,tw::vec4(0,0,0,0),tw::vec4(0.1,0.2,0.2,0.8),2);
 				return true;
 			} else if (gridId==2) {
-				tsk->Initialize(tw::idx4(1,1,2).array,tw::idx4(4,1,4).array,tw::idx4(1,1,0).array);
-				ms->Resize(*tsk,tw::vec3(0,0,0),tw::vec3(0.8,0.2,0.8),2);
-				ms->SetupTimeInfo(0.1);
+				tsk->Initialize(tw::idx4(1,1,1,2).array,tw::idx4(1,4,1,4).array,tw::idx4(0,1,1,0).array);
+				ms->Resize(*tsk,tw::vec4(0,0,0,0),tw::vec4(0.1,0.8,0.2,0.8),2);
 				return true;
 			} else if (gridId==3) {
-				tsk->Initialize(tw::idx4(1,1,2).array,tw::idx4(4,4,4).array,tw::idx4(1,1,0).array);
-				ms->Resize(*tsk,tw::vec3(0,0,0),tw::vec3(0.8,0.8,0.8),2);
-				ms->SetupTimeInfo(0.1);
+				tsk->Initialize(tw::idx4(1,1,1,2).array,tw::idx4(1,4,4,4).array,tw::idx4(0,1,1,0).array);
+				ms->Resize(*tsk,tw::vec4(0,0,0,0),tw::vec4(0.1,0.8,0.8,0.8),2);
 				return true;
 			}
 			return false;
 		default:
 			if (gridId>1)
 				return false;
-			tsk->Initialize(tw::idx4(1,1,2).array,tw::idx4(4,4,4).array,tw::idx4(1,1,0).array);
-			ms->Resize(*tsk,tw::vec3(0,0,0),tw::vec3(0.8,0.8,0.8),2);
-			ms->SetupTimeInfo(0.1);
+			tsk->Initialize(tw::idx4(1,1,1,2).array,tw::idx4(1,4,4,4).array,tw::idx4(0,1,1,0).array);
+			ms->Resize(*tsk,tw::vec4(0,0,0,0),tw::vec4(0.1,0.8,0.8,0.8),2);
 			return true;
 	}
 }

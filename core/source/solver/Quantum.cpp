@@ -1,7 +1,257 @@
-#include "simulation.h"
-#include "quantum.h"
+module;
+
+#include "meta_base.h"
+
+export module quantum;
+import input;
+import numerics;
+import qstate;
+import compute_tool;
+import twmodule;
+import fields;
+import diagnostics;
+import hyperbolic;
+import parabolic;
+
 using namespace tw::bc;
 
+struct AtomicPhysics:Module
+{
+	tw::Float alpha; // fine structure constant
+	HamiltonianParameters H;
+	LorentzPropagator *photonPropagator;
+	std::vector<QState*> waveFunction;
+
+	// Solution method
+	bool keepA2Term,dipoleApproximation;
+	tw::Float timeRelaxingToGround;
+
+	// Data
+	Field psi_r,psi_i; // real and imaginary parts of wavefunction
+	Field A4,Ao4; // EM 4-potential and old 4-potential
+	Field J4; // EM 4-current
+
+	AtomicPhysics(const std::string& name,Simulation* sim);
+	virtual ~AtomicPhysics();
+	virtual void Initialize();
+	virtual void ExchangeResources();
+	tw::Float GetSphericalPotential(tw::Float r) const;
+	void FormPotentials(tw::Float t);
+	void FormGhostCellPotentials(tw::Float t);
+	tw::vec4 GetA4AtOrigin();
+
+	tw::Complex Psi(const tw::Int& i,const tw::Int& j,const tw::Int& k,const tw::Int& c) const
+	{
+		return tw::Complex(psi_r(i,j,k,c),psi_i(i,j,k,c));
+	}
+	tw::Complex Psi(const tw::cell& cell,const tw::Int& c) const
+	{
+		return tw::Complex(psi_r(cell,c),psi_i(cell,c));
+	}
+	tw::Complex Psi(const tw::xstrip<1>& v,const tw::Int& i,const tw::Int& c) const
+	{
+		return tw::Complex(psi_r(v,i,c),psi_i(v,i,c));
+	}
+	virtual void VerifyInput();
+	virtual bool ReadInputFileDirective(const TSTreeCursor *curs,const std::string& src);
+	virtual void ReadCheckpoint(std::ifstream& inFile);
+	virtual void WriteCheckpoint(std::ofstream& outFile);
+	virtual void Report(Diagnostic&);
+};
+
+export struct Schroedinger:AtomicPhysics
+{
+	ComplexField psi0,psi1; // old and new wavefunction
+	ComplexField scratch,v,w; // for distributed parallelism
+	#ifdef USE_OPENCL
+	cl_kernel applyNumerator,applyDenominator,chargeKernel,currentKernel,stitchKernel;
+	#endif
+	SchroedingerPropagator *propagator;
+
+	Schroedinger(const std::string& name,Simulation* sim);
+	virtual ~Schroedinger();
+	virtual void Initialize();
+	virtual void ExchangeResources();
+	virtual void Update();
+	virtual void VerifyInput();
+	virtual void ReadCheckpoint(std::ifstream& inFile);
+	virtual void WriteCheckpoint(std::ofstream& outFile);
+
+	virtual void UpdateJ4();
+	virtual void Normalize();
+
+	virtual void StartDiagnostics();
+	virtual void Report(Diagnostic&);
+};
+
+export struct Pauli:AtomicPhysics
+{
+	ComplexField psi0,psi1,chi0,chi1; // old and new wavefunction
+	ComplexField scratch,v,w; // for distributed parallelism
+	SchroedingerPropagator *propagator;
+
+	Pauli(const std::string& name,Simulation* sim);
+	virtual ~Pauli();
+	virtual void Initialize();
+	virtual void Update();
+	virtual void VerifyInput();
+	virtual void ReadCheckpoint(std::ifstream& inFile);
+	virtual void WriteCheckpoint(std::ofstream& outFile);
+
+	//virtual void UpdateJ4();
+	virtual void Normalize();
+
+	virtual void StartDiagnostics();
+	virtual void Report(Diagnostic&);
+};
+
+export struct KleinGordon:AtomicPhysics
+{
+	#ifdef USE_OPENCL
+	cl_kernel updatePsi;
+	cl_kernel updateChi;
+	#endif
+
+	KleinGordon(const std::string& name,Simulation* sim);
+	virtual ~KleinGordon();
+	virtual void Initialize();
+	virtual void Update();
+
+	tw::Float ComputeRho(const tw::cell& cell);
+	// The following give the Feshbach-Villars decomposition
+	// If sgn = 1.0, returns electron part, if sgn=-1.0 returns positron part
+	tw::Complex FV(const tw::Int& i,const tw::Int& j,const tw::Int& k,const tw::Float& sgn) const
+	{
+		return (Psi(i,j,k,0) + sgn*Psi(i,j,k,1))/root2;
+	}
+	tw::Complex FV(const tw::cell& cell,const tw::Float sgn) const
+	{
+		return (Psi(cell,0) + sgn*Psi(cell,1))/root2;
+	}
+	tw::Complex FV(const tw::xstrip<1>& v,const tw::Int i,const tw::Float& sgn) const
+	{
+		return (Psi(v,i,0) + sgn*Psi(v,i,1))/root2;
+	}
+	virtual void UpdateJ4();
+	virtual void Normalize();
+
+	virtual void StartDiagnostics();
+	virtual void Report(Diagnostic&);
+};
+
+export struct Dirac:AtomicPhysics
+{
+	#ifdef USE_OPENCL
+	cl_kernel leapFrog;
+	#endif
+
+	Dirac(const std::string& name,Simulation* sim);
+	virtual ~Dirac();
+	virtual void Initialize();
+	template <tw::Int OUT1,tw::Int OUT2,tw::Int IN1,tw::Int IN2>
+	void LeapFrog(tw::Float sgn);
+	virtual void Update();
+
+	tw::Float ComputeRho(const tw::cell& cell);
+	virtual void UpdateJ4();
+	virtual void Normalize();
+
+	virtual void StartDiagnostics();
+	virtual void Report(Diagnostic&);
+};
+
+template <tw::Int OUT1,tw::Int OUT2,tw::Int IN1,tw::Int IN2>
+void Dirac::LeapFrog(tw::Float sgn)
+{
+	// Leapfrog electron/positron component over positron/electron component
+	// The spinor (OUT1,OUT2) is leapfrogged over the spinor (IN1,IN2)
+	// If (OUT1,OUT2) is the electron then sgn=1.0 (positive energy)
+	// If (OUT1,OUT2) is the positron then sgn=-1.0 (negative energy)
+
+	static const tw::Float q0 = H.qorb;
+	static const tw::Float m0 = H.morb;
+	static const tw::Int AB = tw::vec_align_bytes;
+	static const tw::Float dt = dx(0);
+	static const tw::Float dth = 0.5*dx(0);
+	#pragma omp parallel firstprivate(sgn)
+	{
+		tw::Float *Ur = tw::alloc_aligned_floats(dim[1],AB);
+		tw::Float *Ui = tw::alloc_aligned_floats(dim[1],AB);
+		tw::Float *D1r = tw::alloc_aligned_floats(dim[1],AB);
+		tw::Float *D1i = tw::alloc_aligned_floats(dim[1],AB);
+		tw::Float *D2r = tw::alloc_aligned_floats(dim[1],AB);
+		tw::Float *D2i = tw::alloc_aligned_floats(dim[1],AB);
+
+		for (auto v : VectorStripRange<1>(*this,false))
+		{
+			// unitary operator of time translation for diagonal part of Hamiltonian
+			#pragma omp simd aligned(Ur,Ui:AB)
+			for (tw::Int i=1;i<=dim[1];i++)
+			{
+				const tw::Float dq = dt*(sgn*m0+q0*A4(v,i,0));
+				Ur[i-1] = cos(dq);
+				Ui[i-1] = -sin(dq);
+			}
+
+			#pragma omp simd aligned(D1r,D2r,D1i,D2i:AB)
+			for (tw::Int i=1;i<=dim[1];i++)
+			{
+				D1r[i-1] = -psi_r(v,i,IN1,3) - q0*A4(v,i,3)*psi_i(v,i,IN1);
+				D1i[i-1] = -psi_i(v,i,IN1,3) + q0*A4(v,i,3)*psi_r(v,i,IN1);
+				D2r[i-1] = -psi_r(v,i,IN1,1) + psi_i(v,i,IN1,2) - q0*A4(v,i,1)*psi_i(v,i,IN1) - q0*A4(v,i,2)*psi_r(v,i,IN1);
+				D2i[i-1] = -psi_i(v,i,IN1,1) - psi_r(v,i,IN1,2) + q0*A4(v,i,1)*psi_r(v,i,IN1) - q0*A4(v,i,2)*psi_i(v,i,IN1);
+			}
+			#pragma omp simd aligned(D1r,D2r,D1i,D2i:AB)
+			for (tw::Int i=1;i<=dim[1];i++)
+			{
+				D1r[i-1] += -psi_r(v,i,IN2,1) - psi_i(v,i,IN2,2) - q0*A4(v,i,1)*psi_i(v,i,IN2) + q0*A4(v,i,2)*psi_r(v,i,IN2);
+				D1i[i-1] += -psi_i(v,i,IN2,1) + psi_r(v,i,IN2,2) + q0*A4(v,i,1)*psi_r(v,i,IN2) + q0*A4(v,i,2)*psi_i(v,i,IN2);
+				D2r[i-1] += psi_r(v,i,IN2,3) + q0*A4(v,i,3)*psi_i(v,i,IN2);
+				D2i[i-1] += psi_i(v,i,IN2,3) - q0*A4(v,i,3)*psi_r(v,i,IN2);
+			}
+
+			#pragma omp simd aligned(Ur,Ui,D1r,D1i:AB)
+			for (tw::Int i=1;i<=dim[1];i++)
+			{
+				psi_r(v,i,OUT1) += dth*D1r[i-1];
+				psi_i(v,i,OUT1) += dth*D1i[i-1];
+				complex_multiply_assign(psi_r(v,i,OUT1),psi_i(v,i,OUT1),Ur[i-1],Ui[i-1]);
+				psi_r(v,i,OUT1) += dth*D1r[i-1];
+				psi_i(v,i,OUT1) += dth*D1i[i-1];
+			}
+
+			#pragma omp simd aligned(Ur,Ui,D2r,D2i:AB)
+			for (tw::Int i=1;i<=dim[1];i++)
+			{
+				psi_r(v,i,OUT2) += dth*D2r[i-1];
+				psi_i(v,i,OUT2) += dth*D2i[i-1];
+				complex_multiply_assign(psi_r(v,i,OUT2),psi_i(v,i,OUT2),Ur[i-1],Ui[i-1]);
+				psi_r(v,i,OUT2) += dth*D2r[i-1];
+				psi_i(v,i,OUT2) += dth*D2i[i-1];
+			}
+		}
+
+		tw::free_aligned_floats(Ur);
+		tw::free_aligned_floats(Ui);
+		tw::free_aligned_floats(D1r);
+		tw::free_aligned_floats(D1i);
+		tw::free_aligned_floats(D2r);
+		tw::free_aligned_floats(D2i);
+	}
+}
+
+export struct PopulationDiagnostic : Module
+{
+	std::vector<QState*> refState; // ComputeTool defining the wavefunction of the reference state
+	HamiltonianParameters *H;
+	ComplexField *psi;
+
+	PopulationDiagnostic(const std::string& name,Simulation* sim);
+	virtual bool InspectResource(void *resource,const std::string& description);
+	virtual void VerifyInput();
+	virtual void Initialize();
+	virtual void Report(Diagnostic&);
+};
 
 ////////////////////////////////
 //                            //
@@ -43,7 +293,9 @@ AtomicPhysics::AtomicPhysics(const std::string& name,Simulation* sim):Module(nam
 	directives.Add("keep a2 term",new tw::input::Bool(&keepA2Term),false);
 	directives.Add("dipole approximation",new tw::input::Bool(&dipoleApproximation),false);
 	directives.Add("relaxation time",new tw::input::Float(&timeRelaxingToGround),false);
-	directives.Add("soft core potential charge",new tw::input::Custom,false);
+	// following two are often written as `soft core potential , charge = 1 , radius = 1`, which parses the same
+	directives.Add("soft core potential charge",new tw::input::Float(&H.qnuc),false);
+	directives.Add("radius",new tw::input::Float(&H.rnuc),false);
 	directives.Add("bachelet potential",new tw::input::Custom,false);
 }
 
@@ -139,7 +391,7 @@ void AtomicPhysics::FormPotentials(tw::Float t)
 			A0 = A1 = tw::vec3(-0.5*r_cart.y*H.B0.z,0.5*r_cart.x*H.B0.z,0.0);
 			for (tw::Int s=0;s<wave.size();s++)
 			{
-				A0 += wave[s]->VectorPotential(t-dt,r_cart);
+				A0 += wave[s]->VectorPotential(t-dx(0),r_cart);
 				A1 += wave[s]->VectorPotential(t,r_cart);
 			}
 			r_curv = owner->Pos(cell);
@@ -225,26 +477,32 @@ void AtomicPhysics::VerifyInput()
 		photonPropagator = (LorentzPropagator*)owner->CreateTool("default_photons",tw::tool_type::lorentzPropagator);
 }
 
-void AtomicPhysics::ReadInputFileDirective(std::stringstream& inputString,const std::string& command)
+bool AtomicPhysics::ReadInputFileDirective(const TSTreeCursor *curs0,const std::string& src)
 {
 	tw::dnum q,r;
 	std::string word;
-	Module::ReadInputFileDirective(inputString,command);
-	// note: examples of charge are geared toward atomic units
-	// if using natural units, unit of charge is sqrt(alpha) ~ 0.085
-	if (command=="soft core potential charge") // eg, soft core potential , charge = 1.0 , radius = 0.01
-	{
-		inputString >> word >> q >> word >> word >> r;
-		H.qnuc = q >> native;
-		H.rnuc = r >> native;
+
+	if (Module::ReadInputFileDirective(curs0,src))
+		return true;
+
+	if (tw::input::node_kind(curs0)=="assignment") {
+		TSTreeCursor curs = ts_tree_cursor_copy(curs0);
+		ts_tree_cursor_goto_first_child(&curs);
+		if (tw::input::node_text(&curs,src) == "bachelet potential") {
+			// eg, bachelet potential = 1.0 1.0 1.0 0.1 0.5
+			std::valarray<tw::Float> components(5);
+			tw::input::Numbers<tw::Float> directive(&components[0],5);
+			directive.Read(&curs,src,"bachelet potential",native);
+			H.qnuc = components[0];
+			H.c1 = components[1];
+			H.c2 = components[2];
+			H.a1 = components[3];
+			H.a2 = components[4];
+			return true;
+		}
 	}
-	if (command=="bachelet potential") // eg, bachelet potential = 1.0 1.0 1.0 0.1 0.5
-	{
-		inputString >> word;
-		inputString >> q;
-		inputString >> H.c1 >> H.c2 >> H.a1 >> H.a2;
-		H.qnuc = q >> native;
-	}
+
+	return false;
 }
 
 void AtomicPhysics::ReadCheckpoint(std::ifstream& inFile)
@@ -284,28 +542,30 @@ void AtomicPhysics::WriteCheckpoint(std::ofstream& outFile)
 void AtomicPhysics::Report(Diagnostic& diagnostic)
 {
 	tw::vec3 ENow,ANow;
+	const tw::Float dt = dx(0);
+	const tw::Float dti = 1/dt;
 	for (auto w : wave)
 	{
 		ANow += w->VectorPotential(owner->elapsedTime,tw::vec3(0,0,0));
 		ENow -= dti*w->VectorPotential(owner->elapsedTime+0.5*dt,tw::vec3(0,0,0));
 		ENow += dti*w->VectorPotential(owner->elapsedTime-0.5*dt,tw::vec3(0,0,0));
 	}
-	diagnostic.Float("Ex",ENow.x,true);
-	diagnostic.Float("Ey",ENow.y,true);
-	diagnostic.Float("Ez",ENow.z,true);
-	diagnostic.Float("Ax",ANow.x,true);
-	diagnostic.Float("Ay",ANow.y,true);
-	diagnostic.Float("Az",ANow.z,true);
+	diagnostic.ReportNumber("Ex",ENow.x,true);
+	diagnostic.ReportNumber("Ey",ENow.y,true);
+	diagnostic.ReportNumber("Ez",ENow.z,true);
+	diagnostic.ReportNumber("Ax",ANow.x,true);
+	diagnostic.ReportNumber("Ay",ANow.y,true);
+	diagnostic.ReportNumber("Az",ANow.z,true);
 
-	diagnostic.Field("rho",J4,0,tw::dims::charge_density,"$\\rho$");
-	diagnostic.Field("Jx",J4,1,tw::dims::current_density,"$j_x$");
-	diagnostic.Field("Jy",J4,2,tw::dims::current_density,"$j_y$");
-	diagnostic.Field("Jz",J4,3,tw::dims::current_density,"$j_z$");
+	diagnostic.ReportField("rho",J4,0,tw::dims::charge_density,"$\\rho$");
+	diagnostic.ReportField("Jx",J4,1,tw::dims::current_density,"$j_x$");
+	diagnostic.ReportField("Jy",J4,2,tw::dims::current_density,"$j_y$");
+	diagnostic.ReportField("Jz",J4,3,tw::dims::current_density,"$j_z$");
 
-	diagnostic.Field("phi",A4,0,tw::dims::scalar_potential,"$\\phi$");
-	diagnostic.Field("Ax",A4,1,tw::dims::vector_potential,"$A_x$");
-	diagnostic.Field("Ay",A4,2,tw::dims::vector_potential,"$A_y$");
-	diagnostic.Field("Az",A4,3,tw::dims::vector_potential,"$A_z$");
+	diagnostic.ReportField("phi",A4,0,tw::dims::scalar_potential,"$\\phi$");
+	diagnostic.ReportField("Ax",A4,1,tw::dims::vector_potential,"$A_x$");
+	diagnostic.ReportField("Ay",A4,2,tw::dims::vector_potential,"$A_y$");
+	diagnostic.ReportField("Az",A4,3,tw::dims::vector_potential,"$A_z$");
 
 	// ScalarField temp;
 	// temp.Initialize(*this,owner);
@@ -313,7 +573,7 @@ void AtomicPhysics::Report(Diagnostic& diagnostic)
 	// 	for (tw::Int j=1;j<=dim[2];j++)
 	// 		for (tw::Int i=1;i<=dim[1];i++)
 	// 			temp(i,j,k) = div<1,2,3>(J4,i,j,k,*owner);
-	// diagnostic.Field("divJ",temp,0,tw::dims::none,"$\\nabla\\cdot {\\bf j}$");
+	// diagnostic.ReportField("divJ",temp,0,tw::dims::none,"$\\nabla\\cdot {\\bf j}$");
 }
 
 
@@ -428,8 +688,8 @@ void Schroedinger::Initialize()
 
 	// Solve for the lowest energy s-state on a spherical grid.
 	// This is used only to print the numerical ground state energy level.
-	const tw::Float maxR = owner->SphericalRadius(GlobalCorner(*owner)+GlobalPhysicalSize(*owner));
-	const tw::Float dr = dx(*owner) * owner->ScaleFactor(1,tw::vec3(tw::small_pos,0.0,0.0));
+	const tw::Float maxR = owner->SphericalRadius((owner->GlobalCorner()+owner->GlobalPhysicalSize()).spatial());
+	const tw::Float dr = dx(1) * owner->ScaleFactor(1,tw::vec3(tw::small_pos,0.0,0.0));
 	const tw::Float r = maxR>30.0 ? 30.0 : maxR;
 	const tw::Int dim = MyCeil(r/dr);
 	std::valarray<tw::Float> eigenvector(dim),phi_r(dim);
@@ -562,6 +822,7 @@ void Schroedinger::Update()
 #else
 void Schroedinger::Update()
 {
+	const tw::Float dt = dx(0);
 	tw::Complex dtc = owner->elapsedTime < timeRelaxingToGround ? -ii*dt : dt;
 	FormPotentials(owner->elapsedTime);
 	J4 = 0.0;
@@ -663,8 +924,8 @@ void Schroedinger::Report(Diagnostic& diagnostic)
 	diagnostic.FirstMoment("Dy",temp,0,r0,tw::grid::y);
 	diagnostic.FirstMoment("Dz",temp,0,r0,tw::grid::z);
 
-	diagnostic.Field("psi_r",psi1,0,tw::dims::none,"$\\Re\\psi$");
-	diagnostic.Field("psi_i",psi1,1,tw::dims::none,"$\\Im\\psi$");
+	diagnostic.ReportField("psi_r",psi1,0,tw::dims::none,"$\\Re\\psi$");
+	diagnostic.ReportField("psi_i",psi1,1,tw::dims::none,"$\\Im\\psi$");
 }
 
 void Schroedinger::StartDiagnostics()
@@ -784,6 +1045,7 @@ void Pauli::Update()
 {
 	// KNOWN PROBLEM: we have to add spin term to current density
 
+	const tw::Float dt = dx(0);
 	tw::Complex dtc = owner->elapsedTime < timeRelaxingToGround ? -ii*dt : dt;
 	FormPotentials(owner->elapsedTime);
 	J4 = 0.0;
@@ -857,14 +1119,14 @@ void Pauli::Report(Diagnostic& diagnostic)
 	diagnostic.FirstMoment("Dy",temp,0,r0,tw::grid::y);
 	diagnostic.FirstMoment("Dz",temp,0,r0,tw::grid::z);
 
-	diagnostic.Field("psi_r",psi1,0,tw::dims::none,"$\\Re\\psi$");
-	diagnostic.Field("psi_i",psi1,1,tw::dims::none,"$\\Im\\psi$");
-	diagnostic.Field("chi_r",chi1,0,tw::dims::none,"$\\Re\\chi$");
-	diagnostic.Field("chi_i",chi1,1,tw::dims::none,"$\\Im\\chi$");
+	diagnostic.ReportField("psi_r",psi1,0,tw::dims::none,"$\\Re\\psi$");
+	diagnostic.ReportField("psi_i",psi1,1,tw::dims::none,"$\\Im\\psi$");
+	diagnostic.ReportField("chi_r",chi1,0,tw::dims::none,"$\\Re\\chi$");
+	diagnostic.ReportField("chi_i",chi1,1,tw::dims::none,"$\\Im\\chi$");
 
 	for (auto cell : InteriorCellRange(*this))
 		temp(cell) = norm(psi1(cell)) - norm(chi1(cell));
-	diagnostic.Field("Sz",temp,0);
+	diagnostic.ReportField("Sz",temp,0);
 	diagnostic.VolumeIntegral("Sz",temp,0);
 }
 
@@ -943,6 +1205,7 @@ void KleinGordon::Initialize()
 	for (auto cell : InteriorCellRange(*this))
 	{
 		const tw::vec3 pos = owner->Pos(cell);
+		const tw::Float dth = 0.5*dx(0);
 		for (auto w : waveFunction)
 		{
 			psi_r(cell,0) += real(w->Amplitude(H,pos,0.0,0));
@@ -1046,9 +1309,14 @@ void KleinGordon::Update()
 	static const tw::Float q0 = H.qorb;
 	static const tw::Float m0 = H.morb;
 	static const tw::Int AB = tw::vec_align_bytes;
+	const tw::Float dt = dx(0);
+	const tw::Float dth = 0.5*dt;
 	#pragma omp parallel
 	{
-		alignas(AB) tw::Float Ur[dim[1]],Ui[dim[1]],Dr[dim[1]],Di[dim[1]];
+		tw::Float *Ur = tw::alloc_aligned_floats(dim[1],AB);
+		tw::Float *Ui = tw::alloc_aligned_floats(dim[1],AB);
+		tw::Float *Dr = tw::alloc_aligned_floats(dim[1],AB);
+		tw::Float *Di = tw::alloc_aligned_floats(dim[1],AB);
 		// Update psi
 		for (auto v : VectorStripRange<1>(*this,false))
 		{
@@ -1076,6 +1344,10 @@ void KleinGordon::Update()
 				psi_i(v,i,0) += dth*Di[i-1];
 			}
 		}
+		tw::free_aligned_floats(Ur);
+		tw::free_aligned_floats(Ui);
+		tw::free_aligned_floats(Dr);
+		tw::free_aligned_floats(Di);
 	}
 
 	psi_r.CopyFromNeighbors(Element(0));
@@ -1089,7 +1361,11 @@ void KleinGordon::Update()
 
 	#pragma omp parallel
 	{
-		alignas(AB) tw::Float Ur[dim[1]],Ui[dim[1]],Dr[dim[1]],Di[dim[1]];
+
+		tw::Float *Ur = tw::alloc_aligned_floats(dim[1],AB);
+		tw::Float *Ui = tw::alloc_aligned_floats(dim[1],AB);
+		tw::Float *Dr = tw::alloc_aligned_floats(dim[1],AB);
+		tw::Float *Di = tw::alloc_aligned_floats(dim[1],AB);
 		// Update chi
 		for (auto v : VectorStripRange<1>(*this,false))
 		{
@@ -1104,6 +1380,7 @@ void KleinGordon::Update()
 			#pragma omp simd aligned(Dr,Di:AB)
 			for (tw::Int i=1;i<=dim[1];i++)
 			{
+				const tw::vec3 freq(dk(1),dk(2),dk(3));
 				// Evaluate i(Dk)^2 assuming div(A)=0
 				// This adds i*del^2(psi)
 				Dr[i-1] = -(psi_i.d2(v,i,0,1) + psi_i.d2(v,i,0,2) + psi_i.d2(v,i,0,3));
@@ -1133,6 +1410,10 @@ void KleinGordon::Update()
 				psi_i(v,i,1) += dth*Di[i-1];
 			}
 		}
+		tw::free_aligned_floats(Ur);
+		tw::free_aligned_floats(Ui);
+		tw::free_aligned_floats(Dr);
+		tw::free_aligned_floats(Di);
 	}
 
 	psi_r.CopyFromNeighbors(Element(1));
@@ -1154,8 +1435,8 @@ void KleinGordon::Report(Diagnostic& diagnostic)
 	diagnostic.FirstMoment("Dy",J4,0,r0,tw::grid::y);
 	diagnostic.FirstMoment("Dz",J4,0,r0,tw::grid::z);
 
-	diagnostic.Field("psi0_r",psi_r,0,tw::dims::none,"$\\Re\\psi_0$");
-	diagnostic.Field("psi1_r",psi_r,1,tw::dims::none,"$\\Re\\psi_1$");
+	diagnostic.ReportField("psi0_r",psi_r,0,tw::dims::none,"$\\Re\\psi_0$");
+	diagnostic.ReportField("psi1_r",psi_r,1,tw::dims::none,"$\\Re\\psi_1$");
 }
 
 void KleinGordon::StartDiagnostics()
@@ -1217,6 +1498,7 @@ void Dirac::Initialize()
 
 	#pragma omp parallel
 	{
+		const tw::Float dth = 0.5*dx(0);
 		for (auto cell : InteriorCellRange(*this))
 		{
 			tw::vec3 pos = owner->Pos(cell);
@@ -1357,6 +1639,8 @@ void Dirac::Update()
 	// Advance psi0,psi1 to n+1/2 using psi2(n),psi3(n),A(n)
 	// Advance psi2,psi3 to n+1 using psi0(n+1/2),psi1(n+1/2),A(n+1/2)
 
+	const tw::Float dt = dx(0);
+	
 	LeapFrog<0,1,2,3>(1.0);
 	psi_r.CopyFromNeighbors(Element(0,1));
 	psi_r.ApplyBoundaryCondition(Element(0,1));
@@ -1387,10 +1671,14 @@ void Dirac::Report(Diagnostic& diagnostic)
 	diagnostic.FirstMoment("Dy",J4,0,r0,tw::grid::y);
 	diagnostic.FirstMoment("Dz",J4,0,r0,tw::grid::z);
 
-	diagnostic.Field("psi0_r",psi_r,0,tw::dims::none,"$\\Re\\psi_0$");
-	diagnostic.Field("psi1_r",psi_r,1,tw::dims::none,"$\\Re\\psi_1$");
-	diagnostic.Field("psi2_r",psi_r,2,tw::dims::none,"$\\Re\\psi_2$");
-	diagnostic.Field("psi3_r",psi_r,3,tw::dims::none,"$\\Re\\psi_3$");
+	diagnostic.ReportField("psi0_r",psi_r,0,tw::dims::none,"$\\Re\\psi_0$");
+	diagnostic.ReportField("psi1_r",psi_r,1,tw::dims::none,"$\\Re\\psi_1$");
+	diagnostic.ReportField("psi2_r",psi_r,2,tw::dims::none,"$\\Re\\psi_2$");
+	diagnostic.ReportField("psi3_r",psi_r,3,tw::dims::none,"$\\Re\\psi_3$");
+	diagnostic.ReportField("psi0_i",psi_i,0,tw::dims::none,"$\\Im\\psi_0$");
+	diagnostic.ReportField("psi1_i",psi_i,1,tw::dims::none,"$\\Im\\psi_1$");
+	diagnostic.ReportField("psi2_i",psi_i,2,tw::dims::none,"$\\Im\\psi_2$");
+	diagnostic.ReportField("psi3_i",psi_i,3,tw::dims::none,"$\\Im\\psi_3$");
 }
 
 void Dirac::StartDiagnostics()

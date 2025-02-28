@@ -1,8 +1,6 @@
 // Keep the following line for generating twtest reports
 // TWTEST matplotlib zxyt=0,: phi.npy
 
-steps = 1000
-timestep = 0.04
 dump period = 0
 moving window = no
 neutralize = yes
@@ -18,10 +16,10 @@ zboundary = ( absorbing , absorbing )
 
 new grid
 {
-	corner = ( -32.0 , -0.5 , 0.0 )
-	dimensions = ( 256 , 1 , 512 )
-	cell size = ( 0.25 , 1.0 , 0.05 )
-	decomposition = ( 1 , 1 , 1 )
+	origin = ( 0 , 0.5 , , 0.5 , 0.0 )
+	dimensions = ( 1000 , 256 , 1 , 512 )
+	cell size = ( 0.04 , 0.25 , 1.0 , 0.05 )
+	decomposition = ( 1 , 1 , 1 , 1 )
 }
 
 new coulomb electromagnetic module 'coul'
@@ -35,7 +33,7 @@ new facr elliptic solver for 'coul'
 
 new hermite gauss for 'coul'
 {
-	a = 0.0 0.5 0.0
+	a = (0.0 0.5 0.0)
 	r0 = ( 1e5 , 10 )
 	w = 4
 	risetime = 3

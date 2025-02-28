@@ -1,8 +1,141 @@
-#include "simulation.h"
-#include "particles.h"
-#include "fieldSolve.h"
-#include "laserSolve.h"
+module;
+
+#include "meta_base.h"
+
+export module particles;
+import input;
+import compute_tool;
+import twmodule;
+import fields;
+import tw_iterator;
+import parabolic;
+import mover;
+import physics;
+import qed;
+import region;
+import injection;
+import diagnostics;
+import laser_solve;
+
 using namespace tw::bc;
+
+// Particle struct is defined in discreteSpace.h
+// Heavy lifting is done by classes in particles_*.h
+
+struct LoadingData
+{
+	tw::Int timeLevel;
+	tw::cell cell;
+	tw::Float C0,C1,C2,densToAdd,densNow,particleDensity;
+	tw::vec3 thermalMomentum,driftMomentum;
+	std::valarray<tw::vec3> subGrid;
+	tw::Int pointsInSubGrid;
+	bool neutralize;
+
+	LoadingData(const Simulation& sim,const tw::vec3& distributionInCell,const tw::cell& c);
+	tw::Float GeometryFactor(tw::Float r,tw::Float r0) const
+	{
+		return fabs(C0 + SafeDiv(C1*r,r0) + sqr(SafeDiv(sqrt(C2)*r,r0)));
+	}
+};
+
+export struct Species:Module
+{
+	tw::Float restMass,charge;
+	tw::vec3 emissionTemp;
+	tw::vec3 distributionInCell;
+	tw::Float targetDensity;
+	tw::Float minimumDensity;
+	tw::Float accelerationTime,accelerationImpulse,accelerationForceNow;
+	tw::Float numberCreated;
+	tw::bc::par bc0[4],bc1[4];
+	bool mobile,radiationDamping;
+	tw::Float meanFreePath;
+	tw::Int count,sortPeriod;
+
+	std::vector<Particle> particle;
+	std::vector<TransferParticle> transfer;
+
+	Mover* mover;
+	Ionizer* ionizer;
+	QED* qed;
+
+	Field* EM; // Ex,Ey,Ez,Bx,By,Bz
+	Field* sources; // rho,Jx,Jy,Jz
+	Field* laser; // F0x,F0y,F0z,F1x,F1y,F1z,aa0,aa1
+	ComplexField* chi;
+	tw::Float* carrierFrequency;
+	tw_polarization_type* polarizationType;
+	ScalarField* rho00;
+
+	Field *qo_j4; // 4-current from quantum optics modules
+
+	Species(const std::string& name,Simulation *sim);
+	virtual ~Species();
+	virtual bool InspectResource(void* resource,const std::string& description);
+	virtual void VerifyInput();
+	virtual void Initialize();
+	void AddParticle(const float& number,const Primitive& q,const tw::vec4& p,const tw::vec4& s,const tw::Float& Qparam);
+	void AddParticle(const TransferParticle& newParticle);
+	void CleanParticleList();
+
+	void ApplyGlobalBoundaryConditions();
+
+	void ComputeTransferParticleDestinations();
+	void PrepareTransfer(std::vector<TransferParticle>& accumulator,std::vector<tw::Int>& tally,tw::Int axis,tw::Int displ);
+	void FinishTransfer(TransferParticle* inBuffer,tw::Int number,tw::Int axis,tw::Int displ);
+	void CollectTransfers();
+
+	void BeginMoveWindow();
+	void FinishMoveWindow();
+
+	void GenerateParticles(bool init);
+	tw::Float AddDensity(const LoadingData& theData);
+	tw::Float AddDensityRandom(const LoadingData& theData);
+	void DepositInitialCharge(const tw::vec4& pos,tw::Float macroCharge);
+	void CalculateDensity(ScalarField& dens);
+	void CalculateEnergyDensity(ScalarField& dens);
+	void CalculateQuantumParameter(ScalarField& dens);
+	tw::Float KineticEnergy(const Region& theRgn);
+	tw::Float ParticleNumber(const Region& theRgn);
+
+	virtual bool ReadInputFileDirective(const TSTreeCursor *curs,const std::string& src);
+	virtual void ReadCheckpoint(std::ifstream& inFile);
+	virtual void WriteCheckpoint(std::ofstream& outFile);
+	virtual void Report(Diagnostic&);
+	virtual void WarningMessage(std::ostream *theStream);
+
+	virtual bool Test(tw::Int& id);
+	void EncodingTest();
+	void ReflectionTest();
+	void MoveWindowTest();
+};
+
+export struct Kinetics:Module
+{
+	std::vector<Species*> species; // explicitly typed submodules
+
+	ScalarField rho00;
+	Field* sources;
+	ComplexField* chi;
+	ScalarField* ESRho;
+
+	Kinetics(const std::string& name,Simulation *sim);
+	virtual void Initialize();
+	virtual void ExchangeResources();
+	virtual bool InspectResource(void* resource,const std::string& description);
+	virtual void Update();
+	virtual void MoveWindow();
+	void Ionize();
+	void ProcessQED();
+
+	void TransferParticles();
+	tw::Float KineticEnergy(const Region& theRgn);
+	virtual void Report(Diagnostic&);
+
+	virtual void ReadCheckpoint(std::ifstream& inFile);
+	virtual void WriteCheckpoint(std::ofstream& outFile);
+};
 
 ////////////////////
 // KINETICS CLASS //
@@ -10,7 +143,7 @@ using namespace tw::bc;
 // This is the top of the particle containment hierarchy
 // Kinetics <- Species <- Particle
 
-Kinetics::Kinetics(const std::string& name,Simulation* sim) : Module(name,sim)
+Kinetics::Kinetics(const std::string& name,Simulation *sim) : Module(name,sim)
 {
 	if (native.native!=tw::units::plasma && native.native!=tw::units::atomic)
 		throw tw::FatalError("Kinetics module requires <native units = plasma> or <native units = atomic>.");
@@ -84,6 +217,7 @@ void Kinetics::Update()
 	// Assume source arrays are weighted by volume or zero
 
 	Ionize();
+	ProcessQED();
 	for (i=0;i<species.size();i++)
 	{
 		if (owner->stepNow%species[i]->sortPeriod==0)
@@ -258,22 +392,22 @@ void Kinetics::Ionize()
 					a2 = Fp[6];
 					w0 = *species[s]->carrierFrequency;
 					if (theLaserSolver->polarizationType==circularPolarization)
-						probability += dt*ionizer->InstantRate(w0,w0*sqrt(0.5*a2));
+						probability += this->dx(0)*ionizer->InstantRate(w0,w0*sqrt(0.5*a2));
 					else
-						probability += dt*ionizer->AverageRate(w0,w0*sqrt(a2));
+						probability += this->dx(0)*ionizer->AverageRate(w0,w0*sqrt(a2));
 				}
 				species[s]->EM->Interpolate(temp,Element(0,2),weights);
 				E.x = temp[0]; E.y = temp[1]; E.z = temp[2];
-				probability += dt*ionizer->InstantRate(1e-6,Magnitude(E));
-				gamma = sqrt(1.0 + Norm(curr.p)/(m0*m0) + 0.5*sqr(q0)*a2/(m0*m0));
+				probability += this->dx(0)*ionizer->InstantRate(1e-6,Magnitude(E));
+				gamma = sqrt(sqr(curr.p[0]/m0) + 0.5*sqr(q0/m0)*a2);
 				// Starting velocity is that of the neutral
-				vel = curr.p/(gamma*m0);
+				vel = curr.p.spatial()/(gamma*m0);
 				if (probability > owner->uniformDeviate->Next())
 				{
 					momentum = s1->restMass*gamma*vel;
 					if (theLaserSolver)
 						momentum += theLaserSolver->GetIonizationKick(a2,s1->charge,s1->restMass);
-					s1->AddParticle(momentum,curr.q,curr.number);
+					s1->AddParticle(curr.number,curr.q,tw::vec4(gamma*s1->restMass,momentum),tw::vec4(0.0),0.0);
 
 					// For the electron, account for depletion of the field due to ionization energy.
 					// This comes from a displacement satisfying dr.QE = dU, where dU = ionization energy.
@@ -284,7 +418,7 @@ void Kinetics::Ionize()
 					momentum = s2->restMass*gamma*vel;
 					if (theLaserSolver)
 						momentum += theLaserSolver->GetIonizationKick(a2,s2->charge,s2->restMass);
-					s2->AddParticle(momentum,curr.q,curr.number);
+					s2->AddParticle(curr.number,curr.q,tw::vec4(gamma*s2->restMass,momentum),tw::vec4(0.0),0.0);
 
 					// Throw away the neutral
 					particle[i] = particle.back();
@@ -296,26 +430,171 @@ void Kinetics::Ionize()
 	}
 }
 
-tw::vec3 LaserSolver::GetIonizationKick(const tw::Float& a2,const tw::Float& q0,const tw::Float& m0)
+void Kinetics::ProcessQED()
 {
-	tw::Float phase;
-	tw::vec3 ans;
-	if (polarizationType==circularPolarization)
+	Species *s1, *s2;
+	weights_3D weights;
+
+	tw::vec3 E, B, vel;
+	std::valarray<tw::Float> temp(6);
+
+	tw::Float eta, chi, Py, Pf;
+	tw::Float gamma, omega, energy;
+	tw::Float frac, rate, probability;
+
+	tw::vec3 k3u;
+	tw::vec4 k4;
+
+	tw::Float prefactor = (cgs::qe*cgs::hbar)/sqr(cgs::me)/sqr(sqr(cgs::c));
+
+	for (tw::Int s=0;s<species.size();s++)
 	{
-		phase = owner->uniformDeviate->Next()*2.0*pi;
-		// remember "a" has been multiplied by sqrt(2) at the beginning
-		ans.x = q0*sqrt(0.5*a2)*cos(phase);
-		ans.y = q0*sqrt(0.5*a2)*sin(phase);
-		ans.z = 0.25*q0*q0*a2/m0;
+		QED *qed = species[s]->qed;
+
+		// Photon generation
+
+		if (qed!=NULL && !qed->photon_name.empty())
+		{
+			std::vector<Particle>& fermion = species[s]->particle;
+			s1 = (Species*)owner->GetModule(qed->photon_name);
+
+			for (tw::Int i=0;i<fermion.size();i++)
+			{
+				// Gather momentum & local field components of current fermion
+				Particle& part = fermion[i];
+
+				gamma = sqrt(1.0 + Norm(part.p.spatial()));
+				vel = part.p.spatial()/gamma/species[s]->restMass;
+
+				owner->GetWeights(&weights,part.q);
+				species[s]->EM->Interpolate(temp,Element(0,5),weights);
+
+				for (tw::Int n=0;n<3;n++)
+					vel[n] = vel[n] * tw::dims::velocity >> native >> cgs;
+				for (tw::Int n=0;n<3;n++)
+					temp[n] = temp[n] * tw::dims::electric_field >> native >> cgs;
+				for (tw::Int n=3;n<6;n++)
+					temp[n] = temp[n] * tw::dims::magnetic_field >> native >> cgs;
+
+				E.x = temp[0]; E.y = temp[1]; E.z = temp[2];
+				B.x = temp[3]; B.y = temp[4]; B.z = temp[5];
+
+				// Calculate fermion quantum parameter
+				part.Qparam = prefactor*gamma*sqrt(Norm((cgs::c)*E + (vel|B)) - sqr(vel^E));
+
+				// Calculate instantaneous photo-emission rate & probability
+				rate = qed->CalculateRate(part.Qparam,gamma);
+				probability = rate*this->dx(0);
+
+				// Generate a photon if the emission criterion is satisfied
+				if (probability > owner->uniformDeviate->Next())
+				{
+					do {
+						Py = owner->uniformDeviate->Next();
+						chi = qed->NewQParameter(part.Qparam,Py);
+					} while (chi < 0.0f);
+
+					k3u = part.p.spatial();
+					k3u /= Magnitude(k3u) + tw::tiny;
+
+					energy = 2.0*chi*cub(cgs::me)*std::pow(cgs::c,5)/(cgs::qe*cgs::hbar);
+					energy /= sqrt(Norm(E + (k3u|B)) - sqr(k3u^E));
+					energy = energy * tw::dims::energy >> cgs >> native;
+
+					if (energy > qed->photon_cutoff_energy)
+					{
+						k4[0] = energy;
+						for (int n=1;n<4;n++)
+							k4[n] = energy*k3u[n-1];
+
+						s1->AddParticle(part.number,part.q,k4,tw::vec4(0.0),chi);
+
+						// Update fermion momentum (radiation damping)
+						part.p -= k4;
+						part.p[0] = sqrt(sqr(s1->restMass) + Norm(part.p.spatial()));
+
+						// Update fermion quantum parameter
+						gamma = sqrt(1.0 + Norm(part.p.spatial()));
+						vel = part.p.spatial()/gamma/species[s]->restMass;
+						for (tw::Int n=0;n<3;n++)
+							vel[n] = vel[n] * tw::dims::velocity >> native >> cgs;
+						part.Qparam = prefactor*gamma*sqrt(Norm((cgs::c)*E + (vel|B)) - sqr(vel^E));
+					}
+				}
+			}
+		}
+
+		// Pair creation
+		if (qed!=NULL && !qed->electron_name.empty() && !qed->positron_name.empty())
+		{
+			std::vector<Particle>& photon = species[s]->particle;
+			s1 = (Species*)owner->GetModule(qed->electron_name);
+			s2 = (Species*)owner->GetModule(qed->positron_name);
+
+			for (tw::Int i=0;i<photon.size();i++)
+			{
+				// Gather wavevector and local field components of current photon
+				Particle& part = photon[i];
+
+				k3u = part.p.spatial();
+				k3u /= Magnitude(k3u) + tw::tiny;
+
+				omega = (part.p[0] * tw::dims::energy >> native >> cgs)/cgs::hbar;
+
+				owner->GetWeights(&weights,part.q);
+				species[s]->EM->Interpolate(temp,Element(0,5),weights);
+
+				for (tw::Int n=0;n<3;n++)
+					temp[n] = temp[n] * tw::dims::electric_field >> native >> cgs;
+				for (tw::Int n=3;n<6;n++)
+					temp[n] = temp[n] * tw::dims::magnetic_field >> native >> cgs;
+
+				E.x = temp[0]; E.y = temp[1]; E.z = temp[2];
+				B.x = temp[3]; B.y = temp[4]; B.z = temp[5];
+
+				// Calculate photon quantum parameter
+				part.Qparam = prefactor*(cgs::hbar/cgs::me/2.0)*(omega/cgs::c);
+				part.Qparam *= sqrt(Norm(E + (k3u|B)) - sqr(k3u^E));
+
+				// Calculate instantaneous pair-creation rate & probability
+				rate = qed->CalculateRate(part.Qparam,cgs::hbar*omega);
+				probability = rate*this->dx(0);
+
+				// Generate an electron-positron pair if the emission criterion is satisfied
+				if (probability > owner->uniformDeviate->Next())
+				{
+					do {
+						Pf = owner->uniformDeviate->Next();
+						frac = qed->NewQParameter(part.Qparam,Pf);
+					} while (frac < 0.0f);
+
+					tw::vec4 p4a = frac*part.p;
+					tw::vec4 p4b = (1.0f-frac)*part.p;
+
+					// calculate fermion 1 quantum parameter
+					gamma = sqrt(1.0 + Norm(p4a.spatial()));
+					vel = p4a.spatial()/gamma;
+					for (tw::Int n=0;n<3;n++)
+						vel[n] = vel[n] * tw::dims::velocity >> native >> cgs;
+					eta = prefactor*gamma*sqrt(Norm((cgs::c)*E + (vel|B)) - sqr(vel^E));
+					// create fermion 1
+					s1->AddParticle(part.number,part.q,p4a,tw::vec4(0.0),eta);
+
+					// calculate fermion 2 quantum parameter
+					gamma = sqrt(1.0 + Norm(p4b.spatial()));
+					vel = p4b.spatial()/gamma;
+					for (tw::Int n=0;n<3;n++)
+						vel[n] = vel[n] * tw::dims::velocity >> native >> cgs;
+					eta = prefactor*gamma*sqrt(Norm((cgs::c)*E + (vel|B)) - sqr(vel^E));
+					// create fermion 2
+					s2->AddParticle(part.number,part.q,p4b,tw::vec4(0.0),eta);
+
+					// Mark the parent photon for annihilation
+					photon[i].number = 0.0;
+				}
+			}
+		}
 	}
-	else
-	{
-		// for linear polarization, assume phase is at zero of vector potential (peak of field)
-		ans.x = 0.0;
-		ans.y = 0.0;
-		ans.z = 0.25*q0*q0*a2/m0;
-	}
-	return ans;
 }
 
 tw::Float Kinetics::KineticEnergy(const Region& theRgn)
@@ -325,14 +604,8 @@ tw::Float Kinetics::KineticEnergy(const Region& theRgn)
 	{
 		const tw::Float m0 = sp->restMass;
 		for (auto par : sp->particle)
-		{
-			if (theRgn.Inside(owner->PositionFromPrimitive(par.q),*owner))
-			{
-				const tw::Float p2 = Norm(par.p);
-				tw::Float gamma = sqrt(1 + p2/(m0*m0));
-				ans += par.number * m0 * (gamma - 1.0);
-			}
-		}
+			if (theRgn.Inside(owner->PositionFromPrimitive(par.q).spatial(),*owner))
+				ans += par.number * (par.p[0] - m0);
 	}
 	return ans;
 }
@@ -340,7 +613,7 @@ tw::Float Kinetics::KineticEnergy(const Region& theRgn)
 void Kinetics::Report(Diagnostic& diagnostic)
 {
 	Module::Report(diagnostic);
-	diagnostic.Float("Kinetic",KineticEnergy(*diagnostic.theRgn),false);
+	diagnostic.ReportNumber("Kinetic",KineticEnergy(*diagnostic.theRgn),false);
 }
 
 void Kinetics::ReadCheckpoint(std::ifstream& inFile)
@@ -353,31 +626,6 @@ void Kinetics::WriteCheckpoint(std::ofstream& outFile)
 {
 	Module::WriteCheckpoint(outFile);
 	rho00.WriteCheckpoint(outFile);
-}
-
-
-////////////////////
-// PARTICLE CLASS //
-////////////////////
-
-
-Particle::Particle(const tw::vec3& p,const Primitive& q,const float number,const float aux1,const float aux2) noexcept
-{
-	this->p = p;
-	this->q = q;
-	this->number = number;
-	this->aux1 = aux1;
-	this->aux2 = aux2;
-}
-
-void Particle::ReadCheckpoint(std::ifstream& inFile)
-{
-	inFile.read((char *)this,sizeof(Particle));
-}
-
-void Particle::WriteCheckpoint(std::ofstream& outFile)
-{
-	outFile.write((char *)this,sizeof(Particle));
 }
 
 
@@ -397,6 +645,7 @@ Species::Species(const std::string& name,Simulation* sim) : Module(name,sim)
 	minimumDensity = 0.0;
 	targetDensity = 1.0;
 	accelerationTime = accelerationImpulse = accelerationForceNow = 0.0;
+	numberCreated = 0.0;
 	meanFreePath = 0.0; // means infinity
 	count = 1;
 	sortPeriod = 10;
@@ -404,8 +653,8 @@ Species::Species(const std::string& name,Simulation* sim) : Module(name,sim)
 
 	for (tw::Int i=1;i<=3;i++)
 	{
-		bc0[i] = sim->bc0[i];
-		bc1[i] = sim->bc1[i];
+		bc0[i] = owner->bc0[i];
+		bc1[i] = owner->bc1[i];
 	}
 
 	mobile = true;
@@ -413,6 +662,7 @@ Species::Species(const std::string& name,Simulation* sim) : Module(name,sim)
 
 	mover = NULL;
 	ionizer = NULL;
+	qed = NULL;
 
 	EM = NULL;
 	sources = NULL;
@@ -434,8 +684,10 @@ Species::Species(const std::string& name,Simulation* sim) : Module(name,sim)
 	directives.Add("charge",new tw::input::Float(&charge),false);
 	directives.Add("minimum density",new tw::input::Float(&minimumDensity),false);
 	directives.Add("emission temperature",new tw::input::Vec3(&emissionTemp),false);
-	directives.Add("accelerate to",new tw::input::Custom,false);
-	directives.Add("particles per cell",new tw::input::Custom);
+	directives.Add("acceleration time",new tw::input::Float(&accelerationTime),false);
+	directives.Add("acceleration momentum",new tw::input::Float(&accelerationImpulse),false);
+	directives.Add("particles per cell",new tw::input::Vec3(&distributionInCell),true);
+	directives.Add("when density",new tw::input::Custom);
 }
 
 Species::~Species()
@@ -444,6 +696,8 @@ Species::~Species()
 		owner->RemoveTool(mover);
 	if (ionizer!=NULL)
 		owner->RemoveTool(ionizer);
+	if (qed!=NULL)
+		owner->RemoveTool(qed);
 }
 
 void Species::VerifyInput()
@@ -455,6 +709,8 @@ void Species::VerifyInput()
 			ionizer = dynamic_cast<Ionizer*>(tool);
 		if (mover==NULL)
 			mover = dynamic_cast<Mover*>(tool);
+		if (qed==NULL)
+			qed = dynamic_cast<QED*>(tool);
 	}
 }
 
@@ -469,12 +725,14 @@ void Species::Initialize()
 	// Choose a mover if none was specified
 	if (mover==NULL)
 	{
-		if (EM!=NULL && sources!=NULL && laser==NULL && qo_j4==NULL)
+		if (EM!=NULL && sources!=NULL && laser==NULL && qo_j4==NULL && restMass!=0.0f && charge!=0.0f)
 			mover = (Mover*)owner->CreateTool("Boris-mover",tw::tool_type::borisMover);
 		if (EM!=NULL && sources!=NULL && laser!=NULL && qo_j4==NULL)
 			mover = (Mover*)owner->CreateTool("PGC-mover",tw::tool_type::pgcMover);
 		if (qo_j4!=NULL)
 			mover = (Mover*)owner->CreateTool("Bohmian-mover",tw::tool_type::bohmianMover);
+		if (restMass==0.0f && charge==0.0f)
+			mover = (Mover*)owner->CreateTool("Photon-mover",tw::tool_type::photonMover);
 	}
 
 	// Copy pointers to the mover tool
@@ -551,37 +809,39 @@ bool Species::InspectResource(void* resource,const std::string& description)
 	return false;
 }
 
-void Species::AddParticle(const tw::vec3& p,const Primitive& q,const float& number)
+void Species::AddParticle(const float& number,const Primitive& q,const tw::vec4& p,const tw::vec4& s,const tw::Float& Qparam)
 {
-	particle.emplace_back(p,q,number,count,owner->strip[0].Get_rank());
-	count++; // this serves as a unique identifier for particles irrespective of any additions or deletions in the vector
+	numberCreated += number;
+	count++;
+	particle.emplace_back(number,q,p,s,(count << 32) + owner->strip[0].Get_rank(),Qparam);
 }
 
+/// @brief Add the transfer particle to the final destination's particle list
+/// @param xfer the transfer particle data
 void Species::AddParticle(const TransferParticle& xfer)
 {
-	// We assume the caller expects the particle to be in the interior
-	// To account for the possibility of roundoff error the reference cell is forced in
-	Primitive q;
+	float x[4];
 	tw::Int ijk[4];
-	tw::vec3 x = tw::vec3(xfer.x[1],xfer.x[2],xfer.x[3]);
-	tw::vec3 p = tw::vec3(xfer.p[1],xfer.p[2],xfer.p[3]);
-	SetPrimitiveWithPosition(q,x); // particle must at least resolve inside the extended domain
-	DecodeCell(q,ijk);
-	for (tw::Int ax=1;ax<=3;ax++)
+	x[0] = xfer.x[0];
+	ijk[0] = xfer.ijk[0];
+	for (tw::Int ax=1;ax<4;ax++)
 	{
+		x[ax] = xfer.x[ax];
+		ijk[ax] = xfer.ijk[ax] - dim[ax] * xfer.dst[ax];
 		while (ijk[ax]<1)
 		{
 			ijk[ax]++;
-			q.x[ax] -= 1.0f;
+			x[ax] -= 1.0;
 		}
 		while (ijk[ax]>dim[ax])
 		{
 			ijk[ax]--;
-			q.x[ax] += 1.0f;
+			x[ax] += 1.0;
 		}
 	}
-	q.cell = EncodeCell(ijk[1],ijk[2],ijk[3]);
-	particle.emplace_back(p,q,xfer.number,xfer.aux1,xfer.aux2);
+	tw::Int cell = EncodeCell(ijk[0],ijk[1],ijk[2],ijk[3]);
+	Primitive q(cell,x[0],x[1],x[2],x[3]);
+	particle.emplace_back(xfer.number,q,xfer.p,xfer.s,xfer.tag,xfer.Qparam);
 	// don't update count because the transfer particle already has its identifier in aux1 and aux2
 }
 
@@ -609,14 +869,13 @@ void Species::CleanParticleList()
 
 
 
+/// Must happen before particle message passing and before particle destination calculation.
+/// All particles we want to keep should be transformed so they are in the global domain,
+/// except for particles crossing a periodic boundary.
+/// Result of the transformation can result in movement to new local domain.
+/// If absorption is desired leave particle out of global domain (destination calculation will send to MPI_PROC_NULL).
 void Species::ApplyGlobalBoundaryConditions()
 {
-	// Must happen before particle message passing and before particle destination calculation.
-	// All particles we want to keep should be transformed so they are in the global domain,
-	// except for particles crossing a periodic boundary.
-	// Result of the transformation can result in movement to new local domain.
-	// If absorption is desired leave particle out of global domain (destination calculation will send to MPI_PROC_NULL).
-	tw::Float extremum;
 	tw::Int ax,i,displ,src,dst;
 	tw::bc::par boundaryCondition;
 
@@ -629,7 +888,6 @@ void Species::ApplyGlobalBoundaryConditions()
 			{
 				for (i=0;i<transfer.size();i++)
 				{
-					extremum = displ==1 ? corner[ax-1] + size[ax-1] : corner[ax-1];
 					if (transfer[i].dst[ax]==displ)
 					{
 						switch (boundaryCondition)
@@ -643,16 +901,20 @@ void Species::ApplyGlobalBoundaryConditions()
 								break;
 							case par::emitting:
 								transfer[i].dst[ax] = 0;
-								transfer[i].x[ax] = extremum - tw::Float(displ)*0.5*spacing[ax-1];
+								transfer[i].x[ax] = 0.0;
+								transfer[i].ijk[ax] -= displ;
 								transfer[i].p[1] = emissionTemp.x*owner->gaussianDeviate->Next();
 								transfer[i].p[2] = emissionTemp.y*owner->gaussianDeviate->Next();
 								transfer[i].p[3] = emissionTemp.z*owner->gaussianDeviate->Next();
 								transfer[i].p[ax] = -tw::Float(displ)*fabs(transfer[i].p[ax]);
+								// DFG: add a line to update the energy
+								transfer[i].p[0] = sqrt(sqr(restMass) + Norm(transfer[i].p.spatial()));
 								break;
 							case par::reflecting:
 							case par::axisymmetric:
 								transfer[i].dst[ax] = 0;
-								transfer[i].x[ax] += 2.0*(extremum - transfer[i].x[ax]);
+								transfer[i].x[ax] *= -1.0;
+								transfer[i].ijk[ax] -= displ;
 								transfer[i].p[ax] *= -1.0;
 								break;
 							case par::none:
@@ -673,42 +935,38 @@ void Species::ApplyGlobalBoundaryConditions()
 
 
 
+/// Given dst[0] = starting node, and dst[ax] = direction of transfer (-1,0,1), set dst[0] = final node.
+/// The transfer can be arrested along any axis by setting dst[ax] = 0.
+/// This must be called before message passing begins, and after global boundary conditions are imposed.
+/// The destination domain for every particle on the transfer list has to be computed.
+/// If the particle leaves the entire system the destination rank is set to MPI_PROC_NULL (only possible for absorbing boundaries).
 void Species::ComputeTransferParticleDestinations()
 {
-	// This must be called before message passing begins, and after global boundary conditions are imposed.
-	// The destination domain for every particle on the transfer list has to be computed.
-	// If the particle leaves the entire system the destination rank is set to MPI_PROC_NULL (only possible for absorbing boundaries).
-	// It is assumed that the destination domain is set to the "current" domain upon entry.
-	// The destination is encoded as (rank,x-motion,y-motion,z-motion) with i-motion one of -1,0,1
 	tw::Int i,ax,dest_coords[4];
 
 	for (i=0;i<transfer.size();i++)
 	{
 		for (ax=1;ax<=3;ax++)
 		{
-			if (transfer[i].dst[ax] < 0)
-				if (owner->n0[ax]==MPI_PROC_NULL)
-					transfer[i].dst[0] = MPI_PROC_NULL;
-			if (transfer[i].dst[ax] > 0)
-				if (owner->n1[ax]==MPI_PROC_NULL)
-					transfer[i].dst[0] = MPI_PROC_NULL;
 			dest_coords[ax] = owner->domainIndex[ax] + transfer[i].dst[ax];
+			// handle absorbed particles
+			if (transfer[i].dst[ax]<0 && owner->n0[ax]==MPI_PROC_NULL)
+				transfer[i].dst[0] = MPI_PROC_NULL;
+			if (transfer[i].dst[ax]>0 && owner->n1[ax]==MPI_PROC_NULL)
+				transfer[i].dst[0] = MPI_PROC_NULL;
+			// handle periodicity
 			if (owner->periodic[ax])
 			{
 				if (dest_coords[ax]<0)
-				{
 					dest_coords[ax] = owner->domains[ax]-1;
-					transfer[i].x[ax] += globalSize[ax-1];
-				}
 				if (dest_coords[ax]>=owner->domains[ax])
-				{
 					dest_coords[ax] = 0;
-					transfer[i].x[ax] -= globalSize[ax-1];
+				if (owner->domains[ax]==1)
+				{
+					transfer[i].ijk[ax] -= dim[ax] * transfer[i].dst[ax];
+					transfer[i].dst[ax] = 0;
 				}
 			}
-			// if destination is this node stop the movement (e.g., single periodic node)
-			if (dest_coords[ax]==owner->domainIndex[ax])
-				transfer[i].dst[ax] = 0; // do not send
 		}
 		if (transfer[i].dst[0]!=MPI_PROC_NULL)
 			transfer[i].dst[0] = owner->strip[0].Cart_rank(dest_coords[1],dest_coords[2],dest_coords[3]);
@@ -760,7 +1018,7 @@ void Species::CollectTransfers()
 
 
 
-void Species::DepositInitialCharge(const tw::vec3& pos,tw::Float macroCharge)
+void Species::DepositInitialCharge(const tw::vec4& pos,tw::Float macroCharge)
 {
 	if (rho00)
 	{
@@ -819,6 +1077,7 @@ void Species::GenerateParticles(bool init)
 
 LoadingData::LoadingData(const Simulation& sim,const tw::vec3& distribution,const tw::cell& c) : cell(c)
 {
+	timeLevel = sim.stepNow;
 	densToAdd = 0.0;
 	densNow = 0.0;
 	particleDensity = 0.0;
@@ -882,7 +1141,7 @@ LoadingData::LoadingData(const Simulation& sim,const tw::vec3& distribution,cons
 tw::Float Species::AddDensity(const LoadingData& theData)
 {
 	const tw::vec3 cellCenter = owner->Pos(theData.cell);
-	const tw::vec3 cellSize = owner->dPos(theData.cell);
+	//const tw::vec3 cellSize = owner->dPos(theData.cell);
 	const tw::Float cellVolume = owner->dS(theData.cell,0);
 	const tw::Float densToAdd = theData.densToAdd;
 	const tw::Float densNow = theData.densNow;
@@ -891,11 +1150,11 @@ tw::Float Species::AddDensity(const LoadingData& theData)
 	//const bool neutralize = theData.neutralize;
 	const tw::Int pointsInSubGrid = theData.pointsInSubGrid;
 
-	tw::vec3 r_primitive,r,p;
 	Primitive q;
+	tw::vec4 p;
 	tw::Float particleDensity;
 	tw::Int numToAdd,numNow;
-	std::valarray<tw::vec3> initialMomenta;
+	std::valarray<tw::vec4> initialMomenta;
 
 	particleDensity = theData.particleDensity;
 	if (particleDensity <= minimumDensity)
@@ -906,33 +1165,36 @@ tw::Float Species::AddDensity(const LoadingData& theData)
 
 	if (numToAdd<1) return 0.0;
 
-	p = tw::vec3(0,0,0);
+	p = tw::vec4(0.0);
 	initialMomenta.resize(numToAdd);
 	for (tw::Int i=0;i<numToAdd;i++)
 	{
-		initialMomenta[i].x = thermalMomentum.x*owner->gaussianDeviate->Next();
-		initialMomenta[i].y = thermalMomentum.y*owner->gaussianDeviate->Next();
-		initialMomenta[i].z = thermalMomentum.z*owner->gaussianDeviate->Next();
+		initialMomenta[i][1] = thermalMomentum.x*owner->gaussianDeviate->Next();
+		initialMomenta[i][2] = thermalMomentum.y*owner->gaussianDeviate->Next();
+		initialMomenta[i][3] = thermalMomentum.z*owner->gaussianDeviate->Next();
 		p += initialMomenta[i];
 	}
 	p /= tw::Float(numToAdd);
-	initialMomenta -= p - driftMomentum;
+	initialMomenta -= p - tw::vec4(0,driftMomentum);
 
 	for (tw::Int i=0;i<numToAdd;i++)
 	{
 		tw::Int j = numNow + i;
 		while (j>=pointsInSubGrid) j -= pointsInSubGrid;
-		r_primitive = theData.subGrid[j];
-		r = r_primitive*cellSize + cellCenter;
 		p = initialMomenta[i];
-
-		q.x[0] = r_primitive.x;
-		q.x[1] = r_primitive.y;
-		q.x[2] = r_primitive.z;
-		q.cell = EncodeCell(theData.cell.dcd1(),theData.cell.dcd2(),theData.cell.dcd3());
-		const tw::Float N = theData.GeometryFactor(r.x,cellCenter.x)*particleDensity*cellVolume;
-		AddParticle(p,q,N);
-		DepositInitialCharge(r,N*charge);
+		p[0] = sqrt(sqr(restMass) + Norm(p.spatial()));
+		q.x[0] = 0.0; // always center of time cell
+		q.x[1] = theData.subGrid[j].x;
+		q.x[2] = theData.subGrid[j].y;
+		q.x[3] = theData.subGrid[j].z;
+		// At the beginning, timeLevel = 0.  So the particle's time will be t=-0.5*dt which can be viewed
+		// as in the center of the temporal ghost cell.  The field data is known at t = 0, i.e., on the
+		// high wall of the temporal ghost cell.
+		q.cell = EncodeCell(theData.timeLevel,theData.cell.dcd1(),theData.cell.dcd2(),theData.cell.dcd3());
+		const tw::vec4 x = PositionFromPrimitive(q);
+		const tw::Float N = theData.GeometryFactor(x[1],cellCenter.x)*particleDensity*cellVolume;
+		AddParticle(N,q,p,tw::vec4(0.0),0.0);
+		DepositInitialCharge(x,N*charge);
 	}
 
 	return particleDensity*tw::Float(numToAdd);
@@ -941,15 +1203,16 @@ tw::Float Species::AddDensity(const LoadingData& theData)
 tw::Float Species::AddDensityRandom(const LoadingData& theData)
 {
 	const tw::vec3 cellCenter = owner->Pos(theData.cell);
-	const tw::vec3 cellSize = owner->dPos(theData.cell);
+	//const tw::vec3 cellSize = owner->dPos(theData.cell);
 	const tw::Float cellVolume = owner->dS(theData.cell,0);
 	const tw::Float densToAdd = theData.densToAdd;
 	const tw::vec3 thermalMomentum = theData.thermalMomentum;
 	const tw::vec3 driftMomentum = theData.driftMomentum;
 	//const bool neutralize = theData.neutralize;
 
-	tw::vec3 r_primitive,r,p;
+	tw::vec3 r_primitive;
 	Primitive q;
+	tw::vec4 p;
 	tw::Float particleDensity,fractionalNum;
 	tw::Int numToAdd;
 
@@ -969,20 +1232,24 @@ tw::Float Species::AddDensityRandom(const LoadingData& theData)
 		r_primitive.x = owner->uniformDeviate->Next() - 0.5;
 		r_primitive.y = owner->uniformDeviate->Next() - 0.5;
 		r_primitive.z = owner->uniformDeviate->Next() - 0.5;
-		r = r_primitive*cellSize + cellCenter;
 
-		p.x = thermalMomentum.x*owner->gaussianDeviate->Next();
-		p.y = thermalMomentum.y*owner->gaussianDeviate->Next();
-		p.z = thermalMomentum.z*owner->gaussianDeviate->Next();
-		p += driftMomentum;
-
-		q.x[0] = r_primitive.x;
-		q.x[1] = r_primitive.y;
-		q.x[2] = r_primitive.z;
-		q.cell = EncodeCell(theData.cell.dcd1(),theData.cell.dcd2(),theData.cell.dcd3());
-		const tw::Float N = theData.GeometryFactor(r.x,cellCenter.x)*particleDensity*cellVolume;
-		AddParticle(p,q,N);
-		DepositInitialCharge(r,N*charge);
+		p[1] = thermalMomentum.x*owner->gaussianDeviate->Next();
+		p[2] = thermalMomentum.y*owner->gaussianDeviate->Next();
+		p[3] = thermalMomentum.z*owner->gaussianDeviate->Next();
+		p += tw::vec4(0.0,driftMomentum);
+		p[0] = sqrt(sqr(restMass) + Norm(p.spatial()));
+		q.x[0] = 0.0; // always center of time cell
+		q.x[1] = r_primitive.x;
+		q.x[2] = r_primitive.y;
+		q.x[3] = r_primitive.z;
+		// At the beginning, timeLevel = 0.  So the particle's time will be t=-0.5*dt which can be viewed
+		// as in the center of the temporal ghost cell.  The field data is known at t = 0, i.e., on the
+		// high wall of the temporal ghost cell.
+		q.cell = EncodeCell(theData.timeLevel,theData.cell.dcd1(),theData.cell.dcd2(),theData.cell.dcd3());
+		const tw::vec4 x = PositionFromPrimitive(q);
+		const tw::Float N = theData.GeometryFactor(x[1],cellCenter.x)*particleDensity*cellVolume;
+		AddParticle(N,q,p,tw::vec4(0.0),0.0);
+		DepositInitialCharge(x,N*charge);
 	}
 
 	return particleDensity*tw::Float(numToAdd);
@@ -997,7 +1264,7 @@ void Species::BeginMoveWindow()
 		tw::Int ijk[4];
 		DecodeCell(particle[i].q,ijk);
 		ijk[3]--;
-		particle[i].q.cell = EncodeCell(ijk[1],ijk[2],ijk[3]);
+		particle[i].q.cell = EncodeCell(ijk[0],ijk[1],ijk[2],ijk[3]);
 		if (!RefCellInDomain(particle[i].q))
 		{
 			if (owner->n0[3]!=MPI_PROC_NULL) // need to transfer particle
@@ -1009,17 +1276,9 @@ void Species::BeginMoveWindow()
 	}
 }
 
+/// @brief create new particles on the right
 void Species::FinishMoveWindow()
 {
-	for (tw::Int i=0;i<transfer.size();i++)
-	{
-		if (transfer[i].dst[0]==owner->strip[0].Get_rank())
-			AddParticle(transfer[i]);
-	}
-	transfer.clear();
-
-	// Create new particles on the right
-
 	if (owner->n1[3]==MPI_PROC_NULL)
 		for (auto prof : profile)
 			for (tw::Int j=1;j<=dim[2];j++)
@@ -1041,30 +1300,30 @@ void Species::FinishMoveWindow()
 				}
 }
 
-void Species::ReadInputFileDirective(std::stringstream& inputString,const std::string& command)
+bool Species::ReadInputFileDirective(const TSTreeCursor *curs0,const std::string& src)
 {
-	std::string word;
-	tw::dnum density,momentum,time;
-	Module::ReadInputFileDirective(inputString,command);
-	if (command=="particles per cell") // eg, particles per cell = 3 3 1 when density = 1.0
-	{
-		inputString >> word;
-		inputString >> distributionInCell.x >> distributionInCell.y >> distributionInCell.z;
-		inputString >> word >> word >> word;
-		inputString >> density;
-		targetDensity = (density >> native) / (distributionInCell.x*distributionInCell.y*distributionInCell.z);
+	if (Module::ReadInputFileDirective(curs0,src))
+		return true;
+
+	if (tw::input::node_kind(curs0)=="assignment") {
+		TSTreeCursor curs = ts_tree_cursor_copy(curs0);
+		ts_tree_cursor_goto_first_child(&curs);
+		if (tw::input::node_text(&curs,src) == "when density") {
+			// needs to be run together as `particles per cell = 3 3 1 when density = 1.0`
+			// so that the distributionInCell is known.
+			tw::input::Float directive(&targetDensity);
+			directive.Read(&curs,src,"when density",native);
+			targetDensity /= (distributionInCell.x*distributionInCell.y*distributionInCell.z);
+			return true;
+		}
 	}
-	if (command=="accelerate to") // eg, accelerate to 100.0 in 10.0
-	{
-		inputString >> momentum >> word >> time;
-		accelerationImpulse = momentum >> native;
-		accelerationTime = time >> native;
-	}
+	return false;	
 }
 
 void Species::ReadCheckpoint(std::ifstream& inFile)
 {
 	Module::ReadCheckpoint(inFile);
+	inFile.read((char *)&numberCreated,sizeof(tw::Float));
 	inFile.read((char *)&accelerationForceNow,sizeof(tw::Float));
 	inFile.read((char *)&count,sizeof(tw::Int));
 
@@ -1074,7 +1333,7 @@ void Species::ReadCheckpoint(std::ifstream& inFile)
 	inFile.read((char *)&num,sizeof(tw::Int));
 	for (tw::Int i=0;i<num;i++)
 	{
-		particle.emplace_back(tw::vec3(0.0),Primitive(0,0.0,0.0,0.0),0.0,0.0,0.0);
+		particle.emplace_back(0.0,Primitive(0,0.0,0.0,0.0,0.0),tw::vec4(0.0),tw::vec4(0.0),1,0.0);
 		particle.back().ReadCheckpoint(inFile);
 	}
 }
@@ -1082,6 +1341,7 @@ void Species::ReadCheckpoint(std::ifstream& inFile)
 void Species::WriteCheckpoint(std::ofstream& outFile)
 {
 	Module::WriteCheckpoint(outFile);
+	outFile.write((char *)&numberCreated,sizeof(tw::Float));
 	outFile.write((char *)&accelerationForceNow,sizeof(tw::Float));
 	outFile.write((char *)&count,sizeof(tw::Int));
 
@@ -1121,15 +1381,90 @@ void Species::CalculateDensity(ScalarField& dens)
 	dens.Smooth(*owner,smoothing,compensation);
 }
 
+void Species::CalculateEnergyDensity(ScalarField& dens)
+{
+	const tw::Float m0 = restMass;
+	Primitive q;
+	weights_3D w;
+	dens.Initialize(*this,owner);
+	for (auto par : particle)
+	{
+		if (RefCellInDomain(par.q))
+		{
+			dens.GetWeights(&w,par.q);
+			dens.InterpolateOnto(par.number * (par.p[0] - m0),w);
+		}
+	}
+	transfer.clear();
+	dens.SetBoundaryConditions(tw::grid::x,fld::dirichletCell,fld::dirichletCell);
+	dens.SetBoundaryConditions(tw::grid::y,fld::dirichletCell,fld::dirichletCell);
+	dens.SetBoundaryConditions(tw::grid::z,fld::dirichletCell,fld::dirichletCell);
+	dens.DepositFromNeighbors();
+	dens.ApplyFoldingCondition();
+	dens.DivideCellVolume(*owner);
+	dens.ApplyBoundaryCondition();
+	dens.Smooth(*owner,smoothing,compensation);
+}
+
+void Species::CalculateQuantumParameter(ScalarField& dens)
+{
+	Primitive q;
+	weights_3D w;
+	dens.Initialize(*this,owner);
+	for (auto par : particle)
+	{
+		if (RefCellInDomain(par.q))
+		{
+			dens.GetWeights(&w,par.q);
+			dens.InterpolateOnto(par.number*par.Qparam,w);
+		}
+	}
+	transfer.clear();
+	dens.SetBoundaryConditions(tw::grid::x,fld::dirichletCell,fld::dirichletCell);
+	dens.SetBoundaryConditions(tw::grid::y,fld::dirichletCell,fld::dirichletCell);
+	dens.SetBoundaryConditions(tw::grid::z,fld::dirichletCell,fld::dirichletCell);
+	dens.DepositFromNeighbors();
+	dens.ApplyFoldingCondition();
+	dens.DivideCellVolume(*owner);
+	dens.ApplyBoundaryCondition();
+	dens.Smooth(*owner,smoothing,compensation);
+}
+
+tw::Float Species::KineticEnergy(const Region& theRgn)
+{
+	tw::Float ans = 0.0;
+	const tw::Float m0 = restMass;
+	for (auto par : particle)
+		if (theRgn.Inside(owner->PositionFromPrimitive(par.q).spatial(),*owner))
+			ans += par.number * (par.p[0] - m0);
+	return ans;
+}
+
+tw::Float Species::ParticleNumber(const Region& theRgn)
+{
+	tw::Float ans = 0.0;
+	for (auto par : particle)
+		if (theRgn.Inside(owner->PositionFromPrimitive(par.q).spatial(),*owner))
+			ans += par.number;
+	return ans;
+}
+
 void Species::Report(Diagnostic& diagnostic)
 {
 	Module::Report(diagnostic);
 
 	ScalarField temp;
 
-	diagnostic.Float("N_"+name,particle.size(),false);
+	diagnostic.ReportNumber("N_"+name,particle.size(),false);
+	diagnostic.ReportNumber("Kinetic_"+name,KineticEnergy(*diagnostic.theRgn),false);
+	diagnostic.ReportNumber("Number_"+name,ParticleNumber(*diagnostic.theRgn),false);
+	diagnostic.ReportNumber("Creation_"+name,numberCreated,false);
 	CalculateDensity(temp);
-	diagnostic.Field(name,temp,0,tw::dims::density,"$n_{\\rm "+name+"}$");
+	diagnostic.ReportField(name,temp,0,tw::dims::density,"$n_{\\rm "+name+"}$");
+	CalculateEnergyDensity(temp);
+	diagnostic.ReportField("u_"+name,temp,0,tw::dims::energy_density,"$u_{\\rm "+name+"}$");
+	CalculateQuantumParameter(temp);
+	diagnostic.ReportField("Q_"+name,temp,0,tw::dims::none,"$Q_{\\rm "+name+"}$");
 
 	if (qo_j4!=NULL)
 	{
@@ -1143,5 +1478,5 @@ void Species::Report(Diagnostic& diagnostic)
 	}
 
 	for (auto par : particle)
-		diagnostic.Particle(par,restMass,owner->elapsedTime);
+		diagnostic.ReportParticle(par,restMass);
 }

@@ -35,6 +35,7 @@
 #include <exception>
 #include <string>
 #include <cctype>
+#include <format>
 #ifdef USE_OPENMP
 #include <omp.h>
 #endif
@@ -42,8 +43,8 @@
 namespace tw
 {
 	typedef double Float;
-	typedef int32_t Int;
-	typedef uint32_t Uint;
+	typedef int64_t Int;
+	typedef uint64_t Uint;
 	typedef std::complex<tw::Float> Complex;
 	static const tw::Int cache_align_bytes = 64;
 	static const tw::Int vec_align_bytes = VBITS/8; // if not matched to hardware can lead to failures
@@ -52,6 +53,7 @@ namespace tw
 	static const tw::Float small_pos = 1e9*std::numeric_limits<tw::Float>::min();
 	static const tw::Float big_neg = -1e-9*std::numeric_limits<tw::Float>::max();
 	static const tw::Float big_pos = 1e-9*std::numeric_limits<tw::Float>::max();
+	static const tw::Float tiny = std::numeric_limits<tw::Float>::epsilon();
 	class FatalError : public std::exception
 	{
 		char messg[256];
@@ -67,6 +69,21 @@ namespace tw
 			return messg;
 		}
 	};
+	#ifdef _WIN32
+	inline tw::Float * alloc_aligned_floats(size_t count,size_t alignment) {
+		return (tw::Float*)_aligned_malloc(count*sizeof(tw::Float),alignment);
+	}
+	inline void free_aligned_floats(tw::Float *ptr) {
+		_aligned_free(ptr);
+	}
+	#else
+	inline tw::Float * alloc_aligned_floats(size_t count,size_t alignment) {
+		return (tw::Float*)std::aligned_alloc(alignment,count*sizeof(tw::Float));
+	}
+	inline void free_aligned_floats(tw::Float *ptr) {
+		free(ptr);
+	}
+	#endif
 }
 // Define a strongly typed boolean for better type checking in some situations
 enum class strongbool { yes , no };

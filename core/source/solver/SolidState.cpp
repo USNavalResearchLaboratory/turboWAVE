@@ -1,12 +1,61 @@
-#include "simulation.h"
-#include "solidState.h"
+module;
+
+#include "meta_base.h"
+
+export module solid_state;
+import input;
+import twmodule;
+import fields;
+import diagnostics;
+
+export struct BoundElectrons:Module
+{
+	tw::Float q0,m0; // charge, rest mass
+	ScalarField dens;
+	Field R0,R1;
+	tw::vec3 resFreq,dampFreq,oscStrength;
+	// following are rows of contracted anharmonic tensor, indexed from 1
+	std::valarray<tw::Float> a1,a2,a3; // second order anharmonic coefficients
+	std::valarray<tw::Float > packet; // packet to send to compute device
+	tw::Float b,d; // third/fifth order anharmonic coefficient (isotropic)
+
+	#ifdef USE_OPENCL
+	cl_kernel k_update;
+	cl_mem packet_buffer;
+	#endif
+
+	tw::Float theta,phi;
+	tw::basis crystalBasis;
+
+	Field* EM;
+	Field* sources;
+	Field* laser;
+	ComplexField* chi;
+	tw::Float* carrierFrequency;
+	bool* circular;
+	ScalarField* fixed;
+	Vec3Field* ESField;
+
+	BoundElectrons(const std::string& name,Simulation* sim);
+	virtual ~BoundElectrons();
+	virtual void Initialize();
+	virtual bool InspectResource(void* resource,const std::string& description);
+	virtual void MoveWindow();
+	virtual void Update();
+
+	virtual bool ReadInputFileDirective(const TSTreeCursor *curs,const std::string& src);
+	virtual void ReadCheckpoint(std::ifstream& inFile);
+	virtual void WriteCheckpoint(std::ofstream& outFile);
+
+	virtual void StartDiagnostics();
+	virtual void Report(Diagnostic&);
+};
 
 ////////////////////////////
 //                        //
 // BOUND ELECTRONS MODULE //
 //                        //
 ////////////////////////////
-
 
 BoundElectrons::BoundElectrons(const std::string& name,Simulation* sim) : Module(name,sim)
 {
@@ -233,6 +282,7 @@ void BoundElectrons::Update()
 		tw::vec3 qEm,r0,r1,FNL;
 		tw::vec4 j4;
 		tw::Float RR[7];
+		const tw::Float dt = dx(0);
 
 		for (auto v : VectorStripRange<3>(*this,false))
 			for (tw::Int k=1;k<=zLast;k++)
@@ -267,9 +317,9 @@ void BoundElectrons::Update()
 					crystalBasis.ExpressInStdBasis(&r1);
 
 					// charge in high-side adjacent cell last step
-					const tw::vec3 Q0 = 0.5*q0*dens(v,k)*owner->dS(v,k,0)*r0*freq;
+					const tw::vec3 Q0 = 0.5*q0*dens(v,k)*owner->dS(v,k,0)*r0*freq.spatial();
 					// charge in high-side adjacent cell this step
-					const tw::vec3 Q1 = 0.5*q0*dens(v,k)*owner->dS(v,k,0)*r1*freq;
+					const tw::vec3 Q1 = 0.5*q0*dens(v,k)*owner->dS(v,k,0)*r1*freq.spatial();
 					// current in either cell wall
 					const tw::vec3 I3 = (Q1 - Q0)/dt;
 
@@ -302,23 +352,26 @@ void BoundElectrons::Update()
 }
 #endif
 
-void BoundElectrons::ReadInputFileDirective(std::stringstream& inputString,const std::string& command)
+bool BoundElectrons::ReadInputFileDirective(const TSTreeCursor *curs0,const std::string& src)
 {
-	tw::dnum x,y,z;
-	std::string word;
+	if (Module::ReadInputFileDirective(curs0,src))
+		return true;
 
-	Module::ReadInputFileDirective(inputString,command);
-
-	if (command=="basis")
-	{
-		inputString >> word;
-		inputString >> x >> y >> z;
-		crystalBasis.u = tw::vec3(x>>native,y>>native,z>>native);
-		inputString >> x >> y >> z;
-		crystalBasis.v = tw::vec3(x>>native,y>>native,z>>native);
-		inputString >> x >> y >> z;
-		crystalBasis.w = tw::vec3(x>>native,y>>native,z>>native);
+	if (tw::input::node_kind(curs0)=="assignment") {
+		TSTreeCursor curs = ts_tree_cursor_copy(curs0);
+		ts_tree_cursor_goto_first_child(&curs);
+		if (tw::input::node_text(&curs,src) == "basis") {
+			std::valarray<tw::Float> components(9);
+			tw::input::Numbers<tw::Float> directive(&components[0],9);
+			directive.Read(&curs,src,"basis",native);
+			crystalBasis.u = tw::vec3(&components[0]);
+			crystalBasis.v = tw::vec3(&components[3]);
+			crystalBasis.w = tw::vec3(&components[6]);
+			return true;
+		}
 	}
+
+	return false;
 }
 
 void BoundElectrons::ReadCheckpoint(std::ifstream& inFile)
@@ -351,7 +404,8 @@ void BoundElectrons::Report(Diagnostic& diagnostic)
 
 	ScalarField temp;
 	temp.Initialize(*this,owner);
-
+	tw::Float dt = dx(0);
+	
 	for (auto cell : InteriorCellRange(*this))
 	{
 		const tw::vec3 vel = oscStrength*(R1.Vec3(cell,0) - R0.Vec3(cell,0))/dt;
@@ -363,8 +417,8 @@ void BoundElectrons::Report(Diagnostic& diagnostic)
 		temp(cell) = 0.5*m0*dens(cell)*Norm(resFreq*R1.Vec3(cell,0));
 	diagnostic.VolumeIntegral("bound-PE",temp,0);
 
-	diagnostic.Field(name,dens,0,tw::dims::density,"$n_{\\rm "+name+"}$");
-	diagnostic.Field(name+"_x",R1,0,tw::dims::length,"$\\delta x$["+name+"]");
-	diagnostic.Field(name+"_y",R1,1,tw::dims::length,"$\\delta y$["+name+"]");
-	diagnostic.Field(name+"_z",R1,2,tw::dims::length,"$\\delta z$["+name+"]");
+	diagnostic.ReportField(name,dens,0,tw::dims::density,"$n_{\\rm "+name+"}$");
+	diagnostic.ReportField(name+"_x",R1,0,tw::dims::length,"$\\delta x$["+name+"]");
+	diagnostic.ReportField(name+"_y",R1,1,tw::dims::length,"$\\delta y$["+name+"]");
+	diagnostic.ReportField(name+"_z",R1,2,tw::dims::length,"$\\delta z$["+name+"]");
 }

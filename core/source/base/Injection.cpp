@@ -1,7 +1,319 @@
+module;
+
 #include "meta_base.h"
-#include "computeTool.h"
-#include "injection.h"
+
+export module injection;
+import input;
+import compute_tool;
+import fields;
+
 using namespace tw::bc;
+
+export namespace tw
+{
+	namespace profile
+	{
+		enum class quantity { density,energy,px,py,pz };
+		enum class timing { triggered,maintained };
+		enum class loading { statistical,deterministic };
+		enum class shape { triangle,sin2,quartic,quintic,sech };
+	}
+}
+
+export namespace EM
+{
+	enum class current { none,electric,magnetic };
+	struct mode_data
+	{
+		tw::Int order[2],exponent[2];
+		tw::Float scale[2];
+	};
+}
+
+export struct Profile : ComputeTool
+{
+	tw::profile::shape segmentShape;
+	tw::grid::geometry symmetry;
+	tw::vec3 centerPt;
+	tw::vec3 modeNumber;
+	tw::Float modeAmplitude;
+	tw::basis orientation;
+	tw::Float gammaBoost;
+
+	// items needed for particle/fluid loading
+private:
+	tw::vec3 driftMomentum;
+public:
+	tw::profile::quantity whichQuantity;
+	tw::vec3 thermalMomentum;
+	tw::Float temperature;
+	bool neutralize,variableCharge;
+	tw::profile::loading loadingMethod;
+	tw::profile::timing timingMethod;
+	tw::Float t0,t1;
+	bool wasTriggered;
+
+	Profile(const std::string& name,MetricSpace *m,Task *tsk);
+	virtual void Initialize();
+	tw::vec3 DriftMomentum(const tw::Float& mass);
+	tw::Float Temperature(const tw::Float& mass);
+	tw::vec3 Boost(const tw::vec3& pos);
+	tw::vec3 Translate_Rotate(const tw::vec3& pos);
+	virtual tw::Float GetValue(const tw::vec3& pos,const MetricSpace& ds);
+	bool TimeGate(tw::Float t,tw::Float *add);
+	virtual bool ReadInputFileDirective(const TSTreeCursor *curs,const std::string& src);
+	virtual void ReadCheckpoint(std::ifstream& inFile);
+	virtual void WriteCheckpoint(std::ofstream& outFile);
+};
+
+export struct UniformProfile:Profile
+{
+	tw::Float density;
+
+	UniformProfile(const std::string& name,MetricSpace *m,Task *tsk);
+	virtual tw::Float GetValue(const tw::vec3& pos,const MetricSpace& ds);
+};
+
+export struct GaussianProfile:Profile
+{
+	tw::Float density;
+	tw::vec3 beamSize;
+
+	GaussianProfile(const std::string& name,MetricSpace *m,Task *tsk);
+	virtual tw::Float GetValue(const tw::vec3& pos,const MetricSpace& ds);
+};
+
+export struct ChannelProfile:Profile
+{
+	std::valarray<tw::Float> z,fz;
+	tw::Float coeff[4];
+
+	ChannelProfile(const std::string& name,MetricSpace *m,Task *tsk);
+	virtual tw::Float GetValue(const tw::vec3& pos,const MetricSpace& ds);
+	virtual void ReadCheckpoint(std::ifstream& inFile);
+	virtual void WriteCheckpoint(std::ofstream& outFile);
+};
+
+export struct ColumnProfile:Profile
+{
+	std::valarray<tw::Float> z,fz;
+	tw::vec3 beamSize;
+
+	ColumnProfile(const std::string& name,MetricSpace *m,Task *tsk);
+	virtual tw::Float GetValue(const tw::vec3& pos,const MetricSpace& ds);
+	virtual void ReadCheckpoint(std::ifstream& inFile);
+	virtual void WriteCheckpoint(std::ofstream& outFile);
+};
+
+export struct PiecewiseProfile:Profile
+{
+	std::valarray<tw::Float> x,fx,y,fy,z,fz;
+
+	PiecewiseProfile(const std::string& name,MetricSpace *m,Task *tsk);
+	virtual void Initialize();
+	virtual tw::Float GetValue(const tw::vec3& pos,const MetricSpace& ds);
+	virtual void ReadCheckpoint(std::ifstream& inFile);
+	virtual void WriteCheckpoint(std::ofstream& outFile);
+};
+
+export struct CorrugatedProfile:Profile
+{
+	tw::Float a0,gamma0,w0,wp0,km,delta,rchannel;
+
+	CorrugatedProfile(const std::string& name,MetricSpace *m,Task *tsk);
+	virtual tw::Float GetValue(const tw::vec3& pos,const MetricSpace& ds);
+};
+
+export struct PulseShape
+{
+	tw::Float delay,risetime,holdtime,falltime;
+	tw::Float t1,t2,t3,t4;
+	tw::profile::shape whichProfile;
+	tw::Int samplePoints;
+	std::valarray<tw::Float> tpts,wpts;
+	std::valarray<tw::Complex> amplitude;
+	std::valarray<tw::Float> spectral_phase_coeff;
+
+	PulseShape();
+	void Initialize(const tw::Float time_origin);
+	tw::Float PrimitiveAmplitude(const tw::Float t) const;
+	tw::Complex Amplitude(const tw::Float t) const;
+	tw::Complex D1Amplitude(const tw::Float t) const;
+};
+
+export struct Wave : ComputeTool
+{
+	tw::vec3 direction;
+	tw::vec3 focusPosition;
+	tw::vec3 a;
+	tw::Float a0,w,nrefr,phase,vg,chirp,randomPhase,gammaBoost;
+	PulseShape pulseShape;
+	EM::mode_data modeData;
+	tw::basis laserFrame;
+	tw::Int zones;
+
+	GaussianDeviate *deviate;
+
+	Wave(const std::string& name,MetricSpace *ms,Task *tsk);
+	virtual void Initialize();
+	virtual tw::Complex PrimitivePhasor(const tw::vec4& x4) const = 0;
+	virtual tw::vec3 PrimitiveVector(const tw::vec4& x4) const
+	{
+		// Estimate from kz*Az = i*dAx/dx
+		// This is refined later by field solvers
+		tw::Float kz = w*nrefr;
+		tw::Float dx = 0.01*modeData.scale[0];
+		tw::vec4 dxh(0.0,0.5*dx,0.0,0.0);
+		tw::Complex Ax1 = PrimitivePhasor(x4-dxh);
+		tw::Complex Ax2 = PrimitivePhasor(x4+dxh);
+		tw::Complex Az = ii*(Ax2-Ax1)/(dx*kz);
+		return tw::vec3(std::real(0.5*(Ax1+Ax2)),0.0,std::real(Az));
+	}
+	void ToLaserFrame(tw::vec4 *x4) const
+	{
+		// The function's caller is giving us boosted frame coordinates.
+		// The user is describing the laser in the lab frame.
+		// To get to laser's frame: boost, then translate, then rotate.
+		x4->zBoost(gammaBoost,1.0);
+		tw::vec4 displ(pulseShape.delay+pulseShape.risetime,focusPosition);
+		*x4 -= displ;
+		laserFrame.ExpressInBasis(x4);
+	}
+	void ToBoostedFrame(tw::vec4 *A4) const
+	{
+		laserFrame.ExpressInStdBasis(A4);
+		A4->zBoost(gammaBoost,-1.0);
+	}
+	tw::Complex VectorPotentialEnvelope(tw::Float time,const tw::vec3& pos,tw::Float w0) const
+	{
+		tw::vec4 x4(time,pos);
+		ToLaserFrame(&x4);
+		return PrimitivePhasor(x4)*std::exp(-ii*(w0*nrefr*x4[3] - w0*x4[0]));
+	}
+	tw::vec3 VectorPotential(tw::Float time,const tw::vec3& pos) const
+	{
+		tw::vec3 A3(0.0);
+		tw::vec4 x4(time,pos);
+		tw::vec4 x4p(time,pos);
+		ToLaserFrame(&x4);
+		const tw::Int xzones = task->globalCells[1]==1 ? 1 : zones;
+		const tw::Int yzones = task->globalCells[2]==1 ? 1 : zones;
+		for (tw::Int i=0;i<xzones;i++)
+			for (tw::Int j=0;j<yzones;j++)
+			{
+				x4p = x4;
+				x4p[1] += (i-0.5*xzones+0.5)*space->GlobalPhysicalSize()[1];
+				x4p[2] += (j-0.5*yzones+0.5)*space->GlobalPhysicalSize()[2];
+				A3 += PrimitiveVector(x4p);
+			}
+		tw::vec4 A4(0.0,A3);
+		ToBoostedFrame(&A4);
+		return A4.spatial(); // For certain boost geometries we will need to keep scalar potential
+	}
+};
+
+export struct PlaneWave : Wave
+{
+	PlaneWave(const std::string& name,MetricSpace *m,Task *tsk);
+	virtual tw::Complex PrimitivePhasor(const tw::vec4& x4) const;
+	virtual tw::vec3 PrimitiveVector(const tw::vec4& x4) const;
+};
+
+export struct BesselBeam : Wave
+{
+	BesselBeam(const std::string& name,MetricSpace *m,Task *tsk);
+	virtual tw::Complex PrimitivePhasor(const tw::vec4& x4) const;
+};
+
+export struct AiryDisc : Wave
+{
+	AiryDisc(const std::string& name,MetricSpace *m,Task *tsk);
+	virtual tw::Complex PrimitivePhasor(const tw::vec4& x4) const;
+};
+
+export struct Multipole : Wave
+{
+	Multipole(const std::string& name,MetricSpace *m,Task *tsk);
+	virtual void Initialize();
+	virtual tw::Complex PrimitivePhasor(const tw::vec4& x4) const;
+	virtual tw::vec3 PrimitiveVector(const tw::vec4& x4) const;
+};
+
+export struct HermiteGauss : Wave
+{
+	HermiteGauss(const std::string& name,MetricSpace *m,Task *tsk);
+	virtual void Initialize();
+	virtual tw::Complex PrimitivePhasor(const tw::vec4& x4) const;
+	virtual bool Test(tw::Int& id);
+};
+
+export struct LaguerreGauss : Wave
+{
+	LaguerreGauss(const std::string& name,MetricSpace *m,Task *tsk);
+	virtual void Initialize();
+	virtual tw::Complex PrimitivePhasor(const tw::vec4& x4) const;
+};
+
+export struct Conductor : ComputeTool
+{
+	PulseShape pulseShape;
+	std::valarray<tw::Float> Px,Py,Pz,potential,angFreq,phase;
+	bool affectsPhi,affectsA;
+	EM::current currentType;
+	tw::vec3 gaussianRadius,ks;
+	tw::Float f,temperature;
+
+	Conductor(const std::string& name,MetricSpace *m,Task *tsk);
+	virtual void Initialize();
+	tw::Float Temperature(tw::Float t) { return temperature; }
+	tw::Float Voltage(tw::Float t);
+	tw::Float VoltageRate(tw::Float t);
+	tw::vec3 PolarizationDensity(const tw::vec3& pos,tw::Float t);
+	void DepositSources(Field& j4,tw::Float t,tw::Float dt);
+};
+
+export struct LindmanBoundary
+{
+	MetricSpace *ms;
+	tw::grid::axis axis;
+	tw::grid::side side;
+	Field boundaryMemory;
+	tw::Int c0,c1;
+	std::vector<Wave*> *wave;
+
+	void Initialize(Task *task,MetricSpace *ms,std::vector<Wave*> *waves,const tw::grid::axis& axis,const tw::grid::side& side,tw::Int c0,tw::Int c1);
+	void UpdateBoundaryMemory(Field& A,tw::Float dt);
+	void Set(Field& A,tw::Float t0,tw::Float dt);
+	void ReadCheckpoint(std::ifstream& inFile);
+	void WriteCheckpoint(std::ofstream& outFile);
+};
+
+export struct MABoundary
+{
+	std::valarray<tw::Complex> g[10];
+	tw::Float gamma[10];
+	tw::Float sigma[10];
+	tw::Float scaleFactor;
+
+	MABoundary(tw::Int numCells);
+	void AdvanceLeft(std::valarray<tw::Complex>& amplitude,tw::Float dt);
+	void AdvanceRight(std::valarray<tw::Complex>& amplitude,tw::Float dt);
+	tw::Complex NormalDerivativeLeft(tw::Int index,tw::Complex amplitude,tw::Float carrierFrequency);
+	tw::Complex NormalDerivativeRight(tw::Int index,tw::Complex amplitude,tw::Float carrierFrequency);
+};
+
+export struct Warp : ComputeTool,warp_base
+{
+	bool increasing;
+	tw::Int rng[2];
+	tw::Float L,gridSum;
+
+	Warp(const std::string& name,MetricSpace *m,Task *tsk);
+	virtual void Initialize();
+	virtual void ReadCheckpoint(std::ifstream& inFile);
+	virtual void WriteCheckpoint(std::ofstream& outFile);
+	tw::Float AddedCellWidth(tw::Int globalCell);
+};
 
 ///////////////////
 //               //
@@ -77,22 +389,34 @@ void Profile::Initialize()
 {
 }
 
-void Profile::ReadInputFileDirective(std::stringstream& inputString,const std::string& com)
+bool Profile::ReadInputFileDirective(const TSTreeCursor *curs0,const std::string& src)
 {
-	std::string word;
-	if (com=="particle weight")
-	{
-		inputString >> word >> word;
-		if (word!="variable" && word!="fixed")
-			throw tw::FatalError("Invalid type <"+word+"> while processing key <particle weight>.");
-		variableCharge = (word=="variable" ? true : false);
+	TSTreeCursor curs = ts_tree_cursor_copy(curs0);
+	if (!tw::input::next_named_node(&curs,true))
+		return false;
+	std::string outer = tw::input::node_kind(&curs);
+	if (outer != "assignment")
+		throw tw::FatalError("Expected assignment, got " + outer + ", at " + tw::input::loc_str(curs0));
+	ts_tree_cursor_goto_first_child(&curs);
+	std::string com = tw::input::node_text(&curs,src);
+	if (com=="particle weight") {
+		std::string weighting;
+		tw::input::String directive(&weighting);
+		directive.Read(&curs,src,"particle weight",native);
+		if (weighting!="variable" && weighting!="fixed")
+			throw tw::FatalError("Invalid type <"+weighting+"> while processing key <particle weight>.");
+		variableCharge = (weighting=="variable" ? true : false);
+		return true;
 	}
 	if (com=="euler angles") // eg, euler angles = ( 45[deg] 90[deg] 30[deg] )
 	{
-		tw::dnum alpha,beta,gamma;
-		inputString >> alpha >> beta >> gamma;
-		orientation.SetWithEulerAngles( alpha >> native , beta >> native , gamma >> native );
+		tw::vec3 angles;
+		tw::input::Vec3 directive(&angles);
+		directive.Read(&curs,src,"euler angles",native);
+		orientation.SetWithEulerAngles( angles.x , angles.y , angles.z );
+		return true;
 	}
+	return false;
 }
 
 void Profile::ReadCheckpoint(std::ifstream& inFile)
@@ -117,11 +441,16 @@ void Profile::WriteCheckpoint(std::ofstream& outFile)
 
 tw::vec3 Profile::DriftMomentum(const tw::Float& mass)
 {
-	tw::vec4 v4(0.0,driftMomentum/mass);
-	tw::Float gb2 = v4 ^ v4;
-	v4[0] = sqrt(1.0 + gb2);
-	v4.zBoost(gammaBoost,-1.0);
-	return mass*v4.spatial();
+	tw::Float p2 = driftMomentum ^ driftMomentum;
+	tw::Float p0 = sqrt(mass*mass + p2);
+	tw::vec4 p4(p0,driftMomentum);
+	p4.zBoost(gammaBoost,-1.0);
+	return p4.spatial();
+	// tw::vec4 v4(0.0,driftMomentum/mass);
+	// tw::Float gb2 = v4 ^ v4;
+	// v4[0] = sqrt(1.0 + gb2);
+	// v4.zBoost(gammaBoost,-1.0);
+	// return mass*v4.spatial();
 }
 
 tw::Float Profile::Temperature(const tw::Float& mass)
@@ -205,8 +534,8 @@ tw::Float GaussianProfile::GetValue(const tw::vec3& pos,const MetricSpace& ds)
 ChannelProfile::ChannelProfile(const std::string& name,MetricSpace *m,Task *tsk):Profile(name,m,tsk)
 {
 	directives.Add("coefficients",new tw::input::Numbers<tw::Float>(&coeff[0],4));
-	directives.Add("zpoints",new tw::input::List<std::valarray<tw::Float>>(&z));
-	directives.Add("zdensity",new tw::input::List<std::valarray<tw::Float>>(&fz));
+	directives.Add("zpoints",new tw::input::NumberList<std::valarray<tw::Float>>(&z));
+	directives.Add("zdensity",new tw::input::NumberList<std::valarray<tw::Float>>(&fz));
 }
 
 void ChannelProfile::ReadCheckpoint(std::ifstream& inFile)
@@ -249,8 +578,8 @@ tw::Float ChannelProfile::GetValue(const tw::vec3& pos,const MetricSpace& ds)
 ColumnProfile::ColumnProfile(const std::string& name,MetricSpace *m,Task *tsk):Profile(name,m,tsk)
 {
 	directives.Add("size",new tw::input::Vec3(&beamSize));
-	directives.Add("zpoints",new tw::input::List<std::valarray<tw::Float>>(&z));
-	directives.Add("zdensity",new tw::input::List<std::valarray<tw::Float>>(&fz));
+	directives.Add("zpoints",new tw::input::NumberList<std::valarray<tw::Float>>(&z));
+	directives.Add("zdensity",new tw::input::NumberList<std::valarray<tw::Float>>(&fz));
 }
 
 void ColumnProfile::ReadCheckpoint(std::ifstream& inFile)
@@ -292,12 +621,12 @@ tw::Float ColumnProfile::GetValue(const tw::vec3& pos,const MetricSpace& ds)
 
 PiecewiseProfile::PiecewiseProfile(const std::string& name,MetricSpace *m,Task *tsk) : Profile(name,m,tsk)
 {
-	directives.Add("xpoints",new tw::input::List<std::valarray<tw::Float>>(&x),false);
-	directives.Add("ypoints",new tw::input::List<std::valarray<tw::Float>>(&y),false);
-	directives.Add("zpoints",new tw::input::List<std::valarray<tw::Float>>(&z),false);
-	directives.Add("xdensity",new tw::input::List<std::valarray<tw::Float>>(&fx),false);
-	directives.Add("ydensity",new tw::input::List<std::valarray<tw::Float>>(&fy),false);
-	directives.Add("zdensity",new tw::input::List<std::valarray<tw::Float>>(&fz),false);
+	directives.Add("xpoints",new tw::input::NumberList<std::valarray<tw::Float>>(&x),false);
+	directives.Add("ypoints",new tw::input::NumberList<std::valarray<tw::Float>>(&y),false);
+	directives.Add("zpoints",new tw::input::NumberList<std::valarray<tw::Float>>(&z),false);
+	directives.Add("xdensity",new tw::input::NumberList<std::valarray<tw::Float>>(&fx),false);
+	directives.Add("ydensity",new tw::input::NumberList<std::valarray<tw::Float>>(&fy),false);
+	directives.Add("zdensity",new tw::input::NumberList<std::valarray<tw::Float>>(&fz),false);
 }
 
 void PiecewiseProfile::Initialize()
@@ -667,7 +996,7 @@ Wave::Wave(const std::string& name,MetricSpace *m,Task *tsk) : ComputeTool(name,
 	std::map<std::string,tw::profile::shape> shape = {{"quintic",tw::profile::shape::quintic},{"sech",tw::profile::shape::sech},{"sin2",tw::profile::shape::sin2}};
 	directives.Add("shape",new tw::input::Enums<tw::profile::shape>(shape,&pulseShape.whichProfile),false);
 	directives.Add("zones",new tw::input::Int(&zones),false);
-	directives.Add("spectral phase",new tw::input::List<std::valarray<tw::Float>>(&pulseShape.spectral_phase_coeff),false);
+	directives.Add("spectral phase",new tw::input::NumberList<std::valarray<tw::Float>>(&pulseShape.spectral_phase_coeff),false);
 	directives.Add("sample points",new tw::input::Int(&pulseShape.samplePoints),false);
 }
 
@@ -870,19 +1199,19 @@ Conductor::Conductor(const std::string& name,MetricSpace *m,Task *tsk) : Compute
 	affectsA = true;
 	currentType = EM::current::electric;
 	pulseShape.delay = 0.0;
-	pulseShape.risetime = 0.01*timestep(*m);
-	pulseShape.holdtime = 1e10*timestep(*m);
-	pulseShape.falltime = 0.01*timestep(*m);
+	pulseShape.risetime = 0.01*m->dx(0);
+	pulseShape.holdtime = 1e10*m->dx(0);
+	pulseShape.falltime = 0.01*m->dx(0);
 	gaussianRadius = tw::big_pos;
 	f = tw::big_pos;
 	ks = 0.0;
 	temperature = 0.0;
-	directives.Add("px",new tw::input::List<std::valarray<tw::Float>>(&Px),false);
-	directives.Add("py",new tw::input::List<std::valarray<tw::Float>>(&Py),false);
-	directives.Add("pz",new tw::input::List<std::valarray<tw::Float>>(&Pz),false);
-	directives.Add("potential",new tw::input::List<std::valarray<tw::Float>>(&potential),false);
-	directives.Add("w",new tw::input::List<std::valarray<tw::Float>>(&angFreq),false);
-	directives.Add("phase",new tw::input::List<std::valarray<tw::Float>>(&phase),false);
+	directives.Add("px",new tw::input::NumberList<std::valarray<tw::Float>>(&Px),false);
+	directives.Add("py",new tw::input::NumberList<std::valarray<tw::Float>>(&Py),false);
+	directives.Add("pz",new tw::input::NumberList<std::valarray<tw::Float>>(&Pz),false);
+	directives.Add("potential",new tw::input::NumberList<std::valarray<tw::Float>>(&potential),false);
+	directives.Add("w",new tw::input::NumberList<std::valarray<tw::Float>>(&angFreq),false);
+	directives.Add("phase",new tw::input::NumberList<std::valarray<tw::Float>>(&phase),false);
 	directives.Add("delay",new tw::input::Float(&pulseShape.delay),false);
 	directives.Add("risetime",new tw::input::Float(&pulseShape.risetime),false);
 	directives.Add("holdtime",new tw::input::Float(&pulseShape.holdtime),false);
@@ -1049,7 +1378,7 @@ void LindmanBoundary::Initialize(Task *task,MetricSpace *ms,std::vector<Wave*> *
 	assert(ax>=1 && ax<=3);
 	tw::Int bdim[4] = { 0, ms->Dim(1), ms->Dim(2), ms->Dim(3) };
 	bdim[ax] = 1;
-	boundaryMemory.Initialize(9, DiscreteSpace(bdim[1],bdim[2],bdim[3],Corner(*ms),PhysicalSize(*ms)), task);
+	boundaryMemory.Initialize(9, DiscreteSpace(bdim[1],bdim[2],bdim[3],ms->Corner(),ms->PhysicalSize()), task);
 	boundaryMemory.SetBoundaryConditions(tw::grid::x,fld::none,fld::none);
 	boundaryMemory.SetBoundaryConditions(tw::grid::y,fld::none,fld::none);
 	boundaryMemory.SetBoundaryConditions(tw::grid::z,fld::none,fld::none);
@@ -1076,9 +1405,9 @@ void LindmanBoundary::UpdateBoundaryMemory(Field& A,tw::Float dt)
 		strip.Decode(0,&i,&j,&k);
 		for (s=0;s<3;s++)
 		{
-			dtt =  dxi(A)*dxi(A)*(boundaryMemory(i-1,j,k,3+s) - 2.0*boundaryMemory(i,j,k,3+s) + boundaryMemory(i+1,j,k,3+s));
-			dtt += dyi(A)*dyi(A)*(boundaryMemory(i,j-1,k,3+s) - 2.0*boundaryMemory(i,j,k,3+s) + boundaryMemory(i,j+1,k,3+s));
-			dtt += dzi(A)*dzi(A)*(boundaryMemory(i,j,k-1,3+s) - 2.0*boundaryMemory(i,j,k,3+s) + boundaryMemory(i,j,k+1,3+s));
+			dtt =  A.dk(1)*A.dk(1)*(boundaryMemory(i-1,j,k,3+s) - 2.0*boundaryMemory(i,j,k,3+s) + boundaryMemory(i+1,j,k,3+s));
+			dtt += A.dk(2)*A.dk(2)*(boundaryMemory(i,j-1,k,3+s) - 2.0*boundaryMemory(i,j,k,3+s) + boundaryMemory(i,j+1,k,3+s));
+			dtt += A.dk(3)*A.dk(3)*(boundaryMemory(i,j,k-1,3+s) - 2.0*boundaryMemory(i,j,k,3+s) + boundaryMemory(i,j,k+1,3+s));
 			dtt =  dt*dt*(beta[s]*dtt + alpha[s]*source);
 			boundaryMemory(i,j,k,6+s) = 2.0*boundaryMemory(i,j,k,3+s) - boundaryMemory(i,j,k,s) + dtt;
 		}
@@ -1094,7 +1423,7 @@ void LindmanBoundary::UpdateBoundaryMemory(Field& A,tw::Float dt)
 void LindmanBoundary::Set(Field& A,tw::Float t0,tw::Float dt)
 {
 	tw::Int ax = tw::grid::naxis(axis);
-	tw::Float sgn,correction,ds[4] = {dt,dx(A),dy(A),dz(A)};
+	tw::Float sgn,correction,ds[4] = {dt,A.dx(1),A.dx(2),A.dx(3)};
 	tw::Int i,j,k,s,s0,s1;
 	tw::vec3 pos,Ain;
 
@@ -1243,7 +1572,7 @@ void Warp::Initialize()
 tw::Float Warp::AddedCellWidth(tw::Int globalCell)
 {
 	const tw::Int N = rng[1] - rng[0] + 1;
-	const tw::Float h = space->dx0(tw::grid::naxis(ax));
+	const tw::Float h = space->dx(tw::grid::naxis(ax));
 	const tw::Float A = (1.0/gridSum)*(L/h - N);
 	if (globalCell>=rng[0] && globalCell<=rng[1])
 	{

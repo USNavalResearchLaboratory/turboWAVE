@@ -1,0 +1,147 @@
+// Reference: J. Comp. Phys. 260, 273-285 (2014)
+// tqed = 2*sqrt(3)*alpha*c*(E/Ecrit)*5.24/lamba_compton
+// problem 1: tqed ~ 1e-17 ~ .0018wp
+// problem 3: tqed ~ 1e-18 ~ .00018wp
+
+#define $PROB1
+
+#ifdef $PROB1
+    #define $dt 1e-3
+    #define $B0 ( 0 , 4.41e6 [T] , 0 )
+#endif
+#ifdef $PROB3
+    #define $dt 1e-4
+    #define $B0 ( 0 , 3.97e7 [T], 0 )
+#endif
+
+#define $NPART 10000
+
+dump period = 0
+moving window = no
+neutralize = no
+unit density = 1e+19
+
+xboundary = ( periodic , periodic )
+yboundary = ( periodic , periodic )
+zboundary = ( reflecting , reflecting )
+
+// wp^-1 = 5.60883 fs
+// c/wp = 1.68265 um
+// E_br = 304.208 GV/m
+
+new grid
+{
+    origin = ( 0, 0.5, 0.5, 0.5 )
+    dimensions = ( 180, 512, 1, 512 )
+    cell size = ( $dt, 2.34375e-3, 1.0, 2.34375e-3 )
+    decomposition = ( 1, 1, 1, 1 )
+}
+
+new direct electromagnetic module 'em'
+{
+    layers = (8 8 0 0 8 8)
+    reflection coefficient = (1e-4 1e-4 1e-4 1e-4 1e-4 1e-4)
+    external B = $B0
+}
+
+new species 'e'
+{
+    mass = 1.0
+    charge = -1.0
+    particles per cell = ( $NPART , 1 , 1 ) when density = 1.0
+}
+
+new species 'p'
+{
+    mass = 1.0
+    charge = 1.0
+    particles per cell = ( $NPART , 1 , 1 ) when density = 1.0
+}
+
+new species 'y'
+{
+    mass = 0.0
+    charge = 0.0
+    particles per cell = ( $NPART , 1 , 1 ) when density = 1.0
+}
+
+new photon generator for 'e'
+{
+    photon species = 'y'
+    tables path = qed_tables
+}
+
+new photon generator for 'p'
+{
+    photon species = 'y'
+    tables path = qed_tables
+}
+
+new pair creator for 'y'
+{
+    electron species = 'e'
+    positron species = 'p'
+    tables path = qed_tables
+}
+
+new hc mover for 'e' {}
+new hc mover for 'p' {}
+new photon mover for 'y' {}
+
+generate gaussian 'e'
+{
+    density = 1.0
+    loading = statistical
+    position = ( -0.23 , 0.0 , 0.0 )
+    size = ( 1e-2 , 1.0 , 1e-2 )
+    drift momentum = ( 0.0 , 0.0 , 1e+3 )
+}
+
+new box diagnostic
+{
+    period = 9
+}
+
+new phase space diagnostic for 'e'
+{
+    filename = lorentz_electron
+    period = 18
+    axes = ( g , x , y )
+    dimensions = ( 200 , 1 , 1 )
+    bounds = ( 1 , 1000 , -1e5 , 1e5 , -1e5 , 1e5 )
+}
+
+new phase space diagnostic for 'p'
+{
+    filename = lorentz_positron
+    period = 18
+    axes = ( g , x , y )
+    dimensions = ( 200 , 1 , 1 )
+    bounds = ( 1 , 1000 , -1e5 , 1e5 , -1e5 , 1e5 )
+}
+
+new phase space diagnostic for 'y'
+{
+    filename = lorentz_photon
+    period = 18
+    axes = ( g , x , y )
+    dimensions = ( 200 , 1 , 1 )
+    bounds = ( 1 , 1000 , -1e5 , 1e5 , -1e5 , 1e5 )
+}
+
+new energy diagnostic
+{
+    filename = energy
+    period = 18
+}
+
+new phase space diagnostic for 'y'
+{
+    filename = pxpz_photon
+    period = 18
+    galilean velocity = ( 0 , 0 , 0 )
+    axes = ( px , y , pz )
+    dimensions = ( 200 , 1 , 200 )
+    bounds = ( -100 , 100 , -1e5 , 1e5 , -100 , 100 )
+}
+

@@ -1,7 +1,240 @@
-#include "simulation.h"
-#include "fieldSolve.h"
-#include "fluid.h"
+module;
+
+#include "meta_base.h"
+
+export module fluid;
+import input;
+import compute_tool;
+import twmodule;
+import fct;
+import fields;
+import diagnostics;
+import physics;
+import injection;
+import chemistry;
+import parabolic;
+import elliptic;
+
 using namespace tw::bc;
+
+namespace sparc
+{
+	enum laserModel { vacuum, isotropic };
+	enum radiationModel { noRadiation, thin, thick };
+	enum plasmaModel { neutral, quasineutral };
+}
+
+export struct Fluid:Module
+{
+	tw::Float charge,mass,thermalMomentum,enCrossSection,initialIonizationFraction;
+	Field state0,state1; // density,p1,p2,p3 (unlike SPARC state, p is not a momentum density)
+	ScalarField fixed,gas;
+	bool coulombCollisions;
+
+	// temporaries used in Update
+	Field vel; // gammaAvg,v1,v2,v3
+
+	Ionizer *ionizer;
+
+	Field *EM,*J4;
+	Field *laser;
+	ComplexField *chi;
+	tw::Float *carrierFrequency;
+
+	Fluid(const std::string& name,Simulation* sim);
+	~Fluid();
+	virtual bool InspectResource(void* resource,const std::string& description);
+	virtual void VerifyInput();
+	virtual void Initialize();
+	virtual void Update();
+	virtual void MoveWindow();
+	virtual void AddDensity(tw::Float densityToAdd,tw::Int i,tw::Int j,tw::Int k);
+
+	virtual void ReadCheckpoint(std::ifstream& inFile);
+	virtual void WriteCheckpoint(std::ofstream& outFile);
+
+	virtual void Report(Diagnostic&);
+	virtual bool Test(tw::Int& id);
+	void AdvectionTest();
+	void ConservationTest();
+};
+
+export struct EquilibriumGroup;
+
+export struct Chemical:Module
+{
+	EquilibriumGroup *group; // explictly typed super
+	EOSComponent *eosData;
+	Ionizer *ionizer;
+	UniformProfile *background;
+	sparc::material mat;
+	tw::Int indexInState;
+
+	Chemical(const std::string& name,Simulation* sim);
+	virtual ~Chemical();
+	void SetupIndexing();
+	virtual void VerifyInput();
+
+	bool LoadFluid(Field& hydro);
+	void LoadInternalEnergy(Field& hydro,Field& eos);
+};
+
+export struct EquilibriumGroup:Module
+{
+	std::vector<Chemical*> chemical; // explicitly typed submodule list
+	EOSMixture *eosMixData;
+	bool mobile;
+
+	// The hydro set contains indices into the state vector for this group.
+	// The mass density index corresponds to the first chemical in the group.
+	sparc::hydro_set hidx;
+	// The eos set contains indices into the eos vector for this group.
+	sparc::eos_set eidx;
+	// The material data is packed and processed for optimization
+	sparc::material_set matset;
+	// Following is used to limit motion by zeroing forces on this group
+	tw::Float forceFilter;
+
+	tw::Float DensitySum(const Field& f,const tw::cell& cell)
+	{
+		tw::Float ans = 0.0;
+		for (tw::Int s=hidx.first;s<hidx.first+hidx.num;s++)
+			ans += f(cell,s);
+		return ans;
+	}
+	tw::Float DensityWeightedSum(const Field& f,std::valarray<tw::Float>& qty,const tw::cell& cell)
+	{
+		tw::Float ans = 0.0;
+		for (tw::Int s=hidx.first;s<hidx.first+hidx.num;s++)
+			ans += f(cell,s)*qty[s-hidx.first];
+		return ans;
+	}
+	void LoadMassDensity(ScalarField& nm,const Field& f)
+	{
+		for (auto cell : EntireCellRange(*this))
+			nm(cell) = DensityWeightedSum(f,matset.mass,cell);
+	}
+	void LoadMassDensityCv(ScalarField& nmcv,const Field& f)
+	{
+		for (auto cell : EntireCellRange(*this))
+			nmcv(cell) = DensityWeightedSum(f,matset.cvm,cell);
+	}
+	tw::vec3 Velocity(const Field& f,const tw::cell& cell)
+	{
+		tw::Float nm = DensityWeightedSum(f,matset.mass,cell);
+		return tw::vec3(f(cell,hidx.npx),f(cell,hidx.npy),f(cell,hidx.npz))/(tw::small_pos + nm);
+	}
+	void LoadVelocity(ScalarField& vel,const Field& f,tw::Int ax)
+	{
+		// assumes velocity components appear in order in state vector
+		tw::Float nm;
+		for (auto cell : EntireCellRange(*this))
+		{
+			nm = DensityWeightedSum(f,matset.mass,cell);
+			vel(cell) = f(cell,hidx.npx+ax-1)/(tw::small_pos + nm);
+		}
+	}
+
+	EquilibriumGroup(const std::string& name,Simulation* sim);
+	virtual ~EquilibriumGroup(); // ASHER_MOD
+	void SetupIndexing();
+	virtual void VerifyInput();
+	bool GenerateFluid(Field& hydro,Field& eos);
+};
+
+export namespace sparc
+{
+struct HydroManager:Module
+{
+	std::vector<EquilibriumGroup*> group; // explicitly type submodule list
+	std::vector<Reaction*> reaction;
+	std::vector<Excitation*> excitation;
+	std::vector<Collision*> collision;
+	Field state0,state1,creationRate,destructionRate,eos0,eos1;
+
+	ParabolicSolver *parabolicSolver;
+	EllipticSolver *ellipticSolver;
+	IsotropicPropagator *laserPropagator;
+	tw::vec3 dipoleCenter;
+	tw::Float laserFrequency; // derived from pulse list during initialization
+	tw::Float backgroundDensity,backgroundTemperature;
+
+	sparc::radiationModel radModel;
+	sparc::laserModel lasModel;
+	sparc::plasmaModel plasModel;
+	bool electrostaticHeating;
+	Chemical *electrons; // pointer to electron species, if present
+	tw::Int ie; // index to electron density in state vector
+	ScalarField scratch,scratch2,fluxMask;
+	ScalarField rho0,rho,phi,nu_e,me_eff,radiativeLosses,radiationIntensity;
+	ComplexField laserAmplitude,refractiveIndex;
+
+	// items needed for step size control and user feedback
+	tw::Float epsilonFactor;
+	std::stringstream statusMessage;
+
+	// The distinction between creation and destruction is used for adaptive timestep adjustment.
+	// In the case of constant time step, there is no difference between create(x) and destroy(-x).
+	// For signed quantities like momentum, the distinction is never used at all.
+	void CreateMass(const tw::cell& cell,const tw::Float& val,const sparc::hydro_set& h)
+		{ creationRate(cell,h.ni) += val; }
+	void DestroyMass(const tw::cell& cell,const tw::Float& val,const sparc::hydro_set& h)
+		{ destructionRate(cell,h.ni) += val; }
+	void CreateMomentum(const tw::cell& cell,const tw::Int& ax,const tw::Float& val,const sparc::hydro_set& h)
+		{ creationRate(cell,h.npx+ax-1) += val; }
+	void DestroyMomentum(const tw::cell& cell,const tw::Int& ax,const tw::Float& val,const sparc::hydro_set& h)
+		{ destructionRate(cell,h.npx+ax-1) += val; }
+	void CreateTotalEnergy(const tw::cell& cell,const tw::Float& val,const sparc::hydro_set& h)
+		{ creationRate(cell,h.u) += val; }
+	void DestroyTotalEnergy(const tw::cell& cell,const tw::Float& val,const sparc::hydro_set& h)
+		{ destructionRate(cell,h.u) += val; }
+	void CreateVibrations(const tw::cell& cell,const tw::Float& val,const sparc::hydro_set& h)
+		{ creationRate(cell,h.x) += val; }
+	void DestroyVibrations(const tw::cell& cell,const tw::Float& val,const sparc::hydro_set& h)
+		{ destructionRate(cell,h.x) += val; }
+	void CreateTotalAndVibrational(const tw::cell& cell,const tw::Float& val,const sparc::hydro_set& h)
+	{
+		creationRate(cell,h.u) += val;
+		creationRate(cell,h.x) += val;
+	}
+	void DestroyTotalAndVibrational(const tw::cell& cell,const tw::Float& val,const sparc::hydro_set& h)
+	{
+		destructionRate(cell,h.u) += val;
+		destructionRate(cell,h.x) += val;
+	}
+
+	HydroManager(const std::string& name,Simulation* sim);
+	virtual ~HydroManager();
+	void SetupIndexing();
+	virtual void Initialize();
+	virtual void Reset();
+	void LoadCollisionRate(Collision *coll,ScalarField& R);
+	void ComputeElectronCollisionFrequency();
+	void ComputeCollisionalSources();
+	void ComputeRadiativeSources();
+	void ComputeHydroSources();
+	tw::vec3 ComputeForceOnBody(tw::Int i,tw::Int j,tw::Int k);
+	void ComputeSources();
+	tw::Float EstimateTimeStep();
+
+	void HydroAdvance(const tw::grid::axis& axis,tw::Float dt);
+	void LaserAdvance(tw::Float dt);
+	void ChemAdvance(tw::Float dt);
+	void DiffusionAdvance(tw::Float dt);
+	void FieldAdvance(tw::Float dt);
+	void EOSAdvance(tw::Float dt);
+	void FirstOrderAdvance(tw::Float dt,bool computeSources);
+	virtual void Update();
+
+	virtual void VerifyInput();
+	virtual bool ReadQuasitoolBlock(const TSTreeCursor *curs,const std::string& src);
+	virtual void ReadCheckpoint(std::ifstream& inFile);
+	virtual void WriteCheckpoint(std::ofstream& outFile);
+
+	virtual void Report(Diagnostic&);
+	virtual void StatusMessage(std::ostream *theStream);
+};
+}
 
 /////////////////////////////
 //                         //
@@ -149,6 +382,7 @@ void Fluid::Initialize()
 	{
 		tw::vec3 pos,A0,A1;
 		tw::Float density;
+		const tw::Float dth = 0.5*dx(0);
 
 		for (auto cell : EntireCellRange(*this))
 		{
@@ -216,6 +450,7 @@ void Fluid::Initialize()
 
 void Fluid::MoveWindow()
 {
+	const tw::Float dth = 0.5*dx(0);
 	Module::MoveWindow();
 	#pragma omp parallel
 	{
@@ -283,6 +518,9 @@ void Fluid::Update()
 	tw::bc::fld bc;
 	tw::Float field,ionizedDensity;
 
+	const tw::Float dt = dx(0);
+	const tw::Float dti = dk(0);
+	const tw::Float dth = 0.5*dx(0);
 	const tw::Float q0 = charge;
 	const tw::Float m0 = mass;
 	const tw::Float m0i = 1.0/m0;
@@ -539,8 +777,8 @@ void Fluid::WriteCheckpoint(std::ofstream& outFile)
 void Fluid::Report(Diagnostic& diagnostic)
 {
 	Module::Report(diagnostic);
-	diagnostic.Field(name+"_e",state1,0,tw::dims::density,"$n_e$");
-	diagnostic.Field(name+"_n",gas,0,tw::dims::density,"$n_g$");
+	diagnostic.ReportField(name+"_e",state1,0,tw::dims::density,"$n_e$");
+	diagnostic.ReportField(name+"_n",gas,0,tw::dims::density,"$n_g$");
 }
 
 /////////////////////
@@ -1207,7 +1445,7 @@ void sparc::HydroManager::Reset()
 			didGenerate += grp->GenerateFluid(state1,eos1);
 		if (didGenerate)
 		{
-			EOSAdvance(dt); // gets eos0 using state0 and state1
+			EOSAdvance(dx(0)); // gets eos0 using state0 and state1
 			eos1 = eos0;
 			state0 = state1;
 		}
@@ -1444,7 +1682,7 @@ void sparc::HydroManager::ComputeRadiativeSources()
 	#pragma omp parallel
 	{
 		const tw::Float stef_boltz = 5.67e-8; // W/m^2/K^4
-		const tw::vec3 R = GlobalPhysicalSize(*owner);
+		const tw::vec3 R = owner->GlobalPhysicalSize().spatial();
 		const tw::vec3 Rmks(R.x*tw::dims::length>>native>>mks,R.y*tw::dims::length>>native>>mks,R.z*tw::dims::length>>native>>mks);
 		const tw::Float Vmks = owner->car*Rmks.x*Rmks.y*Rmks.z + owner->cyl*pi*sqr(Rmks.x)*Rmks.z + owner->sph*1.33*pi*cub(Rmks.x);
 		const tw::Float Smks = owner->car*2*(Rmks.x*Rmks.y + Rmks.y*Rmks.z + Rmks.z*Rmks.x) + owner->cyl*(2*pi*sqr(Rmks.x)+2*pi*Rmks.x*Rmks.z) + owner->sph*4*pi*sqr(Rmks.x);
@@ -1814,7 +2052,7 @@ tw::Float sparc::HydroManager::EstimateTimeStep()
 		tw::Float dts;
 
 		if (owner->IsFirstStep())
-			dtMax[tid] = owner->dt0;
+			dtMax[tid] = owner->dx(0);
 		else
 			dtMax[tid] = owner->dtMax;
 
@@ -1901,7 +2139,7 @@ tw::Float sparc::HydroManager::EstimateTimeStep()
 	// If the critical time step is reached, switch to fixed time step and hope for the best!
 	if (dtMaxAllNodes < owner->dtCritical)
 	{
-		dtMaxAllNodes = owner->dt0; // use the starting time step
+		dtMaxAllNodes = owner->dx(0); // use the starting time step
 		owner->adaptiveTimestep = false; // no more adaptive stepping after this
 	}
 	// Don't let it fall below the minimum time step
@@ -2166,6 +2404,7 @@ void sparc::HydroManager::FirstOrderAdvance(tw::Float dt,bool computeSources)
 
 void sparc::HydroManager::Update()
 {
+	const tw::Float dt = dx(0);
 	tw::Float dts;
 
 	if (!owner->adaptiveTimestep)
@@ -2186,25 +2425,26 @@ void sparc::HydroManager::Update()
 	LaserAdvance(dt);
 }
 
-bool sparc::HydroManager::ReadQuasitoolBlock(const tw::input::Preamble& preamble,std::stringstream& inputString)
+bool sparc::HydroManager::ReadQuasitoolBlock(const TSTreeCursor *curs0,const std::string& src)
 {
-	std::string key(preamble.words[0]);
+	std::string key = tw::input::node_kind(curs0);
+	TSTreeCursor curs = ts_tree_cursor_copy(curs0);
 	if (key=="reaction")
 	{
 		reaction.push_back(new Reaction);
-		reaction.back()->ReadInputFile(inputString,native);
+		reaction.back()->ReadInputFile(&curs,src,native);
 		return true;
 	}
 	if (key=="excitation")
 	{
 		excitation.push_back(new Excitation);
-		excitation.back()->ReadInputFile(inputString,native);
+		excitation.back()->ReadInputFile(&curs,src,native);
 		return true;
 	}
 	if (key=="collision")
 	{
 		collision.push_back(new Collision);
-		collision.back()->ReadInputFile(inputString,native);
+		collision.back()->ReadInputFile(&curs,src,native);
 		return true;
 	}
 	return false;
@@ -2238,7 +2478,7 @@ void sparc::HydroManager::Report(Diagnostic& diagnostic)
 	{
 		CopyFieldData(scratch,Element(0),theData,Element(comp));
 		scratch *= fluxMask;
-		diagnostic.Field(filename,scratch,0,units,pretty);
+		diagnostic.ReportField(filename,scratch,0,units,pretty);
 	};
 
 	// Mass, Charge, Energy
@@ -2251,7 +2491,7 @@ void sparc::HydroManager::Report(Diagnostic& diagnostic)
 		scratch += scratch2;
 	}
 	diagnostic.VolumeIntegral("Mass",scratch,0);
-	diagnostic.Field("massdensity",scratch,0,tw::dims::mass_density,"$\\rho$");
+	diagnostic.ReportField("massdensity",scratch,0,tw::dims::mass_density,"$\\rho$");
 
 	diagnostic.VolumeIntegral("Charge",rho,0);
 
@@ -2280,28 +2520,28 @@ void sparc::HydroManager::Report(Diagnostic& diagnostic)
 
 	// Impermeable Region
 
-	diagnostic.Field("impermeable",fluxMask,0);
+	diagnostic.ReportField("impermeable",fluxMask,0);
 
 	// Collision Diagnostic
 
-	diagnostic.Field("collisionFreq",nu_e,0,tw::dims::frequency,"$\\nu_e$");
+	diagnostic.ReportField("collisionFreq",nu_e,0,tw::dims::frequency,"$\\nu_e$");
 
 	// Radiation Diagnostic
 
-	diagnostic.Field("rad-intensity",radiationIntensity,0,tw::dims::intensity,"$I$");
-	diagnostic.Field("rad-ereal",laserAmplitude,0,tw::dims::electric_field,"$\\Re E$");
-	diagnostic.Field("rad-eimag",laserAmplitude,1,tw::dims::electric_field,"$\\Im E$");
-	diagnostic.Field("rad-losses",radiativeLosses,0,tw::dims::power_density,"${\\cal P}$");
-	diagnostic.Field("rad-nreal",refractiveIndex,0);
-	diagnostic.Field("rad-nimag",refractiveIndex,1);
-	diagnostic.Field("me_eff",me_eff,0);
+	diagnostic.ReportField("rad-intensity",radiationIntensity,0,tw::dims::intensity,"$I$");
+	diagnostic.ReportField("rad-ereal",laserAmplitude,0,tw::dims::electric_field,"$\\Re E$");
+	diagnostic.ReportField("rad-eimag",laserAmplitude,1,tw::dims::electric_field,"$\\Im E$");
+	diagnostic.ReportField("rad-losses",radiativeLosses,0,tw::dims::power_density,"${\\cal P}$");
+	diagnostic.ReportField("rad-nreal",refractiveIndex,0);
+	diagnostic.ReportField("rad-nimag",refractiveIndex,1);
+	diagnostic.ReportField("me_eff",me_eff,0);
 
 	// Electrostatics
 
 	if (electrons)
 	{
-		diagnostic.Field("chem-phi",phi,0,tw::dims::scalar_potential,"$\\phi$");
-		diagnostic.Field("chem-rho",rho,0,tw::dims::charge_density,"$\\rho$");
+		diagnostic.ReportField("chem-phi",phi,0,tw::dims::scalar_potential,"$\\phi$");
+		diagnostic.ReportField("chem-rho",rho,0,tw::dims::charge_density,"$\\rho$");
 	}
 
 	// Constituents and groups
@@ -2321,7 +2561,7 @@ void sparc::HydroManager::Report(Diagnostic& diagnostic)
 		{
 			g->LoadVelocity(scratch,state1,ax);
 			scratch *= fluxMask;
-			diagnostic.Field("v"+xyz[ax]+"_"+g->name,scratch,0,tw::dims::velocity,"$v_"+xyz[ax]+"$");
+			diagnostic.ReportField("v"+xyz[ax]+"_"+g->name,scratch,0,tw::dims::velocity,"$v_"+xyz[ax]+"$");
 		}
 	}
 }

@@ -1,6 +1,8 @@
+module;
+
 #include "meta_base.h"
-#include "computeTool.h"
-#include "injection.h"
+
+module injection;
 
 bool HermiteGauss::Test(tw::Int& id)
 {

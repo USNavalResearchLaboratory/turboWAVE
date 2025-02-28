@@ -212,14 +212,6 @@ Top level directives may include statements to create modules or tools, as well 
 
 	:param float CGS_density: the density in particles per cubic centimeter.  Dimensional numbers must **not** be used.
 
-.. py:function:: steps = s
-
-	:param int s: the number of simulation cycles to execute before terminating
-
-.. py:function:: timestep = dt
-
-	:param float dt: the timestep, or if adaptive timestep in use, the starting timestep
-
 .. py:function:: dtmin = dtm
 
 	:param float dtm: if adaptive timestep in use, don't let it become less than this
@@ -350,7 +342,7 @@ Numerical Grid
 
 TurboWAVE uses only structured grids, at present.  Some of the effect of unstructured grids can be obtained by using :ref:`grid warps <warps>`.
 
-TurboWAVE axes are labeled as ``x``, ``y``, or ``z`` regardless of coordinate system.  Internally these are often mapped as ``x=1``, ``y=2``, and ``z=3``.  In cylindrical coordinates, ``x`` is radial, ``y`` is azimuthal, and ``z`` is axial.  In spherical coordinates, ``x`` is radial, ``y`` is azimuthal, and ``z`` is polar.
+TurboWAVE axes are labeled as ``t``, ``x``, ``y``, or ``z`` regardless of coordinate system.  Index-wise these are mapped as ``t=0``, ``x=1``, ``y=2``, and ``z=3``.  In cylindrical coordinates, ``x`` is radial, ``y`` is azimuthal, and ``z`` is axial.  In spherical coordinates, ``x`` is radial, ``y`` is azimuthal, and ``z`` is polar.
 
 .. py:function:: new grid { directives }
 
@@ -362,33 +354,44 @@ TurboWAVE axes are labeled as ``x``, ``y``, or ``z`` regardless of coordinate sy
 
 			:param enum g: can be ``cartesian``, ``cylindrical``, ``spherical``.
 
-		.. py:function:: corner[ijk] = ( x0 , y0 , z0 )
+		.. py:function:: origin = ( tfrac, xfrac, yfrac, zfrac )
 
-			Coordinates of the given vertex of the grid region.  If the optional ``ijk`` are omitted the vertex is the one where all coordinates are minimum.  Otherwise ``ijk`` is a binary code identifying one of eight vertices. Only one vertex may be given, otherwise the geometry is over-specified.  The coordinates are not necessarily Cartesian, but rather in the coordinate system of the grid.
+			Position of the origin relative to the simulation box
 
-			:param binary ijk: three binary digits, 0 indicates low side, 1 indicates high side.  For example, 011 means low x-side, high y-side, and high z-side.  Can be omitted, defaults to 000.
-			:param float x0: The first coordinate of the corner
-			:param float y0: the second coordinate of the corner
-			:param float z0: the third coordinate of the corner
+			:param float tfrac: t origin relative to simulation duration, 0 = beginning, 1 = end
+			:param float xfrac: x origin relative to x size of box, 0 = low side, 1 = high side
+			:param float yfrac: y origin relative to y size of box, 0 = low side, 1 = high side
+			:param float zfrac: z origin relative to z size of box, 0 = low side, 1 = high side
 
-		.. py:function:: dimensions = (Nx,Ny,Nz)
+		.. py:function:: shift = ( t0, x0, y0, z0 )
 
-			Dimensions of the grid region in numbers of cells along the three coordinate axes.
+			Translate the box in the given units
 
+			:param float t0: shift in t
+			:param float x0: shift in x
+			:param float y0: shift in y
+			:param float z0: shift in z
+
+		.. py:function:: dimensions = ( Nt, Nx, Ny, Nz )
+
+			Dimensions of the grid in numbers of cells
+
+			:param int Nt: time levels
 			:param int Nx: cells along the first coordinate
 			:param int Ny: cells along the second coordinate
 			:param int Nz: cells along the third coordinate
 
-		.. py:function:: cell size = (dx,dy,dz)
+		.. py:function:: cell size = ( dt, dx, dy, dz )
 
 			The cell size is given in parameter space, i.e., it could be an arc length or an angular sweep.
 
+			:param float dt: time step
 			:param float dx: length of cell edge along first coordinate
 			:param float dy: length of cell edge along second coordinate
 			:param float dz: length of cell edge along third coordinate
 
 
-		.. py:function:: decomposition = ( Dx , Dy , Dz )
+		.. py:function:: decomposition = ( Dt, Dx, Dy, Dz )
 
 			Number of cuts of the domain along each coordinate.  This determines how the domain is split across parallel tasks.  The number of MPI tasks should be set to the product of all three parameters.
 

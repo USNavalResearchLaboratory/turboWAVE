@@ -1,6 +1,8 @@
+module;
+
 #include "meta_base.h"
-#include "computeTool.h"
-#include "elliptic.h"
+
+module elliptic;
 
 bool PoissonSolver::Test(tw::Int& id)
 {
@@ -23,8 +25,8 @@ bool PoissonSolver::Test(tw::Int& id)
     // this version of test runner assertions have to come from rank 0
     if (task->strip[3].Get_rank()==0)
     {
-        ASSERT_NEAR(phi(1,1,2),-0.5*chargeElement*sqr(dz(*space)),1e-6);
-        ASSERT_NEAR(phi(1,1,1),-chargeElement*sqr(dz(*space)),1e-6);
+        ASSERT_NEAR(phi(1,1,2),-0.5*chargeElement*sqr(space->dx(3)),1e-6);
+        ASSERT_NEAR(phi(1,1,1),-chargeElement*sqr(space->dx(3)),1e-6);
     }
     return true;
 }

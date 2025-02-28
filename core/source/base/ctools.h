@@ -19,7 +19,7 @@ struct Testable {
 inline void assertFailed(tw::Float actual,tw::Float expected,const std::string& expr,const std::string& file,int line,const std::string& func)
 {
 	std::ostringstream mess;
-	mess << std::endl << term::err << " function " << term::red << func << term::reset_color << std::endl; 
+	mess << std::endl << term::err << " function " << term::red << func << term::reset_color << std::endl;
 	mess << "  Assertion " << actual << " (actual) " << expr << " " << expected << " (expected) failed." << std::endl;
 	mess << "  File: " << file <<  " , Line: " << line << std::endl;
 	throw tw::FatalError(mess.str());
@@ -75,6 +75,11 @@ inline tw::Float cub(const tw::Float& a)
 	return a*a*a;
 }
 
+inline tw::Float quad(const tw::Float& a)
+{
+	return a*a*a*a;
+}
+
 inline tw::Float SafeDiv(const tw::Float& numerator,const tw::Float& denominator)
 {
 	return numerator / (denominator + tw::small_pos);
@@ -105,6 +110,14 @@ inline tw::Float QuadraticRoot2(const tw::Float& a,const tw::Float& b,const tw::
 {
 	tw::Float sgn_b = b < 0.0 ? -1.0 : 1.0;
 	return c/(-0.5*(b + sgn_b*sqrt(b*b-4.0*a*c)));
+}
+
+inline int NearestIdx(const std::vector<tw::Float>& vector, tw::Float value)
+{
+	auto const iter = std::lower_bound(vector.begin(), vector.end(), value);
+	if (iter == vector.end())
+		return -1;
+	return iter - vector.begin();
 }
 
 inline void ReverseBytes(char *bytes,tw::Int n)

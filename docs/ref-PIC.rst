@@ -136,10 +136,13 @@ Particle species can be used in electromagnetic PIC or as Bohmian particles in :
 
 			:param bool tst: set to false to hold this species immobile (defaults to true)
 
-		.. py:function:: accelerate to pz in dt
+		.. py:function:: acceleration time = dt
 
-		 	:param float pz: desired momentum of particle after acceleration
 			:param float dt: time over which to accelerate particle
+
+		.. py:function:: acceleration momentum = pz
+
+			:param float pz: final momentum of particle
 
 		.. py:function:: radiation damping = tst
 

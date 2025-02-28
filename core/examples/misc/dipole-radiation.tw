@@ -1,8 +1,6 @@
 // Keep the following line for generating twtest reports
 // TWTEST matplotlib zxyt=0,: Ey.npy
 
-steps = 1000
-timestep = 0.5
 dump period = 0
 moving window = no
 neutralize = yes
@@ -17,10 +15,10 @@ zboundary = ( open  open )
 
 new grid
 {
-	corner = ( -256 , -0.5 , -256 )
-	dimensions = ( 512 1 512 )
-	cell size = ( 1.0 1.0 1.0 )
-	decomposition = ( 1  1  1 )
+	origin = ( 0, 0.5, 0.5, 0.5 )
+	dimensions = ( 1000 512 1 512 )
+	cell size = ( 0.5 1.0 1.0 1.0 )
+	decomposition = ( 1  1  1  1 )
 }
 
 new region rect 'antenna_rect'
@@ -30,8 +28,8 @@ new region rect 'antenna_rect'
 
 new direct solver 'em'
 {
-	layers = 16 16 0 0 16 16
-	reflection coefficient = 1e-4 1e-4 1e-4 1e-4 1e-4 1e-4
+	layers = (16 16 0 0 16 16)
+	reflection coefficient = (1e-4 1e-4 1e-4 1e-4 1e-4 1e-4)
 }
 
 // Conductor object serves as antenna
