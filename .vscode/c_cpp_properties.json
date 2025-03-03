@@ -4,7 +4,6 @@
             "name": "Win32",
             "includePath": [
                 "${workspaceFolder}/**/base",
-                "${workspaceFolder}/**/concurrency",
                 "${workspaceFolder}/**/io",
                 "${workspaceFolder}/**/particles",
                 "${workspaceFolder}/**/solver",
@@ -25,7 +24,6 @@
             "name": "Mac-LLVM",
             "includePath": [
                 "${workspaceFolder}/**/base",
-                "${workspaceFolder}/**/concurrency",
                 "${workspaceFolder}/**/io",
                 "${workspaceFolder}/**/particles",
                 "${workspaceFolder}/**/solver",
@@ -33,13 +31,35 @@
                 "${workspaceFolder}/**/io/tree-sitter/lib/include",
                 "${workspaceFolder}/**/io/tree-sitter/lib/src",
                 "${workspaceFolder}/**/io/tree-sitter/lib/src/unicode",
-                "/opt/homebrew/opt/libomp/include"
+                "/opt/homebrew/opt/libomp/include",
+                "/opt/homebrew/opt/open-mpi/include"
             ],
             "defines": [
             ],
             "cStandard": "c17",
             "cppStandard": "c++20",
             "intelliSenseMode": "clang-arm64",
+            "configurationProvider": "ms-vscode.cmake-tools"
+        },
+        {
+            "name": "Linuxbrew-LLVM",
+            "includePath": [
+                "${workspaceFolder}/**/base",
+                "${workspaceFolder}/**/io",
+                "${workspaceFolder}/**/particles",
+                "${workspaceFolder}/**/solver",
+                "${workspaceFolder}/**/sparc",
+                "${workspaceFolder}/**/io/tree-sitter/lib/include",
+                "${workspaceFolder}/**/io/tree-sitter/lib/src",
+                "${workspaceFolder}/**/io/tree-sitter/lib/src/unicode",
+                "/home/linuxbrew/.linuxbrew/opt/libomp/include",
+                "/home/linuxbrew/.linuxbrew/opt/open-mpi/include"
+            ],
+            "defines": [
+            ],
+            "cStandard": "c17",
+            "cppStandard": "c++20",
+            "intelliSenseMode": "clang-x64",
             "configurationProvider": "ms-vscode.cmake-tools"
         }
     ],

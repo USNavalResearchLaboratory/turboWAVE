@@ -1,29 +1,22 @@
 module;
 
-#include "meta_base.h"
+#include <tree_sitter/api.h>
+#include "tw_includes.h"
 
 export module input;
-
+export import base;
+export import navigate;
 export import assignment;
+export import units;
+
+extern "C" {
+	TSLanguage *tree_sitter_turbowave();
+}
 
 export namespace tw
 {
 	namespace input
 	{
-		enum class navigation {
-			gotoSelf,
-			gotoChild,
-			gotoSibling,
-			gotoParentSibling,
-			descend,
-			exit,
-			abort
-		};
-		class Visitor {
-			public:
-			virtual navigation visit(TSTreeCursor *curs) = 0;
-			virtual navigation descend(TSTreeCursor *curs) = 0;
-		};
 		class MacroVisitor : public Visitor {
 			std::string src;
 			std::map<std::string,std::string> dict;
@@ -81,9 +74,6 @@ export namespace tw
 			bool FindAndOpen(const std::string& fileName,std::stringstream& contents) const;
 		};
 
-		TSTree* GetTree(const std::string& src);
-		void WalkTree(const TSTree *tree,Visitor *visitor);
-
 		tw::Float GetUnitDensityCGS(TSTree *tree,const std::string& src);
 		tw::units GetNativeUnits(TSTree *tree,const std::string& src);
 		std::string MacroSubstitution(const std::string& src);
@@ -91,10 +81,6 @@ export namespace tw
 		std::string PythonRange(TSTreeCursor *curs,const std::string& src,tw::Float *v0,tw::Float *v1);
 		void ThrowParsingError(const TSTreeCursor *curs,const std::string& src,const std::string& messg);
 	}
-}
-
-extern "C" {
-	TSLanguage *tree_sitter_turbowave();
 }
 
 void tw::input::ThrowParsingError(const TSTreeCursor *curs,const std::string& src,const std::string& messg) {
@@ -327,30 +313,6 @@ tw::units tw::input::GetNativeUnits(TSTree *tree,const std::string& src) {
 	throw tw::FatalError("empty input file");
 }
 
-void tw::input::WalkTree(const TSTree *tree,Visitor *visitor) {
-	TSTreeCursor curs = ts_tree_cursor_new(ts_tree_root_node(tree));
-	navigation choice = navigation::gotoSelf;
-	while (choice!=navigation::exit && choice!=navigation::abort) {
-		if (choice == navigation::gotoSelf) {
-			choice = visitor->visit(&curs);
-		} else if (choice == navigation::descend) {
-			choice = visitor->descend(&curs);
-		} else if (choice == navigation::gotoChild && ts_tree_cursor_goto_first_child(&curs)) {
-			choice = visitor->visit(&curs);
-		} else if (choice == navigation::gotoParentSibling && ts_tree_cursor_goto_parent(&curs) && ts_tree_cursor_goto_next_sibling(&curs)) {
-			choice = visitor->visit(&curs);
-		} else if (choice == navigation::gotoSibling && ts_tree_cursor_goto_next_sibling(&curs)) {
-			choice = visitor->visit(&curs);
-		} else if (ts_tree_cursor_goto_next_sibling(&curs)) {
-			choice = visitor->visit(&curs);
-		} else if (ts_tree_cursor_goto_parent(&curs)) {
-			choice = navigation::gotoSibling;
-		} else {
-			choice = navigation::exit;
-		}
-	}
-}
-
 tw::input::navigation tw::input::MacroVisitor::visit(TSTreeCursor *curs) {
 	TSNode node = ts_tree_cursor_current_node(curs);
 	if (tw::input::node_kind(curs)=="define") {
@@ -405,12 +367,6 @@ std::string tw::input::MacroSubstitution(const std::string& src) {
 	} while (!visitor.done());
 
 	return visitor.get();
-}
-
-TSTree* tw::input::GetTree(const std::string& src) {
-	TSParser * parser = ts_parser_new();
-	ts_parser_set_language(parser,tree_sitter_turbowave());
-	return ts_parser_parse_string(parser,NULL,src.c_str(),src.length());
 }
 
 /// @brief read python style range

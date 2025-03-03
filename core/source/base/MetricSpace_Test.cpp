@@ -1,5 +1,8 @@
 module;
-#include "meta_base.h"
+
+#include "tw_includes.h"
+#include "tw_test.h"
+
 module metric_space;
 
 bool MetricSpace::Test(tw::Int& id)

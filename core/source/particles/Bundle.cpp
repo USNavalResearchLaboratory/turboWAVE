@@ -1,9 +1,9 @@
 module;
 
-#include "meta_base.h"
+#include "tw_includes.h"
 
 export module bundle;
-import fields;
+export import fields;
 
 export struct MoverParams {
 	MetricSpace* ms;

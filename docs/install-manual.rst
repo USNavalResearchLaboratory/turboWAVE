@@ -128,7 +128,7 @@ Performance Tuning Parameters
 
 There are a few parameters hard coded in source that can be used to tune performance.  These are as follows.
 
-#. Particle bundle size - In ``definitions.h``, you should change ``max_bundle_size`` to be a multiple of ``vbits`` divided by 32. The optimal choice is difficult to predict, but a rule of thumb is to make it close to the typical number of particles per cell.
+#. Particle bundle size - In ``base.h``, you should change ``max_bundle_size`` to be a multiple of ``vbits`` divided by 32. The optimal choice is difficult to predict, but a rule of thumb is to make it close to the typical number of particles per cell.
 
 #. There are some constants in ``Pusher.cpp``, in the method ``Species::Push``, that it may be advantageous to adjust.  Namely, the constants ``min_particles_per_task`` and ``preferred_tasks``.  This has to do with how particles are partitioned among OpenMP threads.
 

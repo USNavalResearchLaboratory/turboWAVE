@@ -1,8 +1,12 @@
 module;
 
-#include "meta_base.h"
+#include "tw_includes.h"
 
 export module metric_space;
+export import base;
+export import tensor;
+export import units;
+export import tasks;
 import discrete_space;
 import tw_iterator;
 

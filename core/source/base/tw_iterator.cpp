@@ -1,8 +1,9 @@
 module;
 
-#include "meta_base.h"
+#include "tw_includes.h"
 
 export module tw_iterator;
+import base;
 import discrete_space;
 
 // TurboWAVE iterators serve the specific purpose of accessing the Field class.

@@ -1,7 +1,36 @@
-namespace tw
+module;
+
+#include <tree_sitter/api.h>
+#include "tw_includes.h"
+
+export module navigate;
+import base;
+
+extern "C" {
+	TSLanguage *tree_sitter_turbowave();
+}
+
+export namespace tw
 {
 	namespace input
 	{
+		enum class navigation {
+			gotoSelf,
+			gotoChild,
+			gotoSibling,
+			gotoParentSibling,
+			descend,
+			exit,
+			abort
+		};
+		class Visitor {
+			public:
+			virtual navigation visit(TSTreeCursor *curs) = 0;
+			virtual navigation descend(TSTreeCursor *curs) = 0;
+		};
+		TSTree* GetTree(const std::string& src);
+		void WalkTree(const TSTree *tree,Visitor *visitor);
+
 		/// @brief goto the next named node, optionally accepting the current node
 		/// @param curs tree cursor
 		/// @param include_curr whether to accept the current node
@@ -58,3 +87,34 @@ namespace tw
 		}
     }
 }
+
+TSTree* tw::input::GetTree(const std::string& src) {
+	TSParser * parser = ts_parser_new();
+	ts_parser_set_language(parser,tree_sitter_turbowave());
+	return ts_parser_parse_string(parser,NULL,src.c_str(),src.length());
+}
+
+void tw::input::WalkTree(const TSTree *tree,Visitor *visitor) {
+	TSTreeCursor curs = ts_tree_cursor_new(ts_tree_root_node(tree));
+	navigation choice = navigation::gotoSelf;
+	while (choice!=navigation::exit && choice!=navigation::abort) {
+		if (choice == navigation::gotoSelf) {
+			choice = visitor->visit(&curs);
+		} else if (choice == navigation::descend) {
+			choice = visitor->descend(&curs);
+		} else if (choice == navigation::gotoChild && ts_tree_cursor_goto_first_child(&curs)) {
+			choice = visitor->visit(&curs);
+		} else if (choice == navigation::gotoParentSibling && ts_tree_cursor_goto_parent(&curs) && ts_tree_cursor_goto_next_sibling(&curs)) {
+			choice = visitor->visit(&curs);
+		} else if (choice == navigation::gotoSibling && ts_tree_cursor_goto_next_sibling(&curs)) {
+			choice = visitor->visit(&curs);
+		} else if (ts_tree_cursor_goto_next_sibling(&curs)) {
+			choice = visitor->visit(&curs);
+		} else if (ts_tree_cursor_goto_parent(&curs)) {
+			choice = navigation::gotoSibling;
+		} else {
+			choice = navigation::exit;
+		}
+	}
+}
+

@@ -1,9 +1,11 @@
 module;
 
-#include "meta_base.h"
+#include <algorithm>
+#include <tree_sitter/api.h>
+#include "tw_includes.h"
 
 module twmodule;
-
+import base;
 import input;
 import factory;
 
@@ -128,7 +130,6 @@ Simulation::Simulation(const std::string& test_name,
 
 	neutralize = true;
 	movingWindow = false;
-	completed = false;
 
 	stepNow = 0;
 	lastTime = 0;
@@ -209,20 +210,11 @@ void Simulation::SetupIO()
 
 	*tw_out << std::endl << term::green << term::bold << "Starting turboWAVE Session" << term::reset_all << std::endl << std::endl;
 	*tw_out << "Floating point precision = " << sizeof(tw::Float)*8 << " bits" << std::endl;
-	#ifdef USE_OPENMP
 	*tw_out << "Maximum OpenMP threads = " << omp_get_max_threads() << std::endl;
-	#endif
 }
 
 void Simulation::Run()
 {
-	#ifdef USE_TW_MPI
-	// Wait until master thread is done
-	// TODO: fold this into TW_MPI's MPI_init
-	TW_MPI_Lock();
-	TW_MPI_Unlock();
-	#endif
-
 	SetupIO();
 	InputFileFirstPass();
 
@@ -250,14 +242,8 @@ void Simulation::Run()
 			(*tw_out) << std::endl << term::warning << ": System clock is not responding properly." << std::endl << std::endl;
 		}
 
-		#ifdef USE_HPC
 		(*tw_out) << "Current status can be viewed in 'twstat' file." << std::endl;
 		(*tw_out) << "This executable does not support interactive commands." << std::endl << std::endl;
-		#endif
-		#ifdef USE_DESKTOP
-		(*tw_out) << "Current status can be viewed in 'twstat' file or by pressing enter key." << std::endl;
-		(*tw_out) << "Enter 'help' for list of interactive commands." << std::endl << std::endl;
-		#endif
 
 		while (stepNow <= dim[0] && elapsedTime < elapsedTimeMax)
 		{
@@ -285,37 +271,21 @@ void Simulation::Run()
 	{
 		(*tw_err) << "FATAL ERROR: " << e.what() << std::endl;
 		(*tw_err) << "Simulation failed --- exiting now." << std::endl;
-		#ifdef USE_TW_MPI
-		if (tw_out != &std::cout)
-		{
-			std::cerr << "FATAL ERROR: " << e.what() << std::endl;
-			std::cerr << "Simulation failed --- exiting now." << std::endl;
-		}
-		#endif
 		if (strip[0].Get_rank()==0)
 		{
 			twstat.open("twstat");
 			twstat << "The simulation failed. For more info see stdout." << std::endl;
 			twstat.close();
 		}
-		completed = true;
 		exit(1);
 	}
 
 	*tw_out << std::endl << term::green << term::bold << "TurboWAVE Session Completed" << term::reset_all << std::endl;
-	completed = true;
 }
 
 void Simulation::Test()
 {
-	// TODO: errors on ranks other than 0 are not reported
-	#ifdef USE_TW_MPI
-	// Wait until master thread is done
-	// TODO: fold this into TW_MPI's MPI_init
-	TW_MPI_Lock();
-	TW_MPI_Unlock();
-	#endif
-
+	outputLevel = 1;
 	SetupIO();
 
 	// Get basic MPI data
@@ -338,7 +308,10 @@ void Simulation::Test()
 		throw tw::FatalError("test must use -n 2");
 	AttachUnits(tw::units::plasma,1e19);
 
-	int success_count = 0,failure_count = 0;
+	tw::Float failed = 0;
+	bool tested = false;
+	success_count = 0;
+	failure_count = 0;
 	ComputeTool *tool;
 	Module *module;
 
@@ -349,17 +322,22 @@ void Simulation::Test()
  	Initialize(tw::idx4(1,1,1,2).array,tw::idx4(1,4,1,4).array,tw::idx4(0,1,1,0).array);
 	Resize(*this,tw::vec4(0,0,0,0),tw::vec4(0.1,0.8,0.2,0.8),2);
 	tw::Int testId = 1;
+	failed = 0;
 	try {
-		if (MetricSpace::Test(testId)) {
-			success_count++;
-			test_out << "    " << term::ok << " " << term::green << "metric space" << term::reset_all << std::endl;
-		}
+		tested = MetricSpace::Test(testId);
 	} catch (tw::FatalError& e) {
-		test_out << "    " << term::err << " " << term::red << "metric space" << term::reset_all << std::endl;
-		test_report << ++failure_count << ". metric space" << std::endl;
+		failed = 1;
+		test_report << failure_count+1 << ". metric space" << std::endl;
 		test_report << e.what() << std::endl;
 	}
-	MPI_Barrier(MPI_COMM_WORLD);
+	strip[0].AllSum(&failed,&failed,sizeof(tw::Float),0);
+	if (tested && failed == 0) {
+		success_count++;
+		test_out << "    " << term::ok << " " << term::green << "metric space" << term::reset_all << std::endl;
+	} else if (failed > 0) {
+		failure_count++;
+		test_out << "    " << term::err << " " << term::red << "metric space" << term::reset_all << std::endl;
+	}
 	*tw_out << test_out.str();
 	test_out.str("");
 	test_out.clear();
@@ -390,19 +368,21 @@ void Simulation::Test()
 					}
 					if (tool!=NULL)
 					{
-						try
-						{
-							if (tool->Test(testId))
-							{
-								success_count++;
-								test_out << gridStr << "    " << term::ok << " " << term::green << tool->testName << term::reset_all << std::endl;
-							}
-						}
-						catch(tw::FatalError& e)
-						{
-							test_out << gridStr << "    " << term::err << " " << term::red << tool->testName <<  term::reset_all << std::endl;
-							test_report << ++failure_count << ". " << m.first << " grid " << gridId << std::endl;
+						failed = 0;
+						try {
+							tested = tool->Test(testId);
+						} catch(tw::FatalError& e) {
+							failed = 1;
+							test_report << failure_count+1 << ". " << m.first << " grid " << gridId << std::endl;
 							test_report << e.what() << std::endl;
+						}
+						strip[0].AllSum(&failed,&failed,sizeof(tw::Float),0);
+						if (tested && failed == 0) {
+							success_count++;
+							test_out << gridStr << "    " << term::ok << " " << term::green << tool->testName << term::reset_all << std::endl;
+						} else if (failed > 0) {
+							failure_count++;
+							test_out << gridStr << "    " << term::err << " " << term::red << tool->testName <<  term::reset_all << std::endl;
 						}
 						RemoveTool(tool);
 					}
@@ -443,19 +423,21 @@ void Simulation::Test()
 					}
 					if (module!=NULL)
 					{
-						try
-						{
-							if (module->Test(testId))
-							{
-								success_count++;
-								test_out << gridStr << "    " << term::ok << " " << term::green << module->testName << term::reset_all << std::endl;
-							}
-						}
-						catch(tw::FatalError& e)
-						{
-							test_out << gridStr << "    " << term::err << " " << term::red << module->testName <<  term::reset_all << std::endl;
+						failed = 0;
+						try {
+							tested = module->Test(testId);
+						} catch(tw::FatalError& e) {
+							failed = 1;
 							test_report << ++failure_count << ". " << m.first << " grid " << gridId << std::endl;
 							test_report << e.what() << std::endl;
+						}
+						strip[0].AllSum(&failed,&failed,sizeof(tw::Float),0);
+						if (tested && failed == 0) {
+							success_count++;
+							test_out << gridStr << "    " << term::ok << " " << term::green << module->testName << term::reset_all << std::endl;
+						} else if (failed > 0) {
+							failure_count++;
+							test_out << gridStr << "    " << term::err << " " << term::red << module->testName <<  term::reset_all << std::endl;
 						}
 						delete module;
 					}
@@ -471,15 +453,16 @@ void Simulation::Test()
 	}
 
 	*tw_out << std::endl;
-	if (test_report.str().size()>0)
+	if (test_report.str().size()>0) {
 		*tw_err << term::bold << term::red << "Unit Tests Failing" << term::reset_all << std::endl << std::endl << test_report.str();
-	else
+	} else if (failure_count > 0) {
+		*tw_err << term::bold << term::red << "Unit Tests Failing" << term::reset_all << std::endl;
+		*tw_err << "Details may be in node-scoped output files" << std::endl;
+	} else {
 		*tw_out << term::bold << term::green << "Unit Tests Passing" << term::reset_all << " - " << success_count << " succeeded, " << failure_count << " failed" << std::endl;
+	}
 	delete alt_out;
 	MPI_Barrier(MPI_COMM_WORLD);
-	completed = true;
-	if (test_report.str().size()>0)
-		exit(1);
 }
 
 void Simulation::PrepareSimulation()

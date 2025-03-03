@@ -1,8 +1,12 @@
 module;
 
-#include "meta_base.h"
+#include "tw_includes.h"
+#include "tw_test.h"
 
 export module discrete_space;
+import base;
+export import tensor;
+export import tasks;
 
 export namespace tw
 {

@@ -1,10 +1,12 @@
 module;
 
-#include "meta_base.h"
+#include <tree_sitter/api.h>
+#include "tw_includes.h"
 
 export module region;
 import input;
 import metric_space;
+import tensor;
 
 enum regionSpec { baseRegion , entireRegion , rectRegion , prismRegion , circRegion , cylinderRegion , cylindricalShellRegion ,
 	roundedCylinderRegion , ellipsoidRegion , trueSphereRegion , boxArrayRegion , torusRegion , coneRegion , tangentOgiveRegion };

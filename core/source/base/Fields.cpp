@@ -1,12 +1,13 @@
 module;
 
-#include "meta_base.h"
+#include "tw_includes.h"
 
 export module fields;
 export import discrete_space;
 export import metric_space;
 export import tw_iterator;
 import numerics;
+import fft;
 
 // Field is a DiscreteSpace with data assigned to the cells, and operations on the data.
 // The data is some fixed number of floating point values per cell.

@@ -1,6 +1,7 @@
 module;
 
-#include "meta_base.h"
+#include <tree_sitter/api.h>
+#include "tw_includes.h"
 
 export module solid_state;
 import input;

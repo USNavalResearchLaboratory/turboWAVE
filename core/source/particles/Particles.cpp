@@ -1,13 +1,14 @@
 module;
 
-#include "meta_base.h"
+#include <algorithm>
+#include <tree_sitter/api.h>
+#include "tw_includes.h"
 
 export module particles;
 import input;
 import compute_tool;
 import twmodule;
 import fields;
-import tw_iterator;
 import parabolic;
 import mover;
 import physics;

@@ -1,11 +1,14 @@
 module;
 
-#include "meta_base.h"
+#include <tree_sitter/api.h>
+#include "tw_includes.h"
 
 export module injection;
 import input;
 import compute_tool;
 import fields;
+import functions;
+import fft;
 
 using namespace tw::bc;
 
@@ -401,7 +404,7 @@ bool Profile::ReadInputFileDirective(const TSTreeCursor *curs0,const std::string
 	std::string com = tw::input::node_text(&curs,src);
 	if (com=="particle weight") {
 		std::string weighting;
-		tw::input::String directive(&weighting);
+		tw::input::String directive(&weighting,true);
 		directive.Read(&curs,src,"particle weight",native);
 		if (weighting!="variable" && weighting!="fixed")
 			throw tw::FatalError("Invalid type <"+weighting+"> while processing key <particle weight>.");

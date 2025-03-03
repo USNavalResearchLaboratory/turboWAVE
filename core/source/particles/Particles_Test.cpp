@@ -1,6 +1,12 @@
+// z-cell arrangement for these tests:
+//  || cell 0 | cell 1 || cell 2 | cell 3 ||
+//  || node 0 | node 0 || node 1 | node 1 ||
+//  0.0       0.2      0.4       0.6      0.8
+
 module;
 
-#include "meta_base.h"
+#include "tw_includes.h"
+#include <tw_test.h>
 
 module particles;
 
@@ -55,7 +61,7 @@ void Species::ReflectionTest()
 	Primitive q0;
 	tw::vec4 dr(0.5*this->dx(0),0,0,0.35*this->dx(3));
 	tw::vec4 r0 = this->Corner() - dr;
-	tw::vec4 rexpect = this->Corner() + dr;
+	tw::vec4 rexpect = owner->strip[3].Get_rank() == 0 ? this->Corner() + dr : r0;
 	tw::vec4 p0(sqrt(2),0,0,-1);
 	tw::vec4 s0(1,0,0,0);
 	SetPrimitiveWithPosition(q0,r0);
@@ -117,7 +123,8 @@ void Species::MoveWindowTest()
 		BeginMoveWindow();
 		ASSERT_EQ(particle.size(),0);
 		ASSERT_EQ(transfer.size(),1);
-		ASSERT_NEAR(transfer[0].x[3], r0[3] - this->dx(3), tolerance);
+		ASSERT_NEAR(transfer[0].x[3], -0.5, tolerance);
+		ASSERT_EQ(transfer[0].ijk[3],0);
 		ASSERT_EQ(transfer[0].dst[0],1);
 		ASSERT_EQ(transfer[0].dst[1],0);
 		ASSERT_EQ(transfer[0].dst[2],0);

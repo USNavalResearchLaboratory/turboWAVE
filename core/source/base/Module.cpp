@@ -1,6 +1,7 @@
 module;
 
-#include "meta_base.h"
+#include <tree_sitter/api.h>
+#include "tw_includes.h"
 
 export module twmodule;
 import input;
@@ -60,8 +61,7 @@ export struct Simulation: Task, MetricSpace, tw::input::Visitor
 	tw::units nativeUnits;
 
 	bool neutralize,movingWindow;
-	bool completed;
-	tw::Int outputLevel,errorCheckingLevel;
+	tw::Int outputLevel,errorCheckingLevel,success_count,failure_count;
 	tw::Int stepNow;
 	tw::Int lastTime;
 
@@ -163,11 +163,6 @@ export struct Simulation: Task, MetricSpace, tw::input::Visitor
 		// This allows us to write both the initial condition and the last available data.
 		// If there is a restart the initial step is stepsToTake+1 and 1 less step is taken.
 		return stepNow == dim[0];
-	}
-
-	bool Completed()
-	{
-		return completed;
 	}
 };
 

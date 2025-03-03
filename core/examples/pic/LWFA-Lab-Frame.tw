@@ -5,6 +5,7 @@ dump period = 0
 moving window = no
 neutralize = yes
 unit density = 1e19
+native units = plasma
 
 xboundary = ( periodic , periodic )
 yboundary = ( periodic , periodic )
@@ -22,12 +23,12 @@ new grid
 	decomposition = ( 1, 2, 1, 2 )
 }
 
-new region rect r1
+new region rect 'r1'
 {
 	bounds = (-1e5 , 1e5 , -1e5 , 1e5 , 10 , 40)
 }
 
-new region rect antenna_rect
+new region rect 'antenna_rect'
 {
 	bounds = (-40 , 40 , -1e5 , 1e5 , 5.01 , 5.04)
 }
@@ -45,7 +46,7 @@ new species 'e'
 
 generate uniform 'e'
 {
-	clipping region = r1
+	clipping region = 'r1'
 	density = 1.0
 	loading = deterministic
 }
@@ -54,7 +55,7 @@ generate uniform 'e'
 // conducting region must not overlap PML regions
 new conductor for 'em'
 {
-	clipping region = antenna_rect
+	clipping region = 'antenna_rect'
 	current type = electric // required, or no emission
 	enable electromagnetic = false // make the antenna invisible to EM waves
 	// a=eA/mc^2 can be estimated as 0.5 * px * dz * Nz , where Nz = cells along z within clipping region
@@ -75,7 +76,7 @@ new box diagnostic
 
 new phase space diagnostic for 'e'
 {
-	filename = zpz
+	filename = 'zpz'
 	period = 100
 	axes = ( pz , y , z )
 	dimensions = ( 200 , 1 , 200 )

@@ -1,4 +1,11 @@
-namespace tw
+module;
+
+#include "tw_includes.h"
+
+export module tensor;
+import base;
+
+export namespace tw
 {
 
 	struct idx4

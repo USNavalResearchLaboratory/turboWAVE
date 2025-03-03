@@ -1,24 +1,24 @@
 module;
 
-#include "meta_base.h"
+#include <tree_sitter/api.h>
+#include "tw_includes.h"
+#include "tw_test.h"
 
+/// ComputeTool objects provide low level functionality that is accessible to all Modules.
+/// They retain pointers to MetricSpace (grid information) and Task (access to MPI communicators).
+/// A facility for interfacing with OpenCL kernels is provided.
+/// Each class of tool has a unique identifier of type tw::tool_type.
+/// Each instance of a tool has a unique name encoded as a string.
+/// To avoid duplicate names, there is an automatic name mangling mechanism.
+/// Automatic mangling relies on always creating a tool via Simulation::CreateTool
+/// Module and ComputeTool are somewhat similar.
+/// ComputeTool is intended to be heavy on computations, light on data ownership.
+/// Module is intended to own and manage data, while delegating heavy computations.
 export module compute_tool;
+import base;
 import input;
 import region;
 import fields;
-
-// ComputeTool objects provide low level functionality that is accessible to all Modules.
-// They retain pointers to MetricSpace (grid information) and Task (access to MPI communicators).
-// A facility for interfacing with OpenCL kernels is provided.
-
-// Each class of tool has a unique identifier of type tw::tool_type.
-// Each instance of a tool has a unique name encoded as a string.
-// To avoid duplicate names, there is an automatic name mangling mechanism.
-// Automatic mangling relies on always creating a tool via Simulation::CreateTool
-
-// Module and ComputeTool are somewhat similar.
-// ComputeTool is intended to be heavy on computations, light on data ownership.
-// Module is intended to own and manage data, while delegating heavy computations.
 
 export namespace tw
 {
@@ -268,11 +268,26 @@ std::map<std::string,tw::tool_type> ComputeTool::Map()
 	};
 }
 
+/// @brief weak matching of the input file key (legacy compatibility)
+/// @param preamble data extracted while parsing object
+/// @return the corresponding tool_type enumeration
 tw::tool_type ComputeTool::CreateTypeFromInput(const tw::input::Preamble& preamble)
 {
+	// strategy is to lop off trailing words until we get a match
 	std::map<std::string,tw::tool_type> tool_map = ComputeTool::Map();
-	if (tool_map.find(preamble.obj_key)!=tool_map.end())
-		return tool_map[preamble.obj_key];
+	std::string key_now = preamble.obj_key;
+	while (true) {
+		if (tool_map.find(key_now)!=tool_map.end()) {
+			return tool_map[key_now];
+		} else {
+			auto p = key_now.rfind(' ');
+			if (p != std::string::npos) {
+				key_now = key_now.substr(0,p);
+			} else {
+				break;
+			}
+		}
+	}
 	return tw::tool_type::none;
 }
 

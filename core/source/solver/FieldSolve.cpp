@@ -1,6 +1,6 @@
 module;
 
-#include "meta_base.h"
+#include "tw_includes.h"
 
 export module field_solve;
 import input;
@@ -11,6 +11,7 @@ import elliptic;
 import hyperbolic;
 import diagnostics;
 import injection;
+import functions;
 
 using namespace tw::bc;
 

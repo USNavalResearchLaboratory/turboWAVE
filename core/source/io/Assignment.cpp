@@ -1,13 +1,12 @@
 module;
 
 #include "tree_sitter/api.h"
-#include "definitions.h"
-#include "ctools.h"
-#include "3dmath.h"
-#include "units.h"
-#include "ts_convenience.h"
+#include "tw_includes.h"
 
 export module assignment;
+import tensor;
+import navigate;
+import units;
 
 export namespace tw
 {
@@ -42,7 +41,8 @@ export namespace tw
         struct String : Assignment
         {
             std::string *str;
-            String(std::string *s) { str=s; }
+            bool allow_cast;
+            String(std::string *s,bool allow_cast = false) { str=s; this->allow_cast = allow_cast; }
             virtual bool Read(TSTreeCursor *curs,const std::string& src,const std::string& key,const tw::UnitConverter& native);
         };
         /// @brief this is a tuple supporting raw or dimensional numbers
@@ -245,7 +245,7 @@ template struct tw::input::Numbers<tw::Int>;
 bool tw::input::String::Read(TSTreeCursor *curs,const std::string& src,const std::string& key,const tw::UnitConverter& native)
 {
     if (next_named_node(curs,false)) {
-        if (tw::input::node_kind(curs) == "string_literal") {
+        if (tw::input::node_kind(curs) == "string_literal" || this->allow_cast) {
             *str = node_text(curs,src);
             StripQuotes(*str);
         } else {

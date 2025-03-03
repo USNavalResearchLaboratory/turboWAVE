@@ -1,11 +1,12 @@
 module;
 
-#include "meta_base.h"
+#include "tw_includes.h"
 
 export module qstate;
 import input;
 import compute_tool;
 import metric_space;
+import functions;
 
 export namespace qo
 {

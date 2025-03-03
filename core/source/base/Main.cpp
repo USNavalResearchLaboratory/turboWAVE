@@ -1,17 +1,6 @@
-#include "definitions.h"
+#include "tw_includes.h"
+import base;
 import twmodule;
-
-////////////////////
-// ERROR HANDLING //
-////////////////////
-
-void out_of_store();
-
-void out_of_store()
-{
-	std::cout << "operator new failed: out of memory" << std::endl;
-	exit(1);
-}
 
 ////////////////////////////
 // COMMAND LINE INTERFACE //
@@ -258,86 +247,20 @@ void CommandHandler::Evaluate(const Arg& arg,
 	}
 }
 
-//////////////////////////////
-// Compute Thread Launcher  //
-// and interactive thread   //
-// (used with internal MPI) //
-//////////////////////////////
-
-#ifdef USE_TW_MPI
-
-struct Launcher : tw::Thread
-{
-	Simulation *tw;
-	tw::Int numOMPThreads;
-	Launcher(tw::Int rank,tw::Int c,
-		const std::string& unitTest,
-		const std::string& inputFileName,
-		const std::string& restartFileName,
-		const std::string& platform,
-		const std::string& device,
-		const tw::Int& outputLevel,
-		const tw::Int& errorCheckingLevel) : tw::Thread(rank)
-	{
-		numOMPThreads=c;
-		tw = new Simulation(unitTest,inputFileName,restartFileName,platform,device,outputLevel,errorCheckingLevel);
-	}
-	virtual ~Launcher()
-	{
-		delete tw; // delete grid must go before MPI_Finalize
-		MPI_Finalize();
-	}
-	virtual void Run();
-};
-
-struct TW_Interactive : tw::Thread
-{
-	Simulation *oneSim;
-	TW_Interactive(Simulation *sim) : tw::Thread(0) { oneSim = sim; }
-	virtual void Run();
-};
-
-
-void Launcher::Run()
-{
-	#ifdef USE_OPENMP
-	// OpenMP threads must be set up within MPI thread
-	omp_set_num_threads(numOMPThreads);
-	#endif
-	MPI_Init(NULL,NULL);
-	if (tw->unitTest=="tw::none")
-		tw->Run();
-	else
-		tw->Test();
-}
-
-void TW_Interactive::Run()
-{
-	std::string cmd;
-	do
-	{
-		std::getline(std::cin,cmd);
-		if (!oneSim->Completed())
-			oneSim->InteractiveCommand(cmd,&std::cout);
-	} while (!oneSim->Completed());
-}
-
-#endif
-
 /////////////////////////
 // PROGRAM ENTRY POINT //
 // Standard MPI Launch //
 /////////////////////////
 
-#ifndef USE_TW_MPI
 int main(int argc,char *argv[])
 {
-	int numOMPThreads=0; // indicates -c argument was not given
+	tw::Int failure_count = 0;
+	int numOMPThreads=0,return_val=0,rank; // indicates -c argument was not given
 	tw::Int outputLevel = 0, errorCheckingLevel = 0;
 	std::string initMessage,arg,inputFileName("stdin"),restartFileName("tw::none"),platform("cuda"),device("tesla"),unitTest("tw::none");
-	std::set_new_handler(&out_of_store);
 
 	MPI_Init(&argc,&argv);
+	MPI_Comm_rank(MPI_COMM_WORLD,&rank);
 
 	try
 	{
@@ -348,10 +271,6 @@ int main(int argc,char *argv[])
 		while (cli.Next(arg))
 			cli.Evaluate(arg,dummyProcs,numOMPThreads,inputFileName,restartFileName,platform,device,unitTest,dummyInteractive,outputLevel);
 
-		#ifndef USE_OPENMP
-		if (numOMPThreads>1)
-			throw tw::FatalError("Requested OpenMP threads but this executable not OpenMP enabled");
-		#endif
 	}
 	catch (tw::FatalError& e)
 	{
@@ -360,101 +279,19 @@ int main(int argc,char *argv[])
 	}
 
 	Simulation *tw = new Simulation(unitTest,inputFileName,restartFileName,platform,device,outputLevel,errorCheckingLevel);
-	#ifdef USE_OPENMP
 	if (numOMPThreads>0) // if not given assume environment determines
 		omp_set_num_threads(numOMPThreads);
-	#endif
 
-	if (tw->unitTest=="tw::none")
+	if (tw->unitTest=="tw::none") {
 		tw->Run();
-	else
+	} else {
 		tw->Test();
+		failure_count = tw->failure_count;
+	}
 
 	delete tw; // since this might call MPI release functions, has to precede MPI_Finalize()
 
 	MPI_Finalize();
 
-	return 0;
+	return failure_count;
 }
-#endif
-
-/////////////////////////
-// PROGRAM ENTRY POINT //
-// Internal MPI Launch //
-/////////////////////////
-
-#ifdef USE_TW_MPI
-int main(int argc,char *argv[])
-{
-	int numMPIThreads=1,numOMPThreads=1;
-	bool interactive = true;
-	tw::Int i,outputLevel=0,errorCheckingLevel=0;
-	std::string arg,inputFileName("stdin"),restartFileName("tw::none"),platform("cuda"),device("tesla"),unitTest("tw::none");
-	std::set_new_handler(&out_of_store);
-
-	try
-	{
-		#ifdef USE_OPENMP
-		if (argc==1)
-		{
-			numOMPThreads = omp_get_max_threads();
-			std::cout << "INFO: Defaulting to single MPI task with OpenMP parameters based on shell environment." << std::endl;
-			std::cout << "INFO: Better performance may be obtained with hybrid MPI/OpenMP." << std::endl;
-		}
-		#endif
-
-		Arg arg;
-		auto cli = CommandHandler(argc,argv,true);
-		while (cli.Next(arg))
-			cli.Evaluate(arg,numMPIThreads,numOMPThreads,inputFileName,restartFileName,platform,device,unitTest,interactive,outputLevel);
-		if (unitTest!="tw::none")
-			interactive = false;
-
-		#ifdef USE_OPENMP
-		if (numOMPThreads==1)
-			std::cout << "INFO: Use '-c' option to set OpenMP threads per MPI task." << std::endl;
-		#endif
-		#ifndef USE_OPENMP
-		if (numOMPThreads>1)
-			throw tw::FatalError("Requested OpenMP threads but this executable not OpenMP enabled");
-		#endif
-	}
-	catch (tw::FatalError& e)
-	{
-		std::cout << "COMMAND LINE ERROR: " << e.what() << std::endl;
-		exit(1);
-	}
-
-	TW_MPI_Lock();
-
-	std::vector<tw::Thread*> launcher(numMPIThreads);
-	for (i=0;i<numMPIThreads;i++)
-		launcher[i] = new Launcher(i,numOMPThreads,unitTest,inputFileName,restartFileName,platform,device,outputLevel,errorCheckingLevel);
-	TW_MPI_Launch(launcher);
-
-	std::cout << "Internal MPI Startup Complete" << std::endl;
-
-	TW_Interactive interactiveThread(((Launcher*)(launcher[0]))->tw);
-	if (interactive)
-	{
-		std::cout << "Launch Interactive Thread..." << std::endl;
-		interactiveThread.Start();
-	}
-
-	TW_MPI_Unlock();
-
-	for (i=0;i<numMPIThreads;i++)
-		launcher[i]->Complete();
-
-	if (interactive)
-	{
-		std::cout << std::endl << "Press Enter to terminate interactive thread." << std::endl;
-		interactiveThread.Complete();
-	}
-
-	for (i=0;i<numMPIThreads;i++)
-		delete launcher[i];
-
-	return 0;
-}
-#endif
