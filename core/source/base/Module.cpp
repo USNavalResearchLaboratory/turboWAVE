@@ -69,7 +69,6 @@ export struct Simulation: Task, MetricSpace, tw::input::Visitor
 
 	tw::bc::par bc0[4],bc1[4];
 
-	std::ostream *tw_out,*tw_err;
 	tw::Int inputFilePass;
 	tw::input::DirectiveReader outerDirectives;
 	GridReader *gridReader;
@@ -256,8 +255,8 @@ struct Module:DiscreteSpace
 
 	virtual void StartDiagnostics();
 	virtual void Report(Diagnostic&);
-	virtual void WarningMessage(std::ostream *theStream);
-	virtual void StatusMessage(std::ostream *theStream) {;}
+	virtual void WarningMessage();
+	virtual void StatusMessage() {;}
 	virtual bool Test(tw::Int& id);
 
 	static std::map<std::string,tw::module_type> Map();
@@ -452,17 +451,17 @@ bool Module::Test(tw::Int& id)
 	return false; // did not test, id unchanged means no next test
 }
 
-void Module::WarningMessage(std::ostream *theStream)
+void Module::WarningMessage()
 {
 	if (buildLog.size()>4)
 	{
-		*theStream << "WARNING : Build log for " << programFilename << " is not empty:" << std::endl;
-		*theStream << buildLog << std::endl;
+		std::println(std::cout,"{}: Build log for {} is not empty:",term::warning,programFilename);
+		std::println(std::cout,"{}",buildLog);
 	}
 	if (owner->movingWindow)
 		for (tw::Int i=0;i<profile.size();i++)
 			if (profile[i]->theRgn->moveWithWindow==true && profile[i]->theRgn->name!="entire")
-				*theStream << "WARNING : region " << profile[i]->theRgn->name << " in motion in module " << name << std::endl;
+				std::println(std::cout,"{}: region {} in motion in module {}",term::warning,profile[i]->theRgn->name,name);
 }
 
 ////// STATIC MEMBERS FOLLOW

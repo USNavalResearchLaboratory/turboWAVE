@@ -78,8 +78,8 @@ export struct ComputeTool : Testable
 	ComputeTool(const std::string& name,MetricSpace *ms,Task *tsk);
 	virtual ~ComputeTool();
 	virtual void Initialize();
-	virtual void WarningMessage(std::ostream *theStream);
-	virtual void StatusMessage(std::ostream *theStream) {;}
+	virtual void WarningMessage();
+	virtual void StatusMessage() {;}
 	virtual void ReadInputFileBlock(TSTreeCursor *curs,const std::string& src);
 	virtual bool ReadInputFileDirective(const TSTreeCursor *curs,const std::string& src);
 	virtual void ReadCheckpoint(std::ifstream& inFile);
@@ -187,13 +187,13 @@ void ComputeTool::ReadInputFileBlock(TSTreeCursor *curs,const std::string& src)
 	directives.ThrowErrorIfMissingKeys(name);
 }
 
-void ComputeTool::WarningMessage(std::ostream *theStream)
+void ComputeTool::WarningMessage()
 {
 	// Save any messages from OpenCL compiler for later output
 	if (buildLog.size()>4)
 	{
-		*theStream << "WARNING : Build log for " << programFilename << " is not empty:" << std::endl;
-		*theStream << buildLog << std::endl;
+		std::println(std::cout,"{}: Build log for {} is not empty:",term::warning,programFilename);
+		std::println(std::cout,"{}",buildLog);
 	}
 }
 

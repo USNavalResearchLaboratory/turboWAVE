@@ -5,6 +5,7 @@ dump period = 0
 moving window = yes
 neutralize = yes
 unit density = 1e19
+native units = plasma
 
 xboundary = ( periodic , periodic )
 yboundary = ( periodic , periodic )
@@ -66,7 +67,7 @@ new box diagnostic 'box'
 
 new phase space diagnostic for 'e'
 {
-	filename = zpz
+	filename = 'zpz'
 	period = 100
 	galilean velocity = ( 0.0 , 0.0 , 1.0 )
 	axes = ( pz , y , z )

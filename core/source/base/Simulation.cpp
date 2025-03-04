@@ -173,77 +173,71 @@ Simulation::~Simulation()
 		delete uniformDeviate;
 	if (gaussianDeviate!=NULL)
 		delete gaussianDeviate;
-
-	if (dynamic_cast<std::ofstream*>(tw_out))
-		((std::ofstream*)tw_out)->close();
-	if (dynamic_cast<std::stringstream*>(tw_out))
-		delete tw_out;
-
-	if (dynamic_cast<std::ofstream*>(tw_err))
-		((std::ofstream*)tw_err)->close();
-	if (dynamic_cast<std::stringstream*>(tw_err))
-		delete tw_err;
 }
 
 void Simulation::SetupIO()
 {
+	int worldRank;
+	MPI_Comm_rank(MPI_COMM_WORLD,&worldRank);
 	// Set up standard outputs
-	if (strip[0].Get_rank()==0)
-	{
-		tw_out = &std::cout;
-		tw_err = &std::cerr;
-	}
-	else
+	if (worldRank!=0)
 	{
 		if (outputLevel>0)
 		{
-			tw_out = new std::ofstream(std::to_string(strip[0].Get_rank()) + "_stdout.txt");
-			tw_err = new std::ofstream(std::to_string(strip[0].Get_rank()) + "_stderr.txt");
+			auto tw_out = new std::ofstream(std::to_string(worldRank) + "_stdout.txt");
+			std::cout.rdbuf(tw_out->rdbuf());
+			auto tw_err = new std::ofstream(std::to_string(worldRank) + "_stderr.txt");
+			std::cerr.rdbuf(tw_err->rdbuf());
 		}
 		else
 		{
 			// put outputs into throw-away strings
-			tw_out = new std::stringstream;
-			tw_err = new std::stringstream;
+			auto tw_out = new std::stringstream;
+			std::cout.rdbuf(tw_out->rdbuf());
+			auto tw_err = new std::stringstream;
+			std::cerr.rdbuf(tw_err->rdbuf());
 		}
 	}
 
-	*tw_out << std::endl << term::green << term::bold << "Starting turboWAVE Session" << term::reset_all << std::endl << std::endl;
-	*tw_out << "Floating point precision = " << sizeof(tw::Float)*8 << " bits" << std::endl;
-	*tw_out << "Maximum OpenMP threads = " << omp_get_max_threads() << std::endl;
+	std::println(std::cout,"\n{}{}Starting turboWAVE Session{}\n",term::green,term::bold,term::reset_all);
+	std::println(std::cout,"Floating point precision = {} bits",sizeof(tw::Float)*8);
+	std::println(std::cout,"Maximum OpenMP threads = {}", omp_get_max_threads());
 }
 
 void Simulation::Run()
 {
-	SetupIO();
-	InputFileFirstPass();
-
 	std::ofstream twstat;
-	if (strip[0].Get_rank()==0)
-	{
-		twstat.open("twstat");
-		twstat << "TurboWAVE is initializing.";
-		twstat.close();
-	}
+	SetupIO();
 
 	try
 	{
-		(*tw_out) << std::endl << term::green << term::bold << "Prepare Simulation" << term::reset_all << std::endl << std::endl;
+		InputFileFirstPass();
+
+		if (strip[0].Get_rank()==0)
+		{
+			twstat.open("twstat");
+			twstat << "TurboWAVE is initializing.";
+			twstat.close();
+		}
+
+		std::println(std::cout,"\n{}{}Prepare Simulation{}\n",term::green,term::bold,term::reset_all);
+		std::flush(std::cout);
 
 		PrepareSimulation();
 
-		(*tw_out) << std::endl << term::green << term::bold << "Begin Simulation" << term::reset_all << std::endl << std::endl;
+		std::println(std::cout,"\n{}{}Begin Simulation{}\n",term::green,term::bold,term::reset_all);
+		std::flush(std::cout);
 
 		tw::Int startTime = GetSeconds();
 		lastTime = startTime;
 
-		if (GetSeconds()<0)
-		{
-			(*tw_out) << std::endl << term::warning << ": System clock is not responding properly." << std::endl << std::endl;
+		if (GetSeconds()<0) {
+			std::println(std::cout,"\n{}: System clock is not responding properly.\n",term::warning);
 		}
 
-		(*tw_out) << "Current status can be viewed in 'twstat' file." << std::endl;
-		(*tw_out) << "This executable does not support interactive commands." << std::endl << std::endl;
+		std::println(std::cout,"Current status can be viewed in 'twstat' file.");
+		std::println(std::cout,"This executable does not support interactive commands.\n");
+		std::flush(std::cout);
 
 		while (stepNow <= dim[0] && elapsedTime < elapsedTimeMax)
 		{
@@ -257,8 +251,8 @@ void Simulation::Run()
 			FundamentalCycle();
 		}
 
-		(*tw_out) << "Completed " << stepNow << " steps in " << GetSeconds() - startTime << " seconds." << std::endl;
-		(*tw_out) << "Simulated elapsed time = " << elapsedTime << std::endl;
+		std::println(std::cout,"Completed {} steps in {} seconds.",stepNow,GetSeconds() - startTime);
+		std::println(std::cout,"Simulated elapsed time = {}",elapsedTime);
 		if (strip[0].Get_rank()==0)
 		{
 			twstat.open("twstat");
@@ -266,21 +260,25 @@ void Simulation::Run()
 			twstat << "Simulated elapsed time = " << elapsedTime << std::endl;
 			twstat.close();
 		}
+		failure_count = 0;
 	}
 	catch (tw::FatalError& e)
 	{
-		(*tw_err) << "FATAL ERROR: " << e.what() << std::endl;
-		(*tw_err) << "Simulation failed --- exiting now." << std::endl;
+		std::println(std::cerr,"{}: {}",term::error,e.what());
 		if (strip[0].Get_rank()==0)
 		{
 			twstat.open("twstat");
 			twstat << "The simulation failed. For more info see stdout." << std::endl;
 			twstat.close();
 		}
-		exit(1);
+		failure_count = 1;
 	}
 
-	*tw_out << std::endl << term::green << term::bold << "TurboWAVE Session Completed" << term::reset_all << std::endl;
+	if (failure_count==0) {
+		std::println(std::cout,"\n{}{}TurboWAVE Session Completed{}",term::green,term::bold,term::reset_all);
+	} else {
+		std::println(std::cerr,"\n{}{}TurboWAVE Session Failed{}",term::red,term::bold,term::reset_all);
+	}
 }
 
 void Simulation::Test()
@@ -300,8 +298,8 @@ void Simulation::Test()
 	// diverting output
 	std::stringstream test_out;
 	std::stringstream test_report;
-	std::ostream *alt_out = new std::stringstream;
-	std::ostream *save_out = tw_out;
+	std::stringstream null_out;
+	std::streambuf *save_buf = std::cout.rdbuf();
 
 	// each test must setup its own task and grid
 	if (numRanksProvided!=2)
@@ -318,7 +316,7 @@ void Simulation::Test()
 	// Testables that are not ComputeTool or Module
 	// TODO: we need to unify handling of all testables.
 
-	*tw_out << std::endl << "testing " << term::bold << term::cyan << "metric space" << term::reset_all << std::endl;
+	std::println(std::cout,"\ntesting {}{}metric space{}",term::bold,term::cyan,term::reset_all);
  	Initialize(tw::idx4(1,1,1,2).array,tw::idx4(1,4,1,4).array,tw::idx4(0,1,1,0).array);
 	Resize(*this,tw::vec4(0,0,0,0),tw::vec4(0.1,0.8,0.2,0.8),2);
 	tw::Int testId = 1;
@@ -338,7 +336,7 @@ void Simulation::Test()
 		failure_count++;
 		test_out << "    " << term::err << " " << term::red << "metric space" << term::reset_all << std::endl;
 	}
-	*tw_out << test_out.str();
+	std::print(std::cout,"{}",test_out.str());
 	test_out.str("");
 	test_out.clear();
 
@@ -348,12 +346,12 @@ void Simulation::Test()
 	{
 		if (unitTest==m.first || unitTest=="--all")
 		{
-			*tw_out << std::endl << "testing " << term::bold << term::cyan << m.first << term::reset_all << std::endl;
+			std::println(std::cout,"\ntesting {}{}{}{}",term::bold,term::cyan,m.first,term::reset_all);
 			tw::Int gridId = 1;
 			while (ComputeTool::SetTestGrid(m.second,gridId,this,this))
 			{
-				std::string gridStr("    "+std::to_string(this->globalCells[1])+"x"+std::to_string(this->globalCells[2])+"x"+std::to_string(this->globalCells[3])+" grid");
-				tw_out = alt_out;
+				auto gridStr = std::format("    {}x{}x{} grid",this->globalCells[1],this->globalCells[2],this->globalCells[3]);
+				std::cout.rdbuf(null_out.rdbuf());
 				tw::Int testId = 1;
 				do
 				{
@@ -388,8 +386,8 @@ void Simulation::Test()
 					}
 				} while (testId>1);
 				MPI_Barrier(MPI_COMM_WORLD);
-				tw_out = save_out;
-				*tw_out << test_out.str();
+				std::cout.rdbuf(save_buf);
+				std::print(std::cout,"{}",test_out.str());
 				test_out.str("");
 				test_out.clear();
 				gridId++;
@@ -403,12 +401,12 @@ void Simulation::Test()
 	{
 		if (unitTest==m.first || unitTest=="--all")
 		{
-			*tw_out << std::endl << "testing " << term::bold << term::cyan << m.first << term::reset_all << std::endl;
+			std::println(std::cout,"\ntesting {}{}{}{}",term::bold,term::cyan,m.first,term::reset_all);
 			tw::Int gridId = 1;
 			while (Module::SetTestGrid(m.second,gridId,this))
 			{
-				std::string gridStr("    "+std::to_string(this->globalCells[1])+"x"+std::to_string(this->globalCells[2])+"x"+std::to_string(this->globalCells[3])+" grid");
-				tw_out = alt_out;
+				auto gridStr = std::format("    {}x{}x{} grid",this->globalCells[1],this->globalCells[2],this->globalCells[3]);
+				std::cout.rdbuf(null_out.rdbuf());
 				tw::Int testId = 1;
 				do
 				{
@@ -443,8 +441,8 @@ void Simulation::Test()
 					}
 				} while (testId>1);
 				MPI_Barrier(MPI_COMM_WORLD);
-				tw_out = save_out;
-				*tw_out << test_out.str();
+				std::cout.rdbuf(save_buf);
+				std::print(std::cout,"{}",test_out.str());
 				test_out.str("");
 				test_out.clear();
 				gridId++;
@@ -452,17 +450,16 @@ void Simulation::Test()
 		}
 	}
 
-	*tw_out << std::endl;
+	std::println(std::cout,"");
 	if (test_report.str().size()>0) {
-		*tw_err << term::bold << term::red << "Unit Tests Failing" << term::reset_all << std::endl << std::endl << test_report.str();
+		std::println(std::cerr,"{}{}Unit Tests Failing{}\n",term::bold,term::red,term::reset_all);
+		std::println(std::cout,"{}",test_report.str());
 	} else if (failure_count > 0) {
-		*tw_err << term::bold << term::red << "Unit Tests Failing" << term::reset_all << std::endl;
-		*tw_err << "Details may be in node-scoped output files" << std::endl;
+		std::println(std::cerr,"{}{}Unit Tests Failing{}\n",term::bold,term::red,term::reset_all);
+		std::println(std::cerr,"Details may be in node-scoped output files");
 	} else {
-		*tw_out << term::bold << term::green << "Unit Tests Passing" << term::reset_all << " - " << success_count << " succeeded, " << failure_count << " failed" << std::endl;
+		std::println(std::cout,"{}{}Unit Tests Passing{} - {} succeeded, {} failed",term::bold,term::green,term::reset_all,success_count,failure_count);
 	}
-	delete alt_out;
-	MPI_Barrier(MPI_COMM_WORLD);
 }
 
 void Simulation::PrepareSimulation()
@@ -537,29 +534,29 @@ void Simulation::PrepareSimulation()
 	// Initialize Computational Tools
 	// Must precede module initialization
 
-	(*tw_out) << std::endl << "Initializing Compute Tools..." << std::endl << std::endl;
+	std::println(std::cout,"\nInitializing Compute Tools...\n");
 
 	for (auto tool : computeTool)
 	{
-		(*tw_out) << "Tool: " << tool->name << std::endl;
+		std::println(std::cout,"Tool: {}",tool->name);
 		tool->Initialize();
-		tool->WarningMessage(tw_out);
+		tool->WarningMessage();
 	}
 	if (computeTool.size()==0)
-		(*tw_out) << "(no tools)" << std::endl;
+		std::println(std::cout,"(no tools)");
 
 	// Initialize Modules
 
-	(*tw_out) << std::endl << "Initializing Modules..." << std::endl << std::endl;
+	std::println(std::cout,"\nInitialize Modules...\n");
 
 	for (auto m : module)
 		m->ExchangeResources();
 
 	for (auto m : module)
 	{
-		(*tw_out) << "Module: " << m->name << std::endl;
+		std::println(std::cout,"Module: {}",m->name);
 		m->Initialize();
-		m->WarningMessage(tw_out);
+		m->WarningMessage();
 	}
 
 	// Read checkpoint data
@@ -569,7 +566,7 @@ void Simulation::PrepareSimulation()
 		std::stringstream fileName;
 		std::ifstream restartFile;
 		fileName << strip[0].Get_rank() << "_dump.chk";
-		(*tw_out) << std::endl << "Reading restart file " << fileName.str() << "..." << std::endl << std::endl;
+		std::println(std::cout,"\nReading restart file {}...",fileName.str());
 		restartFile.open(fileName.str().c_str());
 		ReadCheckpoint(restartFile);
 		restartFile.close();
@@ -582,27 +579,27 @@ void Simulation::PrintGPUInformation()
 {
 	cl_ulong ninfo;
 
-	*tw_out << initMessage;
+	std::println(initMessage);
 
-	*tw_out << "GPU INFORMATION" << std::endl;
-	*tw_out << "--------------------------------------------" << std::endl;
+	std::println(std::cout,"GPU INFORMATION");
+	std::println(std::cout,"--------------------------------------------");
 
 	clGetDeviceInfo(gpu,CL_DEVICE_GLOBAL_MEM_SIZE,sizeof(ninfo),&ninfo,NULL);
-	*tw_out << "Global memory: " << ninfo << std::endl;
+	std::println(std::cout,"Global memory: {}",ninfo);
 
 	clGetDeviceInfo(gpu,CL_DEVICE_LOCAL_MEM_SIZE,sizeof(ninfo),&ninfo,NULL);
-	*tw_out << "Local memory: " << ninfo << std::endl;
+	std::println(std::cout,"Local memory: {}",ninfo);
 
 	clGetDeviceInfo(gpu,CL_DEVICE_MAX_WORK_GROUP_SIZE,sizeof(ninfo),&ninfo,NULL);
-	*tw_out << "Maximum work group size: " << ninfo << std::endl;
+	std::println(std::cout,"Maximum work group size: {}",ninfo);
 
 	clGetDeviceInfo(gpu,CL_DEVICE_PREFERRED_VECTOR_WIDTH_FLOAT,sizeof(ninfo),&ninfo,NULL);
-	*tw_out << "Float vector width: " << ninfo << std::endl;
+	std::println(std::cout,"Float vector width: {}",ninfo);
 
 	clGetDeviceInfo(gpu,CL_DEVICE_PREFERRED_VECTOR_WIDTH_DOUBLE,sizeof(ninfo),&ninfo,NULL);
-	*tw_out << "Double vector width: " << ninfo << std::endl;
+	std::println(std::cout,"Double vector width: {}",ninfo);
 
-	*tw_out << "--------------------------------------------" << std::endl << std::endl;
+	std::println(std::cout,"--------------------------------------------\n");
 
 }
 
@@ -626,9 +623,9 @@ void Simulation::InteractiveCommand(const std::string& cmd,std::ostream *theStre
 		*theStream << "Current step size: " << spacing[0] << std::endl;
 		*theStream << "Current elapsed time: " << elapsedTime << std::endl;
 		for (auto m : module)
-			m->StatusMessage(theStream);
+			m->StatusMessage();
 		for (auto tool : computeTool)
-			tool->StatusMessage(theStream);
+			tool->StatusMessage();
 		*theStream << std::endl;
 	}
 	if (cmd=="list")
@@ -694,7 +691,6 @@ void Simulation::FundamentalCycle()
 
 	tw::Int curr = strip[0].Get_rank();
 	bool doing_restart = dumpPeriod>0 && stepNow%dumpPeriod==0;
-	// Lock();
 	if (doing_restart)
 	{
 		std::ofstream restartFile;
@@ -703,7 +699,6 @@ void Simulation::FundamentalCycle()
 		WriteCheckpoint(restartFile);
 		restartFile.close();
 	}
-	// Unlock();
 }
 
 bool Simulation::MangleModuleName(std::string& name)
@@ -767,7 +762,7 @@ ComputeTool* Simulation::CreateTool(const std::string& basename,tw::tool_type th
 {
 	std::string name(basename);
 	MangleToolName(name);
-	(*tw_out) << "Creating Tool <" << name << ">..." << std::endl;
+	std::println(std::cout,"Creating Tool <{}>...",name);
 	computeTool.push_back(factory::CreateToolFromType(name,theType,this,this));
 	computeTool.back()->refCount++;
 	return computeTool.back();
@@ -775,7 +770,7 @@ ComputeTool* Simulation::CreateTool(const std::string& basename,tw::tool_type th
 
 ComputeTool* Simulation::GetTool(const std::string& name,bool attaching)
 {
-	for (tw::Int i=0;i<computeTool.size();i++)
+	for (auto i=0;i<computeTool.size();i++)
 	{
 		if (computeTool[i]->name==name)
 		{
@@ -871,7 +866,7 @@ void Simulation::ReadCheckpoint(std::ifstream& inFile)
 	{
 		inFile >> objectName;
 		inFile.ignore();
-		(*tw_out) << "Read checkpoint data for region <" << objectName << ">..." << std::endl;
+		std::println(std::cout,"Read checkpoint data for region <{}>...",objectName);
 		Region::FindRegion(clippingRegion,objectName)->ReadCheckpoint(inFile);
 	}
 
@@ -881,7 +876,7 @@ void Simulation::ReadCheckpoint(std::ifstream& inFile)
 	{
 		inFile >> objectName;
 		inFile.ignore();
-		(*tw_out) << "Read checkpoint data for tool <" << objectName << ">..." << std::endl;
+		std::println(std::cout,"Read checkpoint data for tool <{}>...",objectName);
 		GetTool(objectName,false)->ReadCheckpoint(inFile);
 	}
 
@@ -891,7 +886,7 @@ void Simulation::ReadCheckpoint(std::ifstream& inFile)
 	{
 		inFile >> objectName;
 		inFile.ignore();
-		(*tw_out) << "Read checkpoint data for module <" << objectName << ">..." << std::endl;
+		std::println(std::cout,"Read checkpoint data for module <{}>...",objectName);
 		GetModule(objectName)->ReadCheckpoint(inFile);
 	}
 }
@@ -914,19 +909,19 @@ void Simulation::WriteCheckpoint(std::ofstream& outFile)
 
 	for (auto obj : clippingRegion)
 	{
-		(*tw_out) << "Checkpointing <" << obj->name << ">" << std::endl;
+		std::println(std::cout,"Checkpointing <{}>...",obj->name);
 		obj->WriteCheckpoint(outFile);
 	}
 
 	for (auto obj : computeTool)
 	{
-		(*tw_out) << "Checkpointing <" << obj->name << ">" << std::endl;
+		std::println(std::cout,"Checkpointing <{}>...",obj->name);
 		obj->WriteCheckpoint(outFile);
 	}
 
 	for (auto obj : module)
 	{
-		(*tw_out) << "Checkpointing <" << obj->name << ">" << std::endl;
+		std::println(std::cout,"Checkpointing <{}>...",obj->name);
 		obj->WriteCheckpoint(outFile);
 	}
 }
@@ -943,6 +938,7 @@ void Simulation::WriteCheckpoint(std::ofstream& outFile)
 tw::input::navigation Simulation::visit(TSTreeCursor *curs) {
 
 	if (inputFilePass == 0) {
+		std::flush(std::cout);
 		TSNode node = ts_tree_cursor_current_node(curs);
 		if (ts_node_has_error(node)) {
 			return tw::input::navigation::gotoChild;
@@ -953,6 +949,7 @@ tw::input::navigation Simulation::visit(TSTreeCursor *curs) {
 
 
 	} else if (inputFilePass == 1) {
+		std::flush(std::cout);
 		if (tw::input::node_kind(curs) == "input_file") {
 			return tw::input::navigation::gotoChild;
 		} else if (tw::input::node_kind(curs) == "assignment") {
@@ -979,7 +976,7 @@ tw::input::navigation Simulation::visit(TSTreeCursor *curs) {
 				TSTreeCursor saveCurs = ts_tree_cursor_copy(curs);
 				tw::input::Preamble preamble = tw::input::GetPreamble(curs,src);
 				MangleToolName(preamble.obj_name);
-				*tw_out << "Creating Tool <" << preamble.obj_name << ">..." << std::endl;
+				std::println(std::cout,"Creating Tool <{}>...",preamble.obj_name);
 				// Do not use CreateTool, do not want to increase refCount
 				computeTool.push_back(factory::CreateToolFromType(preamble.obj_name,tw::tool_type::warp,this,this));
 				computeTool.back()->ReadInputFileBlock(curs,src);
@@ -998,6 +995,7 @@ tw::input::navigation Simulation::visit(TSTreeCursor *curs) {
 
 
 	} else if (inputFilePass == 2) {
+		std::flush(std::cout);
 		TSNode node = ts_tree_cursor_current_node(curs);
 		std::string typ = ts_node_type(node);
 		if (tw::input::node_kind(curs) == "input_file") {
@@ -1018,19 +1016,15 @@ tw::input::navigation Simulation::visit(TSTreeCursor *curs) {
 
 			// Install a pre or post declared tool
 			tw::tool_type whichTool = ComputeTool::CreateTypeFromInput(preamble);
-			if (whichTool!=tw::tool_type::none)
-			{
-				if (preamble.attaching)
-				{
+			if (whichTool!=tw::tool_type::none) {
+				if (preamble.attaching) {
 					ComputeTool *tool = CreateTool(preamble.obj_name,whichTool);
-					(*tw_out) << "Attaching <" << tool->name << "> to <" << preamble.owner_name << ">..." << std::endl;
+					std::println(std::cout,"Attaching <{}> to <{}>",tool->name,preamble.owner_name);
 					tool->ReadInputFileBlock(curs,src);
 					GetModule(preamble.owner_name)->moduleTool.push_back(tool);
-				}
-				else
-				{
+				} else {
 					bool duplicate = MangleToolName(preamble.obj_name);
-					(*tw_out) << "Creating Tool <" << preamble.obj_name << ">..." << std::endl;
+					std::println(std::cout,"Creating Tool <{}>...",preamble.obj_name);
 					if (duplicate && errorCheckingLevel>0)
 						tw::input::ThrowParsingError(curs,src,"duplicate tool name.");
 					// Do not use CreateTool, do not want to increase refCount
@@ -1042,39 +1036,35 @@ tw::input::navigation Simulation::visit(TSTreeCursor *curs) {
 
 			// Module Installation
 			tw::module_type whichModule = Module::CreateTypeFromInput(preamble);
-			if (whichModule!=tw::module_type::none)
-			{
+			if (whichModule!=tw::module_type::none) {
 				if (Module::SingularType(whichModule))
 					if (module_map.find(whichModule)!=module_map.end())
 						tw::input::ThrowParsingError(curs,src,"singular module type was created twice.  Check order of input file.");
 				MangleModuleName(preamble.obj_name);
-				(*tw_out) << "Installing module <" << preamble.obj_name << ">..." << std::endl;
+				std::println(std::cout,"Installing module <{}>...",preamble.obj_name);
 				Module *sub = factory::CreateModuleFromType(preamble.obj_name,whichModule,this);
 				module.push_back(sub);
 				module_map[whichModule] = sub;
 				sub->ReadInputFileBlock(curs,src); // important to note this can change module vector and map if there are nested declarations
-				if (preamble.attaching && preamble.owner_name.size() > 0)
-				{
+				if (preamble.attaching && preamble.owner_name.size() > 0) {
 					Module *super = GetModule(preamble.owner_name);
-					(*tw_out) << "Attaching <" << preamble.obj_name << "> to <" << preamble.owner_name << ">..." << std::endl;
+					std::println(std::cout,"Attaching <{}> to <{}>",preamble.obj_name,preamble.owner_name);
 					super->AddSubmodule(sub);
-				}
-				else if (preamble.attaching && preamble.owner_name.size() == 0)
-				{
+				} else if (!preamble.attaching && preamble.owner_name.size() == 0) {
 					// If not explicitly attaching, but supermodule is required, find or create one
 					tw::module_type reqType = Module::RequiredSupermoduleType(whichModule);
-					if (reqType!=tw::module_type::none)
-					{
+					if (reqType!=tw::module_type::none) {
 						Module *super = RecursiveAutoSuper(reqType,preamble.obj_name);
 						super->AddSubmodule(sub);
 					}
+				} else {
+					tw::input::ThrowParsingError(curs,src,"supermodule mismatch");
 				}
 				return tw::input::navigation::gotoSibling;
 			}
 
 			// Regions are neither modules nor tools
-			if (preamble.obj_key.substr(0,6)=="region")
-			{
+			if (preamble.obj_key.substr(0,6)=="region") {
 				std::string rgnType = tw::input::trim(preamble.obj_key.substr(6));
 				clippingRegion.push_back(Region::CreateObjectFromString(clippingRegion,rgnType));
 				clippingRegion.back()->directives.AttachUnits(units);
@@ -1114,102 +1104,84 @@ void Simulation::InputFileFirstPass()
 	// world rank is suitable for reading task data from restart file
 	// because this data is the same in every restart file
 
-	try
+	std::stringstream fileName;
+	tw::input::FileEnv fenv(inputFileName);
+	fenv.OpenDeck(src);
+	TSTree *tree = tw::input::GetTree(src);
+
+	// TODO: handle preprocessing
+	//tw::input::PreprocessInputFile(tw::input::FileEnv(inputFileName),inputString);
+	AttachUnits(tw::input::GetNativeUnits(tree,src),tw::input::GetUnitDensityCGS(tree,src));
+
+	outerDirectives.AttachUnits(units);
+	outerDirectives.Reset();
+	gridReader = new GridReader(units);
+
+	inputFilePass = 0;
+	tw::input::WalkTree(tree,this);
+	inputFilePass = 1;
+	tw::input::WalkTree(tree,this);
+
+	outerDirectives.ThrowErrorIfMissingKeys("Simulation");
+	if (!gridReader->FoundGrid())
+		throw tw::FatalError("Grid directive was not found.");
+
+	periodic[1] = bc0[1]==tw::bc::par::periodic ? 1 : 0;
+	periodic[2] = bc0[2]==tw::bc::par::periodic ? 1 : 0;
+	periodic[3] = bc0[3]==tw::bc::par::periodic ? 1 : 0;
+
+	// Check integer viability
+	int64_t totalCellsPerRank = int64_t(globalCells[1])*int64_t(globalCells[2])*int64_t(globalCells[3])/int64_t(numRanksProvided);
+	if (totalCellsPerRank>=pow(2,31) && sizeof(tw::Int)==4)
+		throw tw::FatalError("You must recompile turboWAVE with 64 bit integers to handle this many grid cells.");
+
+	// Verify and (if necessary) correct decomposition
+	if (NumTasks() != numRanksProvided)
 	{
-		// Lock();
-
-		std::stringstream fileName;
-		tw::input::FileEnv fenv(inputFileName);
-		fenv.OpenDeck(src);
-		TSTree *tree = tw::input::GetTree(src);
-
-		// TODO: handle preprocessing
-		//tw::input::PreprocessInputFile(tw::input::FileEnv(inputFileName),inputString);
-		AttachUnits(tw::input::GetNativeUnits(tree,src),tw::input::GetUnitDensityCGS(tree,src));
-
-		outerDirectives.AttachUnits(units);
-		outerDirectives.Reset();
-		gridReader = new GridReader(units);
-
-		inputFilePass = 0;
-		tw::input::WalkTree(tree,this);
-		inputFilePass = 1;
-		tw::input::WalkTree(tree,this);
-
-		outerDirectives.ThrowErrorIfMissingKeys("Simulation");
-		if (!gridReader->FoundGrid())
-			throw tw::FatalError("Grid directive was not found.");
-
-		periodic[1] = bc0[1]==tw::bc::par::periodic ? 1 : 0;
-		periodic[2] = bc0[2]==tw::bc::par::periodic ? 1 : 0;
-		periodic[3] = bc0[3]==tw::bc::par::periodic ? 1 : 0;
-
-		// Check integer viability
-		int64_t totalCellsPerRank = int64_t(globalCells[1])*int64_t(globalCells[2])*int64_t(globalCells[3])/int64_t(numRanksProvided);
-		if (totalCellsPerRank>=pow(2,31) && sizeof(tw::Int)==4)
-			throw tw::FatalError("You must recompile turboWAVE with 64 bit integers to handle this many grid cells.");
-
-		// Verify and (if necessary) correct decomposition
-		if (NumTasks() != numRanksProvided)
-		{
-			*tw_out << term::warning << ": Bad decomposition ";
-			tw::Int ax1=1,ax2=2,ax3=3; // to be sorted so ax1 is longest
-			for (tw::Int i=1;i<=3;i++)
-			{
-				domains[i] = 1;
-				if (globalCells[i]>=globalCells[1] && globalCells[i]>=globalCells[2] && globalCells[i]>=globalCells[3])
-					ax1 = i;
-			}
-			for (tw::Int i=1;i<=3;i++)
-				ax2 = i==ax1 ? ax2 : i;
-			for (tw::Int i=1;i<=3;i++)
-				ax3 = i==ax1 || i==ax2 ? ax3 : i;
-			if (globalCells[ax2]<globalCells[ax3])
-				std::swap(ax2,ax3);
-			domains[ax1] = numRanksProvided;
-			while (globalCells[ax1]%(domains[ax1]*2)!=0 && domains[ax1]>0)
-			{
-				domains[ax1] /= 2;
-				domains[ax2] *= 2;
-			}
-			*tw_out << "(defaulting to " << domains[1] << "x" << domains[2] << "x" << domains[3] << ")" << std::endl;
-		}
-		*tw_out << NumTasks() << "-Way Decomposition" << std::endl;
-
-		// Set up the domain decomposition
-		// Simulation/restart provide domains[] , globalCells[] , periodic[] as inputs
-		// communicators, cornerCell[], localCells[], domainIndex[], n0[] , n1[] are computed
+		std::print(std::cout,"{}: Bad decomposition ",term::warning);
+		tw::Int ax1=1,ax2=2,ax3=3; // to be sorted so ax1 is longest
 		for (tw::Int i=1;i<=3;i++)
 		{
-			if (globalCells[i]%domains[i]!=0)
-				throw tw::FatalError("global number of cells is not divisible by number of domains along axis");
+			domains[i] = 1;
+			if (globalCells[i]>=globalCells[1] && globalCells[i]>=globalCells[2] && globalCells[i]>=globalCells[3])
+				ax1 = i;
 		}
-		Task::Initialize(domains,globalCells,periodic);
 		for (tw::Int i=1;i<=3;i++)
+			ax2 = i==ax1 ? ax2 : i;
+		for (tw::Int i=1;i<=3;i++)
+			ax3 = i==ax1 || i==ax2 ? ax3 : i;
+		if (globalCells[ax2]<globalCells[ax3])
+			std::swap(ax2,ax3);
+		domains[ax1] = numRanksProvided;
+		while (globalCells[ax1]%(domains[ax1]*2)!=0 && domains[ax1]>0)
 		{
-			if (localCells[i]%2!=0 && globalCells[i]>1)
-				throw tw::FatalError("local number of cells is not even along non-ignorable axis");
+			domains[ax1] /= 2;
+			domains[ax2] *= 2;
 		}
-		Resize(*this,gridReader->GlobalCorner(),gridReader->GlobalSize(),2,gridReader->Geometry());
-		delete gridReader;
-
-		// Random numbers
-		uniformDeviate = new UniformDeviate(1 + strip[0].Get_rank()*(MaxSeed()/numRanksProvided));
-		gaussianDeviate = new GaussianDeviate(1 + strip[0].Get_rank()*(MaxSeed()/numRanksProvided) + MaxSeed()/(2*numRanksProvided));
-
-		// Unlock();
+		std::println(std::cout,"(defaulting to {}x{}x{})",domains[1],domains[2],domains[3]);
 	}
+	std::println(std::cout,"{}-Way Decomposition",NumTasks());
 
-	catch (tw::FatalError& e)
+	// Set up the domain decomposition
+	// Simulation/restart provide domains[] , globalCells[] , periodic[] as inputs
+	// communicators, cornerCell[], localCells[], domainIndex[], n0[] , n1[] are computed
+	for (tw::Int i=1;i<=3;i++)
 	{
-		if (worldRank==0)
-		{
-			std::cerr << term::red << "FATAL ERROR: " << term::reset_all << e.what() << std::endl;
-			std::cerr << "Could not start simulation --- exiting now." << std::endl;
-		}
-		MPI_Barrier(MPI_COMM_WORLD);
-		exit(1);
+		if (globalCells[i]%domains[i]!=0)
+			throw tw::FatalError("global number of cells is not divisible by number of domains along axis");
 	}
+	Task::Initialize(domains,globalCells,periodic);
+	for (tw::Int i=1;i<=3;i++)
+	{
+		if (localCells[i]%2!=0 && globalCells[i]>1)
+			throw tw::FatalError("local number of cells is not even along non-ignorable axis");
+	}
+	Resize(*this,gridReader->GlobalCorner(),gridReader->GlobalSize(),2,gridReader->Geometry());
+	delete gridReader;
+
+	// Random numbers
+	uniformDeviate = new UniformDeviate(1 + strip[0].Get_rank()*(MaxSeed()/numRanksProvided));
+	gaussianDeviate = new GaussianDeviate(1 + strip[0].Get_rank()*(MaxSeed()/numRanksProvided) + MaxSeed()/(2*numRanksProvided));
 }
 
 /// @brief to be called by supermodules that want to add submodules or tools, can be recursive
@@ -1235,7 +1207,7 @@ void Simulation::NestedDeclaration(TSTreeCursor *curs,const std::string& src,Mod
 			if (module_map.find(whichModule)!=module_map.end())
 				tw::input::ThrowParsingError(curs,src,"Singular module type was created twice.  Check order of input file.");
 		MangleModuleName(preamble.obj_name);
-		(*tw_out) << "   Attaching nested module <" << preamble.obj_name << ">..." << std::endl;
+		std::println(std::cout,"   Attaching nested module <{}>...",preamble.obj_name);
 		Module *sub = factory::CreateModuleFromType(preamble.obj_name,whichModule,this);
 		module.push_back(sub);
 		module_map[whichModule] = sub;
@@ -1248,7 +1220,7 @@ void Simulation::NestedDeclaration(TSTreeCursor *curs,const std::string& src,Mod
 	if (whichTool!=tw::tool_type::none)
 	{
 		ComputeTool *tool = CreateTool(preamble.obj_name,whichTool);
-		(*tw_out) << "   Attaching nested tool <" << tool->name << ">..." << std::endl;
+		std::println(std::cout,"   Attaching nested tool <{}>...",tool->name);
 		tool->ReadInputFileBlock(curs,src);
 		super->moduleTool.push_back(tool);
 	}
@@ -1265,7 +1237,7 @@ Module* Simulation::RecursiveAutoSuper(tw::module_type reqType,const std::string
 		throw tw::FatalError("Module <"+basename+"> requires a supermodule that cannot be created automatically.");
 	std::string super_module_name = basename + "_sup";
 	MangleModuleName(super_module_name);
-	(*tw_out) << "Installing supermodule triggered by <" << basename << ">..." << std::endl;
+	std::println(std::cout,"Installing supermodule triggered by <{}>...",basename);
 	Module *super = factory::CreateModuleFromType(super_module_name,reqType,this);
 	module.push_back(super);
 	module_map[reqType] = super;
@@ -1282,9 +1254,8 @@ Module* Simulation::RecursiveAutoSuper(tw::module_type reqType,const std::string
 
 void Simulation::ReadInputFile()
 {
-	// Lock();
-
-	(*tw_out) << "Reading Input File..." << std::endl << std::endl;
+	std::println(std::cout,"Reading Input File...\n");
+	std::flush(std::cout);
 
 	// TODO: handle preprocessing
 	//tw::input::PreprocessInputFile(tw::input::FileEnv(inputFileName),inputString);
@@ -1293,9 +1264,8 @@ void Simulation::ReadInputFile()
 	TSTree *tree = tw::input::GetTree(src);
 	inputFilePass = 2;
 	tw::input::WalkTree(tree,this);
+	std::flush(std::cout);
 	outerDirectives.ThrowErrorIfMissingKeys("Simulation");
-
-	// Unlock();
 }
 
 void Simulation::Diagnose()

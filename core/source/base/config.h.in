@@ -6,7 +6,5 @@
 
 #undef USE_OPENCL
 
-#define USE_TWSF
-
 #define VBITS 256
 

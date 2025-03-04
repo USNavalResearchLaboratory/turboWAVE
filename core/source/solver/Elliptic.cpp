@@ -50,7 +50,7 @@ export struct IterativePoissonSolver:EllipticSolver
 	virtual ~IterativePoissonSolver();
 	virtual void FixPotential(ScalarField& phi,Region* theRegion,const tw::Float& thePotential);
 	virtual void Solve(ScalarField& phi,ScalarField& source,tw::Float mul);
-	virtual void StatusMessage(std::ostream *theStream);
+	virtual void StatusMessage();
 };
 
 export struct EllipticSolver1D:EllipticSolver
@@ -468,13 +468,13 @@ void IterativePoissonSolver::Solve(ScalarField& phi,ScalarField& source,tw::Floa
 
 #endif
 
-void IterativePoissonSolver::StatusMessage(std::ostream *theStream)
+void IterativePoissonSolver::StatusMessage()
 {
-	*theStream << "Elliptic Solver Status:" << std::endl;
-	*theStream << "   Iterations = " << iterationsPerformed << std::endl;
-	*theStream << "   Overrelaxation = " << overrelaxation << std::endl;
-	*theStream << "   Norm[source] = " << normSource << std::endl;
-	*theStream << "   Norm[residual] = " << normResidualAchieved << std::endl;
+	std::println(std::cout,"Elliptic Solver Status:");
+	std::println(std::cout,"   Iterations = {}",iterationsPerformed);
+	std::println(std::cout,"   Overrelaxation = {}",overrelaxation);
+	std::println(std::cout,"   Norm[source] = {}",normSource);
+	std::println(std::cout,"   Norm[residual] = {}",normResidualAchieved);
 }
 
 

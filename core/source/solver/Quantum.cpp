@@ -361,7 +361,7 @@ void AtomicPhysics::Initialize()
 
 	for (auto w : waveFunction)
 	{
-		*owner->tw_out << w->name << ": energy = " << w->Energy(H) << " , Cn = " << w->NormalizationConstant(H) << std::endl;
+		std::println(std::cout,"{}: energy = {}, Cn = {}", w->name, w->Energy(H), w->NormalizationConstant(H));
 		if (!w->GoodQuantumNumbers(H))
 			throw tw::FatalError("Bad quantum numbers detected in module <"+name+">");
 	}
@@ -697,7 +697,7 @@ void Schroedinger::Initialize()
 	for (tw::Int i=0;i<dim;i++)
 		phi_r[i] = GetSphericalPotential((tw::Float(i)+0.5)*dr);
 	tw::Float groundStateEnergy = GetSphericalGroundState(eigenvector,phi_r,dr);
-	(*owner->tw_out) << "Numerical ground state energy = " << groundStateEnergy << std::endl;
+	std::println(std::cout,"Numerical ground state energy = {}",groundStateEnergy);
 
 	#pragma omp parallel
 	{

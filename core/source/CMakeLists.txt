@@ -24,6 +24,12 @@ if(APPLE OR UNIX)
 	set(CMAKE_SYSTEM_INCLUDE_PATH "$ENV{HOMEBREW_PREFIX}/opt/llvm/include")
     # set(CMAKE_CXX_FLAGS "-stdlib=libc++")
 endif()
+if(APPLE)
+    # Shocking we still need this in 2025,
+    # but Apple tends to still use `j0` and `j1` for bessel functions,
+    # and fails to provide std::<some special function>.
+    add_definitions(-DUSE_TWSF)
+endif()
 
 # set(CMAKE_EXPERIMENTAL_CXX_IMPORT_STD ON)
 # set(CMAKE_CXX_MODULE_STD ON)

@@ -104,7 +104,7 @@ export struct Species:Module
 	virtual void ReadCheckpoint(std::ifstream& inFile);
 	virtual void WriteCheckpoint(std::ofstream& outFile);
 	virtual void Report(Diagnostic&);
-	virtual void WarningMessage(std::ostream *theStream);
+	virtual void WarningMessage();
 
 	virtual bool Test(tw::Int& id);
 	void EncodingTest();
@@ -748,13 +748,13 @@ void Species::Initialize()
 	mover->qo_j4 = qo_j4;
 }
 
-void Species::WarningMessage(std::ostream *theStream)
+void Species::WarningMessage()
 {
-	Module::WarningMessage(theStream);
+	Module::WarningMessage();
 	if (bc0[1]==par::absorbing || bc1[1]==par::absorbing ||
 		bc0[2]==par::absorbing || bc1[2]==par::absorbing ||
 		bc0[3]==par::absorbing || bc1[3]==par::absorbing)
-		(*theStream) << term::warning << ": " << name << " will be absorbed." << std::endl;
+		std::println(std::cout,"{}: {} will be absorbed",term::warning,name);
 }
 
 bool Species::InspectResource(void* resource,const std::string& description)

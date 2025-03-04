@@ -22,6 +22,7 @@
 #include <string>
 #include <cctype>
 #include <format>
+#include <print>
 #include <omp.h>
 #include <mpi.h>
 #ifdef USE_OPENCL
@@ -74,4 +75,5 @@ namespace term
 	const std::string reset_all("\u001b[0m");
 	const std::string bold("\u001b[1m");
 	const std::string warning("\u001b[33mWARNING\u001b[39;49m");
+	const std::string error("\u001b[31mERROR\u001b[39;49m");
 }

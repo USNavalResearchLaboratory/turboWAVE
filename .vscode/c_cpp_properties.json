@@ -16,7 +16,7 @@
             ],
             "windowsSdkVersion": "10.0.22621.0",
             "cStandard": "c17",
-            "cppStandard": "c++20",
+            "cppStandard": "c++23",
             "intelliSenseMode": "windows-msvc-x64",
             "configurationProvider": "ms-vscode.cmake-tools"
         },
@@ -37,7 +37,7 @@
             "defines": [
             ],
             "cStandard": "c17",
-            "cppStandard": "c++20",
+            "cppStandard": "c++23",
             "intelliSenseMode": "clang-arm64",
             "configurationProvider": "ms-vscode.cmake-tools"
         },
@@ -58,7 +58,7 @@
             "defines": [
             ],
             "cStandard": "c17",
-            "cppStandard": "c++20",
+            "cppStandard": "c++23",
             "intelliSenseMode": "clang-x64",
             "configurationProvider": "ms-vscode.cmake-tools"
         }
