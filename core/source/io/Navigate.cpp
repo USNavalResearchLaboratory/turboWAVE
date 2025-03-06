@@ -91,7 +91,9 @@ export namespace tw
 TSTree* tw::input::GetTree(const std::string& src) {
 	TSParser * parser = ts_parser_new();
 	ts_parser_set_language(parser,tree_sitter_turbowave());
-	return ts_parser_parse_string(parser,NULL,src.c_str(),src.length());
+	auto tree = ts_parser_parse_string(parser,NULL,src.c_str(),src.length());
+	ts_parser_delete(parser);
+	return tree;
 }
 
 void tw::input::WalkTree(const TSTree *tree,Visitor *visitor) {
@@ -116,5 +118,6 @@ void tw::input::WalkTree(const TSTree *tree,Visitor *visitor) {
 			choice = navigation::exit;
 		}
 	}
+	ts_tree_cursor_delete(&curs);
 }
 

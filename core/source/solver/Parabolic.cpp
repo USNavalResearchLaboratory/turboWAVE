@@ -15,7 +15,6 @@ export enum tw_polarization_type {linearPolarization,circularPolarization,radial
 
 export struct LaserPropagator:ComputeTool
 {
-	ComplexField *p0;
 	tw::Float w0,dt;
 	tw_polarization_type polarization;
 	bool movingWindow;

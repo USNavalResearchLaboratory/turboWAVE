@@ -1,7 +1,7 @@
 .DS_Store
-./build
-core/build
-core/source/build
+**/build
+**/release
+**/debug
 core/out
 core/source/out
 *.o

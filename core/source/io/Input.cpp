@@ -273,7 +273,9 @@ tw::Float tw::input::GetUnitDensityCGS(TSTree *tree,const std::string& src) {
 					ts_tree_cursor_goto_next_sibling(&curs);
 					ts_tree_cursor_goto_next_sibling(&curs);
 					if (tw::input::node_kind(&curs) == "decimal") {
-						return std::stod(input::node_text(&curs,src));
+						auto ans = std::stod(input::node_text(&curs,src));
+						ts_tree_cursor_delete(&curs);
+						return ans;
 					} else {
 						throw tw::FatalError("expected raw value for unit density");
 					}
@@ -298,16 +300,19 @@ tw::units tw::input::GetNativeUnits(TSTree *tree,const std::string& src) {
 					ts_tree_cursor_goto_next_sibling(&curs);
 					if (tw::input::node_kind(&curs) == "identifier") {
 						std::string txt = input::node_text(&curs,src);
-						if (m.find(txt) == m.end())
+						if (m.find(txt) == m.end()) {
 							throw tw::FatalError("Unknown system of units <" + txt + ">.");
-						else
+						} else {
+							ts_tree_cursor_delete(&curs);
 							return m[txt];
+						}
 					} else {
 						throw tw::FatalError("expected identifier for native units");
 					}
 				}
 			}
 		} while (ts_tree_cursor_goto_next_sibling(&curs));
+		ts_tree_cursor_delete(&curs);
 		return tw::units::plasma;
 	}
 	throw tw::FatalError("empty input file");

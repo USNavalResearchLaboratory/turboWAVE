@@ -256,7 +256,7 @@ struct Module:DiscreteSpace
 	virtual void StartDiagnostics();
 	virtual void Report(Diagnostic&);
 	virtual void WarningMessage();
-	virtual void StatusMessage() {;}
+	virtual void StatusMessage(std::ostream *dest) {;}
 	virtual bool Test(tw::Int& id);
 
 	static std::map<std::string,tw::module_type> Map();

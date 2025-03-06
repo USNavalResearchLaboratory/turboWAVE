@@ -623,9 +623,9 @@ void Simulation::InteractiveCommand(const std::string& cmd,std::ostream *theStre
 		*theStream << "Current step size: " << spacing[0] << std::endl;
 		*theStream << "Current elapsed time: " << elapsedTime << std::endl;
 		for (auto m : module)
-			m->StatusMessage();
+			m->StatusMessage(theStream);
 		for (auto tool : computeTool)
-			tool->StatusMessage();
+			tool->StatusMessage(theStream);
 		*theStream << std::endl;
 	}
 	if (cmd=="list")
@@ -957,9 +957,9 @@ tw::input::navigation Simulation::visit(TSTreeCursor *curs) {
 			outerDirectives.ReadNext(curs,src);
 			return tw::input::navigation::gotoSibling;
 		} else if (tw::input::node_kind(curs) == "new") {
-			if (!outerDirectives.TestKey("native units")) {
-				throw tw::FatalError("`new` encountered before `native units`");
-			}
+			// if (!outerDirectives.TestKey("native units")) {
+			// 	throw tw::FatalError("`new` encountered before `native units`");
+			// }
 			if (!outerDirectives.TestKey("unit density")) {
 				throw tw::FatalError("`new` encountered before `unit density`");
 			}
@@ -1107,7 +1107,7 @@ void Simulation::InputFileFirstPass()
 	std::stringstream fileName;
 	tw::input::FileEnv fenv(inputFileName);
 	fenv.OpenDeck(src);
-	TSTree *tree = tw::input::GetTree(src);
+	auto tree = tw::input::GetTree(src);
 
 	// TODO: handle preprocessing
 	//tw::input::PreprocessInputFile(tw::input::FileEnv(inputFileName),inputString);
@@ -1178,6 +1178,7 @@ void Simulation::InputFileFirstPass()
 	}
 	Resize(*this,gridReader->GlobalCorner(),gridReader->GlobalSize(),2,gridReader->Geometry());
 	delete gridReader;
+	ts_tree_delete(tree);
 
 	// Random numbers
 	uniformDeviate = new UniformDeviate(1 + strip[0].Get_rank()*(MaxSeed()/numRanksProvided));
@@ -1261,10 +1262,11 @@ void Simulation::ReadInputFile()
 	//tw::input::PreprocessInputFile(tw::input::FileEnv(inputFileName),inputString);
 
 	outerDirectives.Reset();
-	TSTree *tree = tw::input::GetTree(src);
+	auto tree = tw::input::GetTree(src);
 	inputFilePass = 2;
 	tw::input::WalkTree(tree,this);
 	std::flush(std::cout);
+	ts_tree_delete(tree);
 	outerDirectives.ThrowErrorIfMissingKeys("Simulation");
 }
 

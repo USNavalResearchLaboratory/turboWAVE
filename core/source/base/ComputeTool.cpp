@@ -79,7 +79,7 @@ export struct ComputeTool : Testable
 	virtual ~ComputeTool();
 	virtual void Initialize();
 	virtual void WarningMessage();
-	virtual void StatusMessage() {;}
+	virtual void StatusMessage(std::ostream *dest) {;}
 	virtual void ReadInputFileBlock(TSTreeCursor *curs,const std::string& src);
 	virtual bool ReadInputFileDirective(const TSTreeCursor *curs,const std::string& src);
 	virtual void ReadCheckpoint(std::ifstream& inFile);

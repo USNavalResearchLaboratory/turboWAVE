@@ -233,7 +233,7 @@ struct HydroManager:Module
 	virtual void WriteCheckpoint(std::ofstream& outFile);
 
 	virtual void Report(Diagnostic&);
-	virtual void StatusMessage();
+	virtual void StatusMessage(std::ostream *dest);
 };
 }
 
@@ -2567,7 +2567,7 @@ void sparc::HydroManager::Report(Diagnostic& diagnostic)
 	}
 }
 
-void sparc::HydroManager::StatusMessage()
+void sparc::HydroManager::StatusMessage(std::ostream *dest)
 {
-	std::println(std::cout,"{}",statusMessage.str());
+	std::println(*dest,"{}",statusMessage.str());
 }

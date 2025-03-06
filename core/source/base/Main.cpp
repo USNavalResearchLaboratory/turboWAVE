@@ -249,18 +249,16 @@ void CommandHandler::Evaluate(const Arg& arg,
 
 /////////////////////////
 // PROGRAM ENTRY POINT //
-// Standard MPI Launch //
 /////////////////////////
 
 int main(int argc,char *argv[])
 {
 	tw::Int failure_count = 0;
-	int numOMPThreads=0,return_val=0,rank; // indicates -c argument was not given
+	int numOMPThreads=1;
 	tw::Int outputLevel = 0, errorCheckingLevel = 0;
 	std::string initMessage,arg,inputFileName("stdin"),restartFileName("tw::none"),platform("cuda"),device("tesla"),unitTest("tw::none");
 
 	MPI_Init(&argc,&argv);
-	MPI_Comm_rank(MPI_COMM_WORLD,&rank);
 
 	try
 	{
@@ -279,8 +277,7 @@ int main(int argc,char *argv[])
 	}
 
 	Simulation *tw = new Simulation(unitTest,inputFileName,restartFileName,platform,device,outputLevel,errorCheckingLevel);
-	if (numOMPThreads>0) // if not given assume environment determines
-		omp_set_num_threads(numOMPThreads);
+	omp_set_num_threads(numOMPThreads);
 
 	if (tw->unitTest=="tw::none") {
 		tw->Run();

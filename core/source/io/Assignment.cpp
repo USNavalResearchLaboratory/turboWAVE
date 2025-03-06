@@ -216,6 +216,7 @@ bool tw::input::Enums<T>::Read(TSTreeCursor *curs,const std::string& src,const s
 }
 
 // We are using explicit instantiation approach to keep some templates here.
+// TODO: is this still needed now that we are a module?
 
 template <class T>
 bool tw::input::Numbers<T>::Read(TSTreeCursor *curs,const std::string& src,const std::string& key,const tw::UnitConverter& native)
