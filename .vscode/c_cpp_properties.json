@@ -8,6 +8,7 @@
                 "${workspaceFolder}/**/particles",
                 "${workspaceFolder}/**/solver",
                 "${workspaceFolder}/**/sparc",
+                "${workspaceFolder}/**/debug",
                 "${workspaceFolder}/**/io/tree-sitter/lib/include",
                 "${workspaceFolder}/**/io/tree-sitter/lib/src",
                 "${workspaceFolder}/**/io/tree-sitter/lib/src/unicode"
@@ -28,6 +29,7 @@
                 "${workspaceFolder}/**/particles",
                 "${workspaceFolder}/**/solver",
                 "${workspaceFolder}/**/sparc",
+                "${workspaceFolder}/**/debug",
                 "${workspaceFolder}/**/io/tree-sitter/lib/include",
                 "${workspaceFolder}/**/io/tree-sitter/lib/src",
                 "${workspaceFolder}/**/io/tree-sitter/lib/src/unicode",
@@ -49,6 +51,7 @@
                 "${workspaceFolder}/**/particles",
                 "${workspaceFolder}/**/solver",
                 "${workspaceFolder}/**/sparc",
+                "${workspaceFolder}/**/debug",
                 "${workspaceFolder}/**/io/tree-sitter/lib/include",
                 "${workspaceFolder}/**/io/tree-sitter/lib/src",
                 "${workspaceFolder}/**/io/tree-sitter/lib/src/unicode",

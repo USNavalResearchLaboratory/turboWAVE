@@ -401,10 +401,10 @@ tw::dnum::dnum(TSTreeCursor *curs,const std::string& src) {
 			}
 			ts_tree_cursor_goto_parent(curs);
 		} else {
-			throw tw::FatalError(input::missing(curs));
+			input::ThrowParsingError(curs,src,"something missing");
 		}
 	} else {
-		throw tw::FatalError("expected number at " + input::loc_str(curs));
+		input::ThrowParsingError(curs,src,"expected number");
 	}
 }
 

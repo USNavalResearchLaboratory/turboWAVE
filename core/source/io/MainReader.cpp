@@ -1,0 +1,422 @@
+module;
+
+#include <tree_sitter/api.h>
+#include "tw_includes.h"
+
+module twmodule;
+import base;
+import preprocess;
+import input;
+import factory;
+
+GridReader::GridReader(tw::UnitConverter& uc)
+{
+	adaptiveGrid = adaptiveTimestep = found = false;
+	geo = tw::grid::cartesian;
+	absoluteRef = 0.0;
+
+	directives.Add("origin",new tw::input::Numbers<tw::Float>(&relativeRef[0],4));
+	directives.Add("shift",new tw::input::Numbers<tw::Float>(&absoluteRef[0],4),false);
+	directives.Add("cell size",new tw::input::Numbers<tw::Float>(&spacing[0],4));
+	directives.Add("adaptive timestep",new tw::input::Bool(&adaptiveTimestep),false);
+	directives.Add("adaptive grid",new tw::input::Bool(&adaptiveGrid),false);
+	directives.Add("dimensions",new tw::input::Numbers<tw::Int>(&req_dim[0],4));
+	directives.Add("decomposition",new tw::input::Numbers<tw::Int>(&req_dom[0],4));
+	std::map<std::string,tw::grid::geometry> geo_map = {{"cartesian",tw::grid::cartesian},{"cylindrical",tw::grid::cylindrical},{"spherical",tw::grid::spherical}};
+	directives.Add("geometry",new tw::input::Enums<tw::grid::geometry>(geo_map,&geo),false);
+	directives.AttachUnits(uc);
+}
+
+bool GridReader::Read(const TSTreeCursor *curs0,const std::string& src)
+{
+	TSTreeCursor curs = ts_tree_cursor_copy(curs0);
+	if (tw::input::node_kind(&curs)=="new") {
+		ts_tree_cursor_goto_first_child(&curs); // `new` token
+		ts_tree_cursor_goto_next_sibling(&curs);
+		if (tw::input::node_text(&curs,src)=="grid") {
+			ts_tree_cursor_goto_next_sibling(&curs);
+			if (tw::input::node_kind(&curs)=="block") {
+				ts_tree_cursor_goto_first_child(&curs);
+				tw::input::next_named_node(&curs,true);
+				directives.ReadAll(&curs,src);
+				directives.ThrowErrorIfMissingKeys("grid");
+				if (req_dom[0]!=1)
+					tw::input::ThrowParsingError(&curs,src,"Time decomposition must be 1");
+				found = true;
+				ts_tree_cursor_delete(&curs);
+				return true;
+			} else {
+				tw::input::ThrowParsingError(&curs,src,"Ill-formed grid block");
+			}
+		}
+	}
+	ts_tree_cursor_delete(&curs);
+	return false;
+}
+
+tw::vec4 GridReader::GlobalSize()
+{
+	return tw::vec4(
+		spacing[0] * req_dim[0],
+		spacing[1] * req_dim[1],
+		spacing[2] * req_dim[2],
+		spacing[3] * req_dim[3]
+	);
+}
+
+tw::vec4 GridReader::GlobalCorner()
+{
+	return absoluteRef - relativeRef*GlobalSize();
+}
+
+void GridReader::UpdateTask(Task& tsk)
+{
+	for (tw::Int i=0;i<4;i++)
+	{
+		tsk.globalCells[i] = req_dim[i];
+		tsk.domains[i] = req_dom[i];
+	}
+}
+
+void GridReader::UpdateSpace(MetricSpace& ms)
+{
+	// whatever not handled by Resize method
+	ms.adaptiveGrid = adaptiveGrid;
+	ms.adaptiveTimestep = adaptiveTimestep;
+}
+
+/// @brief handle retrieval of named tools
+/// @param tool tool list owned by a module
+/// @param curs should be on a `get` node
+/// @param src source document
+void Simulation::ToolFromDirective(std::vector<ComputeTool*>& tool,TSTreeCursor *curs,const std::string& src)
+{
+	auto word = tw::input::next_named_node_text(curs,src);
+	tw::input::StripQuotes(word);
+	if (CheckModule(word))
+		tw::input::ThrowParsingError(curs,src,"Tried to <get> module, but <get> can only be used for tools.");
+	tool.push_back(GetTool(word,true));
+}
+
+/// @brief main visitor callback for AST walker
+/// @param curs cursor, typically passed from walker
+/// @param inputFilePass 0=syntax, 1=grid, 2=objects
+/// @return action for the walker to take upon exit
+tw::input::navigation Simulation::visit(TSTreeCursor *curs) {
+
+	if (inputFilePass == 1) {
+		std::flush(std::cout);
+		if (tw::input::node_kind(curs) == "input_file") {
+			return tw::input::navigation::gotoChild;
+		} else if (tw::input::node_kind(curs) == "assignment") {
+			// Process outer assignments
+			outerDirectives.ReadNext(curs,src);
+			return tw::input::navigation::gotoSibling;
+		} else if (tw::input::node_kind(curs) == "new") {
+			// if (!outerDirectives.TestKey("native units")) {
+			// 	throw tw::FatalError("`new` encountered before `native units`");
+			// }
+			if (!outerDirectives.TestKey("unit density")) {
+				throw tw::FatalError("`new` encountered before `unit density`");
+			}
+			ts_tree_cursor_goto_first_child(curs);
+			ts_tree_cursor_goto_next_sibling(curs);
+			std::string key = tw::input::node_text(curs,src);
+			ts_tree_cursor_goto_parent(curs);
+			if (key == "grid") {
+				if (gridReader->FoundGrid()) {
+					tw::input::ThrowParsingError(curs,src,"multiple grids");
+				}
+				gridReader->Read(curs,src);
+				gridReader->UpdateTask(*this);
+				gridReader->UpdateSpace(*this);
+				return tw::input::navigation::gotoSibling;
+			} else if (key == "warp") {
+				TSTreeCursor saveCurs = ts_tree_cursor_copy(curs);
+				tw::input::Preamble preamble = tw::input::GetPreamble(curs,src);
+				MangleToolName(preamble.obj_name);
+				std::println(std::cout,"Creating Tool <{}>...",preamble.obj_name);
+				// Do not use CreateTool, do not want to increase refCount
+				computeTool.push_back(factory::CreateToolFromType(preamble.obj_name,tw::tool_type::warp,this,this));
+				computeTool.back()->ReadInputFileBlock(curs,src);
+				computeTool.back()->Initialize(); // OK and necessary to init here
+				AttachWarp(dynamic_cast<Warp*>(computeTool.back()));
+				*curs = ts_tree_cursor_copy(&saveCurs);
+				return tw::input::navigation::gotoSibling;
+			} else {
+				// not a grid or warp, so skip it
+				return tw::input::navigation::gotoSibling;
+			}
+		} else {
+			// not a basic `new` directive so skip it
+			return tw::input::navigation::gotoSibling;
+		}
+
+
+	} else if (inputFilePass == 2) {
+		std::flush(std::cout);
+		TSNode node = ts_tree_cursor_current_node(curs);
+		std::string typ = ts_node_type(node);
+		if (tw::input::node_kind(curs) == "input_file") {
+			return tw::input::navigation::gotoChild;
+		} else if (typ == "comment") {
+			return tw::input::navigation::gotoSibling;
+		} else if (typ == "assignment") {
+			// Process outer directives again, after first pass.
+			// This is redundant, but helps minimize keyword collisions with object names.
+			outerDirectives.ReadNext(curs,src);
+			return tw::input::navigation::gotoSibling;
+		} else if (typ == "new" || typ == "associative_new" || typ == "generate") {
+			tw::input::Preamble preamble = tw::input::GetPreamble(curs,src);
+
+			// Intercept items processed during the first pass
+			if (preamble.obj_key=="grid" || preamble.obj_key=="warp")
+				return tw::input::navigation::gotoParentSibling;
+
+			// Install a pre or post declared tool
+			tw::tool_type whichTool = ComputeTool::CreateTypeFromInput(preamble);
+			if (whichTool!=tw::tool_type::none) {
+				if (preamble.attaching) {
+					ComputeTool *tool = CreateTool(preamble.obj_name,whichTool);
+					std::println(std::cout,"Attaching <{}> to <{}>",tool->name,preamble.owner_name);
+					tool->ReadInputFileBlock(curs,src);
+					GetModule(preamble.owner_name)->moduleTool.push_back(tool);
+				} else {
+					bool duplicate = MangleToolName(preamble.obj_name);
+					std::println(std::cout,"Creating Tool <{}>...",preamble.obj_name);
+					if (duplicate && errorCheckingLevel>0)
+						tw::input::ThrowParsingError(curs,src,"duplicate tool name.");
+					// Do not use CreateTool, do not want to increase refCount
+					computeTool.push_back(factory::CreateToolFromType(preamble.obj_name,whichTool,this,this));
+					computeTool.back()->ReadInputFileBlock(curs,src);
+				}
+				return tw::input::navigation::gotoSibling;
+			}
+
+			// Module Installation
+			tw::module_type whichModule = Module::CreateTypeFromInput(preamble);
+			if (whichModule!=tw::module_type::none) {
+				if (Module::SingularType(whichModule))
+					if (module_map.find(whichModule)!=module_map.end())
+						tw::input::ThrowParsingError(curs,src,"singular module type was created twice.  Check order of input file.");
+				MangleModuleName(preamble.obj_name);
+				std::println(std::cout,"Installing module <{}>...",preamble.obj_name);
+				Module *sub = factory::CreateModuleFromType(preamble.obj_name,whichModule,this);
+				module.push_back(sub);
+				module_map[whichModule] = sub;
+				sub->ReadInputFileBlock(curs,src); // important to note this can change module vector and map if there are nested declarations
+				if (preamble.attaching && preamble.owner_name.size() > 0) {
+					Module *super = GetModule(preamble.owner_name);
+					std::println(std::cout,"Attaching <{}> to <{}>",preamble.obj_name,preamble.owner_name);
+					super->AddSubmodule(sub);
+				} else if (!preamble.attaching && preamble.owner_name.size() == 0) {
+					// If not explicitly attaching, but supermodule is required, find or create one
+					tw::module_type reqType = Module::RequiredSupermoduleType(whichModule);
+					if (reqType!=tw::module_type::none) {
+						Module *super = RecursiveAutoSuper(reqType,preamble.obj_name);
+						super->AddSubmodule(sub);
+					}
+				} else {
+					tw::input::ThrowParsingError(curs,src,"supermodule mismatch");
+				}
+				return tw::input::navigation::gotoSibling;
+			}
+
+			// Regions are neither modules nor tools
+			if (preamble.obj_key.substr(0,6)=="region") {
+				std::string rgnType = tw::input::trim(preamble.obj_key.substr(6));
+				clippingRegion.push_back(Region::CreateObjectFromString(clippingRegion,rgnType));
+				clippingRegion.back()->directives.AttachUnits(units);
+				clippingRegion.back()->name = preamble.obj_name;
+				clippingRegion.back()->ReadInputFileBlock(curs,src);
+				return tw::input::navigation::gotoSibling;
+			}
+			
+			throw tw::FatalError("unknown key <" + preamble.obj_key + "> at " + tw::input::loc_str(curs));
+
+		} else if (typ == "reaction" || typ == "collision" || typ == "excitation") {
+			for (tw::Int i=0;i<module.size();i++)
+				module[i]->ReadQuasitoolBlock(curs,src);
+			return tw::input::navigation::gotoSibling;
+		} else {
+			tw::input::ThrowParsingError(curs,src,"unhandled directive");
+			return tw::input::navigation::exit; // compiler doesn't know above line throws
+		}
+
+
+	} else {
+		throw tw::FatalError("invalid number of input file passes");
+	}
+}
+
+/// @brief to be called by supermodules that want to add submodules or tools, can be recursive
+/// @param curs should be on the outer directive node
+/// @param src source document
+/// @param super module that is adding the item
+void Simulation::NestedDeclaration(TSTreeCursor *curs,const std::string& src,Module *super)
+{
+	tw::input::Preamble preamble = tw::input::GetPreamble(curs,src);
+	if (preamble.attaching)
+		tw::input::ThrowParsingError(curs,src,"keyword <for> is not allowed in a nested declaration.");
+
+	tw::module_type whichModule = Module::CreateTypeFromInput(preamble);
+	tw::tool_type whichTool = ComputeTool::CreateTypeFromInput(preamble);
+	if (whichModule==tw::module_type::none && whichTool==tw::tool_type::none)
+		tw::input::ThrowParsingError(curs,src,"key was not recognized.");
+	if (whichModule!=tw::module_type::none && whichTool!=tw::tool_type::none)
+		tw::input::ThrowParsingError(curs,src,"key claimed by both Module and Tool, this is a bug in the code.");
+
+	if (whichModule!=tw::module_type::none)
+	{
+		if (Module::SingularType(whichModule))
+			if (module_map.find(whichModule)!=module_map.end())
+				tw::input::ThrowParsingError(curs,src,"Singular module type was created twice.  Check order of input file.");
+		MangleModuleName(preamble.obj_name);
+		std::println(std::cout,"   Attaching nested module <{}>...",preamble.obj_name);
+		Module *sub = factory::CreateModuleFromType(preamble.obj_name,whichModule,this);
+		module.push_back(sub);
+		module_map[whichModule] = sub;
+		// The following may lead to a recursive call of this function.
+		// If so the module vector and map can be modified.
+		sub->ReadInputFileBlock(curs,src);
+		super->AddSubmodule(sub);
+	}
+
+	if (whichTool!=tw::tool_type::none)
+	{
+		ComputeTool *tool = CreateTool(preamble.obj_name,whichTool);
+		std::println(std::cout,"   Attaching nested tool <{}>...",tool->name);
+		tool->ReadInputFileBlock(curs,src);
+		super->moduleTool.push_back(tool);
+	}
+}
+
+Module* Simulation::RecursiveAutoSuper(tw::module_type reqType,const std::string& basename)
+{
+	// If it already exists we are done
+	if (module_map.find(reqType)!=module_map.end())
+			return module_map[reqType];
+
+	// Automatic creation of supermodule
+	if (!Module::AutoModuleType(reqType))
+		throw tw::FatalError("Module <"+basename+"> requires a supermodule that cannot be created automatically.");
+	std::string super_module_name = basename + "_sup";
+	MangleModuleName(super_module_name);
+	std::println(std::cout,"Installing supermodule triggered by <{}>...",basename);
+	Module *super = factory::CreateModuleFromType(super_module_name,reqType,this);
+	module.push_back(super);
+	module_map[reqType] = super;
+
+	// Handle recursion
+	tw::module_type superSuperType = Module::RequiredSupermoduleType(reqType);
+	if (superSuperType!=tw::module_type::none)
+	{
+		Module *superSuper = RecursiveAutoSuper(superSuperType,super_module_name);
+		superSuper->AddSubmodule(super);
+	}
+	return super;
+}
+
+/// The first pass through the input file is used to fully initialize the `Task` and
+/// `MetricSpace` parent classes.
+void Simulation::InputFileFirstPass()
+{
+	int numRanksProvided,worldRank;
+	MPI_Comm_size(MPI_COMM_WORLD,&numRanksProvided);
+	MPI_Comm_rank(MPI_COMM_WORLD,&worldRank);
+	// world rank is suitable for reading task data from restart file
+	// because this data is the same in every restart file
+
+	std::stringstream fileName;
+	tw::input::FileEnv fenv(inputFileName);
+	fenv.OpenDeck(raw_src);
+	src = tw::input::Preprocess(&fenv,raw_src);
+	std::print(std::cout,"{}",src);
+	auto tree = tw::input::GetTree(src);
+
+	AttachUnits(tw::input::GetNativeUnits(tree,src),tw::input::GetUnitDensityCGS(tree,src));
+
+	outerDirectives.AttachUnits(units);
+	outerDirectives.Reset();
+	gridReader = new GridReader(units);
+
+	inputFilePass = 1;
+	tw::input::WalkTree(tree,this);
+
+	outerDirectives.ThrowErrorIfMissingKeys("Simulation");
+	if (!gridReader->FoundGrid())
+		throw tw::FatalError("Grid directive was not found.");
+
+	periodic[1] = bc0[1]==tw::bc::par::periodic ? 1 : 0;
+	periodic[2] = bc0[2]==tw::bc::par::periodic ? 1 : 0;
+	periodic[3] = bc0[3]==tw::bc::par::periodic ? 1 : 0;
+
+	// Check integer viability
+	int64_t totalCellsPerRank = int64_t(globalCells[1])*int64_t(globalCells[2])*int64_t(globalCells[3])/int64_t(numRanksProvided);
+	if (totalCellsPerRank>=pow(2,31) && sizeof(tw::Int)==4)
+		throw tw::FatalError("You must recompile turboWAVE with 64 bit integers to handle this many grid cells.");
+
+	// Verify and (if necessary) correct decomposition
+	if (NumTasks() != numRanksProvided)
+	{
+		std::print(std::cout,"{}: Bad decomposition ",term::warning);
+		tw::Int ax1=1,ax2=2,ax3=3; // to be sorted so ax1 is longest
+		for (tw::Int i=1;i<=3;i++)
+		{
+			domains[i] = 1;
+			if (globalCells[i]>=globalCells[1] && globalCells[i]>=globalCells[2] && globalCells[i]>=globalCells[3])
+				ax1 = i;
+		}
+		for (tw::Int i=1;i<=3;i++)
+			ax2 = i==ax1 ? ax2 : i;
+		for (tw::Int i=1;i<=3;i++)
+			ax3 = i==ax1 || i==ax2 ? ax3 : i;
+		if (globalCells[ax2]<globalCells[ax3])
+			std::swap(ax2,ax3);
+		domains[ax1] = numRanksProvided;
+		while (globalCells[ax1]%(domains[ax1]*2)!=0 && domains[ax1]>0)
+		{
+			domains[ax1] /= 2;
+			domains[ax2] *= 2;
+		}
+		std::println(std::cout,"(defaulting to {}x{}x{})",domains[1],domains[2],domains[3]);
+	}
+	std::println(std::cout,"{}-Way Decomposition",NumTasks());
+
+	// Set up the domain decomposition
+	// Simulation/restart provide domains[] , globalCells[] , periodic[] as inputs
+	// communicators, cornerCell[], localCells[], domainIndex[], n0[] , n1[] are computed
+	for (tw::Int i=1;i<=3;i++)
+	{
+		if (globalCells[i]%domains[i]!=0)
+			throw tw::FatalError("global number of cells is not divisible by number of domains along axis");
+	}
+	Task::Initialize(domains,globalCells,periodic);
+	for (tw::Int i=1;i<=3;i++)
+	{
+		if (localCells[i]%2!=0 && globalCells[i]>1)
+			throw tw::FatalError("local number of cells is not even along non-ignorable axis");
+	}
+	Resize(*this,gridReader->GlobalCorner(),gridReader->GlobalSize(),2,gridReader->Geometry());
+	delete gridReader;
+	ts_tree_delete(tree);
+
+	// Random numbers
+	uniformDeviate = new UniformDeviate(1 + strip[0].Get_rank()*(MaxSeed()/numRanksProvided));
+	gaussianDeviate = new GaussianDeviate(1 + strip[0].Get_rank()*(MaxSeed()/numRanksProvided) + MaxSeed()/(2*numRanksProvided));
+}
+
+void Simulation::ReadInputFile()
+{
+	std::println(std::cout,"Reading Input File...\n");
+	std::flush(std::cout);
+
+	outerDirectives.Reset();
+	auto tree = tw::input::GetTree(src);
+	inputFilePass = 2;
+	tw::input::WalkTree(tree,this);
+	std::flush(std::cout);
+	ts_tree_delete(tree);
+	outerDirectives.ThrowErrorIfMissingKeys("Simulation");
+}
+

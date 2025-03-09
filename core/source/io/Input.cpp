@@ -17,27 +17,6 @@ export namespace tw
 {
 	namespace input
 	{
-		class MacroVisitor : public Visitor {
-			std::string src;
-			std::map<std::string,std::string> dict;
-			std::string expandedDeck;
-			bool didChange;
-			public:
-			void init() { didChange = false; }
-			bool done() { return didChange == false; }
-			std::string get() { return expandedDeck; }
-			virtual navigation visit(TSTreeCursor *curs);
-			virtual navigation descend(TSTreeCursor *curs);
-		};
-		inline std::string trim(const std::string& str) {
-			const std::string whitespace = " \t\n\r\f\v";
-			size_t first = str.find_first_not_of(whitespace);
-			if (first == std::string::npos) {
-				return "";
-			}
-			size_t last = str.find_last_not_of(whitespace);
-			return str.substr(first, (last - first + 1));
-		}
 		/// @brief Assignments can be added to this object for automatic parsing
 		class DirectiveReader
 		{
@@ -63,33 +42,11 @@ export namespace tw
 			bool attaching;
 			std::string obj_key,obj_name,owner_name;
 		};
-		/// @brief encapsulates finding and opening files
-		struct FileEnv
-		{
-			std::string inputFileName;
-			std::vector<std::string> searchPaths;
-			FileEnv(const std::string& inputFileName);
-			bool OpenDeck(std::string& contents) const;
-			bool FindAndOpen(const std::string& fileName,std::string& contents) const;
-			bool FindAndOpen(const std::string& fileName,std::stringstream& contents) const;
-		};
-
 		tw::Float GetUnitDensityCGS(TSTree *tree,const std::string& src);
 		tw::units GetNativeUnits(TSTree *tree,const std::string& src);
-		std::string MacroSubstitution(const std::string& src);
 		Preamble GetPreamble(TSTreeCursor *curs,const std::string& src);
 		std::string PythonRange(TSTreeCursor *curs,const std::string& src,tw::Float *v0,tw::Float *v1);
-		void ThrowParsingError(const TSTreeCursor *curs,const std::string& src,const std::string& messg);
 	}
-}
-
-void tw::input::ThrowParsingError(const TSTreeCursor *curs,const std::string& src,const std::string& messg) {
-	std::string xmessg("While parsing ");
-	xmessg += tw::input::node_kind(curs) + " = " + tw::input::node_text(curs,src);
-	xmessg += "\n";
-	xmessg += "on line " + std::to_string(ts_node_start_point(ts_tree_cursor_current_node(curs)).row);
-	xmessg += ":\n" + messg;
-	throw tw::FatalError(xmessg);
 }
 
 
@@ -158,13 +115,17 @@ bool tw::input::DirectiveReader::ReadNext(const TSTreeCursor *curs0,const std::s
 		std::string key = input::node_text(&curs,src);
 		if (dmap.find(key)!=dmap.end()) {
 			keysFound[key] = 0;
-			if (native.ne==0.0)
+			if (native.ne==0.0) {
 				throw tw::FatalError("DirectiveReader class is missing units while processing key <"+key+">.");
-			return dmap[key]->Read(&curs,src,key,native);
+			}
+			auto is_normal = dmap[key]->Read(&curs,src,key,native);
+			ts_tree_cursor_delete(&curs);
+			return is_normal;
 		} else {
 			throw tw::FatalError("Unknown key <"+key+">.");
 		}
 	} else {
+		ts_tree_cursor_delete(&curs);
 		return false;
 	}
 }
@@ -177,7 +138,10 @@ void tw::input::DirectiveReader::ReadAll(TSTreeCursor *curs,const std::string& s
 {
 	do {
 		if (!ReadNext(curs,src)) {
-			throw tw::FatalError("non-assignment encountered");
+			auto kind = tw::input::node_kind(curs);
+			if (kind != "comment" && kind != "}") {
+				tw::input::ThrowParsingError(curs,src,"expected assignment, got " + kind);
+			}
 		}
 	} while (ts_tree_cursor_goto_next_sibling(curs));
 }
@@ -192,75 +156,6 @@ void tw::input::DirectiveReader::ThrowErrorIfMissingKeys(const std::string& src)
 	for (auto s : requiredKeys)
 		if (!TestKey(s))
 			throw tw::FatalError("Missing required key <"+s+"> in <"+src+">");
-}
-
-
-////////////////////////////////////
-//                                //
-//  Pre-Processing of Input File  //
-//                                //
-////////////////////////////////////
-
-tw::input::FileEnv::FileEnv(const std::string& inputFilename)
-{
-	// Purpose of this class is mainly to encapsulate file searches
-	this->inputFileName = inputFilename;
-	searchPaths.push_back("");
-	std::size_t sep_pos = inputFileName.find_last_of("/\\");
-	searchPaths.push_back(inputFileName.substr(0,sep_pos+1)); // keep separator so we have the right one later
-}
-
-bool tw::input::FileEnv::OpenDeck(std::string& contents) const
-{
-	std::ifstream inFile;
-	std::stringstream temp;
-	inFile.open(inputFileName);
-	if (inFile.good())
-	{
-		temp << inFile.rdbuf();
-		contents = temp.str();
-		inFile.close();
-		return true;
-	}
-	return false;
-}
-
-bool tw::input::FileEnv::FindAndOpen(const std::string& fileName,std::string& contents) const
-{
-	std::ifstream *inFile;
-	std::stringstream temp;
-	for (auto it=searchPaths.begin();it!=searchPaths.end();++it)
-	{
-		inFile = new std::ifstream(*it + fileName);
-		if (inFile->good())
-		{
-			temp << inFile->rdbuf();
-			contents = temp.str();
-			inFile->close();
-			delete inFile;
-			return true;
-		}
-		delete inFile;
-	}
-	return false;
-}
-
-bool tw::input::FileEnv::FindAndOpen(const std::string& fileName,std::stringstream& contents) const
-{
-	std::ifstream *inFile;
-	for (auto it=searchPaths.begin();it!=searchPaths.end();++it)
-	{
-		inFile = new std::ifstream(*it + fileName);
-		if (inFile->good())
-		{
-			contents << inFile->rdbuf();
-			inFile->close();
-			delete inFile;
-			return true;
-		}
-		delete inFile;
-	}
-	return false;
 }
 
 tw::Float tw::input::GetUnitDensityCGS(TSTree *tree,const std::string& src) {
@@ -316,62 +211,6 @@ tw::units tw::input::GetNativeUnits(TSTree *tree,const std::string& src) {
 		return tw::units::plasma;
 	}
 	throw tw::FatalError("empty input file");
-}
-
-tw::input::navigation tw::input::MacroVisitor::visit(TSTreeCursor *curs) {
-	TSNode node = ts_tree_cursor_current_node(curs);
-	if (tw::input::node_kind(curs)=="define") {
-		std::string key = tw::input::node_text(ts_node_child(node,1),src);
-		// value node is hidden and may resolve to a sequence of any length,
-		// so we simply go to end of the parent.
-		const int s = ts_node_start_byte(ts_node_child(node,2));
-		const int e = ts_node_end_byte(node);
-		std::string val = src.substr(s,e);
-		if (key==trim(val))
-			throw tw::FatalError("Macro cannot refer to itself ("+key+")");
-		if (dict.find(key)==dict.end())
-			dict[key] = val;
-		else
-			throw tw::FatalError("Macro "+key+" was already used.");
-		expandedDeck += tw::input::node_text(node,src);
-		expandedDeck += " ";
-		return tw::input::navigation::gotoSibling;
-	}
-	if (tw::input::node_kind(curs)=="define_ref") {
-		std::string key = tw::input::node_text(node,src);
-		if (dict.find(key)==dict.end()) {
-			throw tw::FatalError("Macro "+key+" not defined.");
-		}
-		expandedDeck += trim(dict[key]);
-		expandedDeck += " ";
-		return tw::input::navigation::gotoSibling;
-	}
-	if (ts_node_child_count(node)==0) {
-		expandedDeck += tw::input::node_text(node,src);
-	}
-	return tw::input::navigation::gotoChild;
-}
-
-tw::input::navigation tw::input::MacroVisitor::descend(TSTreeCursor *curs) {
-	return tw::input::navigation::exit;
-}
-
-std::string tw::input::MacroSubstitution(const std::string& src) {
-	tw::input::MacroVisitor visitor;
-	TSParser *parser = ts_parser_new();
-	ts_parser_set_language(parser,tree_sitter_turbowave());
-	std::string new_src(src);
-
-	// Do multiple sweeps to account for macros within macros.
-	do {
-		visitor.init();
-		TSTree *tree = ts_parser_parse_string(parser,NULL,new_src.c_str(),new_src.length());
-		tw::input::WalkTree(tree,&visitor);
-		ts_tree_delete(tree);
-		new_src = visitor.get();
-	} while (!visitor.done());
-
-	return visitor.get();
 }
 
 /// @brief read python style range

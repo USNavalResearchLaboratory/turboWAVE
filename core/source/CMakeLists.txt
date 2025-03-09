@@ -43,18 +43,18 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # set(CMAKE_CXX_EXTENSIONS ON)
 
 # Check for AVX2 support and add the appropriate compiler flag
-include(CheckCXXCompilerFlag)
-check_cxx_compiler_flag("-mavx2" COMPILER_SUPPORTS_AVX2)
+# include(CheckCXXCompilerFlag)
+# check_cxx_compiler_flag("-mavx2" COMPILER_SUPPORTS_AVX2)
 
-if(COMPILER_SUPPORTS_AVX2)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mavx2")
-    message(STATUS "AVX2 support enabled")
-elseif(MSVC)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /arch:AVX2")
-    message(STATUS "AVX2 support enabled (MSVC)")
-else()
-    message(WARNING "AVX2 support not enabled. Compiler flag -mavx2 not supported.")
-endif()
+# if(COMPILER_SUPPORTS_AVX2)
+#     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mavx2")
+#     message(STATUS "AVX2 support enabled")
+# elseif(MSVC)
+#     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /arch:AVX2")
+#     message(STATUS "AVX2 support enabled (MSVC)")
+# else()
+#     message(WARNING "AVX2 support not enabled. Compiler flag -mavx2 not supported.")
+# endif()
 
 add_executable(tw3d)
 
@@ -72,6 +72,7 @@ set(src_base
 set(src_io
     io/parser.c
     io/tree-sitter/lib/src/lib.c
+    io/MainReader.cpp
 )
 set(src_par
     particles/Mover_Test.cpp
@@ -124,6 +125,7 @@ target_sources(tw3d PUBLIC
         base/Functions.cpp
         base/Tasks.cpp
         io/Navigate.cpp
+        io/Preprocess.cpp
         io/Assignment.cpp
         io/Input.cpp
         io/Diagnostics.cpp

@@ -72,7 +72,8 @@ export struct Simulation: Task, MetricSpace, tw::input::Visitor
 	tw::Int inputFilePass;
 	tw::input::DirectiveReader outerDirectives;
 	GridReader *gridReader;
-	std::string src; // current input document
+	std::string raw_src; // raw input file
+	std::string src; // expanded input file
 
 	std::vector<Region*> clippingRegion;
 	std::vector<ComputeTool*> computeTool;
@@ -115,7 +116,6 @@ export struct Simulation: Task, MetricSpace, tw::input::Visitor
 	U ValueOnLightGrid(T& A,tw::strip s,tw::Int k,tw::Float relativeTime);
 
 	tw::input::navigation visit(TSTreeCursor *curs);
-	tw::input::navigation descend(TSTreeCursor *curs);
 	void InputFileFirstPass();
 	void NestedDeclaration(TSTreeCursor *curs,const std::string& src,Module *sup);
 	Module* RecursiveAutoSuper(tw::module_type reqType,const std::string& basename);

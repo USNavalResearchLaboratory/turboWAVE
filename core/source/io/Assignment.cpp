@@ -113,25 +113,7 @@ export namespace tw
             Bool(bool *d) { dat=d; }
             virtual bool Read(TSTreeCursor *curs,const std::string& src,const std::string& key,const tw::UnitConverter& native);
         };
-        void StripQuotes(std::string& str);
     }
-}
-
-void tw::input::StripQuotes(std::string& str)
-{
-	bool needed = false;
-	if (str.length() == 0) {
-		return;
-	}
-	if (str.front()=='\'' && str.back()=='\'')
-		needed = true;
-	if (str.front()=='\"' && str.back()=='\"')
-		needed = true;
-	if (needed)
-	{
-		str.pop_back();
-		str = str.substr(1);
-	}
 }
 
 template <class T>
@@ -149,13 +131,13 @@ bool tw::input::NumberList<T>::Read(TSTreeCursor *curs,const std::string& src,co
                 } while (next_named_node(curs,false));
                 ts_tree_cursor_goto_parent(curs);
             } else {
-                throw tw::FatalError("empty list at " + loc_str(curs));
+                tw::input::ThrowParsingError(curs,src,"empty list");
             }
         } else {
-            throw tw::FatalError("expected list at " + loc_str(curs));
+            tw::input::ThrowParsingError(curs,src,"expected list");
         }
     } else {
-        throw tw::FatalError(missing(curs));
+        tw::input::ThrowParsingError(curs,src,"something missing");
     }
     dat->resize(temp.size());
     for (tw::Int i=0;i<temp.size();i++)
@@ -177,13 +159,13 @@ bool tw::input::StringList<T>::Read(TSTreeCursor *curs,const std::string& src,co
                 } while (next_named_node(curs,false));
                 ts_tree_cursor_goto_parent(curs);
             } else {
-                throw tw::FatalError("empty list at " + loc_str(curs));
+                tw::input::ThrowParsingError(curs,src,"empty list");
             }
         } else {
-            throw tw::FatalError("expected list at " + loc_str(curs));
+            tw::input::ThrowParsingError(curs,src,"expected list");
         }
     } else {
-        throw tw::FatalError(missing(curs));
+        tw::input::ThrowParsingError(curs,src,"something missing");
     }
     dat->resize(temp.size());
     for (tw::Int i=0;i<temp.size();i++)
@@ -203,8 +185,9 @@ bool tw::input::Enums<T>::Read(TSTreeCursor *curs,const std::string& src,const s
         if (d!=NULL)
         {
             std::string word = node_text(curs,src);
-            if (emap->find(word)==emap->end())
-                throw tw::FatalError("Invalid type <"+word+"> while reading key <"+key+">");
+            if (emap->find(word)==emap->end()) {
+                tw::input::ThrowParsingError(curs,src,"invalid type");
+            }
             *d = (*emap)[word];
             next_named_node(curs,false);
         }
@@ -226,14 +209,14 @@ bool tw::input::Numbers<T>::Read(TSTreeCursor *curs,const std::string& src,const
         if (tw::input::node_kind(curs) == "tuple") {
             ts_tree_cursor_goto_first_child(curs);
         } else {
-            throw tw::FatalError("expected tuple at " + loc_str(curs));
+            tw::input::ThrowParsingError(curs,src,"expected tuple");
         }
     }
     for (tw::Int i=0;i<num;i++) {
         if (next_named_node(curs,true)) {
             dat[i] = tw::dnum(curs,src) >> native;
         } else {
-            throw tw::FatalError(missing(curs));
+            tw::input::ThrowParsingError(curs,src,"something missing");
         }
         ts_tree_cursor_goto_next_sibling(curs);
     }
@@ -250,10 +233,10 @@ bool tw::input::String::Read(TSTreeCursor *curs,const std::string& src,const std
             *str = node_text(curs,src);
             StripQuotes(*str);
         } else {
-            throw tw::FatalError("expected string at " + loc_str(curs));
+            tw::input::ThrowParsingError(curs,src,"expected string");
         }
     } else {
-        throw tw::FatalError(missing(curs));
+        tw::input::ThrowParsingError(curs,src,"something missing");
     }
     return true;
 }
@@ -263,8 +246,9 @@ bool tw::input::Bool::Read(TSTreeCursor *curs,const std::string& src,const std::
     std::string word = next_named_node_text(curs,src);
     std::multimap<std::string,bool> m = {{"on",true},{"true",true},{"yes",true},{"off",false},{"false",false},{"no",false}};
     auto p = m.find(word);
-    if (p==m.end())
-        throw tw::FatalError("Invalid boolean value <"+word+"> while reading key <"+key+">");
+    if (p==m.end()) {
+        tw::input::ThrowParsingError(curs,src,"expected boolean");
+    }
     *dat = p->second;
     return true;
 }
