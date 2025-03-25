@@ -57,6 +57,15 @@ export namespace tw
 	}
 }
 
+/// @brief Contains parameters related to evolution of the system.
+/// At present this is strongly geared toward a time evolution.
+export struct Evolution
+{
+	tw::Float dtMin,dtMax,dtCritical,elapsedTime,elapsedTimeMax;
+	tw::Float signalPosition,windowPosition,signalSpeed;
+	tw::Float antiSignalPosition,antiWindowPosition;
+};
+
 /// Abstraction for location on a grid
 export struct Primitive
 {

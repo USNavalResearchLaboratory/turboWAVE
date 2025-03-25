@@ -98,6 +98,31 @@ export struct Simulation: Task, MetricSpace, tw::input::Visitor
 	void AntiMoveWindow();
 	void Diagnose();
 
+	void UpdateTimestep(tw::Float dt0);
+	bool IsFirstStep() {
+		return stepNow == 0;
+	}
+	bool IsLastStep() {
+		// Actual steps taken = stepsToTake+1
+		// This allows us to write both the initial condition and the last available data.
+		// If there is a restart the initial step is stepsToTake+1 and 1 less step is taken.
+		return stepNow == dim[0];
+	}
+	Evolution GetEvo() {
+		return Evolution {
+			.dtMin = dtMin,
+			.dtMax = dtMax,
+			.dtCritical = dtCritical,
+			.elapsedTime = elapsedTime,
+			.elapsedTimeMax = elapsedTimeMax,
+			.signalPosition = signalPosition,
+			.windowPosition = windowPosition,
+			.signalSpeed = signalSpeed,
+			.antiSignalPosition = antiSignalPosition,
+			.antiWindowPosition = antiWindowPosition
+		};
+	}
+
 	bool MangleModuleName(std::string& name);
 	bool CheckModule(const std::string& name);
 	Module* GetModule(const std::string& name);
@@ -107,13 +132,6 @@ export struct Simulation: Task, MetricSpace, tw::input::Visitor
 	ComputeTool* GetTool(const std::string& name,bool attaching);
 	void ToolFromDirective(std::vector<ComputeTool*>& tool,TSTreeCursor *curs,const std::string& src);
 	bool RemoveTool(ComputeTool *theTool);
-
-	tw::Float ToLab(tw::Float zeta,tw::Float relativeTime);
-	tw::Float ToLight(tw::Float z,tw::Float relativeTime);
-	template <class T,class U>
-	U ValueOnLabGrid(T& A,tw::strip s,tw::Int k,tw::Float relativeTime);
-	template <class T,class U>
-	U ValueOnLightGrid(T& A,tw::strip s,tw::Int k,tw::Float relativeTime);
 
 	tw::input::navigation visit(TSTreeCursor *curs);
 	void InputFileFirstPass();
@@ -149,57 +167,7 @@ export struct Simulation: Task, MetricSpace, tw::input::Visitor
 	#endif
 
 
-	void UpdateTimestep(tw::Float dt0);
-
-	bool IsFirstStep()
-	{
-		return stepNow == 0;
-	}
-
-	bool IsLastStep()
-	{
-		// Actual steps taken = stepsToTake+1
-		// This allows us to write both the initial condition and the last available data.
-		// If there is a restart the initial step is stepsToTake+1 and 1 less step is taken.
-		return stepNow == dim[0];
-	}
 };
-
-tw::Float Simulation::ToLab(tw::Float zeta,tw::Float relativeTime)
-{
-	return zeta + antiWindowPosition - windowPosition + signalSpeed*(elapsedTime + relativeTime - 0.5*spacing[0]);
-}
-
-tw::Float Simulation::ToLight(tw::Float z,tw::Float relativeTime)
-{
-	return z + windowPosition - antiWindowPosition - signalSpeed*(elapsedTime + relativeTime - 0.5*spacing[0]);
-}
-
-template <class T,class U>
-U Simulation::ValueOnLabGrid(T& A,tw::strip s,tw::Int k,tw::Float relativeTime)
-{
-	// Take a quantity known on the light grid and get its value in a cell of the lab grid
-	tw::Int klight;
-	tw::Float z,zeta,w;
-	z = Pos(s,k).z - corner[3];
-	zeta = ToLight(z,relativeTime);
-	klight = MyFloor(zeta*freq[3] + 0.5001);
-	w = 0.5 - zeta*freq[3] + tw::Float(klight);
-	return w*A(s,klight) + (one - w)*A(s,klight+1);
-}
-
-template <class T,class U>
-U Simulation::ValueOnLightGrid(T& A,tw::strip s,tw::Int k,tw::Float relativeTime)
-{
-	// Take a quantity known on the lab grid and get its value in a cell of the light grid
-	tw::Int klab;
-	tw::Float z,zeta,w;
-	zeta = Pos(s,k).z - corner[3];
-	z = ToLab(zeta,relativeTime);
-	klab = MyFloor(z*freq[3] + 0.4999);
-	w = 0.5 - z*freq[3] + tw::Float(klab);
-	return w*A(s,klab) + (one - w)*A(s,klab+1);
-}
 
 struct Module:DiscreteSpace
 {

@@ -12,14 +12,19 @@ import diagnostics;
 
 using namespace tw::bc;
 
-
 export struct LaserSolver:Module
 {
 	tw::Float laserFreq;
+	tw::Int hires;
 	tw_polarization_type polarizationType;
 	ComplexField a0,a1; // vector potential
 	ComplexField chi; // defined by j = chi*a
 
+	// fields that are tracked at higher resolution than the baseline grid
+	MetricSpace HRSpace;
+	Task HRTask;
+	ComplexField HRa0,HRa1;
+	ComplexField HRchi;
 	LaserPropagator *propagator;
 
 	bool debug; // usually used to suppress envelope evolution
@@ -66,6 +71,51 @@ export struct PGCSolver:LaserSolver
 //                          //
 //////////////////////////////
 
+void Downsample(const ComplexField& hiRes,ComplexField& loRes,tw::Int mult) {
+	#pragma omp parallel
+	{
+		StripRange loRange(loRes,3,strongbool::yes);
+		StripRange hiRange(hiRes,3,strongbool::yes);
+		auto loStrip = loRange.begin();
+		auto hiStrip = hiRange.begin();
+		do {
+			for (auto s=1;s<=loRes.Dim(3);s++) {
+				loRes(*loStrip,s,0) = hiRes(*hiStrip,mult/2 + 1 + (s-1)*mult,0);
+				loRes(*loStrip,s,1) = hiRes(*hiStrip,mult/2 + 1 + (s-1)*mult,1);
+			}
+			++loStrip;
+			++hiStrip;
+		} while (loStrip!=loRange.end() && hiStrip!=hiRange.end());
+	}
+	loRes.DownwardCopy(tw::grid::z,Element(0,1),1);
+	loRes.UpwardCopy(tw::grid::z,Element(0,1),1);
+	loRes.ApplyBoundaryCondition(Element(0,1));
+}
+
+void Upsample(ComplexField& hiRes,const ComplexField& loRes,tw::Int mult) {
+	#pragma omp parallel
+	{
+		StripRange loRange(loRes,3,strongbool::yes);
+		StripRange hiRange(hiRes,3,strongbool::yes);
+		auto loStrip = loRange.begin();
+		auto hiStrip = hiRange.begin();
+		do {
+			for (auto s=1;s<=hiRes.Dim(3);s++) {
+				tw::Int l = tw::Float(s-1)/tw::Float(mult) + 0.5;
+				tw::Int mh = mult/2;
+				tw::Float a = tw::Float(1+mh-s)/tw::Float(mult);
+				tw::Float w = (s <= 1 + mh) ? a : 1 + a;
+				hiRes(*hiStrip,s,0) = w*loRes(*loStrip,l,0) + (1-w)*loRes(*loStrip,l+1,0);
+				hiRes(*hiStrip,s,1) = w*loRes(*loStrip,l,1) + (1-w)*loRes(*loStrip,l+1,1);
+			}
+			++loStrip;
+			++hiStrip;
+		} while (loStrip!=loRange.end() && hiStrip!=hiRange.end());
+	}
+	hiRes.DownwardCopy(tw::grid::z,Element(0,1),1);
+	hiRes.UpwardCopy(tw::grid::z,Element(0,1),1);
+	hiRes.ApplyBoundaryCondition(Element(0,1));
+}
 
 LaserSolver::LaserSolver(const std::string& name,Simulation* sim):Module(name,sim)
 {
@@ -77,6 +127,7 @@ LaserSolver::LaserSolver(const std::string& name,Simulation* sim):Module(name,si
 	polarizationType = linearPolarization;
 	propagator = NULL;
 	debug = false;
+	hires = 1;
 
 	a0.Initialize(*this,owner);
 	a1.Initialize(*this,owner);
@@ -86,6 +137,7 @@ LaserSolver::LaserSolver(const std::string& name,Simulation* sim):Module(name,si
 	std::map<std::string,tw_polarization_type> pol = {{"linear",linearPolarization},{"circular",circularPolarization},{"radial",radialPolarization}};
 	directives.Add("polarization",new tw::input::Enums<tw_polarization_type>(pol,&polarizationType),false);
 	directives.Add("debug",new tw::input::Bool(&debug),false);
+	directives.Add("resolution",new tw::input::Int(&hires),false);
 }
 
 LaserSolver::~LaserSolver()
@@ -111,24 +163,44 @@ void LaserSolver::Initialize()
 	const tw::Float dth = 0.5*dt;
 
 	Module::Initialize();
+
+	tw::Int HRGlobalCells[4];
+	HRGlobalCells[0] = owner->globalCells[0]; 
+	HRGlobalCells[1] = owner->globalCells[1]; 
+	HRGlobalCells[2] = owner->globalCells[2]; 
+	HRGlobalCells[3] = owner->globalCells[3]*hires;
+	HRTask.Initialize(owner->domains,HRGlobalCells,owner->periodic);
+	HRSpace.Resize(HRTask,owner->GlobalCorner(),owner->GlobalPhysicalSize(),owner->Layers(3),owner->gridGeometry);
+	
+	HRa0.Initialize(HRSpace,&HRTask);
+	HRa1.Initialize(HRSpace,&HRTask);
+	HRchi.Initialize(HRSpace,&HRTask);
+
+	propagator->task = &HRTask;
+	propagator->space = &HRSpace;
 	propagator->SetData(laserFreq,dt,polarizationType,owner->movingWindow);
-	propagator->SetBoundaryConditions(a0,a1,chi);
+	propagator->SetBoundaryConditions(HRa0,HRa1,HRchi);
 
-	if (polarizationType==circularPolarization)
+	if (polarizationType==circularPolarization) {
 		polarizationFactor = 1.414;
-	else
+	} else {
 		polarizationFactor = 1.0;
+	}
 
-	for (auto cell : EntireCellRange(*this))
-		for (auto pulse : wave)
-		{
-			pos = owner->Pos(cell);
-			pos.z = owner->ToLab(pos.z,-dth);
-			a0(cell) += polarizationFactor*pulse->VectorPotentialEnvelope(-dth,pos,laserFreq);
-			pos = owner->Pos(cell);
-			pos.z = owner->ToLab(pos.z,dth);
-			a1(cell) += polarizationFactor*pulse->VectorPotentialEnvelope(dth,pos,laserFreq);
+	auto evo = owner->GetEvo();
+	for (auto cell : EntireCellRange(HRSpace)) {
+		for (auto pulse : wave) {
+			pos = HRSpace.Pos(cell);
+			pos.z = HRSpace.ToLab(evo,pos.z,-dth);
+			HRa0(cell) += polarizationFactor*pulse->VectorPotentialEnvelope(-dth,pos,laserFreq);
+			pos = HRSpace.Pos(cell);
+			pos.z = HRSpace.ToLab(evo,pos.z,dth);
+			HRa1(cell) += polarizationFactor*pulse->VectorPotentialEnvelope(dth,pos,laserFreq);
 		}
+	}
+
+	Downsample(HRa0,a0,hires);
+	Downsample(HRa1,a1,hires);
 }
 
 tw::vec3 LaserSolver::GetIonizationKick(const tw::Float& a2,const tw::Float& q0,const tw::Float& m0)
@@ -155,8 +227,12 @@ tw::vec3 LaserSolver::GetIonizationKick(const tw::Float& a2,const tw::Float& q0,
 
 void LaserSolver::Update()
 {
-	if (!debug)
-		propagator->Advance(a0,a1,chi);
+	if (!debug) {
+		Upsample(HRchi,chi,hires);
+		propagator->Advance(HRa0,HRa1,HRchi);
+		Downsample(HRa0,a0,hires);
+		Downsample(HRa1,a1,hires);
+	}
 }
 
 void LaserSolver::Reset()
@@ -182,6 +258,8 @@ void LaserSolver::ReadCheckpoint(std::ifstream& inFile)
 	Module::ReadCheckpoint(inFile);
 	a0.ReadCheckpoint(inFile);
 	a1.ReadCheckpoint(inFile);
+	HRa0.ReadCheckpoint(inFile);
+	HRa1.ReadCheckpoint(inFile);
 }
 
 void LaserSolver::WriteCheckpoint(std::ofstream& outFile)
@@ -189,6 +267,8 @@ void LaserSolver::WriteCheckpoint(std::ofstream& outFile)
 	Module::WriteCheckpoint(outFile);
 	a0.WriteCheckpoint(outFile);
 	a1.WriteCheckpoint(outFile);
+	HRa0.WriteCheckpoint(outFile);
+	HRa1.WriteCheckpoint(outFile);
 }
 
 
@@ -279,6 +359,7 @@ void PGCSolver::MoveWindow()
 
 void PGCSolver::AntiMoveWindow()
 {
+	auto evo = owner->GetEvo();
 	const tw::Float dth = 0.5*dx(0);
 	for (auto s : StripRange(*this,3,strongbool::yes))
 	{
@@ -288,10 +369,10 @@ void PGCSolver::AntiMoveWindow()
 		for (auto pulse : wave)
 		{
 			tw::vec3 pos = owner->Pos(s,0);
-			pos.z = owner->ToLab(pos.z,-dth);
+			pos.z = owner->ToLab(evo,pos.z,-dth);
 			incoming0 += polarizationFactor*pulse->VectorPotentialEnvelope(owner->elapsedTime-dth,pos,laserFreq);
 			pos = owner->Pos(s,0);
-			pos.z = owner->ToLab(pos.z,dth);
+			pos.z = owner->ToLab(evo,pos.z,dth);
 			incoming1 += polarizationFactor*pulse->VectorPotentialEnvelope(owner->elapsedTime+dth,pos,laserFreq);
 		}
 		a0.Shift(s,1,incoming0);
@@ -303,6 +384,7 @@ void PGCSolver::AntiMoveWindow()
 
 void PGCSolver::Update()
 {
+	auto evo = owner->GetEvo();
 	chi.DepositFromNeighbors();
 	chi.ApplyFoldingCondition();
 	chi.DivideCellVolume(*owner);
@@ -314,20 +396,20 @@ void PGCSolver::Update()
 		for (auto s : StripRange(*this,3,strongbool::yes))
 		{
 			for (tw::Int k=1;k<=dim[3];k++)
-				chi(s,k) = owner->ValueOnLightGrid<ComplexField,tw::Complex>(chi,s,k,dth);
+				chi(s,k) = owner->ValueOnLightGrid<ComplexField,tw::Complex>(evo,chi,s,k,dth);
 		}
 	}
 	chi.DownwardCopy(tw::grid::z,1);
 	chi.UpwardCopy(tw::grid::z,1);
 	chi.ApplyBoundaryCondition();
 
-	if (!debug)
-		propagator->Advance(a0,a1,chi);
+	LaserSolver::Update();
 	ComputeFinalFields();
 }
 
 void PGCSolver::ComputeFinalFields()
 {
+	auto evo = owner->GetEvo();
 	#pragma omp parallel
 	{
 		const tw::Float dth = 0.5*dx(0);
@@ -335,8 +417,8 @@ void PGCSolver::ComputeFinalFields()
 		{
 			for (tw::Int k=1;k<=dim[3];k++)
 			{
-				F(s,k,7) = norm(owner->ValueOnLabGrid<ComplexField,tw::Complex>(a1,s,k,dth));
-				F(s,k,6) = norm(owner->ValueOnLabGrid<ComplexField,tw::Complex>(a0,s,k,-dth));
+				F(s,k,7) = norm(owner->ValueOnLabGrid<ComplexField,tw::Complex>(evo,a1,s,k,dth));
+				F(s,k,6) = norm(owner->ValueOnLabGrid<ComplexField,tw::Complex>(evo,a0,s,k,-dth));
 				F(s,k,6) = 0.5*(F(s,k,6) + F(s,k,7));
 			}
 		}
@@ -369,6 +451,7 @@ void PGCSolver::Report(Diagnostic& diagnostic)
 
 	ScalarField temp;
 	temp.Initialize(*this,owner);
+	auto evo = owner->GetEvo();
 
 	const tw::Float dti = dk(0);
 	const tw::Float dth = 0.5*dx(0);
@@ -398,8 +481,8 @@ void PGCSolver::Report(Diagnostic& diagnostic)
 	{
 		for (tw::Int k=1;k<=dim[3];k++)
 		{
-			tw::Complex dadt = dti*(owner->ValueOnLabGrid<ComplexField,tw::Complex>(a1,s,k,dth) - owner->ValueOnLabGrid<ComplexField,tw::Complex>(a0,s,k,-dth));
-			tw::Complex anow = tw::Float(0.5)*(owner->ValueOnLabGrid<ComplexField,tw::Complex>(a0,s,k,-dth) + owner->ValueOnLabGrid<ComplexField,tw::Complex>(a1,s,k,dth));
+			tw::Complex dadt = dti*(owner->ValueOnLabGrid<ComplexField,tw::Complex>(evo,a1,s,k,dth) - owner->ValueOnLabGrid<ComplexField,tw::Complex>(evo,a0,s,k,-dth));
+			tw::Complex anow = tw::Float(0.5)*(owner->ValueOnLabGrid<ComplexField,tw::Complex>(evo,a0,s,k,-dth) + owner->ValueOnLabGrid<ComplexField,tw::Complex>(evo,a1,s,k,dth));
 			temp(s,k) = -real(dadt - ii*laserFreq*anow);
 		}
 	}
@@ -409,15 +492,15 @@ void PGCSolver::Report(Diagnostic& diagnostic)
 	{
 		for (tw::Int k=1;k<=dim[3];k++)
 		{
-			tw::Complex dadt = dti*(owner->ValueOnLabGrid<ComplexField,tw::Complex>(a1,s,k,dth) - owner->ValueOnLabGrid<ComplexField,tw::Complex>(a0,s,k,-dth));
-			tw::Complex anow = tw::Float(0.5)*(owner->ValueOnLabGrid<ComplexField,tw::Complex>(a0,s,k,-dth) + owner->ValueOnLabGrid<ComplexField,tw::Complex>(a1,s,k,dth));
+			tw::Complex dadt = dti*(owner->ValueOnLabGrid<ComplexField,tw::Complex>(evo,a1,s,k,dth) - owner->ValueOnLabGrid<ComplexField,tw::Complex>(evo,a0,s,k,-dth));
+			tw::Complex anow = tw::Float(0.5)*(owner->ValueOnLabGrid<ComplexField,tw::Complex>(evo,a0,s,k,-dth) + owner->ValueOnLabGrid<ComplexField,tw::Complex>(evo,a1,s,k,dth));
 			temp(s,k) = -imag(dadt - ii*laserFreq*anow);
 		}
 	}
 	diagnostic.ReportField("e_imag",temp,0,tw::dims::electric_field,"$\\Im E$");
 
-	diagnostic.ReportField("a_real_raw",a1,0,tw::dims::vector_potential,"$\\Re A$");
-	diagnostic.ReportField("a_imag_raw",a1,1,tw::dims::vector_potential,"$\\Im A$");
+	diagnostic.ReportField("a_real_raw",HRa1,0,tw::dims::vector_potential,"$\\Re A$");
+	diagnostic.ReportField("a_imag_raw",HRa1,1,tw::dims::vector_potential,"$\\Im A$");
 	diagnostic.ReportField("a2",F,7,tw::dims::none,"$a^2$");
 	diagnostic.ReportField("j_real_pert",chi,0,tw::dims::current_density,"$\\Re j$");
 	diagnostic.ReportField("j_imag_pert",chi,1,tw::dims::current_density,"$\\Im j$");

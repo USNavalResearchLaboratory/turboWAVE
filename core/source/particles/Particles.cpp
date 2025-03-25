@@ -286,6 +286,7 @@ void Kinetics::TransferParticles()
 
 				numToSend = accumulator.size();
 				sendSize =  sizeof(tw::Int)*species.size() + sizeof(TransferParticle)*numToSend;
+				std::println(std::cout,"send {} bytes along axis {}",sendSize,a);
 				recvSize = 0;
 				if (odd)
 				{
@@ -299,7 +300,7 @@ void Kinetics::TransferParticles()
 				}
 
 				// Pack data into the output buffer
-
+				std::println(std::cout,"recv {} bytes along axis {}",recvSize,a);
 				inBuffer.resize(recvSize);
 				outBuffer.resize(sendSize);
 				for (i=0;i<species.size();i++)

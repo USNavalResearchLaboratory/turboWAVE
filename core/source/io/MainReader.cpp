@@ -331,7 +331,7 @@ void Simulation::InputFileFirstPass()
 	tw::input::FileEnv fenv(inputFileName);
 	fenv.OpenDeck(raw_src);
 	src = tw::input::Preprocess(&fenv,raw_src);
-	std::print(std::cout,"{}",src);
+	// std::print(std::cout,"{}",src);
 	auto tree = tw::input::GetTree(src);
 
 	AttachUnits(tw::input::GetNativeUnits(tree,src),tw::input::GetUnitDensityCGS(tree,src));
