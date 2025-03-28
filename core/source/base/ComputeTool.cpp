@@ -293,36 +293,37 @@ tw::tool_type ComputeTool::CreateTypeFromInput(const tw::input::Preamble& preamb
 
 bool ComputeTool::SetTestGrid(tw::tool_type theType,tw::Int gridId,MetricSpace *ms,Task *tsk)
 {
+	const tw::Int cyclic[4] = {0,1,1,0};
+	const tw::Int domains[4] = {1,1,1,2};
+	const tw::Int gdim1d[4] = {1,1,1,4};
+	const tw::Int gdim2d[4] = {1,4,1,4};
+	const tw::Int gdim3d[4] = {1,4,4,4};
+	tsk->Initialize(domains,cyclic);
 	switch (theType)
 	{
 		case tw::tool_type::ellipticSolver1D:
 			if (gridId>1)
 				return false;
-			tsk->Initialize(tw::idx4(1,1,1,2).array,tw::idx4(1,1,1,4).array,tw::idx4(0,1,1,0).array);
-			ms->Resize(*tsk,tw::vec4(0,0,0,0),tw::vec4(0.1,0.2,0.2,0.8),2);
+			ms->Resize(tsk,gdim1d,tw::vec4(0,0,0,0),tw::vec4(0.1,0.2,0.2,0.8),2);
 			return true;
 		case tw::tool_type::pgcMover:
 		case tw::tool_type::hcMover:
 		case tw::tool_type::borisMover:
 			if (gridId==1) {
-				tsk->Initialize(tw::idx4(1,1,1,2).array,tw::idx4(1,1,1,4).array,tw::idx4(0,1,1,0).array);
-				ms->Resize(*tsk,tw::vec4(0,0,0,0),tw::vec4(0.1,0.2,0.2,0.8),2);
+				ms->Resize(tsk,gdim1d,tw::vec4(0,0,0,0),tw::vec4(0.1,0.2,0.2,0.8),2);
 				return true;
 			} else if (gridId==2) {
-				tsk->Initialize(tw::idx4(1,1,1,2).array,tw::idx4(1,4,1,4).array,tw::idx4(0,1,1,0).array);
-				ms->Resize(*tsk,tw::vec4(0,0,0,0),tw::vec4(0.1,0.8,0.2,0.8),2);
+				ms->Resize(tsk,gdim2d,tw::vec4(0,0,0,0),tw::vec4(0.1,0.8,0.2,0.8),2);
 				return true;
 			} else if (gridId==3) {
-				tsk->Initialize(tw::idx4(1,1,1,2).array,tw::idx4(1,4,4,4).array,tw::idx4(0,1,1,0).array);
-				ms->Resize(*tsk,tw::vec4(0,0,0,0),tw::vec4(0.1,0.8,0.8,0.8),2);
+				ms->Resize(tsk,gdim3d,tw::vec4(0,0,0,0),tw::vec4(0.1,0.8,0.8,0.8),2);
 				return true;
 			}
 			return false;
 		default:
 			if (gridId>1)
 				return false;
-			tsk->Initialize(tw::idx4(1,1,1,2).array,tw::idx4(1,4,4,4).array,tw::idx4(0,1,1,0).array);
-			ms->Resize(*tsk,tw::vec4(0,0,0,0),tw::vec4(0.1,0.8,0.8,0.8),2);
+			ms->Resize(tsk,gdim3d,tw::vec4(0,0,0,0),tw::vec4(0.1,0.8,0.8,0.8),2);
 			return true;
 	}
 }

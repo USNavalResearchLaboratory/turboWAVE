@@ -194,7 +194,7 @@ EigenmodePropagator::EigenmodePropagator(const std::string& name,MetricSpace *m,
 	const tw::Int yDim = space->Dim(2);
 	const tw::Int zDim = space->Dim(3);
 
-	modes = task->globalCells[1];
+	modes = space->GlobalDim(1);
 	causality = 0.0;
 	dampingTime = 1e10;
 	layers = 8;
@@ -216,7 +216,7 @@ void EigenmodePropagator::Initialize()
 	// Computing the matrices requires message passing, cannot go in constructor.
 	if (space->car!=1.0)
 		ComputeTransformMatrices(fld::dirichletWall,eigenvalue,hankel,inverseHankel,space,task);
-	if (modes>task->globalCells[1])
+	if (modes > space->GlobalDim(1))
 		throw tw::FatalError("more modes than radial cells");
 }
 
@@ -248,15 +248,15 @@ void EigenmodePropagator::Advance(ComplexField& a0,ComplexField& a1,ComplexField
 	if (space->car!=1.0)
 	{
 		for (tw::Int i=1;i<=xDim;i++)
-			localEig[i] = eigenvalue[i-1+task->cornerCell[1]-1];
+			localEig[i] = eigenvalue[space->GlobalCellIndex(i,3)-1];
 	}
 
 	// Setup reference chi and explicit current
 	// Current goes into chi, destroying chi
 	if (space->car==1.0)
 	{
-		tw::Int i = task->LocalCellIndex(task->globalCells[1]/2,1) + 1;
-		tw::Int j = task->LocalCellIndex(task->globalCells[2]/2,2) + 1;
+		tw::Int i = space->LocalCellIndex(space->GlobalDim(1)/2,1) + 1;
+		tw::Int j = space->LocalCellIndex(space->GlobalDim(2)/2,2) + 1;
 		if (i>=1 && i<=xDim && j>=1 && j<=yDim)
 			for (tw::Int k=0;k<=zDim+1;k++)
 				chi_ref[k] = std::real(chi(i,j,k));
@@ -341,8 +341,8 @@ void EigenmodePropagator::Advance(ComplexField& a0,ComplexField& a1,ComplexField
 
 	// Damping layer
 
-	tw::Int xstart = task->globalCells[1] - layers + 1;
-	tw::Int xstart_local = xstart - task->cornerCell[1] + 1;
+	tw::Int xstart = space->GlobalDim(1) - layers + 1;
+	tw::Int xstart_local = space->LocalCellIndex(xstart,1);
 	tw::Int first = xstart_local;
 	if (first<space->LFG(1))
 		first = space->LFG(1);

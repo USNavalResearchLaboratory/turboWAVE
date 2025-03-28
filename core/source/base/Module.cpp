@@ -48,6 +48,7 @@ class GridReader
 	void UpdateSpace(MetricSpace& ms);
 	tw::vec4 GlobalCorner();
 	tw::vec4 GlobalSize();
+	tw::idx4 GlobalDims() { return tw::idx4(req_dim[0],req_dim[1],req_dim[2],req_dim[3]); }
 	tw::grid::geometry Geometry() { return geo; }
 	bool FoundGrid() { return found; }
 };
@@ -509,25 +510,28 @@ tw::module_type Module::CreateTypeFromInput(const tw::input::Preamble& preamble)
 
 bool Module::SetTestGrid(tw::module_type theType,tw::Int gridId,Simulation *sim)
 {
+	const tw::Int cyclic[4] = {0,1,1,0};
+	const tw::Int domains[4] = {1,1,1,2};
+	const tw::Int gdim1d[4] = {1,1,1,4};
+	const tw::Int gdim2d[4] = {1,4,1,4};
+	const tw::Int gdim3d[4] = {1,4,4,4};
+	sim->Initialize(domains,cyclic);
 	switch (theType)
 	{
 		case tw::module_type::species:
 			if (gridId==1)
 			{
-				sim->Initialize(tw::idx4(1,1,1,2).array,tw::idx4(1,4,1,4).array,tw::idx4(0,1,1,0).array);
-				sim->Resize(*sim,tw::vec4(0,0,0,0),tw::vec4(0.1,0.8,0.2,0.8),2);
+				sim->Resize(sim,gdim2d,tw::vec4(0,0,0,0),tw::vec4(0.1,0.8,0.2,0.8),2);
 				return true;
 			} else if (gridId==2) {
-				sim->Initialize(tw::idx4(1,1,1,2).array,tw::idx4(1,4,4,4).array,tw::idx4(0,1,1,0).array);
-				sim->Resize(*sim,tw::vec4(0,0,0,0),tw::vec4(0.1,0.8,0.8,0.8),2);
+				sim->Resize(sim,gdim3d,tw::vec4(0,0,0,0),tw::vec4(0.1,0.8,0.8,0.8),2);
 				return true;
 			}
 			return false;
 		default:
 			if (gridId>1)
 				return false;
-			sim->Initialize(tw::idx4(1,1,1,2).array,tw::idx4(1,4,4,4).array,tw::idx4(0,1,1,0).array);
-			sim->Resize(*sim,tw::vec4(0,0,0,0),tw::vec4(0.1,0.8,0.8,0.8),2);
+			sim->Resize(sim,gdim3d,tw::vec4(0,0,0,0),tw::vec4(0.1,0.8,0.8,0.8),2);
 			return true;
 	}
 }

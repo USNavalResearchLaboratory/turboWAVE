@@ -53,16 +53,21 @@ export struct MetricSpace:DiscreteSpace
 	~MetricSpace();
 
 private:
-	void SetTopology(Task& task,const tw::vec4& gcorner,const tw::vec4& gsize,tw::Int ghostCellLayers);
+	void SetTopology(Task *task,
+		const tw::Int gdim[4],
+		const tw::vec4& gcorner,
+		const tw::vec4& gsize,
+		tw::Int ghostCellLayers);
 	void Allocate();
-	void SetSpacings(Task& task);
-	void UpdateHulls(Task& task);
+	void SetSpacings();
+	void UpdateHulls(Task *task);
 	void SetupPositionArrays();
 	void SetCartesianGeometry();
 	void SetCylindricalGeometry();
 	void SetSphericalGeometry();
 public:
-	void Resize(Task& task,
+	void Resize(Task *task,
+		const tw::Int gdim[4],
 		const tw::vec4& gcorner,
 		const tw::vec4& gsize,
 		tw::Int ghostCellLayers=2,
@@ -249,6 +254,80 @@ public:
 	U ValueOnLightGrid(const Evolution& evo,T& A,tw::strip s,tw::Int k,tw::Float relativeTime);
 };
 
+MetricSpace::MetricSpace()
+{
+	gridGeometry = tw::grid::cartesian;
+	car = 1.0;
+	cyl = sph = 0.0;
+	adaptiveTimestep = false;
+	adaptiveGrid = false;
+	I3x3[0][0] = 1;
+	I3x3[0][1] = 0;
+	I3x3[0][2] = 0;
+	I3x3[1][0] = 0;
+	I3x3[1][1] = 1;
+	I3x3[1][2] = 0;
+	I3x3[2][0] = 0;
+	I3x3[2][1] = 0;
+	I3x3[2][2] = 1;
+	units = tw::UnitConverter(tw::units::plasma,1e19);
+	#ifdef USE_OPENCL
+	metricsBuffer = NULL;
+	#endif
+}
+
+MetricSpace::~MetricSpace()
+{
+	#ifdef USE_OPENCL
+	if (metricsBuffer!=NULL)
+	{
+		clReleaseMemObject(metricsBuffer);
+		clReleaseMemObject(stripBuffer[0]);
+		clReleaseMemObject(stripBuffer[1]);
+		clReleaseMemObject(stripBuffer[2]);
+		clReleaseMemObject(stripBuffer[3]);
+	}
+	#endif
+}
+
+/// Fully initialize object, may involve message passing.
+/// If there are warps they should be attached before calling.
+/// The `task` passed as the first argument must itself be initialized.
+/// The `gsize` should be the size of the hull assuming uniform spacing.
+/// It will be adjusted automatically to account for warps.
+void MetricSpace::Resize(Task *task,
+	const tw::Int gdim[4],
+	const tw::vec4& gcorner,
+	const tw::vec4& gsize,
+	tw::Int ghostCellLayers,
+	tw::grid::geometry geo)
+{
+	SetTopology(task,gdim,gcorner,gsize,ghostCellLayers);
+	Allocate();
+	SetSpacings();
+	UpdateHulls(task);
+	switch (geo)
+	{
+		case tw::grid::cartesian:
+			SetCartesianGeometry();
+			break;
+		case tw::grid::cylindrical:
+			SetCylindricalGeometry();
+			break;
+		case tw::grid::spherical:
+			SetSphericalGeometry();
+			break;
+	}
+	#ifdef USE_OPENCL
+	InitializeMetricsBuffer(task->context,dt);
+	#endif
+}
+
+void MetricSpace::AttachUnits(tw::units sys,tw::Float unitDensityCGS)
+{
+	units = tw::UnitConverter(sys,unitDensityCGS);
+}
+
 inline tw::vec3 MetricSpace::ScaleFactor(const tw::vec3& r) const
 {
 	return tw::vec3(
@@ -339,47 +418,6 @@ inline void MetricSpace::TangentVectorToCurvilinear(tw::vec3 *v,const tw::vec3& 
 	b.ExpressInBasis(v);
 }
 
-MetricSpace::MetricSpace()
-{
-	gridGeometry = tw::grid::cartesian;
-	car = 1.0;
-	cyl = sph = 0.0;
-	adaptiveTimestep = false;
-	adaptiveGrid = false;
-	I3x3[0][0] = 1;
-	I3x3[0][1] = 0;
-	I3x3[0][2] = 0;
-	I3x3[1][0] = 0;
-	I3x3[1][1] = 1;
-	I3x3[1][2] = 0;
-	I3x3[2][0] = 0;
-	I3x3[2][1] = 0;
-	I3x3[2][2] = 1;
-	units = tw::UnitConverter(tw::units::plasma,1e19);
-	#ifdef USE_OPENCL
-	metricsBuffer = NULL;
-	#endif
-}
-
-MetricSpace::~MetricSpace()
-{
-	#ifdef USE_OPENCL
-	if (metricsBuffer!=NULL)
-	{
-		clReleaseMemObject(metricsBuffer);
-		clReleaseMemObject(stripBuffer[0]);
-		clReleaseMemObject(stripBuffer[1]);
-		clReleaseMemObject(stripBuffer[2]);
-		clReleaseMemObject(stripBuffer[3]);
-	}
-	#endif
-}
-
-void MetricSpace::AttachUnits(tw::units sys,tw::Float unitDensityCGS)
-{
-	units = tw::UnitConverter(sys,unitDensityCGS);
-}
-
 /// Argument will typically point to a ComputeTool.
 /// Do not update refCount since ultimately the Simulation
 /// object, which is derived from this object, owns the tool.
@@ -420,48 +458,20 @@ void MetricSpace::StripUpdateProtocol(cl_kernel k,cl_command_queue q,tw::Int axi
 
 #endif
 
-/// Fully initialize object, may involve message passing.
-/// If there are warps they should be attached before calling.
-/// The `task` passed as the first argument must itself be initialized.
-/// The `gsize` should be the size of the hull assuming uniform spacing.
-/// It will be adjusted automatically to account for warps.
-void MetricSpace::Resize(Task& task,
+/// Setup topological information only (step 1)
+void MetricSpace::SetTopology(Task *task,
+	const tw::Int gdim[4],
 	const tw::vec4& gcorner,
 	const tw::vec4& gsize,
-	tw::Int ghostCellLayers,
-	tw::grid::geometry geo)
+	tw::Int ghostCellLayers)
 {
-	SetTopology(task,gcorner,gsize,ghostCellLayers);
-	Allocate();
-	SetSpacings(task);
-	UpdateHulls(task);
-	switch (geo)
-	{
-		case tw::grid::cartesian:
-			SetCartesianGeometry();
-			break;
-		case tw::grid::cylindrical:
-			SetCylindricalGeometry();
-			break;
-		case tw::grid::spherical:
-			SetSphericalGeometry();
-			break;
-	}
-	#ifdef USE_OPENCL
-	InitializeMetricsBuffer(task.context,dt);
-	#endif
-}
-
-/// Setup topological information only (step 1)
-void MetricSpace::SetTopology(Task& task,const tw::vec4& gcorner,const tw::vec4& gsize,tw::Int ghostCellLayers)
-{
-	DiscreteSpace::Resize(task,gcorner,gsize,ghostCellLayers);
+	DiscreteSpace::Resize(task,gdim,gcorner,gsize,ghostCellLayers);
 
 	// Metric arrays have ghost cell layers even when dim=1.
 	// Hence the topology of the metric data differs from that of other data
 
 	tw::Int maxLayers = 0;
-	for (tw::Int i=0;i<4;i++)
+	for (auto i=0;i<4;i++)
 		maxLayers = layers[i] > maxLayers ? layers[i] : maxLayers;
 
 	mlb[1] = 1 - maxLayers;
@@ -498,7 +508,7 @@ void MetricSpace::Allocate()
 
 /// Setup uniform spacings and add warps (step 3).
 /// N.b. spacings are coordinates, not arc lengths.
-void MetricSpace::SetSpacings(Task& task)
+void MetricSpace::SetSpacings()
 {
 	for (tw::Int ax=1;ax<=3;ax++)
 		for (tw::Int i=mlb[ax];i<=mub[ax];i++)
@@ -507,7 +517,7 @@ void MetricSpace::SetSpacings(Task& task)
 	{
 		tw::Int ax = tw::grid::naxis(warp->ax);
 		for (tw::Int i=lfg[ax];i<=ufg[ax];i++)
-			dX(i,ax) += warp->AddedCellWidth(task.cornerCell[ax]-1+i);
+			dX(i,ax) += warp->AddedCellWidth(lowSideCells[ax]+i);
 	}
 }
 
@@ -515,7 +525,7 @@ void MetricSpace::SetSpacings(Task& task)
 /// This is only needed if non-uniform spacings are imposed.
 /// This deals only with parameters, not metrics.
 /// Requires message passing.
-void MetricSpace::UpdateHulls(Task& task)
+void MetricSpace::UpdateHulls(Task *task)
 {
 	// Get the local hull size using only local data
 
@@ -537,33 +547,33 @@ void MetricSpace::UpdateHulls(Task& task)
 
 	for (axis=1;axis<=3;axis++)
 	{
-		task.finiteStrip[axis].Shift(1,1,&src,&dst);
-		if (task.domainIndex[axis]==0)
+		task->finiteStrip[axis].Shift(1,1,&src,&dst);
+		if (task->domainIndex[axis]==0)
 		{
-			task.finiteStrip[axis].Send(&lsize[axis],sizeof(tw::Float),dst);
+			task->finiteStrip[axis].Send(&lsize[axis],sizeof(tw::Float),dst);
 			lcorn[axis] = gcorn[axis];
 			outData = lsize[axis]; // in case domains=1
 		}
 		else
 		{
-			task.finiteStrip[axis].Recv(&inData,sizeof(tw::Float),src);
+			task->finiteStrip[axis].Recv(&inData,sizeof(tw::Float),src);
 			lcorn[axis] = gcorn[axis] + inData;
 			outData = inData + lsize[axis];
-			if (task.domainIndex[axis]!=task.domains[axis]-1)
-				task.finiteStrip[axis].Send(&outData,sizeof(tw::Float),dst);
+			if (task->domainIndex[axis]!=task->domains[axis]-1)
+				task->finiteStrip[axis].Send(&outData,sizeof(tw::Float),dst);
 		}
-		task.finiteStrip[axis].Shift(1,-1,&src,&dst);
-		if (task.domainIndex[axis]==task.domains[axis]-1)
+		task->finiteStrip[axis].Shift(1,-1,&src,&dst);
+		if (task->domainIndex[axis]==task->domains[axis]-1)
 		{
 			gsize[axis] = outData;
-			task.finiteStrip[axis].Send(&gsize[axis],sizeof(tw::Float),dst);
+			task->finiteStrip[axis].Send(&gsize[axis],sizeof(tw::Float),dst);
 		}
 		else
 		{
-			task.finiteStrip[axis].Recv(&inData,sizeof(tw::Float),src);
+			task->finiteStrip[axis].Recv(&inData,sizeof(tw::Float),src);
 			gsize[axis] = inData;
-			if (task.domainIndex[axis]!=0)
-				task.finiteStrip[axis].Send(&gsize[axis],sizeof(tw::Float),dst);
+			if (task->domainIndex[axis]!=0)
+				task->finiteStrip[axis].Send(&gsize[axis],sizeof(tw::Float),dst);
 		}
 		corner[axis] = lcorn[axis];
 		globalSize[axis] = gsize[axis];

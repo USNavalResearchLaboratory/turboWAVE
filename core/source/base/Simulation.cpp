@@ -233,8 +233,8 @@ void Simulation::Test()
 	// TODO: we need to unify handling of all testables.
 
 	std::println(std::cout,"\ntesting {}{}metric space{}",term::bold,term::cyan,term::reset_all);
- 	Initialize(tw::idx4(1,1,1,2).array,tw::idx4(1,4,1,4).array,tw::idx4(0,1,1,0).array);
-	Resize(*this,tw::vec4(0,0,0,0),tw::vec4(0.1,0.8,0.2,0.8),2);
+ 	Initialize(tw::idx4(1,1,1,2).array,tw::idx4(0,1,1,0).array);
+	Resize(this,tw::idx4(1,4,1,4).array,tw::vec4(0,0,0,0),tw::vec4(0.1,0.8,0.2,0.8),2);
 	tw::Int testId = 1;
 	failed = 0;
 	try {
@@ -266,7 +266,7 @@ void Simulation::Test()
 			tw::Int gridId = 1;
 			while (ComputeTool::SetTestGrid(m.second,gridId,this,this))
 			{
-				auto gridStr = std::format("    {}x{}x{} grid",this->globalCells[1],this->globalCells[2],this->globalCells[3]);
+				auto gridStr = std::format("    {}x{}x{} grid",this->GlobalDim(1),this->GlobalDim(2),this->GlobalDim(3));
 				std::cout.rdbuf(null_out.rdbuf());
 				tw::Int testId = 1;
 				do
@@ -321,7 +321,7 @@ void Simulation::Test()
 			tw::Int gridId = 1;
 			while (Module::SetTestGrid(m.second,gridId,this))
 			{
-				auto gridStr = std::format("    {}x{}x{} grid",this->globalCells[1],this->globalCells[2],this->globalCells[3]);
+				auto gridStr = std::format("    {}x{}x{} grid",this->GlobalDim(1),this->GlobalDim(2),this->GlobalDim(3));
 				std::cout.rdbuf(null_out.rdbuf());
 				tw::Int testId = 1;
 				do
@@ -558,8 +558,8 @@ void Simulation::InteractiveCommand(const std::string& cmd,std::ostream *theStre
 	{
 		*theStream << "Steps to take: " << dim[0] << std::endl;
 		*theStream << "Steps remaining: " << dim[0] - stepNow << std::endl;
-		*theStream << "Global grid size: " << globalCells[1] << "," << globalCells[2] << "," << globalCells[3] << std::endl;
-		*theStream << "Local grid size: " << localCells[1] << "," << localCells[2] << "," << localCells[3] << std::endl;
+		*theStream << "Global grid size: " << GlobalDim(1) << "," << GlobalDim(2) << "," << GlobalDim(3) << std::endl;
+		*theStream << "Local grid size: " << Dim(1) << "," << Dim(2) << "," << Dim(3) << std::endl;
 		*theStream << "MPI Domains: " << domains[1] << "," << domains[2] << "," << domains[3] << std::endl;
 		*theStream << std::endl;
 	}

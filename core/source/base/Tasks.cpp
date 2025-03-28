@@ -43,13 +43,13 @@ export namespace tw
 			if (comm_cart!=MPI_COMM_WORLD)
 				MPI_Comm_free(&comm_cart);
 		}
-		tw::Int Get_size()
+		tw::Int Get_size() const
 		{
 			int ans;
 			MPI_Comm_size(comm_cart,&ans);
 			return ans;
 		}
-		tw::Int Get_rank()
+		tw::Int Get_rank() const
 		{
 			int ans;
 			MPI_Comm_rank(comm_cart,&ans);
@@ -210,14 +210,12 @@ export struct Task
 {
 	tw::comm strip[4]; // all,x,y,z
 	tw::comm finiteStrip[4]; // same as strip, but ignoring all periodicity
-	tw::Int domains[4],globalCells[4],periodic[4]; // blank,x,y,z
-	tw::Int cornerCell[4],localCells[4],localCells2[4],domainIndex[4]; // blank,x,y,z
+	tw::Int domains[4],periodic[4],domainIndex[4]; // blank,x,y,z
 	tw::Int n0[4],n1[4]; // low and high neighbors : blank,x,y,z
 
 	std::string unitTest,inputFileName,restartFileName; // keep with task so ComputeTool can access
 
 	std::string deviceSearchString,platformSearchString,initMessage;
-	std::valarray<tw::Int> affinityMask; // IDs of logical processors for thread binding
 
 	UniformDeviate *uniformDeviate;
 	GaussianDeviate *gaussianDeviate;
@@ -238,15 +236,8 @@ export struct Task
 
 	Task();
 	virtual ~Task();
-
-	void Initialize(tw::Int *doms,tw::Int *gcells,tw::Int *cyclic);
-	tw::Int LocalCellIndex(tw::Int i,tw::Int axis) { return i - cornerCell[axis] + 1; }
-	tw::Int GlobalCellIndex(tw::Int i,tw::Int axis) { return i + cornerCell[axis] - 1; }
-
-	tw::Int NumTasks()
-	{
-		return domains[1]*domains[2]*domains[3];
-	}
+	void Initialize(const tw::Int doms[4],const tw::Int cyclic[4]);
+	tw::Int NumTasks() { return domains[1]*domains[2]*domains[3]; }
 };
 
 ////////////////////
@@ -256,12 +247,7 @@ export struct Task
 
 Task::Task()
 {
-	tw::Int i;
-	for (i=0;i<4;i++)
-	{
-		cornerCell[i] = 1;
-		localCells[i] = 1;
-		globalCells[i] = 1;
+	for (auto i=0;i<4;i++) {
 		domainIndex[i] = 0;
 		domains[i] = 1;
 		periodic[i] = 0;
@@ -295,15 +281,13 @@ Task::~Task()
 	#endif
 }
 
-void Task::Initialize(tw::Int *doms,tw::Int *gcells,tw::Int *cyclic)
+void Task::Initialize(const tw::Int doms[4],const tw::Int cyclic[4])
 {
-	tw::Int i;
 	tw::Int aperiodic[4] = { 0,0,0,0 };
 
-	for (i=0;i<4;i++)
+	for (auto i=0;i<4;i++)
 	{
 		domains[i] = doms[i];
-		globalCells[i] = gcells[i];
 		periodic[i] = cyclic[i];
 	}
 
@@ -322,16 +306,6 @@ void Task::Initialize(tw::Int *doms,tw::Int *gcells,tw::Int *cyclic)
 	finiteStrip[1].InitializeStrip(finiteStrip[0],1);
 	finiteStrip[2].InitializeStrip(finiteStrip[0],2);
 	finiteStrip[3].InitializeStrip(finiteStrip[0],3);
-
-	for (i=0;i<4;i++)
-	{
-		localCells[i] = globalCells[i] / domains[i];
-		cornerCell[i] = 1 + domainIndex[i]*localCells[i];
-		if (localCells[i]==1)
-			localCells2[i] = 1;
-		else
-			localCells2[i] = localCells[i]+2;
-	}
 
 	#ifdef USE_OPENCL
 

@@ -39,8 +39,8 @@ void Fluid::AdvectionTest()
         for (tw::Int k=1;k<=Dim(3);k++)
         {
             const tw::Int kg = owner->GlobalCellIndex(k,3);
-            state1(strip,k,0) *= kg <= owner->globalCells[3]/2 ? 1.0 : 2.0;
-            vel(strip,k,3) = kg > 1 && kg < owner->globalCells[3] ? 0.9 : 0.0;
+            state1(strip,k,0) *= kg <= owner->GlobalDim(3)/2 ? 1.0 : 2.0;
+            vel(strip,k,3) = kg > 1 && kg < owner->GlobalDim(3) ? 0.9 : 0.0;
         }
     }
 
@@ -78,8 +78,8 @@ void Fluid::ConservationTest()
         for (tw::Int k=1;k<=Dim(3);k++)
         {
             const tw::Int kg = owner->GlobalCellIndex(k,3);
-            state1(strip,k,0) *= kg <= owner->globalCells[3]/2 ? 1.0 : 2.0;
-            vel(strip,k,3) = kg > 1 && kg < owner->globalCells[3] ? 0.9 : 0.0;
+            state1(strip,k,0) *= kg <= owner->GlobalDim(3)/2 ? 1.0 : 2.0;
+            vel(strip,k,3) = kg > 1 && kg < owner->GlobalDim(3) ? 0.9 : 0.0;
         }
     }
 

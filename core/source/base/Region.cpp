@@ -370,16 +370,16 @@ void Region::Initialize(const MetricSpace& ds,Task *task)
 	for (d=0;d<3;d++)
 	{
 		if (localBounds[2*d]>=1 && localBounds[2*d]<=dims[d])
-			low = task->GlobalCellIndex(localBounds[2*d],d+1);
+			low = ds.GlobalCellIndex(localBounds[2*d],d+1);
 		else
-			low = task->globalCells[d+1];
+			low = ds.GlobalDim(d+1);
 		globalBounds[2*d] = task->strip[d+1].GetMin(low);
 	}
 
 	for (d=0;d<3;d++)
 	{
 		if (localBounds[2*d+1]>=1 && localBounds[2*d+1]<=dims[d])
-			high = task->GlobalCellIndex(localBounds[2*d+1],d+1);
+			high = ds.GlobalCellIndex(localBounds[2*d+1],d+1);
 		else
 			high = 1;
 		globalBounds[2*d+1] = task->strip[d+1].GetMax(high);

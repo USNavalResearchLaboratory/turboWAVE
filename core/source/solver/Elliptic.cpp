@@ -149,11 +149,11 @@ void EllipticSolver::ZeroModeGhostCellValues(tw::Float *phi0,tw::Float *phiN1,Sc
 
 	*phi0 = 0.0;
 	*phiN1 = 0.0;
-	kN1 = task->globalCells[3]+1;
+	kN1 = space->GlobalDim(3)+1;
 
 	for (k=1;k<=source.Dim(3);k++)
 	{
-		kg = task->GlobalCellIndex(k,3);
+		kg = space->GlobalCellIndex(k,3);
 		*phi0 += 0.5*mul*sqr(source.dx(3))*source(1,1,k)*fabs(tw::Float(kg));
 		*phiN1 += 0.5*mul*sqr(source.dx(3))*source(1,1,k)*fabs(tw::Float(kN1-kg));
 	}
@@ -188,11 +188,11 @@ EllipticSolver1D::EllipticSolver1D(const std::string& name,MetricSpace *m,Task *
 	if (space->Dimensionality()!=1)
 		throw tw::FatalError("EllipticSolver1D cannot be used in multi-dimensions.");
 	globalIntegrator = NULL;
-	if (task->globalCells[1]>1)
+	if (space->GlobalDim(1)>1)
 		globalIntegrator = new GlobalIntegrator<tw::Float>(&task->strip[1],space->Dim(3)*space->Dim(2),space->Dim(1));
-	if (task->globalCells[2]>1)
+	if (space->GlobalDim(2)>1)
 		globalIntegrator = new GlobalIntegrator<tw::Float>(&task->strip[2],space->Dim(1)*space->Dim(3),space->Dim(2));
-	if (task->globalCells[3]>1)
+	if (space->GlobalDim(3)>1)
 		globalIntegrator = new GlobalIntegrator<tw::Float>(&task->strip[3],space->Dim(1)*space->Dim(2),space->Dim(3));
 	if (globalIntegrator==NULL)
 		throw tw::FatalError("EllipticSolver1D could not create global integrator.");
@@ -216,19 +216,19 @@ void EllipticSolver1D::Solve(ScalarField& phi,ScalarField& source,tw::Float mul)
 	const tw::Int zDim = space->Dim(3);
 
 	di = dj = dk = 0;
-	if (task->globalCells[1]>1)
+	if (space->GlobalDim(1)>1)
 	{
 		axis = tw::grid::x;
 		sDim = xDim;
 		di = 1;
 	}
-	if (task->globalCells[2]>1)
+	if (space->GlobalDim(2)>1)
 	{
 		axis = tw::grid::y;
 		sDim = yDim;
 		dj = 1;
 	}
-	if (task->globalCells[3]>1)
+	if (space->GlobalDim(3)>1)
 	{
 		axis = tw::grid::z;
 		sDim = zDim;
@@ -282,9 +282,9 @@ IterativePoissonSolver::IterativePoissonSolver(const std::string& name,MetricSpa
 	mask2 = new char[xDim*yDim*zDim];
 	maxIterations = 1000;
 	tolerance = 1e-8;
-	const tw::Int SOR1 = tsk->globalCells[1] - (tsk->globalCells[1]==1 ? 1 : 0);
-	const tw::Int SOR2 = tsk->globalCells[2] - (tsk->globalCells[2]==1 ? 1 : 0);
-	const tw::Int SOR3 = tsk->globalCells[3] - (tsk->globalCells[3]==1 ? 1 : 0);
+	const tw::Int SOR1 = m->GlobalDim(1) - (m->GlobalDim(1)==1 ? 1 : 0);
+	const tw::Int SOR2 = m->GlobalDim(2) - (m->GlobalDim(2)==1 ? 1 : 0);
+	const tw::Int SOR3 = m->GlobalDim(3) - (m->GlobalDim(3)==1 ? 1 : 0);
 	overrelaxation = 2.0 - 10.0/(SOR1 + SOR2 + SOR3);
 	minimumNorm = tw::small_pos;
 	iterationsPerformed = 0;
@@ -739,7 +739,7 @@ void EigenmodePoissonSolver::Solve(ScalarField& phi,ScalarField& source,tw::Floa
 	std::valarray<tw::Float> localEig(rDim+2);
 
 	for (i=1;i<=rDim;i++)
-		localEig[i] = eigenvalue[i-1+task->cornerCell[1]-1];
+		localEig[i] = eigenvalue[space->GlobalCellIndex(i,1)-1];
 
 	// Matrix elements for open boundary condition
 
@@ -758,7 +758,7 @@ void EigenmodePoissonSolver::Solve(ScalarField& phi,ScalarField& source,tw::Floa
 
 	// Perform hankel transform
 
-	source.Hankel(task->globalCells[1],hankel);
+	source.Hankel(space->GlobalDim(1),hankel);
 
 	// Copy the transformed boundary data back into the potential
 	if (task->n0[3]==MPI_PROC_NULL)
@@ -870,8 +870,8 @@ void EigenmodePoissonSolver::Solve(ScalarField& phi,ScalarField& source,tw::Floa
 
 	// back to real space
 
-	phi.InverseHankel(task->globalCells[1],inverseHankel);
-	//source.InverseHankel(task->globalCells[1],inverseHankel);
+	phi.InverseHankel(space->GlobalDim(1),inverseHankel);
+	//source.InverseHankel(space->GlobalDim(1),inverseHankel);
 
 	// Global boundary conditions
 

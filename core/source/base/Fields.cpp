@@ -2475,27 +2475,27 @@ void AddMulFieldData(Field& dst,const Element& e_dst,Field& src,const Element& e
 tw::Float ScalarField::AxialEigenvalue(tw::Int z)
 {
 	// eigenvalues for sine and cosine transforms are the same
-	return eigenvalue_FST(task->GlobalCellIndex(z,3)-1,task->globalCells[3],freq[3]);
+	return eigenvalue_FST(GlobalCellIndex(z,3)-1,GlobalDim(3),freq[3]);
 }
 
 tw::Float ScalarField::Eigenvalue(tw::Int x,tw::Int y)
 {
 	// eigenvalues for sine and cosine transforms are the same
-	return eigenvalue_FST(task->GlobalCellIndex(x,1)-1,task->globalCells[1],freq[1]) + eigenvalue_FST(task->GlobalCellIndex(y,2)-1,task->globalCells[2],freq[2]);
+	return eigenvalue_FST(GlobalCellIndex(x,1)-1,GlobalDim(1),freq[1]) + eigenvalue_FST(GlobalCellIndex(y,2)-1,GlobalDim(2),freq[2]);
 }
 
 tw::Float ScalarField::CyclicEigenvalue(tw::Int x,tw::Int y)
 {
 	tw::Float ans;
-	x = task->GlobalCellIndex(x,1);
-	y = task->GlobalCellIndex(y,2);
+	x = GlobalCellIndex(x,1);
+	y = GlobalCellIndex(y,2);
 
-	ans = eigenvalue_RFFT(x-1,task->globalCells[1],freq[1]);
+	ans = eigenvalue_RFFT(x-1,GlobalDim(1),freq[1]);
 
 	if (x==1 || x==2)
-		ans += eigenvalue_RFFT(y-1,task->globalCells[2],freq[2]);
+		ans += eigenvalue_RFFT(y-1,GlobalDim(2),freq[2]);
 	else
-		ans += eigenvalue_CFFT(y-1,task->globalCells[2],freq[2]);
+		ans += eigenvalue_CFFT(y-1,GlobalDim(2),freq[2]);
 
 	return ans;
 }
@@ -2503,21 +2503,21 @@ tw::Float ScalarField::CyclicEigenvalue(tw::Int x,tw::Int y)
 tw::Float ScalarField::CyclicEigenvalue(tw::Int x,tw::Int y,tw::Int z)
 {
 	tw::Float ans;
-	x = task->GlobalCellIndex(x,1);
-	y = task->GlobalCellIndex(y,2);
-	z = task->GlobalCellIndex(z,3);
+	x = GlobalCellIndex(x,1);
+	y = GlobalCellIndex(y,2);
+	z = GlobalCellIndex(z,3);
 
-	ans = eigenvalue_RFFT(x-1,task->globalCells[1],freq[1]);
+	ans = eigenvalue_RFFT(x-1,GlobalDim(1),freq[1]);
 
 	if (x==1 || x==2)
-		ans += eigenvalue_RFFT(y-1,task->globalCells[2],freq[2]);
+		ans += eigenvalue_RFFT(y-1,GlobalDim(2),freq[2]);
 	else
-		ans += eigenvalue_CFFT(y-1,task->globalCells[2],freq[2]);
+		ans += eigenvalue_CFFT(y-1,GlobalDim(2),freq[2]);
 
 	if ((x==1 || x==2) && (y==1 || y==2))
-		ans += eigenvalue_RFFT(z-1,task->globalCells[3],freq[3]);
+		ans += eigenvalue_RFFT(z-1,GlobalDim(3),freq[3]);
 	else
-		ans += eigenvalue_CFFT(z-1,task->globalCells[3],freq[3]);
+		ans += eigenvalue_CFFT(z-1,GlobalDim(3),freq[3]);
 
 	return ans;
 }
@@ -2525,7 +2525,7 @@ tw::Float ScalarField::CyclicEigenvalue(tw::Int x,tw::Int y,tw::Int z)
 void ScalarField::AxialSineTransform()
 {
 	Field T;
-	if (task->globalCells[3]>1)
+	if (GlobalDim(3)>1)
 	{
 		Transpose(tw::grid::z,tw::grid::x,&T,1);
 		#pragma omp parallel
@@ -2540,7 +2540,7 @@ void ScalarField::AxialSineTransform()
 void ScalarField::InverseAxialSineTransform()
 {
 	Field T;
-	if (task->globalCells[3]>1)
+	if (GlobalDim(3)>1)
 	{
 		Transpose(tw::grid::z,tw::grid::x,&T,1);
 		#pragma omp parallel
@@ -2564,7 +2564,7 @@ void ScalarField::TransverseCosineTransform()
 	{
 		axis1 = tw::grid::enumaxis(ax);
 		axis2 = tw::grid::z;
-		if (task->globalCells[ax]>1)
+		if (GlobalDim(ax)>1)
 		{
 			Transpose(axis1,axis2,&T,1);
 			#pragma omp parallel
@@ -2585,7 +2585,7 @@ void ScalarField::InverseTransverseCosineTransform()
 	{
 		axis1 = tw::grid::enumaxis(ax);
 		axis2 = tw::grid::z;
-		if (task->globalCells[ax]>1)
+		if (GlobalDim(ax)>1)
 		{
 			Transpose(axis1,axis2,&T,1);
 			#pragma omp parallel
@@ -2610,7 +2610,7 @@ void ScalarField::TransverseSineTransform()
 	{
 		axis1 = tw::grid::enumaxis(ax);
 		axis2 = tw::grid::z;
-		if (task->globalCells[ax]>1)
+		if (GlobalDim(ax)>1)
 		{
 			Transpose(axis1,axis2,&T,1);
 			#pragma omp parallel
@@ -2631,7 +2631,7 @@ void ScalarField::InverseTransverseSineTransform()
 	{
 		axis1 = tw::grid::enumaxis(ax);
 		axis2 = tw::grid::z;
-		if (task->globalCells[ax]>1)
+		if (GlobalDim(ax)>1)
 		{
 			Transpose(axis1,axis2,&T,1);
 			#pragma omp parallel
@@ -2652,7 +2652,7 @@ void ScalarField::TransverseFFT()
 {
 	Field T;
 
-	if (task->globalCells[1]>1)
+	if (GlobalDim(1)>1)
 	{
 		Transpose(tw::grid::x,tw::grid::z,&T,1);
 		#pragma omp parallel
@@ -2663,7 +2663,7 @@ void ScalarField::TransverseFFT()
 		Transpose(tw::grid::x,tw::grid::z,&T,-1);
 	}
 
-	if (task->globalCells[2]>1)
+	if (GlobalDim(2)>1)
 	{
 		Transpose(tw::grid::y,tw::grid::z,&T,1);
 		const tw::Int xDim=T.Dim(1),zN0=T.LFG(3),zN1=T.UFG(3);
@@ -2671,7 +2671,7 @@ void ScalarField::TransverseFFT()
 		for (tw::Int i=1;i<=xDim;i+=2) // can't include ghost cells due to complex numbers; instead do copy ops below
 			for (tw::Int k=zN0;k<=zN1;k++)
 			{
-				if (task->GlobalCellIndex(i,1)==1)
+				if (GlobalCellIndex(i,1)==1)
 				{
 					RealFFT( &T(i,1,k,0), T.Dim(2), T.Stride(2), 1);
 					RealFFT( &T(i+1,1,k,0), T.Dim(2), T.Stride(2), 1);
@@ -2689,7 +2689,7 @@ void ScalarField::InverseTransverseFFT()
 {
 	Field T;
 
-	if (task->globalCells[2]>1)
+	if (GlobalDim(2)>1)
 	{
 		Transpose(tw::grid::y,tw::grid::z,&T,1);
 		const tw::Int xDim=T.Dim(1),zN0=T.LFG(3),zN1=T.UFG(3);
@@ -2697,7 +2697,7 @@ void ScalarField::InverseTransverseFFT()
 		for (tw::Int i=1;i<=xDim;i+=2) // can't include ghost cells due to complex numbers; instead do copy ops below
 			for (tw::Int k=zN0;k<=zN1;k++)
 			{
-				if (task->GlobalCellIndex(i,1)==1)
+				if (GlobalCellIndex(i,1)==1)
 				{
 					RealFFT( &T(i,1,k,0), T.Dim(2), T.Stride(2), -1);
 					T(i,T.LNG(2),k,0) = T(i,T.Dim(2),k,0);
@@ -2720,7 +2720,7 @@ void ScalarField::InverseTransverseFFT()
 		Transpose(tw::grid::y,tw::grid::z,&T,-1);
 	}
 
-	if (task->globalCells[1]>1)
+	if (GlobalDim(1)>1)
 	{
 		Transpose(tw::grid::x,tw::grid::z,&T,1);
 		#pragma omp parallel
@@ -2746,17 +2746,17 @@ void ScalarField::InverseTransverseFFT()
 
 tw::Float ComplexField::CyclicEigenvalue(tw::Int x,tw::Int y)
 {
-	x = task->GlobalCellIndex(x,1);
-	y = task->GlobalCellIndex(y,2);
-	return eigenvalue_CFFT(x-1,task->globalCells[1],freq[1]) + eigenvalue_CFFT(y-1,task->globalCells[2],freq[2]);
+	x = GlobalCellIndex(x,1);
+	y = GlobalCellIndex(y,2);
+	return eigenvalue_CFFT(x-1,GlobalDim(1),freq[1]) + eigenvalue_CFFT(y-1,GlobalDim(2),freq[2]);
 }
 
 tw::Float ComplexField::CyclicEigenvalue(tw::Int x,tw::Int y,tw::Int z)
 {
-	x = task->GlobalCellIndex(x,1);
-	y = task->GlobalCellIndex(y,2);
-	z = task->GlobalCellIndex(z,3);
-	return eigenvalue_CFFT(x-1,task->globalCells[1],freq[1]) + eigenvalue_CFFT(y-1,task->globalCells[2],freq[2]) + eigenvalue_CFFT(z-1,task->globalCells[3],freq[3]);
+	x = GlobalCellIndex(x,1);
+	y = GlobalCellIndex(y,2);
+	z = GlobalCellIndex(z,3);
+	return eigenvalue_CFFT(x-1,GlobalDim(1),freq[1]) + eigenvalue_CFFT(y-1,GlobalDim(2),freq[2]) + eigenvalue_CFFT(z-1,GlobalDim(3),freq[3]);
 }
 
 void ComplexField::TransverseFFT()
@@ -2767,7 +2767,7 @@ void ComplexField::TransverseFFT()
 	{
 		axis1 = tw::grid::enumaxis(ax);
 		axis2 = tw::grid::z;
-		if (task->globalCells[ax]>1)
+		if (GlobalDim(ax)>1)
 		{
 			Transpose(axis1,axis2,&T,1);
 			#pragma omp parallel
@@ -2788,7 +2788,7 @@ void ComplexField::InverseTransverseFFT()
 	{
 		axis1 = tw::grid::enumaxis(ax);
 		axis2 = tw::grid::z;
-		if (task->globalCells[ax]>1)
+		if (GlobalDim(ax)>1)
 		{
 			Transpose(axis1,axis2,&T,1);
 			#pragma omp parallel
@@ -2815,7 +2815,7 @@ void ComplexField::FFT()
 	{
 		axis1 = tw::grid::enumaxis(ax);
 		axis2 = tw::grid::enumaxis(ax==3 ? 1 : ax+1);
-		if (task->globalCells[ax]>1)
+		if (GlobalDim(ax)>1)
 		{
 			Transpose(axis1,axis2,&T,1);
 			#pragma omp parallel
@@ -2836,7 +2836,7 @@ void ComplexField::InverseFFT()
 	{
 		axis1 = tw::grid::enumaxis(ax);
 		axis2 = tw::grid::enumaxis(ax==3 ? 1 : ax+1);
-		if (task->globalCells[ax]>1)
+		if (GlobalDim(ax)>1)
 		{
 			Transpose(axis1,axis2,&T,1);
 			#pragma omp parallel

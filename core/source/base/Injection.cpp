@@ -199,8 +199,8 @@ export struct Wave : ComputeTool
 		tw::vec4 x4(time,pos);
 		tw::vec4 x4p(time,pos);
 		ToLaserFrame(&x4);
-		const tw::Int xzones = task->globalCells[1]==1 ? 1 : zones;
-		const tw::Int yzones = task->globalCells[2]==1 ? 1 : zones;
+		const tw::Int xzones = space->GlobalDim(1)==1 ? 1 : zones;
+		const tw::Int yzones = space->GlobalDim(2)==1 ? 1 : zones;
 		for (tw::Int i=0;i<xzones;i++)
 			for (tw::Int j=0;j<yzones;j++)
 			{

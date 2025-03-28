@@ -96,8 +96,8 @@ export struct BoxDiagnostic : Diagnostic
 
 	BoxDiagnostic(const std::string& name,MetricSpace *ms,Task *tsk);
 	virtual void Finish();
-	void GetLocalIndexing(const tw::Int pts[4],const tw::Int glb[6],tw::Int loc[6],const tw::Int coords[4]);
-	void GetGlobalIndexing(tw::Int pts[4],tw::Int glb[6]);
+	void GetLocalIndexing(const DiscreteSpace& F,const tw::Int pts[4],const tw::Int glb[6],tw::Int loc[6],const tw::Int coords[4]);
+	void GetGlobalIndexing(const DiscreteSpace& F,tw::Int pts[4],tw::Int glb[6]);
 	virtual void ReportField(const std::string& fieldName,const Field& F,const tw::Int c,const tw::dims unit = tw::dims::none,const std::string& pretty = "tw::none");
 };
 
@@ -601,17 +601,28 @@ BoxDiagnostic::BoxDiagnostic(const std::string& name,MetricSpace *ms,Task *tsk) 
 	directives.Add("reports",new tw::input::StringList<std::vector<std::string>>(&reports),false);
 }
 
-void BoxDiagnostic::GetGlobalIndexing(tw::Int pts[4],tw::Int glb[6])
+/// @brief get parameters of diagnostic array, which is global
+/// @param F DiscreteSpace being written out, could be a refined grid
+/// @param pts receives the diagnostic array dimensions
+/// @param glb receives the index bounds of the global data, if a refined grid clipping is disabled
+void BoxDiagnostic::GetGlobalIndexing(const DiscreteSpace& F,tw::Int pts[4],tw::Int glb[6])
 {
-	// On output, pts has the number of cells, glb has the global index bounds
-	// skip is corrected for ignorable dimensions
-	theRgn->GetGlobalCellBounds(glb);
+	if (F.Dim(1)!=space->Dim(1) || F.Dim(2)!=space->Dim(2) || F.Dim(3)!=space->Dim(3)) {
+		glb[0] = 1;
+		glb[1] = F.GlobalDim(1);
+		glb[2] = 1;
+		glb[3] = F.GlobalDim(2);
+		glb[4] = 1;
+		glb[5] = F.GlobalDim(3);
+	} else {
+		theRgn->GetGlobalCellBounds(glb);
+	}
 
 	for (tw::Int ax=1;ax<=3;ax++)
 	{
 		const tw::Int lb = 2*ax-2;
 		const tw::Int ub = 2*ax-1;
-		skip[ax] = space->Dim(ax)==1 ? 1 : skip[ax];
+		skip[ax] = F.Dim(ax)==1 ? 1 : skip[ax];
 		// Force global bounds into skipping sequence
 		// The upper bound is adjusted to respect the lower bound
 		pts[ax] = (glb[ub] - glb[lb] + 1)/skip[ax];
@@ -619,14 +630,18 @@ void BoxDiagnostic::GetGlobalIndexing(tw::Int pts[4],tw::Int glb[6])
 	}
 }
 
-void BoxDiagnostic::GetLocalIndexing(const tw::Int pts[4],const tw::Int glb[6],tw::Int loc[6],const tw::Int coords[4])
+/// @brief called on a domain that is contributing to building the data
+/// @param F DiscreteSpace we are writing, could be a refined grid
+/// @param pts cells along each dimension
+/// @param glb global index bounds
+/// @param loc receives the local index bounds
+/// @param coords cartesian MPI domain indices (not necessarily domain of execution)
+void BoxDiagnostic::GetLocalIndexing(const DiscreteSpace& F,const tw::Int pts[4],const tw::Int glb[6],tw::Int loc[6],const tw::Int coords[4])
 {
-	// On output, pts has the number of cells, glb has the global index bounds, loc has the local index bounds
-	// coords is an input with the cartesian MPI domain indices (not necessarily the domain of execution)
 	tw::Int i0;
 	for (tw::Int ax=1;ax<=3;ax++)
 	{
-		const tw::Int cell0 = coords[ax]*task->localCells[ax];
+		const tw::Int cell0 = coords[ax]*F.Dim(ax);
 		const tw::Int lb = 2*ax-2;
 		const tw::Int ub = 2*ax-1;
 		// Get the lower local cell bounds and force into global skipping sequence
@@ -636,7 +651,7 @@ void BoxDiagnostic::GetLocalIndexing(const tw::Int pts[4],const tw::Int glb[6],t
 		if (i0<1) i0 += skip[ax];
 		loc[lb] = i0;
 		// Get the upper local cell bounds and force into global skipping sequence
-		i0 = task->localCells[ax] + cell0;
+		i0 = F.Dim(ax) + cell0;
 		i0 = i0 > glb[ub] ? glb[ub] : i0;
 		i0 -= cell0 + ((i0 - glb[lb]) % skip[ax]);
 		loc[ub] = i0;
@@ -666,10 +681,9 @@ void BoxDiagnostic::ReportField(const std::string& fieldName,const Field& F,cons
 		xname = filename + "_" + fieldName + ".npy";
 
 	pts[0] = 0;
-	GetGlobalIndexing(pts,glb);
-	for (tw::Int i=1;i<=3;i++) dim[i] = space->Dim(i);
+	GetGlobalIndexing(F,pts,glb);
+	for (tw::Int i=1;i<=3;i++) dim[i] = F.Dim(i);
 	for (tw::Int i=1;i<=3;i++) s[i] = skip[i];
-
 	if (thisNode==master)
 		gData.resize(pts[1]*pts[2]*pts[3]);
 
@@ -679,7 +693,7 @@ void BoxDiagnostic::ReportField(const std::string& fieldName,const Field& F,cons
 			{
 				curr = task->strip[0].Cart_rank(idom,jdom,kdom); // domain being written out
 				coords[1] = idom; coords[2] = jdom; coords[3] = kdom;
-				GetLocalIndexing(pts,glb,loc,coords);
+				GetLocalIndexing(F,pts,glb,loc,coords);
 
 				if (loc[0]<=dim[1] && loc[1]>=1 && loc[2]<=dim[2] && loc[3]>=1 && loc[4]<=dim[3] && loc[5]>=1)
 				{
@@ -691,9 +705,9 @@ void BoxDiagnostic::ReportField(const std::string& fieldName,const Field& F,cons
 								for (tw::Int j=loc[2];j<=loc[3];j+=s[2])
 									for (tw::Int i=loc[0];i<=loc[1];i+=s[1])
 									{
-										i0 = pts[2]*pts[3]*(task->GlobalCellIndex(i,1) - glb[0])/s[1];
-										i0 += pts[3]*(task->GlobalCellIndex(j,2) - glb[2])/s[2];
-										i0 += (task->GlobalCellIndex(k,3) - glb[4])/s[3];
+										i0 = pts[2]*pts[3]*(F.GlobalCellIndex(i,1) - glb[0])/s[1];
+										i0 += pts[3]*(F.GlobalCellIndex(j,2) - glb[2])/s[2];
+										i0 += (F.GlobalCellIndex(k,3) - glb[4])/s[3];
 										gData[i0] = F(i,j,k,c);
 									}
 						}
@@ -727,9 +741,9 @@ void BoxDiagnostic::ReportField(const std::string& fieldName,const Field& F,cons
 									i0 = (loc[3]-loc[2]+s[2])*(loc[5]-loc[4]+s[3])*(i - loc[0])/(s[1]*s[2]*s[3]);
 									i0 += (loc[5]-loc[4]+s[3])*(j - loc[2])/(s[2]*s[3]);
 									i0 += (k - loc[4])/s[3];
-									i1 = pts[2]*pts[3]*(coords[1]*task->localCells[1]+i - glb[0])/s[1];
-									i1 += pts[3]*(coords[2]*task->localCells[2]+j - glb[2])/s[2];
-									i1 += (coords[3]*task->localCells[3]+k - glb[4])/s[3];
+									i1 = pts[2]*pts[3]*(coords[1]*F.Dim(1)+i - glb[0])/s[1];
+									i1 += pts[3]*(coords[2]*F.Dim(2)+j - glb[2])/s[2];
+									i1 += (coords[3]*F.Dim(3)+k - glb[4])/s[3];
 									gData[i1] = buffer[i0];
 								}
 					}
@@ -766,7 +780,7 @@ void BoxDiagnostic::Finish()
 	const tw::Int master = 0;
 	const tw::Int curr_global = task->strip[0].Get_rank();
 	tw::Int pts[4],glb[6];
-	GetGlobalIndexing(pts,glb);
+	GetGlobalIndexing(*space,pts,glb);
 	if (curr_global==master)
 		StartGridFile(gridFile);
 	if (!headerWritten) // assuming static grid no need to keep writing spatial points
@@ -774,11 +788,11 @@ void BoxDiagnostic::Finish()
 		for (tw::Int ax=1;ax<=3;ax++)
 		{
 			// Message passing is needed to get the spatial points
-			std::valarray<tw::Float> X(task->globalCells[ax]);
+			std::valarray<tw::Float> X(space->GlobalDim(ax));
 			const tw::Int offset = space->Dim(ax)*task->strip[ax].Get_rank();
 			for (tw::Int i=1;i<=space->Dim(ax);i++)
 				X[i-1+offset] = space->X(i,ax);
-			task->strip[ax].Gather(&X[offset],&X[offset],task->localCells[ax]*sizeof(tw::Float),master);
+			task->strip[ax].Gather(&X[offset],&X[offset],space->Dim(ax)*sizeof(tw::Float),master);
 			if (curr_global==master)
 			{
 				const tw::Int lb = glb[2*ax-2];

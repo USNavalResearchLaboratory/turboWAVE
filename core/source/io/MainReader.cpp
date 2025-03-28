@@ -73,7 +73,6 @@ void GridReader::UpdateTask(Task& tsk)
 {
 	for (tw::Int i=0;i<4;i++)
 	{
-		tsk.globalCells[i] = req_dim[i];
 		tsk.domains[i] = req_dom[i];
 	}
 }
@@ -350,9 +349,11 @@ void Simulation::InputFileFirstPass()
 	periodic[1] = bc0[1]==tw::bc::par::periodic ? 1 : 0;
 	periodic[2] = bc0[2]==tw::bc::par::periodic ? 1 : 0;
 	periodic[3] = bc0[3]==tw::bc::par::periodic ? 1 : 0;
+	auto gdim_idx4 = gridReader->GlobalDims();
+	tw::Int gdim[4] = { gdim_idx4.array[0], gdim_idx4.array[1], gdim_idx4.array[2], gdim_idx4.array[3] };
 
 	// Check integer viability
-	int64_t totalCellsPerRank = int64_t(globalCells[1])*int64_t(globalCells[2])*int64_t(globalCells[3])/int64_t(numRanksProvided);
+	int64_t totalCellsPerRank = int64_t(gdim[1])*int64_t(gdim[2])*int64_t(gdim[3])/int64_t(numRanksProvided);
 	if (totalCellsPerRank>=pow(2,31) && sizeof(tw::Int)==4)
 		throw tw::FatalError("You must recompile turboWAVE with 64 bit integers to handle this many grid cells.");
 
@@ -364,17 +365,17 @@ void Simulation::InputFileFirstPass()
 		for (tw::Int i=1;i<=3;i++)
 		{
 			domains[i] = 1;
-			if (globalCells[i]>=globalCells[1] && globalCells[i]>=globalCells[2] && globalCells[i]>=globalCells[3])
+			if (gdim[i]>=gdim[1] && gdim[i]>=gdim[2] && gdim[i]>=gdim[3])
 				ax1 = i;
 		}
 		for (tw::Int i=1;i<=3;i++)
 			ax2 = i==ax1 ? ax2 : i;
 		for (tw::Int i=1;i<=3;i++)
 			ax3 = i==ax1 || i==ax2 ? ax3 : i;
-		if (globalCells[ax2]<globalCells[ax3])
+		if (gdim[ax2]<gdim[ax3])
 			std::swap(ax2,ax3);
 		domains[ax1] = numRanksProvided;
-		while (globalCells[ax1]%(domains[ax1]*2)!=0 && domains[ax1]>0)
+		while (gdim[ax1]%(domains[ax1]*2)!=0 && domains[ax1]>0)
 		{
 			domains[ax1] /= 2;
 			domains[ax2] *= 2;
@@ -384,20 +385,16 @@ void Simulation::InputFileFirstPass()
 	std::println(std::cout,"{}-Way Decomposition",NumTasks());
 
 	// Set up the domain decomposition
-	// Simulation/restart provide domains[] , globalCells[] , periodic[] as inputs
-	// communicators, cornerCell[], localCells[], domainIndex[], n0[] , n1[] are computed
-	for (tw::Int i=1;i<=3;i++)
-	{
-		if (globalCells[i]%domains[i]!=0)
+	for (tw::Int i=1;i<=3;i++) {
+		if (gdim[i]%domains[i]!=0)
 			throw tw::FatalError("global number of cells is not divisible by number of domains along axis");
 	}
-	Task::Initialize(domains,globalCells,periodic);
-	for (tw::Int i=1;i<=3;i++)
-	{
-		if (localCells[i]%2!=0 && globalCells[i]>1)
-			throw tw::FatalError("local number of cells is not even along non-ignorable axis");
+	Task::Initialize(domains,periodic);
+	for (tw::Int i=1;i<=3;i++) {
+		if (gdim[i]>1 && gdim[i]/domains[i]%2>0)
+			throw tw::FatalError(std::format("local number of cells is not even along non-ignorable axis {}",i));
 	}
-	Resize(*this,gridReader->GlobalCorner(),gridReader->GlobalSize(),2,gridReader->Geometry());
+	Resize(this,gdim,gridReader->GlobalCorner(),gridReader->GlobalSize(),2,gridReader->Geometry());
 	delete gridReader;
 	ts_tree_delete(tree);
 

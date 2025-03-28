@@ -777,7 +777,7 @@ export void ComputeTransformMatrices(tw::bc::fld radial_bc,std::valarray<tw::Flo
 	std::valarray<tw::Float> T1,T2,T3,vec,temp,Lambda;
 	std::valarray<tw::Float> dr,A,V;
 
-	dim = task->globalCells[1];
+	dim = space->GlobalDim(1);
 	eigenvalue.resize(dim);
 	fwd.resize(dim*dim);
 	rev.resize(dim*dim);
@@ -800,17 +800,17 @@ export void ComputeTransformMatrices(tw::bc::fld radial_bc,std::valarray<tw::Flo
 	}
 
 	// Find parameters describing radial grid spacings
-	for (i=0;i<=task->localCells[1]+1;i++)
+	for (i=0;i<=space->Dim(1)+1;i++)
 	{
 		dr[i] = space->dX(i,1);
 		A[i] = space->dS(i,1,1,1);
 		V[i] = space->dS(i,1,1,0);
 	}
-	task->strip[1].Gather(&dr[1],&dr[1],task->localCells[1]*sizeof(tw::Float),0);
+	task->strip[1].Gather(&dr[1],&dr[1],space->Dim(1)*sizeof(tw::Float),0);
 	task->strip[1].Bcast(&dr[0],(dim+2)*sizeof(tw::Float),0);
-	task->strip[1].Gather(&A[1],&A[1],task->localCells[1]*sizeof(tw::Float),0);
+	task->strip[1].Gather(&A[1],&A[1],space->Dim(1)*sizeof(tw::Float),0);
 	task->strip[1].Bcast(&A[0],(dim+2)*sizeof(tw::Float),0);
-	task->strip[1].Gather(&V[1],&V[1],task->localCells[1]*sizeof(tw::Float),0);
+	task->strip[1].Gather(&V[1],&V[1],space->Dim(1)*sizeof(tw::Float),0);
 	task->strip[1].Bcast(&V[0],(dim+2)*sizeof(tw::Float),0);
 	dr[dim+1] = dr[dim];
 	A[dim+1] = A[dim];

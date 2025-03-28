@@ -248,8 +248,6 @@ void Kinetics::Update()
 
 void Kinetics::TransferParticles()
 {
-	tw::Int i,displ,a;
-
 	tw::Int dst,src;
 	tw::Int numToSend,sendSize,recvSize;
 	tw::Int offset;
@@ -261,14 +259,14 @@ void Kinetics::TransferParticles()
 	std::vector<TransferParticle> accumulator;
 	std::vector<tw::Int> tally;
 
-	for (i=0;i<species.size();i++)
-		species[i]->ComputeTransferParticleDestinations();
+	for (auto sp : species)
+		sp->ComputeTransferParticleDestinations();
 
-	for (a=1;a<=3;a++)
+	for (auto a=1;a<=3;a++)
 	{
-		if (owner->localCells[a]>1)
+		if (owner->Dim(a)>1)
 		{
-			for (displ=-1;displ<=1;displ+=2)
+			for (auto displ=-1;displ<=1;displ+=2)
 			{
 				accumulator.clear();
 				tally.clear();
@@ -279,14 +277,13 @@ void Kinetics::TransferParticles()
 				// Load particles and tallies into standard containers for all species
 				// These are the transfer particles that need to move along the given axis
 
-				for (i=0;i<species.size();i++)
-					species[i]->PrepareTransfer(accumulator,tally,a,displ);
+				for (auto sp: species)
+					sp->PrepareTransfer(accumulator,tally,a,displ);
 
 				// Exchange message sizes
 
 				numToSend = accumulator.size();
 				sendSize =  sizeof(tw::Int)*species.size() + sizeof(TransferParticle)*numToSend;
-				std::println(std::cout,"send {} bytes along axis {}",sendSize,a);
 				recvSize = 0;
 				if (odd)
 				{
@@ -300,15 +297,14 @@ void Kinetics::TransferParticles()
 				}
 
 				// Pack data into the output buffer
-				std::println(std::cout,"recv {} bytes along axis {}",recvSize,a);
 				inBuffer.resize(recvSize);
 				outBuffer.resize(sendSize);
-				for (i=0;i<species.size();i++)
+				for (auto i=0;i<species.size();i++)
 					((tw::Int*)&outBuffer[0])[i] = tally[i];
 				if (numToSend)
 				{
 					parPtr = (TransferParticle*)(&outBuffer[species.size()*sizeof(tw::Int)]);
-					for (i=0;i<numToSend;i++)
+					for (auto i=0;i<numToSend;i++)
 						parPtr[i] = accumulator[i];
 				}
 
@@ -331,7 +327,7 @@ void Kinetics::TransferParticles()
 				{
 					offset = 0;
 					parPtr = (TransferParticle*)(&inBuffer[species.size()*sizeof(tw::Int)]);
-					for (i=0;i<species.size();i++)
+					for (auto i=0;i<species.size();i++)
 					{
 						tally[i] = ((tw::Int*)&inBuffer[0])[i];
 						if (tally[i])
@@ -343,8 +339,8 @@ void Kinetics::TransferParticles()
 		}
 	}
 
-	for (i=0;i<species.size();i++)
-		species[i]->CollectTransfers();
+	for (auto sp: species)
+		sp->CollectTransfers();
 }
 
 void Kinetics::Ionize()
@@ -886,7 +882,7 @@ void Species::ApplyGlobalBoundaryConditions()
 		{
 			boundaryCondition = displ<0 ? bc0[ax] : bc1[ax];
 			owner->strip[ax].Shift(1,displ,&src,&dst);
-			if (dst==MPI_PROC_NULL && owner->localCells[ax]!=1)
+			if (dst==MPI_PROC_NULL && owner->Dim(ax)!=1)
 			{
 				for (i=0;i<transfer.size();i++)
 				{

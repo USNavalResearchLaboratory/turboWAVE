@@ -22,7 +22,6 @@ export struct LaserSolver:Module
 
 	// fields that are tracked at higher resolution than the baseline grid
 	MetricSpace HRSpace;
-	Task HRTask;
 	ComplexField HRa0,HRa1;
 	ComplexField HRchi;
 	LaserPropagator *propagator;
@@ -165,18 +164,16 @@ void LaserSolver::Initialize()
 	Module::Initialize();
 
 	tw::Int HRGlobalCells[4];
-	HRGlobalCells[0] = owner->globalCells[0]; 
-	HRGlobalCells[1] = owner->globalCells[1]; 
-	HRGlobalCells[2] = owner->globalCells[2]; 
-	HRGlobalCells[3] = owner->globalCells[3]*hires;
-	HRTask.Initialize(owner->domains,HRGlobalCells,owner->periodic);
-	HRSpace.Resize(HRTask,owner->GlobalCorner(),owner->GlobalPhysicalSize(),owner->Layers(3),owner->gridGeometry);
+	HRGlobalCells[0] = owner->GlobalDim(0); 
+	HRGlobalCells[1] = owner->GlobalDim(1); 
+	HRGlobalCells[2] = owner->GlobalDim(2); 
+	HRGlobalCells[3] = owner->GlobalDim(3)*hires;
+	HRSpace.Resize(owner,HRGlobalCells,owner->GlobalCorner(),owner->GlobalPhysicalSize(),owner->Layers(3),owner->gridGeometry);
 	
-	HRa0.Initialize(HRSpace,&HRTask);
-	HRa1.Initialize(HRSpace,&HRTask);
-	HRchi.Initialize(HRSpace,&HRTask);
+	HRa0.Initialize(HRSpace,owner);
+	HRa1.Initialize(HRSpace,owner);
+	HRchi.Initialize(HRSpace,owner);
 
-	propagator->task = &HRTask;
 	propagator->space = &HRSpace;
 	propagator->SetData(laserFreq,dt,polarizationType,owner->movingWindow);
 	propagator->SetBoundaryConditions(HRa0,HRa1,HRchi);

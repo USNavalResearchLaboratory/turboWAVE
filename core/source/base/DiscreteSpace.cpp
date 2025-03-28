@@ -201,6 +201,10 @@ export struct DiscreteSpace : Testable
 	tw::Int dim[4];
 	/// `num` is similar to `dim`, except ghost cells are included.
 	tw::Int num[4];
+	/// number of interior cells along the given axis, summed over all domains on the low-side of this domain
+	tw::Int lowSideCells[4];
+	/// number of interior cells along the given axis, summed over all domains
+	tw::Int globalCells[4];
 	/// Parameters of the default cell encoding.  For the encoding see `EncodeCell`.
 	/// The `encodingStride` is 0 along an ignorable axis resulting in a many-one mapping, i.e.,
 	/// ghost cells and the one interior cell map to the same cell for the ignorable axis.
@@ -222,9 +226,7 @@ export struct DiscreteSpace : Testable
 	/// Create a `DiscreteSpace` with purely *local* coordinates.
 	DiscreteSpace(tw::Int xDim,tw::Int yDim,tw::Int zDim,const tw::vec4& corner,const tw::vec4& size,tw::Int ghostCellLayers=2);
 	/// Change the topology and coordinates.
-	void Resize(const tw::Int dim[4],const tw::Int gdim[4],const tw::Int dom[4],const tw::vec4& gcorner,const tw::vec4& gsize,tw::Int ghostCellLayers=2);
-	/// Change the coordinates, inheriting the `Task` topology.
-	void Resize(Task& task,const tw::vec4& gcorner,const tw::vec4& gsize,tw::Int ghostCellLayers=2);
+	void Resize(Task *task,const tw::Int gdim[4],const tw::vec4& gcorner,const tw::vec4& gsize,tw::Int ghostCellLayers=2);
 	/// Change the time step.  Use `Simulation::UpdateTimestep` to do this for all modules.
 	void SetupTimeInfo(tw::Float dt0) { spacing[0] = dt0; freq[0] = 1.0/dt0; }
 	/// Encode the cell with topological indices `(n,i,j,k)`
@@ -258,6 +260,9 @@ export struct DiscreteSpace : Testable
 	void MinimizePrimitive(tw::Int cell[tw::max_bundle_size],tw::Int ijk[4][tw::max_bundle_size],float x[4][tw::max_bundle_size],float domainMask[tw::max_bundle_size]) const;
 	tw::Int Dim(const tw::Int& ax) const { return dim[ax]; }
 	tw::Int Num(const tw::Int& ax) const { return num[ax]; }
+	tw::Int GlobalDim(const tw::Int& ax) const { return globalCells[ax]; }
+	tw::Int GlobalCellIndex(const tw::Int& idx,const tw::Int& ax) const { return idx + lowSideCells[ax]; }
+	tw::Int LocalCellIndex(const tw::Int& idx,const tw::Int& ax) const { return idx - lowSideCells[ax]; }
 	tw::Int Ignorable(const tw::Int& ax) const { return ignorable[ax]; }
 	tw::Int Layers(const tw::Int& ax) const { return layers[ax]; }
 	tw::Int LNG(const tw::Int& ax) const { return lng[ax]; }
@@ -290,6 +295,111 @@ export struct DiscreteSpace : Testable
 	void PointUpdateProtocol(cl_kernel k,cl_command_queue q);
 	#endif
 };
+
+DiscreteSpace::DiscreteSpace()
+{
+	ignorable[0] = 0;
+	ignorable[1] = 0;
+	ignorable[2] = 0;
+	ignorable[3] = 0;
+}
+
+DiscreteSpace::DiscreteSpace(tw::Int xDim,tw::Int yDim,tw::Int zDim,const tw::vec4& gcorner,const tw::vec4& gsize,tw::Int ghostCellLayers)
+{
+	tw::Int domainIndex[4] = { 0,0,0,0 };
+	tw::Int domainCount[4] = { 1,1,1,1 };
+	dim[0] = 1;
+	dim[1] = xDim;
+	dim[2] = yDim;
+	dim[3] = zDim;
+
+	for (tw::Int i=0;i<4;i++) {
+		if (dim[i]==1) {
+			layers[i] = 0;
+			lfg[i] = 1;
+			ufg[i] = 1;
+			lng[i] = 1;
+			ung[i] = 1;
+		} else {
+			layers[i] = ghostCellLayers;
+			lfg[i] = 1 - layers[i];
+			ufg[i] = dim[i] + layers[i];
+			lng[i] = 0;
+			ung[i] = dim[i] + 1;
+		}
+		num[i] = ufg[i] - lfg[i] + 1;
+	}
+
+	decodingStride[0] = num[1]*num[2]*num[3];
+	decodingStride[1] = num[2]*num[3];
+	decodingStride[2] = num[3];
+	decodingStride[3] = 1;
+
+	for (tw::Int i=0;i<4;i++) {
+		encodingStride[i] = (dim[i]==1 ? 0 : decodingStride[i]);
+		ignorable[i] = (dim[i]==1 ? 1 : 0);
+	}
+
+	globalCorner = gcorner;
+	globalSize = gsize;
+	for (tw::Int i=0;i<4;i++) {
+		globalCells[i] = dim[i];
+		lowSideCells[i] = domainIndex[i]*dim[i];
+		spacing[i] = globalSize[i]/dim[i];
+		freq[i] = 1/spacing[i];
+		size[i] = dim[i]*spacing[i];
+		corner[i] = gcorner[i] + domainIndex[i]*size[i];
+	}
+}
+
+void DiscreteSpace::Resize(Task *task,const tw::Int gdim[4],const tw::vec4& gcorner,const tw::vec4& gsize,tw::Int ghostCellLayers)
+{
+	tw::Int domainIndex[4],domainCount[4];
+	task->strip[0].Get_coords(3,domainIndex);
+	dim[0] = gdim[0];
+	for (auto i = 1; i <= 3; i++) {
+		domainCount[i] = task->strip[i].Get_size();
+		dim[i] = gdim[i] / domainCount[i];
+	}
+
+	for (tw::Int i=0;i<4;i++) {
+		if (dim[i]==1) {
+			layers[i] = 0;
+			lfg[i] = 1;
+			ufg[i] = 1;
+			lng[i] = 1;
+			ung[i] = 1;
+		} else {
+			layers[i] = ghostCellLayers;
+			lfg[i] = 1 - layers[i];
+			ufg[i] = dim[i] + layers[i];
+			lng[i] = 0;
+			ung[i] = dim[i] + 1;
+		}
+		num[i] = ufg[i] - lfg[i] + 1;
+	}
+
+	decodingStride[0] = num[1]*num[2]*num[3];
+	decodingStride[1] = num[2]*num[3];
+	decodingStride[2] = num[3];
+	decodingStride[3] = 1;
+
+	for (tw::Int i=0;i<4;i++) {
+		encodingStride[i] = (dim[i]==1 ? 0 : decodingStride[i]);
+		ignorable[i] = (dim[i]==1 ? 1 : 0);
+	}
+
+	globalCorner = gcorner;
+	globalSize = gsize;
+	for (tw::Int i=0;i<4;i++) {
+		globalCells[i] = gdim[i];
+		lowSideCells[i] = domainIndex[i]*dim[i];
+		spacing[i] = globalSize[i]/gdim[i];
+		freq[i] = 1/spacing[i];
+		size[i] = dim[i]*spacing[i];
+		corner[i] = gcorner[i] + domainIndex[i]*size[i];
+	}
+}
 
 inline bool DiscreteSpace::IsRefCellWithin(const Primitive& q,tw::Int inset) const
 {
@@ -468,83 +578,6 @@ inline void DiscreteSpace::GetWallWeights(float w[3][3][tw::max_bundle_size],flo
 		w[2][0][i] = 0.5f + x[1][i];
 		w[2][1][i] = 0.5f + x[2][i];
 		w[2][2][i] = 0.5f + x[3][i];
-	}
-}
-
-DiscreteSpace::DiscreteSpace()
-{
-	ignorable[0] = 0;
-	ignorable[1] = 0;
-	ignorable[2] = 0;
-	ignorable[3] = 0;
-}
-
-DiscreteSpace::DiscreteSpace(tw::Int xDim,tw::Int yDim,tw::Int zDim,const tw::vec4& corner,const tw::vec4& size,tw::Int ghostCellLayers)
-{
-	const tw::Int ldim[4] = { 1, xDim, yDim, zDim };
-	const tw::Int gdim[4] = { 1, xDim, yDim, zDim };
-	const tw::Int dom[4] = { 0, 0, 0, 0 };
-	Resize(ldim,gdim,dom,corner,size,ghostCellLayers);
-}
-
-// DiscreteSpace::DiscreteSpace(tw::Float dt0,Task& task,const tw::vec3& gcorner,const tw::vec3& gsize,tw::Int ghostCellLayers)
-// {
-// 	SetupTimeInfo(dt0);
-// 	Resize(task,gcorner,gsize,ghostCellLayers);
-// }
-
-void DiscreteSpace::Resize(Task& task,const tw::vec4& gcorner,const tw::vec4& gsize,tw::Int ghostCellLayers)
-{
-	Resize(task.localCells,task.globalCells,task.domainIndex,gcorner,gsize,ghostCellLayers);
-}
-
-void DiscreteSpace::Resize(const tw::Int dim[4],const tw::Int gdim[4],const tw::Int dom[4],const tw::vec4& gcorner,const tw::vec4& gsize,tw::Int ghostCellLayers)
-{
-	this->dim[0] = dim[0];
-	this->dim[1] = dim[1];
-	this->dim[2] = dim[2];
-	this->dim[3] = dim[3];
-
-	for (tw::Int i=0;i<4;i++)
-	{
-		if (dim[i]==1)
-		{
-			layers[i] = 0;
-			lfg[i] = 1;
-			ufg[i] = 1;
-			lng[i] = 1;
-			ung[i] = 1;
-		}
-		else
-		{
-			layers[i] = ghostCellLayers;
-			lfg[i] = 1 - layers[i];
-			ufg[i] = dim[i] + layers[i];
-			lng[i] = 0;
-			ung[i] = dim[i] + 1;
-		}
-		num[i] = ufg[i] - lfg[i] + 1;
-	}
-
-	decodingStride[0] = num[1]*num[2]*num[3];
-	decodingStride[1] = num[2]*num[3];
-	decodingStride[2] = num[3];
-	decodingStride[3] = 1;
-
-	for (tw::Int i=0;i<4;i++)
-	{
-		encodingStride[i] = (dim[i]==1 ? 0 : decodingStride[i]);
-		ignorable[i] = (dim[i]==1 ? 1 : 0);
-	}
-
-	globalCorner = gcorner;
-	globalSize = gsize;
-	for (tw::Int i=0;i<4;i++)
-	{
-		spacing[i] = globalSize[i]/gdim[i];
-		freq[i] = 1/spacing[i];
-		size[i] = dim[i]*spacing[i];
-		corner[i] = gcorner[i] + dom[i]*size[i];
 	}
 }
 

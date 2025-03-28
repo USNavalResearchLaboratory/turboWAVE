@@ -228,9 +228,9 @@ void FieldSolver::VerifyInput()
 Electromagnetic::Electromagnetic(const std::string& name,Simulation* sim):FieldSolver(name,sim)
 {
 	if (dk(0) <= sqrt(
-		(sim->globalCells[1]==1 ? 0.0 : 1.0)*sqr(dk(1)) +
-		(sim->globalCells[2]==1 ? 0.0 : 1.0)*sqr(dk(2)) +
-		(sim->globalCells[3]==1 ? 0.0 : 1.0)*sqr(dk(3))))
+		(sim->GlobalDim(1)==1 ? 0.0 : 1.0)*sqr(dk(1)) +
+		(sim->GlobalDim(2)==1 ? 0.0 : 1.0)*sqr(dk(2)) +
+		(sim->GlobalDim(3)==1 ? 0.0 : 1.0)*sqr(dk(3))))
 		throw tw::FatalError("Courant condition is violated " + 
 			std::to_string(dk(0)) + " " + std::to_string(dk(3)));
 
@@ -831,9 +831,9 @@ void DirectSolver::Initialize()
 
 	// Setup PML media
 
-	SetupPML(PMLx,owner->GlobalCellIndex(0,1),owner->globalCells[1],layerThickness[0],layerThickness[1],reflectionCoefficient[0],reflectionCoefficient[1],spacing[1]);
-	SetupPML(PMLy,owner->GlobalCellIndex(0,2),owner->globalCells[2],layerThickness[2],layerThickness[3],reflectionCoefficient[2],reflectionCoefficient[3],spacing[2]);
-	SetupPML(PMLz,owner->GlobalCellIndex(0,3),owner->globalCells[3],layerThickness[4],layerThickness[5],reflectionCoefficient[4],reflectionCoefficient[5],spacing[3]);
+	SetupPML(PMLx,owner->GlobalCellIndex(0,1),owner->GlobalDim(1),layerThickness[0],layerThickness[1],reflectionCoefficient[0],reflectionCoefficient[1],spacing[1]);
+	SetupPML(PMLy,owner->GlobalCellIndex(0,2),owner->GlobalDim(2),layerThickness[2],layerThickness[3],reflectionCoefficient[2],reflectionCoefficient[3],spacing[2]);
+	SetupPML(PMLz,owner->GlobalCellIndex(0,3),owner->GlobalDim(3),layerThickness[4],layerThickness[5],reflectionCoefficient[4],reflectionCoefficient[5],spacing[3]);
 
 	#ifdef USE_OPENCL
 	A.SendToComputeBuffer();
