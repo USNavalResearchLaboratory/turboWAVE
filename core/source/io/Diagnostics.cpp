@@ -91,8 +91,9 @@ export struct PointDiagnostic : TextTableBase
 
 export struct BoxDiagnostic : Diagnostic
 {
-	bool average;
+	bool refined,average;
 	std::vector<std::string> reports;
+	std::vector<std::string> no_reports;
 
 	BoxDiagnostic(const std::string& name,MetricSpace *ms,Task *tsk);
 	virtual void Finish();
@@ -406,11 +407,11 @@ void Diagnostic::ReportNumber(const std::string& label,tw::Float val,bool averag
 tw::Float Diagnostic::VolumeIntegral(const std::string& fieldName,const Field& F,const tw::Int c)
 {
 	tw::Float ans = 0.0;
-	tw::Int x0,x1,y0,y1,z0,z1;
-	theRgn->GetLocalCellBounds(&x0,&x1,&y0,&y1,&z0,&z1);
-	for (tw::Int k=z0;k<=z1;k++)
-		for (tw::Int j=y0;j<=y1;j++)
-			for (tw::Int i=x0;i<=x1;i++)
+	tw::Int loc[6];
+	theRgn->GetLocalCellBounds(loc,*space);
+	for (tw::Int k=loc[4];k<=loc[5];k++)
+		for (tw::Int j=loc[2];j<=loc[3];j++)
+			for (tw::Int i=loc[0];i<=loc[1];i++)
 				if (theRgn->Inside(space->Pos(i,j,k),*space))
 					ans += F(i,j,k,c) * space->dS(i,j,k,0);
 	return ans;
@@ -420,11 +421,11 @@ tw::Float Diagnostic::FirstMoment(const std::string& fieldName,const Field& F,co
 {
 	tw::Float ans = 0.0;
 	const tw::Int ax = tw::grid::naxis(axis);
-	tw::Int x0,x1,y0,y1,z0,z1;
-	theRgn->GetLocalCellBounds(&x0,&x1,&y0,&y1,&z0,&z1);
-	for (tw::Int k=z0;k<=z1;k++)
-		for (tw::Int j=y0;j<=y1;j++)
-			for (tw::Int i=x0;i<=x1;i++)
+	tw::Int loc[6];
+	theRgn->GetLocalCellBounds(loc,*space);
+	for (tw::Int k=loc[4];k<=loc[5];k++)
+		for (tw::Int j=loc[2];j<=loc[3];j++)
+			for (tw::Int i=loc[0];i<=loc[1];i++)
 			{
 				const tw::vec3 pos = space->Pos(i,j,k);
 				if (theRgn->Inside(pos,*space))
@@ -601,22 +602,13 @@ BoxDiagnostic::BoxDiagnostic(const std::string& name,MetricSpace *ms,Task *tsk) 
 	directives.Add("reports",new tw::input::StringList<std::vector<std::string>>(&reports),false);
 }
 
-/// @brief get parameters of diagnostic array, which is global
-/// @param F DiscreteSpace being written out, could be a refined grid
+/// @brief get topology of global diagnostic array
+/// @param F DiscreteSpace being written out
 /// @param pts receives the diagnostic array dimensions
-/// @param glb receives the index bounds of the global data, if a refined grid clipping is disabled
+/// @param glb receives the index bounds of the global data
 void BoxDiagnostic::GetGlobalIndexing(const DiscreteSpace& F,tw::Int pts[4],tw::Int glb[6])
 {
-	if (F.Dim(1)!=space->Dim(1) || F.Dim(2)!=space->Dim(2) || F.Dim(3)!=space->Dim(3)) {
-		glb[0] = 1;
-		glb[1] = F.GlobalDim(1);
-		glb[2] = 1;
-		glb[3] = F.GlobalDim(2);
-		glb[4] = 1;
-		glb[5] = F.GlobalDim(3);
-	} else {
-		theRgn->GetGlobalCellBounds(glb);
-	}
+	theRgn->GetGlobalCellBounds(glb,*space,task);
 
 	for (tw::Int ax=1;ax<=3;ax++)
 	{
@@ -631,7 +623,7 @@ void BoxDiagnostic::GetGlobalIndexing(const DiscreteSpace& F,tw::Int pts[4],tw::
 }
 
 /// @brief called on a domain that is contributing to building the data
-/// @param F DiscreteSpace we are writing, could be a refined grid
+/// @param F DiscreteSpace we are writing
 /// @param pts cells along each dimension
 /// @param glb global index bounds
 /// @param loc receives the local index bounds
@@ -660,6 +652,8 @@ void BoxDiagnostic::GetLocalIndexing(const DiscreteSpace& F,const tw::Int pts[4]
 
 void BoxDiagnostic::ReportField(const std::string& fieldName,const Field& F,const tw::Int c,tw::dims unit,const std::string& pretty)
 {
+	if (std::find(no_reports.begin(),no_reports.end(),fieldName)!=no_reports.end())
+		return;
 	if (reports.size()>0)
 		if (std::find(reports.begin(),reports.end(),fieldName)==reports.end())
 			return;

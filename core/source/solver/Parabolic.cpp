@@ -21,7 +21,7 @@ export struct LaserPropagator:ComputeTool
 
 	LaserPropagator(const std::string& name,MetricSpace *m,Task *tsk);
 	virtual ~LaserPropagator();
-	virtual void SetData(tw::Float w0,tw::Float dt,tw_polarization_type pol,bool mov);
+	virtual void SetData(tw::Float w0,tw::Float dt,tw_polarization_type pol,bool mov,MetricSpace *refined = NULL);
 	void SetBoundaryConditions(ComplexField& a0,ComplexField& a1,ComplexField& chi);
 	virtual void Advance(ComplexField& a0,ComplexField& a1,ComplexField& chi) = 0;
 };
@@ -40,8 +40,7 @@ export struct EigenmodePropagator:LaserPropagator
 
 	EigenmodePropagator(const std::string& name,MetricSpace *m,Task *tsk);
 	virtual ~EigenmodePropagator();
-	virtual void Initialize();
-	virtual void SetData(tw::Float w0,tw::Float dt,tw_polarization_type pol,bool mov);
+	virtual void SetData(tw::Float w0,tw::Float dt,tw_polarization_type pol,bool mov,MetricSpace *refined = NULL);
 	virtual void Advance(ComplexField& a0,ComplexField& a1,ComplexField& chi);
 };
 
@@ -55,6 +54,7 @@ export struct ADIPropagator:LaserPropagator
 
 	ADIPropagator(const std::string& name,MetricSpace *m,Task *tsk);
 	virtual ~ADIPropagator();
+	virtual void SetData(tw::Float w0,tw::Float dt,tw_polarization_type pol,bool mov,MetricSpace *refined = NULL);
 	virtual void Advance(ComplexField& a0,ComplexField& a1,ComplexField& chi);
 };
 
@@ -147,12 +147,15 @@ LaserPropagator::~LaserPropagator()
 {
 }
 
-void LaserPropagator::SetData(tw::Float w0,tw::Float dt,tw_polarization_type pol,bool mov)
+void LaserPropagator::SetData(tw::Float w0,tw::Float dt,tw_polarization_type pol,bool mov,MetricSpace *refined)
 {
 	this->w0 = w0;
 	this->dt = dt;
 	polarization = pol;
 	movingWindow = mov;
+	if (refined != NULL) {
+		space = refined;
+	}
 }
 
 void LaserPropagator::SetBoundaryConditions(ComplexField& a0,ComplexField& a1,ComplexField& chi)
@@ -211,24 +214,19 @@ EigenmodePropagator::~EigenmodePropagator()
 	delete globalIntegrator;
 }
 
-void EigenmodePropagator::Initialize()
+void EigenmodePropagator::SetData(tw::Float w0,tw::Float dt,tw_polarization_type pol,bool mov,MetricSpace *refined)
 {
-	// Computing the matrices requires message passing, cannot go in constructor.
+	LaserPropagator::SetData(w0,dt,pol,mov,refined);
+	if (refined!=NULL) {
+		delete globalIntegrator;
+		globalIntegrator = new GlobalIntegrator<tw::Complex>(&task->strip[3],refined->Dim(1)*refined->Dim(2),refined->Dim(3));
+	}
 	if (space->car!=1.0)
 		ComputeTransformMatrices(fld::dirichletWall,eigenvalue,hankel,inverseHankel,space,task);
 	if (modes > space->GlobalDim(1))
 		throw tw::FatalError("more modes than radial cells");
-}
-
-void EigenmodePropagator::SetData(tw::Float w0,tw::Float dt,tw_polarization_type pol,bool mov)
-{
 	if (space->cyl==1.0 && pol==radialPolarization)
 		throw tw::FatalError("eigenmode propagator incompatible with radial polarization.");
-
-	this->w0 = w0;
-	this->dt = dt;
-	polarization = pol;
-	movingWindow = mov;
 }
 
 void EigenmodePropagator::Advance(ComplexField& a0,ComplexField& a1,ComplexField& chi)
@@ -399,6 +397,22 @@ ADIPropagator::~ADIPropagator()
 		delete xGlobalIntegrator;
 	if (yGlobalIntegrator!=NULL)
 		delete yGlobalIntegrator;
+}
+
+void ADIPropagator::SetData(tw::Float w0,tw::Float dt,tw_polarization_type pol,bool mov,MetricSpace *refined)
+{
+	const tw::Int xDim = space->Dim(1);
+	const tw::Int yDim = space->Dim(2);
+	const tw::Int zDim = space->Dim(3);
+	LaserPropagator::SetData(w0,dt,pol,mov,refined);
+	if (refined != NULL && xGlobalIntegrator != NULL) {
+		delete xGlobalIntegrator;
+		xGlobalIntegrator = new GlobalIntegrator<tw::Complex>(&task->strip[1],yDim*zDim,xDim);
+	}
+	if (refined != NULL && yGlobalIntegrator != NULL) {
+		delete yGlobalIntegrator;
+		yGlobalIntegrator = new GlobalIntegrator<tw::Complex>(&task->strip[2],xDim*zDim,yDim);
+	}
 }
 
 void ADIPropagator::Advance(ComplexField& a0,ComplexField& a1,ComplexField& chi)

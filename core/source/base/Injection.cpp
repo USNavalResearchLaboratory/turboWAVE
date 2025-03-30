@@ -1323,12 +1323,12 @@ tw::vec3 Conductor::PolarizationDensity(const tw::vec3& pos,tw::Float t)
 
 void Conductor::DepositSources(Field& sources,tw::Float t,tw::Float dt)
 {
-	tw::Int x0,x1,y0,y1,z0,z1;
+	tw::Int loc[6];
 	const MetricSpace& m = *space;
-	theRgn->GetLocalCellBounds(&x0,&x1,&y0,&y1,&z0,&z1);
-	for (tw::Int i=x0;i<=x1;i++)
-		for (tw::Int j=y0;j<=y1;j++)
-			for (tw::Int k=z0;k<=z1;k++)
+	theRgn->GetLocalCellBounds(loc,m);
+	for (tw::Int i=loc[0];i<=loc[1];i++)
+		for (tw::Int j=loc[2];j<=loc[3];j++)
+			for (tw::Int k=loc[4];k<=loc[5];k++)
 			{
 				const tw::vec3 pos = m.Pos(i,j,k);
 				if (theRgn->Inside(pos,m))

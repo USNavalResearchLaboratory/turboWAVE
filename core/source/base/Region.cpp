@@ -18,10 +18,6 @@ export struct Region
 	tw::vec3 center;
 	tw::vec3 rbox;
 	tw::basis orientation;
-	tw::Int rawBounds[6];
-	tw::Int localBounds[6];
-	tw::Int globalBounds[6];
-	bool intersectsDomain;
 	bool complement,intersection,moveWithWindow;
 	std::vector<Region*> composite;
 	std::vector<Region*>& masterList;
@@ -46,7 +42,7 @@ export struct Region
 				ans = ans || composite[i]->Inside(p,ds);
 		return complement ^ ans;
 	}
-	virtual void Initialize(const MetricSpace& ds,Task *tsk);
+	virtual void Initialize(const MetricSpace& ds,Task *tsk) {;}
 	virtual void Translate(const tw::vec3& dr)
 	{
 		center += dr;
@@ -56,23 +52,9 @@ export struct Region
 		*low = center[ax-1] - rbox[ax-1];
 		*high = center[ax-1] + rbox[ax-1];
 	}
-	void GetGlobalCellBounds(tw::Int g[6]) const
-	{
-		for (tw::Int i=0;i<6;i++)
-			g[i] = globalBounds[i];
-	}
-	void GetLocalCellBounds(tw::Int *x0,tw::Int *x1,tw::Int *y0,tw::Int *y1,tw::Int *z0,tw::Int *z1) const
-	{
-		*x0 = localBounds[0]; *x1 = localBounds[1];
-		*y0 = localBounds[2]; *y1 = localBounds[3];
-		*z0 = localBounds[4]; *z1 = localBounds[5];
-	}
-	void GetRawCellBounds(tw::Int *x0,tw::Int *x1,tw::Int *y0,tw::Int *y1,tw::Int *z0,tw::Int *z1) const
-	{
-		*x0 = rawBounds[0]; *x1 = rawBounds[1];
-		*y0 = rawBounds[2]; *y1 = rawBounds[3];
-		*z0 = rawBounds[4]; *z1 = rawBounds[5];
-	}
+	void GetRawCellBounds(tw::Int raw[6],const MetricSpace& ms) const;
+	void GetLocalCellBounds(tw::Int loc[6],const MetricSpace& ms) const;
+	void GetGlobalCellBounds(tw::Int glob[6],const MetricSpace& ms,Task *tsk) const;
 
 	static Region* CreateObjectFromString(std::vector<Region*>& ml,const std::string& str);
 	static Region* FindRegion(std::vector<Region*>& ml,const std::string& name);
@@ -299,7 +281,6 @@ Region::Region(std::vector<Region*>& ml) : masterList(ml)
 	rgnType = baseRegion;
 	center = tw::vec3(0.0);
 	rbox = tw::vec3(tw::big_pos);
-	intersectsDomain = true;
 	complement = false;
 	intersection = false;
 	moveWithWindow = true;
@@ -322,67 +303,61 @@ Region::Region(std::vector<Region*>& ml) : masterList(ml)
 	directives.Add("complement",new tw::input::Bool(&complement),false);
 }
 
-void Region::Initialize(const MetricSpace& ds,Task *task)
-{
-	// Initialization is needed to set up index limits
-	// The index limits define a bounding rectangle drawn around the region
-
+/// Set up the index limits such that the region is in cells [xl,xh] * [yl,yh] * [zl,zh] (inclusive)
+void Region::GetRawCellBounds(tw::Int rawBounds[6],const MetricSpace& ms) const {
 	tw::Int dims[3];
 	tw::Float lims[6];
-	tw::Int i,d,low,high;
 	std::vector<tw::Float> temp;
 
-	// Set up the index limits such that the region is in cells [xl,xh] * [yl,yh] * [zl,zh] (inclusive)
-	// std::lower_bound returns first element >= to the test data
-	// if r0.x < xpos[0], xl = 0   ,	if r1.x < xpos[0], xh = -1
-	// if r0.x > xpos[xN1], xl = xN1+1   ,   if r1.x > xpos[xN1], xh = xN1
-
-	for (d=0;d<3;d++)
+	for (auto d=0;d<3;d++)
 	{
-		dims[d] = ds.Dim(d+1);
+		dims[d] = ms.Dim(d+1);
 		lims[2*d] = center[d] - rbox[d];
 		lims[2*d+1] = center[d] + rbox[d];
 	}
 
-	for (d=0;d<3;d++)
+	// std::lower_bound returns first element >= to the test data
+	// if r0.x < xpos[0], xl = 0   ,	if r1.x < xpos[0], xh = -1
+	// if r0.x > xpos[xN1], xl = xN1+1   ,   if r1.x > xpos[xN1], xh = xN1
+	for (auto d=0;d<3;d++)
 	{
 		temp.resize(dims[d]+2);
-		for (i=0;i<=dims[d]+1;i++)
-			temp[i] = ds.X(i,d+1);
+		for (auto i=0;i<=dims[d]+1;i++)
+			temp[i] = ms.X(i,d+1);
 		rawBounds[2*d] = tw::Int(std::lower_bound(temp.begin(),temp.end(),lims[2*d]) - temp.begin());
 		rawBounds[2*d+1] = tw::Int(std::lower_bound(temp.begin(),temp.end(),lims[2*d+1]) - temp.begin())-1;
 	}
+}
 
-	// Bounds checking
-	// localBounds will imply at least one null loop (low>high) in case entire region is outside domain
-	// low values fall in the range [1,dim+2] and high values fall in the range [-1,dim]
-
-	for (d=0;d<3;d++)
-	{
-		localBounds[2*d] = rawBounds[2*d]<1 ? 1 : rawBounds[2*d];
-		localBounds[2*d+1] = rawBounds[2*d+1]>dims[d] ? dims[d] : rawBounds[2*d+1];
-
-		intersectsDomain = intersectsDomain && (localBounds[2*d]<=localBounds[2*d+1]);
+void Region::GetLocalCellBounds(tw::Int loc[6],const MetricSpace& ms) const {
+	tw::Int raw[6];
+	GetRawCellBounds(raw,ms);
+	for (auto d = 0; d<3; d++) {
+		loc[2*d] = raw[2*d] < 1 ? 1 : raw[2*d];
+		loc[2*d+1] = raw[2*d+1] > ms.Dim(d+1) ? ms.Dim(d+1) : raw[2*d+1];
 	}
+}
 
-	// Global bounds
-
-	for (d=0;d<3;d++)
+void Region::GetGlobalCellBounds(tw::Int glob[6],const MetricSpace& ms,Task *tsk) const {
+	tw::Int low,high;
+	tw::Int loc[6];
+	GetLocalCellBounds(loc,ms);
+	for (auto d=0;d<3;d++)
 	{
-		if (localBounds[2*d]>=1 && localBounds[2*d]<=dims[d])
-			low = ds.GlobalCellIndex(localBounds[2*d],d+1);
+		if (loc[2*d]>=1 && loc[2*d]<=ms.Dim(d+1))
+			low = ms.GlobalCellIndex(loc[2*d],d+1);
 		else
-			low = ds.GlobalDim(d+1);
-		globalBounds[2*d] = task->strip[d+1].GetMin(low);
+			low = ms.GlobalDim(d+1);
+		glob[2*d] = tsk->strip[d+1].GetMin(low);
 	}
 
-	for (d=0;d<3;d++)
+	for (auto d=0;d<3;d++)
 	{
-		if (localBounds[2*d+1]>=1 && localBounds[2*d+1]<=dims[d])
-			high = ds.GlobalCellIndex(localBounds[2*d+1],d+1);
+		if (loc[2*d+1]>=1 && loc[2*d+1]<=ms.Dim(d+1))
+			high = ms.GlobalCellIndex(loc[2*d+1],d+1);
 		else
 			high = 1;
-		globalBounds[2*d+1] = task->strip[d+1].GetMax(high);
+		glob[2*d+1] = tsk->strip[d+1].GetMax(high);
 	}
 }
 
@@ -537,10 +512,6 @@ void Region::ReadCheckpoint(std::ifstream& inFile)
 	inFile.read((char *)&center,sizeof(center));
 	inFile.read((char *)&rbox,sizeof(rbox));
 	inFile.read((char *)&orientation,sizeof(orientation));
-	inFile.read((char *)rawBounds,sizeof(rawBounds));
-	inFile.read((char *)localBounds,sizeof(localBounds));
-	inFile.read((char *)globalBounds,sizeof(globalBounds));
-	inFile.read((char *)&intersectsDomain,sizeof(bool));
 	inFile.read((char *)&complement,sizeof(bool));
 	inFile.read((char *)&intersection,sizeof(bool));
 	inFile.read((char *)&moveWithWindow,sizeof(bool));
@@ -552,10 +523,6 @@ void Region::WriteCheckpoint(std::ofstream& outFile)
 	outFile.write((char *)&center,sizeof(center));
 	outFile.write((char *)&rbox,sizeof(rbox));
 	outFile.write((char *)&orientation,sizeof(orientation));
-	outFile.write((char *)rawBounds,sizeof(rawBounds));
-	outFile.write((char *)localBounds,sizeof(localBounds));
-	outFile.write((char *)globalBounds,sizeof(globalBounds));
-	outFile.write((char *)&intersectsDomain,sizeof(bool));
 	outFile.write((char *)&complement,sizeof(bool));
 	outFile.write((char *)&intersection,sizeof(bool));
 	outFile.write((char *)&moveWithWindow,sizeof(bool));

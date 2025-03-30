@@ -25,6 +25,7 @@ export struct LaserSolver:Module
 	ComplexField HRa0,HRa1;
 	ComplexField HRchi;
 	LaserPropagator *propagator;
+	BoxDiagnostic *HRBoxDiagnostic;
 
 	bool debug; // usually used to suppress envelope evolution
 
@@ -100,12 +101,19 @@ void Upsample(ComplexField& hiRes,const ComplexField& loRes,tw::Int mult) {
 		auto hiStrip = hiRange.begin();
 		do {
 			for (auto s=1;s<=hiRes.Dim(3);s++) {
+				// |       x       |
+				// |   x   |   x   |
+				// | x | x | x | x |
 				tw::Int l = tw::Float(s-1)/tw::Float(mult) + 0.5;
-				tw::Int mh = mult/2;
-				tw::Float a = tw::Float(1+mh-s)/tw::Float(mult);
-				tw::Float w = (s <= 1 + mh) ? a : 1 + a;
-				hiRes(*hiStrip,s,0) = w*loRes(*loStrip,l,0) + (1-w)*loRes(*loStrip,l+1,0);
-				hiRes(*hiStrip,s,1) = w*loRes(*loStrip,l,1) + (1-w)*loRes(*loStrip,l+1,1);
+				// mult = 1 -> l = 0,1,...,N-1
+				// mult = 2 -> l = 0,1,1,2,2,...,N/2
+				// mulr = 4 -> l = 0,0,1,1,1,1,2,2,2,2,...,N/4,N/4
+				// following is distance to left-adjacent lo-res node, in units of lo-res spacing
+				tw::Float w = tw::Float(s-0.5)/tw::Float(mult) - tw::Float(l) + 0.5;
+				// mult = 1 -> a = s - l = 1
+				// mult = 2 -> a = s/2-l+1/4 = 3/4,1/4,3/4,1/4,3/4,...
+				hiRes(*hiStrip,s,0) = (1-w)*loRes(*loStrip,l,0) + w*loRes(*loStrip,l+1,0);
+				hiRes(*hiStrip,s,1) = (1-w)*loRes(*loStrip,l,1) + w*loRes(*loStrip,l+1,1);
 			}
 			++loStrip;
 			++hiStrip;
@@ -125,6 +133,7 @@ LaserSolver::LaserSolver(const std::string& name,Simulation* sim):Module(name,si
 	laserFreq = 10.0;
 	polarizationType = linearPolarization;
 	propagator = NULL;
+	HRBoxDiagnostic = NULL;
 	debug = false;
 	hires = 1;
 
@@ -143,6 +152,8 @@ LaserSolver::~LaserSolver()
 {
 	if (propagator!=NULL)
 		owner->RemoveTool(propagator);
+	if (HRBoxDiagnostic!=NULL)
+		owner->RemoveTool(HRBoxDiagnostic);
 }
 
 void LaserSolver::ExchangeResources()
@@ -163,20 +174,24 @@ void LaserSolver::Initialize()
 
 	Module::Initialize();
 
-	tw::Int HRGlobalCells[4];
-	HRGlobalCells[0] = owner->GlobalDim(0); 
-	HRGlobalCells[1] = owner->GlobalDim(1); 
-	HRGlobalCells[2] = owner->GlobalDim(2); 
-	HRGlobalCells[3] = owner->GlobalDim(3)*hires;
-	HRSpace.Resize(owner,HRGlobalCells,owner->GlobalCorner(),owner->GlobalPhysicalSize(),owner->Layers(3),owner->gridGeometry);
-	
+	for (auto tool : moduleTool) {
+		auto diag = dynamic_cast<BoxDiagnostic*>(tool);
+		if (diag!=NULL && diag!=HRBoxDiagnostic) {
+			diag->no_reports.push_back("a_real_raw");
+			diag->no_reports.push_back("a_imag_raw");
+			diag->no_reports.push_back("j1_real_raw");
+			diag->no_reports.push_back("j1_imag_raw");
+			HRBoxDiagnostic->skip[0] = diag->skip[0];
+		}
+	}
+
 	HRa0.Initialize(HRSpace,owner);
 	HRa1.Initialize(HRSpace,owner);
 	HRchi.Initialize(HRSpace,owner);
 
-	propagator->space = &HRSpace;
-	propagator->SetData(laserFreq,dt,polarizationType,owner->movingWindow);
+	propagator->SetData(laserFreq,dt,polarizationType,owner->movingWindow,&HRSpace);
 	propagator->SetBoundaryConditions(HRa0,HRa1,HRchi);
+	propagator->SetBoundaryConditions(a0,a1,chi);
 
 	if (polarizationType==circularPolarization) {
 		polarizationFactor = 1.414;
@@ -240,14 +255,29 @@ void LaserSolver::Reset()
 void LaserSolver::VerifyInput()
 {
 	Module::VerifyInput();
-	for (auto tool : moduleTool)
-	{
+	for (auto tool : moduleTool) {
 		propagator = dynamic_cast<LaserPropagator*>(tool);
 		if (propagator!=NULL)
 			break;
 	}
-	if (propagator==NULL)
+	if (propagator==NULL) {
 		propagator = (LaserPropagator*)owner->CreateTool("default_adi",tw::tool_type::adiPropagator);
+		moduleTool.push_back(propagator);
+	}
+	tw::Int HRGlobalCells[4];
+	HRGlobalCells[0] = owner->GlobalDim(0); 
+	HRGlobalCells[1] = owner->GlobalDim(1); 
+	HRGlobalCells[2] = owner->GlobalDim(2); 
+	HRGlobalCells[3] = owner->GlobalDim(3)*hires;
+	HRSpace.Resize(owner,HRGlobalCells,owner->GlobalCorner(),owner->GlobalPhysicalSize(),owner->Layers(3),owner->gridGeometry);
+	HRBoxDiagnostic = (BoxDiagnostic*)owner->CreateTool("hr_box",tw::tool_type::boxDiagnostic);
+	moduleTool.push_back(HRBoxDiagnostic);
+	HRBoxDiagnostic->filename = "refined";
+	HRBoxDiagnostic->space = &HRSpace;
+	HRBoxDiagnostic->reports.push_back("a_real_raw");
+	HRBoxDiagnostic->reports.push_back("a_imag_raw");
+	HRBoxDiagnostic->reports.push_back("j1_real_raw");
+	HRBoxDiagnostic->reports.push_back("j1_imag_raw");
 }
 
 void LaserSolver::ReadCheckpoint(std::ifstream& inFile)
@@ -498,7 +528,9 @@ void PGCSolver::Report(Diagnostic& diagnostic)
 
 	diagnostic.ReportField("a_real_raw",HRa1,0,tw::dims::vector_potential,"$\\Re A$");
 	diagnostic.ReportField("a_imag_raw",HRa1,1,tw::dims::vector_potential,"$\\Im A$");
+	diagnostic.ReportField("j1_real_raw",HRchi,0,tw::dims::current_density,"$\\Re j$");
+	diagnostic.ReportField("j1_imag_raw",HRchi,1,tw::dims::current_density,"$\\Im j$");
 	diagnostic.ReportField("a2",F,7,tw::dims::none,"$a^2$");
-	diagnostic.ReportField("j_real_pert",chi,0,tw::dims::current_density,"$\\Re j$");
-	diagnostic.ReportField("j_imag_pert",chi,1,tw::dims::current_density,"$\\Im j$");
+	diagnostic.ReportField("chi_real",chi,0,tw::dims::none,"$\\Re \\chi$");
+	diagnostic.ReportField("chi_imag",chi,1,tw::dims::none,"$\\Im \\chi$");
 }
