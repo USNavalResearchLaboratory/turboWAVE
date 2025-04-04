@@ -9,7 +9,7 @@ import input;
 import compute_tool;
 import physics;
 
-namespace sparc
+export namespace sparc
 {
 	enum collisionType { hard_sphere, coulomb, metallic };
 }

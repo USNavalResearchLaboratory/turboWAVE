@@ -46,6 +46,8 @@ export struct Diagnostic : ComputeTool
 	bool headerWritten;
 
 	Diagnostic(const std::string& name,MetricSpace *ms,Task *tsk);
+	/// @brief copy base class parameters except for MetricSpace and filename
+	void CopyParams(const Diagnostic& src);
 	bool WriteThisStep(tw::Float elapsedTime,tw::Float dt,tw::Int stepNow);
 	void StartGridFile(std::ofstream& grid);
 	virtual void Start();
@@ -347,6 +349,18 @@ Diagnostic::Diagnostic(const std::string& name,MetricSpace *ms,Task *tsk) : Comp
 	directives.Add("t1",new tw::input::Float(&t1),false);
 	directives.Add("galilean velocity",new tw::input::Vec3(&vGalileo),false);
 	directives.Add("boosted frame gamma",new tw::input::Float(&gammaBoost),false);
+}
+
+void Diagnostic::CopyParams(const Diagnostic& src) {
+	for (auto i=0;i<4;i++)
+		this->skip[i] = src.skip[i];
+	this->t = src.t;
+	this->tRef = src.tRef;
+	this->t0 = src.t0;
+	this->t1 = src.t1;
+	this->timePeriod = src.timePeriod;
+	this->gammaBoost = src.gammaBoost;
+	this->vGalileo = src.vGalileo;
 }
 
 bool Diagnostic::WriteThisStep(tw::Float elapsedTime,tw::Float dt,tw::Int stepNow)

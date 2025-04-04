@@ -283,8 +283,8 @@ void Kinetics::TransferParticles()
 				// Exchange message sizes
 
 				numToSend = accumulator.size();
-				sendSize =  sizeof(tw::Int)*species.size() + sizeof(TransferParticle)*numToSend;
-				recvSize = 0;
+				sendSize = sizeof(tw::Int)*species.size() + sizeof(TransferParticle)*numToSend;
+				recvSize = sizeof(tw::Int)*species.size();
 				if (odd)
 				{
 					owner->strip[a].Recv(&recvSize,sizeof(tw::Int),src);

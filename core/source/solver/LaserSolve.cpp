@@ -72,6 +72,16 @@ export struct PGCSolver:LaserSolver
 //////////////////////////////
 
 void Downsample(const ComplexField& hiRes,ComplexField& loRes,tw::Int mult) {
+	if (mult==1) {
+		#pragma omp parallel
+		{
+			for (auto cell : EntireCellRange(loRes)) {
+				loRes(cell,0) = hiRes(cell,0);
+				loRes(cell,1) = hiRes(cell,1);
+			}
+		}
+		return;
+	}
 	#pragma omp parallel
 	{
 		StripRange loRange(loRes,3,strongbool::yes);
@@ -80,8 +90,8 @@ void Downsample(const ComplexField& hiRes,ComplexField& loRes,tw::Int mult) {
 		auto hiStrip = hiRange.begin();
 		do {
 			for (auto s=1;s<=loRes.Dim(3);s++) {
-				loRes(*loStrip,s,0) = hiRes(*hiStrip,mult/2 + 1 + (s-1)*mult,0);
-				loRes(*loStrip,s,1) = hiRes(*hiStrip,mult/2 + 1 + (s-1)*mult,1);
+				loRes(*loStrip,s,0) = 0.5*(hiRes(*hiStrip,mult/2 + (s-1)*mult,0) + hiRes(*hiStrip,mult/2 + 1 + (s-1)*mult,0));
+				loRes(*loStrip,s,1) = 0.5*(hiRes(*hiStrip,mult/2 + (s-1)*mult,1) + hiRes(*hiStrip,mult/2 + 1 + (s-1)*mult,1));
 			}
 			++loStrip;
 			++hiStrip;
@@ -107,11 +117,11 @@ void Upsample(ComplexField& hiRes,const ComplexField& loRes,tw::Int mult) {
 				tw::Int l = tw::Float(s-1)/tw::Float(mult) + 0.5;
 				// mult = 1 -> l = 0,1,...,N-1
 				// mult = 2 -> l = 0,1,1,2,2,...,N/2
-				// mulr = 4 -> l = 0,0,1,1,1,1,2,2,2,2,...,N/4,N/4
+				// mult = 4 -> l = 0,0,1,1,1,1,2,2,2,2,...,N/4,N/4
 				// following is distance to left-adjacent lo-res node, in units of lo-res spacing
 				tw::Float w = tw::Float(s-0.5)/tw::Float(mult) - tw::Float(l) + 0.5;
-				// mult = 1 -> a = s - l = 1
-				// mult = 2 -> a = s/2-l+1/4 = 3/4,1/4,3/4,1/4,3/4,...
+				// mult = 1 -> w = s - l = 1
+				// mult = 2 -> w = s/2-l+1/4 = 3/4,1/4,3/4,1/4,3/4,...
 				hiRes(*hiStrip,s,0) = (1-w)*loRes(*loStrip,l,0) + w*loRes(*loStrip,l+1,0);
 				hiRes(*hiStrip,s,1) = (1-w)*loRes(*loStrip,l,1) + w*loRes(*loStrip,l+1,1);
 			}
@@ -181,7 +191,7 @@ void LaserSolver::Initialize()
 			diag->no_reports.push_back("a_imag_raw");
 			diag->no_reports.push_back("j1_real_raw");
 			diag->no_reports.push_back("j1_imag_raw");
-			HRBoxDiagnostic->skip[0] = diag->skip[0];
+			HRBoxDiagnostic->CopyParams(*diag);
 		}
 	}
 
@@ -476,6 +486,14 @@ void PGCSolver::Report(Diagnostic& diagnostic)
 {
 	LaserSolver::Report(diagnostic);
 
+	if (diagnostic.name == "hr_box") {
+		diagnostic.ReportField("a_real_raw",HRa1,0,tw::dims::vector_potential,"$\\Re A$");
+		diagnostic.ReportField("a_imag_raw",HRa1,1,tw::dims::vector_potential,"$\\Im A$");
+		diagnostic.ReportField("j1_real_raw",HRchi,0,tw::dims::current_density,"$\\Re j$");
+		diagnostic.ReportField("j1_imag_raw",HRchi,1,tw::dims::current_density,"$\\Im j$");
+		return;
+	}
+
 	ScalarField temp;
 	temp.Initialize(*this,owner);
 	auto evo = owner->GetEvo();
@@ -526,10 +544,6 @@ void PGCSolver::Report(Diagnostic& diagnostic)
 	}
 	diagnostic.ReportField("e_imag",temp,0,tw::dims::electric_field,"$\\Im E$");
 
-	diagnostic.ReportField("a_real_raw",HRa1,0,tw::dims::vector_potential,"$\\Re A$");
-	diagnostic.ReportField("a_imag_raw",HRa1,1,tw::dims::vector_potential,"$\\Im A$");
-	diagnostic.ReportField("j1_real_raw",HRchi,0,tw::dims::current_density,"$\\Re j$");
-	diagnostic.ReportField("j1_imag_raw",HRchi,1,tw::dims::current_density,"$\\Im j$");
 	diagnostic.ReportField("a2",F,7,tw::dims::none,"$a^2$");
 	diagnostic.ReportField("chi_real",chi,0,tw::dims::none,"$\\Re \\chi$");
 	diagnostic.ReportField("chi_imag",chi,1,tw::dims::none,"$\\Im \\chi$");

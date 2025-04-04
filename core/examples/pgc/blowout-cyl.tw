@@ -116,7 +116,7 @@ generate piecewise 'He'
 
 new energy diagnostic
 {
-	filename = energy
+	filename = 'energy'
 	time period = $diag_step
 }
 
