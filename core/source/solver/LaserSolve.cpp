@@ -15,7 +15,7 @@ using namespace tw::bc;
 export struct LaserSolver:Module
 {
 	tw::Float laserFreq;
-	tw::Int hires;
+	tw::Int resolution;
 	tw_polarization_type polarizationType;
 	ComplexField a0,a1; // vector potential
 	ComplexField chi; // defined by j = chi*a
@@ -90,8 +90,18 @@ void Downsample(const ComplexField& hiRes,ComplexField& loRes,tw::Int mult) {
 		auto hiStrip = hiRange.begin();
 		do {
 			for (auto s=1;s<=loRes.Dim(3);s++) {
-				loRes(*loStrip,s,0) = 0.5*(hiRes(*hiStrip,mult/2 + (s-1)*mult,0) + hiRes(*hiStrip,mult/2 + 1 + (s-1)*mult,0));
-				loRes(*loStrip,s,1) = 0.5*(hiRes(*hiStrip,mult/2 + (s-1)*mult,1) + hiRes(*hiStrip,mult/2 + 1 + (s-1)*mult,1));
+				// |       x       |
+				// |   x   |   x   |
+				// | x | x | x | x |
+				tw::Int l = 1 + (s-1)*mult;
+				loRes(*loStrip,s,0) = 0.0;
+				loRes(*loStrip,s,1) = 0.0;
+				for (auto i=0;i<mult;i++) {
+					loRes(*loStrip,s,0) += hiRes(*hiStrip,l+i,0);
+					loRes(*loStrip,s,1) += hiRes(*hiStrip,l+i,1);
+				}
+				loRes(*loStrip,s,0) /= mult;
+				loRes(*loStrip,s,1) /= mult;
 			}
 			++loStrip;
 			++hiStrip;
@@ -145,7 +155,7 @@ LaserSolver::LaserSolver(const std::string& name,Simulation* sim):Module(name,si
 	propagator = NULL;
 	HRBoxDiagnostic = NULL;
 	debug = false;
-	hires = 1;
+	resolution = 1;
 
 	a0.Initialize(*this,owner);
 	a1.Initialize(*this,owner);
@@ -155,7 +165,7 @@ LaserSolver::LaserSolver(const std::string& name,Simulation* sim):Module(name,si
 	std::map<std::string,tw_polarization_type> pol = {{"linear",linearPolarization},{"circular",circularPolarization},{"radial",radialPolarization}};
 	directives.Add("polarization",new tw::input::Enums<tw_polarization_type>(pol,&polarizationType),false);
 	directives.Add("debug",new tw::input::Bool(&debug),false);
-	directives.Add("resolution",new tw::input::Int(&hires),false);
+	directives.Add("resolution",new tw::input::Int(&resolution),false);
 }
 
 LaserSolver::~LaserSolver()
@@ -221,8 +231,8 @@ void LaserSolver::Initialize()
 		}
 	}
 
-	Downsample(HRa0,a0,hires);
-	Downsample(HRa1,a1,hires);
+	Downsample(HRa0,a0,resolution);
+	Downsample(HRa1,a1,resolution);
 }
 
 tw::vec3 LaserSolver::GetIonizationKick(const tw::Float& a2,const tw::Float& q0,const tw::Float& m0)
@@ -250,10 +260,10 @@ tw::vec3 LaserSolver::GetIonizationKick(const tw::Float& a2,const tw::Float& q0,
 void LaserSolver::Update()
 {
 	if (!debug) {
-		Upsample(HRchi,chi,hires);
+		Upsample(HRchi,chi,resolution);
 		propagator->Advance(HRa0,HRa1,HRchi);
-		Downsample(HRa0,a0,hires);
-		Downsample(HRa1,a1,hires);
+		Downsample(HRa0,a0,resolution);
+		Downsample(HRa1,a1,resolution);
 	}
 }
 
@@ -278,7 +288,7 @@ void LaserSolver::VerifyInput()
 	HRGlobalCells[0] = owner->GlobalDim(0); 
 	HRGlobalCells[1] = owner->GlobalDim(1); 
 	HRGlobalCells[2] = owner->GlobalDim(2); 
-	HRGlobalCells[3] = owner->GlobalDim(3)*hires;
+	HRGlobalCells[3] = owner->GlobalDim(3)*resolution;
 	HRSpace.Resize(owner,HRGlobalCells,owner->GlobalCorner(),owner->GlobalPhysicalSize(),owner->Layers(3),owner->gridGeometry);
 	HRBoxDiagnostic = (BoxDiagnostic*)owner->CreateTool("hr_box",tw::tool_type::boxDiagnostic);
 	moduleTool.push_back(HRBoxDiagnostic);

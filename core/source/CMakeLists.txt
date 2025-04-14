@@ -25,9 +25,9 @@ if(APPLE OR UNIX)
     # set(CMAKE_CXX_FLAGS "-stdlib=libc++")
 endif()
 if(APPLE)
-    # Shocking we still need this in 2025,
-    # but Apple tends to still use `j0` and `j1` for bessel functions,
-    # and fails to provide std::<some special function>.
+    # Shocking we still need this in 2025:
+    # Use if errors are encounted pertaining to `j0`, `j1`, or `std::some_special_function`.
+    # It appears the LLVM libc++ creates this situation.
     add_definitions(-DUSE_TWSF)
 endif()
 
@@ -41,20 +41,6 @@ project(turbowave
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # set(CMAKE_CXX_EXTENSIONS ON)
-
-# Check for AVX2 support and add the appropriate compiler flag
-# include(CheckCXXCompilerFlag)
-# check_cxx_compiler_flag("-mavx2" COMPILER_SUPPORTS_AVX2)
-
-# if(COMPILER_SUPPORTS_AVX2)
-#     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mavx2")
-#     message(STATUS "AVX2 support enabled")
-# elseif(MSVC)
-#     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /arch:AVX2")
-#     message(STATUS "AVX2 support enabled (MSVC)")
-# else()
-#     message(WARNING "AVX2 support not enabled. Compiler flag -mavx2 not supported.")
-# endif()
 
 add_executable(tw3d)
 

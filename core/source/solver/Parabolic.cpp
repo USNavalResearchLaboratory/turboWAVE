@@ -246,7 +246,7 @@ void EigenmodePropagator::Advance(ComplexField& a0,ComplexField& a1,ComplexField
 	if (space->car!=1.0)
 	{
 		for (tw::Int i=1;i<=xDim;i++)
-			localEig[i] = eigenvalue[space->GlobalCellIndex(i,3)-1];
+			localEig[i] = eigenvalue[space->GlobalCellIndex(i,1)-1];
 	}
 
 	// Setup reference chi and explicit current
