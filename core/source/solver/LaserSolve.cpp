@@ -9,6 +9,7 @@ import compute_tool;
 import parabolic;
 import fields;
 import diagnostics;
+import numerics;
 
 using namespace tw::bc;
 
@@ -26,6 +27,7 @@ export struct LaserSolver:Module
 	ComplexField HRchi;
 	LaserPropagator *propagator;
 	BoxDiagnostic *HRBoxDiagnostic;
+	GlobalSpline<tw::Complex> *spliner;
 
 	bool debug; // usually used to suppress envelope evolution
 
@@ -39,6 +41,8 @@ export struct LaserSolver:Module
 	virtual void ReadCheckpoint(std::ifstream& inFile);
 	virtual void WriteCheckpoint(std::ofstream& outFile);
 
+	void Downsample(const ComplexField& hiRes,ComplexField& loRes);
+	void Upsample(ComplexField& hiRes,ComplexField& loRes);
 	virtual void Update();
 	tw::vec3 GetIonizationKick(const tw::Float& a2,const tw::Float& q0,const tw::Float& m0);
 };
@@ -71,79 +75,6 @@ export struct PGCSolver:LaserSolver
 //                          //
 //////////////////////////////
 
-void Downsample(const ComplexField& hiRes,ComplexField& loRes,tw::Int mult) {
-	if (mult==1) {
-		#pragma omp parallel
-		{
-			for (auto cell : EntireCellRange(loRes)) {
-				loRes(cell,0) = hiRes(cell,0);
-				loRes(cell,1) = hiRes(cell,1);
-			}
-		}
-		return;
-	}
-	#pragma omp parallel
-	{
-		StripRange loRange(loRes,3,strongbool::yes);
-		StripRange hiRange(hiRes,3,strongbool::yes);
-		auto loStrip = loRange.begin();
-		auto hiStrip = hiRange.begin();
-		do {
-			for (auto s=1;s<=loRes.Dim(3);s++) {
-				// |       x       |
-				// |   x   |   x   |
-				// | x | x | x | x |
-				tw::Int l = 1 + (s-1)*mult;
-				loRes(*loStrip,s,0) = 0.0;
-				loRes(*loStrip,s,1) = 0.0;
-				for (auto i=0;i<mult;i++) {
-					loRes(*loStrip,s,0) += hiRes(*hiStrip,l+i,0);
-					loRes(*loStrip,s,1) += hiRes(*hiStrip,l+i,1);
-				}
-				loRes(*loStrip,s,0) /= mult;
-				loRes(*loStrip,s,1) /= mult;
-			}
-			++loStrip;
-			++hiStrip;
-		} while (loStrip!=loRange.end() && hiStrip!=hiRange.end());
-	}
-	loRes.DownwardCopy(tw::grid::z,Element(0,1),1);
-	loRes.UpwardCopy(tw::grid::z,Element(0,1),1);
-	loRes.ApplyBoundaryCondition(Element(0,1));
-}
-
-void Upsample(ComplexField& hiRes,const ComplexField& loRes,tw::Int mult) {
-	#pragma omp parallel
-	{
-		StripRange loRange(loRes,3,strongbool::yes);
-		StripRange hiRange(hiRes,3,strongbool::yes);
-		auto loStrip = loRange.begin();
-		auto hiStrip = hiRange.begin();
-		do {
-			for (auto s=1;s<=hiRes.Dim(3);s++) {
-				// |       x       |
-				// |   x   |   x   |
-				// | x | x | x | x |
-				tw::Int l = tw::Float(s-1)/tw::Float(mult) + 0.5;
-				// mult = 1 -> l = 0,1,...,N-1
-				// mult = 2 -> l = 0,1,1,2,2,...,N/2
-				// mult = 4 -> l = 0,0,1,1,1,1,2,2,2,2,...,N/4,N/4
-				// following is distance to left-adjacent lo-res node, in units of lo-res spacing
-				tw::Float w = tw::Float(s-0.5)/tw::Float(mult) - tw::Float(l) + 0.5;
-				// mult = 1 -> w = s - l = 1
-				// mult = 2 -> w = s/2-l+1/4 = 3/4,1/4,3/4,1/4,3/4,...
-				hiRes(*hiStrip,s,0) = (1-w)*loRes(*loStrip,l,0) + w*loRes(*loStrip,l+1,0);
-				hiRes(*hiStrip,s,1) = (1-w)*loRes(*loStrip,l,1) + w*loRes(*loStrip,l+1,1);
-			}
-			++loStrip;
-			++hiStrip;
-		} while (loStrip!=loRange.end() && hiStrip!=hiRange.end());
-	}
-	hiRes.DownwardCopy(tw::grid::z,Element(0,1),1);
-	hiRes.UpwardCopy(tw::grid::z,Element(0,1),1);
-	hiRes.ApplyBoundaryCondition(Element(0,1));
-}
-
 LaserSolver::LaserSolver(const std::string& name,Simulation* sim):Module(name,sim)
 {
 	if (native.native!=tw::units::plasma)
@@ -161,6 +92,8 @@ LaserSolver::LaserSolver(const std::string& name,Simulation* sim):Module(name,si
 	a1.Initialize(*this,owner);
 	chi.Initialize(*this,owner);
 
+	spliner = new GlobalSpline<tw::Complex>(&sim->strip[3],Num(1)*Num(2),Dim(3));
+
 	directives.Add("carrier frequency",new tw::input::Float(&laserFreq));
 	std::map<std::string,tw_polarization_type> pol = {{"linear",linearPolarization},{"circular",circularPolarization},{"radial",radialPolarization}};
 	directives.Add("polarization",new tw::input::Enums<tw_polarization_type>(pol,&polarizationType),false);
@@ -174,6 +107,7 @@ LaserSolver::~LaserSolver()
 		owner->RemoveTool(propagator);
 	if (HRBoxDiagnostic!=NULL)
 		owner->RemoveTool(HRBoxDiagnostic);
+	delete spliner;
 }
 
 void LaserSolver::ExchangeResources()
@@ -231,8 +165,8 @@ void LaserSolver::Initialize()
 		}
 	}
 
-	Downsample(HRa0,a0,resolution);
-	Downsample(HRa1,a1,resolution);
+	Downsample(HRa0,a0);
+	Downsample(HRa1,a1);
 }
 
 tw::vec3 LaserSolver::GetIonizationKick(const tw::Float& a2,const tw::Float& q0,const tw::Float& m0)
@@ -257,13 +191,83 @@ tw::vec3 LaserSolver::GetIonizationKick(const tw::Float& a2,const tw::Float& q0,
 	return ans;
 }
 
+void LaserSolver::Downsample(const ComplexField& hiRes,ComplexField& loRes) {
+	if (resolution==1) {
+		#pragma omp parallel
+		{
+			for (auto cell : EntireCellRange(loRes)) {
+				loRes(cell,0) = hiRes(cell,0);
+				loRes(cell,1) = hiRes(cell,1);
+			}
+		}
+		return;
+	}
+	#pragma omp parallel
+	{
+		StripRange loRange(loRes,3,strongbool::yes);
+		StripRange hiRange(hiRes,3,strongbool::yes);
+		auto loStrip = loRange.begin();
+		auto hiStrip = hiRange.begin();
+		do {
+			for (auto s=1;s<=loRes.Dim(3);s++) {
+				// |       x       |
+				// |   x   |   x   |
+				// | x | x | x | x |
+				tw::Int l = 1 + (s-1)*resolution;
+				loRes(*loStrip,s,0) = 0.0;
+				loRes(*loStrip,s,1) = 0.0;
+				for (auto i=0;i<resolution;i++) {
+					loRes(*loStrip,s,0) += hiRes(*hiStrip,l+i,0);
+					loRes(*loStrip,s,1) += hiRes(*hiStrip,l+i,1);
+				}
+				loRes(*loStrip,s,0) /= resolution;
+				loRes(*loStrip,s,1) /= resolution;
+			}
+			++loStrip;
+			++hiStrip;
+		} while (loStrip!=loRange.end() && hiStrip!=hiRange.end());
+	}
+	loRes.DownwardCopy(tw::grid::z,Element(0,1),1);
+	loRes.UpwardCopy(tw::grid::z,Element(0,1),1);
+	loRes.ApplyBoundaryCondition(Element(0,1));
+}
+
+void LaserSolver::Upsample(ComplexField& hiRes,ComplexField& loRes) {
+	#pragma omp parallel
+	{
+		StripRange rng(loRes,3,strongbool::yes);
+		for (auto it=rng.begin(); it!=rng.end(); ++it) {
+			spliner->SetStrip(it.global_count(),&loRes(*it,0),loRes.Stride(3)/2);
+		}
+	}
+	spliner->Solve();
+	#pragma omp parallel
+	{
+		StripRange loRange(loRes,3,strongbool::yes);
+		StripRange hiRange(hiRes,3,strongbool::yes);
+		auto loStrip = loRange.begin();
+		auto hiStrip = hiRange.begin();
+		do {
+			for (auto i=1;i<=hiRes.Dim(3);i++) {
+				tw::Float x = 0.5 + tw::Float(i-0.5)/resolution;
+				hiRes(*hiStrip,i) = spliner->Interpolate(x,loStrip.global_count(),&loRes(*loStrip,0),loRes.Stride(3)/2);
+			}
+			++loStrip;
+			++hiStrip;
+		} while (loStrip!=loRange.end() && hiStrip!=hiRange.end());
+	}
+	hiRes.DownwardCopy(tw::grid::z,Element(0,1),1);
+	hiRes.UpwardCopy(tw::grid::z,Element(0,1),1);
+	hiRes.ApplyBoundaryCondition(Element(0,1));
+}
+
 void LaserSolver::Update()
 {
 	if (!debug) {
-		Upsample(HRchi,chi,resolution);
+		Upsample(HRchi,chi);
 		propagator->Advance(HRa0,HRa1,HRchi);
-		Downsample(HRa0,a0,resolution);
-		Downsample(HRa1,a1,resolution);
+		Downsample(HRa0,a0);
+		Downsample(HRa1,a1);
 	}
 }
 

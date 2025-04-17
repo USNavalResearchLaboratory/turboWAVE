@@ -6,33 +6,17 @@ export module numerics;
 import discrete_space;
 import metric_space;
 
-export template <class T>
-class GlobalIntegrator
-{
-	// the domains and systems are indexed from 0
-	// the data is expected to include ghost cells, so the number of pts per "row" is N+2
-
-	tw::comm* strip;
-	tw::Int N, systems;
-	std::valarray<T> v, w;
-	std::valarray<T*> theData;
-	std::valarray<tw::Int> stride; // units of T (beware of passing strides from Field objects)
-
-public:
-	GlobalIntegrator(tw::comm* strip, tw::Int systems, tw::Int cells);
-	void SetData(tw::Int system, T* theData, tw::Int stride);
-	void SetMatrix(tw::Int system, T a, T b, T c, T theta, T eta);
-	void SetMatrix(tw::Int system, T a, std::valarray<T>& b, T c, T theta, T eta);
-	void SetMatrix(tw::Int system, std::valarray<T>& a, std::valarray<T>& b, std::valarray<T>& c);
-	void Parallelize();
-};
-
+/// @brief invert A * phi = rho, rows of A are (b,c,0,...)(a,b,c,0,...)(0,a,b,c,0,...)...(0,...,a,b,c)(0,...,a,b)
+/// @tparam T type of the elements of the source and solution vectors
+/// @tparam U type of the coefficients
+/// @param phi solution vector
+/// @param rho source vector
+/// @param a lower subdiagonal
+/// @param b diagonal
+/// @param c upper subdiagonal
 export template <class T, class U>
 void TriDiagonal(std::valarray<T>& phi, std::valarray<T>& rho, U a, U b, U c)
 {
-	// invert A * phi = rho
-	// The rows of A are (b,c,0,...)(a,b,c,0,...)(0,a,b,c,0,...)...(0,...,a,b,c)(0,...,a,b)
-
 	tw::Int n = phi.size();
 	std::valarray<U> gam(n);
 
@@ -57,12 +41,17 @@ void TriDiagonal(std::valarray<T>& phi, std::valarray<T>& rho, U a, U b, U c)
 		phi[i] -= gam[i + 1] * phi[i + 1];
 }
 
+/// @brief invert A * phi = rho, rows of A are (b,c,0,...)(a,b,c,0,...)(0,a,b,c,0,...)...(0,...,a,b,c)(0,...,a,b)
+/// @tparam T type of the elements of the source and solution vectors
+/// @tparam U type of the coefficients
+/// @param phi solution vector
+/// @param rho source vector
+/// @param a lower subdiagonal
+/// @param b diagonal
+/// @param c upper subdiagonal
 export template <class T, class U>
 void TriDiagonal(std::valarray<T>& phi, std::valarray<T>& rho, U a, std::valarray<U>& b, U c)
 {
-	// invert A * phi = rho
-	// The rows of A are (b[0],c,0,...)(a,b[1],c,0,...)(0,a,b[2],c,0,...)...(0,...,a,b[N-2],c)(0,...,a,b[N-1])
-
 	tw::Int n = phi.size();
 	std::valarray<U> gam(n);
 
@@ -87,12 +76,17 @@ void TriDiagonal(std::valarray<T>& phi, std::valarray<T>& rho, U a, std::valarra
 		phi[i] -= gam[i + 1] * phi[i + 1];
 }
 
+/// @brief invert A * phi = rho, rows of A are (b,c,0,...)(a,b,c,0,...)(0,a,b,c,0,...)...(0,...,a,b,c)(0,...,a,b)
+/// @tparam T type of the elements of the source and solution vectors
+/// @tparam U type of the coefficients
+/// @param phi solution vector
+/// @param rho source vector
+/// @param a lower subdiagonal
+/// @param b diagonal
+/// @param c upper subdiagonal
 export template <class T, class U>
 void TriDiagonal(std::valarray<T>& phi, std::valarray<T>& rho, std::valarray<U>& a, std::valarray<U>& b, std::valarray<U>& c)
 {
-	// invert A * phi = rho
-	// The rows of A are (b[0],c[0],0,...)(a[1],b[1],c[1],0,...)(0,a,b,c,0,...)...(0,...,a,b,c)(0,...,a,b)
-
 	tw::Int n = phi.size();
 	std::valarray<U> gam(n);
 
@@ -117,12 +111,33 @@ void TriDiagonal(std::valarray<T>& phi, std::valarray<T>& rho, std::valarray<U>&
 		phi[i] -= gam[i + 1] * phi[i + 1];
 }
 
+/// @brief This solves a tridiagonal system accounting for domain decomposition both along and across the solution vector
+/// @tparam T the type of the elements of the solution vector
+export template <class T>
+class GlobalIntegrator
+{
+	tw::comm* strip;
+	tw::Int N, systems;
+	std::valarray<T> v, w;
+	std::valarray<T*> theData;
+	std::valarray<tw::Int> stride; // units of T (beware of passing strides from Field objects)
 
-/////////////////////////
-//                     //
-//  GLOBAL INTEGRATOR  //
-//                     //
-/////////////////////////
+public:
+	/// @brief create an object that inverts tridiagonals no matter the decomposition
+	/// @param strip the communicator for the strip, usually task->strip[axis], where axis = 1, 2, or 3
+	/// @param systems how many strips are being solved
+	/// @param cells how many cells per strip, not including ghost cells
+	GlobalIntegrator(tw::comm* strip, tw::Int systems, tw::Int cells);
+	/// @brief set the data for the given system
+	/// @param system index of the system being solved starting at zero, a system is typically one of the strips being solved
+	/// @param theData pointer to the first element of data (the near ghost cell) in this system
+	/// @param stride stride in units of T, n.b. `Field` strides are in units of tw::Float, `DiscreteSpace` strides are in units of cells
+	void SetData(tw::Int system, T* theData, tw::Int stride);
+	void SetMatrix(tw::Int system, T a, T b, T c, T theta, T eta);
+	void SetMatrix(tw::Int system, T a, std::valarray<T>& b, T c, T theta, T eta);
+	void SetMatrix(tw::Int system, std::valarray<T>& a, std::valarray<T>& b, std::valarray<T>& c);
+	void Parallelize();
+};
 
 template <class T>
 GlobalIntegrator<T>::GlobalIntegrator(tw::comm* strip, tw::Int systems, tw::Int cells)
@@ -141,9 +156,6 @@ GlobalIntegrator<T>::GlobalIntegrator(tw::comm* strip, tw::Int systems, tw::Int 
 template <class T>
 void GlobalIntegrator<T>::SetData(tw::Int system, T* row, tw::Int stride)
 {
-	// N.b. the stride is in units of T
-	// When calling from TW beware of Field strides in units of tw::Float
-	// and DiscreteSpace strides in units of cells
 	this->theData[system] = row;
 	this->stride[system] = stride;
 }
@@ -884,5 +896,95 @@ export void ComputeTransformMatrices(tw::bc::fld radial_bc,std::valarray<tw::Flo
 			fwd[j*dim+i] *= Lambda[i];
 			rev[j*dim+i] *= Lambda[i];
 		}
+}
+
+/// @brief Parallel cubic spline, serial part is from Stoer and Burlisch
+/// @tparam T type we are splining
+export template <class T>
+class GlobalSpline {
+	tw::Int dim;
+	tw::comm *strip_comm;
+	std::valarray<T> moments;
+	GlobalIntegrator<T> *gintegrator;
+public:
+	GlobalSpline(tw::comm* strip_comm, tw::Int strips, tw::Int cells);
+	~GlobalSpline();
+	/// @brief thread safe function to setup one strip
+	/// @param ax axis of the strip
+	/// @param strip index of the strip
+	/// @param theData pointer to near ghost cell of the strip's data
+	/// @param stride stride of the strip's data
+	void SetStrip(tw::Int strip, T* theData, tw::Int stride);
+	void Solve();
+	/// @brief get value of the spline at a point
+	/// @param strip index of the strip
+	/// @param x fractional point, interpoint spacing is always normalized
+	/// @param theData pointer to near ghost cell of the strip's data
+	/// @param stride stride of the strip's data
+	/// @return interpolated value
+	T Interpolate(tw::Float x,tw::Int strip,T* theData,tw::Int stride);
+};
+
+template <class T>
+GlobalSpline<T>::GlobalSpline(tw::comm* strip_comm, tw::Int strips, tw::Int cells) {
+	this->strip_comm = strip_comm;
+	dim = cells;
+	gintegrator = new GlobalIntegrator<T>(strip_comm,strips,cells);
+	moments.resize(strips*(cells+2));
+}
+
+template <class T>
+GlobalSpline<T>::~GlobalSpline() {
+	delete gintegrator;
+}
+
+template <class T>
+void GlobalSpline<T>::SetStrip(tw::Int strip, T* theData, tw::Int stride) {
+	std::valarray<T> phi(dim);
+	std::valarray<T> rho(dim);
+	std::valarray<T> a(dim);
+	std::valarray<T> b(dim);
+	std::valarray<T> c(dim);
+
+	for (auto i = 1; i <= dim; i++) {
+		rho[i-1] = tw::Float(3)*(theData[stride*(i-1)] - two*theData[stride*i] + theData[stride*(i+1)]);
+		a[i-1] = 0.5;
+		b[i-1] = 2.0;
+		c[i-1] = 0.5;
+	}
+
+	tw::Int n0,n1;
+	strip_comm->Shift(1,1,&n0,&n1);
+	if (n0==MPI_PROC_NULL) {
+		c[0] = 0.0;
+		rho[0] = 0.0;
+	}
+	if (n1==MPI_PROC_NULL) {
+		a[dim-1] = 0.0;
+		rho[dim-1] = 0.0;
+	}
+
+	TriDiagonal<T,T>(phi,rho,a,b,c);
+	for (auto i = 1; i <= dim; i++) {
+		moments[(dim+2)*strip + i] = phi[i-1];
+	}
+	gintegrator->SetData(strip,&moments[strip*(dim+2)],1);
+	gintegrator->SetMatrix(strip,a,b,c);
+}
+
+template <class T>
+void GlobalSpline<T>::Solve() {
+	gintegrator->Parallelize();
+}
+
+template <class T>
+T GlobalSpline<T>::Interpolate(tw::Float x,tw::Int strip,T* theData,tw::Int stride) {
+	tw::Int i = x;
+	tw::Float w = x - i;
+	T m1 = moments[(dim+2)*strip + i];
+	T m2 = moments[(dim+2)*strip + i + 1];
+	T y1 = theData[stride*i];
+	T y2 = theData[stride*(i+1)];
+	return y1 + w*(y2-y1-(two*m1+m2)/tw::Float(6)) + half*w*w*m1 + w*w*w*(m2-m1)/tw::Float(6);
 }
 
