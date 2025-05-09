@@ -44,7 +44,7 @@ new grid
 
 new klein gordon module 'tdkge'
 {
-	soft core potential , charge = 6.398259757531933 , radius = 0.637284237839
+	soft core potential charge = 6.398259757531933 , radius = 0.637284237839
 
 	new qstate tabulated
 	{

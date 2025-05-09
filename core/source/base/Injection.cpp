@@ -398,6 +398,8 @@ bool Profile::ReadInputFileDirective(const TSTreeCursor *curs0,const std::string
 	if (!tw::input::next_named_node(&curs,true))
 		return false;
 	std::string outer = tw::input::node_kind(&curs);
+	if (outer == "comment")
+		return false;
 	if (outer != "assignment")
 		throw tw::FatalError("Expected assignment, got " + outer + ", at " + tw::input::loc_str(curs0));
 	ts_tree_cursor_goto_first_child(&curs);

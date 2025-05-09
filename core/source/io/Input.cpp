@@ -45,6 +45,7 @@ export namespace tw
 		tw::Float GetUnitDensityCGS(TSTree *tree,const std::string& src);
 		tw::units GetNativeUnits(TSTree *tree,const std::string& src);
 		Preamble GetPreamble(TSTreeCursor *curs,const std::string& src);
+		void BuildSimilar(std::string& messg,const std::string& wrong,const std::string& valid);
 		std::string PythonRange(TSTreeCursor *curs,const std::string& src,tw::Float *v0,tw::Float *v1);
 	}
 }
@@ -205,6 +206,7 @@ tw::units tw::input::GetNativeUnits(TSTree *tree,const std::string& src) {
 						throw tw::FatalError("expected identifier for native units");
 					}
 				}
+				ts_tree_cursor_goto_parent(&curs);
 			}
 		} while (ts_tree_cursor_goto_next_sibling(&curs));
 		ts_tree_cursor_delete(&curs);
@@ -244,6 +246,7 @@ std::string tw::input::PythonRange(TSTreeCursor *curs,const std::string& src,tw:
 /// @param src source document
 /// @return the preamble data, cursor is left on the block node
 tw::input::Preamble tw::input::GetPreamble(TSTreeCursor *curs,const std::string& src) {
+	bool found_string = false;
 	tw::input::Preamble ans;
 	std::string root = tw::input::node_kind(curs);
 	ts_tree_cursor_goto_first_child(curs);
@@ -252,6 +255,7 @@ tw::input::Preamble tw::input::GetPreamble(TSTreeCursor *curs,const std::string&
 	ans.owner_name = "";
 	ts_tree_cursor_goto_next_sibling(curs);
 	if (tw::input::node_kind(curs) == "string_literal") {
+		found_string = true;
 		ans.obj_name = node_text(curs,src);
 		ts_tree_cursor_goto_next_sibling(curs);
 	}
@@ -262,6 +266,10 @@ tw::input::Preamble tw::input::GetPreamble(TSTreeCursor *curs,const std::string&
 		ts_tree_cursor_goto_next_sibling(curs);
 		ans.owner_name = node_text(curs,src);
 	} else if (root == "generate") {
+		if (!found_string) {
+			ts_tree_cursor_goto_previous_sibling(curs);
+			ThrowParsingError(curs, src, "bad generate, is the name quoted?");
+		}
 		ans.attaching = true;
 		ans.owner_name = ans.obj_name;
 		ans.obj_name = ans.obj_key;
@@ -275,4 +283,32 @@ tw::input::Preamble tw::input::GetPreamble(TSTreeCursor *curs,const std::string&
 	tw::input::StripQuotes(ans.obj_name);
 	tw::input::StripQuotes(ans.owner_name);
 	return ans;
+}
+
+/// @brief build a message to display with valid keys that are similar to an erroneous one
+/// @param messg a message string that will be appended after each call
+/// @param wrong a string that failed to match
+/// @param valid one of the valid strings we are looking for
+void tw::input::BuildSimilar(std::string& messg,const std::string& wrong,const std::string& valid) {
+	// levenshtein distance (this is an AI program)
+    const size_t len1 = wrong.size(), len2 = valid.size();
+    std::vector<std::vector<int>> d(len1 + 1, std::vector<int>(len2 + 1));
+
+    for (size_t i = 0; i <= len1; ++i) d[i][0] = i;
+    for (size_t i = 0; i <= len2; ++i) d[0][i] = i;
+
+    for (size_t i = 1; i <= len1; ++i) {
+        for (size_t j = 1; j <= len2; ++j) {
+            int cost = (wrong[i - 1] == valid[j - 1]) ? 0 : 1;
+            d[i][j] = std::min({d[i - 1][j] + 1,          // deletion
+                               d[i][j - 1] + 1,          // insertion
+                               d[i - 1][j - 1] + cost}); // substitution
+        }
+    }
+	// d[len1][len2] contains the number of edits needed to transform
+	// one string into the other
+    if (d[len1][len2] < std::abs(int(len1-len2))+1) {
+		messg += valid;
+		messg += ", ";
+	}
 }

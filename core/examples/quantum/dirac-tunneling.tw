@@ -44,7 +44,7 @@ new grid
 
 new dirac equation module 'tdde'
 {
-	soft core potential , charge = 6.752670903274535 , radius = 0.637284237839
+	soft core potential charge = 6.752670903274535 , radius = 0.637284237839
 
 	new qstate tabulated
 	{

@@ -91,29 +91,29 @@ public:
 	tw::Float CylindricalRadius(const tw::vec3& r) const;
 	tw::Float SphericalRadius(const tw::vec3& r) const;
 
+	/// 3x3 Kronecker delta function
 	tw::Int kdelta(const tw::Int& ax1,const tw::Int& ax2) const
 	{
-		// 3x3 Kronecker delta function
 		return I3x3[ax1-1][ax2-1];
 	}
+	/// position in parameter space
 	tw::Float X(const tw::Int& i,const tw::Int& ax) const
 	{
-		// position in parameter space
 		return gpos[mnum[0]*ax-mlb[ax]+i];
 	}
+	/// cell size in parameter space (not an arc length)
 	tw::Float dX(const tw::Int& i,const tw::Int& ax) const
 	{
-		// cell size in parameter space (not an arc length)
 		return width[mnum[0]*ax-mlb[ax]+i];
 	}
+	/// position in parameter space
 	tw::Float& X(const tw::Int& i,const tw::Int& ax)
 	{
-		// position in parameter space
 		return gpos[mnum[0]*ax-mlb[ax]+i];
 	}
+	/// cell size in parameter space (not an arc length)
 	tw::Float& dX(const tw::Int& i,const tw::Int& ax)
 	{
-		// cell size in parameter space (not an arc length)
 		return width[mnum[0]*ax-mlb[ax]+i];
 	}
 	tw::vec3 Pos(const tw::Int& x,const tw::Int& y,const tw::Int& z) const
@@ -148,9 +148,9 @@ public:
 	{
 		return dPos(v.dcd1(k),v.dcd2(k),k);
 	}
+	/// returns wall area for ax = axis normal to wall.  ax = 0 returns cell volume.
 	tw::Float dS(const tw::Int& x,const tw::Int& y,const tw::Int& z,const tw::Int& ax) const
 	{
-		// returns wall area for ax = axis normal to wall.  ax = 0 returns cell volume.
 		return cell_area_x[ax*mnum[1] - mlb[1] + x] * cell_area_z[ax*mnum[3] - mlb[3] + z];
 	}
 	tw::Float dS(const tw::cell& cell,const tw::Int& ax) const
@@ -169,9 +169,9 @@ public:
 	{
 		return dS(v.dcd1(k),v.dcd2(k),k,ax);
 	}
+	/// returns arc length from cell center to cell center, along axis=ax, from low side
 	tw::Float dl(const tw::Int& x,const tw::Int& y,const tw::Int& z,const tw::Int& ax) const
 	{
-		// returns arc length from cell center to cell center, along axis=ax, from low side
 		return cell_arc_x[(ax-1)*mnum[1] - mlb[1] + x] * cell_arc_z[(ax-1)*mnum[3] - mlb[3] + z];
 	}
 	tw::Float dl(const tw::cell& cell,const tw::Int& ax) const
@@ -186,9 +186,9 @@ public:
 	{
 		return dl(v.dcd1(k),v.dcd2(k),k,ax);
 	}
+	/// returns midplane area for ax = axis normal to area.  ax = 0 returns cell volume.
 	tw::Float dSh(const tw::Int& x,const tw::Int& y,const tw::Int& z,const tw::Int& ax) const
 	{
-		// returns wall area for ax = axis normal to wall.  ax = 0 returns cell volume.
 		return dS(x,y,z,ax+4);
 	}
 	tw::Float dSh(const tw::cell& cell,const tw::Int& ax) const
@@ -199,9 +199,9 @@ public:
 	{
 		return dS(v,k,ax+4);
 	}
+	/// returns arc length from cell wall to cell wall, along axis=ax, along low side edge
 	tw::Float dlh(const tw::Int& x,const tw::Int& y,const tw::Int& z,const tw::Int& ax) const
 	{
-		// returns arc length from cell wall to cell wall, along axis=ax, along low side edge
 		return dl(x,y,z,ax+3);
 	}
 	tw::Float dlh(const tw::cell& cell,const tw::Int& ax) const
@@ -212,9 +212,9 @@ public:
 	{
 		return dl(v,k,ax+3);
 	}
+	/// returns arc length between 2 cell centers adjacent to this cell center, along axis=ax
 	tw::Float dL(const tw::Int& x,const tw::Int& y,const tw::Int& z,const tw::Int& ax) const
 	{
-		// returns arc length between 2 cell centers adjacent to this cell center, along axis=ax
 		return dl(x,y,z,ax) + dl(x+kdelta(1,ax),y,z+kdelta(3,ax),ax);
 	}
 	tw::Float dL(const tw::cell& cell,const tw::Int& ax) const

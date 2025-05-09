@@ -172,8 +172,12 @@ tw::input::navigation Simulation::visit(TSTreeCursor *curs) {
 			if (preamble.obj_key=="grid" || preamble.obj_key=="warp")
 				return tw::input::navigation::gotoParentSibling;
 
-			// Install a pre or post declared tool
 			tw::tool_type whichTool = ComputeTool::CreateTypeFromInput(preamble);
+			tw::module_type whichModule = Module::CreateTypeFromInput(preamble);
+			if (whichModule!=tw::module_type::none && whichTool!=tw::tool_type::none)
+				tw::input::ThrowParsingError(curs,src,"key claimed by both Module and Tool, this is a bug in the code.");
+
+			// Install a pre or post declared tool
 			if (whichTool!=tw::tool_type::none) {
 				if (preamble.attaching) {
 					ComputeTool *tool = CreateTool(preamble.obj_name,whichTool);
@@ -193,7 +197,6 @@ tw::input::navigation Simulation::visit(TSTreeCursor *curs) {
 			}
 
 			// Module Installation
-			tw::module_type whichModule = Module::CreateTypeFromInput(preamble);
 			if (whichModule!=tw::module_type::none) {
 				if (Module::SingularType(whichModule))
 					if (module_map.find(whichModule)!=module_map.end())

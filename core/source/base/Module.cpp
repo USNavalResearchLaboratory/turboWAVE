@@ -463,9 +463,9 @@ std::map<std::string,tw::module_type> Module::Map()
 {
 	return
 	{
-		{"direct",tw::module_type::directSolver},
-		{"curvilinear direct",tw::module_type::curvilinearDirectSolver},
-		{"coulomb",tw::module_type::coulombSolver},
+		{"maxwell",tw::module_type::directSolver},
+		{"curvilinear maxwell",tw::module_type::curvilinearDirectSolver},
+		{"coulomb gauge",tw::module_type::coulombSolver},
 		{"far field diagnostic",tw::module_type::farFieldDiagnostic},
 		{"electrostatic",tw::module_type::electrostatic},
 		{"quasistatic",tw::module_type::qsLaser},
@@ -473,7 +473,7 @@ std::map<std::string,tw::module_type> Module::Map()
 		{"bound",tw::module_type::boundElectrons},
 		{"schroedinger",tw::module_type::schroedinger},
 		{"pauli",tw::module_type::pauli},
-		{"klein",tw::module_type::kleinGordon},
+		{"klein gordon",tw::module_type::kleinGordon},
 		{"dirac",tw::module_type::dirac},
 		{"fluid",tw::module_type::fluidFields},
 		{"hydrodynamics",tw::module_type::sparcHydroManager},
@@ -485,27 +485,33 @@ std::map<std::string,tw::module_type> Module::Map()
 	};
 }
 
-/// @brief weak matching of the input file key (legacy compatibility)
+/// @brief match input file key after normalizing white space
 /// @param preamble data extracted while parsing object
-/// @return the corresponding module_type enumeration
+/// @return the corresponding module_type enumeration, may return tw::module_type::none
 tw::module_type Module::CreateTypeFromInput(const tw::input::Preamble& preamble)
 {
-	// strategy is to lop off trailing words until we get a match
 	std::map<std::string,tw::module_type> module_map = Module::Map();
-	std::string key_now = preamble.obj_key;
-	while (true) {
-		if (module_map.find(key_now)!=module_map.end()) {
-			return module_map[key_now];
-		} else {
-			auto p = key_now.rfind(' ');
-			if (p != std::string::npos) {
-				key_now = key_now.substr(0,p);
-			} else {
-				break;
-			}
+	std::stringstream raw_key(preamble.obj_key);
+	std::string normalized,word;
+	do {
+		raw_key >> word;
+		if (!normalized.empty()) {
+			normalized += " ";
 		}
+		normalized += word;
+	} while (!raw_key.eof());
+	if (module_map.find(normalized)!=module_map.end()) {
+		return module_map[normalized];
+	} else {
+		std::string messg;
+		for (const auto& pair : module_map) {
+			tw::input::BuildSimilar(messg,normalized,pair.first);
+		}
+		if (messg.size() > 0) {
+			std::println(std::cout,"{}INFO{}: <{}> is similar to {}",term::cyan,term::reset_all,normalized,messg);
+		}
+		return tw::module_type::none;
 	}
-	return tw::module_type::none;
 }
 
 bool Module::SetTestGrid(tw::module_type theType,tw::Int gridId,Simulation *sim)

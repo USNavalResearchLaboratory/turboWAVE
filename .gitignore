@@ -13,6 +13,7 @@ core/source/out
 *.log
 .ipynb_checkpoints
 __pycache__
+.cache
 tw3d
 tw3d.exe
 docs/_build/

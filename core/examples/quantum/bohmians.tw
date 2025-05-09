@@ -26,9 +26,9 @@ new grid
 	geometry = cylindrical
 }
 
-new schroedinger equation module 'tdse'
+new schroedinger 'tdse'
 {
-	soft core potential , charge = 1.0 , radius = 0.04
+	soft core potential charge = 1.0 , radius = 0.04
 	// bound states : -0.494 , -0.125
 	relaxation time = 20.0
 	new qstate random 'random_state'
@@ -78,12 +78,12 @@ new plane wave for 'tdse'
 	phase = 0
 }
 
-new species test
+new species 'test'
 {
 	particles per cell = (4 4 1) when density = 1
 }
 
-generate gaussian test
+generate gaussian 'test'
 {
 	density = 1.0
 	size = (1.0 1.0 1.0)

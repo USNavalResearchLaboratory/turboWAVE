@@ -9,16 +9,6 @@ export import tw_iterator;
 import numerics;
 import fft;
 
-// Field is a DiscreteSpace with data assigned to the cells, and operations on the data.
-// The data is some fixed number of floating point values per cell.
-// The storage pattern is variable, and can be specified by designating a packed axis.
-// The topology (dimensions, ghost cells) is inherited from the DiscreteSpace passed to the constructor.
-// It is possible to mix Fields with varying ghost cell layers, but it is MUCH SAFER
-// to keep the ghost cell layers the same for all Field instances in a calculation.
-
-// Note the Field does not inherit from MetricSpace.  The intention is to have only a single
-// instance of MetricSpace active at any time (mainly to avoid replicating the metric data)
-
 export template <class T>
 struct Matrix
 {
@@ -137,6 +127,10 @@ export struct Element
 	}
 };
 
+/// The Slice contains a copy of a subset of Field data, including its location in the Field.
+/// Slice objects can be sent between nodes by passing the return values of `Buffer` and `BufferSize`
+/// to various Send and Receive functions  The Field object has functions for moving data
+/// to and from a Slice.
 export template <class T>
 struct Slice
 {
@@ -148,8 +142,8 @@ private:
 	std::valarray<T> data;
 public:
 	Slice() { ; }
-	Slice(const Element& e, tw::Int xl, tw::Int xh, tw::Int yl, tw::Int yh, tw::Int zl, tw::Int zh);
-	Slice(const Element& e, tw::Int low[4], tw::Int high[4], tw::Int ignorable[4]);
+	Slice(const Element& e, tw::Int xl, tw::Int xh, tw::Int yl, tw::Int yh, tw::Int zl, tw::Int zh,bool zero=false);
+	Slice(const Element& e, tw::Int low[4], tw::Int high[4], tw::Int ignorable[4],bool zero=false);
 	void Resize(const Element& e, tw::Int low[4], tw::Int high[4], tw::Int ignorable[4]);
 	T* Buffer()
 	{
@@ -192,6 +186,15 @@ public:
 	}
 };
 
+/// Field is a DiscreteSpace with data assigned to the cells, and operations on the data.
+/// The data is some fixed number of floating point values per cell.
+/// The storage pattern is variable, and can be specified by designating a packed axis.
+/// The topology (dimensions, ghost cells) is inherited from the DiscreteSpace passed to the constructor.
+/// It is possible to mix Fields with varying ghost cell layers, but it is MUCH SAFER
+/// to keep the ghost cell layers the same for all Field instances in a calculation.
+///
+/// Note the Field does not inherit from MetricSpace.  The intention is to have only a single
+/// instance of MetricSpace active at any time (mainly to avoid replicating the metric data)
 export struct Field: DiscreteSpace
 {
 protected:
@@ -432,15 +435,15 @@ public:
 		return tw::vec3((*this)(strip, s, c), (*this)(strip, s, c + 1), (*this)(strip, s, c + 2));
 	}
 	template <class T>
-	void LoadDataIntoImage(Slice<T>* volume);
+	void LoadDataIntoSlice(Slice<T>* volume);
 	template <class T>
-	void SaveDataFromImage(Slice<T>* volume);
+	void SaveDataFromSlice(Slice<T>* volume);
 	template <class T>
 	void ZeroDataInField(Slice<T>* volume);
 	template <class T>
-	void AddDataFromImage(Slice<T>* volume);
+	void AddDataFromSlice(Slice<T>* volume);
 	template <class T>
-	void AddDataFromImageAtomic(Slice<T>* volume);
+	void AddDataFromSliceAtomic(Slice<T>* volume);
 
 	// Boundaries, messages, smoothing
 
@@ -1213,18 +1216,22 @@ export struct Vec3Field :AutoField<tw::vec3>
 ////////////////////
 
 template <class T>
-Slice<T>::Slice(const Element& e, tw::Int xl, tw::Int xh, tw::Int yl, tw::Int yh, tw::Int zl, tw::Int zh)
+Slice<T>::Slice(const Element& e, tw::Int xl, tw::Int xh, tw::Int yl, tw::Int yh, tw::Int zl, tw::Int zh,bool zero)
 {
 	tw::Int low[4] = { 0 , xl , yl , zl };
 	tw::Int high[4] = { 0 , xh , yh , zh };
 	tw::Int ignorable[4] = { 0 , 0 , 0 , 0 };
 	Resize(e, low, high, ignorable);
+	if (zero)
+		data = 0.0;
 }
 
 template <class T>
-Slice<T>::Slice(const Element& e, tw::Int low[4], tw::Int high[4], tw::Int ignorable[4])
+Slice<T>::Slice(const Element& e, tw::Int low[4], tw::Int high[4], tw::Int ignorable[4],bool zero)
 {
 	Resize(e, low, high, ignorable);
+	if (zero)
+		data = 0.0;
 }
 
 template <class T>
@@ -1271,7 +1278,7 @@ void Slice<T>::Translate(tw::Int x, tw::Int y, tw::Int z)
 }
 
 template <class T>
-void Field::LoadDataIntoImage(Slice<T>* v)
+void Field::LoadDataIntoSlice(Slice<T>* v)
 {
 	tw::Int i, j, k, s;
 	for (s = v->e.low; s <= v->e.high; s++)
@@ -1282,7 +1289,7 @@ void Field::LoadDataIntoImage(Slice<T>* v)
 }
 
 template <class T>
-void Field::SaveDataFromImage(Slice<T>* v)
+void Field::SaveDataFromSlice(Slice<T>* v)
 {
 	tw::Int i, j, k, s;
 	for (s = v->e.low; s <= v->e.high; s++)
@@ -1304,7 +1311,7 @@ void Field::ZeroDataInField(Slice<T>* v)
 }
 
 template <class T>
-void Field::AddDataFromImage(Slice<T>* v)
+void Field::AddDataFromSlice(Slice<T>* v)
 {
 	tw::Int i, j, k, s;
 	for (s = v->e.low; s <= v->e.high; s++)
@@ -1315,7 +1322,7 @@ void Field::AddDataFromImage(Slice<T>* v)
 }
 
 template <class T>
-void Field::AddDataFromImageAtomic(Slice<T>* v)
+void Field::AddDataFromSliceAtomic(Slice<T>* v)
 {
 	tw::Int i, j, k, s;
 	for (s = v->e.low; s <= v->e.high; s++)
@@ -1512,6 +1519,11 @@ Field::~Field()
 	#endif
 }
 
+/// @brief initialize the field, must call this before using
+/// @param components number of floats to arrange along axis 0
+/// @param ds discrete space to use for this Field, data is copied
+/// @param task pointer to the concurrent task with this Field's domain
+/// @param axis use this as the packed axis, only affects storage pattern
 void Field::Initialize(tw::Int components,const DiscreteSpace& ds,Task *task,const tw::grid::axis& axis)
 {
 	DiscreteSpace::operator=(ds);
@@ -1974,7 +1986,7 @@ void Field::StripCopyProtocol(tw::Int axis,tw::Int shift,Slice<tw::Float> *plane
 	odd = task->strip[axis].Get_rank() % 2;
 
 	if (dst!=MPI_PROC_NULL)
-		LoadDataIntoImage<tw::Float>(planeOut);
+		LoadDataIntoSlice<tw::Float>(planeOut);
 
 	if (odd)
 	{
@@ -1990,9 +2002,9 @@ void Field::StripCopyProtocol(tw::Int axis,tw::Int shift,Slice<tw::Float> *plane
 	if (src!=MPI_PROC_NULL)
 	{
 		if (add)
-			AddDataFromImage<tw::Float>(planeIn);
+			AddDataFromSlice<tw::Float>(planeIn);
 		else
-			SaveDataFromImage<tw::Float>(planeIn);
+			SaveDataFromSlice<tw::Float>(planeIn);
 	}
 }
 
@@ -2149,23 +2161,23 @@ Slice<tw::Float>* Field::FormTransposeBlock(const Element& e,const tw::grid::axi
 	return ans;
 }
 
+
+/// We have in mind a matrix whose rows consist of NODES arranged along axis1,
+/// and whose columns consist of BLOCKS arranged along axis2.
+/// In this picture, the global image of the data does not change.
+/// Instead, the nodes are lined up along a new axis.
+/// We choose the blocks so that #blocks <= #nodes.
+/// 'target' is an externally owned field that will receive the transposed data
+/// This routine resizes target when the forward transpose is invoked.
+/// Upon reverse transposing, the same target should be passed in.
+/// 'inversion' is 1 if forward transpose, -1 if reverse transpose
+///
+/// Ghost cell policy:
+/// We send the ghost cells in the directions perp. to 'axis1'
+/// The ghost cells are not sent in the direction parallel to 'axis1'
+/// However, the ghost cells are sent in all directions if inversion=-1
 void Field::Transpose(const Element& e,const tw::grid::axis& axis1,const tw::grid::axis& axis2,Field *target,tw::Int inversion)
 {
-	// We have in mind a matrix whose rows are the NODES arranged along axis1,
-	// and whose columns are BLOCKS arranged along axis2.
-	// In this picture, the global image of the data does not change.
-	// Instead, the nodes are lined up along a new axis.
-	// We choose the blocks so that #blocks <= #nodes.
-	// 'target' is an externally owned field that will receive the transposed data
-	// This routine resizes target when the forward transpose is invoked.
-	// Upon reverse transposing, the same target should be passed in.
-	// 'inversion' is 1 if forward transpose, -1 if reverse transpose
-
-	// Ghost cell policy:
-	// We send the ghost cells in the directions perp. to 'axis1'
-	// The ghost cells are not sent in the direction parallel to 'axis1'
-	// However, the ghost cells are sent in all directions if inversion=-1
-
 	tw::Int dN0,dN1;
 	Slice<tw::Float>* block;
 
@@ -2227,17 +2239,17 @@ void Field::Transpose(const Element& e,const tw::grid::axis& axis1,const tw::gri
 		{
 	    block->Translate(axis1,j*dim[ax1]);
 	    block->Translate(axis2,-offset[j]);
-	    target->LoadDataIntoImage<tw::Float>(block);
+	    target->LoadDataIntoSlice<tw::Float>(block);
 	    block->Translate(axis1,-j*dim[ax1]);
 	    block->Translate(axis2,offset[j]);
-	    SaveDataFromImage<tw::Float>(block);
+	    SaveDataFromSlice<tw::Float>(block);
 		}
 		else
 		{
-	    LoadDataIntoImage<tw::Float>(block);
+	    LoadDataIntoSlice<tw::Float>(block);
 	    block->Translate(axis1,j*dim[ax1]);
 	    block->Translate(axis2,-offset[j]);
-	    target->SaveDataFromImage<tw::Float>(block);
+	    target->SaveDataFromSlice<tw::Float>(block);
 		}
 		delete block;
 	}
@@ -2260,11 +2272,11 @@ void Field::Transpose(const Element& e,const tw::grid::axis& axis1,const tw::gri
 							if (inversion==-1)
 							{
 								task->strip[ax1].Recv(block->Buffer(),block->BufferSize(),l+s);
-								SaveDataFromImage<tw::Float>(block);
+								SaveDataFromSlice<tw::Float>(block);
 							}
 							else
 							{
-								LoadDataIntoImage<tw::Float>(block);
+								LoadDataIntoSlice<tw::Float>(block);
 								task->strip[ax1].Send(block->Buffer(),block->BufferSize(),l+s);
 							}
 							delete block;
@@ -2278,13 +2290,13 @@ void Field::Transpose(const Element& e,const tw::grid::axis& axis1,const tw::gri
 							block->Translate(axis2,-offset[thisNode]);
 							if (inversion==-1)
 							{
-								target->LoadDataIntoImage<tw::Float>(block);
+								target->LoadDataIntoSlice<tw::Float>(block);
 								task->strip[ax1].Send(block->Buffer(),block->BufferSize(),l+s);
 							}
 							else
 							{
 								task->strip[ax1].Recv(block->Buffer(),block->BufferSize(),l+s);
-								target->SaveDataFromImage<tw::Float>(block);
+								target->SaveDataFromSlice<tw::Float>(block);
 							}
 							delete block;
 						}
@@ -2299,13 +2311,13 @@ void Field::Transpose(const Element& e,const tw::grid::axis& axis1,const tw::gri
 							block->Translate(axis2,-offset[thisNode]);
 							if (inversion==-1)
 							{
-								target->LoadDataIntoImage<tw::Float>(block);
+								target->LoadDataIntoSlice<tw::Float>(block);
 								task->strip[ax1].Send(block->Buffer(),block->BufferSize(),l+s+i);
 							}
 							else
 							{
 								task->strip[ax1].Recv(block->Buffer(),block->BufferSize(),l+s+i);
-								target->SaveDataFromImage<tw::Float>(block);
+								target->SaveDataFromSlice<tw::Float>(block);
 							}
 							delete block;
 						}
@@ -2317,11 +2329,11 @@ void Field::Transpose(const Element& e,const tw::grid::axis& axis1,const tw::gri
 							if (inversion==-1)
 							{
 								task->strip[ax1].Recv(block->Buffer(),block->BufferSize(),l+s+i);
-								SaveDataFromImage<tw::Float>(block);
+								SaveDataFromSlice<tw::Float>(block);
 							}
 							else
 							{
-								LoadDataIntoImage<tw::Float>(block);
+								LoadDataIntoSlice<tw::Float>(block);
 								task->strip[ax1].Send(block->Buffer(),block->BufferSize(),l+s+i);
 							}
 							delete block;

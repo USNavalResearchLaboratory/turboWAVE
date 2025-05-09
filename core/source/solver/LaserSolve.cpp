@@ -183,7 +183,9 @@ tw::vec3 LaserSolver::GetIonizationKick(const tw::Float& a2,const tw::Float& q0,
 	}
 	else
 	{
-		// for linear polarization, assume phase is at zero of vector potential (peak of field)
+		// For linear polarization, assume phase is at zero of vector potential (peak of field).
+		// Expression for pz is valid even for a>1, only caveat is this assumes the electron is
+		// seeing plane wave fields during its first time level of freedom.
 		ans.x = 0.0;
 		ans.y = 0.0;
 		ans.z = 0.25*q0*q0*a2/m0;

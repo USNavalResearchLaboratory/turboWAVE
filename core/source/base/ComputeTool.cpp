@@ -273,22 +273,28 @@ std::map<std::string,tw::tool_type> ComputeTool::Map()
 /// @return the corresponding tool_type enumeration
 tw::tool_type ComputeTool::CreateTypeFromInput(const tw::input::Preamble& preamble)
 {
-	// strategy is to lop off trailing words until we get a match
 	std::map<std::string,tw::tool_type> tool_map = ComputeTool::Map();
-	std::string key_now = preamble.obj_key;
-	while (true) {
-		if (tool_map.find(key_now)!=tool_map.end()) {
-			return tool_map[key_now];
-		} else {
-			auto p = key_now.rfind(' ');
-			if (p != std::string::npos) {
-				key_now = key_now.substr(0,p);
-			} else {
-				break;
-			}
+	std::stringstream raw_key(preamble.obj_key);
+	std::string normalized,word;
+	do {
+		raw_key >> word;
+		if (!normalized.empty()) {
+			normalized += " ";
 		}
+		normalized += word;
+	} while (!raw_key.eof());
+	if (tool_map.find(normalized)!=tool_map.end()) {
+		return tool_map[normalized];
+	} else {
+		std::string messg;
+		for (const auto& pair : tool_map) {
+			tw::input::BuildSimilar(messg,normalized,pair.first);
+		}
+		if (messg.size() > 0) {
+			std::println(std::cout,"{}INFO{}: <{}> is similar to {}",term::cyan,term::reset_all,normalized,messg);
+		}
+		return tw::tool_type::none;
 	}
-	return tw::tool_type::none;
 }
 
 bool ComputeTool::SetTestGrid(tw::tool_type theType,tw::Int gridId,MetricSpace *ms,Task *tsk)

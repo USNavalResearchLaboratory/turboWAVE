@@ -15,9 +15,9 @@ void PGCMover::Advance()
 void BundleMoverPGC2D::LoadFieldSlice(tw::Int low[4],tw::Int high[4],tw::Int ignorable[4])
 {
 	Fx.Resize(Element(0,5),low,high,ignorable);
-	mov.EM->LoadDataIntoImage<float>(&Fx);
+	mov.EM->LoadDataIntoSlice<float>(&Fx);
 	lasx.Resize(Element(0,7),low,high,ignorable);
-	mov.laser->LoadDataIntoImage<float>(&lasx);
+	mov.laser->LoadDataIntoSlice<float>(&lasx);
 }
 
 void BundleMoverPGC2D::InitSourceSlice(tw::Int low[4],tw::Int high[4],tw::Int ignorable[4])
@@ -31,11 +31,11 @@ void BundleMoverPGC2D::InitSourceSlice(tw::Int low[4],tw::Int high[4],tw::Int ig
 void BundleMoverPGC2D::DepositSourceSlice(bool needsAtomic)
 {
 	if (needsAtomic) {
-		mov.sources->AddDataFromImageAtomic<float>(&Jx);
-		mov.chi->AddDataFromImageAtomic<float>(&chix);
+		mov.sources->AddDataFromSliceAtomic<float>(&Jx);
+		mov.chi->AddDataFromSliceAtomic<float>(&chix);
 	} else {
-		mov.sources->AddDataFromImage<float>(&Jx);
-		mov.chi->AddDataFromImage<float>(&chix);
+		mov.sources->AddDataFromSlice<float>(&Jx);
+		mov.chi->AddDataFromSlice<float>(&chix);
 	}
 }
 
@@ -63,9 +63,9 @@ void BundleMoverPGC2D::Move(tw::Float dts)
 void BundleMoverPGC3D::LoadFieldSlice(tw::Int low[4],tw::Int high[4],tw::Int ignorable[4])
 {
 	Fx.Resize(Element(0,5),low,high,ignorable);
-	mov.EM->LoadDataIntoImage<float>(&Fx);
+	mov.EM->LoadDataIntoSlice<float>(&Fx);
 	lasx.Resize(Element(0,7),low,high,ignorable);
-	mov.laser->LoadDataIntoImage<float>(&lasx);
+	mov.laser->LoadDataIntoSlice<float>(&lasx);
 }
 
 void BundleMoverPGC3D::InitSourceSlice(tw::Int low[4],tw::Int high[4],tw::Int ignorable[4])
@@ -79,11 +79,11 @@ void BundleMoverPGC3D::InitSourceSlice(tw::Int low[4],tw::Int high[4],tw::Int ig
 void BundleMoverPGC3D::DepositSourceSlice(bool needsAtomic)
 {
 	if (needsAtomic) {
-		mov.sources->AddDataFromImageAtomic<float>(&Jx);
-		mov.chi->AddDataFromImageAtomic<float>(&chix);
+		mov.sources->AddDataFromSliceAtomic<float>(&Jx);
+		mov.chi->AddDataFromSliceAtomic<float>(&chix);
 	} else {
-		mov.sources->AddDataFromImage<float>(&Jx);
-		mov.chi->AddDataFromImage<float>(&chix);
+		mov.sources->AddDataFromSlice<float>(&Jx);
+		mov.chi->AddDataFromSlice<float>(&chix);
 	}
 }
 

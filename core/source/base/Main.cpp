@@ -1,4 +1,6 @@
+#include "mpi.h"
 #include "tw_includes.h"
+#include <thread>
 import base;
 import twmodule;
 
@@ -44,13 +46,12 @@ struct Arg
 /// Particulars are defined in the constructor and `Evaluate`.
 class CommandHandler
 {
-	bool tw_mpi;
 	std::map<std::string,Arg> arg_map; // searchable
 	std::vector<Arg> option_vec; // listable
 	std::vector<std::string> cmd_line;
 	std::vector<std::string>::iterator cmd_iter;
 	public:
-	CommandHandler(int argc,char *argv[],bool tw_mpi);
+	CommandHandler(int argc,char *argv[]);
 	void AddSomething(const std::string& sflag,const std::string& lflag,const std::string& lab,const std::string& help,int n)
 	{
 		auto arg = Arg(sflag,lflag,lab,help,n);
@@ -79,7 +80,6 @@ class CommandHandler
 	void Usage();
 	bool Next(Arg& arg);
 	void Evaluate(const Arg& arg,
-		int& mpi_procs,
 		int& omp_threads,
 		std::string& ipath,
 		std::string& rpath,
@@ -90,18 +90,13 @@ class CommandHandler
 		tw::Int& outputLevel);
 };
 
-CommandHandler::CommandHandler(int argc,char *argv[],bool tw_mpi)
+CommandHandler::CommandHandler(int argc,char *argv[])
 {
-	this->tw_mpi = tw_mpi;
 	for (int i=0;i<argc;i++)
 		cmd_line.push_back(argv[i]);
 	cmd_iter = cmd_line.begin();
-	if (tw_mpi)
-	{
-		AddOption("-n","","<threads>","number of MPI threads to start");
-		AddFlag("","--no-interactive","suppress the interactive thread");
-	}
-	AddOption("-c","","<threads>","number of OpenMP threads per MPI thread");
+	AddFlag("","--interactive","MPI rank 0 will spawn an interactive thread");
+	AddOption("-c","","<threads>","number of OpenMP threads per MPI process");
 	AddOption("-i","--input-file","<path>","path to the input file");
 	AddFlag("-v","--version","display the version number (can be only argument)");
 	AddFlag("-h","--help","display this message (can be only argument)");
@@ -115,16 +110,9 @@ CommandHandler::CommandHandler(int argc,char *argv[],bool tw_mpi)
 void CommandHandler::Usage()
 {
 	std::cout << "turboWAVE, https://turbowave.readthedocs.io" << std::endl;
-	if (tw_mpi)
-	{
-		std::cout << "Usage: tw3d [optional arguments...]" << std::endl;
-	}
-	else
-	{
-		std::cout << "Usage: <launcher> -np <procs> tw3d [optional arguments...]" << std::endl;
-		std::cout << "  <launcher> : MPI launcher such as mpirun, mpiexec, etc.." << std::endl;
-		std::cout << "  -np <procs> : Launch <procs> MPI processes (flag may vary with launcher program)." << std::endl;
-	}
+	std::cout << "Usage: <launcher> -np <procs> tw3d [optional arguments...]" << std::endl;
+	std::cout << "  <launcher> : MPI launcher such as mpirun, mpiexec, etc.." << std::endl;
+	std::cout << "  -np <procs> : Launch <procs> MPI processes (flag may vary with launcher program)." << std::endl;
 	std::string line;
 	size_t tab1=0,tab2=0;
 	// set tab stops
@@ -188,7 +176,6 @@ bool CommandHandler::Next(Arg& arg)
 }
 
 void CommandHandler::Evaluate(const Arg& arg,
-	int& mpi_procs,
 	int& omp_threads,
 	std::string& ipath,
 	std::string& rpath,
@@ -209,12 +196,6 @@ void CommandHandler::Evaluate(const Arg& arg,
 		Usage();
 		if (cmd_line.size()==2)
 			exit(0);
-	}
-	if (arg=="-n")
-	{
-		mpi_procs = std::stoi(arg.values[0]);
-		if (mpi_procs<1)
-			throw tw::FatalError("Number of MPI threads < 1");
 	}
 	if (arg=="-c")
 	{
@@ -237,8 +218,8 @@ void CommandHandler::Evaluate(const Arg& arg,
 			unitTest += val + " ";
 		unitTest.pop_back();
 	}
-	if (arg=="--no-interactive")
-		interactive = false;
+	if (arg=="--interactive")
+		interactive = true;
 	if (arg=="--output-level")
 	{
 		outputLevel = std::stoi(arg.values[0]);
@@ -248,12 +229,33 @@ void CommandHandler::Evaluate(const Arg& arg,
 }
 
 /////////////////////////
+// INTERACTIVE THREAD  //
+/////////////////////////
+
+void start_interactive(Simulation *tw)
+{
+	std::println(std::cout,"interactive thread is running (type help)");
+	std::flush(std::cout);
+	std::string cmd;
+	auto running = [&] {
+		return tw->stepNow <= tw->Dim(0) && tw->elapsedTime < tw->elapsedTimeMax;
+	};
+	do {
+		std::getline(std::cin,cmd);
+		if (running())
+			tw->InteractiveCommand(cmd,&std::cout);
+	} while (running());
+}
+
+/////////////////////////
 // PROGRAM ENTRY POINT //
 /////////////////////////
 
 int main(int argc,char *argv[])
 {
+	std::thread ithread;
 	tw::Int failure_count = 0;
+	bool interactive = false;
 	int numOMPThreads=1;
 	tw::Int outputLevel = 0, errorCheckingLevel = 0;
 	std::string initMessage,arg,inputFileName("stdin"),restartFileName("tw::none"),platform("cuda"),device("tesla"),unitTest("tw::none");
@@ -262,12 +264,10 @@ int main(int argc,char *argv[])
 
 	try
 	{
-		int dummyProcs;
-		bool dummyInteractive;
 		Arg arg;
-		auto cli = CommandHandler(argc,argv,false);
+		auto cli = CommandHandler(argc,argv);
 		while (cli.Next(arg))
-			cli.Evaluate(arg,dummyProcs,numOMPThreads,inputFileName,restartFileName,platform,device,unitTest,dummyInteractive,outputLevel);
+			cli.Evaluate(arg,numOMPThreads,inputFileName,restartFileName,platform,device,unitTest,interactive,outputLevel);
 
 	}
 	catch (tw::FatalError& e)
@@ -278,6 +278,11 @@ int main(int argc,char *argv[])
 
 	Simulation *tw = new Simulation(unitTest,inputFileName,restartFileName,platform,device,outputLevel,errorCheckingLevel);
 	omp_set_num_threads(numOMPThreads);
+	int rank;
+	MPI_Comm_rank(MPI_COMM_WORLD,&rank);
+	if (interactive && rank==0) {
+		ithread = std::thread(start_interactive,tw);
+	}
 
 	if (tw->unitTest=="tw::none") {
 		tw->Run();
@@ -286,6 +291,11 @@ int main(int argc,char *argv[])
 		failure_count = tw->failure_count;
 	}
 
+	std::flush(std::cout);
+	if (interactive && rank==0) {
+		ithread.join();
+	}
+	
 	delete tw; // since this might call MPI release functions, has to precede MPI_Finalize()
 
 	MPI_Finalize();

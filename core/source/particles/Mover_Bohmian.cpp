@@ -15,7 +15,7 @@ void BohmianMover::Advance()
 void BundleMoverBohmian2D::LoadFieldSlice(tw::Int low[4],tw::Int high[4],tw::Int ignorable[4])
 {
 	Jx.Resize(Element(0,3),low,high,ignorable);
-	mov.qo_j4->LoadDataIntoImage<float>(&Jx);
+	mov.qo_j4->LoadDataIntoSlice<float>(&Jx);
 }
 
 void BundleMoverBohmian2D::InitSourceSlice(tw::Int low[4],tw::Int high[4],tw::Int ignorable[4])
@@ -41,7 +41,7 @@ void BundleMoverBohmian2D::Move(tw::Float dts)
 void BundleMoverBohmian3D::LoadFieldSlice(tw::Int low[4],tw::Int high[4],tw::Int ignorable[4])
 {
 	Jx.Resize(Element(0,3),low,high,ignorable);
-	mov.qo_j4->LoadDataIntoImage<float>(&Jx);
+	mov.qo_j4->LoadDataIntoSlice<float>(&Jx);
 }
 
 void BundleMoverBohmian3D::InitSourceSlice(tw::Int low[4],tw::Int high[4],tw::Int ignorable[4])

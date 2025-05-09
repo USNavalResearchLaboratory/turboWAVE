@@ -1,6 +1,7 @@
 module;
 
 #include "tw_includes.h"
+#include <memory>
 
 export module parabolic;
 import input;
@@ -44,22 +45,20 @@ export struct EigenmodePropagator:LaserPropagator
 	virtual void Advance(ComplexField& a0,ComplexField& a1,ComplexField& chi);
 };
 
+/// Take a~ = (a/2)exp(i(kx-wt)) + cc and solve (delperp^2 + 2iw0Dt + 2Dzt)a = -chi*a.
+/// The 2Dzt term uses a second order forward difference [W. Zhu et al., Phys. Plasmas 19, 033105 (2012)].
+/// This is designed to work for either Cartesian or axisymmetric coordinates.
 export struct ADIPropagator:LaserPropagator
 {
-	GlobalIntegrator<tw::Complex>* xGlobalIntegrator;
-	GlobalIntegrator<tw::Complex>* yGlobalIntegrator;
-	std::valarray<tw::Complex> X1,X2,X3;
-	std::valarray<tw::Complex> Y1,Y2,Y3;
+	std::unique_ptr<GlobalIntegrator<tw::Complex>> globalIntegrator[4];
+	ComplexField aNow;
 	bool evenTime;
 
 	ADIPropagator(const std::string& name,MetricSpace *m,Task *tsk);
 	virtual ~ADIPropagator();
 	virtual void SetData(tw::Float w0,tw::Float dt,tw_polarization_type pol,bool mov,MetricSpace *refined = NULL);
+	virtual void AdvanceAxis(tw::Int ax,ComplexField& a0,ComplexField& a1,ComplexField& chi);
 	virtual void Advance(ComplexField& a0,ComplexField& a1,ComplexField& chi);
-};
-
-struct ConservativePropagator:LaserPropagator
-{
 };
 
 export struct SchroedingerPropagator:ComputeTool
@@ -370,201 +369,132 @@ void EigenmodePropagator::Advance(ComplexField& a0,ComplexField& a1,ComplexField
 ADIPropagator::ADIPropagator(const std::string& name,MetricSpace *m,Task *tsk) : LaserPropagator(name,m,tsk)
 {
 	evenTime = true;
-	xGlobalIntegrator = NULL;
-	yGlobalIntegrator = NULL;
-
-	const tw::Int xDim = space->Dim(1);
-	const tw::Int yDim = space->Dim(2);
-	const tw::Int zDim = space->Dim(3);
-
-	X1.resize(xDim);
-	X2.resize(xDim);
-	X3.resize(xDim);
-	Y1.resize(yDim);
-	Y2.resize(yDim);
-	Y3.resize(yDim);
-
-	if (xDim>1)
-		xGlobalIntegrator = new GlobalIntegrator<tw::Complex>(&task->strip[1],yDim*zDim,xDim);
-
-	if (yDim>1)
-		yGlobalIntegrator = new GlobalIntegrator<tw::Complex>(&task->strip[2],xDim*zDim,yDim);
 }
 
 ADIPropagator::~ADIPropagator()
 {
-	if (xGlobalIntegrator!=NULL)
-		delete xGlobalIntegrator;
-	if (yGlobalIntegrator!=NULL)
-		delete yGlobalIntegrator;
 }
 
 void ADIPropagator::SetData(tw::Float w0,tw::Float dt,tw_polarization_type pol,bool mov,MetricSpace *refined)
 {
-	const tw::Int xDim = space->Dim(1);
-	const tw::Int yDim = space->Dim(2);
-	const tw::Int zDim = space->Dim(3);
-	LaserPropagator::SetData(w0,dt,pol,mov,refined);
-	if (refined != NULL && xGlobalIntegrator != NULL) {
-		delete xGlobalIntegrator;
-		xGlobalIntegrator = new GlobalIntegrator<tw::Complex>(&task->strip[1],yDim*zDim,xDim);
+	LaserPropagator::SetData(w0,dt,pol,mov,refined); // must precede any operations with space
+
+	aNow.Initialize(*space,task);
+
+	tw::Int systems = space->Dim(2) * (space->Dim(3) + 2);
+	tw::Int cells = space->Dim(1);
+	globalIntegrator[1] = std::make_unique<GlobalIntegrator<tw::Complex>>(&task->strip[1],systems,cells);
+
+	systems = space->Dim(1) * (space->Dim(3) + 2);
+	cells = space->Dim(2);
+	globalIntegrator[2] = std::make_unique<GlobalIntegrator<tw::Complex>>(&task->strip[2],systems,cells);
+}
+
+/// @brief ADI advance with `ua` being the implicitly treated axis (1 or 2)
+void ADIPropagator::AdvanceAxis(tw::Int ua,ComplexField& a0,ComplexField& a1,ComplexField& chi)
+{
+	tw::Float A0,A1;
+	const tw::Int va = ua == 1 ? 2 : 1; // explicit axis
+	const tw::Int uDim = space->Dim(ua);
+	const tw::Int vDim = space->Dim(va);
+	const tw::Int wDim = space->Dim(3);
+	const tw::Float radialPolarizationFactor = space->cyl==1.0 && polarization==radialPolarization ? 1.0 : 0.0;
+	std::valarray<tw::Complex> src(uDim),ans(uDim),T1(uDim),T2(uDim),T3(uDim);
+	for (auto k=wDim;k>=-1;k--) {
+		for (auto j=1;j<=vDim;j++) {
+			const auto u = ua == 1 ? tw::strip(ua,*space,0,j,k) : tw::strip(ua,*space,j,0,k);
+			#pragma parallel for
+			for (auto i=1;i<=uDim;i++) {
+				const auto v = ua == 1 ? tw::strip(va,*space,i,0,k) : tw::strip(va,*space,0,i,k);
+				const auto w = ua == 1 ? tw::strip(3,*space,i,j,0) : tw::strip(3,*space,j,i,0);
+				const auto Vol = space->dS(u,i,0);
+
+				A0 = space->dS(u,i,ua);
+				A1 = space->dS(u,i+1,ua);
+				const auto D1 = (A0/Vol) / space->dl(u,i,ua);
+				const auto D2 = (A1/Vol) / space->dl(u,i+1,ua);
+				const auto dtidzi = 1/space->dl(w,k+1,3)/dt;
+				const auto R = radialPolarizationFactor / sqr(space->X(i,ua));
+				const auto T2p = (2.0*ii*w0/dt) - 3.0*dtidzi - (D1+D2+R) + chi(u,i); 
+				const auto T2m = (2.0*ii*w0/dt) - 3.0*dtidzi + (D1+D2+R) - chi(u,i);
+				const auto lookahead = dtidzi*(4.0*a1(w,k+1) - 4.0*a0(w,k+1) + a0(w,k+2) - a1(w,k+2));
+				src[i-1] = T2m*a0(u,i) - lookahead - D1*a0(u,i-1) - D2*a0(u,i+1);
+
+				A0 = space->dS(v,j,va);
+				A1 = space->dS(v,j+1,va);
+				const auto D3 = (A0/Vol) / space->dl(v,j,va);
+				const auto D4 = (A1/Vol) / space->dl(v,j+1,va);
+				src[i-1] -= 2.0*(D3*a0(v,j-1) - (D3+D4)*a0(v,j) + D4*a0(v,j+1));
+
+				T1[i-1] = D1;
+				T2[i-1] = T2p;
+				T3[i-1] = D2;
+			}
+
+			//if (task->n0[ua]==MPI_PROC_NULL)
+			//	a1.AdjustTridiagonalForBoundaries(tw::grid::enumaxis(ua),tw::grid::low,T1,T2,T3,src,tw::Complex(0.0));
+			//if (task->n1[ua]==MPI_PROC_NULL)
+			//	a1.AdjustTridiagonalForBoundaries(tw::grid::enumaxis(ua),tw::grid::high,T1,T2,T3,src,tw::Complex(0.0));
+
+			TriDiagonal(ans,src,T1,T2,T3);
+			for (auto i=1;i<=uDim;i++) {
+				a1(u,i) = ans[i-1];
+			}
+
+			const auto system = (k+1)*vDim + j - 1;
+			globalIntegrator[ua]->SetMatrix(system,T1,T2,T3);
+			globalIntegrator[ua]->SetData(system,&a1(u,0),a1.Stride(ua)/2); // need complex stride and stride[0]=1
+		}
 	}
-	if (refined != NULL && yGlobalIntegrator != NULL) {
-		delete yGlobalIntegrator;
-		yGlobalIntegrator = new GlobalIntegrator<tw::Complex>(&task->strip[2],xDim*zDim,yDim);
-	}
+
+	globalIntegrator[ua]->Parallelize();
+	a1.UpwardCopy(tw::grid::enumaxis(va),1);
+	a1.DownwardCopy(tw::grid::enumaxis(va),1);
+	a1.ApplyBoundaryCondition();
 }
 
 void ADIPropagator::Advance(ComplexField& a0,ComplexField& a1,ComplexField& chi)
 {
-	// unlike the papers, we take a~ = (a/2)exp(i(kx-wt)) + cc
-	// this solves (delperp^2 + 2iw0Dt + 2Dzt)a = -chi*a
-	// where use the estimate 2Dzt(a) ~ (i/w0)*Dz[(chi + delperp^2)a]
-	// here, we must remember that aNow is leapfrogged, so effective timestep is 2*dt
-	// thus, we end up with (1 + i*dt*H0)a1 = (1 - i*dt*H0)a0 - 2*i*dt*H1*aNow
-	// with H0 = -Dx^2/(2*w0) and H1 = -(1/w0)*(chi/2 + Dzt + Dy^2/2)
-
-	tw::Int i,j,k;
-	tw::Float Ax0,Ax1,Ay0,Ay1,Vol,radialPolarizationFactor;
-	tw::Complex D1,D2,D3,D4,Dzt;
-
+	aNow = a1;
 	const tw::Int xDim = space->Dim(1);
 	const tw::Int yDim = space->Dim(2);
 	const tw::Int zDim = space->Dim(3);
 
-	radialPolarizationFactor = space->cyl==1.0 && polarization==radialPolarization ? 1.0 : 0.0;
+	Slice<tw::Float> send_lookahead(Element(0,1),space->LFG(1),space->UFG(1),space->LFG(2),space->UFG(2),1,2);
+	Slice<tw::Float> recv_lookahead(Element(0,1),space->LFG(1),space->UFG(1),space->LFG(2),space->UFG(2),zDim+1,zDim+2);
+	
+	tw::Int n0,n1;
+	task->strip[3].Shift(1,1,&n0,&n1);
 
-	ComplexField aNow;
-	aNow.Initialize(*space,task);
-	aNow = a1;
+	// We have to handle axial strips serially.
+	// Downstream nodes will have to wait for their upstream neighbor before starting.
+	if (n1!=MPI_PROC_NULL) {
+		task->strip[3].Recv(recv_lookahead.Buffer(),recv_lookahead.BufferSize(),n1);
+		a1.SaveDataFromSlice(&recv_lookahead);
+	}
 
 	if (xDim==1 && yDim==1)
 	{
-		for (k=1;k<=zDim;k++)
-		{
-			a1(1,1,k) = a0(1,1,k) + (ii*dt/w0)*chi(1,1,k)*aNow(1,1,k);
-			a1(1,1,k) -= (dt/sqr(w0))*(chi(1,1,k+1)*aNow(1,1,k+1) - chi(1,1,k-1)*aNow(1,1,k-1))/space->dL(1,1,k,3);
+		for (auto k=zDim;k>=-1;k--) {
+			const auto dtidzi = 1/space->dl(1,1,k+1,3)/dt;
+			const auto T2p = (2.0*ii*w0/dt) - 3.0*dtidzi + chi(1,1,k); 
+			const auto T2m = (2.0*ii*w0/dt) - 3.0*dtidzi - chi(1,1,k);
+			const auto lookahead = dtidzi*(4.0*a1(1,1,k+1) - 4.0*a0(1,1,k+1) + a0(1,1,k+2) - a1(1,1,k+2));
+			a1(1,1,k) = (T2m*a0(1,1,k) - lookahead) / T2p;
 		}
+	} else if ((!evenTime && xDim>1) || (yDim==1 && xDim>1)) {
+		AdvanceAxis(1,a0,a1,chi);
+	} else if ((evenTime && yDim>1) || (xDim==1 && yDim>1)) {
+		AdvanceAxis(2,a0,a1,chi);
 	}
 
-	if ((!evenTime && xDim>1) || (yDim==1 && xDim>1))
-	{
-		std::valarray<tw::Complex> src(xDim),ans(xDim);
-
-		for (k=1;k<=zDim;k++)
-			for (j=1;j<=yDim;j++)
-			{
-				for (i=1;i<=xDim;i++)
-				{
-					Vol = space->dS(i,j,k,0);
-					Ax0 = space->dS(i,j,k,1);
-					Ax1 = space->dS(i+1,j,k,1);
-					Ay0 = space->dS(i,j,k,2);
-					Ay1 = space->dS(i,j+1,k,2);
-					D1 = (Ax0/Vol) / space->dl(i,j,k,1);
-					D2 = (Ax1/Vol) / space->dl(i+1,j,k,1);
-					D3 = (Ay0/Vol) / space->dl(i,j,k,2);
-					D4 = (Ay1/Vol) / space->dl(i,j+1,k,2);
-					Dzt = (ii/w0)/space->dL(i,j,k,3);
-					src[i-1] = (ii*w0/dt)*a0(i,j,k) - chi(i,j,k)*aNow(i,j,k);
-					src[i-1] -= half*(D1*a0(i-1,j,k) - (D1 + D2 + radialPolarizationFactor/sqr(space->X(i,1)))*a0(i,j,k) + D2*a0(i+1,j,k));
-					src[i-1] -= D3*aNow(i,j-1,k) - (D3 + D4)*aNow(i,j,k) + D4*aNow(i,j+1,k);
-					src[i-1] -= Dzt*(chi(i,j,k+1)*aNow(i,j,k+1) - chi(i,j,k-1)*aNow(i,j,k-1));
-					src[i-1] -= Dzt*(D1*aNow(i-1,j,k+1) - (D1+D2)*aNow(i,j,k+1) + D2*aNow(i+1,j,k+1));
-					src[i-1] += Dzt*(D1*aNow(i-1,j,k-1) - (D1+D2)*aNow(i,j,k-1) + D2*aNow(i+1,j,k-1));
-					src[i-1] -= Dzt*(D3*aNow(i,j-1,k+1) - (D3+D4)*aNow(i,j,k+1) + D4*aNow(i,j+1,k+1));
-					src[i-1] += Dzt*(D3*aNow(i,j-1,k-1) - (D3+D4)*aNow(i,j,k-1) + D4*aNow(i,j+1,k-1));
-					X1[i-1] = half*D1;
-					X2[i-1] = ii*w0/dt - half*(D1 + D2 + radialPolarizationFactor/sqr(space->X(i,1)));
-					X3[i-1] = half*D2;
-				}
-
-				if (task->n0[1]==MPI_PROC_NULL)
-					a1.AdjustTridiagonalForBoundaries(tw::grid::x,tw::grid::low,X1,X2,X3,src,tw::Complex(0.0));
-				if (task->n1[1]==MPI_PROC_NULL)
-					a1.AdjustTridiagonalForBoundaries(tw::grid::x,tw::grid::high,X1,X2,X3,src,tw::Complex(0.0));
-
-				TriDiagonal(ans,src,X1,X2,X3);
-				for (i=1;i<=xDim;i++)
-					a1(i,j,k) = ans[i-1];
-
-				xGlobalIntegrator->SetMatrix((k-1)*yDim + (j-1),X1,X2,X3);
-				xGlobalIntegrator->SetData((k-1)*yDim + (j-1),&a1(0,j,k),a1.Stride(1)/2); // need complex stride and stride[0]=1
-			}
-
-		xGlobalIntegrator->Parallelize();
-		a1.DownwardCopy(tw::grid::y,1);
-		a1.UpwardCopy(tw::grid::y,1);
-		a1.DownwardCopy(tw::grid::z,1);
-		a1.UpwardCopy(tw::grid::z,1);
-		a1.ApplyBoundaryCondition();
+	if (n0!=MPI_PROC_NULL) {
+		a1.LoadDataIntoSlice(&send_lookahead);
+		task->strip[3].Send(send_lookahead.Buffer(),send_lookahead.BufferSize(),n0);
 	}
-
-	if ((evenTime && yDim>1) || (xDim==1 && yDim>1))
-	{
-		std::valarray<tw::Complex> src(yDim),ans(yDim);
-
-		for (k=1;k<=zDim;k++)
-			for (i=1;i<=xDim;i++)
-			{
-				for (j=1;j<=yDim;j++)
-				{
-					Vol = space->dS(i,j,k,0);
-					Ax0 = space->dS(i,j,k,1);
-					Ax1 = space->dS(i+1,j,k,1);
-					Ay0 = space->dS(i,j,k,2);
-					Ay1 = space->dS(i,j+1,k,2);
-					D1 = (Ax0/Vol) / space->dl(i,j,k,1);
-					D2 = (Ax1/Vol) / space->dl(i+1,j,k,1);
-					D3 = (Ay0/Vol) / space->dl(i,j,k,2);
-					D4 = (Ay1/Vol) / space->dl(i,j+1,k,2);
-					Dzt = (ii/w0)/space->dL(i,j,k,3);
-					src[j-1] = (ii*w0/dt)*a0(i,j,k) - chi(i,j,k)*aNow(i,j,k);
-					src[j-1] -= half*(D3*a0(i,j-1,k) - (D3 + D4)*a0(i,j,k) + D4*a0(i,j+1,k));
-					src[j-1] -= D1*aNow(i-1,j,k) - (D1 + D2)*aNow(i,j,k) + D2*aNow(i+1,j,k);
-					src[j-1] -= Dzt*(chi(i,j,k+1)*aNow(i,j,k+1) - chi(i,j,k-1)*aNow(i,j,k-1));
-					src[j-1] -= Dzt*(D1*aNow(i-1,j,k+1) - (D1+D2)*aNow(i,j,k+1) + D2*aNow(i+1,j,k+1));
-					src[j-1] += Dzt*(D1*aNow(i-1,j,k-1) - (D1+D2)*aNow(i,j,k-1) + D2*aNow(i+1,j,k-1));
-					src[j-1] -= Dzt*(D3*aNow(i,j-1,k+1) - (D3+D4)*aNow(i,j,k+1) + D4*aNow(i,j+1,k+1));
-					src[j-1] += Dzt*(D3*aNow(i,j-1,k-1) - (D3+D4)*aNow(i,j,k-1) + D4*aNow(i,j+1,k-1));
-					Y1[j-1] = half*D3;
-					Y2[j-1] = ii*w0/dt - half*(D3 + D4);
-					Y3[j-1] = half*D3;
-				}
-
-				if (task->n0[2]==MPI_PROC_NULL)
-					a1.AdjustTridiagonalForBoundaries(tw::grid::y,tw::grid::low,Y1,Y2,Y3,src,tw::Complex(0.0));
-				if (task->n1[2]==MPI_PROC_NULL)
-					a1.AdjustTridiagonalForBoundaries(tw::grid::y,tw::grid::high,Y1,Y2,Y3,src,tw::Complex(0.0));
-
-				TriDiagonal(ans,src,Y1,Y2,Y3);
-				for (j=1;j<=yDim;j++)
-					a1(i,j,k) = ans[j-1];
-
-				yGlobalIntegrator->SetMatrix((k-1)*xDim + (i-1),Y1,Y2,Y3);
-				yGlobalIntegrator->SetData((k-1)*xDim + (i-1),&a1(i,0,k),a1.Stride(2)/2); // need complex stride and stride[0]=1
-			}
-
-		yGlobalIntegrator->Parallelize();
-		a1.DownwardCopy(tw::grid::x,1);
-		a1.UpwardCopy(tw::grid::x,1);
-		a1.DownwardCopy(tw::grid::z,1);
-		a1.UpwardCopy(tw::grid::z,1);
-		a1.ApplyBoundaryCondition();
-	}
-
-	a0 = aNow;
-	if (task->n0[3]==MPI_PROC_NULL && zDim>1)
-		for (j=space->LFG(2);j<=space->UFG(2);j++)
-			for (i=space->LFG(1);i<=space->UFG(1);i++)
-				a1(i,j,space->LFG(3)) = a0(i,j,space->LFG(3));
-
-	if (task->n1[3]==MPI_PROC_NULL && zDim>1)
-		for (j=space->LFG(2);j<=space->UFG(2);j++)
-			for (i=space->LFG(1);i<=space->UFG(1);i++)
-				a1(i,j,space->UFG(3)) = a0(i,j,space->UFG(3));
 
 	evenTime = !evenTime;
+	a0 = aNow;
 }
 
 
@@ -721,9 +651,9 @@ void SchroedingerPropagator::ApplyDenominator(const tw::grid::axis& axis,Complex
 					T3[i-1] = half*ii*dt*H3;
 				}
 
-				if (task->n0[1]==MPI_PROC_NULL)
+				if (task->n0[ax]==MPI_PROC_NULL)
 					psi.AdjustTridiagonalForBoundaries(axis,tw::grid::low,T1,T2,T3,src,tw::Complex(0.0));
-				if (task->n1[1]==MPI_PROC_NULL)
+				if (task->n1[ax]==MPI_PROC_NULL)
 					psi.AdjustTridiagonalForBoundaries(axis,tw::grid::high,T1,T2,T3,src,tw::Complex(0.0));
 
 				TriDiagonal(ans,src,T1,T2,T3);

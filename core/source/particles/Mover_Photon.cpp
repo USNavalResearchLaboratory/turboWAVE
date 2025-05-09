@@ -15,7 +15,7 @@ void PhotonMover::Advance()
 void BundleMoverPhoton2D::LoadFieldSlice(tw::Int low[4],tw::Int high[4],tw::Int ignorable[4])
 {
 	Fx.Resize(Element(0,5),low,high,ignorable);
-	mov.EM->LoadDataIntoImage<float>(&Fx);
+	mov.EM->LoadDataIntoSlice<float>(&Fx);
 }
 
 void BundleMoverPhoton2D::InitSourceSlice(tw::Int low[4],tw::Int high[4],tw::Int ignorable[4])
@@ -36,7 +36,7 @@ void BundleMoverPhoton2D::Move(tw::Float dts)
 void BundleMoverPhoton3D::LoadFieldSlice(tw::Int low[4],tw::Int high[4],tw::Int ignorable[4])
 {
 	Fx.Resize(Element(0,5),low,high,ignorable);
-	mov.EM->LoadDataIntoImage<float>(&Fx);
+	mov.EM->LoadDataIntoSlice<float>(&Fx);
 }
 
 void BundleMoverPhoton3D::InitSourceSlice(tw::Int low[4],tw::Int high[4],tw::Int ignorable[4])

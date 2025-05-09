@@ -15,7 +15,7 @@ void BorisMover::Advance()
 void BundleMoverBoris2D::LoadFieldSlice(tw::Int low[4],tw::Int high[4],tw::Int ignorable[4])
 {
 	Fx.Resize(Element(0,5),low,high,ignorable);
-	mov.EM->LoadDataIntoImage<float>(&Fx);
+	mov.EM->LoadDataIntoSlice<float>(&Fx);
 }
 
 void BundleMoverBoris2D::InitSourceSlice(tw::Int low[4],tw::Int high[4],tw::Int ignorable[4])
@@ -27,9 +27,9 @@ void BundleMoverBoris2D::InitSourceSlice(tw::Int low[4],tw::Int high[4],tw::Int 
 void BundleMoverBoris2D::DepositSourceSlice(bool needsAtomic)
 {
 	if (needsAtomic) {
-		mov.sources->AddDataFromImageAtomic<float>(&Jx);
+		mov.sources->AddDataFromSliceAtomic<float>(&Jx);
 	} else {
-		mov.sources->AddDataFromImage<float>(&Jx);
+		mov.sources->AddDataFromSlice<float>(&Jx);
 	}
 }
 
@@ -50,7 +50,7 @@ void BundleMoverBoris2D::Move(tw::Float dts)
 void BundleMoverBoris3D::LoadFieldSlice(tw::Int low[4],tw::Int high[4],tw::Int ignorable[4])
 {
 	Fx.Resize(Element(0,5),low,high,ignorable);
-	mov.EM->LoadDataIntoImage<float>(&Fx);
+	mov.EM->LoadDataIntoSlice<float>(&Fx);
 }
 
 void BundleMoverBoris3D::InitSourceSlice(tw::Int low[4],tw::Int high[4],tw::Int ignorable[4])
@@ -62,9 +62,9 @@ void BundleMoverBoris3D::InitSourceSlice(tw::Int low[4],tw::Int high[4],tw::Int 
 void BundleMoverBoris3D::DepositSourceSlice(bool needsAtomic)
 {
 	if (needsAtomic) {
-		mov.sources->AddDataFromImageAtomic<float>(&Jx);
+		mov.sources->AddDataFromSliceAtomic<float>(&Jx);
 	} else {
-		mov.sources->AddDataFromImage<float>(&Jx);
+		mov.sources->AddDataFromSlice<float>(&Jx);
 	}
 }
 

@@ -79,6 +79,7 @@ export namespace tw
 				MPI_Comm_free(&comm_cart);
 			comm_cart = MPI_COMM_WORLD;
 		}
+		/// n.b. the first axis is 1, and for strip communicators the only axis is 1
 		void Shift(tw::Int axis,tw::Int shift,tw::Int *src,tw::Int *dst) const
 		{
 			int srci,dsti;

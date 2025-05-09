@@ -152,7 +152,6 @@ void Simulation::Run()
 		}
 
 		std::println(std::cout,"Current status can be viewed in 'twstat' file.");
-		std::println(std::cout,"This executable does not support interactive commands.\n");
 		std::flush(std::cout);
 
 		while (stepNow <= dim[0] && elapsedTime < elapsedTimeMax)

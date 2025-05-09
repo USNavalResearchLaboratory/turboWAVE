@@ -294,7 +294,7 @@ AtomicPhysics::AtomicPhysics(const std::string& name,Simulation* sim):Module(nam
 	directives.Add("keep a2 term",new tw::input::Bool(&keepA2Term),false);
 	directives.Add("dipole approximation",new tw::input::Bool(&dipoleApproximation),false);
 	directives.Add("relaxation time",new tw::input::Float(&timeRelaxingToGround),false);
-	// following two are often written as `soft core potential , charge = 1 , radius = 1`, which parses the same
+	// following two are often written as `soft core potential charge = 1 , radius = 1`, which parses the same
 	directives.Add("soft core potential charge",new tw::input::Float(&H.qnuc),false);
 	directives.Add("radius",new tw::input::Float(&H.rnuc),false);
 	directives.Add("bachelet potential",new tw::input::Custom,false);
