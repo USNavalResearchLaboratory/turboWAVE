@@ -15,6 +15,7 @@ GridReader::GridReader(tw::UnitConverter& uc)
 	geo = tw::grid::cartesian;
 	absoluteRef = 0.0;
 
+	directives.Add("steps",new tw::input::Int(&steps),true);
 	directives.Add("origin",new tw::input::Numbers<tw::Float>(&relativeRef[0],4));
 	directives.Add("shift",new tw::input::Numbers<tw::Float>(&absoluteRef[0],4),false);
 	directives.Add("cell size",new tw::input::Numbers<tw::Float>(&spacing[0],4));
@@ -352,8 +353,9 @@ void Simulation::InputFileFirstPass()
 	periodic[1] = bc0[1]==tw::bc::par::periodic ? 1 : 0;
 	periodic[2] = bc0[2]==tw::bc::par::periodic ? 1 : 0;
 	periodic[3] = bc0[3]==tw::bc::par::periodic ? 1 : 0;
+	stepsToTake = gridReader->Steps();
 	auto gdim_idx4 = gridReader->GlobalDims();
-	tw::Int gdim[4] = { gdim_idx4.array[0], gdim_idx4.array[1], gdim_idx4.array[2], gdim_idx4.array[3] };
+	tw::Int gdim[4] = { 1, gdim_idx4.array[1], gdim_idx4.array[2], gdim_idx4.array[3] };
 
 	// Check integer viability
 	int64_t totalCellsPerRank = int64_t(gdim[1])*int64_t(gdim[2])*int64_t(gdim[3])/int64_t(numRanksProvided);

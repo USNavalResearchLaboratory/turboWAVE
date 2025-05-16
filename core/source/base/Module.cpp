@@ -38,7 +38,7 @@ class GridReader
 {
 	tw::input::DirectiveReader directives;
 	tw::grid::geometry geo;
-	tw::Int req_dim[4],req_dom[4];
+	tw::Int steps,req_dim[4],req_dom[4];
 	tw::vec4 relativeRef,absoluteRef,spacing;
 	bool adaptiveTimestep,adaptiveGrid,found;
 	public:
@@ -46,6 +46,7 @@ class GridReader
 	bool Read(const TSTreeCursor *curs,const std::string& src);
 	void UpdateTask(Task& tsk);
 	void UpdateSpace(MetricSpace& ms);
+	tw::Int Steps() { return steps; }
 	tw::vec4 GlobalCorner();
 	tw::vec4 GlobalSize();
 	tw::idx4 GlobalDims() { return tw::idx4(req_dim[0],req_dim[1],req_dim[2],req_dim[3]); }
@@ -55,16 +56,12 @@ class GridReader
 
 export struct Simulation: Task, MetricSpace, tw::input::Visitor
 {
-	tw::Float dtMin,dtMax,dtCritical,elapsedTime,elapsedTimeMax;
-	tw::Float signalPosition,windowPosition,signalSpeed;
-	tw::Float antiSignalPosition,antiWindowPosition;
 	tw::Float unitDensityCGS;
 	tw::units nativeUnits;
 
 	bool neutralize,movingWindow;
 	tw::Int outputLevel,errorCheckingLevel,success_count,failure_count;
-	tw::Int stepNow;
-	tw::Int lastTime;
+	tw::Int previous_timestamp;
 
 	tw::Int dumpPeriod;
 
@@ -102,26 +99,6 @@ export struct Simulation: Task, MetricSpace, tw::input::Visitor
 	void UpdateTimestep(tw::Float dt0);
 	bool IsFirstStep() {
 		return stepNow == 0;
-	}
-	bool IsLastStep() {
-		// Actual steps taken = stepsToTake+1
-		// This allows us to write both the initial condition and the last available data.
-		// If there is a restart the initial step is stepsToTake+1 and 1 less step is taken.
-		return stepNow == dim[0];
-	}
-	Evolution GetEvo() {
-		return Evolution {
-			.dtMin = dtMin,
-			.dtMax = dtMax,
-			.dtCritical = dtCritical,
-			.elapsedTime = elapsedTime,
-			.elapsedTimeMax = elapsedTimeMax,
-			.signalPosition = signalPosition,
-			.windowPosition = windowPosition,
-			.signalSpeed = signalSpeed,
-			.antiSignalPosition = antiSignalPosition,
-			.antiWindowPosition = antiWindowPosition
-		};
 	}
 
 	bool MangleModuleName(std::string& name);

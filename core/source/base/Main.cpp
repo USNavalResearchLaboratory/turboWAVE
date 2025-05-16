@@ -238,7 +238,7 @@ void start_interactive(Simulation *tw)
 	std::flush(std::cout);
 	std::string cmd;
 	auto running = [&] {
-		return tw->stepNow <= tw->Dim(0) && tw->elapsedTime < tw->elapsedTimeMax;
+		return tw->WindowPos(0) < tw->MaxWindowPos(0);
 	};
 	do {
 		std::getline(std::cin,cmd);

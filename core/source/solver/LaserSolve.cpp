@@ -153,14 +153,13 @@ void LaserSolver::Initialize()
 		polarizationFactor = 1.0;
 	}
 
-	auto evo = owner->GetEvo();
 	for (auto cell : EntireCellRange(HRSpace)) {
 		for (auto pulse : wave) {
 			pos = HRSpace.Pos(cell);
-			pos.z = HRSpace.ToLab(evo,pos.z,-dth);
+			pos.z = HRSpace.ToLab(pos.z,-dth);
 			HRa0(cell) += polarizationFactor*pulse->VectorPotentialEnvelope(-dth,pos,laserFreq);
 			pos = HRSpace.Pos(cell);
-			pos.z = HRSpace.ToLab(evo,pos.z,dth);
+			pos.z = HRSpace.ToLab(pos.z,dth);
 			HRa1(cell) += polarizationFactor*pulse->VectorPotentialEnvelope(dth,pos,laserFreq);
 		}
 	}
@@ -412,7 +411,6 @@ void PGCSolver::MoveWindow()
 
 void PGCSolver::AntiMoveWindow()
 {
-	auto evo = owner->GetEvo();
 	const tw::Float dth = 0.5*dx(0);
 	for (auto s : StripRange(*this,3,strongbool::yes))
 	{
@@ -422,11 +420,11 @@ void PGCSolver::AntiMoveWindow()
 		for (auto pulse : wave)
 		{
 			tw::vec3 pos = owner->Pos(s,0);
-			pos.z = owner->ToLab(evo,pos.z,-dth);
-			incoming0 += polarizationFactor*pulse->VectorPotentialEnvelope(owner->elapsedTime-dth,pos,laserFreq);
+			pos.z = owner->ToLab(pos.z,-dth);
+			incoming0 += polarizationFactor*pulse->VectorPotentialEnvelope(owner->WindowPos(0)-dth,pos,laserFreq);
 			pos = owner->Pos(s,0);
-			pos.z = owner->ToLab(evo,pos.z,dth);
-			incoming1 += polarizationFactor*pulse->VectorPotentialEnvelope(owner->elapsedTime+dth,pos,laserFreq);
+			pos.z = owner->ToLab(pos.z,dth);
+			incoming1 += polarizationFactor*pulse->VectorPotentialEnvelope(owner->WindowPos(0)+dth,pos,laserFreq);
 		}
 		a0.Shift(s,1,incoming0);
 		a1.Shift(s,1,incoming1);
@@ -437,7 +435,6 @@ void PGCSolver::AntiMoveWindow()
 
 void PGCSolver::Update()
 {
-	auto evo = owner->GetEvo();
 	chi.DepositFromNeighbors();
 	chi.ApplyFoldingCondition();
 	chi.DivideCellVolume(*owner);
@@ -449,7 +446,7 @@ void PGCSolver::Update()
 		for (auto s : StripRange(*this,3,strongbool::yes))
 		{
 			for (tw::Int k=1;k<=dim[3];k++)
-				chi(s,k) = owner->ValueOnLightGrid<ComplexField,tw::Complex>(evo,chi,s,k,dth);
+				chi(s,k) = owner->ValueOnLightGrid<ComplexField,tw::Complex>(chi,s,k,dth);
 		}
 	}
 	chi.DownwardCopy(tw::grid::z,1);
@@ -462,7 +459,6 @@ void PGCSolver::Update()
 
 void PGCSolver::ComputeFinalFields()
 {
-	auto evo = owner->GetEvo();
 	#pragma omp parallel
 	{
 		const tw::Float dth = 0.5*dx(0);
@@ -470,8 +466,8 @@ void PGCSolver::ComputeFinalFields()
 		{
 			for (tw::Int k=1;k<=dim[3];k++)
 			{
-				F(s,k,7) = norm(owner->ValueOnLabGrid<ComplexField,tw::Complex>(evo,a1,s,k,dth));
-				F(s,k,6) = norm(owner->ValueOnLabGrid<ComplexField,tw::Complex>(evo,a0,s,k,-dth));
+				F(s,k,7) = norm(owner->ValueOnLabGrid<ComplexField,tw::Complex>(a1,s,k,dth));
+				F(s,k,6) = norm(owner->ValueOnLabGrid<ComplexField,tw::Complex>(a0,s,k,-dth));
 				F(s,k,6) = 0.5*(F(s,k,6) + F(s,k,7));
 			}
 		}
@@ -512,7 +508,6 @@ void PGCSolver::Report(Diagnostic& diagnostic)
 
 	ScalarField temp;
 	temp.Initialize(*this,owner);
-	auto evo = owner->GetEvo();
 
 	const tw::Float dti = dk(0);
 	const tw::Float dth = 0.5*dx(0);
@@ -542,8 +537,8 @@ void PGCSolver::Report(Diagnostic& diagnostic)
 	{
 		for (tw::Int k=1;k<=dim[3];k++)
 		{
-			tw::Complex dadt = dti*(owner->ValueOnLabGrid<ComplexField,tw::Complex>(evo,a1,s,k,dth) - owner->ValueOnLabGrid<ComplexField,tw::Complex>(evo,a0,s,k,-dth));
-			tw::Complex anow = tw::Float(0.5)*(owner->ValueOnLabGrid<ComplexField,tw::Complex>(evo,a0,s,k,-dth) + owner->ValueOnLabGrid<ComplexField,tw::Complex>(evo,a1,s,k,dth));
+			tw::Complex dadt = dti*(owner->ValueOnLabGrid<ComplexField,tw::Complex>(a1,s,k,dth) - owner->ValueOnLabGrid<ComplexField,tw::Complex>(a0,s,k,-dth));
+			tw::Complex anow = tw::Float(0.5)*(owner->ValueOnLabGrid<ComplexField,tw::Complex>(a0,s,k,-dth) + owner->ValueOnLabGrid<ComplexField,tw::Complex>(a1,s,k,dth));
 			temp(s,k) = -real(dadt - ii*laserFreq*anow);
 		}
 	}
@@ -553,8 +548,8 @@ void PGCSolver::Report(Diagnostic& diagnostic)
 	{
 		for (tw::Int k=1;k<=dim[3];k++)
 		{
-			tw::Complex dadt = dti*(owner->ValueOnLabGrid<ComplexField,tw::Complex>(evo,a1,s,k,dth) - owner->ValueOnLabGrid<ComplexField,tw::Complex>(evo,a0,s,k,-dth));
-			tw::Complex anow = tw::Float(0.5)*(owner->ValueOnLabGrid<ComplexField,tw::Complex>(evo,a0,s,k,-dth) + owner->ValueOnLabGrid<ComplexField,tw::Complex>(evo,a1,s,k,dth));
+			tw::Complex dadt = dti*(owner->ValueOnLabGrid<ComplexField,tw::Complex>(a1,s,k,dth) - owner->ValueOnLabGrid<ComplexField,tw::Complex>(a0,s,k,-dth));
+			tw::Complex anow = tw::Float(0.5)*(owner->ValueOnLabGrid<ComplexField,tw::Complex>(a0,s,k,-dth) + owner->ValueOnLabGrid<ComplexField,tw::Complex>(a1,s,k,dth));
 			temp(s,k) = -imag(dadt - ii*laserFreq*anow);
 		}
 	}

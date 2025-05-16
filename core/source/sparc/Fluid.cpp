@@ -482,8 +482,8 @@ void Fluid::MoveWindow()
 			A0 = A1 = tw::vec3(0,0,0);
 			for (tw::Int w=0;w<wave.size();w++)
 			{
-				A0 += wave[w]->VectorPotential(owner->elapsedTime-dth,pos);
-				A1 += wave[w]->VectorPotential(owner->elapsedTime,pos);
+				A0 += wave[w]->VectorPotential(owner->WindowPos(0)-dth,pos);
+				A1 += wave[w]->VectorPotential(owner->WindowPos(0),pos);
 			}
 			state0(s,k,1) += A0.x;
 			state0(s,k,2) += A0.y;
@@ -903,7 +903,7 @@ bool Chemical::LoadFluid(Field& hydro)
 
 	for (auto prof : profile)
 	{
-		if ( prof->TimeGate(owner->elapsedTime,&add) )
+		if ( prof->TimeGate(owner->WindowPos(0),&add) )
 		{
 			const tw::vec3 p0 = prof->DriftMomentum(mat.mass);
 			for (auto cell : EntireCellRange(*this))
@@ -1263,7 +1263,7 @@ void sparc::HydroManager::VerifyInput()
 
 	if (ellipticSolver==NULL)
 	{
-		if (owner->Dimensionality()==1)
+		if (owner->SpatialDims()==1)
 			ellipticSolver = (EllipticSolver*)owner->CreateTool("default_elliptic_solver",tw::tool_type::ellipticSolver1D);
 		else
 			ellipticSolver = (EllipticSolver*)owner->CreateTool("default_elliptic_solver",tw::tool_type::iterativePoissonSolver);
@@ -1971,9 +1971,9 @@ void sparc::HydroManager::LaserAdvance(tw::Float dt)
 				for (auto pulse : wave)
 				{
 					if (pulse->direction.z > 0.0)
-						fwd += pulse->VectorPotentialEnvelope(owner->elapsedTime,pos,laserFrequency);
+						fwd += pulse->VectorPotentialEnvelope(owner->WindowPos(0),pos,laserFrequency);
 					else
-						bak += pulse->VectorPotentialEnvelope(owner->elapsedTime,pos,laserFrequency);
+						bak += pulse->VectorPotentialEnvelope(owner->WindowPos(0),pos,laserFrequency);
 				}
 				laserAmplitude(cell) = vacuumE(fwd,laserFrequency,pos.z) + vacuumE(bak,-laserFrequency,pos.z);
 				radiationIntensity(cell) = 0.5*norm(laserAmplitude(cell));
@@ -1998,13 +1998,13 @@ void sparc::HydroManager::LaserAdvance(tw::Float dt)
 				{
 					if (pulse->direction.z > 0.0)
 					{
-						a0 += pulse->VectorPotentialEnvelope(owner->elapsedTime,z0,laserFrequency);
-						a1 += pulse->VectorPotentialEnvelope(owner->elapsedTime,z1,laserFrequency);
+						a0 += pulse->VectorPotentialEnvelope(owner->WindowPos(0),z0,laserFrequency);
+						a1 += pulse->VectorPotentialEnvelope(owner->WindowPos(0),z1,laserFrequency);
 					}
 					else
 					{
-						aN += pulse->VectorPotentialEnvelope(owner->elapsedTime,zN,laserFrequency);
-						aN1 += pulse->VectorPotentialEnvelope(owner->elapsedTime,zN1,laserFrequency);
+						aN += pulse->VectorPotentialEnvelope(owner->WindowPos(0),zN,laserFrequency);
+						aN1 += pulse->VectorPotentialEnvelope(owner->WindowPos(0),zN1,laserFrequency);
 					}
 				}
 				a0 = vacuumE(a0,laserFrequency,z0); a1 = vacuumE(a1,laserFrequency,z1);
@@ -2055,7 +2055,7 @@ tw::Float sparc::HydroManager::EstimateTimeStep()
 		if (owner->IsFirstStep())
 			dtMax[tid] = owner->dx(0);
 		else
-			dtMax[tid] = owner->dtMax;
+			dtMax[tid] = owner->MaxSpacing(0);
 
 		// Courant condition
 
@@ -2114,20 +2114,20 @@ tw::Float sparc::HydroManager::EstimateTimeStep()
 	dtMaxAllNodes = owner->strip[0].GetMin(dtMaxAllThreads);
 
 	// Ensure that step size is sufficently small to resolve each laser pulse.
-	tw::Float dtMaxAllPulses = owner->dtMax;
+	tw::Float dtMaxAllPulses = owner->MaxSpacing(0);
 	for (auto pulse : wave)
 	{
 		const PulseShape& shape = pulse->pulseShape;
 		const tw::Float pulseDuration = shape.t4 - shape.t1;
 		// For upcoming pulses...
-		if ( owner->elapsedTime < shape.delay )
+		if ( owner->WindowPos(0) < shape.delay )
 		{
 			// Find closest pulse
-			if ( dtMaxAllPulses > shape.delay - owner->elapsedTime )
-				dtMaxAllPulses = shape.delay - owner->elapsedTime;
+			if ( dtMaxAllPulses > shape.delay - owner->WindowPos(0) )
+				dtMaxAllPulses = shape.delay - owner->WindowPos(0);
 		}
 		// While inside a pulse
-		if (owner->elapsedTime>=shape.delay && owner->elapsedTime<shape.delay+pulseDuration)
+		if (owner->WindowPos(0)>=shape.delay && owner->WindowPos(0)<shape.delay+pulseDuration)
 		{
 			// Ensure Step resolves shortest pulse
 			if ( dtMaxAllPulses > sqrt(epsilonFactor)*pulseDuration )
@@ -2138,13 +2138,13 @@ tw::Float sparc::HydroManager::EstimateTimeStep()
 	}
 
 	// If the critical time step is reached, switch to fixed time step and hope for the best!
-	if (dtMaxAllNodes < owner->dtCritical)
+	if (dtMaxAllNodes < owner->CriticalSpacing(0))
 	{
 		dtMaxAllNodes = owner->dx(0); // use the starting time step
 		owner->adaptiveTimestep = false; // no more adaptive stepping after this
 	}
 	// Don't let it fall below the minimum time step
-	return dtMaxAllNodes < owner->dtMin ? owner->dtMin : dtMaxAllNodes;
+	return dtMaxAllNodes < owner->MinSpacing(0) ? owner->MinSpacing(0) : dtMaxAllNodes;
 }
 
 void sparc::HydroManager::DiffusionAdvance(tw::Float dt)
@@ -2154,7 +2154,7 @@ void sparc::HydroManager::DiffusionAdvance(tw::Float dt)
 		// HEAT CONDUCTION
 
 		for (auto c : conductor)
-			parabolicSolver->FixTemperature(eos1,Element(g->eidx.T),c->theRgn,c->Temperature(owner->elapsedTime));
+			parabolicSolver->FixTemperature(eos1,Element(g->eidx.T),c->theRgn,c->Temperature(owner->WindowPos(0)));
 		g->LoadMassDensity(scratch,state1);
 		CopyFieldData(scratch2,Element(0),eos1,Element(g->eidx.T));
 		parabolicSolver->Advance(eos1,g->eidx.T,fluxMask,&eos1,g->eidx.nmcv,&eos1,g->eidx.K,dt);
@@ -2229,7 +2229,7 @@ void sparc::HydroManager::FieldAdvance(tw::Float dt)
 	// Solve the elliptical equation --- div(scratch*grad(phi)) = -rho_eff
 	// Even if plasma model is neutral, still do this to allow for external fields
 	for (auto c : conductor)
-		ellipticSolver->FixPotential(phi,c->theRgn,c->Voltage(owner->elapsedTime));
+		ellipticSolver->FixPotential(phi,c->theRgn,c->Voltage(owner->WindowPos(0)));
 	ellipticSolver->SetCoefficients(&scratch);
 	ellipticSolver->Solve(phi,rho,-1.0);
 

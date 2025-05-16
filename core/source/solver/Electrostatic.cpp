@@ -72,7 +72,7 @@ void Electrostatic::Initialize()
 	FieldSolver::Initialize();
 	ellipticSolver->SetFieldsBoundaryConditions(phi,Element(0));
 	for (auto c : conductor)
-		ellipticSolver->FixPotential(phi,c->theRgn,c->Voltage(owner->elapsedTime));
+		ellipticSolver->FixPotential(phi,c->theRgn,c->Voltage(owner->WindowPos(0)));
 	SetupInitialPotential();
 
 	Update();
@@ -115,7 +115,7 @@ void Electrostatic::Update()
 	J4.ApplyBoundaryCondition();
 
 	for (auto c : conductor)
-		ellipticSolver->FixPotential(phi,c->theRgn,c->Voltage(owner->elapsedTime));
+		ellipticSolver->FixPotential(phi,c->theRgn,c->Voltage(owner->WindowPos(0)));
 
 	CopyFieldData(source,Element(0),J4,Element(0));
 	ellipticSolver->Solve(phi,source,-1.0);

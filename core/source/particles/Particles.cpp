@@ -221,7 +221,7 @@ void Kinetics::Update()
 	ProcessQED();
 	for (i=0;i<species.size();i++)
 	{
-		if (owner->stepNow%species[i]->sortPeriod==0)
+		if (owner->StepNow() % species[i]->sortPeriod == 0)
 			std::sort(species[i]->particle.begin(),species[i]->particle.end());
 		species[i]->mover->Advance();
 		species[i]->ApplyGlobalBoundaryConditions();
@@ -1030,7 +1030,7 @@ void Species::GenerateParticles(bool init)
 {
 	tw::Float add;
 	for (auto prof : profile)
-		if ( prof->TimeGate(owner->elapsedTime,&add) )
+		if ( prof->TimeGate(owner->WindowPos(0),&add) )
 			for (auto cell : InteriorCellRange(*this))
 			{
 				LoadingData loadingData(*owner,distributionInCell,cell);
@@ -1075,7 +1075,7 @@ void Species::GenerateParticles(bool init)
 
 LoadingData::LoadingData(const Simulation& sim,const tw::vec3& distribution,const tw::cell& c) : cell(c)
 {
-	timeLevel = sim.stepNow;
+	timeLevel = sim.StepNow();
 	densToAdd = 0.0;
 	densNow = 0.0;
 	particleDensity = 0.0;
@@ -1263,7 +1263,7 @@ void Species::BeginMoveWindow()
 		DecodeCell(particle[i].q,ijk);
 		ijk[3]--;
 		particle[i].q.cell = EncodeCell(ijk[0],ijk[1],ijk[2],ijk[3]);
-		if (!RefCellInDomain(particle[i].q))
+		if (!RefCellInSpatialDomain(particle[i].q))
 		{
 			if (owner->n0[3]!=MPI_PROC_NULL) // need to transfer particle
 				mover->AddTransferParticle(particle[i]);
@@ -1362,7 +1362,7 @@ void Species::CalculateDensity(ScalarField& dens)
 	dens.Initialize(*this,owner);
 	for (auto par : particle)
 	{
-		if (RefCellInDomain(par.q))
+		if (RefCellInSpatialDomain(par.q))
 		{
 			dens.GetWeights(&w,par.q);
 			dens.InterpolateOnto(par.number,w);
@@ -1387,7 +1387,7 @@ void Species::CalculateEnergyDensity(ScalarField& dens)
 	dens.Initialize(*this,owner);
 	for (auto par : particle)
 	{
-		if (RefCellInDomain(par.q))
+		if (RefCellInSpatialDomain(par.q))
 		{
 			dens.GetWeights(&w,par.q);
 			dens.InterpolateOnto(par.number * (par.p[0] - m0),w);
@@ -1411,7 +1411,7 @@ void Species::CalculateQuantumParameter(ScalarField& dens)
 	dens.Initialize(*this,owner);
 	for (auto par : particle)
 	{
-		if (RefCellInDomain(par.q))
+		if (RefCellInSpatialDomain(par.q))
 		{
 			dens.GetWeights(&w,par.q);
 			dens.InterpolateOnto(par.number*par.Qparam,w);

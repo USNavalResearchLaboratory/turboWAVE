@@ -179,7 +179,7 @@ export struct FarFieldDiagnostic : Module
 	virtual void ReadCheckpoint(std::ifstream& inFile);
 	virtual void WriteCheckpoint(std::ofstream& outFile);
 	virtual void Update();
-	void SpecialReport();
+	void FinalReport(); // TODO: need a way to trigger, add module method?
 };
 
 /////////////////////////////
@@ -564,7 +564,7 @@ void CoulombSolver::Update()
 
 	// Deal with beam initialization
 
-	//if (gammaBeam!=1.0 && owner->elapsedTime==0.0)
+	//if (gammaBeam!=1.0 && owner->WindowPos(0)==0.0)
 	//	ForceQuasistaticVectorPotential(A4,scratch2);
 
 	// Must update boundary memory before vector potential
@@ -601,16 +601,16 @@ void CoulombSolver::Update()
 
 	if (owner->n0[3]==MPI_PROC_NULL)
 	{
-		L1.Set(A4,owner->elapsedTime+dth,dt);
-		L2.Set(A4,owner->elapsedTime+dth,dt);
+		L1.Set(A4,owner->WindowPos(0)+dth,dt);
+		L2.Set(A4,owner->WindowPos(0)+dth,dt);
 		for (auto strip : StripRange(A4,3,strongbool::no))
 			A4(strip,0,3) = A4(strip,1,3) + dx(3)*(A4.dfwd(strip,0,1,1) + A4.dfwd(strip,0,2,2));
 	}
 
 	if (owner->n1[3]==MPI_PROC_NULL)
 	{
-		R1.Set(A4,owner->elapsedTime+dth,dt);
-		R2.Set(A4,owner->elapsedTime+dth,dt);
+		R1.Set(A4,owner->WindowPos(0)+dth,dt);
+		R2.Set(A4,owner->WindowPos(0)+dth,dt);
 		for (auto strip : StripRange(A4,3,strongbool::no))
 			A4(strip,dim[3]+1,3) = A4(strip,dim[3],3) - dx(3)*(A4.dfwd(strip,dim[3],1,1) + A4.dfwd(strip,dim[3],2,2));
 	}
@@ -958,7 +958,7 @@ void DirectSolver::Update()
 		#endif
 		for (auto c : conductor)
 			if (c->currentType==EM::current::electric)
-				c->DepositSources(sources, owner->elapsedTime, dx(0));
+				c->DepositSources(sources, owner->WindowPos(0), dx(0));
 		#ifdef USE_OPENCL
 		sources.SendToComputeBuffer();
 		#endif
@@ -1169,7 +1169,7 @@ void CurvilinearDirectSolver::Update()
 		#endif
 		for (auto c : conductor)
 			if (c->currentType==EM::current::electric)
-				c->DepositSources(sources, owner->elapsedTime, dt);
+				c->DepositSources(sources, owner->WindowPos(0), dt);
 		#ifdef USE_OPENCL
 		sources.SendToComputeBuffer();
 		#endif
@@ -1262,10 +1262,10 @@ void FarFieldDiagnostic::Update()
 	// Integrate over a plane in the source region for each interrogation cell in the far field
 	const tw::Float zmin = owner->X(1,3) - 0.5*owner->dX(1,3);
 	const tw::Float zmax = owner->X(Dim(3),3) + 0.5*owner->dX(Dim(3),3);
-	const tw::Float tp = owner->elapsedTime;
+	const tw::Float tp = owner->WindowPos(0);
 	const tw::Float dtau = dx(0) * tw::Float(period);
 
-	if (owner->stepNow % period==0)
+	if (owner->StepNow() % period==0)
 		for (auto farCell : InteriorCellRange(A))
 		{
 			const tw::Float tNow = bounds[0] + A.dx(1)*tw::Float(farCell.dcd1());
@@ -1290,12 +1290,9 @@ void FarFieldDiagnostic::Update()
 				}
 			}
 		}
-
-	if (owner->IsLastStep())
-		SpecialReport();
 }
 
-void FarFieldDiagnostic::SpecialReport()
+void FarFieldDiagnostic::FinalReport()
 {
 	std::string fileName;
 	tw::Int master = 0;

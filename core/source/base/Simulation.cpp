@@ -26,22 +26,12 @@ Simulation::Simulation(const std::string& test_name,
 	clippingRegion.push_back(new EntireRegion(clippingRegion));
 
 	nativeUnits = tw::units::plasma;
-	dtCritical = tw::small_pos;
-	dtMin = tw::small_pos;
-	dtMax = tw::big_pos;
-	elapsedTime = 0.0;
-	elapsedTimeMax = tw::big_pos;
-	signalPosition = 0.0;
-	windowPosition = 0.0;
-	signalSpeed = 1.0;
-	antiSignalPosition = 0.0;
-	antiWindowPosition = 0.0;
 
 	neutralize = true;
 	movingWindow = false;
 
 	stepNow = 0;
-	lastTime = 0;
+	previous_timestamp = 0;
 	dumpPeriod = 0;
 	inputFilePass = 0;
 
@@ -57,13 +47,13 @@ Simulation::Simulation(const std::string& test_name,
 	outerDirectives.Add("xboundary",new tw::input::Enums<tw::bc::par>(tw::bc::par_map(),&bc0[1],&bc1[1]));
 	outerDirectives.Add("yboundary",new tw::input::Enums<tw::bc::par>(tw::bc::par_map(),&bc0[2],&bc1[2]));
 	outerDirectives.Add("zboundary",new tw::input::Enums<tw::bc::par>(tw::bc::par_map(),&bc0[3],&bc1[3]));
-	outerDirectives.Add("dtmin",new tw::input::Float(&dtMin),false);
-	outerDirectives.Add("dtmax",new tw::input::Float(&dtMax),false);
-	outerDirectives.Add("dtcrit",new tw::input::Float(&dtCritical),false);
-	outerDirectives.Add("maxtime",new tw::input::Float(&elapsedTimeMax),false);
+	outerDirectives.Add("dtmin",new tw::input::Float(&min_spacing[0]),false);
+	outerDirectives.Add("dtmax",new tw::input::Float(&max_spacing[0]),false);
+	outerDirectives.Add("dtcrit",new tw::input::Float(&critical_spacing[0]),false);
+	outerDirectives.Add("maxtime",new tw::input::Float(&maxWindowPosition[0]),false);
 	outerDirectives.Add("dump period",new tw::input::Int(&dumpPeriod),false);
 	outerDirectives.Add("neutralize",new tw::input::Bool(&neutralize),false);
-	outerDirectives.Add("window speed",new tw::input::Float(&signalSpeed),false);
+	outerDirectives.Add("window speed",new tw::input::Float(&solutionVelocity[3]),false);
 	outerDirectives.Add("moving window",new tw::input::Bool(&movingWindow),false);
 }
 
@@ -145,7 +135,7 @@ void Simulation::Run()
 		std::flush(std::cout);
 
 		tw::Int startTime = GetSeconds();
-		lastTime = startTime;
+		previous_timestamp = startTime;
 
 		if (GetSeconds()<0) {
 			std::println(std::cout,"\n{}: System clock is not responding properly.\n",term::warning);
@@ -154,25 +144,25 @@ void Simulation::Run()
 		std::println(std::cout,"Current status can be viewed in 'twstat' file.");
 		std::flush(std::cout);
 
-		while (stepNow <= dim[0] && elapsedTime < elapsedTimeMax)
+		while (stepNow <= stepsToTake && windowPosition[0] < maxWindowPosition[0])
 		{
-			if ((GetSeconds() > lastTime + 5) && strip[0].Get_rank()==0)
+			if ((GetSeconds() > previous_timestamp + 5) && strip[0].Get_rank()==0)
 			{
 				twstat.open("twstat");
 				InteractiveCommand("status",&twstat);
 				twstat.close();
-				lastTime = GetSeconds();
+				previous_timestamp = GetSeconds();
 			}
 			FundamentalCycle();
 		}
 
 		std::println(std::cout,"Completed {} steps in {} seconds.",stepNow,GetSeconds() - startTime);
-		std::println(std::cout,"Simulated elapsed time = {}",elapsedTime);
+		std::println(std::cout,"Simulated elapsed time = {}",windowPosition[0]);
 		if (strip[0].Get_rank()==0)
 		{
 			twstat.open("twstat");
 			twstat << "Completed " << stepNow << " steps in " << GetSeconds() - startTime << " seconds." << std::endl;
-			twstat << "Simulated elapsed time = " << elapsedTime << std::endl;
+			twstat << "Simulated elapsed time = " << windowPosition[0] << std::endl;
 			twstat.close();
 		}
 		failure_count = 0;
@@ -536,7 +526,7 @@ void Simulation::InteractiveCommand(const std::string& cmd,std::ostream *theStre
 	{
 		*theStream << "Current step: " << stepNow << std::endl;
 		*theStream << "Current step size: " << spacing[0] << std::endl;
-		*theStream << "Current elapsed time: " << elapsedTime << std::endl;
+		*theStream << "Current elapsed time: " << windowPosition[0] << std::endl;
 		for (auto m : module)
 			m->StatusMessage(theStream);
 		for (auto tool : computeTool)
@@ -555,8 +545,8 @@ void Simulation::InteractiveCommand(const std::string& cmd,std::ostream *theStre
 	}
 	if (cmd=="metrics")
 	{
-		*theStream << "Steps to take: " << dim[0] << std::endl;
-		*theStream << "Steps remaining: " << dim[0] - stepNow << std::endl;
+		*theStream << "Steps to take: " << stepsToTake << std::endl;
+		*theStream << "Steps remaining: " << stepsToTake - stepNow << std::endl;
 		*theStream << "Global grid size: " << GlobalDim(1) << "," << GlobalDim(2) << "," << GlobalDim(3) << std::endl;
 		*theStream << "Local grid size: " << Dim(1) << "," << Dim(2) << "," << Dim(3) << std::endl;
 		*theStream << "MPI Domains: " << domains[1] << "," << domains[2] << "," << domains[3] << std::endl;
@@ -579,27 +569,19 @@ void Simulation::FundamentalCycle()
 	for (auto m : module)
 		m->Update();
 
-	// TODO: we don't advance the time corner because the particle cell is being
-	// encoded with the time level as well.  It might make more sense to hold the
-	// particle's index at 0 and advance the corner instead.  But then we might need
-	// to update the time box for everything that inherits DiscreteSpace, such as Module.
-	// There is further confusion in the fact that the dimension of the time box is
-	// steps to take, not steps stored in memory.
-	//corner[0] += spacing[0];
-
-	elapsedTime += spacing[0];
-	signalPosition += signalSpeed*spacing[0];
-	antiSignalPosition -= signalSpeed*spacing[0];
+	solutionPosition += spacing[0]*solutionVelocity;
+	altSolutionPosition -= spacing[0]*solutionVelocity;
 	stepNow++;
 
 	if (adaptiveGrid)
 		for (auto m : module)
 			m->AdaptGrid();
 
-	if (movingWindow && signalPosition>=(windowPosition + spacing[3]) && dim[3]>1)
+	corner[0] += spacing[0];
+	if (movingWindow && solutionPosition[3]>=windowPosition[3] + spacing[3] && dim[3]>1)
 		MoveWindow();
 
-	if (!movingWindow && antiSignalPosition<=(antiWindowPosition - spacing[3]) && dim[3]>1)
+	if (!movingWindow && altSolutionPosition[3]<=altWindowPosition[3] - spacing[3] && dim[3]>1)
 		AntiMoveWindow();
 
 	// RESTART MECHANISM
@@ -715,30 +697,28 @@ bool Simulation::RemoveTool(ComputeTool *theTool)
 
 void Simulation::MoveWindow()
 {
-	tw::Int i;
-	windowPosition += spacing[3];
+	windowPosition[3] += spacing[3];
 	corner[3] += spacing[3];
 	globalCorner[3] += spacing[3];
 	
-	for (i=lfg[3];i<=ufg[3];i++)
+	for (auto i=lfg[3];i<=ufg[3];i++)
 		X(i,3) += spacing[3];
 
-	for (i=0;i<clippingRegion.size();i++)
+	for (auto i=0;i<clippingRegion.size();i++)
 		if (clippingRegion[i]->moveWithWindow)
 			clippingRegion[i]->Translate(tw::vec3(0,0,spacing[3]));
 		else
 			clippingRegion[i]->Initialize(*this,this);
 
-	for (i=0;i<module.size();i++)
+	for (auto i=0;i<module.size();i++)
 		module[i]->MoveWindow();
 }
 
 void Simulation::AntiMoveWindow()
 {
-	tw::Int i;
-	antiWindowPosition -= spacing[3];
+	altWindowPosition[3] -= spacing[3];
 
-	for (i=0;i<module.size();i++)
+	for (auto i=0;i<module.size();i++)
 		module[i]->AntiMoveWindow();
 }
 
@@ -749,12 +729,6 @@ void Simulation::ReadCheckpoint(std::ifstream& inFile)
 	MetricSpace::ReadCheckpoint(inFile);
 	inFile.read((char *)&stepNow,sizeof(tw::Int));
 	stepNow++;
-	dim[0] += stepNow-1;
-	inFile.read((char *)&elapsedTime,sizeof(tw::Float));
-	inFile.read((char *)&signalPosition,sizeof(tw::Float));
-	inFile.read((char *)&windowPosition,sizeof(tw::Float));
-	inFile.read((char *)&antiSignalPosition,sizeof(tw::Float));
-	inFile.read((char *)&antiWindowPosition,sizeof(tw::Float));
 
 	if (uniformDeviate!=NULL)
 		uniformDeviate->ReadCheckpoint(inFile);
@@ -797,11 +771,6 @@ void Simulation::WriteCheckpoint(std::ofstream& outFile)
 {
 	MetricSpace::WriteCheckpoint(outFile);
 	outFile.write((char *)&stepNow,sizeof(tw::Int));
-	outFile.write((char *)&elapsedTime,sizeof(tw::Float));
-	outFile.write((char *)&signalPosition,sizeof(tw::Float));
-	outFile.write((char *)&windowPosition,sizeof(tw::Float));
-	outFile.write((char *)&antiSignalPosition,sizeof(tw::Float));
-	outFile.write((char *)&antiWindowPosition,sizeof(tw::Float));
 
 	if (uniformDeviate!=NULL)
 		uniformDeviate->WriteCheckpoint(outFile);
@@ -841,7 +810,7 @@ void Simulation::Diagnose()
 
 	bool doing_diagnostics=false;
 	for (auto d : diagnostic)
-		doing_diagnostics = doing_diagnostics || d->WriteThisStep(elapsedTime,spacing[0],stepNow);
+		doing_diagnostics = doing_diagnostics || d->WriteThisStep(windowPosition[0],spacing[0],stepNow);
 	if (doing_diagnostics)
 	{
 		for (auto m : module)
@@ -864,12 +833,12 @@ void Simulation::Diagnose()
 
 	for (auto d : diagnostic)
 	{
-		if (d->WriteThisStep(elapsedTime,spacing[0],stepNow))
+		if (d->WriteThisStep(windowPosition[0],spacing[0],stepNow))
 		{
 			d->Start();
-			d->ReportNumber("time",elapsedTime,true);
+			d->ReportNumber("time",windowPosition[0],true);
 			d->ReportNumber("dt",spacing[0],true);
-			d->ReportNumber("zwindow",windowPosition,true);
+			d->ReportNumber("zwindow",windowPosition[3],true);
 			for (auto m : module)
 				if (has_diagnostic(m,d))
 					m->Report(*d);

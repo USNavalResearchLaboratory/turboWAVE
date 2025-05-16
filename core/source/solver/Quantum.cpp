@@ -450,7 +450,7 @@ tw::vec4 AtomicPhysics::GetA4AtOrigin()
 	r_cart = tw::vec3(0,0,0);
 	A[0] = GetSphericalPotential(0.0);
 	for (s=0;s<wave.size();s++)
-		aNow += wave[s]->VectorPotential(owner->elapsedTime,r_cart);
+		aNow += wave[s]->VectorPotential(owner->WindowPos(0),r_cart);
 	A[1] = aNow.x;
 	A[2] = aNow.y;
 	A[3] = aNow.z;
@@ -547,9 +547,9 @@ void AtomicPhysics::Report(Diagnostic& diagnostic)
 	const tw::Float dti = 1/dt;
 	for (auto w : wave)
 	{
-		ANow += w->VectorPotential(owner->elapsedTime,tw::vec3(0,0,0));
-		ENow -= dti*w->VectorPotential(owner->elapsedTime+0.5*dt,tw::vec3(0,0,0));
-		ENow += dti*w->VectorPotential(owner->elapsedTime-0.5*dt,tw::vec3(0,0,0));
+		ANow += w->VectorPotential(owner->WindowPos(0),tw::vec3(0,0,0));
+		ENow -= dti*w->VectorPotential(owner->WindowPos(0)+0.5*dt,tw::vec3(0,0,0));
+		ENow += dti*w->VectorPotential(owner->WindowPos(0)-0.5*dt,tw::vec3(0,0,0));
 	}
 	diagnostic.ReportNumber("Ex",ENow.x,true);
 	diagnostic.ReportNumber("Ey",ENow.y,true);
@@ -713,7 +713,7 @@ void Schroedinger::Initialize()
 			J4(cell,0) = norm(psi1(cell));
 	}
 
-	FormPotentials(owner->elapsedTime);
+	FormPotentials(owner->WindowPos(0));
 
 	#ifdef USE_OPENCL
 	psi1.SendToComputeBuffer();
@@ -749,7 +749,7 @@ void Schroedinger::Update()
 	Field mpi_packet;
 	tw::Float partitionFactor,relax,totalProbability;
 	partitionFactor = 1.0/tw::Float(owner->Dimensionality());
-	relax = owner->elapsedTime < timeRelaxingToGround ? 1.0 : 0.0;
+	relax = owner->WindowPos(0) < timeRelaxingToGround ? 1.0 : 0.0;
 
 	// Clear source vector
 	J4.MADDComputeBuffer(0.0,0.0);
@@ -796,7 +796,7 @@ void Schroedinger::Update()
 			owner->LocalUpdateProtocol(stitchKernel);
 			psi1.UpdateGhostCellsInComputeBuffer();
 
-			if (owner->elapsedTime > timeRelaxingToGround)
+			if (owner->WindowPos(0) > timeRelaxingToGround)
 				owner->StripUpdateProtocol(currentKernel,i,5);
 		}
 	}
@@ -805,7 +805,7 @@ void Schroedinger::Update()
 	owner->CellUpdateProtocol(chargeKernel);
 
 	// Normalize After Relaxation Step
-	if (owner->elapsedTime < timeRelaxingToGround)
+	if (owner->WindowPos(0) < timeRelaxingToGround)
 	{
 		CopyComputeBuffer(scratch,psi1);
 		scratch.DestructiveComplexMod2ComputeBuffer();
@@ -824,8 +824,8 @@ void Schroedinger::Update()
 void Schroedinger::Update()
 {
 	const tw::Float dt = dx(0);
-	tw::Complex dtc = owner->elapsedTime < timeRelaxingToGround ? -ii*dt : dt;
-	FormPotentials(owner->elapsedTime);
+	tw::Complex dtc = owner->WindowPos(0) < timeRelaxingToGround ? -ii*dt : dt;
+	FormPotentials(owner->WindowPos(0));
 	J4 = 0.0;
 
 	propagator->DepositCurrent(tw::grid::t,psi0,psi1,A4,J4,dtc);
@@ -849,15 +849,15 @@ void Schroedinger::Update()
 
 	J4.CopyFromNeighbors();
 	J4.ApplyBoundaryCondition();
-	if (owner->elapsedTime < timeRelaxingToGround)
+	if (owner->WindowPos(0) < timeRelaxingToGround)
 		Normalize();
 }
 // void Schroedinger::Update()
 // {
 // 	// This advances the wavefunction conservatively, but uses the naive
 // 	// centered differenced current deposition
-// 	tw::Complex dtc = owner->elapsedTime < timeRelaxingToGround ? -ii*dt : dt;
-// 	FormPotentials(owner->elapsedTime);
+// 	tw::Complex dtc = owner->WindowPos(0) < timeRelaxingToGround ? -ii*dt : dt;
+// 	FormPotentials(owner->WindowPos(0));
 //
 // 	psi0 = psi1;
 // 	propagator->ApplyNumerator(tw::grid::x,psi1,A4,keepA2Term,dtc);
@@ -866,7 +866,7 @@ void Schroedinger::Update()
 // 	propagator->ApplyDenominator(tw::grid::y,psi1,A4,keepA2Term,dtc);
 // 	propagator->ApplyNumerator(tw::grid::z,psi1,A4,keepA2Term,dtc);
 // 	propagator->ApplyDenominator(tw::grid::z,psi1,A4,keepA2Term,dtc);
-// 	if (owner->elapsedTime < timeRelaxingToGround)
+// 	if (owner->WindowPos(0) < timeRelaxingToGround)
 // 		Normalize();
 // 	else
 // 		UpdateJ4();
@@ -878,7 +878,7 @@ void Schroedinger::UpdateJ4()
 	// Here is the naive centered differencing to determine the non-relativistic probability current.
 	// The results are usually pathological.  The conservative scheme should be used instead.
 	tw::Complex psiNow,psi_x,psi_y,psi_z;
-	if (owner->elapsedTime < timeRelaxingToGround)
+	if (owner->WindowPos(0) < timeRelaxingToGround)
 		return;
 
 	for (tw::Int k=1;k<=dim[3];k++)
@@ -1047,8 +1047,8 @@ void Pauli::Update()
 	// KNOWN PROBLEM: we have to add spin term to current density
 
 	const tw::Float dt = dx(0);
-	tw::Complex dtc = owner->elapsedTime < timeRelaxingToGround ? -ii*dt : dt;
-	FormPotentials(owner->elapsedTime);
+	tw::Complex dtc = owner->WindowPos(0) < timeRelaxingToGround ? -ii*dt : dt;
+	FormPotentials(owner->WindowPos(0));
 	J4 = 0.0;
 
 	propagator->DepositCurrent(tw::grid::t,psi0,psi1,A4,J4,dtc);
@@ -1086,7 +1086,7 @@ void Pauli::Update()
 
    	propagator->UpdateSpin(psi1,chi1,A4,alpha*dt);
 
-	if (owner->elapsedTime < timeRelaxingToGround)
+	if (owner->WindowPos(0) < timeRelaxingToGround)
 		Normalize();
 }
 #endif
@@ -1218,7 +1218,7 @@ void KleinGordon::Initialize()
 
 	psi_r.CopyFromNeighbors();
 	psi_i.CopyFromNeighbors();
-	FormPotentials(owner->elapsedTime);
+	FormPotentials(owner->WindowPos(0));
 	Normalize();
 	UpdateJ4();
 
@@ -1284,7 +1284,7 @@ void KleinGordon::Update()
 	psi_i.UpdateGhostCellsInComputeBuffer(Element(0));
 
 	photonPropagator->Advance(A4,Ao4,J4,0.0,dt);
-	FormGhostCellPotentials(owner->elapsedTime+dt);
+	FormGhostCellPotentials(owner->WindowPos(0)+dt);
 	A4.SendGhostCellsToComputeBuffer();
 	photonPropagator->MidstepEstimate(A4,Ao4);
 
@@ -1357,7 +1357,7 @@ void KleinGordon::Update()
 	psi_i.ApplyBoundaryCondition(Element(0));
 
 	photonPropagator->Advance(A4,Ao4,J4,0.0,dt);
-	FormGhostCellPotentials(owner->elapsedTime+dt);
+	FormGhostCellPotentials(owner->WindowPos(0)+dt);
 	photonPropagator->MidstepEstimate(A4,Ao4);
 
 	#pragma omp parallel
@@ -1519,7 +1519,7 @@ void Dirac::Initialize()
 
 	psi_r.CopyFromNeighbors();
 	psi_i.CopyFromNeighbors();
-	FormPotentials(owner->elapsedTime);
+	FormPotentials(owner->WindowPos(0));
 	Normalize();
 	UpdateJ4();
 
@@ -1610,7 +1610,7 @@ void Dirac::Update()
 	psi_i.UpdateGhostCellsInComputeBuffer(Element(0,1));
 
 	photonPropagator->Advance(A4,Ao4,J4,0.0,dt);
-	FormGhostCellPotentials(owner->elapsedTime+dt);
+	FormGhostCellPotentials(owner->WindowPos(0)+dt);
 	A4.SendGhostCellsToComputeBuffer();
 	photonPropagator->MidstepEstimate(A4,Ao4);
 
@@ -1649,7 +1649,7 @@ void Dirac::Update()
 	psi_i.ApplyBoundaryCondition(Element(0,1));
 
 	photonPropagator->Advance(A4,Ao4,J4,0.0,dt);
-	FormGhostCellPotentials(owner->elapsedTime+dt);
+	FormGhostCellPotentials(owner->WindowPos(0)+dt);
 	photonPropagator->MidstepEstimate(A4,Ao4);
 
 	LeapFrog<2,3,0,1>(-1.0);
@@ -1746,7 +1746,7 @@ void PopulationDiagnostic::Report(Diagnostic& diagnostic)
 
 	tw::vec3 ANow(0.0);
 	for (auto w : wave)
-		ANow += w->VectorPotential(owner->elapsedTime,tw::vec3(0,0,0));
+		ANow += w->VectorPotential(owner->WindowPos(0),tw::vec3(0,0,0));
 
 	for (auto ref : refState)
 	{
@@ -1756,7 +1756,7 @@ void PopulationDiagnostic::Report(Diagnostic& diagnostic)
 			const tw::vec3 pos = owner->Pos(cell);
 			// the following is a gauge transformation to "remove" the uniform A
 			const tw::Complex psiNow = (*psi)(cell)*std::exp(-ii*H->qorb*(ANow^pos));
-			temp(cell) = real(conj(ref->Amplitude(*H,pos,owner->elapsedTime,0))*psiNow);
+			temp(cell) = real(conj(ref->Amplitude(*H,pos,owner->WindowPos(0),0))*psiNow);
 		}
 		diagnostic.VolumeIntegral("real<"+ref->name+"|psi>",temp,0);
 
@@ -1766,7 +1766,7 @@ void PopulationDiagnostic::Report(Diagnostic& diagnostic)
 			const tw::vec3 pos = owner->Pos(cell);
 			// the following is a gauge transformation to "remove" the uniform A
 			const tw::Complex psiNow = (*psi)(cell)*std::exp(-ii*H->qorb*(ANow^pos));
-			temp(cell) = imag(conj(ref->Amplitude(*H,pos,owner->elapsedTime,0))*psiNow);
+			temp(cell) = imag(conj(ref->Amplitude(*H,pos,owner->WindowPos(0),0))*psiNow);
 		}
 		diagnostic.VolumeIntegral("imag<"+ref->name+"|psi>",temp,0);
 	}

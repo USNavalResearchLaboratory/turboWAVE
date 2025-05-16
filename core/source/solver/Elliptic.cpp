@@ -185,7 +185,7 @@ void EllipticSolver::ZeroModeGhostCellValues(tw::Float *phi0,tw::Float *phiN1,Sc
 
 EllipticSolver1D::EllipticSolver1D(const std::string& name,MetricSpace *m,Task *tsk) : EllipticSolver(name,m,tsk)
 {
-	if (space->Dimensionality()!=1)
+	if (space->SpatialDims()!=1)
 		throw tw::FatalError("EllipticSolver1D cannot be used in multi-dimensions.");
 	globalIntegrator = NULL;
 	if (space->GlobalDim(1)>1)

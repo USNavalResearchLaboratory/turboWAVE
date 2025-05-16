@@ -4,6 +4,7 @@ module;
 
 export module metric_space;
 export import base;
+export import pic_primitives;
 export import tensor;
 export import units;
 export import tasks;
@@ -246,12 +247,12 @@ public:
 	void TangentVectorToCurvilinear(tw::vec3 *v,const tw::vec3& r) const; // r expressed in curvilinear coordinates
 	void LaplacianParameters(const tw::Int& a,const tw::Int& x,const tw::Int& y,const tw::Int& z,tw::Float *D1,tw::Float *D2,tw::Float *l1,tw::Float *l2) const;
 
-	tw::Float ToLab(const Evolution& evo,tw::Float zeta,tw::Float relativeTime);
-	tw::Float ToLight(const Evolution& evo,tw::Float z,tw::Float relativeTime);
+	tw::Float ToLab(tw::Float zeta,tw::Float relativeTime);
+	tw::Float ToLight(tw::Float z,tw::Float relativeTime);
 	template <class T,class U>
-	U ValueOnLabGrid(const Evolution& evo,T& A,tw::strip s,tw::Int k,tw::Float relativeTime);
+	U ValueOnLabGrid(T& A,tw::strip s,tw::Int k,tw::Float relativeTime);
 	template <class T,class U>
-	U ValueOnLightGrid(const Evolution& evo,T& A,tw::strip s,tw::Int k,tw::Float relativeTime);
+	U ValueOnLightGrid(T& A,tw::strip s,tw::Int k,tw::Float relativeTime);
 };
 
 MetricSpace::MetricSpace()
@@ -826,37 +827,37 @@ void MetricSpace::SetSphericalGeometry()
 				cell_area_z[i + c*sz] = tw::small_pos;
 }
 
-tw::Float MetricSpace::ToLab(const Evolution& evo,tw::Float zeta,tw::Float relativeTime)
+tw::Float MetricSpace::ToLab(tw::Float zeta,tw::Float relativeTime)
 {
-	return zeta + evo.antiWindowPosition - evo.windowPosition + evo.signalSpeed*(evo.elapsedTime + relativeTime - 0.5*spacing[0]);
+	return zeta - windowPosition[3] + solutionVelocity[3]*(windowPosition[0] + relativeTime - 0.5*spacing[0]);
 }
 
-tw::Float MetricSpace::ToLight(const Evolution& evo,tw::Float z,tw::Float relativeTime)
+tw::Float MetricSpace::ToLight(tw::Float z,tw::Float relativeTime)
 {
-	return z + evo.windowPosition - evo.antiWindowPosition - evo.signalSpeed*(evo.elapsedTime + relativeTime - 0.5*spacing[0]);
+	return z + windowPosition[3] - solutionVelocity[3]*(windowPosition[0] + relativeTime - 0.5*spacing[0]);
 }
 
 template <class T,class U>
-U MetricSpace::ValueOnLabGrid(const Evolution& evo,T& A,tw::strip s,tw::Int k,tw::Float relativeTime)
+U MetricSpace::ValueOnLabGrid(T& A,tw::strip s,tw::Int k,tw::Float relativeTime)
 {
 	// Take a quantity known on the light grid and get its value in a cell of the lab grid
 	tw::Int klight;
 	tw::Float z,zeta,w;
 	z = Pos(s,k).z - corner[3];
-	zeta = ToLight(evo,z,relativeTime);
+	zeta = ToLight(z,relativeTime);
 	klight = MyFloor(zeta*freq[3] + 0.5001);
 	w = 0.5 - zeta*freq[3] + tw::Float(klight);
 	return w*A(s,klight) + (one - w)*A(s,klight+1);
 }
 
 template <class T,class U>
-U MetricSpace::ValueOnLightGrid(const Evolution& evo,T& A,tw::strip s,tw::Int k,tw::Float relativeTime)
+U MetricSpace::ValueOnLightGrid(T& A,tw::strip s,tw::Int k,tw::Float relativeTime)
 {
 	// Take a quantity known on the lab grid and get its value in a cell of the light grid
 	tw::Int klab;
 	tw::Float z,zeta,w;
 	zeta = Pos(s,k).z - corner[3];
-	z = ToLab(evo,zeta,relativeTime);
+	z = ToLab(zeta,relativeTime);
 	klab = MyFloor(z*freq[3] + 0.4999);
 	w = 0.5 - z*freq[3] + tw::Float(klab);
 	return w*A(s,klab) + (one - w)*A(s,klab+1);
