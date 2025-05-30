@@ -213,8 +213,8 @@ std::map<std::string,tw::tool_type> ComputeTool::Map()
 		{"warp",tw::tool_type::warp},
 		{"conductor",tw::tool_type::conductor},
 		{"plane wave",tw::tool_type::planeWave},
-		{"hermite gauss",tw::tool_type::hermiteGauss},
-		{"laguerre gauss",tw::tool_type::laguerreGauss},
+		{"hermite gauss pulse",tw::tool_type::hermiteGauss},
+		{"laguerre gauss pulse",tw::tool_type::laguerreGauss},
 		{"bessel beam",tw::tool_type::besselBeam},
 		{"airy disc",tw::tool_type::airyDisc},
 		{"multipole",tw::tool_type::multipole},
@@ -229,10 +229,10 @@ std::map<std::string,tw::tool_type> ComputeTool::Map()
 		{"isotropic propagator",tw::tool_type::isotropicPropagator},
 		{"parabolic propagator",tw::tool_type::generalParabolicPropagator},
 		{"schroedinger propagator",tw::tool_type::schroedingerPropagator},
-		{"iterative elliptic",tw::tool_type::iterativePoissonSolver},
-		{"1d elliptic",tw::tool_type::ellipticSolver1D},
-		{"facr elliptic",tw::tool_type::facrPoissonSolver},
-		{"eigenmode elliptic",tw::tool_type::eigenmodePoissonSolver},
+		{"iterative elliptic solver",tw::tool_type::iterativePoissonSolver},
+		{"1d elliptic solver",tw::tool_type::ellipticSolver1D},
+		{"facr elliptic solver",tw::tool_type::facrPoissonSolver},
+		{"eigenmode elliptic solver",tw::tool_type::eigenmodePoissonSolver},
 		{"yee propagator",tw::tool_type::yeePropagatorPML},
 		{"lorentz propagator",tw::tool_type::lorentzPropagator},
 		{"eos ideal gas tool",tw::tool_type::eosIdealGas},
@@ -286,13 +286,6 @@ tw::tool_type ComputeTool::CreateTypeFromInput(const tw::input::Preamble& preamb
 	if (tool_map.find(normalized)!=tool_map.end()) {
 		return tool_map[normalized];
 	} else {
-		std::string messg;
-		for (const auto& pair : tool_map) {
-			tw::input::BuildSimilar(messg,normalized,pair.first);
-		}
-		if (messg.size() > 0) {
-			std::println(std::cout,"{}INFO{}: <{}> is similar to {}",term::cyan,term::reset_all,normalized,messg);
-		}
 		return tw::tool_type::none;
 	}
 }

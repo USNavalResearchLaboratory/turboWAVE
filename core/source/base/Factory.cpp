@@ -24,8 +24,49 @@ import solid_state;
 import fluid;
 import particles;
 import quantum;
+import input;
 
 export namespace factory {
+
+/// @brief verify the object key from the preamble and display help if necessary
+/// @param raw_key key directly from preamble, white space will be normalized before comparing
+/// @param similar_keys comma delimited list of similar keys for display in case of failure
+/// @return true if it is known, false if not
+/// @throws error if there are multiple matches
+bool VerifyKey(const std::string& raw_key,std::string& similar_keys)
+{
+	std::map<std::string,tw::module_type> module_map = Module::Map();
+	std::map<std::string,tw::tool_type> tool_map = ComputeTool::Map();
+	
+	std::string normalized,word;
+	std::stringstream raw_stream(raw_key);
+	do {
+		raw_stream >> word;
+		if (!normalized.empty()) {
+			normalized += " ";
+		}
+		normalized += word;
+	} while (!raw_stream.eof());
+
+	bool is_module = module_map.find(normalized) != module_map.end();
+	bool is_tool = tool_map.find(normalized) != tool_map.end();
+	bool is_region = normalized == "region";
+	if (is_module && is_tool || is_module && is_region || is_tool && is_region) {
+		throw tw::FatalError(std::format("overlapping key {}, this is a bug",normalized));
+	}
+	if (is_module || is_tool || is_region) {
+		return true;
+	} else {
+		for (const auto& pair : module_map) {
+			tw::input::BuildSimilar(similar_keys,normalized,pair.first);
+		}
+		for (const auto& pair : tool_map) {
+			tw::input::BuildSimilar(similar_keys,normalized,pair.first);
+		}
+		tw::input::BuildSimilar(similar_keys,normalized,"region");
+		return false;
+	}
+}
 
 ComputeTool* CreateToolFromType(const std::string& name,tw::tool_type theType,MetricSpace *ms,Task *tsk)
 {

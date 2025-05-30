@@ -16,13 +16,14 @@ zboundary = ( absorbing , absorbing )
 
 new grid
 {
+	steps = 1000
 	origin = ( 0 , 0.5 , , 0.5 , 0.0 )
-	dimensions = ( 1000 , 256 , 1 , 512 )
+	dimensions = ( 1 , 256 , 1 , 512 )
 	cell size = ( 0.04 , 0.25 , 1.0 , 0.05 )
 	decomposition = ( 1 , 1 , 1 , 1 )
 }
 
-new coulomb electromagnetic module 'coul'
+new coulomb gauge solver 'coul'
 {
 }
 
@@ -31,7 +32,7 @@ new facr elliptic solver for 'coul'
 	zboundary = ( open , open )
 }
 
-new hermite gauss for 'coul'
+new hermite gauss pulse for 'coul'
 {
 	a = (0.0 0.5 0.0)
 	r0 = ( 1e5 , 10 )

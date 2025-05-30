@@ -440,18 +440,18 @@ std::map<std::string,tw::module_type> Module::Map()
 {
 	return
 	{
-		{"maxwell",tw::module_type::directSolver},
-		{"curvilinear maxwell",tw::module_type::curvilinearDirectSolver},
-		{"coulomb gauge",tw::module_type::coulombSolver},
+		{"maxwell solver",tw::module_type::directSolver},
+		{"curvilinear maxwell solver",tw::module_type::curvilinearDirectSolver},
+		{"coulomb gauge solver",tw::module_type::coulombSolver},
 		{"far field diagnostic",tw::module_type::farFieldDiagnostic},
-		{"electrostatic",tw::module_type::electrostatic},
-		{"quasistatic",tw::module_type::qsLaser},
-		{"pgc",tw::module_type::pgcLaser},
-		{"bound",tw::module_type::boundElectrons},
-		{"schroedinger",tw::module_type::schroedinger},
-		{"pauli",tw::module_type::pauli},
-		{"klein gordon",tw::module_type::kleinGordon},
-		{"dirac",tw::module_type::dirac},
+		{"electrostatic solver",tw::module_type::electrostatic},
+		{"quasistatic solver",tw::module_type::qsLaser},
+		{"pgc laser solver",tw::module_type::pgcLaser},
+		{"bound solver",tw::module_type::boundElectrons},
+		{"schroedinger solver",tw::module_type::schroedinger},
+		{"pauli solver",tw::module_type::pauli},
+		{"klein gordon solver",tw::module_type::kleinGordon},
+		{"dirac solver",tw::module_type::dirac},
 		{"fluid",tw::module_type::fluidFields},
 		{"hydrodynamics",tw::module_type::sparcHydroManager},
 		{"group",tw::module_type::equilibriumGroup},
@@ -480,13 +480,6 @@ tw::module_type Module::CreateTypeFromInput(const tw::input::Preamble& preamble)
 	if (module_map.find(normalized)!=module_map.end()) {
 		return module_map[normalized];
 	} else {
-		std::string messg;
-		for (const auto& pair : module_map) {
-			tw::input::BuildSimilar(messg,normalized,pair.first);
-		}
-		if (messg.size() > 0) {
-			std::println(std::cout,"{}INFO{}: <{}> is similar to {}",term::cyan,term::reset_all,normalized,messg);
-		}
 		return tw::module_type::none;
 	}
 }

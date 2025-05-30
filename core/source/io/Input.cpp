@@ -310,5 +310,11 @@ void tw::input::BuildSimilar(std::string& messg,const std::string& wrong,const s
     if (d[len1][len2] < std::abs(int(len1-len2))+1) {
 		messg += valid;
 		messg += ", ";
+		return;
+	}
+	if (d[len1][len2] < 5*std::max(len1,len2)/10) {
+		messg += valid;
+		messg += ", ";
+		return;
 	}
 }

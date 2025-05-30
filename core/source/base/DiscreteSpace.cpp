@@ -138,6 +138,7 @@ export struct DiscreteSpace : Testable
 	tw::Int LFG(const tw::Int& ax) const { return lfg[ax]; }
 	tw::Int UFG(const tw::Int& ax) const { return ufg[ax]; }
 	tw::Int StepNow() const { return stepNow; }
+	tw::Int StepsToTake() const { return stepsToTake; }
 	tw::Int SpatialDims();
 	tw::Float dx(const tw::Int& ax) const { return spacing[ax]; }
 	tw::Float dk(const tw::Int& ax) const { return freq[ax]; }

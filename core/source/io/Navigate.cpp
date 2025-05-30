@@ -40,7 +40,7 @@ export namespace tw
 		};
 		TSTree* GetTree(const std::string& src);
 		void WalkTree(const TSTree *tree,Visitor *visitor);
-		void ThrowParsingError(const TSTreeCursor *curs,const std::string& src,const std::string& messg);
+		void ThrowParsingError(const TSTreeCursor *curs,const std::string& src,const std::string& messg,const std::string& info="");
 
 		/// @brief goto the next named node, optionally accepting the current node
 		/// @param curs tree cursor
@@ -217,7 +217,7 @@ void tw::input::WalkTree(const TSTree *tree,Visitor *visitor) {
 	ts_tree_cursor_delete(&curs);
 }
 
-void tw::input::ThrowParsingError(const TSTreeCursor *curs,const std::string& src,const std::string& messg) {
+void tw::input::ThrowParsingError(const TSTreeCursor *curs,const std::string& src,const std::string& messg,const std::string& info) {
 	std::stringstream ss(src);
 	std::string line;
 	auto linenum = ts_node_start_point(ts_tree_cursor_current_node(curs)).row;
@@ -225,5 +225,8 @@ void tw::input::ThrowParsingError(const TSTreeCursor *curs,const std::string& sr
 		std::getline(ss,line);
 	}
 	auto xmessg = std::format("{} while parsing line\n>>>{}{}{}<<<",messg,term::cyan,line,term::reset_color);
+	if (info.size() > 0) {
+		xmessg += std::format("\n{}INFO{}: {}",term::cyan,term::reset_color,info);
+	}
 	throw tw::FatalError(xmessg);
 }

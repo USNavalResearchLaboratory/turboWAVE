@@ -173,10 +173,13 @@ tw::input::navigation Simulation::visit(TSTreeCursor *curs) {
 			if (preamble.obj_key=="grid" || preamble.obj_key=="warp")
 				return tw::input::navigation::gotoParentSibling;
 
+			std::string similar_keys;
+			if (!factory::VerifyKey(preamble.obj_key,similar_keys)) {
+				tw::input::ThrowParsingError(curs, src, std::format("unknown key <{}>",preamble.obj_key),
+					similar_keys.size() > 0 ? std::format("<{}> is similar to {}",preamble.obj_key,similar_keys) : "no similar keys found");
+			}
 			tw::tool_type whichTool = ComputeTool::CreateTypeFromInput(preamble);
 			tw::module_type whichModule = Module::CreateTypeFromInput(preamble);
-			if (whichModule!=tw::module_type::none && whichTool!=tw::tool_type::none)
-				tw::input::ThrowParsingError(curs,src,"key claimed by both Module and Tool, this is a bug in the code.");
 
 			// Install a pre or post declared tool
 			if (whichTool!=tw::tool_type::none) {
@@ -262,12 +265,14 @@ void Simulation::NestedDeclaration(TSTreeCursor *curs,const std::string& src,Mod
 	if (preamble.attaching)
 		tw::input::ThrowParsingError(curs,src,"keyword <for> is not allowed in a nested declaration.");
 
+	std::string similar_keys;
+	if (!factory::VerifyKey(preamble.obj_key,similar_keys)) {
+		tw::input::ThrowParsingError(curs, src, std::format("unknown key <{}>",preamble.obj_key),
+			similar_keys.size() > 0 ? std::format("<{}> is similar to {}",preamble.obj_key,similar_keys) : "no similar keys found");
+	}
+
 	tw::module_type whichModule = Module::CreateTypeFromInput(preamble);
 	tw::tool_type whichTool = ComputeTool::CreateTypeFromInput(preamble);
-	if (whichModule==tw::module_type::none && whichTool==tw::tool_type::none)
-		tw::input::ThrowParsingError(curs,src,"key was not recognized.");
-	if (whichModule!=tw::module_type::none && whichTool!=tw::tool_type::none)
-		tw::input::ThrowParsingError(curs,src,"key claimed by both Module and Tool, this is a bug in the code.");
 
 	if (whichModule!=tw::module_type::none)
 	{
@@ -283,6 +288,7 @@ void Simulation::NestedDeclaration(TSTreeCursor *curs,const std::string& src,Mod
 		// If so the module vector and map can be modified.
 		sub->ReadInputFileBlock(curs,src);
 		super->AddSubmodule(sub);
+		return;
 	}
 
 	if (whichTool!=tw::tool_type::none)
@@ -291,7 +297,10 @@ void Simulation::NestedDeclaration(TSTreeCursor *curs,const std::string& src,Mod
 		std::println(std::cout,"   Attaching nested tool <{}>...",tool->name);
 		tool->ReadInputFileBlock(curs,src);
 		super->moduleTool.push_back(tool);
+		return;
 	}
+
+	tw::input::ThrowParsingError(curs, src, "unprocessed match in nested declaration (region?)");
 }
 
 Module* Simulation::RecursiveAutoSuper(tw::module_type reqType,const std::string& basename)

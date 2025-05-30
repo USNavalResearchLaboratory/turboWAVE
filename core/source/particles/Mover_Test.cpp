@@ -42,7 +42,7 @@ void Mover::EncodingTest()
 	space->DecodeCell(cell,ijk);
 	cell = space->EncodeCell(ijk[0],ijk[1],ijk[2],ijk[3]);
 	ASSERT_EQ(cell,0);
-	for (tw::Int i=1;i<4;i++)
+	for (tw::Int i=0;i<4;i++)
 	{
 		ASSERT_EQ(space->Ignorable(i),space->Dim(i)==1?true:false);
 		ASSERT_EQ(ijk[i],space->Ignorable(i)?1:-1);

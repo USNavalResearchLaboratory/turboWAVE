@@ -614,6 +614,7 @@ BoxDiagnostic::BoxDiagnostic(const std::string& name,MetricSpace *ms,Task *tsk) 
 	filename = "tw::none";
 	directives.Add("average",new tw::input::Bool(&average),false);
 	directives.Add("reports",new tw::input::StringList<std::vector<std::string>>(&reports),false);
+	directives.Add("suppress",new tw::input::StringList<std::vector<std::string>>(&no_reports),false);
 }
 
 /// @brief get topology of global diagnostic array

@@ -29,6 +29,7 @@ Simulation::Simulation(const std::string& test_name,
 
 	neutralize = true;
 	movingWindow = false;
+	maxWindowPosition[0] = tw::big_pos;
 
 	stepNow = 0;
 	previous_timestamp = 0;

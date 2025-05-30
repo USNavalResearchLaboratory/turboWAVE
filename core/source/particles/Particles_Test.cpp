@@ -39,6 +39,13 @@ void Species::EncodingTest()
 	ASSERT_EQ(ijk[1],2);
 	ASSERT_EQ(ijk[2],1);
 	ASSERT_EQ(ijk[3],1);
+
+	cell = EncodeCell(100,2,1,1);
+	DecodeCell(cell,ijk);
+	ASSERT_EQ(ijk[0],1);
+	ASSERT_EQ(ijk[1],2);
+	ASSERT_EQ(ijk[2],1);
+	ASSERT_EQ(ijk[3],1);
 }
 
 void Species::ReflectionTest()
