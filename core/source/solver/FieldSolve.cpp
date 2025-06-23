@@ -141,7 +141,7 @@ void Electromagnetic::CleanDivergence(Field& A,tw::Float charge_multiplier)
 {
 	using namespace tw::bc;
 
-	#pragma omp parallel for collapse(3) schedule(static)
+	// TODO: #pragma omp parallel for collapse(3) schedule(static)
 	for (tw::Int i=1;i<=dim[1];i++)
 		for (tw::Int j=1;j<=dim[2];j++)
 			for (tw::Int k=1;k<=dim[3];k++)
@@ -227,7 +227,7 @@ void FieldSolver::VerifyInput()
 
 Electromagnetic::Electromagnetic(const std::string& name,Simulation* sim):FieldSolver(name,sim)
 {
-	if (dk(0) <= sqrt(
+	if (dk(0) <= std::sqrt(
 		(sim->GlobalDim(1)==1 ? 0.0 : 1.0)*sqr(dk(1)) +
 		(sim->GlobalDim(2)==1 ? 0.0 : 1.0)*sqr(dk(2)) +
 		(sim->GlobalDim(3)==1 ? 0.0 : 1.0)*sqr(dk(3))))
@@ -371,7 +371,7 @@ void Electromagnetic::ForceQuasistaticVectorPotential(Field& A4,ScalarField& DtP
 {
 	// only works in cartesian, assumes coulomb gauge
 	tw::Int i,j,k,ax;
-	tw::Float beta = sqrt(1.0 - 1.0/sqr(gammaBeam));
+	tw::Float beta = std::sqrt(1.0 - 1.0/sqr(gammaBeam));
 	tw::Float w = beta*dx(0)*dk(3);
 	ScalarField ans,rhs;
 	ans.Initialize(*this,owner);
@@ -754,7 +754,7 @@ void DirectSolver::SetupPML(Field& pml,tw::Int g0,tw::Int gN,tw::Int L0,tw::Int 
 	{
 		L = L0;
 		delta = L * ds;
-		maxConductivity = -1.5*log(R0)/delta;
+		maxConductivity = -1.5*std::log(R0)/delta;
 		p0 = delta - 0.5*ds;
 		for (i=pml.LFG(1);i<=pml.UFG(1);i++)
 		{
@@ -764,7 +764,7 @@ void DirectSolver::SetupPML(Field& pml,tw::Int g0,tw::Int gN,tw::Int L0,tw::Int 
 			{
 				sigma = maxConductivity * (sqr((p - p0)/delta) + sqr(ds/delta)/12.0);
 				sigma *= ig==0 || ig==L ? 0.5 : 1.0;
-				pml(i,0,0,0) = exp(-sigma*dx(0));
+				pml(i,0,0,0) = std::exp(-sigma*dx(0));
 				pml(i,0,0,1) = (1.0 - pml(i,0,0,0))/sigma;
 				pml(i,0,0,2) = 0.0;
 			}
@@ -772,7 +772,7 @@ void DirectSolver::SetupPML(Field& pml,tw::Int g0,tw::Int gN,tw::Int L0,tw::Int 
 			if (ig > 0 && ig <= L)
 			{
 				sigma = maxConductivity * (sqr((p - p0)/delta) + sqr(ds/delta)/12.0);
-				pml(i,0,0,3) = exp(-sigma*dx(0));
+				pml(i,0,0,3) = std::exp(-sigma*dx(0));
 				pml(i,0,0,4) = (1.0 - pml(i,0,0,3))/sigma;
 				pml(i,0,0,5) = 0.0;
 			}
@@ -788,7 +788,7 @@ void DirectSolver::SetupPML(Field& pml,tw::Int g0,tw::Int gN,tw::Int L0,tw::Int 
 	{
 		L = L1;
 		delta = L * ds;
-		maxConductivity = -1.5*log(R1)/delta;
+		maxConductivity = -1.5*std::log(R1)/delta;
 		p0 = ds*N1 - delta - 0.5*ds;
 		for (i=pml.LFG(1);i<=pml.UFG(1);i++)
 		{
@@ -798,7 +798,7 @@ void DirectSolver::SetupPML(Field& pml,tw::Int g0,tw::Int gN,tw::Int L0,tw::Int 
 			{
 				sigma = maxConductivity * (sqr((p - p0)/delta) + sqr(ds/delta)/12.0);
 				sigma *= ig==N1 || ig==N1-L ? 0.5 : 1.0;
-				pml(i,0,0,0) = exp(-sigma*dx(0));
+				pml(i,0,0,0) = std::exp(-sigma*dx(0));
 				pml(i,0,0,1) = (1.0 - pml(i,0,0,0))/sigma;
 				pml(i,0,0,2) = 0.0;
 			}
@@ -806,7 +806,7 @@ void DirectSolver::SetupPML(Field& pml,tw::Int g0,tw::Int gN,tw::Int L0,tw::Int 
 			if (ig > N1-L && ig <= N1)
 			{
 				sigma = maxConductivity * (sqr((p - p0)/delta) + sqr(ds/delta)/12.0);
-				pml(i,0,0,3) = exp(-sigma*dx(0));
+				pml(i,0,0,3) = std::exp(-sigma*dx(0));
 				pml(i,0,0,4) = (1.0 - pml(i,0,0,3))/sigma;
 				pml(i,0,0,5) = 0.0;
 			}
@@ -1141,7 +1141,7 @@ void CurvilinearDirectSolver::SetSingularPointsB()
 			for (i=lfg[1];i<=ufg[1];i++)
 			{
 				A(i,1,k,5) = 0.0;
-				A(i,1,k,3) = F(i,1,k,3) - 2.0*dt*A(i,1,k,2)/(owner->X(i,1)*sin(owner->X(1,2)));
+				A(i,1,k,3) = F(i,1,k,3) - 2.0*dt*A(i,1,k,2)/(owner->X(i,1)*std::sin(owner->X(1,2)));
 			}
 	}
 	if (owner->gridGeometry==tw::grid::spherical && owner->X(ufg[2],2)>pi)
@@ -1150,7 +1150,7 @@ void CurvilinearDirectSolver::SetSingularPointsB()
 			for (i=lfg[1];i<=ufg[1];i++)
 			{
 				A(i,ufg[2],k,5) = 0.0;
-				A(i,ufg[2],k,3) = F(i,ufg[2],k,3) + 2.0*dt*A(i,dim[2],k,2)/(owner->X(i,1)*sin(owner->X(dim[2],2)));
+				A(i,ufg[2],k,3) = F(i,ufg[2],k,3) + 2.0*dt*A(i,dim[2],k,2)/(owner->X(i,1)*std::sin(owner->X(dim[2],2)));
 			}
 	}
 }
@@ -1271,7 +1271,7 @@ void FarFieldDiagnostic::Update()
 			const tw::Float tNow = bounds[0] + A.dx(1)*tw::Float(farCell.dcd1());
 			const tw::Float thetaNow = bounds[2] + A.dx(2)*tw::Float(farCell.dcd2());
 			const tw::Float phiNow = bounds[4] + A.dx(3)*tw::Float(farCell.dcd3());
-			const tw::vec3 n(sin(thetaNow)*cos(phiNow),sin(thetaNow)*sin(phiNow),cos(thetaNow));
+			const tw::vec3 n(std::sin(thetaNow)*std::cos(phiNow),std::sin(thetaNow)*std::sin(phiNow),std::cos(thetaNow));
 			#pragma omp parallel
 			{
 				for (auto s : StripRange(*this,3,strongbool::no))
@@ -1311,9 +1311,9 @@ void FarFieldDiagnostic::FinalReport()
 		{
 			const tw::Float theta = bounds[2] + A.dx(2)*tw::Float(farCell.dcd2());
 			const tw::Float phi = bounds[4] + A.dx(3)*tw::Float(farCell.dcd3());
-			const tw::vec3 nr( sin(theta)*cos(phi) , sin(theta)*sin(phi) , cos(theta) );
-			const tw::vec3 nq( cos(theta)*cos(phi) , cos(theta)*sin(phi) , -sin(theta) );
-			const tw::vec3 nf( -sin(phi) , cos(phi) , 0.0 );
+			const tw::vec3 nr( std::sin(theta)*std::cos(phi) , std::sin(theta)*std::sin(phi) , std::cos(theta) );
+			const tw::vec3 nq( std::cos(theta)*std::cos(phi) , std::cos(theta)*std::sin(phi) , -std::sin(theta) );
+			const tw::vec3 nf( -std::sin(phi) , std::cos(phi) , 0.0 );
 			const tw::vec3 ACG = nr | (accum(farCell) | nr); // form coulomb gauge A
 			accum(farCell) = tw::vec3( ACG^nr , ACG^nq , ACG^nf ); // put in spherical coordinates
 		}

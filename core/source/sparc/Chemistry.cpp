@@ -2,7 +2,6 @@ module;
 
 #include <tree_sitter/api.h>
 #include "tw_includes.h"
-#include "tw_test.h"
 
 export module chemistry;
 import input;
@@ -83,14 +82,14 @@ tw::Float PrimitiveReaction::PrimitiveRate(tw::Float T)
 
 	if (c1==0.0) // use janev form
 	{
-		const tw::Float logT_eV = log(tw::small_pos + fabs(T)*unit_T_eV);
+		const tw::Float logT_eV = std::log(tw::small_pos + std::fabs(T)*unit_T_eV);
 		rate = 0.0;
 		for (tw::Int s=0;s<9;s++)
 			rate += b[s]*pow(logT_eV,tw::Float(s));
-		rate = exp(rate) / unit_rate_cgs;
+		rate = std::exp(rate) / unit_rate_cgs;
 	}
 	else // use arrhenius form
-		rate = c1 * pow(T,c2) * exp(-c3/T);
+		rate = c1 * pow(T,c2) * std::exp(-c3/T);
 
 	return rate;
 }

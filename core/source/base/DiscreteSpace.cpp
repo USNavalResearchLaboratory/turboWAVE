@@ -1,7 +1,6 @@
 module;
 
 #include "tw_includes.h"
-#include "tw_test.h"
 
 export module discrete_space;
 import base;
@@ -336,7 +335,7 @@ inline void DiscreteSpace::SetPrimitiveWithPosition(Primitive& q,const tw::vec4&
 	tw::Int ijk[4];
 	const tw::vec4 PLoc(P - corner);
 	for (tw::Int i=0;i<4;i++)
-		ijk[i] = tw::Int(floor(PLoc[i]*freq[i])) + 1;
+		ijk[i] = tw::Int(std::floor(PLoc[i]*freq[i])) + 1;
 	q.cell = EncodeCell(ijk[0],ijk[1],ijk[2],ijk[3]);
 	for (tw::Int i=0;i<4;i++)
 		q.x[i] = PLoc[i]*freq[i] - tw::Float(ijk[i]) + tw::Float(0.5);

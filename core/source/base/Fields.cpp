@@ -674,8 +674,8 @@ void Field::AdjustTridiagonalForBoundaries(const Element& e, const tw::grid::axi
 	}
 }
 
-template <tw::Int X, tw::Int Y, tw::Int Z>
-inline void add_const_vec(Field& vf, const tw::vec3& v0)
+export template <tw::Int X, tw::Int Y, tw::Int Z>
+void add_const_vec(Field& vf, const tw::vec3& v0)
 {
 #pragma omp parallel
 	{
@@ -694,8 +694,8 @@ inline void add_const_vec(Field& vf, const tw::vec3& v0)
 	}
 }
 
-template<tw::Int T, tw::Int X, tw::Int Y, tw::Int Z>
-inline void conserved_current_to_dens(Field& current, const MetricSpace& m)
+export template<tw::Int T, tw::Int X, tw::Int Y, tw::Int Z>
+void conserved_current_to_dens(Field& current, const MetricSpace& m)
 {
 #pragma omp parallel
 	{
@@ -709,8 +709,8 @@ inline void conserved_current_to_dens(Field& current, const MetricSpace& m)
 	}
 }
 
-template <tw::Int C, tw::Int X, tw::Int Y, tw::Int Z>
-inline void assign_grad(const Field& sf, Field& vf, const MetricSpace& m, const tw::Float& scaleFactor)
+export template <tw::Int C, tw::Int X, tw::Int Y, tw::Int Z>
+void assign_grad(const Field& sf, Field& vf, const MetricSpace& m, const tw::Float& scaleFactor)
 {
 	// assign the gradient of a scalar field (sf) to a vector field (vf)
 	const tw::Int xN1 = m.UNG(1), yN1 = m.UNG(2), zN1 = m.UNG(3);
@@ -725,8 +725,8 @@ inline void assign_grad(const Field& sf, Field& vf, const MetricSpace& m, const 
 			}
 }
 
-template <tw::Int C, tw::Int X, tw::Int Y, tw::Int Z>
-inline void add_grad(const Field& sf, Field& vf, const MetricSpace& m, const tw::Float& scaleFactor)
+export template <tw::Int C, tw::Int X, tw::Int Y, tw::Int Z>
+void add_grad(const Field& sf, Field& vf, const MetricSpace& m, const tw::Float& scaleFactor)
 {
 	// add the gradient of a scalar field (sf) to a vector field (vf)
 	const tw::Int xN1 = m.UNG(1), yN1 = m.UNG(2), zN1 = m.UNG(3);
@@ -741,8 +741,8 @@ inline void add_grad(const Field& sf, Field& vf, const MetricSpace& m, const tw:
 			}
 }
 
-template <tw::Int U, tw::Int V, tw::Int W, tw::Int X, tw::Int Y, tw::Int Z>
-inline void add_curlB(const Field& src, Field& dst, const MetricSpace& m, const tw::Float& scaleFactor)
+export template <tw::Int U, tw::Int V, tw::Int W, tw::Int X, tw::Int Y, tw::Int Z>
+void add_curlB(const Field& src, Field& dst, const MetricSpace& m, const tw::Float& scaleFactor)
 {
 	// curl of B-field on generalized Yee mesh
 	const tw::Int xDim = m.Dim(1), yDim = m.Dim(2), zDim = m.Dim(3);
@@ -789,8 +789,8 @@ inline void add_curlB(const Field& src, Field& dst, const MetricSpace& m, const 
 		}
 }
 
-template <tw::Int U, tw::Int V, tw::Int W, tw::Int X, tw::Int Y, tw::Int Z>
-inline void add_curlE(const Field& src, Field& dst, const MetricSpace& m, const tw::Float& scaleFactor)
+export template <tw::Int U, tw::Int V, tw::Int W, tw::Int X, tw::Int Y, tw::Int Z>
+void add_curlE(const Field& src, Field& dst, const MetricSpace& m, const tw::Float& scaleFactor)
 {
 	// curl of E-field on generalized Yee mesh
 	const tw::Int xN1 = m.UNG(1), yN1 = m.UNG(2), zN1 = m.UNG(3);
@@ -814,8 +814,8 @@ inline void add_curlE(const Field& src, Field& dst, const MetricSpace& m, const 
 		}
 }
 
-template <tw::Int X, tw::Int Y, tw::Int Z>
-inline tw::Float divE(const Field& vf, tw::Int i, tw::Int j, tw::Int k, const MetricSpace& m)
+export template <tw::Int X, tw::Int Y, tw::Int Z>
+tw::Float divE(const Field& vf, tw::Int i, tw::Int j, tw::Int k, const MetricSpace& m)
 {
 	// divergence of E-field on generalized Yee mesh
 	tw::Float ans, vol;
@@ -2403,7 +2403,7 @@ void Field::WriteCheckpoint(std::ofstream& outFile)
 	outFile.write((char *)&array[0],sizeof(tw::Float)*totalCells*num[0]);
 }
 
-void CopyBoundaryConditions(Field& dst,const Element& dstElement,Field& src,const Element& srcElement)
+export void CopyBoundaryConditions(Field& dst,const Element& dstElement,Field& src,const Element& srcElement)
 {
 	tw::Int n;
 	n = dstElement.Components();
@@ -2413,7 +2413,7 @@ void CopyBoundaryConditions(Field& dst,const Element& dstElement,Field& src,cons
 	dst.bc1 = src.bc1;
 }
 
-void Swap(Field& f1,Field& f2)
+export void Swap(Field& f1,Field& f2)
 {
 	tw::Int i;
 	tw::Float temp;
@@ -2441,14 +2441,14 @@ void Field::Swap(const Element& e1,const Element& e2)
 	}
 }
 
-void CopyFieldData(Field& dst,const Element& e_dst,Field& src,const Element& e_src)
+export void CopyFieldData(Field& dst,const Element& e_dst,Field& src,const Element& e_src)
 {
 	for (tw::Int c=0;c<e_dst.Components();c++)
 		for (auto cell : CellRange(dst,true))
 			dst(cell,e_dst.low+c) = src(cell,e_src.low+c);
 }
 
-void CopyGhostCellData(Field& dst,const Element& e_dst,Field& src,const Element& e_src)
+export void CopyGhostCellData(Field& dst,const Element& e_dst,Field& src,const Element& e_src)
 {
 	for (tw::Int c=0;c<e_dst.Components();c++)
 		for (tw::Int ax=1;ax<=3;ax++)
@@ -2460,7 +2460,7 @@ void CopyGhostCellData(Field& dst,const Element& e_dst,Field& src,const Element&
 				}
 }
 
-void AddFieldData(Field& dst,const Element& e_dst,Field& src,const Element& e_src)
+export void AddFieldData(Field& dst,const Element& e_dst,Field& src,const Element& e_src)
 {
 	tw::Int c;
 	for (c=0;c<e_dst.Components();c++)
@@ -2468,7 +2468,7 @@ void AddFieldData(Field& dst,const Element& e_dst,Field& src,const Element& e_sr
 			dst(cell,e_dst.low+c) += src(cell,e_src.low+c);
 }
 
-void AddMulFieldData(Field& dst,const Element& e_dst,Field& src,const Element& e_src,tw::Float mul)
+export void AddMulFieldData(Field& dst,const Element& e_dst,Field& src,const Element& e_src,tw::Float mul)
 {
 	tw::Int c;
 	for (c=0;c<e_dst.Components();c++)

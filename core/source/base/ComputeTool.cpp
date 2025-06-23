@@ -2,7 +2,6 @@ module;
 
 #include <tree_sitter/api.h>
 #include "tw_includes.h"
-#include "tw_test.h"
 
 /// ComputeTool objects provide low level functionality that is accessible to all Modules.
 /// They retain pointers to MetricSpace (grid information) and Task (access to MPI communicators).

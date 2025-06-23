@@ -3,6 +3,53 @@ module;
 #include "tw_includes.h"
 
 export module base;
+#ifdef USE_STD_MODULE
+	import module std;
+#endif
+
+constexpr bool LittleEndian() {
+	return std::endian::native == std::endian::little;
+}
+
+export namespace tw
+{
+	typedef double Float;
+	typedef int64_t Int;
+	typedef uint64_t Uint;
+	using Complex = std::complex<tw::Float>;
+	class FatalError : public std::exception
+	{
+		char messg[256];
+		public:
+		FatalError(const std::string& s)
+		{
+			s.copy(messg,sizeof(messg));
+			if (s.size()<sizeof(messg))
+				messg[s.size()] = 0;
+		}
+		virtual const char* what() const throw()
+		{
+			return messg;
+		}
+	};
+}
+
+// ANSI terminal codes
+export namespace term
+{
+	const std::string ok("\u2713");
+	const std::string err("\u2717");
+	const std::string red("\u001b[31m");
+	const std::string green("\u001b[32m");
+	const std::string blue("\u001b[94m");
+	const std::string yellow("\u001b[33m");
+	const std::string cyan("\u001b[96m");
+	const std::string reset_color("\u001b[39;49m");
+	const std::string reset_all("\u001b[0m");
+	const std::string bold("\u001b[1m");
+	const std::string warning("\u001b[33mWARNING\u001b[39;49m");
+	const std::string error("\u001b[31mERROR\u001b[39;49m");
+}
 
 export namespace tw
 {
@@ -41,6 +88,54 @@ export const tw::Float one = tw::Float(1.0);
 export const tw::Float two = tw::Float(2.0);
 export const tw::Float half = tw::Float(0.5);
 export const tw::Float root2 = std::sqrt(2);
+
+/////////////////////////////////
+//                             //
+//      ITEMS FOR TESTING      //
+//    (macros in tw_test.h)    //
+//                             //
+/////////////////////////////////
+
+export struct Testable {
+	std::string testName;
+};
+
+export void assertFailed(tw::Float actual,tw::Float expected,const std::string& expr,const std::string& file,int line,const std::string& func)
+{
+	std::ostringstream mess;
+	mess << std::endl << term::err << " function " << term::red << func << term::reset_color << std::endl;
+	mess << "  Assertion " << actual << " (actual) " << expr << " " << expected << " (expected) failed." << std::endl;
+	mess << "  File: " << file <<  " , Line: " << line << std::endl;
+	throw tw::FatalError(mess.str());
+}
+
+export void assertClose(tw::Float actual,tw::Float expected,tw::Float tol,const std::string& file,int line,const std::string& func,std::string& testName)
+{
+	testName = func;
+	if (std::fabs(actual-expected)>tol)
+		assertFailed(actual,expected,"~",file,line,func);
+}
+
+export void assertEqualInt(tw::Int actual,tw::Int expected,const std::string& file,int line,const std::string& func,std::string& testName)
+{
+	testName = func;
+	if (actual!=expected)
+		assertFailed(actual,expected,"==",file,line,func);
+}
+
+export void assertGtrEq(tw::Int actual,tw::Int expected,const std::string& file,int line,const std::string& func,std::string& testName)
+{
+	testName = func;
+	if (actual<expected)
+		assertFailed(actual,expected,">=",file,line,func);
+}
+
+export void assertLessEq(tw::Int actual,tw::Int expected,const std::string& file,int line,const std::string& func,std::string& testName)
+{
+	testName = func;
+	if (actual>expected)
+		assertFailed(actual,expected,"<=",file,line,func);
+}
 
 /////////////////////////////////
 //                             //
@@ -207,14 +302,14 @@ export tw::Float SafeDiv(const tw::Float& numerator,const tw::Float& denominator
 
 export tw::Float arcsinh(const tw::Float& a)
 {
-	return log(a + sqrt(a*a+1.0));
+	return std::log(a + sqrt(a*a+1.0));
 }
 
 export tw::Float pythag(tw::Float a,tw::Float b)
 {
 	tw::Float absa,absb;
-	absa = fabs(a);
-	absb = fabs(b);
+	absa = std::fabs(a);
+	absb = std::fabs(b);
 	if (absa > absb) return absa*sqrt(1.0 + sqr(absb/absa));
 	else return (absb==0.0 ? 0.0 : absb*sqrt(1.0 + sqr(absa/absb)));
 }
@@ -405,7 +500,7 @@ export struct GaussianDeviate
 	{
 		x1 = ud->Next();
 		x2 = ud->Next();
-		return sqrt(fabs(2.0*log(0.0001 + x1)))*cos(6.28*x2);
+		return sqrt(std::fabs(2.0*std::log(0.0001 + x1)))*std::cos(6.28*x2);
 	}
 	void WriteCheckpoint(std::ofstream& outFile)
 	{

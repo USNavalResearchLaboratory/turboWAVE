@@ -1,4 +1,11 @@
-cmake_minimum_required(VERSION 3.30)
+cmake_minimum_required(VERSION 4.0.3)
+
+# Reminders
+# For MSVC, we have to specify release at build time `cmake --build . --config Release`
+# For non-MSVC, we specify release at config time `cmake [options] -DCMAKE_BUILD_TYPE=Release ..`
+# For clangd support, add -DCMAKE_EXPORT_COMPILE_COMMANDS=1 during config
+# it may be necessary to build std by hand
+
 if(WIN32)
     # This requires installing some things with winget:
     # winget install LLVM.LLVM
@@ -9,6 +16,7 @@ if(WIN32)
     set(CMAKE_CXX_COMPILER "$ENV{ProgramFiles}/llvm/bin/clang++.exe")
     set(CMAKE_C_COMPILER "$ENV{ProgramFiles}/llvm/bin/clang.exe")
     set(CMAKE_SYSTEM_LIBRARY_PATH "$ENV{ProgramFiles}/LLVM/lib")
+    set(CMAKE_SYSTEM_INCLUDE_PATH "$ENV{ProgramFiles}/LLVM/include")
 endif()
 if(APPLE OR UNIX)
     # Supposing homebrew/linuxbrew is used for LLVM:
@@ -22,27 +30,27 @@ if(APPLE OR UNIX)
 	set(CMAKE_C_COMPILER "$ENV{HOMEBREW_PREFIX}/opt/llvm/bin/clang")
 	set(CMAKE_SYSTEM_LIBRARY_PATH "$ENV{HOMEBREW_PREFIX}/opt/llvm/lib")
 	set(CMAKE_SYSTEM_INCLUDE_PATH "$ENV{HOMEBREW_PREFIX}/opt/llvm/include")
-    # set(CMAKE_CXX_FLAGS "-stdlib=libc++")
 endif()
 if(APPLE)
     # Shocking we still need this in 2025:
     # Use if errors are encounted pertaining to `j0`, `j1`, or `std::some_special_function`.
     # It appears the LLVM libc++ creates this situation.
+    set(CMAKE_CXX_FLAGS "-stdlib=libc++")
     add_definitions(-DUSE_TWSF)
 endif()
 
-# set(CMAKE_EXPERIMENTAL_CXX_IMPORT_STD ON)
-# set(CMAKE_CXX_MODULE_STD ON)
+set(CMAKE_CXX_STANDARD 23)
+# set(CMAKE_EXPERIMENTAL_CXX_IMPORT_STD "d0edc3af-4c50-42ea-a356-e2862fe7a444")
 
 project(turbowave
         VERSION "5.0.0"
         LANGUAGES C CXX
 )
-set(CMAKE_CXX_STANDARD 23)
+add_executable(tw3d)
+
+# set(CMAKE_CXX_MODULE_STD ON)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # set(CMAKE_CXX_EXTENSIONS ON)
-
-add_executable(tw3d)
 
 configure_file(base/config.h.in config.h)
 
@@ -137,6 +145,10 @@ target_sources(tw3d PUBLIC
         solver/LaserSolve.cpp
         solver/Electrostatic.cpp
         solver/Elliptic.cpp)
+
+if (MSVC)
+    target_compile_options(tw3d PUBLIC -openmp:experimental -openmp:llvm)
+endif()
 
 target_include_directories(tw3d PUBLIC
     io/tree-sitter/lib/include

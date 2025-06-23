@@ -435,7 +435,7 @@ void Fluid::Initialize()
 		throw tw::FatalError("Fluid module needs a profile.");
 	thermalMomentum = profile.back()->thermalMomentum.x;
 	if (profile.back()->temperature!=0.0)
-		thermalMomentum = sqrt(profile.back()->temperature*mass); // appropriate for exp(-v^2/(2*vth^2)) convention
+		thermalMomentum = std::sqrt(profile.back()->temperature*mass); // appropriate for std::exp(-v^2/(2*vth^2)) convention
 	if (thermalMomentum==0.0)
 		throw tw::FatalError("Fluid module requires temperature specification.");
 	if (initialIonizationFraction<=0.0 || initialIonizationFraction>1.0)
@@ -525,7 +525,7 @@ void Fluid::Update()
 	const tw::Float q0 = charge;
 	const tw::Float m0 = mass;
 	const tw::Float m0i = 1.0/m0;
-	const tw::Float kT = sqr(thermalMomentum)/m0; // appropriate for exp(-v^2/(2*vth^2)) convention
+	const tw::Float kT = sqr(thermalMomentum)/m0; // appropriate for std::exp(-v^2/(2*vth^2)) convention
 	const tw::Float coulomb = coulombCollisions ? 1.0 : 0.0;
 
 	// Time centering information upon entry:
@@ -566,7 +566,7 @@ void Fluid::Update()
 			}
 			#pragma omp simd
 			for (tw::Int k=1;k<=dim[3];k++)
-				vel(v,k,0) = sqrt(vel(v,k,0));
+				vel(v,k,0) = std::sqrt(vel(v,k,0));
 		}
 	}
 
@@ -585,7 +585,7 @@ void Fluid::Update()
 			for (tw::Int k=1;k<=dim[3];k++)
 			{
 				kT_eff = kT + (vel(v,k,0) - m0);
-				nuColl[k] = gas(v,k) * enCrossSection * sqrt(kT_eff*m0i);
+				nuColl[k] = gas(v,k) * enCrossSection * std::sqrt(kT_eff*m0i);
 				temp = coulomb * 1e-5 * fixed(v,k) * nconv;
 				temp *= pow(kT_eff*Tconv,-1.5);
 				nuColl[k] += temp*fconv;
@@ -626,7 +626,7 @@ void Fluid::Update()
 			#pragma omp simd
 			for (tw::Int k=lfg[3];k<=ufg[3];k++)
 			{
-				vel(v,k,0) = 1.0/sqrt(vel(v,k,0));
+				vel(v,k,0) = 1.0/std::sqrt(vel(v,k,0));
 				vel(v,k,1) = state1(v,k,1)*vel(v,k,0);
 				vel(v,k,2) = state1(v,k,2)*vel(v,k,0);
 				vel(v,k,3) = state1(v,k,3)*vel(v,k,0);
@@ -688,11 +688,11 @@ void Fluid::Update()
 			for (tw::Int j=lfg[2];j<=ufg[2];j++)
 				for (tw::Int k=lfg[3];k<=ufg[3];k++)
 				{
-					field = sqrt(sqr((*EM)(i,j,k,0))+sqr((*EM)(i,j,k,1))+sqr((*EM)(i,j,k,2)));
+					field = std::sqrt(sqr((*EM)(i,j,k,0))+sqr((*EM)(i,j,k,1))+sqr((*EM)(i,j,k,2)));
 					ionizedDensity = gas(i,j,k)*dt*ionizer->InstantRate(1e-6,field);
 					if (ionizedDensity > gas(i,j,k))
 						ionizedDensity = gas(i,j,k);
-					gas(i,j,k) = fabs(gas(i,j,k) - ionizedDensity);
+					gas(i,j,k) = std::fabs(gas(i,j,k) - ionizedDensity);
 					AddDensity(ionizedDensity,i,j,k);
 				}
 	}
@@ -914,7 +914,7 @@ bool Chemical::LoadFluid(Field& hydro)
 					massLoaded = true;
 					const tw::Float kT = prof->Temperature(mat.mass);
 					const tw::Float kinetic = 0.5*Norm(dens*p0)/(tw::small_pos + mat.mass*dens);
-					const tw::Float vibrational = dens*mat.excitationEnergy/(fabs(exp(mat.excitationEnergy/kT) - 1.0) + tw::small_pos);
+					const tw::Float vibrational = dens*mat.excitationEnergy/(std::fabs(std::exp(mat.excitationEnergy/kT) - 1.0) + tw::small_pos);
 					hydro(cell,ns) = add*hydro(cell,ns) + dens;
 					hydro(cell,npx) = add*hydro(cell,npx) + dens*p0.x;
 					hydro(cell,npy) = add*hydro(cell,npy) + dens*p0.y;
@@ -1058,7 +1058,7 @@ bool EquilibriumGroup::GenerateFluid(Field& hydro,Field& eos)
 		if (massLoaded[i])
 			chemical[i]->LoadInternalEnergy(hydro,eos);
 	for (auto loaded : massLoaded)
-		didGenerate += loaded;
+		didGenerate |= loaded;
 	return didGenerate;
 }
 
@@ -1443,7 +1443,7 @@ void sparc::HydroManager::Reset()
 		// N.b. EquilibriumGroup::GenerateFluid is destructive to the eos field that is passed in.
 		bool didGenerate = false;
 		for (auto grp : group)
-			didGenerate += grp->GenerateFluid(state1,eos1);
+			didGenerate |= grp->GenerateFluid(state1,eos1);
 		if (didGenerate)
 		{
 			EOSAdvance(dx(0)); // gets eos0 using state0 and state1
@@ -1482,7 +1482,7 @@ void sparc::HydroManager::LoadCollisionRate(Collision *coll,ScalarField& R)
 		{
 			T1 = eos1(cell,coll->e1.T) * econv;
 			T2 = eos1(cell,coll->e2.T) * econv;
-			v12 = sqrt(8.0*(T1/m1 + T2/m2)/pi);
+			v12 = std::sqrt(8.0*(T1/m1 + T2/m2)/pi);
 			R(cell) = rconv * (4.0/3.0) * v12 * sigma;
 		}
 
@@ -1493,7 +1493,7 @@ void sparc::HydroManager::LoadCollisionRate(Collision *coll,ScalarField& R)
 			N2 = state1(cell,coll->h2.ni) * nconv;
 			T1 = eos1(cell,coll->e1.T) * econv;
 			T2 = eos1(cell,coll->e2.T) * econv;
-			v12 = sqrt(8.0*(T1/m1 + T2/m2)/pi);
+			v12 = std::sqrt(8.0*(T1/m1 + T2/m2)/pi);
 			R(cell) = rconv * (4.0/3.0) * v12 * sparc::CoulombCrossSectionCGS(q1,q2,m12,v12,N1,N2,T1,T2);
 		}
 
@@ -1506,7 +1506,7 @@ void sparc::HydroManager::LoadCollisionRate(Collision *coll,ScalarField& R)
 			N2 = state1(cell,coll->h2.ni) * nconv;
 			T1 = eos1(cell,coll->e1.T) * econv;
 			T2 = eos1(cell,coll->e2.T) * econv;
-			v12 = sqrt(8.0*(T1/m1 + T2/m2)/pi);
+			v12 = std::sqrt(8.0*(T1/m1 + T2/m2)/pi);
 			Ti = m1==1.0 ? T2 : T1;
 			phonon = sparc::ElectronPhononFrequencyCGS(Ti,EFermi,coll->ks)/nref;
 			coulomb = (4.0/3.0) * v12 * sparc::CoulombCrossSectionCGS(q1,q2,m12,v12,N1,N2,T1,T2);
@@ -1658,18 +1658,18 @@ void sparc::HydroManager::ComputeCollisionalSources()
 				const tw::Float Tv = eos1(cell,x->e2.Tv);
 				const tw::Float energy = x->m2.excitationEnergy;
 				const tw::Float level = x->level;
-				const tw::Float Xv = x->PrimitiveRate(fabs(Te));
+				const tw::Float Xv = x->PrimitiveRate(std::fabs(Te));
 				const tw::Int i1 = x->h1.ni;
 				const tw::Int i2 = x->h2.ni;
 
 				if (level>0)
 				{
-					tw::Float n0 = state1(cell,i2) * (1.0 - exp(-energy/Tv));
-					rateNow = energy * level * Xv * state1(cell,i1) * n0 * (1.0 - exp(energy*level/Te - energy*level/Tv));
+					tw::Float n0 = state1(cell,i2) * (1.0 - std::exp(-energy/Tv));
+					rateNow = energy * level * Xv * state1(cell,i1) * n0 * (1.0 - std::exp(energy*level/Te - energy*level/Tv));
 				}
 				else
 				{
-					rateNow = energy * Xv * state1(cell,i1) * state1(cell,i2) * (1.0 - exp(energy/Te - energy/Tv));
+					rateNow = energy * Xv * state1(cell,i1) * state1(cell,i2) * (1.0 - std::exp(energy/Te - energy/Tv));
 				}
 
 				CreateTotalAndVibrational(cell,rateNow,x->h2);
@@ -1717,7 +1717,7 @@ void sparc::HydroManager::ComputeRadiativeSources()
 							const hydro_set& he = chem->ionizer->he;
 							const hydro_set& hi = chem->ionizer->hi;
 
-							const tw::Float Emag = sqrt(norm(laserAmplitude(cell)));
+							const tw::Float Emag = std::sqrt(norm(laserAmplitude(cell)));
 							const tw::Float photoRate = state1(cell,r.ni)*chem->ionizer->AverageRate(laserFrequency,Emag);
 							const tw::Float V = 1.0/(tw::small_pos + r.DensitySum(state1,cell)); // specific volume of reactant's EquilibriumGroup
 							const tw::Float nFx = V*photoRate*state1(cell,r.npx);
@@ -1920,7 +1920,7 @@ void sparc::HydroManager::ComputeHydroSources()
 						const tw::Float Pc = eos1(cell,g->eidx.P);
 						const tw::vec3 vc = g->Velocity(state1,cell);
 						const tw::vec3 pos = owner->Pos(cell);
-						const tw::Float tanz = tan(pos.z);
+						const tw::Float tanz = std::tan(pos.z);
 						CreateMomentum(cell,1,fluxMask(cell)*(nm*(sqr(vc.y) + sqr(vc.z)) + 2.0*Pc)/pos.x,g->hidx);
 						DestroyMomentum(cell,2,fluxMask(cell)*(nm*(vc.x*vc.z - vc.y*vc.y/tanz) - Pc/tanz)/pos.x,g->hidx);
 						DestroyMomentum(cell,3,fluxMask(cell)*nm*(vc.x*vc.y + vc.y*vc.z/tanz)/pos.x,g->hidx);
@@ -2048,7 +2048,7 @@ tw::Float sparc::HydroManager::EstimateTimeStep()
 	#pragma omp parallel
 	{
 		const tw::Int tid = tw::GetOMPThreadNum();
-		const tw::Float sqrt_eps = sqrt(epsilonFactor);
+		const tw::Float sqrt_eps = std::sqrt(epsilonFactor);
 		const tw::Float creationDominance = 100.0;
 		tw::Float dts;
 
@@ -2069,7 +2069,7 @@ tw::Float sparc::HydroManager::EstimateTimeStep()
 					const tw::Float deta2 = sqr(0.5*owner->dL(cell,2));
 					const tw::Float dzeta2 = sqr(0.5*owner->dL(cell,3));
 					dts = sqr(vel.x)/dxi2 + sqr(vel.y)/deta2 + sqr(vel.z)/dzeta2;
-					dts = 0.9/sqrt(dts);
+					dts = 0.9/std::sqrt(dts);
 					if (dts < dtMax[tid])
 					{
 						dtMax[tid] = dts;
@@ -2085,9 +2085,9 @@ tw::Float sparc::HydroManager::EstimateTimeStep()
 		{
 			tw::Float dt_temp;
 			if (creationRate(cell,c) > creationDominance*destructionRate(cell,c))
-				dt_temp = sqrt_eps*fabs( (tw::small_pos+state1(cell,c)) / destructionRate(cell,c) );
+				dt_temp = sqrt_eps*std::fabs( (tw::small_pos+state1(cell,c)) / destructionRate(cell,c) );
 			else
-				dt_temp = sqrt_eps*fabs( (tw::small_pos+state1(cell,c)) / (creationRate(cell,c) - destructionRate(cell,c)) );
+				dt_temp = sqrt_eps*std::fabs( (tw::small_pos+state1(cell,c)) / (creationRate(cell,c) - destructionRate(cell,c)) );
 			if (dt_temp < dtMax[tid])
 				return dt_temp;
 			else
@@ -2130,8 +2130,8 @@ tw::Float sparc::HydroManager::EstimateTimeStep()
 		if (owner->WindowPos(0)>=shape.delay && owner->WindowPos(0)<shape.delay+pulseDuration)
 		{
 			// Ensure Step resolves shortest pulse
-			if ( dtMaxAllPulses > sqrt(epsilonFactor)*pulseDuration )
-				dtMaxAllPulses = sqrt(epsilonFactor)*pulseDuration;
+			if ( dtMaxAllPulses > std::sqrt(epsilonFactor)*pulseDuration )
+				dtMaxAllPulses = std::sqrt(epsilonFactor)*pulseDuration;
 		}
 		if ( dtMaxAllNodes > dtMaxAllPulses )
 			dtMaxAllNodes = dtMaxAllPulses;
@@ -2234,7 +2234,7 @@ void sparc::HydroManager::FieldAdvance(tw::Float dt)
 	ellipticSolver->Solve(phi,rho,-1.0);
 
 	// Compute the new charge density
-	#pragma omp parallel for collapse(3) schedule(static)
+	// TODO: #pragma omp parallel for collapse(3) schedule(static)
 	for (tw::Int i=1;i<=dim[1];i++)
 		for (tw::Int j=1;j<=dim[2];j++)
 			for (tw::Int k=1;k<=dim[3];k++)

@@ -1,6 +1,7 @@
 module;
 
 #include "tw_includes.h"
+import base;
 #include "tw_test.h"
 
 module injection;
@@ -31,12 +32,12 @@ bool HermiteGauss::Test(tw::Int& id)
         ASSERT_NEAR(a1.z,0.0,1e-4);
 
         a1 = VectorPotential(1.0,tw::vec3(0.0,1.0,0.0));
-        ASSERT_NEAR(a1.x,1.0/exp(1),1e-4);
+        ASSERT_NEAR(a1.x,1.0/std::exp(1),1e-4);
         ASSERT_NEAR(a1.y,0.0,1e-4);
         ASSERT_NEAR(a1.z,0.0,1e-4);
 
         a1 = VectorPotential(0.5,tw::vec3(0.0,0.0,0.0));
-        ASSERT_NEAR(a1.x,0.5*cos(w*0.5),1e-4);
+        ASSERT_NEAR(a1.x,0.5*std::cos(w*0.5),1e-4);
         ASSERT_NEAR(a1.y,0.0,1e-4);
         ASSERT_NEAR(a1.z,0.0,1e-4);
     }

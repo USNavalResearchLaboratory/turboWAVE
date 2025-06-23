@@ -19,7 +19,7 @@ export tw::Int set_subcycles(float F0[6][tw::max_bundle_size])
 			if (sqr(2 * F0[c][i]) > max2)
 				max2 = sqr(2 * F0[c][i]);
 		}
-	tw::Int subcycles = 1 + tw::Int(sqrt(max2));
+	tw::Int subcycles = 1 + tw::Int(std::sqrt(max2));
 	const float subi = 1.0f / subcycles;
 	for (int c = 0; c < 6; c++)
 #pragma omp simd aligned(F0:AB)
@@ -349,7 +349,7 @@ void BundlePusherUnitary::dilate_timestep(float F0[6][N], float F[6][N], tw::Flo
 	// TODO: is this needed/desirable
 #pragma omp simd aligned(u:AB)
 	for (int i = 0; i < N; i++)
-		u[0][i] = sqrt(1.0 + u[1][i] * u[1][i] + u[2][i] * u[2][i] + u[3][i] * u[3][i]);
+		u[0][i] = std::sqrt(1.0 + u[1][i] * u[1][i] + u[2][i] * u[2][i] + u[3][i] * u[3][i]);
 
 	for (int c = 0; c < 6; c++)
 #pragma omp simd aligned(F0,F:AB)
@@ -433,7 +433,7 @@ inline void BundlePusherBoris::rotation1(tw::Float t[3][N], tw::Float u[4][N], f
 	for (int c = 0; c < 3; c++)
 #pragma omp simd aligned(t,u,F:AB)
 		for (int i = 0; i < N; i++)
-			t[c][i] = F[c + 3][i] / sqrt(1.0 + u[1][i] * u[1][i] + u[2][i] * u[2][i] + u[3][i] * u[3][i]);
+			t[c][i] = F[c + 3][i] / std::sqrt(1.0 + u[1][i] * u[1][i] + u[2][i] * u[2][i] + u[3][i] * u[3][i]);
 }
 inline void BundlePusherBoris::rotation2(tw::Float s[3][N], tw::Float t[3][N])
 {
@@ -460,7 +460,7 @@ inline void BundlePusherBoris::velocity(tw::Float vel[4][N], tw::Float u[4][N])
 {
 #pragma omp simd aligned(u:AB)
 	for (int i = 0; i < N; i++)
-		u[0][i] = sqrt(1.0 + u[1][i] * u[1][i] + u[2][i] * u[2][i] + u[3][i] * u[3][i]);
+		u[0][i] = std::sqrt(1.0 + u[1][i] * u[1][i] + u[2][i] * u[2][i] + u[3][i] * u[3][i]);
 
 	for (int c = 0; c < 4; c++)
 #pragma omp simd aligned(vel,u:AB)
@@ -507,7 +507,7 @@ inline void BundlePusherHC::gamma_new(float gammaNew[N], float b[N], tw::Float u
 	{
 		gammaNew[i] = F[3][i] * u[1][i] + F[4][i] * u[2][i] + F[5][i] * u[3][i];
 		gammaNew[i] = 4.0 * (gammaNew[i] + F[3][i] * F[3][i] + F[4][i] * F[4][i] + F[5][i] * F[5][i]);
-		gammaNew[i] = sqrt(0.5 * (b[i] + sqrt(b[i] * b[i] + gammaNew[i])));
+		gammaNew[i] = std::sqrt(0.5 * (b[i] + std::sqrt(b[i] * b[i] + gammaNew[i])));
 	}
 }
 inline void BundlePusherHC::rotation1(tw::Float t[3][N], float gammaNew[N], float F[6][N])
@@ -543,7 +543,7 @@ inline void BundlePusherHC::velocity(tw::Float vel[4][N], tw::Float u[4][N])
 {
 #pragma omp simd aligned(u:AB)
 	for (int i = 0; i < N; i++)
-		u[0][i] = sqrt(1.0 + u[1][i] * u[1][i] + u[2][i] * u[2][i] + u[3][i] * u[3][i]);
+		u[0][i] = std::sqrt(1.0 + u[1][i] * u[1][i] + u[2][i] * u[2][i] + u[3][i] * u[3][i]);
 
 	for (int c = 0; c < 4; c++)
 #pragma omp simd aligned(vel,u:AB)
@@ -577,11 +577,11 @@ void BundlePusherHC::Push(tw::Float dts)
 inline void BundlePusherPGC::avg_gam_1(tw::Float avgGam[N], tw::Float vel[4][N], tw::Float u[4][N], float F[6][N], float las[8][N])
 {
 	// las = [q2m2dth*grad(a^2(n)), q2m2dth*grad(a^2(n+1/2)), q2m2h*a^2(n), q2m2h*a^2(n+1/2)]
-	// we are estimating sqrt(1 + u^2 + 0.5*q^2*a^2/m^2) at level n, using u at level n-1/2
+	// we are estimating std::sqrt(1 + u^2 + 0.5*q^2*a^2/m^2) at level n, using u at level n-1/2
 #pragma omp simd aligned(u,las:AB)
 	for (int i = 0; i < N; i++)
 		// this uses las[7]=a^2(n+1/2) - arguably we should use las[6]=a^2(n)
-		avgGam[i] = sqrt(1.0 + u[1][i] * u[1][i] + u[2][i] * u[2][i] + u[3][i] * u[3][i] + las[7][i]);
+		avgGam[i] = std::sqrt(1.0 + u[1][i] * u[1][i] + u[2][i] * u[2][i] + u[3][i] * u[3][i] + las[7][i]);
 	for (int c = 0; c < 4; c++)
 #pragma omp simd aligned(avgGam,vel,u:AB)
 		for (int i = 0; i < N; i++)
@@ -591,18 +591,18 @@ inline void BundlePusherPGC::avg_gam_1(tw::Float avgGam[N], tw::Float vel[4][N],
 		avgGam[i] += F[0][i] * vel[1][i] + F[1][i] * vel[2][i] + F[2][i] * vel[3][i];
 #pragma omp simd aligned(vel,las,avgGam:AB)
 	for (int i = 0; i < N; i++)
-		avgGam[i] = 0.5 * (avgGam[i] + sqrt(sqr(avgGam[i]) - las[0][i] * vel[1][i] - las[1][i] * vel[2][i] - las[2][i] * vel[3][i]));
+		avgGam[i] = 0.5 * (avgGam[i] + std::sqrt(sqr(avgGam[i]) - las[0][i] * vel[1][i] - las[1][i] * vel[2][i] - las[2][i] * vel[3][i]));
 }
 inline void BundlePusherPGC::avg_gam_2(tw::Float avgGam[N], tw::Float u[4][N], float las[8][N])
 {
 	// las = [q2m2dth*grad(a^2(n)), q2m2dth*grad(a^2(n+1/2)), q2m2h*a^2(n), q2m2h*a^2(n+1/2)]
-	// We are estimating sqrt(1 + u^2 + 0.5*q^2*a^2/m^2) at level n+1/2, using u at level n+1/2.
+	// We are estimating std::sqrt(1 + u^2 + 0.5*q^2*a^2/m^2) at level n+1/2, using u at level n+1/2.
 	// This is nontrivial because the *spatial* position where a^2 is evaluated has changed.
 	alignas(AB) tw::Float g1[N];
 	alignas(AB) tw::Float dA[N];
 #pragma omp simd aligned(g1,dA,u,las,avgGam:AB)
 	for (int i = 0; i < N; i++)
-		g1[i] = sqrt(1.0 + u[1][i] * u[1][i] + u[2][i] * u[2][i] + u[3][i] * u[3][i] + las[7][i]);
+		g1[i] = std::sqrt(1.0 + u[1][i] * u[1][i] + u[2][i] * u[2][i] + u[3][i] * u[3][i] + las[7][i]);
 #pragma omp simd aligned(g1,dA,u,las,avgGam:AB)
 	for (int i = 0; i < N; i++)
 		dA[i] = (las[3][i] * u[1][i] + las[4][i] * u[2][i] + las[5][i] * u[3][i]) / g1[i];

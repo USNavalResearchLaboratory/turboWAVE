@@ -76,7 +76,7 @@ export namespace tw
 
 		friend tw::Float Magnitude(const vec3& v)
 		{
-			return sqrt(v.x*v.x + v.y*v.y + v.z*v.z);
+			return std::sqrt(v.x*v.x + v.y*v.y + v.z*v.z);
 		}
 
 		friend tw::Float Norm(const vec3& v)
@@ -87,7 +87,7 @@ export namespace tw
 		friend tw::Float Normalize(vec3& v)
 		{
 			tw::Float mag;
-			mag = sqrt(v.x*v.x + v.y*v.y + v.z*v.z);
+			mag = std::sqrt(v.x*v.x + v.y*v.y + v.z*v.z);
 			v.x /= mag;
 			v.y /= mag;
 			v.z /= mag;
@@ -226,8 +226,8 @@ export namespace tw
 		void RotateZ(tw::Float angle)
 		{
 			tw::Float st,ct,xOld;
-			st = sin(angle);
-			ct = cos(angle);
+			st = std::sin(angle);
+			ct = std::cos(angle);
 			xOld = x;
 			x = xOld*ct - y*st;
 			y = xOld*st + y*ct;
@@ -236,8 +236,8 @@ export namespace tw
 		void RotateY(tw::Float angle)
 		{
 			tw::Float st,ct,zOld;
-			st = sin(angle);
-			ct = cos(angle);
+			st = std::sin(angle);
+			ct = std::cos(angle);
 			zOld = z;
 			z = zOld*ct - x*st;
 			x = zOld*st + x*ct;
@@ -246,8 +246,8 @@ export namespace tw
 		void RotateX(tw::Float angle)
 		{
 			tw::Float st,ct,yOld;
-			st = sin(angle);
-			ct = cos(angle);
+			st = std::sin(angle);
+			ct = std::cos(angle);
 			yOld = y;
 			y = yOld*ct - z*st;
 			z = yOld*st + z*ct;
@@ -308,7 +308,7 @@ export namespace tw
 
 		friend tw::Float Magnitude(const cvec3& v)
 		{
-			return sqrt(norm(v.x) + norm(v.y) + norm(v.z));
+			return std::sqrt(norm(v.x) + norm(v.y) + norm(v.z));
 		}
 
 		friend tw::Float Norm(const cvec3& v)
@@ -319,7 +319,7 @@ export namespace tw
 		friend tw::Float Normalize(cvec3& v)
 		{
 			tw::Float mag;
-			mag = sqrt(norm(v.x) + norm(v.y) + norm(v.z));
+			mag = std::sqrt(norm(v.x) + norm(v.y) + norm(v.z));
 			v.x /= mag;
 			v.y /= mag;
 			v.z /= mag;
@@ -441,8 +441,8 @@ export namespace tw
 		{
 			tw::Complex xOld;
 			tw::Float st,ct;
-			st = sin(angle);
-			ct = cos(angle);
+			st = std::sin(angle);
+			ct = std::cos(angle);
 			xOld = x;
 			x = xOld*ct - y*st;
 			y = xOld*st + y*ct;
@@ -452,8 +452,8 @@ export namespace tw
 		{
 			tw::Complex zOld;
 			tw::Float st,ct;
-			st = sin(angle);
-			ct = cos(angle);
+			st = std::sin(angle);
+			ct = std::cos(angle);
 			zOld = z;
 			z = zOld*ct - x*st;
 			x = zOld*st + x*ct;
@@ -463,8 +463,8 @@ export namespace tw
 		{
 			tw::Complex yOld;
 			tw::Float st,ct;
-			st = sin(angle);
-			ct = cos(angle);
+			st = std::sin(angle);
+			ct = std::cos(angle);
 			yOld = y;
 			y = yOld*ct - z*st;
 			z = yOld*st + z*ct;
@@ -556,8 +556,8 @@ export namespace tw
 		void zBoost(const tw::Float& g,const tw::Float& sgn)
 		{
 			tw::vec4 v(*this);
-			tw::vec4 L0(g,0.0,0.0,sgn*sqrt(g*g-1.0));
-			tw::vec4 L3(sgn*sqrt(g*g-1.0),0.0,0.0,g);
+			tw::vec4 L0(g,0.0,0.0,sgn*std::sqrt(g*g-1.0));
+			tw::vec4 L3(sgn*std::sqrt(g*g-1.0),0.0,0.0,g);
 			// Here L is a pure matrix, no need to raise the vector.
 			array[0] = Inner(L0,v);
 			array[3] = Inner(L3,v);
@@ -749,13 +749,13 @@ export namespace tw
 			// sgn = sign determines sign of the helicity
 			// Work out spherical coordinates and half-angles
 			tw::Float ctheta = n.z;
-			tw::Float stheta = sqrt(1.0-n.z*n.z);
+			tw::Float stheta = std::sqrt(1.0-n.z*n.z);
 			tw::Float cphi = n.x/stheta;
-			//tw::Float sphi = sqrt(1.0 - cphi*cphi);
-			tw::Float ctheta2 = sqrt(0.5*(1+ctheta));
-			tw::Float stheta2 = sqrt(0.5*(1-ctheta));
-			tw::Float cphi2 = sqrt(0.5*(1+cphi));
-			tw::Float sphi2 = sqrt(0.5*(1-cphi));
+			//tw::Float sphi = std::sqrt(1.0 - cphi*cphi);
+			tw::Float ctheta2 = std::sqrt(0.5*(1+ctheta));
+			tw::Float stheta2 = std::sqrt(0.5*(1-ctheta));
+			tw::Float cphi2 = std::sqrt(0.5*(1+cphi));
+			tw::Float sphi2 = std::sqrt(0.5*(1-cphi));
 			if (sgn>0.0)
 			{
 				array[0] = ctheta2 * (cphi2-ii*sphi2);

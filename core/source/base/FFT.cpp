@@ -28,7 +28,7 @@ export {
 	inline tw::Float eigenvalue_CFFT(tw::Int i,tw::Int num,tw::Float dxi)
 	{
 		if (num>1)
-			return 2.0*dxi*dxi*(cos(tw::Float(2.0*pi*i)/tw::Float(num)) - 1.0);
+			return 2.0*dxi*dxi*(std::cos(tw::Float(2.0*pi*i)/tw::Float(num)) - 1.0);
 		else
 			return 0.0;
 	}
@@ -38,7 +38,7 @@ export {
 		if (num>1)
 		{
 			if (i!=1)
-				return 2.0*dxi*dxi*(cos(tw::Float(2.0*pi*(i/2))/tw::Float(num)) - 1.0);
+				return 2.0*dxi*dxi*(std::cos(tw::Float(2.0*pi*(i/2))/tw::Float(num)) - 1.0);
 			else
 				return -4.0*dxi*dxi;
 		}
@@ -49,7 +49,7 @@ export {
 	inline tw::Float eigenvalue_FST(tw::Int i,tw::Int num,tw::Float dxi)
 	{
 		if (num>1)
-			return 2.0*dxi*dxi*(cos(tw::Float(pi*i)/tw::Float(num)) - 1.0);
+			return 2.0*dxi*dxi*(std::cos(tw::Float(pi*i)/tw::Float(num)) - 1.0);
 		else
 			return 0.0;
 	}
@@ -57,7 +57,7 @@ export {
 	inline tw::Float eigenvalue_FCT(tw::Int i,tw::Int num,tw::Float dxi)
 	{
 		if (num>1)
-			return 2.0*dxi*dxi*(cos(tw::Float(pi*i)/tw::Float(num)) - 1.0);
+			return 2.0*dxi*dxi*(std::cos(tw::Float(pi*i)/tw::Float(num)) - 1.0);
 		else
 			return 0.0;
 	}
@@ -206,9 +206,9 @@ void RealFFT(tw::Float *array,tw::Int num,tw::Int interval,tw::Int inversion)
 		c2 = 0.5;
 		theta = -theta;
 	}
-	wtemp = sin(0.5*theta);
+	wtemp = std::sin(0.5*theta);
 	wpr = -2.0*wtemp*wtemp;
-	wpi = sin(theta);
+	wpi = std::sin(theta);
 	wr = 1.0 + wpr;
 	wi = wpi;
 	for (i=2;i<=(num/4);i++)
@@ -259,10 +259,10 @@ void CosineTransform(tw::Float* array,tw::Int num,tw::Int interval,tw::Int inver
 	wr = 1.0;
 	wi = 0.0;
 	theta = 0.5*pi/num;
-	wr1 = cos(theta);
-	wi1 = sin(theta);
+	wr1 = std::cos(theta);
+	wi1 = std::sin(theta);
 	wpr = -2.0*wi1*wi1;
-	wpi = sin(2.0*theta);
+	wpi = std::sin(2.0*theta);
 
 	if (inversion==1)
 	{
@@ -342,8 +342,8 @@ void SineTransform(tw::Float* array,tw::Int num,tw::Int interval,tw::Int inversi
 	theta = 3.141592653589793/tw::Float(num);
 	wr = 1.0;
 	wi = 0.0;
-	wpr = -2.0*pow(sin(0.5*theta),2.0);
-	wpi = sin(theta);
+	wpr = -2.0*pow(std::sin(0.5*theta),2.0);
+	wpi = std::sin(theta);
 	y[0] = 0.0;
 	for (j=1;j<=num/2;j++)
 	{

@@ -445,7 +445,7 @@ tw::UnitConverter::UnitConverter()
 	// Setup plasma normalization to fail, i.e.,
 	// we require an assignment from another constructor.
 	ne = 0.0;
-	wp = sqrt(ne*sqr(mks::qe)/(mks::eps0*mks::me));
+	wp = std::sqrt(ne*sqr(mks::qe)/(mks::eps0*mks::me));
 }
 
 tw::UnitConverter::UnitConverter(tw::units sys,tw::Float unitDensityCGS)
@@ -461,7 +461,7 @@ tw::UnitConverter::UnitConverter(tw::units sys,tw::Float unitDensityCGS)
 	alpha = qe*qe/(4*pi*eps0*hbar*c);
 	// setup plasma normalization
 	ne = unitDensityCGS*1e6;
-	wp = sqrt(ne*sqr(mks::qe)/(mks::eps0*mks::me));
+	wp = std::sqrt(ne*sqr(mks::qe)/(mks::eps0*mks::me));
 }
 
 tw::UnitConverter::UnitConverter(tw::units sys,const tw::UnitConverter& uc)
@@ -589,7 +589,7 @@ tw::Float tw::UnitConverter::MKSValue(tw::dims dim,tw::units sys) const
 			u1 = me*c*c;
 			l1 = hbar/(me*c);
 			w1 = u1/hbar;
-			q1 = qe/sqrt(alpha);
+			q1 = qe/std::sqrt(alpha);
 			a1 = u1/(q1*l1*w1);
 			T1 = u1/kB;
 			return FactorizedMKSValue(dim,m1,w1,l1,u1,q1,a1,T1);

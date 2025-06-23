@@ -333,26 +333,26 @@ inline tw::vec3 MetricSpace::ScaleFactor(const tw::vec3& r) const
 {
 	return tw::vec3(
 				1.0,
-				car + cyl*r.x + sph*r.x*sin(r.z),
+				car + cyl*r.x + sph*r.x*std::sin(r.z),
 				car + cyl + sph*r.x
 				);
 }
 
 inline tw::Float MetricSpace::CylindricalRadius(const tw::vec3& r) const
 {
-	return sqrt((car+cyl)*sqr(r.x) + car*sqr(r.y)) + sph*r.x*sin(r.z);
+	return std::sqrt((car+cyl)*sqr(r.x) + car*sqr(r.y)) + sph*r.x*std::sin(r.z);
 }
 
 inline tw::Float MetricSpace::SphericalRadius(const tw::vec3& r) const
 {
-	return sqrt(sqr(r.x) + car*sqr(r.y) + (car+cyl)*sqr(r.z));
+	return std::sqrt(sqr(r.x) + car*sqr(r.y) + (car+cyl)*sqr(r.z));
 }
 
 inline void MetricSpace::CurvilinearToCartesian(tw::vec3 *r) const
 {
 	tw::vec3 temp = *r;
-	const tw::Float cy = cos(temp.y); const tw::Float sy = sin(temp.y);
-	const tw::Float cz = cos(temp.z); const tw::Float sz = sin(temp.z);
+	const tw::Float cy = std::cos(temp.y); const tw::Float sy = std::sin(temp.y);
+	const tw::Float cz = std::cos(temp.z); const tw::Float sz = std::sin(temp.z);
 	r->x = car*temp.x + cyl*temp.x*cy + sph*temp.x*sz*cy;
 	r->y = car*temp.y + cyl*temp.x*sy + sph*temp.x*sz*sy;
 	r->z = car*temp.z + cyl*temp.z + sph*temp.x*cz;
@@ -361,8 +361,8 @@ inline void MetricSpace::CurvilinearToCartesian(tw::vec3 *r) const
 inline void MetricSpace::CartesianToCurvilinear(tw::vec3 *r) const
 {
 	tw::vec3 temp = *r;
-	const tw::Float rho = sqrt(sqr(temp.x) + sqr(temp.y));
-	const tw::Float R = sqrt(rho*rho + sqr(temp.z));
+	const tw::Float rho = std::sqrt(sqr(temp.x) + sqr(temp.y));
+	const tw::Float R = std::sqrt(rho*rho + sqr(temp.z));
 	const tw::Float phi = atan2(temp.y,temp.x);
 	const tw::Float theta = atan2(rho,temp.z);
 	r->x = car*temp.x + cyl*rho + sph*R;
@@ -373,18 +373,18 @@ inline void MetricSpace::CartesianToCurvilinear(tw::vec3 *r) const
 inline void MetricSpace::CurvilinearToCylindrical(tw::vec3 *r) const
 {
 	tw::vec3 temp = *r;
-	const tw::Float rho = sqrt(sqr(temp.x) + sqr(temp.y));
+	const tw::Float rho = std::sqrt(sqr(temp.x) + sqr(temp.y));
 	const tw::Float phi = atan2(temp.y,temp.x);
-	r->x = car*rho + cyl*temp.x + sph*temp.x*sin(temp.z);
+	r->x = car*rho + cyl*temp.x + sph*temp.x*std::sin(temp.z);
 	r->y = car*phi + cyl*temp.y + sph*temp.y;
-	r->z = car*temp.z + cyl*temp.z + sph*temp.x*cos(temp.z);
+	r->z = car*temp.z + cyl*temp.z + sph*temp.x*std::cos(temp.z);
 }
 
 inline void MetricSpace::CurvilinearToSpherical(tw::vec3 *r) const
 {
 	tw::vec3 temp = *r;
-	const tw::Float rho = car*sqrt(sqr(temp.x) + sqr(temp.y)) + cyl*temp.x;
-	const tw::Float R = sqrt(rho*rho + temp.z*temp.z);
+	const tw::Float rho = car*std::sqrt(sqr(temp.x) + sqr(temp.y)) + cyl*temp.x;
+	const tw::Float R = std::sqrt(rho*rho + temp.z*temp.z);
 	r->x = (car+cyl)*R + sph*temp.x;
 	r->y = car*atan2(temp.y,temp.x) + cyl*temp.y + sph*temp.y;
 	r->z = (car+cyl)*atan2(rho,temp.z) + sph*temp.z;
@@ -392,8 +392,8 @@ inline void MetricSpace::CurvilinearToSpherical(tw::vec3 *r) const
 
 inline void MetricSpace::GetTangentVectorBasis(tw::basis *b,const tw::vec3& r) const
 {
-	const tw::Float cy = cos(r.y); const tw::Float sy = sin(r.y);
-	const tw::Float cz = cos(r.z); const tw::Float sz = sin(r.z);
+	const tw::Float cy = std::cos(r.y); const tw::Float sy = std::sin(r.y);
+	const tw::Float cz = std::cos(r.z); const tw::Float sz = std::sin(r.z);
 	b->u.x = car + cyl*cy + sph*sz*cy;
 	b->u.y = cyl*sy + sph*sz*sy;
 	b->u.z = sph*cz;
@@ -764,12 +764,12 @@ void MetricSpace::SetSphericalGeometry()
 		const tw::Float z0 = zpos[i];
 		const tw::Float dz = zwidth[i];
 		const tw::Float z1 = z0 - 0.5*dz;
-		cell_area_z[i + 0*sz] = sin(0.5*dz)*sin(z0);
-		cell_area_z[i + 1*sz] = sin(0.5*dz)*sin(z0);
+		cell_area_z[i + 0*sz] = std::sin(0.5*dz)*std::sin(z0);
+		cell_area_z[i + 1*sz] = std::sin(0.5*dz)*std::sin(z0);
 		cell_area_z[i + 2*sz] = dz;
-		cell_area_z[i + 3*sz] = sin(z1);
+		cell_area_z[i + 3*sz] = std::sin(z1);
 		cell_arc_z[i + 0*sz] = 1.0;
-		cell_arc_z[i + 1*sz] = sin(z0);
+		cell_arc_z[i + 1*sz] = std::sin(z0);
 	}
 	for (i=1;i<sx;i++)
 	{
@@ -791,8 +791,8 @@ void MetricSpace::SetSphericalGeometry()
 	{
 		const tw::Float z0 = zpos[i] - 0.5*zwidth[i];
 		const tw::Float dz = zpos[i] - zpos[i-1];
-		cell_area_z[i + 4*sz] = sin(0.5*dz)*sin(z0);
-		cell_area_z[i + 5*sz] = sin(0.5*dz)*sin(z0);
+		cell_area_z[i + 4*sz] = std::sin(0.5*dz)*std::sin(z0);
+		cell_area_z[i + 5*sz] = std::sin(0.5*dz)*std::sin(z0);
 		cell_area_z[i + 6*sz] = dz;
 	}
 	for (i=0;i<sx;i++)
@@ -809,9 +809,9 @@ void MetricSpace::SetSphericalGeometry()
 	{
 		const tw::Float z0 = zpos[i] - 0.5*zwidth[i];
 		const tw::Float z1 = zpos[i];
-		cell_area_z[i + 7*sz] = sin(z1);
+		cell_area_z[i + 7*sz] = std::sin(z1);
 		cell_arc_z[i + 3*sz] = 1.0;
-		cell_arc_z[i + 4*sz] = sin(z0);
+		cell_arc_z[i + 4*sz] = std::sin(z0);
 		cell_arc_z[i + 5*sz] = zwidth[i];
 	}
 

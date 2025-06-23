@@ -131,10 +131,10 @@ void LaserSolver::Initialize()
 	for (auto tool : moduleTool) {
 		auto diag = dynamic_cast<BoxDiagnostic*>(tool);
 		if (diag!=NULL && diag!=HRBoxDiagnostic) {
-			diag->no_reports.push_back("a_real_raw");
-			diag->no_reports.push_back("a_imag_raw");
-			diag->no_reports.push_back("j1_real_raw");
-			diag->no_reports.push_back("j1_imag_raw");
+			diag->no_reports.push_back("a_real");
+			diag->no_reports.push_back("a_imag");
+			diag->no_reports.push_back("j1_real");
+			diag->no_reports.push_back("j1_imag");
 			HRBoxDiagnostic->CopyParams(*diag);
 		}
 	}
@@ -175,9 +175,9 @@ tw::vec3 LaserSolver::GetIonizationKick(const tw::Float& a2,const tw::Float& q0,
 	if (polarizationType==circularPolarization)
 	{
 		phase = owner->uniformDeviate->Next()*2.0*pi;
-		// remember "a" has been multiplied by sqrt(2) at the beginning
-		ans.x = q0*sqrt(0.5*a2)*cos(phase);
-		ans.y = q0*sqrt(0.5*a2)*sin(phase);
+		// remember "a" has been multiplied by std::sqrt(2) at the beginning
+		ans.x = q0*std::sqrt(0.5*a2)*std::cos(phase);
+		ans.y = q0*std::sqrt(0.5*a2)*std::sin(phase);
 		ans.z = 0.25*q0*q0*a2/m0;
 	}
 	else
@@ -299,10 +299,10 @@ void LaserSolver::VerifyInput()
 	moduleTool.push_back(HRBoxDiagnostic);
 	HRBoxDiagnostic->filename = "refined";
 	HRBoxDiagnostic->space = &HRSpace;
-	HRBoxDiagnostic->reports.push_back("a_real_raw");
-	HRBoxDiagnostic->reports.push_back("a_imag_raw");
-	HRBoxDiagnostic->reports.push_back("j1_real_raw");
-	HRBoxDiagnostic->reports.push_back("j1_imag_raw");
+	HRBoxDiagnostic->reports.push_back("a_real");
+	HRBoxDiagnostic->reports.push_back("a_imag");
+	HRBoxDiagnostic->reports.push_back("j1_real");
+	HRBoxDiagnostic->reports.push_back("j1_imag");
 }
 
 void LaserSolver::ReadCheckpoint(std::ifstream& inFile)
@@ -499,10 +499,10 @@ void PGCSolver::Report(Diagnostic& diagnostic)
 	LaserSolver::Report(diagnostic);
 
 	if (diagnostic.name == "hr_box") {
-		diagnostic.ReportField("a_real_raw",HRa1,0,tw::dims::vector_potential,"$\\Re A$");
-		diagnostic.ReportField("a_imag_raw",HRa1,1,tw::dims::vector_potential,"$\\Im A$");
-		diagnostic.ReportField("j1_real_raw",HRchi,0,tw::dims::current_density,"$\\Re j$");
-		diagnostic.ReportField("j1_imag_raw",HRchi,1,tw::dims::current_density,"$\\Im j$");
+		diagnostic.ReportField("a_real",HRa1,0,tw::dims::vector_potential,"$\\Re A$");
+		diagnostic.ReportField("a_imag",HRa1,1,tw::dims::vector_potential,"$\\Im A$");
+		diagnostic.ReportField("j1_real",HRchi,0,tw::dims::current_density,"$\\Re j$");
+		diagnostic.ReportField("j1_imag",HRchi,1,tw::dims::current_density,"$\\Im j$");
 		return;
 	}
 

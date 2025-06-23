@@ -87,7 +87,7 @@ export struct RectRegion:Region
 	{
 		tw::vec3 p = pos - center;
 		orientation.ExpressInBasis(&p);
-		return complement ^ (fabs(p.x)<rbox.x && fabs(p.y)<rbox.y && fabs(p.z)<rbox.z);
+		return complement ^ (std::fabs(p.x)<rbox.x && std::fabs(p.y)<rbox.y && std::fabs(p.z)<rbox.z);
 	}
 };
 
@@ -101,7 +101,7 @@ export struct PrismRegion:Region
 	{
 		tw::vec3 p = pos - center;
 		orientation.ExpressInBasis(&p);
-		return complement ^ (fabs(p.x)<rbox.x && fabs(p.y)<rbox.y && fabs(p.z)<rbox.z*0.5*(rbox.x-p.x)/rbox.x);
+		return complement ^ (std::fabs(p.x)<rbox.x && std::fabs(p.y)<rbox.y && std::fabs(p.z)<rbox.z*0.5*(rbox.x-p.x)/rbox.x);
 	}
 };
 
@@ -127,7 +127,7 @@ export struct CylinderRegion:Region
 	{
 		tw::vec3 p = pos - center;
 		orientation.ExpressInBasis(&p);
-		return complement ^ (sqr(p.x) + sqr(p.y) < sqr(rbox.x) && fabs(p.z) < rbox.z);
+		return complement ^ (sqr(p.x) + sqr(p.y) < sqr(rbox.x) && std::fabs(p.z) < rbox.z);
 	}
 };
 
@@ -140,7 +140,7 @@ export struct CylindricalShellRegion:Region
 		tw::Float rho;
 		tw::vec3 p = pos - center;
 		orientation.ExpressInBasis(&p);
-		rho = sqrt(p.x*p.x + p.y*p.y);
+		rho = std::sqrt(p.x*p.x + p.y*p.y);
 		return complement ^ ( rho < outerRadius && rho > innerRadius && sqr(p.z) < sqr(rbox.z));
 	}
 	virtual void ReadInputFileDirective(const TSTreeCursor *curs,const std::string& src);
@@ -159,7 +159,7 @@ export struct RoundedCylinderRegion:Region
 		bool ans;
 		tw::vec3 p = pos - center;
 		orientation.ExpressInBasis(&p);
-		ans = sqr(p.x) + sqr(p.y) < sqr(rbox.x) && fabs(p.z) < rbox.z;
+		ans = sqr(p.x) + sqr(p.y) < sqr(rbox.x) && std::fabs(p.z) < rbox.z;
 		ans = ans || Norm(p - tw::vec3(0,0,rbox.z)) < sqr(rbox.x);
 		ans = ans || Norm(p + tw::vec3(0,0,rbox.z)) < sqr(rbox.x);
 		return complement ^ ans;
@@ -219,7 +219,7 @@ export struct TorusRegion:Region
 		tw::Float rho;
 		tw::vec3 p = pos - center;
 		orientation.ExpressInBasis(&p);
-		rho = sqrt(p.x*p.x + p.y*p.y);
+		rho = std::sqrt(p.x*p.x + p.y*p.y);
 		return complement ^ ( rho > majorRadius-minorRadius && rho < majorRadius+minorRadius &&
 			sqr(p.z) < sqr(minorRadius)-sqr(rho-majorRadius));
 	}
@@ -237,7 +237,7 @@ export struct ConeRegion:Region
 		tw::Float rho,rOfz;
 		tw::vec3 p = pos - center;
 		orientation.ExpressInBasis(&p);
-		rho = sqrt(p.x*p.x + p.y*p.y);
+		rho = std::sqrt(p.x*p.x + p.y*p.y);
 		rOfz = minorRadius - (p.z - rbox.z)*(majorRadius-minorRadius)/(2.0*rbox.z);
 		return complement ^ ( rho < rOfz && sqr(p.z) < sqr(rbox.z));
 	}
@@ -259,15 +259,15 @@ export struct TangentOgiveRegion:Region
 		x0 = 2.0*rbox.z - tipRadius;
 		ogiveRadius = (x0*x0+sqr(bodyRadius)-sqr(tipRadius))/(2.0*(bodyRadius-tipRadius));
 		yt = tipRadius*(ogiveRadius-bodyRadius)/(ogiveRadius-tipRadius);
-		xt = x0 + sqrt(sqr(tipRadius)-yt*yt);
+		xt = x0 + std::sqrt(sqr(tipRadius)-yt*yt);
 
-		rho = sqrt(p.x*p.x + p.y*p.y);
+		rho = std::sqrt(p.x*p.x + p.y*p.y);
 		p.z += rbox.z;
 		rOfz = -1.0;
 		if (p.z>0.0 && p.z<xt)
-			rOfz = sqrt(sqr(ogiveRadius)-p.z*p.z) + bodyRadius - ogiveRadius;
+			rOfz = std::sqrt(sqr(ogiveRadius)-p.z*p.z) + bodyRadius - ogiveRadius;
 		if (p.z>=xt && p.z<2.0*rbox.z)
-			rOfz = sqrt(sqr(tipRadius)-sqr(p.z-x0));
+			rOfz = std::sqrt(sqr(tipRadius)-sqr(p.z-x0));
 		return complement ^ (rho < rOfz);
 	}
 	virtual void ReadInputFileDirective(const TSTreeCursor *curs,const std::string& src);

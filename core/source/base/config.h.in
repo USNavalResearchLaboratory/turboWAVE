@@ -1,10 +1,9 @@
 // values will be modified by CMake
 
-#undef BIGENDIAN
-
 #define TW_VERSION_STRING "@turbowave_VERSION_MAJOR@.@turbowave_VERSION_MINOR@.@turbowave_VERSION_PATCH@"
 
 #undef USE_OPENCL
 
 #define VBITS 256
 
+//#define USE_STD_MODULE

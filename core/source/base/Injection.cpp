@@ -447,13 +447,13 @@ void Profile::WriteCheckpoint(std::ofstream& outFile)
 tw::vec3 Profile::DriftMomentum(const tw::Float& mass)
 {
 	tw::Float p2 = driftMomentum ^ driftMomentum;
-	tw::Float p0 = sqrt(mass*mass + p2);
+	tw::Float p0 = std::sqrt(mass*mass + p2);
 	tw::vec4 p4(p0,driftMomentum);
 	p4.zBoost(gammaBoost,-1.0);
 	return p4.spatial();
 	// tw::vec4 v4(0.0,driftMomentum/mass);
 	// tw::Float gb2 = v4 ^ v4;
-	// v4[0] = sqrt(1.0 + gb2);
+	// v4[0] = std::sqrt(1.0 + gb2);
 	// v4.zBoost(gammaBoost,-1.0);
 	// return mass*v4.spatial();
 }
@@ -747,7 +747,7 @@ tw::Float PiecewiseProfile::GetValue(const tw::vec3& pos,const MetricSpace& ds)
 			}
 			break;
 		case tw::grid::cylindrical:
-			r = sqrt(sqr(x0 - x[0]) + sqr(y0 - 0.5*(y[0] + y[yDim-1])));
+			r = std::sqrt(sqr(x0 - x[0]) + sqr(y0 - 0.5*(y[0] + y[yDim-1])));
 			r += x[0];
 			ansX = 0.0;
 			for (i=0;i<xDim-1;i++)
@@ -780,7 +780,7 @@ tw::Float PiecewiseProfile::GetValue(const tw::vec3& pos,const MetricSpace& ds)
 			ansY = 1.0;
 			break;
 		case tw::grid::spherical:
-			r = sqrt(sqr(x0 - x[0]) + sqr(y0 - 0.5*(y[0] + y[yDim-1])) + sqr(z0 - 0.5*(z[0] + z[zDim-1])));
+			r = std::sqrt(sqr(x0 - x[0]) + sqr(y0 - 0.5*(y[0] + y[yDim-1])) + sqr(z0 - 0.5*(z[0] + z[zDim-1])));
 			r += x[0];
 			ansX = 0.0;
 			for (i=0;i<xDim-1;i++)
@@ -801,7 +801,7 @@ tw::Float PiecewiseProfile::GetValue(const tw::vec3& pos,const MetricSpace& ds)
 			break;
 	}
 
-	tw::Float dens = ansX*ansY*ansZ*sqr(cos(0.5*modeNumber.x*p.x)*cos(0.5*modeNumber.y*p.y)*cos(0.5*modeNumber.z*p.z));
+	tw::Float dens = ansX*ansY*ansZ*sqr(std::cos(0.5*modeNumber.x*p.x)*std::cos(0.5*modeNumber.y*p.y)*std::cos(0.5*modeNumber.z*p.z));
 	return theRgn->Inside(b,ds) ? gammaBoost*dens : 0.0;
 }
 
@@ -828,8 +828,8 @@ tw::Float CorrugatedProfile::GetValue(const tw::vec3& pos,const MetricSpace& ds)
 	psi = delta*wp0*wp0/(2.0*w0*km);
 	a0Hat = 4.0*tw::cyl_bessel_j(1,psi)*a0/(w0*rchannel);
 	kHat = w0 + km - 0.5*w0*(sqr(wp0/w0) + 8.0/sqr(w0*rchannel));
-	wp1s = 2.0*w0*kHat - 2.0*sqrt(sqr(gamma0+a0Hat*w0*z)/(sqr(gamma0+a0Hat*w0*z)-1.0))*w0*w0;
-	dens = wp0*wp0*(1.0 + delta*sin(km*z)) + wp1s + 4.0*r2/pow(rchannel,tw::Float(4.0));
+	wp1s = 2.0*w0*kHat - 2.0*std::sqrt(sqr(gamma0+a0Hat*w0*z)/(sqr(gamma0+a0Hat*w0*z)-1.0))*w0*w0;
+	dens = wp0*wp0*(1.0 + delta*std::sin(km*z)) + wp1s + 4.0*r2/pow(rchannel,tw::Float(4.0));
 	return theRgn->Inside(b,ds) ? gammaBoost*dens : 0.0;
 }
 
@@ -870,7 +870,7 @@ void PulseShape::Initialize(const tw::Float time_origin)
 	// Set up the time window (estimate analytically)
 	tw::Float time_window;
 	if (spectral_phase_coeff.size()>0)
-	 	time_window = 1.5*(t4-t1)*sqrt(1.0+4096.0*sqr(spectral_phase_coeff[0])/pow(t4-t1,4));
+	 	time_window = 1.5*(t4-t1)*std::sqrt(1.0+4096.0*sqr(spectral_phase_coeff[0])/pow(t4-t1,4));
 	else
 		time_window = t4-t1;
 	tw::Float tbeg = t1 + 0.5*(t4-t1) - 0.5*time_window;
@@ -1048,7 +1048,7 @@ BesselBeam::BesselBeam(const std::string& name,MetricSpace *m,Task *tsk) : Wave(
 
 tw::Complex BesselBeam::PrimitivePhasor(const tw::vec4& x) const
 {
-	const tw::Float rbar = sqrt(sqr(x[1]) + sqr(x[2]))/modeData.scale[0];
+	const tw::Float rbar = std::sqrt(sqr(x[1]) + sqr(x[2]))/modeData.scale[0];
 	const tw::Float tau = x[0] - nrefr*x[3];
 	const tw::Float psi = phase - w*tau - chirp*tau*tau;
 	return a0 * tw::cyl_bessel_j(0,rbar) * pulseShape.Amplitude(tau) * std::exp(ii*psi);
@@ -1063,7 +1063,7 @@ tw::Complex AiryDisc::PrimitivePhasor(const tw::vec4& x) const
 {
 	// User input is the radius of the first zero.
 	// This is convenient because then the energy corresponds to a Gaussian with the same radius.
-	const tw::Float rbar = sqrt(sqr(x[1]) + sqr(x[2]))*3.83171/modeData.scale[0];
+	const tw::Float rbar = std::sqrt(sqr(x[1]) + sqr(x[2]))*3.83171/modeData.scale[0];
 	const tw::Float tau = x[0] - nrefr*x[3];
 	const tw::Float psi = phase - w*tau - chirp*tau*tau;
 	return 2*a0 * (tw::cyl_bessel_j(1,rbar)/rbar) * pulseShape.Amplitude(tau) * std::exp(ii*psi);
@@ -1092,18 +1092,18 @@ tw::Complex LaguerreGauss::PrimitivePhasor(const tw::vec4& x) const
 	tw::Float zR,rm,rho,phi;
 
 	// setup for Laguerre-Gaussian mode
-	rho = sqrt(x[1]*x[1] + x[2]*x[2]);
+	rho = std::sqrt(x[1]*x[1] + x[2]*x[2]);
 	phi = atan2(x[2],x[1]);
 	zR = 0.5*nrefr*w*r0*r0;
-	rm = r0*sqrt(one + x[3]*x[3]/(zR*zR));
-	guoy_shift = -(one + two*mu + mv)*atan(x[3]/zR);
+	rm = r0*std::sqrt(one + x[3]*x[3]/(zR*zR));
+	guoy_shift = -(one + two*mu + mv)*std::atan(x[3]/zR);
 
 	// compute factors for r-phi profile
 	Ax *= r0/rm;
 	Ax *= tw::assoc_laguerre(mu,mv,two*sqr(rho/rm));
-	Ax *= nexp%2==0 ? exp(-pow(rho/rm,nexp)) : pow(cos(0.5*pi*rho/rm),nexp+1)*tw::Float(rho<rm);
-	Ax *= pow(sqrt(two)*rho/rm,tw::Float(mv)); // put appropriate hole on axis
-	Ax *= sqrt(Factorial(mu)/Factorial(mu+mv)); // Laguerre normalization
+	Ax *= nexp%2==0 ? exp(-pow(rho/rm,nexp)) : pow(std::cos(0.5*pi*rho/rm),nexp+1)*tw::Float(rho<rm);
+	Ax *= pow(std::sqrt(two)*rho/rm,tw::Float(mv)); // put appropriate hole on axis
+	Ax *= std::sqrt(Factorial(mu)/Factorial(mu+mv)); // Laguerre normalization
 	tau += guoy_shift/w - 0.5*nrefr*rho*rho*x[3]/(x[3]*x[3] + zR*zR);
 	tw::Float psi = phase + 2.0*guoy_shift - mv*phi - w*tau - chirp*tau*tau;
 
@@ -1136,12 +1136,12 @@ tw::Complex HermiteGauss::PrimitivePhasor(const tw::vec4& x) const
 		const tw::Float m = order[ax-1];
 		const tw::Float r00 = r0[ax-1];
 		const tw::Float zR = 0.5*nrefr*w*r00*r00;
-		const tw::Float rm = r00*sqrt(1.0 + x[3]*x[3]/(zR*zR));
-		guoy_shift -= (0.5 + m)*atan(x[3]/zR);
-		Ax *= sqrt(r00/rm);
+		const tw::Float rm = r00*std::sqrt(1.0 + x[3]*x[3]/(zR*zR));
+		guoy_shift -= (0.5 + m)*std::atan(x[3]/zR);
+		Ax *= std::sqrt(r00/rm);
 		Ax *= tw::hermite(m,1.41421356*q/rm);
-		Ax *= nexp[ax-1]%2==0 ? exp(-pow(q/rm,nexp[ax-1])) : pow(cos(0.5*pi*q/rm),nexp[ax-1]+1)*tw::Float(q*q<rm*rm);
-		Ax /= sqrt(pow(two,tw::Float(m))*Factorial(m)); // Hermite normalization
+		Ax *= nexp[ax-1]%2==0 ? exp(-pow(q/rm,nexp[ax-1])) : pow(std::cos(0.5*pi*q/rm),nexp[ax-1]+1)*tw::Float(q*q<rm*rm);
+		Ax /= std::sqrt(pow(two,tw::Float(m))*Factorial(m)); // Hermite normalization
 		tau += guoy_shift/w - 0.5*nrefr*q*q*x[3]/(x[3]*x[3] + zR*zR);
 	};
 
@@ -1167,11 +1167,11 @@ tw::Complex Multipole::PrimitivePhasor(const tw::vec4& x) const
 {
 	// For now hard code in magnetic dipole radiation
 	const tw::Float j1max = 0.436182;
-	const tw::Float rho = sqrt(x[1]*x[1] + x[2]*x[2]);
-	const tw::Float R = sqrt(rho*rho + x[3]*x[3]);
+	const tw::Float rho = std::sqrt(x[1]*x[1] + x[2]*x[2]);
+	const tw::Float R = std::sqrt(rho*rho + x[3]*x[3]);
 	const tw::Float stheta = rho/R;
 	const tw::Float wR = w*R;
-	//auto spherical_bessel = [&] (tw::Float x) { return sin(x)/sqr(x+tw::small_pos) - cos(x)/(x+tw::small_pos); };
+	//auto spherical_bessel = [&] (tw::Float x) { return std::sin(x)/sqr(x+tw::small_pos) - std::cos(x)/(x+tw::small_pos); };
 
 	tw::Complex Aphi;
 	tw::Float tau_in,tau_out;
@@ -1186,7 +1186,7 @@ tw::Complex Multipole::PrimitivePhasor(const tw::vec4& x) const
 tw::vec3 Multipole::PrimitiveVector(const tw::vec4& x) const
 {
 	tw::Complex Ax = PrimitivePhasor(x);
-	const tw::Float rho = tw::small_pos + sqrt(x[1]*x[1] + x[2]*x[2]);
+	const tw::Float rho = tw::small_pos + std::sqrt(x[1]*x[1] + x[2]*x[2]);
 	return tw::vec3( -std::real(Ax)*x[2]/rho , std::real(Ax)*x[1]/rho ,0.0 );
 }
 
@@ -1291,7 +1291,7 @@ tw::Float Conductor::Voltage(tw::Float t)
 {
 	tw::Float ans = 0.0;
 	for (tw::Int i=0;i<potential.size();i++)
-		ans += std::real(pulseShape.Amplitude(t))*potential[i]*cos(angFreq[i]*t + phase[i]);
+		ans += std::real(pulseShape.Amplitude(t))*potential[i]*std::cos(angFreq[i]*t + phase[i]);
 	return ans;
 }
 
@@ -1300,8 +1300,8 @@ tw::Float Conductor::VoltageRate(tw::Float t)
 	tw::Float ans = 0.0;
 	for (tw::Int i=0;i<potential.size();i++)
 	{
-		ans -= std::real(pulseShape.Amplitude(t))*angFreq[i]*potential[i]*sin(angFreq[i]*t + phase[i]);
-		ans += std::real(pulseShape.D1Amplitude(t))*potential[i]*cos(angFreq[i]*t + phase[i]);
+		ans -= std::real(pulseShape.Amplitude(t))*angFreq[i]*potential[i]*std::sin(angFreq[i]*t + phase[i]);
+		ans += std::real(pulseShape.D1Amplitude(t))*potential[i]*std::cos(angFreq[i]*t + phase[i]);
 	}
 	return ans;
 }
@@ -1315,7 +1315,7 @@ tw::vec3 Conductor::PolarizationDensity(const tw::vec3& pos,tw::Float t)
 	for (tw::Int i=0;i<potential.size();i++)
 	{
 		P0 = tw::vec3(Px[i],Py[i],Pz[i]);
-		ans += P0*sin(angFreq[i]*t + phase[i] + (0.5*angFreq[i]/f)*(rc.x*rc.x + rc.y*rc.y) + (ks^rc));
+		ans += P0*std::sin(angFreq[i]*t + phase[i] + (0.5*angFreq[i]/f)*(rc.x*rc.x + rc.y*rc.y) + (ks^rc));
 	}
 	ans *= std::real(pulseShape.Amplitude(t + (0.5/f)*(rc.x*rc.x + rc.y*rc.y)));
 	ans *= exp(-sqr(rc.x/gaussianRadius.x)-sqr(rc.y/gaussianRadius.y)-sqr(rc.z/gaussianRadius.z));

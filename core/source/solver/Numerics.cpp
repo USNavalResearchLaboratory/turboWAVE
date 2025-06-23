@@ -423,7 +423,7 @@ export void ReverseTransform(tw::Float *array,tw::Int pts,tw::Int modes,tw::Int 
 // 		q = j;
 // 		temp = A(p,p,1)/A(p,q,1);
 // 		s[j] = pow(one + temp*temp,tw::Float(-half));
-// 		c[j] = sqrt(one - s[j]*s[j]);
+// 		c[j] = std::sqrt(one - s[j]*s[j]);
 // 		if (temp>0.0)
 // 			s[j] *= -1.0;
 // 		LeftHalfRotation(A,p,q,c[j],s[j],deflation,0);
@@ -452,7 +452,7 @@ export void ReverseTransform(tw::Float *array,tw::Int pts,tw::Int modes,tw::Int 
 // 		q = i;
 // 		temp = A(p,p,1)/A(q,p,1);
 // 		s[i] = pow(one + temp*temp,tw::Float(-half));
-// 		c[i] = sqrt(one - s[i]*s[i]);
+// 		c[i] = std::sqrt(one - s[i]*s[i]);
 // 		if (temp>0.0)
 // 			s[i] *= -1.0;
 // 		RightHalfRotation(A,p,q,c[i],s[i],0,deflation);
@@ -491,18 +491,18 @@ void GetEigenvector(tw::Float eigenvalue,std::valarray<tw::Float>& vec,std::vala
 				vec[i] = ud.Next();
 				norm += vec[i]*vec[i];
 			}
-			vec *= 1.0/sqrt(norm);
+			vec *= 1.0/std::sqrt(norm);
 		}
 
 		TriDiagonal<tw::Float,tw::Float>(ans,vec,a,b,c);
 		norm = 0.0;
 		for (i=0;i<vec.size();i++)
 			norm += ans[i]*ans[i];
-		ans *= 1.0/sqrt(norm);
+		ans *= 1.0/std::sqrt(norm);
 
 		anotherIteration = false;
 		for (i=0;i<vec.size();i++)
-			if (fabs((ans[i]-vec[i])/vec[i])>1e-10)
+			if (std::fabs((ans[i]-vec[i])/vec[i])>1e-10)
 				anotherIteration = true;
 
 		vec = ans;
@@ -529,7 +529,7 @@ void SortEigensystem(std::valarray<tw::Float>& eigenvalues,tw::Float *revTransfo
 	for (tw::Int i=1;i<n;i++)
 	{
 		tw::Int j = i;
-		while (fabs(eigenvalues[j-1]) > fabs(eigenvalues[j]))
+		while (std::fabs(eigenvalues[j-1]) > std::fabs(eigenvalues[j]))
 		{
 			std::swap(eigenvalues[j],eigenvalues[j-1]);
 			if (revTransform!=NULL)
@@ -568,15 +568,15 @@ void SymmetricTridiagonalEigensystem(std::valarray<tw::Float>& eigenvalues,tw::F
 		{
 			for (m=l;m<=n-1;m++)
 			{
-				dd = fabs(d[m]) + fabs(d[m+1]);
-				if (fabs(e[m]) + dd == dd)
+				dd = std::fabs(d[m]) + std::fabs(d[m+1]);
+				if (std::fabs(e[m]) + dd == dd)
 					break;
 			}
 			if (m!=l)
 			{
 				g = (d[l+1]-d[l])/(2.0*e[l]);
 				r = pythag(g,1.0);
-				g = d[m]-d[l]+e[l]/(g+(g>=0.0 ? fabs(r) : -fabs(r)));
+				g = d[m]-d[l]+e[l]/(g+(g>=0.0 ? std::fabs(r) : -std::fabs(r)));
 				s = c = 1.0;
 				p = 0.0;
 				for (i=m-1;i>=l;i--)
@@ -620,7 +620,7 @@ void SymmetricTridiagonalEigensystem(std::valarray<tw::Float>& eigenvalues,tw::F
 
 export tw::Float GetSphericalGroundState(std::valarray<tw::Float>& vec,std::valarray<tw::Float>& phi,tw::Float dr)
 {
-	// Diagonalize Hamiltonion : H0 = -0.5*del^2 - 1/sqrt(coreRadius^2 + r^2)
+	// Diagonalize Hamiltonion : H0 = -0.5*del^2 - 1/std::sqrt(coreRadius^2 + r^2)
 	tw::Int i,dim;
 	dim = phi.size();
 	tw::Float dr1,dr3,A1,A3,V2;
@@ -656,7 +656,7 @@ export tw::Float GetSphericalGroundState(std::valarray<tw::Float>& vec,std::vala
 		r0 = r2;
 		r1 = r3;
 		r2 = r4;
-		Lambda[i] = sqrt(V2);
+		Lambda[i] = std::sqrt(V2);
 	}
 	// set neumann condition at r = 0 (this is actually redundant since T1[0]=0)
 	T2[0] += T1[0];
@@ -696,13 +696,13 @@ export tw::Float GetSphericalGroundState(std::valarray<tw::Float>& vec,std::vala
 	normalization = 0.0;
 	for (i=0;i<dim;i++)
 		normalization += vec[i]*vec[i]*(4.0/3.0)*pi*(cub(dr*tw::Float(i+1)) - cub(dr*tw::Float(i)));
-	vec /= sqrt(normalization);
+	vec /= std::sqrt(normalization);
 	return eigenvalue;
 }
 
 export tw::Float GetCylindricalGroundState(std::valarray<tw::Float>& vec,std::valarray<tw::Float>& phi,tw::Float dr)
 {
-	// Diagonalize Hamiltonion : H0 = -0.5*del^2 - 1/sqrt(coreRadius^2 + r^2)
+	// Diagonalize Hamiltonion : H0 = -0.5*del^2 - 1/std::sqrt(coreRadius^2 + r^2)
 	tw::Int i,dim;
 	dim = phi.size();
 	tw::Float dr1,dr3,A1,A3,V2;
@@ -738,7 +738,7 @@ export tw::Float GetCylindricalGroundState(std::valarray<tw::Float>& vec,std::va
 		r0 = r2;
 		r1 = r3;
 		r2 = r4;
-		Lambda[i] = sqrt(V2);
+		Lambda[i] = std::sqrt(V2);
 	}
 	// set neumann condition at r = 0 (this is actually redundant since T1[0]=0)
 	T2[0] += T1[0];
@@ -778,7 +778,7 @@ export tw::Float GetCylindricalGroundState(std::valarray<tw::Float>& vec,std::va
 	normalization = 0.0;
 	for (i=0;i<dim;i++)
 		normalization += vec[i]*vec[i]*pi*(sqr(dr*tw::Float(i+1)) - sqr(dr*tw::Float(i)));
-	vec /= sqrt(normalization);
+	vec /= std::sqrt(normalization);
 	return eigenvalue;
 }
 
@@ -836,7 +836,7 @@ export void ComputeTransformMatrices(tw::bc::fld radial_bc,std::valarray<tw::Flo
 		T1[i-1] = A[i]/(dr1*V[i]);
 		T2[i-1] = - (A[i]/dr1 + A[i+1]/dr2)/V[i];
 		T3[i-1] = A[i+1]/(dr2*V[i]);
-		Lambda[i-1] = sqrt(V[i]);
+		Lambda[i-1] = std::sqrt(V[i]);
 	}
 	// set neumann condition at r = 0 (this is actually redundant since T1[0]=0)
 	T2[0] += T1[0];

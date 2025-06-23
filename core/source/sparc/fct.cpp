@@ -99,7 +99,7 @@ void FCT_Engine::Transport(std::valarray<tw::Float>& vel,
 	// compute diffused mass
 	#pragma omp simd
 	for (i=1;i<=cells+1;i++)
-		diff[i] = -0.25*A[i]*dt*fabs(vel[i]+vel[i-1])*(rho[i] - rho[i-1]);
+		diff[i] = -0.25*A[i]*dt*std::fabs(vel[i]+vel[i-1])*(rho[i] - rho[i-1]);
 
 	// compute transported mass
 	#pragma omp simd
@@ -140,7 +140,7 @@ void FCT_Engine::Diffuse(std::valarray<tw::Float>& vel,
 	// compute anti-diffused mass (re-using diffused mass array)
 	#pragma omp simd
 	for (i=1;i<=cells+1;i++)
-		diff[i] = 0.25*A[i]*dt*fabs(vel[i]+vel[i-1])*(scratch[i] - scratch[i-1]);
+		diff[i] = 0.25*A[i]*dt*std::fabs(vel[i]+vel[i-1])*(scratch[i] - scratch[i-1]);
 }
 
 void FCT_Engine::Limiter(tw::Float& adiff,const tw::Float& maxLow,const tw::Float& maxHigh)

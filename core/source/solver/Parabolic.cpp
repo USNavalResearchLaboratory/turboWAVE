@@ -403,7 +403,7 @@ void ADIPropagator::AdvanceAxis(tw::Int ua,ComplexField& a0,ComplexField& a1,Com
 	for (auto k=wDim;k>=-1;k--) {
 		for (auto j=1;j<=vDim;j++) {
 			const auto u = ua == 1 ? tw::strip(ua,*space,0,j,k) : tw::strip(ua,*space,j,0,k);
-			#pragma parallel for
+			#pragma omp parallel for
 			for (auto i=1;i<=uDim;i++) {
 				const auto v = ua == 1 ? tw::strip(va,*space,i,0,k) : tw::strip(va,*space,0,i,k);
 				const auto w = ua == 1 ? tw::strip(3,*space,i,j,0) : tw::strip(3,*space,j,i,0);

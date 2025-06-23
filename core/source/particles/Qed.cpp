@@ -271,7 +271,7 @@ tw::Float PhotonGenerator::CalculateRate(tw::Float eta,tw::Float gamma)
 		synch = y[0] + (eta-x[0])*(y[1]-y[0])/(x[1]-x[0]);
 	}
 
-	rate = sqrt(3.0)*(alpha_f/lambda_C)*cgs::c*eta*synch/gamma;
+	rate = std::sqrt(3.0)*(alpha_f/lambda_C)*cgs::c*eta*synch/gamma;
 	rate = rate * tw::dims::frequency >> cgs >> native;
 
 	return rate;

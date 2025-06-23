@@ -4,6 +4,7 @@ module;
 #include "tw_includes.h"
 
 export module assignment;
+import base;
 import tensor;
 import navigate;
 import units;

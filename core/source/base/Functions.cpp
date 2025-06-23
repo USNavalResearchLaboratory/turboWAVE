@@ -86,7 +86,7 @@ export namespace tw
 		const tw::Complex z7(1.48851587,0.0);
 		const tw::Complex z8(0.82215223,0.0);
 		const tw::Complex z9(0.17087277,0.0);
-		z = tw::Complex(fabs(real(x)),imag(x));
+		z = tw::Complex(std::fabs(real(x)),imag(x));
 		t=two/(two+z);
 		ans=t*std::exp(-z*z-z0+t*(z1+t*(z2+t*(z3+t*(-z4+t*(z5+t*(-z6+t*(z7+t*(-z8+t*z9)))))))));
 		return real(x) >= 0.0 ? ans : tw::Complex(2-real(ans),imag(ans));
@@ -99,7 +99,7 @@ export namespace tw
 
 	inline tw::Float dawsoni(const tw::Float x)
 	{
-		return tw::Float(0.5) * exp(-x*x) * tw::erfi(x) * sqrt(pi);
+		return tw::Float(0.5) * exp(-x*x) * tw::erfi(x) * std::sqrt(pi);
 	}
 
 }
@@ -119,21 +119,21 @@ export {
         tw::Int ma = std::abs(m);
         tw::Complex ans;
         if (l==0)
-            ans = 1.0/sqrt(4.0*pi);
+            ans = 1.0/std::sqrt(4.0*pi);
         if (l==1 && ma==0)
-            ans = ii*tw::Float(cos(theta)*sqrt(3.0/(4.0*pi)));
+            ans = ii*tw::Float(std::cos(theta)*std::sqrt(3.0/(4.0*pi)));
         if (l==1 && ma==1)
-            ans = -ii*tw::Float(sin(theta)*sqrt(3.0/(8.0*pi)));
+            ans = -ii*tw::Float(std::sin(theta)*std::sqrt(3.0/(8.0*pi)));
         if (l==2 && ma==0)
-            ans = sqrt(5.0/(16.0*pi))*(1.0-3.0*sqr(cos(theta)));
+            ans = std::sqrt(5.0/(16.0*pi))*(1.0-3.0*sqr(std::cos(theta)));
         if (l==2 && ma==1)
-            ans = sqrt(15.0/(8.0*pi))*cos(theta)*sin(theta);
+            ans = std::sqrt(15.0/(8.0*pi))*std::cos(theta)*std::sin(theta);
         if (l==2 && ma==2)
-            ans = -sqrt(15.0/(32.0*pi))*sqr(sin(theta));
+            ans = -std::sqrt(15.0/(32.0*pi))*sqr(std::sin(theta));
         if (m<0)
             ans = conj(ans);
         ans *= std::exp(ii*tw::Float(m)*phi);
-        return tw::Float(sqrt(4.0*pi))*ans;
+        return tw::Float(std::sqrt(4.0*pi))*ans;
     }
 
     inline tw::spinor SphericalHarmonicSpinor(tw::Float j,tw::Int l,tw::Float m,tw::Float phi,tw::Float theta)
@@ -144,9 +144,9 @@ export {
         const tw::Complex Q_up = SphericalHarmonic(l,std::floor(m-0.49),phi,theta);
         const tw::Complex Q_down = SphericalHarmonic(l,std::floor(m+0.51),phi,theta);
         if (j>tw::Float(l))
-            return tw::spinor(tw::Float(sqrt((j+m)/(2*j)))*Q_up,tw::Float(sqrt((j-m)/(2*j)))*Q_down);
+            return tw::spinor(tw::Float(std::sqrt((j+m)/(2*j)))*Q_up,tw::Float(std::sqrt((j-m)/(2*j)))*Q_down);
         else
-            return tw::spinor(-tw::Float(sqrt((j-m+1)/(2*j+2)))*Q_up,tw::Float(sqrt((j+m+1)/(2*j+2)))*Q_down);
+            return tw::spinor(-tw::Float(std::sqrt((j-m+1)/(2*j+2)))*Q_up,tw::Float(std::sqrt((j+m+1)/(2*j+2)))*Q_down);
     }
 
     inline tw::cvec3 SphericalHarmonicVectorMagnetic(tw::Int j,tw::Int m,tw::Float phi,tw::Float theta)
@@ -156,13 +156,13 @@ export {
         if (j==0)
             return tw::cvec3(0.0,0.0,0.0);
         if (j==1 && m==0)
-            return -sqrt(0.75/pi)*sin(theta)*tw::cvec3(0.0,1.0,0.0);
+            return -std::sqrt(0.75/pi)*std::sin(theta)*tw::cvec3(0.0,1.0,0.0);
         if (j==1 && m==1)
-            return sqrt(0.375/pi)*std::exp(ii*phi)*tw::cvec3(0.0,-cos(theta),ii);
+            return std::sqrt(0.375/pi)*std::exp(ii*phi)*tw::cvec3(0.0,-std::cos(theta),ii);
         if (j==2 && m==0)
-            return -1.5*sqrt(5.0/pi)*sin(theta)*cos(theta)*tw::cvec3(0.0,1.0,0.0);
+            return -1.5*std::sqrt(5.0/pi)*std::sin(theta)*std::cos(theta)*tw::cvec3(0.0,1.0,0.0);
         if (j==2 && m==1)
-            return sqrt(1.875/pi)*std::exp(ii*phi)*tw::cvec3(0.0,-cos(2*theta),ii*cos(theta));
+            return std::sqrt(1.875/pi)*std::exp(ii*phi)*tw::cvec3(0.0,-std::cos(2*theta),ii*std::cos(theta));
         return tw::cvec3(0.0);
     }
 
@@ -243,7 +243,7 @@ export {
 
     inline tw::Float Sin2Rise(tw::Float x)
     {
-        return sqr(sin(0.5*pi*x));
+        return sqr(std::sin(0.5*pi*x));
     }
 
     inline tw::Float Sin2Pulse(tw::Float x)
@@ -256,7 +256,7 @@ export {
 
     inline tw::Float D1Sin2Rise(tw::Float x)
     {
-        return 0.5*pi*sin(pi*x);
+        return 0.5*pi*std::sin(pi*x);
     }
 
     inline tw::Float D1Sin2Pulse(tw::Float x)
@@ -270,8 +270,8 @@ export {
     inline tw::Float SechRise(tw::Float x)
     {
             if (x>0.33)
-                return 1.0/cosh((1.0-x)*6.0);
-            return sqr(cos(((1.0-x)*6.0-4.0)*pi/4.0))/cosh((1.0-x)*6.0);
+                return 1.0/std::cosh((1.0-x)*6.0);
+            return sqr(std::cos(((1.0-x)*6.0-4.0)*pi/4.0))/std::cosh((1.0-x)*6.0);
     }
 
     inline tw::Float SechPulse(tw::Float x)
@@ -285,8 +285,8 @@ export {
     inline tw::Float D1SechRise(tw::Float x)
     {
             if (x>0.33)
-                return 6.0*tanh(6.0-6.0*x)/cosh(6.0-6.0*x);
-            return (3.0/cosh(6.0-6.0*x))*sin(1.5*pi*x)*(pi*cos(1.5*pi*x)+2.0*sin(1.5*pi*x)*tanh(6.0-6.0*x));
+                return 6.0*std::tanh(6.0-6.0*x)/std::cosh(6.0-6.0*x);
+            return (3.0/std::cosh(6.0-6.0*x))*std::sin(1.5*pi*x)*(pi*std::cos(1.5*pi*x)+2.0*std::sin(1.5*pi*x)*std::tanh(6.0-6.0*x));
     }
 
     inline tw::Float D1SechPulse(tw::Float x)

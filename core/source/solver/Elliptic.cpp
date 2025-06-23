@@ -1,7 +1,6 @@
 module;
 
 #include "tw_includes.h"
-#include "tw_test.h"
 
 export module elliptic;
 import input;
@@ -154,8 +153,8 @@ void EllipticSolver::ZeroModeGhostCellValues(tw::Float *phi0,tw::Float *phiN1,Sc
 	for (k=1;k<=source.Dim(3);k++)
 	{
 		kg = space->GlobalCellIndex(k,3);
-		*phi0 += 0.5*mul*sqr(source.dx(3))*source(1,1,k)*fabs(tw::Float(kg));
-		*phiN1 += 0.5*mul*sqr(source.dx(3))*source(1,1,k)*fabs(tw::Float(kN1-kg));
+		*phi0 += 0.5*mul*sqr(source.dx(3))*source(1,1,k)*std::fabs(tw::Float(kg));
+		*phiN1 += 0.5*mul*sqr(source.dx(3))*source(1,1,k)*std::fabs(tw::Float(kN1-kg));
 	}
 
 	task->strip[3].AllSum(phi0,phi0,sizeof(tw::Float),0);
@@ -361,7 +360,7 @@ void IterativePoissonSolver::Solve(ScalarField& phi,ScalarField& source,tw::Floa
 	for (k=1;k<=zDim;k++)
 		for (j=1;j<=yDim;j++)
 			for (i=1;i<=xDim;i++)
-				normSource += fabs(mul*source(i,j,k));
+				normSource += std::fabs(mul*source(i,j,k));
 	task->strip[0].AllSum(&normSource,&normSource,sizeof(tw::Float),0);
 	normSource += minimumNorm;
 
@@ -430,7 +429,7 @@ void IterativePoissonSolver::Solve(ScalarField& phi,ScalarField& source,tw::Floa
 	for (k=1;k<=zDim;k++)
 		for (j=1;j<=yDim;j++)
 			for (i=1;i<=xDim;i++)
-				normSource += fabs(mul*source(i,j,k));
+				normSource += std::fabs(mul*source(i,j,k));
 	task->strip[0].AllSum(&normSource,&normSource,sizeof(tw::Float),0);
 	normSource += minimumNorm;
 
@@ -450,7 +449,7 @@ void IterativePoissonSolver::Solve(ScalarField& phi,ScalarField& source,tw::Floa
 							FormOperatorStencil(D,i,j,k);
 							residual = D[1]*phi(i-1,j,k) + D[2]*phi(i+1,j,k) + D[3]*phi(i,j-1,k) + D[4]*phi(i,j+1,k) + D[5]*phi(i,j,k-1) + D[6]*phi(i,j,k+1) + D[0]*phi(i,j,k) - mul*source(i,j,k);
 							phi(i,j,k) -= overrelaxation*residual/D[0];
-							normResidual += fabs(residual);
+							normResidual += std::fabs(residual);
 						}
 					}
 

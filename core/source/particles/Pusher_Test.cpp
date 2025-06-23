@@ -37,7 +37,7 @@ void Mover::UniformBTest()
         (*EM)(cell,4) = 1.0;
     Primitive q;
     tw::vec4 r0 = space->Corner() + 0.5 * tw::vec4(-space->dx(0),space->dx(1),space->dx(2),space->dx(3));
-    tw::vec4 p0 = m0==0.0 ? tw::vec4(1,0,0,1) : tw::vec4(sqrt(2),0,0,1);
+    tw::vec4 p0 = m0==0.0 ? tw::vec4(1,0,0,1) : tw::vec4(std::sqrt(2),0,0,1);
     tw::vec4 s0(1,0,0,0);
     tw::Float numDens=1.0;
     space->SetPrimitiveWithPosition(q,r0);
@@ -46,7 +46,7 @@ void Mover::UniformBTest()
     tw::vec4 p = (*particle)[0].p;
     ASSERT_NEAR(Norm(p.spatial()), Norm(p0.spatial()), tolerance);
     tw::Float theta = Magnitude(p.spatial() | p0.spatial());
-    tw::Float theta_expected = m0==0.0 ? 0.0 : sqrt(0.5)*space->dx(0);
+    tw::Float theta_expected = m0==0.0 ? 0.0 : std::sqrt(0.5)*space->dx(0);
     ASSERT_NEAR(theta, theta_expected, tolerance);
     CloseTest();
 }
@@ -62,7 +62,7 @@ void Mover::PlaneWaveTest()
     const tw::Float w0 = 0.1/dt;
     Primitive q;
     tw::vec4 r0 = space->Corner() + 0.5 * tw::vec4(-space->dx(0),space->dx(1),space->dx(2),space->dx(3));
-    tw::vec4 p0 = m0==0.0 ? tw::vec4(1,0,0,1) : tw::vec4(sqrt(2),0,0,1);
+    tw::vec4 p0 = m0==0.0 ? tw::vec4(1,0,0,1) : tw::vec4(std::sqrt(2),0,0,1);
     tw::vec4 s0(1,0,0,0);
     tw::Float numDens=1.0;
     space->SetPrimitiveWithPosition(q,r0);
@@ -72,8 +72,8 @@ void Mover::PlaneWaveTest()
         // Update plane wave grid analytically
         for (auto cell : CellRange(*space,true))
         {
-            (*EM)(cell,0) = 1*sin(w0*dt*i - k0*space->Pos(cell).z);
-            (*EM)(cell,4) = 1*sin(w0*dt*i - k0*(space->Pos(cell).z - dr/2));
+            (*EM)(cell,0) = 1*std::sin(w0*dt*i - k0*space->Pos(cell).z);
+            (*EM)(cell,4) = 1*std::sin(w0*dt*i - k0*(space->Pos(cell).z - dr/2));
         }
         Advance();
     }

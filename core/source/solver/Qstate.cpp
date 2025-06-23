@@ -126,7 +126,7 @@ RandomState::RandomState(const std::string& name,MetricSpace *ms,Task *tsk) : QS
 tw::Complex RandomState::Amplitude(const HamiltonianParameters& H,const tw::vec3& r,const tw::Float& t,const tw::Int& comp) const
 {
 	tw::Complex ans;
-	ans = task->uniformDeviate->Next() * exp( -sqr(r.x/size.x) - sqr(r.y/size.y) - sqr(r.z/size.z) );
+	ans = task->uniformDeviate->Next() * std::exp( -sqr(r.x/size.x) - sqr(r.y/size.y) - sqr(r.z/size.z) );
 	ans *= amplitude * std::exp( ii*task->uniformDeviate->Next()*two*pi );
 	return ans;
 }
@@ -144,9 +144,9 @@ tw::Complex FreeState::Amplitude(const HamiltonianParameters& H,const tw::vec3& 
 	const tw::spinor w(spin/Magnitude(spin),0.5);
 	const tw::vec3 k = k4.spatial();
 	const bool relativistic = H.form==qo::klein_gordon || H.form==qo::dirac;
-	const tw::Float energy = (relativistic ? sqrt((k^k)+H.morb*H.morb) : 0.5*(k^k)/H.morb);
+	const tw::Float energy = (relativistic ? std::sqrt((k^k)+H.morb*H.morb) : 0.5*(k^k)/H.morb);
 	tw::Complex ans(amplitude);
-	ans *= exp( -sqr(r.x/size.x) - sqr(r.y/size.y) - sqr(r.z/size.z) );
+	ans *= std::exp( -sqr(r.x/size.x) - sqr(r.y/size.y) - sqr(r.z/size.z) );
 	ans *= std::exp( ii*((k^r) - energy*t) );
 	if (H.form==qo::pauli)
 		ans *= w[comp];
@@ -192,15 +192,15 @@ tw::Float BoundState::Energy(const HamiltonianParameters& H) const
 			break;
 		case qo::klein_gordon:
 			if (cylindricalAtom)
-				energy = morb/sqrt(1.0 + sqr(qnuc*qorb)/sqr(nr+0.5+sqrt(sqr(jzam)-sqr(qnuc*qorb))));
+				energy = morb/std::sqrt(1.0 + sqr(qnuc*qorb)/sqr(nr+0.5+std::sqrt(sqr(jzam)-sqr(qnuc*qorb))));
 			else
-				energy = morb/sqrt(1.0 + sqr(qnuc*qorb)/sqr(nr+0.5+sqrt(sqr(Lam+0.5)-sqr(qnuc*qorb))));
+				energy = morb/std::sqrt(1.0 + sqr(qnuc*qorb)/sqr(nr+0.5+std::sqrt(sqr(Lam+0.5)-sqr(qnuc*qorb))));
 			break;
 		case qo::dirac:
 			if (cylindricalAtom)
-				energy = morb/sqrt(1.0 + sqr(qnuc*qorb)/sqr(nr+sqrt(sqr(jzam)-sqr(qnuc*qorb))));
+				energy = morb/std::sqrt(1.0 + sqr(qnuc*qorb)/sqr(nr+std::sqrt(sqr(jzam)-sqr(qnuc*qorb))));
 			else
-				energy = morb/sqrt(1.0 + sqr(qnuc*qorb)/sqr(nr+sqrt(sqr(Jam+0.5)-sqr(qnuc*qorb))));
+				energy = morb/std::sqrt(1.0 + sqr(qnuc*qorb)/sqr(nr+std::sqrt(sqr(Jam+0.5)-sqr(qnuc*qorb))));
 			break;
 	}
 	return energy;
@@ -214,10 +214,10 @@ tw::Float BoundState::NormalizationConstant(const HamiltonianParameters& H) cons
 	switch (H.form)
 	{
 		case qo::schroedinger:
-			normalizationConstant = pow(kr,1.5)*sqrt(Factorial(n+Lam)/Factorial(nr))/(Factorial(2.0*Lam+1.0)*sqrt(n*pi));
+			normalizationConstant = pow(kr,1.5)*std::sqrt(Factorial(n+Lam)/Factorial(nr))/(Factorial(2.0*Lam+1.0)*std::sqrt(n*pi));
 			break;
 		case qo::pauli:
-			normalizationConstant = pow(kr,1.5)*sqrt(Factorial(n+Lam)/Factorial(nr))/(Factorial(2.0*Lam+1.0)*sqrt(n*pi));
+			normalizationConstant = pow(kr,1.5)*std::sqrt(Factorial(n+Lam)/Factorial(nr))/(Factorial(2.0*Lam+1.0)*std::sqrt(n*pi));
 			break;
 		default:
 			normalizationConstant = 1.0;
@@ -265,8 +265,8 @@ tw::Complex BoundState::Amplitude(const HamiltonianParameters& H,const tw::vec3&
 		else
 		{
 			space->CurvilinearToSpherical(&R);
-			tw::Float kr = sqrt(-two*morb*energy);
-			ans = ConfluentHypergeometric(-tw::Int(nr),two*(Lam+one),two*kr*R.x)*pow(two*kr*R.x,Lam)*exp(-kr*R.x);
+			tw::Float kr = std::sqrt(-two*morb*energy);
+			ans = ConfluentHypergeometric(-tw::Int(nr),two*(Lam+one),two*kr*R.x)*pow(two*kr*R.x,Lam)*std::exp(-kr*R.x);
 			ans *= SphericalHarmonic(Lam,jzam,R.y,R.z);
 		}
 	}
@@ -281,8 +281,8 @@ tw::Complex BoundState::Amplitude(const HamiltonianParameters& H,const tw::vec3&
 		else
 		{
 			space->CurvilinearToSpherical(&R);
-			tw::Float kr = sqrt(-two*morb*energy);
-			ans = ConfluentHypergeometric(-tw::Int(nr),two*(Lam+one),two*kr*R.x)*pow(two*kr*R.x,Lam)*exp(-kr*R.x);
+			tw::Float kr = std::sqrt(-two*morb*energy);
+			ans = ConfluentHypergeometric(-tw::Int(nr),two*(Lam+one),two*kr*R.x)*pow(two*kr*R.x,Lam)*std::exp(-kr*R.x);
 			ans *= SphericalHarmonic(Lam,jzam,R.y,R.z);
 			if (comp==0)
 				ans *= Jam-Lam+0.5;
@@ -293,13 +293,13 @@ tw::Complex BoundState::Amplitude(const HamiltonianParameters& H,const tw::vec3&
 
 	if (H.form==qo::klein_gordon)
 	{
-		tw::Float kr = sqrt(morb*morb - sqr(energy));
+		tw::Float kr = std::sqrt(morb*morb - sqr(energy));
 		if (cylindricalAtom)
 		{
 			space->CurvilinearToCylindrical(&R);
-			const tw::Float gam = sqrt(sqr(jzam) - sqr(qnuc*qorb));
+			const tw::Float gam = std::sqrt(sqr(jzam) - sqr(qnuc*qorb));
 			ans = ConfluentHypergeometric(-tw::Int(nr),two*gam+one,two*kr*R.x);
-			ans *= pow(R.x,gam)*exp(-kr*R.x);
+			ans *= pow(R.x,gam)*std::exp(-kr*R.x);
 			ans *= std::exp(ii*jzam*R.y);
 			if (comp==1)
 				ans *= (energy - qnuc*qorb/R.x)/morb;
@@ -307,9 +307,9 @@ tw::Complex BoundState::Amplitude(const HamiltonianParameters& H,const tw::vec3&
 		else
 		{
 			space->CurvilinearToSpherical(&R);
-			const tw::Float gam = sqrt(sqr(Lam+0.5)-sqr(qnuc*qorb));
+			const tw::Float gam = std::sqrt(sqr(Lam+0.5)-sqr(qnuc*qorb));
 			ans = ConfluentHypergeometric(-tw::Int(nr),two*gam+one,two*kr*R.x);
-			ans *= pow(R.x,gam-0.5)*exp(-kr*R.x);
+			ans *= pow(R.x,gam-0.5)*std::exp(-kr*R.x);
 			ans *= SphericalHarmonic(Lam,jzam,R.y,R.z);
 			if (comp==1)
 				ans *= (energy - qnuc*qorb/R.x)/morb;
@@ -319,18 +319,18 @@ tw::Complex BoundState::Amplitude(const HamiltonianParameters& H,const tw::vec3&
 	if (H.form==qo::dirac)
 	{
 		tw::Complex Q1,Q2;
-		tw::Float kr = sqrt(morb*morb - sqr(energy));
+		tw::Float kr = std::sqrt(morb*morb - sqr(energy));
 		if (cylindricalAtom)
 		{
 			space->CurvilinearToCylindrical(&R);
 			const tw::Float szam = jzam-Lam;
 			const tw::Float kappa = -2*szam*jzam;
-			const tw::Float gam = sqrt(sqr(kappa) - sqr(qnuc*qorb));
+			const tw::Float gam = std::sqrt(sqr(kappa) - sqr(qnuc*qorb));
 			Q1 = ConfluentHypergeometric(-tw::Int(nr),two*gam+one,two*kr*R.x);
 			Q2 = ConfluentHypergeometric(1-tw::Int(nr),two*gam+one,two*kr*R.x);
 			Q2 *= -(kappa - qnuc*qorb*morb/kr) / (gam - qnuc*qorb*energy/kr);
-			tw::Complex f = tw::Float(sqrt(morb+energy)*exp(-kr*R.x)*pow(R.x,gam-0.5))*(Q1+Q2);
-			tw::Complex g = ii*tw::Float(sqrt(morb-energy)*exp(-kr*R.x)*pow(R.x,gam-0.5))*(Q1-Q2);
+			tw::Complex f = tw::Float(std::sqrt(morb+energy)*std::exp(-kr*R.x)*pow(R.x,gam-0.5))*(Q1+Q2);
+			tw::Complex g = ii*tw::Float(std::sqrt(morb-energy)*std::exp(-kr*R.x)*pow(R.x,gam-0.5))*(Q1-Q2);
 			if (comp==0)
 				ans = f*(szam+0.5)*std::exp(ii*(jzam-half)*R.y);
 			if (comp==1)
@@ -346,12 +346,12 @@ tw::Complex BoundState::Amplitude(const HamiltonianParameters& H,const tw::vec3&
 			const tw::Float Sam = Jam-Lam;
 			const tw::Float Lamp = 2*Jam - Lam;
 			const tw::Float kappa = -2*Sam*(Jam+0.5);
-			const tw::Float gam = sqrt(sqr(kappa)-sqr(qorb*qnuc));
+			const tw::Float gam = std::sqrt(sqr(kappa)-sqr(qorb*qnuc));
 			Q1 = ConfluentHypergeometric(-tw::Int(nr),two*gam+one,two*kr*R.x);
 			Q2 = ConfluentHypergeometric(1-tw::Int(nr),two*gam+one,two*kr*R.x);
 			Q2 *= -(gam - qnuc*qorb*energy/kr)/(kappa - qnuc*qorb*morb/kr);
-			tw::Complex f = tw::Float(sqrt(morb+energy)*exp(-kr*R.x)*pow(2.0*kr*R.x,gam-1.0))*(Q1+Q2);
-			tw::Complex g = tw::Float(sqrt(morb-energy)*exp(-kr*R.x)*pow(2.0*kr*R.x,gam-1.0))*(Q1-Q2);
+			tw::Complex f = tw::Float(std::sqrt(morb+energy)*std::exp(-kr*R.x)*pow(2.0*kr*R.x,gam-1.0))*(Q1+Q2);
+			tw::Complex g = tw::Float(std::sqrt(morb-energy)*std::exp(-kr*R.x)*pow(2.0*kr*R.x,gam-1.0))*(Q1-Q2);
 			ans = 0.0;
 			if (comp==0)
 				ans = f*SphericalHarmonicSpinor(Jam,Lam,jzam,R.y,R.z)[0];

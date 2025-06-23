@@ -190,8 +190,8 @@ void Dirac::LeapFrog(tw::Float sgn)
 			for (tw::Int i=1;i<=dim[1];i++)
 			{
 				const tw::Float dq = dt*(sgn*m0+q0*A4(v,i,0));
-				Ur[i-1] = cos(dq);
-				Ui[i-1] = -sin(dq);
+				Ur[i-1] = std::cos(dq);
+				Ui[i-1] = -std::sin(dq);
 			}
 
 			#pragma omp simd aligned(D1r,D2r,D1i,D2i:AB)
@@ -309,8 +309,8 @@ AtomicPhysics::~AtomicPhysics()
 
 tw::Float AtomicPhysics::GetSphericalPotential(tw::Float r) const
 {
-	return H.qnuc/sqrt(sqr(H.rnuc) + sqr(r));
-	//return (H.qnuc / r) * (H.c1*erf(sqrt(H.a1)*r) + H.c2*erf(sqrt(H.a2)*r));
+	return H.qnuc/std::sqrt(sqr(H.rnuc) + sqr(r));
+	//return (H.qnuc / r) * (H.c1*erf(std::sqrt(H.a1)*r) + H.c2*erf(std::sqrt(H.a2)*r));
 }
 
 void AtomicPhysics::Initialize()
@@ -376,7 +376,7 @@ void AtomicPhysics::ExchangeResources()
 
 void AtomicPhysics::FormPotentials(tw::Float t)
 {
-	// residual charge has to be in desired units (it is Z for atomic units, Z*sqrt(alpha) for natural)
+	// residual charge has to be in desired units (it is Z for atomic units, Z*std::sqrt(alpha) for natural)
 	// vector potential in wave block must also be in desired units, unlike earlier versions which used mc^2/e in every case
 
 	#pragma omp parallel firstprivate(t)
@@ -813,7 +813,7 @@ void Schroedinger::Update()
 		scratch.WeightComputeBufferByVolume(*owner,0.0);
 		totalProbability = scratch.DestructiveSumComputeBuffer();
 		owner->strip[0].AllSum(&totalProbability,&totalProbability,sizeof(tw::Float),0);
-		psi1.MADDComputeBuffer(1.0/sqrt(totalProbability),0.0);
+		psi1.MADDComputeBuffer(1.0/std::sqrt(totalProbability),0.0);
 	}
 
 	// Get J4 for Bohmian Trajectories
@@ -905,7 +905,7 @@ void Schroedinger::Normalize()
 	for (auto cell : InteriorCellRange(*this))
 		totalProbability += norm(psi1(cell)) * owner->dS(cell,0);
 	owner->strip[0].AllSum(&totalProbability,&totalProbability,sizeof(tw::Float),0);
-	psi1 *= 1.0/sqrt(totalProbability);
+	psi1 *= 1.0/std::sqrt(totalProbability);
 	psi1.CopyFromNeighbors();
 	psi1.ApplyBoundaryCondition();
 }
@@ -1097,8 +1097,8 @@ void Pauli::Normalize()
 	for (auto cell : InteriorCellRange(*this))
 		totalProbability += (norm(psi1(cell))+norm(chi1(cell))) * owner->dS(cell,0);
 	owner->strip[0].AllSum(&totalProbability,&totalProbability,sizeof(tw::Float),0);
-	psi1 *= 1.0/sqrt(totalProbability);
-	chi1 *= 1.0/sqrt(totalProbability);
+	psi1 *= 1.0/std::sqrt(totalProbability);
+	chi1 *= 1.0/std::sqrt(totalProbability);
 	psi1.CopyFromNeighbors();
 	psi1.ApplyBoundaryCondition();
 	chi1.CopyFromNeighbors();
@@ -1158,15 +1158,15 @@ KleinGordon::KleinGordon(const std::string& name,Simulation* sim) : AtomicPhysic
 	// Unlike the symmetric form, this allows a leap-frog scheme to be employed.
 	// In this representation, component 0 is the usual scalar wavefunction.
 	// Component 1 is psi1 = (id/dt - q*phi)*psi0/m
-	// The symmetric form is obtained from (psi0+psi1)/sqrt(2) , (psi0-psi1)/sqrt(2)
+	// The symmetric form is obtained from (psi0+psi1)/std::sqrt(2) , (psi0-psi1)/std::sqrt(2)
 
 	if (native.native!=tw::units::natural)
 		throw tw::FatalError("KleinGordon module requires <native units = natural>");
 
 	H.form = qo::klein_gordon;
 	H.morb = 1.0;
-	H.qorb = -sqrt(alpha);
-	H.qnuc = sqrt(alpha);
+	H.qorb = -std::sqrt(alpha);
+	H.qnuc = std::sqrt(alpha);
 	dipoleApproximation = false;
 	psi_r.Initialize(2,*this,owner,tw::grid::x);
 	psi_i.Initialize(2,*this,owner,tw::grid::x);
@@ -1266,8 +1266,8 @@ void KleinGordon::Normalize()
 	for (auto cell : InteriorCellRange(*this))
 		totalCharge += ComputeRho(cell) * owner->dS(cell,0);
 	owner->strip[0].AllSum(&totalCharge,&totalCharge,sizeof(tw::Float),0);
-	psi_r *= sqrt(fabs(H.qorb/totalCharge));
-	psi_i *= sqrt(fabs(H.qorb/totalCharge));
+	psi_r *= std::sqrt(std::fabs(H.qorb/totalCharge));
+	psi_i *= std::sqrt(std::fabs(H.qorb/totalCharge));
 	psi_r.CopyFromNeighbors();
 	psi_r.ApplyBoundaryCondition();
 	psi_i.CopyFromNeighbors();
@@ -1326,8 +1326,8 @@ void KleinGordon::Update()
 			{
 				// unitary operator of time translation for diagonal part of Hamiltonian
 				const tw::Float dq = dt*q0*A4(v,i,0);
-				Ur[i-1] = cos(dq);
-				Ui[i-1] = -sin(dq);
+				Ur[i-1] = std::cos(dq);
+				Ui[i-1] = -std::sin(dq);
 			}
 			#pragma omp simd aligned(Dr,Di:AB)
 			for (tw::Int i=1;i<=dim[1];i++)
@@ -1375,8 +1375,8 @@ void KleinGordon::Update()
 			{
 				// unitary operator of time translation for diagonal part of Hamiltonian
 				const tw::Float dq = dt*q0*A4(v,i,0);
-				Ur[i-1] = cos(dq);
-				Ui[i-1] = -sin(dq);
+				Ur[i-1] = std::cos(dq);
+				Ui[i-1] = -std::sin(dq);
 			}
 			#pragma omp simd aligned(Dr,Di:AB)
 			for (tw::Int i=1;i<=dim[1];i++)
@@ -1468,8 +1468,8 @@ Dirac::Dirac(const std::string& name,Simulation* sim) : AtomicPhysics(name,sim)
 
 	H.form = qo::dirac;
 	H.morb = 1.0;
-	H.qorb = -sqrt(alpha);
-	H.qnuc = sqrt(alpha);
+	H.qorb = -std::sqrt(alpha);
+	H.qnuc = std::sqrt(alpha);
 	dipoleApproximation = false;
 	psi_r.Initialize(4,*this,owner,tw::grid::x);
 	psi_i.Initialize(4,*this,owner,tw::grid::x);
@@ -1574,8 +1574,8 @@ void Dirac::Normalize()
 	for (auto cell : InteriorCellRange(*this))
 		totalCharge += ComputeRho(cell) * owner->dS(cell,0);
 	owner->strip[0].AllSum(&totalCharge,&totalCharge,sizeof(tw::Float),0);
-	psi_r *= sqrt(fabs(H.qorb/totalCharge));
-	psi_i *= sqrt(fabs(H.qorb/totalCharge));
+	psi_r *= std::sqrt(std::fabs(H.qorb/totalCharge));
+	psi_i *= std::sqrt(std::fabs(H.qorb/totalCharge));
 	psi_r.CopyFromNeighbors();
 	psi_r.ApplyBoundaryCondition();
 	psi_i.CopyFromNeighbors();
