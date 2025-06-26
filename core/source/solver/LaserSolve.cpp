@@ -10,6 +10,8 @@ import parabolic;
 import fields;
 import diagnostics;
 import numerics;
+import logger;
+#include "tw_logger.h"
 
 using namespace tw::bc;
 
@@ -121,6 +123,8 @@ void LaserSolver::ExchangeResources()
 
 void LaserSolver::Initialize()
 {
+	logger::TRACE("initialize laser base");
+
 	tw::vec3 pos;
 	tw::Float polarizationFactor;
 	const tw::Float dt = dx(0);
@@ -264,6 +268,7 @@ void LaserSolver::Upsample(ComplexField& hiRes,ComplexField& loRes) {
 
 void LaserSolver::Update()
 {
+	logger::TRACE("start laser update");
 	if (!debug) {
 		Upsample(HRchi,chi);
 		propagator->Advance(HRa0,HRa1,HRchi);
@@ -294,6 +299,7 @@ void LaserSolver::VerifyInput()
 	HRGlobalCells[1] = owner->GlobalDim(1); 
 	HRGlobalCells[2] = owner->GlobalDim(2); 
 	HRGlobalCells[3] = owner->GlobalDim(3)*resolution;
+	logger::DEBUG(std::format("creating high resolution space x{}",resolution));
 	HRSpace.Resize(owner,HRGlobalCells,owner->GlobalCorner(),owner->GlobalPhysicalSize(),owner->Layers(3),owner->gridGeometry);
 	HRBoxDiagnostic = (BoxDiagnostic*)owner->CreateTool("hr_box",tw::tool_type::boxDiagnostic);
 	moduleTool.push_back(HRBoxDiagnostic);
@@ -357,6 +363,7 @@ void PGCSolver::ExchangeResources()
 void PGCSolver::Initialize()
 {
 	LaserSolver::Initialize();
+	logger::TRACE("initialize pgc");
 
 	// Here we deal with boundary conditions particular to PGC
 	// B.C.'s for laser amplitude and sources are dealt with in propagator objects
@@ -404,6 +411,7 @@ void PGCSolver::Initialize()
 void PGCSolver::MoveWindow()
 {
 	LaserSolver::MoveWindow();
+	logger::TRACE("field shift");
 	for (auto s : StripRange(*this,3,strongbool::yes))
 		F.Shift(s,-1,0.0);
 	F.DownwardCopy(tw::grid::z,1);
@@ -435,6 +443,7 @@ void PGCSolver::AntiMoveWindow()
 
 void PGCSolver::Update()
 {
+	logger::TRACE("start PGC update");
 	chi.DepositFromNeighbors();
 	chi.ApplyFoldingCondition();
 	chi.DivideCellVolume(*owner);
@@ -459,6 +468,7 @@ void PGCSolver::Update()
 
 void PGCSolver::ComputeFinalFields()
 {
+	logger::TRACE("compute PGC forces");
 	#pragma omp parallel
 	{
 		const tw::Float dth = 0.5*dx(0);

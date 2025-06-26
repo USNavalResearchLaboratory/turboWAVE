@@ -12,6 +12,8 @@ import hyperbolic;
 import diagnostics;
 import injection;
 import functions;
+import logger;
+#include "tw_logger.h"
 
 using namespace tw::bc;
 
@@ -261,6 +263,8 @@ void Electromagnetic::ExchangeResources()
 
 void Electromagnetic::Initialize()
 {
+	logger::TRACE("initialize EM base");
+
 	FieldSolver::Initialize();
 	InitializeConductors();
 
@@ -821,6 +825,8 @@ void DirectSolver::SetupPML(Field& pml,tw::Int g0,tw::Int gN,tw::Int L0,tw::Int 
 
 void DirectSolver::Initialize()
 {
+	logger::TRACE("initialize maxwell");
+
 	Field A0;
 
 	Electromagnetic::Initialize();
@@ -949,6 +955,8 @@ void DirectSolver::WriteCheckpoint(std::ofstream& outFile)
 
 void DirectSolver::Update()
 {
+	logger::TRACE("start Maxwell update");
+
 	// Add electric antenna currents
 
 	if (conductor.size())

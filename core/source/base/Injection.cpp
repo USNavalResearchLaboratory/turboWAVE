@@ -394,20 +394,17 @@ void Profile::Initialize()
 
 bool Profile::ReadInputFileDirective(const TSTreeCursor *curs0,const std::string& src)
 {
-	TSTreeCursor curs = ts_tree_cursor_copy(curs0);
-	if (!tw::input::next_named_node(&curs,true))
-		return false;
-	std::string outer = tw::input::node_kind(&curs);
-	if (outer == "comment")
-		return false;
+	// assume whoever calls this is passing over comments and anonymous
+	auto curs = tw::input::Cursor(curs0);
+	std::string outer = tw::input::node_kind(curs.get());
 	if (outer != "assignment")
 		throw tw::FatalError("Expected assignment, got " + outer + ", at " + tw::input::loc_str(curs0));
-	ts_tree_cursor_goto_first_child(&curs);
-	std::string com = tw::input::node_text(&curs,src);
+	ts_tree_cursor_goto_first_child(curs.get());
+	std::string com = tw::input::node_text(curs.get(),src);
 	if (com=="particle weight") {
 		std::string weighting;
 		tw::input::String directive(&weighting,true);
-		directive.Read(&curs,src,"particle weight",native);
+		directive.Read(curs.get(),src,"particle weight",native);
 		if (weighting!="variable" && weighting!="fixed")
 			throw tw::FatalError("Invalid type <"+weighting+"> while processing key <particle weight>.");
 		variableCharge = (weighting=="variable" ? true : false);
@@ -417,7 +414,7 @@ bool Profile::ReadInputFileDirective(const TSTreeCursor *curs0,const std::string
 	{
 		tw::vec3 angles;
 		tw::input::Vec3 directive(&angles);
-		directive.Read(&curs,src,"euler angles",native);
+		directive.Read(curs.get(),src,"euler angles",native);
 		orientation.SetWithEulerAngles( angles.x , angles.y , angles.z );
 		return true;
 	}

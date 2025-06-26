@@ -38,6 +38,23 @@ export namespace tw
 			virtual navigation visit(TSTreeCursor *curs) = 0;
 			virtual navigation descend(TSTreeCursor *curs) { return navigation::exit; };
 		};
+		/// @brief wraps TSTreeCursor in a way that avoids leaking cursor copies
+		class Cursor {
+			TSTreeCursor curs;
+			public:
+			Cursor(TSNode root) {
+				curs = ts_tree_cursor_new(root);
+			}
+			Cursor(const TSTreeCursor *src) {
+				curs = ts_tree_cursor_copy(src);
+			}
+			~Cursor() {
+				ts_tree_cursor_delete(&curs);
+			}
+			TSTreeCursor *get() {
+				return &curs;
+			}
+		};
 		TSTree* GetTree(const std::string& src);
 		void WalkTree(const TSTree *tree,Visitor *visitor);
 		void ThrowParsingError(const TSTreeCursor *curs,const std::string& src,const std::string& messg,const std::string& info="");
@@ -193,28 +210,27 @@ TSTree* tw::input::GetTree(const std::string& src) {
 }
 
 void tw::input::WalkTree(const TSTree *tree,Visitor *visitor) {
-	TSTreeCursor curs = ts_tree_cursor_new(ts_tree_root_node(tree));
+	auto curs = tw::input::Cursor(ts_tree_root_node(tree));
 	navigation choice = navigation::gotoSelf;
 	while (choice!=navigation::exit && choice!=navigation::abort) {
 		if (choice == navigation::gotoSelf) {
-			choice = visitor->visit(&curs);
+			choice = visitor->visit(curs.get());
 		} else if (choice == navigation::descend) {
-			choice = visitor->descend(&curs);
-		} else if (choice == navigation::gotoChild && ts_tree_cursor_goto_first_child(&curs)) {
-			choice = visitor->visit(&curs);
-		} else if (choice == navigation::gotoParentSibling && ts_tree_cursor_goto_parent(&curs) && ts_tree_cursor_goto_next_sibling(&curs)) {
-			choice = visitor->visit(&curs);
-		} else if (choice == navigation::gotoSibling && ts_tree_cursor_goto_next_sibling(&curs)) {
-			choice = visitor->visit(&curs);
-		} else if (ts_tree_cursor_goto_next_sibling(&curs)) {
-			choice = visitor->visit(&curs);
-		} else if (ts_tree_cursor_goto_parent(&curs)) {
+			choice = visitor->descend(curs.get());
+		} else if (choice == navigation::gotoChild && ts_tree_cursor_goto_first_child(curs.get())) {
+			choice = visitor->visit(curs.get());
+		} else if (choice == navigation::gotoParentSibling && ts_tree_cursor_goto_parent(curs.get()) && ts_tree_cursor_goto_next_sibling(curs.get())) {
+			choice = visitor->visit(curs.get());
+		} else if (choice == navigation::gotoSibling && ts_tree_cursor_goto_next_sibling(curs.get())) {
+			choice = visitor->visit(curs.get());
+		} else if (ts_tree_cursor_goto_next_sibling(curs.get())) {
+			choice = visitor->visit(curs.get());
+		} else if (ts_tree_cursor_goto_parent(curs.get())) {
 			choice = navigation::gotoSibling;
 		} else {
 			choice = navigation::exit;
 		}
 	}
-	ts_tree_cursor_delete(&curs);
 }
 
 void tw::input::ThrowParsingError(const TSTreeCursor *curs,const std::string& src,const std::string& messg,const std::string& info) {

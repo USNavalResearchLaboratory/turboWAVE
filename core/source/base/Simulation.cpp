@@ -5,10 +5,14 @@ module;
 
 module twmodule;
 import base;
+import logger;
 import input;
 import factory;
 
-Simulation::Simulation(const std::string& test_name,
+#include "tw_logger.h"
+
+Simulation::Simulation(const bool interactive,
+	const std::string& test_name,
 	const std::string& file_name,
 	const std::string& restart_name,
 	const std::string& platform,
@@ -16,6 +20,7 @@ Simulation::Simulation(const std::string& test_name,
 	const tw::Int& outputLevel,
 	const tw::Int& errorCheckingLevel)
 {
+	this->interactive = interactive;
 	unitTest = test_name;
 	inputFileName = file_name;
 	restartFileName = restart_name;
@@ -143,6 +148,11 @@ void Simulation::Run()
 		}
 
 		std::println(std::cout,"Current status can be viewed in 'twstat' file.");
+		if (interactive) {
+			std::println(std::cout,"Type `help` for interactive commands.");
+		} else {
+			std::println(std::cout,"interactive thread is disabled");
+		}
 		std::flush(std::cout);
 
 		while (stepNow <= stepsToTake && windowPosition[0] < maxWindowPosition[0])
@@ -562,6 +572,7 @@ void Simulation::InteractiveCommand(const std::string& cmd,std::ostream *theStre
 
 void Simulation::FundamentalCycle()
 {
+	logger::TRACE(std::format("step {}",stepNow));
 	Diagnose();
 
 	for (auto m : module)
@@ -579,11 +590,23 @@ void Simulation::FundamentalCycle()
 			m->AdaptGrid();
 
 	corner[0] += spacing[0];
-	if (movingWindow && solutionPosition[3]>=windowPosition[3] + spacing[3] && dim[3]>1)
+	windowPosition[0] += spacing[0];
+	for (auto m : module)
+		m->UpdateTime(spacing[0]);
+	
+	if (movingWindow && solutionPosition[3]>=windowPosition[3] + spacing[3] && dim[3]>1) {
+		logger::TRACE(std::format("move lab at {:.5} triggered by {:.5}",windowPosition[3],solutionPosition[3]));
 		MoveWindow();
+	} else {
+		logger::TRACE(std::format("hold lab at {:.5} restrained by {:.5}",windowPosition[3],solutionPosition[3]));
+	}
 
-	if (!movingWindow && altSolutionPosition[3]<=altWindowPosition[3] - spacing[3] && dim[3]>1)
+	if (!movingWindow && altSolutionPosition[3]<=altWindowPosition[3] - spacing[3] && dim[3]>1) {
+		logger::TRACE(std::format("move alt at {:.5} triggered by {:.5}",altWindowPosition[3],altSolutionPosition[3]));
 		AntiMoveWindow();
+	} else {
+		logger::TRACE(std::format("hold alt at {:.5} restrained by {:.5}",altWindowPosition[3],altSolutionPosition[3]));
+	}
 
 	// RESTART MECHANISM
 
@@ -814,6 +837,7 @@ void Simulation::Diagnose()
 		doing_diagnostics = doing_diagnostics || d->WriteThisStep(windowPosition[0],spacing[0],stepNow);
 	if (doing_diagnostics)
 	{
+		logger::TRACE(std::format("prepare diagnostics"));
 		for (auto m : module)
 			m->StartDiagnostics();
 	}
@@ -834,6 +858,7 @@ void Simulation::Diagnose()
 
 	for (auto d : diagnostic)
 	{
+		logger::TRACE(std::format("diagnostic {}",d->name));
 		if (d->WriteThisStep(windowPosition[0],spacing[0],stepNow))
 		{
 			d->Start();

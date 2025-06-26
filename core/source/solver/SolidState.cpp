@@ -359,12 +359,12 @@ bool BoundElectrons::ReadInputFileDirective(const TSTreeCursor *curs0,const std:
 		return true;
 
 	if (tw::input::node_kind(curs0)=="assignment") {
-		TSTreeCursor curs = ts_tree_cursor_copy(curs0);
-		ts_tree_cursor_goto_first_child(&curs);
-		if (tw::input::node_text(&curs,src) == "basis") {
+		auto curs = tw::input::Cursor(curs0);
+		ts_tree_cursor_goto_first_child(curs.get());
+		if (tw::input::node_text(curs.get(),src) == "basis") {
 			std::valarray<tw::Float> components(9);
 			tw::input::Numbers<tw::Float> directive(&components[0],9);
-			directive.Read(&curs,src,"basis",native);
+			directive.Read(curs.get(),src,"basis",native);
 			crystalBasis.u = tw::vec3(&components[0]);
 			crystalBasis.v = tw::vec3(&components[3]);
 			crystalBasis.w = tw::vec3(&components[6]);

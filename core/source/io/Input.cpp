@@ -8,6 +8,8 @@ export import base;
 export import navigate;
 export import assignment;
 export import units;
+import logger;
+#include "tw_logger.h"
 
 extern "C" {
 	TSLanguage *tree_sitter_turbowave();
@@ -110,25 +112,23 @@ void tw::input::DirectiveReader::Add(const std::string& key,tw::input::Assignmen
 /// @return false if directive not an assignment, or custom assignment
 bool tw::input::DirectiveReader::ReadNext(const TSTreeCursor *curs0,const std::string& src)
 {
-	TSTreeCursor curs = ts_tree_cursor_copy(curs0);
-	if (tw::input::node_kind(&curs) == "assignment") {
-		ts_tree_cursor_goto_first_child(&curs);
-		std::string key = input::node_text(&curs,src);
+	auto curs = tw::input::Cursor(curs0);
+	if (tw::input::node_kind(curs.get()) == "assignment") {
+		ts_tree_cursor_goto_first_child(curs.get());
+		std::string key = input::node_text(curs.get(),src);
+		logger::TRACE(std::format("handling key {}",key));
 		if (dmap.find(key)!=dmap.end()) {
 			keysFound[key] = 0;
 			if (native.ne==0.0) {
-				throw tw::FatalError("DirectiveReader class is missing units while processing key <"+key+">.");
+				tw::input::ThrowParsingError(curs0,src,"units missing");
 			}
-			auto is_normal = dmap[key]->Read(&curs,src,key,native);
-			ts_tree_cursor_delete(&curs);
+			auto is_normal = dmap[key]->Read(curs.get(),src,key,native);
 			return is_normal;
 		} else {
-			throw tw::FatalError("Unknown key <"+key+">.");
+			tw::input::ThrowParsingError(curs0,src,"unknown key");
 		}
-	} else {
-		ts_tree_cursor_delete(&curs);
-		return false;
 	}
+	return false;
 }
 
 /// @brief read all assignments in this block
@@ -160,25 +160,24 @@ void tw::input::DirectiveReader::ThrowErrorIfMissingKeys(const std::string& src)
 }
 
 tw::Float tw::input::GetUnitDensityCGS(TSTree *tree,const std::string& src) {
-	TSTreeCursor curs = ts_tree_cursor_new(ts_tree_root_node(tree));
-	if (ts_tree_cursor_goto_first_child(&curs)) {
+	auto curs = tw::input::Cursor(ts_tree_root_node(tree));
+	if (ts_tree_cursor_goto_first_child(curs.get())) {
 		do {
-			if (tw::input::node_kind(&curs) == "assignment") {
-				ts_tree_cursor_goto_first_child(&curs);
-				if (input::node_text(&curs,src) == "unit density") {
-					ts_tree_cursor_goto_next_sibling(&curs);
-					ts_tree_cursor_goto_next_sibling(&curs);
-					if (tw::input::node_kind(&curs) == "decimal") {
-						auto ans = std::stod(input::node_text(&curs,src));
-						ts_tree_cursor_delete(&curs);
+			if (tw::input::node_kind(curs.get()) == "assignment") {
+				ts_tree_cursor_goto_first_child(curs.get());
+				if (input::node_text(curs.get(),src) == "unit density") {
+					ts_tree_cursor_goto_next_sibling(curs.get());
+					ts_tree_cursor_goto_next_sibling(curs.get());
+					if (tw::input::node_kind(curs.get()) == "decimal") {
+						auto ans = std::stod(input::node_text(curs.get(),src));
 						return ans;
 					} else {
 						throw tw::FatalError("expected raw value for unit density");
 					}
 				}
-				ts_tree_cursor_goto_parent(&curs);
+				ts_tree_cursor_goto_parent(curs.get());
 			}
-		} while (ts_tree_cursor_goto_next_sibling(&curs));
+		} while (ts_tree_cursor_goto_next_sibling(curs.get()));
 		throw tw::FatalError("could not find unit density assignment");
 	}
 	throw tw::FatalError("empty input file");
@@ -186,30 +185,28 @@ tw::Float tw::input::GetUnitDensityCGS(TSTree *tree,const std::string& src) {
 
 tw::units tw::input::GetNativeUnits(TSTree *tree,const std::string& src) {
 	std::map<std::string,tw::units> m = tw::get_unit_map();
-	TSTreeCursor curs = ts_tree_cursor_new(ts_tree_root_node(tree));
-	if (ts_tree_cursor_goto_first_child(&curs)) {
+	auto curs = tw::input::Cursor(ts_tree_root_node(tree));
+	if (ts_tree_cursor_goto_first_child(curs.get())) {
 		do {
-			if (tw::input::node_kind(&curs) == "assignment") {
-				ts_tree_cursor_goto_first_child(&curs);
-				if (input::node_text(&curs,src) == "native units") {
-					ts_tree_cursor_goto_next_sibling(&curs);
-					ts_tree_cursor_goto_next_sibling(&curs);
-					if (tw::input::node_kind(&curs) == "identifier") {
-						std::string txt = input::node_text(&curs,src);
+			if (tw::input::node_kind(curs.get()) == "assignment") {
+				ts_tree_cursor_goto_first_child(curs.get());
+				if (input::node_text(curs.get(),src) == "native units") {
+					ts_tree_cursor_goto_next_sibling(curs.get());
+					ts_tree_cursor_goto_next_sibling(curs.get());
+					if (tw::input::node_kind(curs.get()) == "identifier") {
+						std::string txt = input::node_text(curs.get(),src);
 						if (m.find(txt) == m.end()) {
 							throw tw::FatalError("Unknown system of units <" + txt + ">.");
 						} else {
-							ts_tree_cursor_delete(&curs);
 							return m[txt];
 						}
 					} else {
 						throw tw::FatalError("expected identifier for native units");
 					}
 				}
-				ts_tree_cursor_goto_parent(&curs);
+				ts_tree_cursor_goto_parent(curs.get());
 			}
-		} while (ts_tree_cursor_goto_next_sibling(&curs));
-		ts_tree_cursor_delete(&curs);
+		} while (ts_tree_cursor_goto_next_sibling(curs.get()));
 		return tw::units::plasma;
 	}
 	throw tw::FatalError("empty input file");

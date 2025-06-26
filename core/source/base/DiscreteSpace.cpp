@@ -7,6 +7,8 @@ import base;
 import pic_primitives;
 export import tensor;
 export import tasks;
+import logger;
+#include "tw_logger.h"
 
 /// This object is an indexing and interpolation scheme for a structured grid.
 /// Consider first the *topological indices*, defined as follows.
@@ -235,11 +237,16 @@ void DiscreteSpace::Resize(Task *task,const tw::Int gdim[4],const tw::vec4& gcor
 {
 	tw::Int domainIndex[4],domainCount[4];
 	task->strip[0].Get_coords(3,domainIndex);
+	domainCount[0] = 1;
 	dim[0] = gdim[0];
+	if (dim[0] != 1) {
+		logger::WARN(std::format("time dimension was not 1 ({})",dim[0]));
+	}
 	for (auto i = 1; i <= 3; i++) {
 		domainCount[i] = task->strip[i].Get_size();
 		dim[i] = gdim[i] / domainCount[i];
 	}
+	logger::DEBUG(std::format("resize domain to {}x{}x{}x{}",dim[0],dim[1],dim[2],dim[3]));
 
 	for (tw::Int i=0;i<4;i++) {
 		if (dim[i]==1) {

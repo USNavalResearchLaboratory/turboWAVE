@@ -12,9 +12,9 @@
             "type": "lldb",
             "request": "launch",
             "name": "Launch",
-            "program": "${workspaceFolder}/core/source/debug/tw3d.exe",
+            "program": "${workspaceFolder}/core/source/build/tw3d.exe",
             "args": [],
-            "cwd": "${workspaceFolder}/core/source/debug/"
+            "cwd": "/users/gordon/run/"
         }
     ]
 }

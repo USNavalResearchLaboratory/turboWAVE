@@ -10,6 +10,8 @@ export import units;
 export import tasks;
 import discrete_space;
 import tw_iterator;
+import logger;
+#include "tw_logger.h"
 
 // This abstract class is needed to anticipate ComputeTool::Warp.
 export struct warp_base

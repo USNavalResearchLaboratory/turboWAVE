@@ -3,6 +3,7 @@
 #include <thread>
 import base;
 import twmodule;
+import logger;
 
 ////////////////////////////
 // COMMAND LINE INTERFACE //
@@ -140,6 +141,8 @@ void CommandHandler::Usage()
 		line += it->help;
 		std::cout << line << std::endl;
 	}
+	std::cout << "Logging level is controlled by TW_LOG environment variable" << std::endl;
+	std::cout << "Valid levels are error, warn, info, debug, trace." << std::endl;
 }
 
 bool CommandHandler::Next(Arg& arg)
@@ -261,6 +264,7 @@ int main(int argc,char *argv[])
 	std::string initMessage,arg,inputFileName("stdin"),restartFileName("tw::none"),platform("cuda"),device("tesla"),unitTest("tw::none");
 
 	MPI_Init(&argc,&argv);
+	logger::init();
 
 	try
 	{
@@ -276,7 +280,7 @@ int main(int argc,char *argv[])
 		exit(1);
 	}
 
-	Simulation *tw = new Simulation(unitTest,inputFileName,restartFileName,platform,device,outputLevel,errorCheckingLevel);
+	Simulation *tw = new Simulation(interactive,unitTest,inputFileName,restartFileName,platform,device,outputLevel,errorCheckingLevel);
 	omp_set_num_threads(numOMPThreads);
 	int rank;
 	MPI_Comm_rank(MPI_COMM_WORLD,&rank);

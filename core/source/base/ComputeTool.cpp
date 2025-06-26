@@ -176,13 +176,22 @@ bool ComputeTool::ReadInputFileDirective(const TSTreeCursor *curs,const std::str
 void ComputeTool::ReadInputFileBlock(TSTreeCursor *curs,const std::string& src)
 {
 	if (tw::input::node_kind(curs)=="block") {
-		ts_tree_cursor_goto_first_child(curs);
+		if (ts_tree_cursor_goto_first_child(curs)) {
+			if (tw::input::next_named_node(curs,true)) {
+				do
+				{
+					if (tw::input::node_kind(curs)=="comment") {
+						continue;
+					}
+					if (!directives.ReadNext(curs,src)) {
+						if (!ReadInputFileDirective(curs,src)) {
+							tw::input::ThrowParsingError(curs,src,"unknown directive");
+						}
+					}
+				} while (tw::input::next_named_node(curs,false));
+			}
+		}
 	}
-	do
-	{
-		if (!directives.ReadNext(curs,src))
-			ReadInputFileDirective(curs,src);
-	} while (ts_tree_cursor_goto_next_sibling(curs));
 	directives.ThrowErrorIfMissingKeys(name);
 }
 

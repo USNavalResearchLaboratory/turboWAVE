@@ -1304,13 +1304,13 @@ bool Species::ReadInputFileDirective(const TSTreeCursor *curs0,const std::string
 		return true;
 
 	if (tw::input::node_kind(curs0)=="assignment") {
-		TSTreeCursor curs = ts_tree_cursor_copy(curs0);
-		ts_tree_cursor_goto_first_child(&curs);
-		if (tw::input::node_text(&curs,src) == "when density") {
+		auto curs = tw::input::Cursor(curs0);
+		ts_tree_cursor_goto_first_child(curs.get());
+		if (tw::input::node_text(curs.get(),src) == "when density") {
 			// needs to be run together as `particles per cell = 3 3 1 when density = 1.0`
 			// so that the distributionInCell is known.
 			tw::input::Float directive(&targetDensity);
-			directive.Read(&curs,src,"when density",native);
+			directive.Read(curs.get(),src,"when density",native);
 			targetDensity /= (distributionInCell.x*distributionInCell.y*distributionInCell.z);
 			return true;
 		}

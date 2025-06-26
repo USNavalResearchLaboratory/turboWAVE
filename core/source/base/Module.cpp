@@ -59,7 +59,7 @@ export struct Simulation: Task, MetricSpace, tw::input::Visitor
 	tw::Float unitDensityCGS;
 	tw::units nativeUnits;
 
-	bool neutralize,movingWindow;
+	bool interactive,neutralize,movingWindow;
 	tw::Int outputLevel,errorCheckingLevel,success_count,failure_count;
 	tw::Int previous_timestamp;
 
@@ -79,7 +79,8 @@ export struct Simulation: Task, MetricSpace, tw::input::Visitor
 	// Map of the most recently created module of a given type
 	std::map<tw::module_type,Module*> module_map;
 
-	Simulation(const std::string& unitTest,
+	Simulation(const bool interactive,
+		const std::string& unitTest,
 		const std::string& inputFileName,
 		const std::string& restartFileName,
 		const std::string& platform,
@@ -185,6 +186,10 @@ struct Module:DiscreteSpace
 	virtual void Initialize();
 	virtual void Reset() {;}
 	virtual void Update() {;}
+	void UpdateTime(tw::Float dt) {
+		corner[0] += dt;
+		windowPosition[0] += dt;
+	}
 	virtual void MoveWindow();
 	virtual void AntiMoveWindow() {;}
 	virtual void AdaptGrid() {;}
@@ -348,15 +353,15 @@ bool Module::ReadInputFileDirective(const TSTreeCursor *curs0,const std::string&
 	std::string command = tw::input::node_kind(curs0);
 	// Get an existing tool by searching for a name -- ``get = <name>``
 	if (command=="get") {
-		TSTreeCursor curs = ts_tree_cursor_copy(curs0);
-		owner->ToolFromDirective(moduleTool,&curs,src);
+		auto curs = tw::input::Cursor(curs0);
+		owner->ToolFromDirective(moduleTool,curs.get(),src);
 		return true;
 	}
 
 	// Take care of nested declarations
 	if (command=="new" || command=="generate") {
-		TSTreeCursor curs = ts_tree_cursor_copy(curs0);
-		owner->NestedDeclaration(&curs,src,this);
+		auto curs = tw::input::Cursor(curs0);
+		owner->NestedDeclaration(curs.get(),src,this);
 		return true;
 	}
 
@@ -369,13 +374,19 @@ bool Module::ReadInputFileDirective(const TSTreeCursor *curs0,const std::string&
 void Module::ReadInputFileBlock(TSTreeCursor *curs,const std::string& src)
 {
 	if (tw::input::node_kind(curs)=="block") {
-		ts_tree_cursor_goto_first_child(curs);
+		if (ts_tree_cursor_goto_first_child(curs)) {
+			if (tw::input::next_named_node(curs,true)) {
+				do
+				{
+					if (!directives.ReadNext(curs,src)) {
+						if (!ReadInputFileDirective(curs,src)) {
+							tw::input::ThrowParsingError(curs,src,"unknown directive");
+						}
+					}
+				} while (tw::input::next_named_node(curs,false));
+			}
+		}
 	}
-	do
-	{
-		if (!directives.ReadNext(curs,src))
-			ReadInputFileDirective(curs,src);
-	} while (ts_tree_cursor_goto_next_sibling(curs));
 	directives.ThrowErrorIfMissingKeys(name);
 }
 

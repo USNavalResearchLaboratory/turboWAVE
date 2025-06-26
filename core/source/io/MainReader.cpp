@@ -30,28 +30,26 @@ GridReader::GridReader(tw::UnitConverter& uc)
 
 bool GridReader::Read(const TSTreeCursor *curs0,const std::string& src)
 {
-	TSTreeCursor curs = ts_tree_cursor_copy(curs0);
-	if (tw::input::node_kind(&curs)=="new") {
-		ts_tree_cursor_goto_first_child(&curs); // `new` token
-		ts_tree_cursor_goto_next_sibling(&curs);
-		if (tw::input::node_text(&curs,src)=="grid") {
-			ts_tree_cursor_goto_next_sibling(&curs);
-			if (tw::input::node_kind(&curs)=="block") {
-				ts_tree_cursor_goto_first_child(&curs);
-				tw::input::next_named_node(&curs,true);
-				directives.ReadAll(&curs,src);
+	auto curs = tw::input::Cursor(curs0);
+	if (tw::input::node_kind(curs.get())=="new") {
+		ts_tree_cursor_goto_first_child(curs.get()); // `new` token
+		ts_tree_cursor_goto_next_sibling(curs.get());
+		if (tw::input::node_text(curs.get(),src)=="grid") {
+			ts_tree_cursor_goto_next_sibling(curs.get());
+			if (tw::input::node_kind(curs.get())=="block") {
+				ts_tree_cursor_goto_first_child(curs.get());
+				tw::input::next_named_node(curs.get(),true);
+				directives.ReadAll(curs.get(),src);
 				directives.ThrowErrorIfMissingKeys("grid");
 				if (req_dom[0]!=1)
-					tw::input::ThrowParsingError(&curs,src,"Time decomposition must be 1");
+					tw::input::ThrowParsingError(curs.get(),src,"Time decomposition must be 1");
 				found = true;
-				ts_tree_cursor_delete(&curs);
 				return true;
 			} else {
-				tw::input::ThrowParsingError(&curs,src,"Ill-formed grid block");
+				tw::input::ThrowParsingError(curs.get(),src,"Ill-formed grid block");
 			}
 		}
 	}
-	ts_tree_cursor_delete(&curs);
 	return false;
 }
 
@@ -132,16 +130,15 @@ tw::input::navigation Simulation::visit(TSTreeCursor *curs) {
 				gridReader->UpdateSpace(*this);
 				return tw::input::navigation::gotoSibling;
 			} else if (key == "warp") {
-				TSTreeCursor saveCurs = ts_tree_cursor_copy(curs);
-				tw::input::Preamble preamble = tw::input::GetPreamble(curs,src);
+				auto curs1 = tw::input::Cursor(curs);
+				tw::input::Preamble preamble = tw::input::GetPreamble(curs1.get(),src);
 				MangleToolName(preamble.obj_name);
 				std::println(std::cout,"Creating Tool <{}>...",preamble.obj_name);
 				// Do not use CreateTool, do not want to increase refCount
 				computeTool.push_back(factory::CreateToolFromType(preamble.obj_name,tw::tool_type::warp,this,this));
-				computeTool.back()->ReadInputFileBlock(curs,src);
+				computeTool.back()->ReadInputFileBlock(curs1.get(),src);
 				computeTool.back()->Initialize(); // OK and necessary to init here
 				AttachWarp(dynamic_cast<Warp*>(computeTool.back()));
-				*curs = ts_tree_cursor_copy(&saveCurs);
 				return tw::input::navigation::gotoSibling;
 			} else {
 				// not a grid or warp, so skip it
@@ -429,5 +426,8 @@ void Simulation::ReadInputFile()
 	std::flush(std::cout);
 	ts_tree_delete(tree);
 	outerDirectives.ThrowErrorIfMissingKeys("Simulation");
+	if (outerDirectives.TestKey("moving window") && !outerDirectives.TestKey("window speed")) {
+		solutionVelocity[3] = 1.0;
+	}
 }
 

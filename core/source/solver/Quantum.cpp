@@ -487,13 +487,13 @@ bool AtomicPhysics::ReadInputFileDirective(const TSTreeCursor *curs0,const std::
 		return true;
 
 	if (tw::input::node_kind(curs0)=="assignment") {
-		TSTreeCursor curs = ts_tree_cursor_copy(curs0);
-		ts_tree_cursor_goto_first_child(&curs);
-		if (tw::input::node_text(&curs,src) == "bachelet potential") {
+		auto curs = tw::input::Cursor(curs0);
+		ts_tree_cursor_goto_first_child(curs.get());
+		if (tw::input::node_text(curs.get(),src) == "bachelet potential") {
 			// eg, bachelet potential = 1.0 1.0 1.0 0.1 0.5
 			std::valarray<tw::Float> components(5);
 			tw::input::Numbers<tw::Float> directive(&components[0],5);
-			directive.Read(&curs,src,"bachelet potential",native);
+			directive.Read(curs.get(),src,"bachelet potential",native);
 			H.qnuc = components[0];
 			H.c1 = components[1];
 			H.c2 = components[2];

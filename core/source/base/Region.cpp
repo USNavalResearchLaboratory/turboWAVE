@@ -429,17 +429,17 @@ void Region::ReadInputFileBlock(TSTreeCursor *curs,const std::string& src)
 	{
 		directives.ReadNext(curs,src);
 		// following is unconditional, see comments up top
-		TSTreeCursor curs1 = ts_tree_cursor_copy(curs);
-		ReadInputFileDirective(&curs1,src);
+		auto curs1 = tw::input::Cursor(curs);
+		ReadInputFileDirective(curs1.get(),src);
 	} while (ts_tree_cursor_goto_next_sibling(curs));
 	directives.ThrowErrorIfMissingKeys(name);
 }
 
 void Region::ReadInputFileDirective(const TSTreeCursor *curs0,const std::string& src)
 {
-	TSTreeCursor curs = ts_tree_cursor_copy(curs0);
-	ts_tree_cursor_goto_first_child(&curs);
-	std::string com = tw::input::node_text(&curs,src);
+	auto curs = tw::input::Cursor(curs0);
+	ts_tree_cursor_goto_first_child(curs.get());
+	std::string com = tw::input::node_text(curs.get(),src);
 
 	if (com=="bounds")
 	{
@@ -468,13 +468,13 @@ void Region::ReadInputFileDirective(const TSTreeCursor *curs0,const std::string&
 	if (com=="elements")
 	{
 		Region *curr;
-		tw::input::next_named_node(&curs,false);
-		if (tw::input::node_kind(&curs) != "list") {
+		tw::input::next_named_node(curs.get(),false);
+		if (tw::input::node_kind(curs.get()) != "list") {
 			throw tw::FatalError("expected `elements` to be a list while processing region");
 		}
-		ts_tree_cursor_goto_first_child(&curs);
-		while (tw::input::next_named_node(&curs,false)) {
-			std::string elName = tw::input::node_text(&curs,src);
+		ts_tree_cursor_goto_first_child(curs.get());
+		while (tw::input::next_named_node(curs.get(),false)) {
+			std::string elName = tw::input::node_text(curs.get(),src);
 			tw::input::StripQuotes(elName);
 			curr = FindRegion(masterList,elName);
 			composite.push_back(curr);

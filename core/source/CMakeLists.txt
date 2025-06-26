@@ -105,6 +105,7 @@ target_sources(tw3d PUBLIC
     BASE_DIRS base io particles solver sparc
     FILES
         base/base.cpp
+        base/logger.cpp
         base/pic_primitives.cpp
         base/tensor.cpp
         base/DiscreteSpace.cpp
