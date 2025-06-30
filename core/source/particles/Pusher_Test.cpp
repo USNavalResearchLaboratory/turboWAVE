@@ -4,7 +4,7 @@ module;
 #include "tw_test.h"
 
 module mover;
-import discrete_space;
+import dyn_space;
 
 void Mover::UniformETest()
 {

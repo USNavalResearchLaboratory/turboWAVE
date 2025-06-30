@@ -8,6 +8,8 @@ import base;
 import preprocess;
 import input;
 import factory;
+import logger;
+#include "tw_logger.h"
 
 GridReader::GridReader(tw::UnitConverter& uc)
 {
@@ -89,6 +91,7 @@ void GridReader::UpdateSpace(MetricSpace& ms)
 /// @param src source document
 void Simulation::ToolFromDirective(std::vector<ComputeTool*>& tool,TSTreeCursor *curs,const std::string& src)
 {
+	logger::DEBUG("get a named tool");
 	auto word = tw::input::next_named_node_text(curs,src);
 	tw::input::StripQuotes(word);
 	if (CheckModule(word))
@@ -170,6 +173,17 @@ tw::input::navigation Simulation::visit(TSTreeCursor *curs) {
 			if (preamble.obj_key=="grid" || preamble.obj_key=="warp")
 				return tw::input::navigation::gotoParentSibling;
 
+			// Intercept regions which are handled specially
+			if (preamble.obj_key.substr(0,6)=="region") {
+				logger::DEBUG("parsing region");
+				std::string rgnType = tw::input::trim(preamble.obj_key.substr(6));
+				clippingRegion.push_back(Region::CreateObjectFromString(clippingRegion,rgnType));
+				clippingRegion.back()->directives.AttachUnits(units);
+				clippingRegion.back()->name = preamble.obj_name;
+				clippingRegion.back()->ReadInputFileBlock(curs,src);
+				return tw::input::navigation::gotoSibling;
+			}
+			
 			std::string similar_keys;
 			if (!factory::VerifyKey(preamble.obj_key,similar_keys)) {
 				tw::input::ThrowParsingError(curs, src, std::format("unknown key <{}>",preamble.obj_key),
@@ -180,6 +194,7 @@ tw::input::navigation Simulation::visit(TSTreeCursor *curs) {
 
 			// Install a pre or post declared tool
 			if (whichTool!=tw::tool_type::none) {
+				logger::DEBUG("parsing tool");
 				if (preamble.attaching) {
 					ComputeTool *tool = CreateTool(preamble.obj_name,whichTool);
 					std::println(std::cout,"Attaching <{}> to <{}>",tool->name,preamble.owner_name);
@@ -199,6 +214,7 @@ tw::input::navigation Simulation::visit(TSTreeCursor *curs) {
 
 			// Module Installation
 			if (whichModule!=tw::module_type::none) {
+				logger::DEBUG("parsing module");
 				if (Module::SingularType(whichModule))
 					if (module_map.find(whichModule)!=module_map.end())
 						tw::input::ThrowParsingError(curs,src,"singular module type was created twice.  Check order of input file.");
@@ -225,16 +241,6 @@ tw::input::navigation Simulation::visit(TSTreeCursor *curs) {
 				return tw::input::navigation::gotoSibling;
 			}
 
-			// Regions are neither modules nor tools
-			if (preamble.obj_key.substr(0,6)=="region") {
-				std::string rgnType = tw::input::trim(preamble.obj_key.substr(6));
-				clippingRegion.push_back(Region::CreateObjectFromString(clippingRegion,rgnType));
-				clippingRegion.back()->directives.AttachUnits(units);
-				clippingRegion.back()->name = preamble.obj_name;
-				clippingRegion.back()->ReadInputFileBlock(curs,src);
-				return tw::input::navigation::gotoSibling;
-			}
-			
 			throw tw::FatalError("unknown key <" + preamble.obj_key + "> at " + tw::input::loc_str(curs));
 
 		} else if (typ == "reaction" || typ == "collision" || typ == "excitation") {
@@ -258,6 +264,7 @@ tw::input::navigation Simulation::visit(TSTreeCursor *curs) {
 /// @param super module that is adding the item
 void Simulation::NestedDeclaration(TSTreeCursor *curs,const std::string& src,Module *super)
 {
+	logger::DEBUG("handling nested declaration");
 	tw::input::Preamble preamble = tw::input::GetPreamble(curs,src);
 	if (preamble.attaching)
 		tw::input::ThrowParsingError(curs,src,"keyword <for> is not allowed in a nested declaration.");
@@ -302,6 +309,7 @@ void Simulation::NestedDeclaration(TSTreeCursor *curs,const std::string& src,Mod
 
 Module* Simulation::RecursiveAutoSuper(tw::module_type reqType,const std::string& basename)
 {
+	logger::DEBUG("handling automatic supermodule");
 	// If it already exists we are done
 	if (module_map.find(reqType)!=module_map.end())
 			return module_map[reqType];
@@ -426,7 +434,7 @@ void Simulation::ReadInputFile()
 	std::flush(std::cout);
 	ts_tree_delete(tree);
 	outerDirectives.ThrowErrorIfMissingKeys("Simulation");
-	if (outerDirectives.TestKey("moving window") && !outerDirectives.TestKey("window speed")) {
+	if (movingWindow && !outerDirectives.TestKey("window speed")) {
 		solutionVelocity[3] = 1.0;
 	}
 }

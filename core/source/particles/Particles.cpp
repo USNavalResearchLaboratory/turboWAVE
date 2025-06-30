@@ -382,7 +382,7 @@ void Kinetics::Ionize()
 			for (tw::Int i=0;i<particle.size();i++)
 			{
 				Particle& curr = particle[i]; // curr = particle being ionized
-				owner->GetWeights(&weights,curr.q);
+				owner->StaticSpace::GetWeights(&weights,curr.q);
 				probability = a2 = 0.0;
 				if (species[s]->laser)
 				{
@@ -464,7 +464,7 @@ void Kinetics::ProcessQED()
 				gamma = sqrt(1.0 + Norm(part.p.spatial()));
 				vel = part.p.spatial()/gamma/species[s]->restMass;
 
-				owner->GetWeights(&weights,part.q);
+				owner->StaticSpace::GetWeights(&weights,part.q);
 				species[s]->EM->Interpolate(temp,Element(0,5),weights);
 
 				for (tw::Int n=0;n<3;n++)
@@ -539,7 +539,7 @@ void Kinetics::ProcessQED()
 
 				omega = (part.p[0] * tw::dims::energy >> native >> cgs)/cgs::hbar;
 
-				owner->GetWeights(&weights,part.q);
+				owner->StaticSpace::GetWeights(&weights,part.q);
 				species[s]->EM->Interpolate(temp,Element(0,5),weights);
 
 				for (tw::Int n=0;n<3;n++)
@@ -1364,7 +1364,7 @@ void Species::CalculateDensity(ScalarField& dens)
 	{
 		if (RefCellInSpatialDomain(par.q))
 		{
-			dens.GetWeights(&w,par.q);
+			dens.StaticSpace::GetWeights(&w,par.q);
 			dens.InterpolateOnto(par.number,w);
 		}
 	}
@@ -1389,7 +1389,7 @@ void Species::CalculateEnergyDensity(ScalarField& dens)
 	{
 		if (RefCellInSpatialDomain(par.q))
 		{
-			dens.GetWeights(&w,par.q);
+			dens.StaticSpace::GetWeights(&w,par.q);
 			dens.InterpolateOnto(par.number * (par.p[0] - m0),w);
 		}
 	}
@@ -1413,7 +1413,7 @@ void Species::CalculateQuantumParameter(ScalarField& dens)
 	{
 		if (RefCellInSpatialDomain(par.q))
 		{
-			dens.GetWeights(&w,par.q);
+			dens.StaticSpace::GetWeights(&w,par.q);
 			dens.InterpolateOnto(par.number*par.Qparam,w);
 		}
 	}

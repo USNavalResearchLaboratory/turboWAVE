@@ -73,7 +73,7 @@ Range based loops over cells are used when the order of iterations does not requ
 			some_field(cell,0) *= another_field(cell,1);
 	}
 
-In this example the first component of ``some_field`` is multiplied by the second component of ``another_field``.  Putting the loop inside a parallel region causes the ``InteriorCellRange`` object to automatically partition the iterations among the threads. The use of ``*this`` in the range constructor assumes that the loop is formed in the method of some object that derives from ``DiscreteSpace``, such as a ``Module``.  If calling from a ``ComputeTool`` method, ``*this`` would be replaced by ``*space``.  The ``InteriorCellRange`` is so named because it does not include ghost cells. To include them use ``EntireCellRange``.
+In this example the first component of ``some_field`` is multiplied by the second component of ``another_field``.  Putting the loop inside a parallel region causes the ``InteriorCellRange`` object to automatically partition the iterations among the threads. The use of ``*this`` in the range constructor assumes that the loop is formed in the method of some object that derives from ``DynSpace``, such as a ``Module``.  If calling from a ``ComputeTool`` method, ``*this`` would be replaced by ``*space``.  The ``InteriorCellRange`` is so named because it does not include ghost cells. To include them use ``EntireCellRange``.
 
 .. Caution::
 
@@ -137,7 +137,7 @@ Suppose we have a ``Field`` with axis 3 as the packed axis.  Then an optimized l
 		}
 	}
 
-Here, we have again assumed the block is defined inside a derivative of ``DiscreteSpace``.  It is important to understand that this construction uses thread parallelism *across* strips, and vector parallelism *along* strips.  Therefore it is not effective for 1D problems.
+Here, we have again assumed the block is defined inside a derivative of ``DynSpace``.  It is important to understand that this construction uses thread parallelism *across* strips, and vector parallelism *along* strips.  Therefore it is not effective for 1D problems.
 
 .. Warning::
 

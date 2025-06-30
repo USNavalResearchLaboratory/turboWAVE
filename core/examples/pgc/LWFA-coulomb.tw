@@ -17,13 +17,14 @@ zboundary = ( absorbing , absorbing )
 
 new grid
 {
+	steps = 300
 	origin = ( 0.5, 0.5, 0.5, 0.0 )
-	dimensions = ( 300 , 128 , 1 , 256 )
+	dimensions = ( 1 , 128 , 1 , 256 )
 	cell size = ( 0.08 , 0.25 , 1.0 , 0.1 )
 	decomposition = ( 1 , 1 , 1 , 1 )
 }
 
-new coulomb electromagnetic module 'em'
+new coulomb gauge solver 'em'
 {
 }
 
@@ -32,7 +33,7 @@ new facr elliptic solver for 'em'
 	zboundary = (open open)
 }
 
-new pgc laser module 'pgc'
+new pgc laser solver 'pgc'
 {
 	carrier frequency = 50
 }

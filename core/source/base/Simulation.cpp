@@ -582,7 +582,7 @@ void Simulation::FundamentalCycle()
 		m->Update();
 
 	solutionPosition += spacing[0]*solutionVelocity;
-	altSolutionPosition -= spacing[0]*solutionVelocity;
+	altSolutionPosition += spacing[0]*(solutionVelocity - tw::vec4(0,0,0,1));
 	stepNow++;
 
 	if (adaptiveGrid)

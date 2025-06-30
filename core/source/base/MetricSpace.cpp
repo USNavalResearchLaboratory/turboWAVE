@@ -8,7 +8,7 @@ export import pic_primitives;
 export import tensor;
 export import units;
 export import tasks;
-import discrete_space;
+import dyn_space;
 import tw_iterator;
 import logger;
 #include "tw_logger.h"
@@ -20,12 +20,12 @@ export struct warp_base
 	virtual tw::Float AddedCellWidth(tw::Int globalCell) = 0;
 };
 
-export struct MetricSpace:DiscreteSpace
+export struct MetricSpace:DynSpace
 {
 	tw::grid::geometry gridGeometry;
 	tw::Float car,cyl,sph; // set variable corresponding to coordinate system to 1.0, all others to 0.0
-	tw::Int mnum[4]; // num for metric arrays (see DiscreteSpace)
-	tw::Int mlb[4],mub[4]; // lfg and ufg for metric arrays (see DiscreteSpace)
+	tw::Int mnum[4]; // num for metric arrays (see DynSpace)
+	tw::Int mlb[4],mub[4]; // lfg and ufg for metric arrays (see DynSpace)
 	tw::Int I3x3[3][3];
 	bool adaptiveTimestep,adaptiveGrid;
 	
@@ -468,7 +468,7 @@ void MetricSpace::SetTopology(Task *task,
 	const tw::vec4& gsize,
 	tw::Int ghostCellLayers)
 {
-	DiscreteSpace::Resize(task,gdim,gcorner,gsize,ghostCellLayers);
+	DynSpace::Resize(task,gdim,gcorner,gsize,ghostCellLayers);
 
 	// Metric arrays have ghost cell layers even when dim=1.
 	// Hence the topology of the metric data differs from that of other data
@@ -867,7 +867,7 @@ U MetricSpace::ValueOnLightGrid(T& A,tw::strip s,tw::Int k,tw::Float relativeTim
 
 void MetricSpace::ReadCheckpoint(std::ifstream& inFile)
 {
-	DiscreteSpace::ReadCheckpoint(inFile);
+	DynSpace::ReadCheckpoint(inFile);
 	inFile.read((char *)mnum,sizeof(mnum));
 	inFile.read((char *)mlb,sizeof(mlb));
 	inFile.read((char *)mub,sizeof(mub));
@@ -885,7 +885,7 @@ void MetricSpace::ReadCheckpoint(std::ifstream& inFile)
 
 void MetricSpace::WriteCheckpoint(std::ofstream& outFile)
 {
-	DiscreteSpace::WriteCheckpoint(outFile);
+	DynSpace::WriteCheckpoint(outFile);
 	outFile.write((char *)mnum,sizeof(mnum));
 	outFile.write((char *)mlb,sizeof(mlb));
 	outFile.write((char *)mub,sizeof(mub));

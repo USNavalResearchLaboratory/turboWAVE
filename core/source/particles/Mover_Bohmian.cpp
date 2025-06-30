@@ -31,7 +31,7 @@ void BundleMoverBohmian2D::Move(tw::Float dts)
 	PadBundle();
 	cell0 = cell[0];
 	mov.ms->DecodeCell(cell0,ijk0);
-	mov.ms->GetWeights(w0,x);
+	mov.ms->StaticSpace::GetWeights(w0,x);
 	LoadTile(Jx);
 	GatherJ4(J,w0);
 	Push(dts);
@@ -57,7 +57,7 @@ void BundleMoverBohmian3D::Move(tw::Float dts)
 	PadBundle();
 	cell0 = cell[0];
 	mov.ms->DecodeCell(cell0,ijk0);
-	mov.ms->GetWeights(w0,x);
+	mov.ms->StaticSpace::GetWeights(w0,x);
 	LoadTile(Jx);
 	GatherJ4(J,w0);
 	Push(dts);

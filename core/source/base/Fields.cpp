@@ -3,7 +3,7 @@ module;
 #include "tw_includes.h"
 
 export module fields;
-export import discrete_space;
+export import dyn_space;
 export import metric_space;
 export import tw_iterator;
 import numerics;
@@ -186,16 +186,16 @@ public:
 	}
 };
 
-/// Field is a DiscreteSpace with data assigned to the cells, and operations on the data.
+/// Field is a DynSpace with data assigned to the cells, and operations on the data.
 /// The data is some fixed number of floating point values per cell.
 /// The storage pattern is variable, and can be specified by designating a packed axis.
-/// The topology (dimensions, ghost cells) is inherited from the DiscreteSpace passed to the constructor.
+/// The topology (dimensions, ghost cells) is inherited from the DynSpace passed to the constructor.
 /// It is possible to mix Fields with varying ghost cell layers, but it is MUCH SAFER
 /// to keep the ghost cell layers the same for all Field instances in a calculation.
 ///
 /// Note the Field does not inherit from MetricSpace.  The intention is to have only a single
 /// instance of MetricSpace active at any time (mainly to avoid replicating the metric data)
-export struct Field: DiscreteSpace
+export struct Field: DynSpace
 {
 protected:
 
@@ -232,7 +232,7 @@ public:
 
 	Field();
 	virtual ~Field();
-	void Initialize(tw::Int components, const DiscreteSpace& ds, Task* task, const tw::grid::axis& axis = tw::grid::z);
+	void Initialize(tw::Int components, const DynSpace& ds, Task* task, const tw::grid::axis& axis = tw::grid::z);
 	void SetBoundaryConditions(const Element& e, const tw::grid::axis& axis, tw::bc::fld low, tw::bc::fld high);
 	friend void CopyBoundaryConditions(Field& dst, const Element& dstElement, Field& src, const Element& srcElement);
 
@@ -937,7 +937,7 @@ struct AutoField : Field
 		packedAxis = 0;
 		num[0] = sizeof(T) / sizeof(tw::Float);
 	}
-	void Initialize(const DiscreteSpace& ds, Task* task)
+	void Initialize(const DynSpace& ds, Task* task)
 	{
 		Field::Initialize(num[0], ds, task, tw::grid::t);
 	}
@@ -1366,7 +1366,7 @@ void BoundaryCondition::Reset()
 
 void BoundaryCondition::Set(tw::bc::fld theBoundaryCondition,tw::grid::side whichSide)
 {
-	// In this routine, indexing is offset from DiscreteSpace indexing convention.
+	// In this routine, indexing is offset from DynSpace indexing convention.
 	// Namely, 0 is the outer ghost cell layer, 1 is the inner, 2 is the edge cell, etc.
 	// When BC is applied, negative strides are used to produce mirror image indexing on high side
 
@@ -1524,9 +1524,9 @@ Field::~Field()
 /// @param ds discrete space to use for this Field, data is copied
 /// @param task pointer to the concurrent task with this Field's domain
 /// @param axis use this as the packed axis, only affects storage pattern
-void Field::Initialize(tw::Int components,const DiscreteSpace& ds,Task *task,const tw::grid::axis& axis)
+void Field::Initialize(tw::Int components,const DynSpace& ds,Task *task,const tw::grid::axis& axis)
 {
-	DiscreteSpace::operator=(ds);
+	DynSpace::operator=(ds);
 	this->task = task;
 	packedAxis = tw::grid::naxis(axis);
 	totalCells = num[1]*num[2]*num[3];
@@ -2220,10 +2220,11 @@ void Field::Transpose(const Element& e,const tw::grid::axis& axis1,const tw::gri
 		tw::Int ax3,dim_T[4];
 		ax3 = 1;
 		while (ax3==ax1 || ax3==ax2) ax3++;
+		dim_T[0] = 1;
 		dim_T[ax1] = dim[ax1]*nodes;
 		dim_T[ax2] = interiorCellsPerBlock;
 		dim_T[ax3] = dim[ax3];
-		target->Initialize(e.Components(),DiscreteSpace(dim_T[1],dim_T[2],dim_T[3],corner,size),task);
+		target->Initialize(e.Components(),DynSpace(dim_T,corner,size),task);
 	}
 
   // The message passing pattern is to have simultaneous exchanges between pairs.
@@ -2387,7 +2388,7 @@ void Field::Smooth(const Element& e,const MetricSpace& ds,tw::Int smoothPasses[4
 
 void Field::ReadCheckpoint(std::ifstream& inFile)
 {
-	DiscreteSpace::ReadCheckpoint(inFile);
+	DynSpace::ReadCheckpoint(inFile);
 	inFile.read((char*)&packedAxis,sizeof(tw::Int));
 	inFile.read((char*)&bc0(0,0),sizeof(BoundaryCondition)*num[0]*4);
 	inFile.read((char*)&bc1(0,0),sizeof(BoundaryCondition)*num[0]*4);
@@ -2396,7 +2397,7 @@ void Field::ReadCheckpoint(std::ifstream& inFile)
 
 void Field::WriteCheckpoint(std::ofstream& outFile)
 {
-	DiscreteSpace::WriteCheckpoint(outFile);
+	DynSpace::WriteCheckpoint(outFile);
 	outFile.write((char *)&packedAxis,sizeof(tw::Int));
 	outFile.write((char*)&bc0(0,0),sizeof(BoundaryCondition)*num[0]*4);
 	outFile.write((char*)&bc1(0,0),sizeof(BoundaryCondition)*num[0]*4);

@@ -2,7 +2,7 @@ module;
 
 #include "tw_includes.h"
 
-export module discrete_space;
+export module static_space;
 import base;
 import pic_primitives;
 export import tensor;
@@ -11,6 +11,10 @@ import logger;
 #include "tw_logger.h"
 
 /// This object is an indexing and interpolation scheme for a structured grid.
+/// It only involves information that is static and local to a single domain.
+/// This allows us to derive objects from StaticSpace without worrying about the
+/// side effects of copying dynamical quantities.
+///
 /// Consider first the *topological indices*, defined as follows.
 ///
 /// Let `ax` be an axis index, numbered from 0 to 3.  Consider a one dimensional
@@ -30,29 +34,11 @@ import logger;
 /// Superclasses can add a secondary encoding to resolve higher
 /// dimensional storage patterns. For example, `Field` adds another encoding to
 /// define how its components are packed.
-export struct DiscreteSpace : Testable
+export struct StaticSpace : Testable
 {
 	protected:
 
-	tw::Int stepNow,stepsToTake;
-	/// There is a marker in the inertial frame, this is its velocity.
-	/// Ordinary initial value problems will have (1,0,0,0), while "moving windows" will have (1,0,0,1).
-	tw::vec4 solutionVelocity;
-	/// There is a marker in the inertial frame, this is its position.
-	/// The marker will not in general be in perfect synchronism with the window.
-	tw::vec4 solutionPosition;
-	tw::vec4 altSolutionPosition;
-	tw::vec4 windowPosition; ///< the actual position of the computational window
-	tw::vec4 altWindowPosition;
-	tw::vec4 maxWindowPosition; ///< used to determine when simulation should stop
-	tw::vec4 corner; ///< position where all coordinates are minimized on the local domain
-	tw::vec4 size; ///< length of the local domain along each axis
-	tw::vec4 globalCorner; ///< position where all coordinates are minimized on the global domain
-	tw::vec4 globalSize; ///< length of the global domain along each axis
 	tw::vec4 spacing; ///< center-to-center cell separation along each axis (uniform grids only)
-	tw::vec4 min_spacing; ///< minimum spacing to use for adaptive grids (including time levels)
-	tw::vec4 max_spacing; ///< maximum spacing to use for adaptive grids (including time levels)
-	tw::vec4 critical_spacing; ///< threshold that triggers some action when we have an adaptive grid
 	tw::vec4 freq; ///< inverse of spacing component by component (uniform grids only)
 	/// `dim[0..=3]` are the number of cells along each axis.
 	/// The notion of field components does not come in at this level.
@@ -61,10 +47,6 @@ export struct DiscreteSpace : Testable
 	tw::Int dim[4];
 	/// `num` is similar to `dim`, except ghost cells are included.
 	tw::Int num[4];
-	/// number of interior cells along the given axis, summed over all domains on the low-side of this domain
-	tw::Int lowSideCells[4];
-	/// number of interior cells along the given axis, summed over all domains
-	tw::Int globalCells[4];
 	/// Parameters of the default cell encoding.  For the encoding see `EncodeCell`.
 	/// The `encodingStride` is 0 along an ignorable axis resulting in a many-one mapping, i.e.,
 	/// ghost cells and the one interior cell map to the same cell for the ignorable axis.
@@ -81,23 +63,12 @@ export struct DiscreteSpace : Testable
 
 	public:
 
-	/// Create an empty `DiscreteSpace`
-	DiscreteSpace();
-	/// Create a `DiscreteSpace` with a single time node and purely *local* coordinates
-	DiscreteSpace(tw::Int xDim,tw::Int yDim,tw::Int zDim,const tw::vec4& corner,const tw::vec4& size,tw::Int ghostCellLayers=2);
-	/// Change the topology and coordinates:  `gdim`, `gcorner`, and `gsize` describe global window that exists in memory
-	/// at any one time, as distinct from the union of all windows that occur during the system evolution.
-	void Resize(Task *task,const tw::Int gdim[4],const tw::vec4& gcorner,const tw::vec4& gsize,tw::Int ghostCellLayers=2);
-	/// Change the time step.  Use `Simulation::UpdateTimestep` to do this for all modules.
-	void SetupTimeInfo(tw::Float dt0) { spacing[0] = dt0; freq[0] = 1.0/dt0; }
-	void UpdateWindow(const DiscreteSpace& src) {
-		solutionPosition = src.solutionPosition;
-		solutionVelocity = src.solutionVelocity;
-		windowPosition = src.windowPosition;
-		altSolutionPosition = src.altSolutionPosition;
-		altWindowPosition = src.altWindowPosition;
-		maxWindowPosition = src.maxWindowPosition;
-	}
+	/// Create an empty `StaticSpace`
+	StaticSpace();
+	/// Create a `StaticSpace` with a single time node and purely *local* coordinates
+	StaticSpace(const tw::Int dim[4],const tw::vec4& size,tw::Int ghostCellLayers=2);
+	/// Resize a `StaticSpace` with the given global parameters
+	void Resize(const tw::Int domains[4],const tw::Int gdim[4],const tw::vec4& gsize,tw::Int ghostCellLayers=2);
 	/// Encode cell with topological indices `(n,i,j,k)`
 	tw::Int EncodeCell(tw::Int n,tw::Int i,tw::Int j,tw::Int k) const {
 		return (n-lfg[0])*encodingStride[0] + (i-lfg[1])*encodingStride[1] + (j-lfg[2])*encodingStride[2] + (k-lfg[3])*encodingStride[3];
@@ -122,48 +93,37 @@ export struct DiscreteSpace : Testable
 	void DecodeCell(const Primitive& q,tw::Int ijk[4]) const { DecodeCell(q.cell,ijk); }
 	/// Decode `q` to produce topological indices `(n,i,j,k)` assuming default encoding.
 	void DecodeCell(const Primitive& q,tw::Int *n,tw::Int *i,tw::Int *j,tw::Int *k) const { DecodeCell(q.cell,n,i,j,k); }
+	bool IsRefCellWithin(const Primitive& q,tw::Int inset) const;
 	bool RefCellInSpatialDomain(const Primitive& q) const;
-	void SetPrimitiveWithPosition(Primitive& q,const tw::vec4& pos) const;
-	tw::vec4 PositionFromPrimitive(const Primitive& q) const;
 	void MinimizePrimitive(Primitive& q) const;
 	void MinimizePrimitive(tw::Int cell[tw::max_bundle_size],tw::Int ijk[4][tw::max_bundle_size],float x[4][tw::max_bundle_size],float domainMask[tw::max_bundle_size]) const;
 	tw::Int Dim(const tw::Int& ax) const { return dim[ax]; }
 	tw::Int Num(const tw::Int& ax) const { return num[ax]; }
-	tw::Int GlobalDim(const tw::Int& ax) const { return globalCells[ax]; }
-	tw::Int GlobalCellIndex(const tw::Int& idx,const tw::Int& ax) const { return idx + lowSideCells[ax]; }
-	tw::Int LocalCellIndex(const tw::Int& idx,const tw::Int& ax) const { return idx - lowSideCells[ax]; }
 	tw::Int Ignorable(const tw::Int& ax) const { return ignorable[ax]; }
 	tw::Int Layers(const tw::Int& ax) const { return layers[ax]; }
 	tw::Int LNG(const tw::Int& ax) const { return lng[ax]; }
 	tw::Int UNG(const tw::Int& ax) const { return ung[ax]; }
 	tw::Int LFG(const tw::Int& ax) const { return lfg[ax]; }
 	tw::Int UFG(const tw::Int& ax) const { return ufg[ax]; }
-	tw::Int StepNow() const { return stepNow; }
-	tw::Int StepsToTake() const { return stepsToTake; }
-	tw::Int SpatialDims();
+	tw::Int SpatialDims() { return tw::Int(3) - ignorable[1] - ignorable[2] - ignorable[3]; }
 	tw::Float dx(const tw::Int& ax) const { return spacing[ax]; }
 	tw::Float dk(const tw::Int& ax) const { return freq[ax]; }
-	tw::vec4 PhysicalSize() { return size; }
-	tw::vec4 GlobalPhysicalSize() { return globalSize; }
-	tw::vec4 Corner() { return corner; }
-	tw::vec4 GlobalCorner() { return globalCorner; }
-	tw::Float SolutionPos(const tw::Int& ax) const { return solutionPosition[ax]; }
-	tw::Float WindowPos(const tw::Int& ax) const { return windowPosition[ax]; }
-	tw::Float MaxWindowPos(const tw::Int& ax) const { return maxWindowPosition[ax]; }
-	tw::Float CriticalSpacing(const tw::Int& ax) const { return critical_spacing[ax]; }
-	tw::Float MinSpacing(const tw::Int& ax) const { return min_spacing[ax]; }
-	tw::Float MaxSpacing(const tw::Int& ax) const { return max_spacing[ax]; }
-	bool IsRefCellWithin(const Primitive& q,tw::Int inset) const;
-	bool IsPointWithinInterior(const tw::vec4& P);
-	bool PowersOfTwo();
-	bool TransversePowersOfTwo();
-	void GetWeights(weights_3D* weights,const tw::vec4& P);
+	bool PowersOfTwo() {
+		return (isPowerOfTwo(dim[1]) || dim[1]==1) && (isPowerOfTwo(dim[2]) || dim[2]==1) && (isPowerOfTwo(dim[3]) || dim[3]==1);
+	}
+	bool TransversePowersOfTwo() {
+		return (isPowerOfTwo(dim[1]) || dim[1]==1) && (isPowerOfTwo(dim[2]) || dim[2]==1);
+	}
 	void GetWeights(weights_3D* weights,const Primitive& q);
 	void GetWeights(float w[3][3][tw::max_bundle_size],float x[4][tw::max_bundle_size]);
 	void GetWallWeights(float w[3][3][tw::max_bundle_size],float x[4][tw::max_bundle_size]);
 
-	void ReadCheckpoint(std::ifstream& inFile);
-	void WriteCheckpoint(std::ofstream& outFile);
+	void ReadCheckpoint(std::ifstream& inFile) {
+		inFile.read((char *)this,sizeof(*this));
+	}
+	void WriteCheckpoint(std::ofstream& outFile) {
+		outFile.write((char *)this,sizeof(*this));
+	}
 
 	#ifdef USE_OPENCL
 	void CellUpdateProtocol(cl_kernel k,cl_command_queue q);
@@ -173,28 +133,26 @@ export struct DiscreteSpace : Testable
 	#endif
 };
 
-DiscreteSpace::DiscreteSpace()
+StaticSpace::StaticSpace()
 {
 	ignorable[0] = 0;
 	ignorable[1] = 0;
 	ignorable[2] = 0;
 	ignorable[3] = 0;
-	min_spacing = tw::vec4(tw::small_pos);
-	max_spacing = tw::vec4(tw::big_pos);
-	critical_spacing = tw::vec4(tw::small_pos);
-	solutionVelocity = tw::vec4(1.0,0.0,0.0,0.0);
 }
 
-DiscreteSpace::DiscreteSpace(tw::Int xDim,tw::Int yDim,tw::Int zDim,const tw::vec4& gcorner,const tw::vec4& gsize,tw::Int ghostCellLayers)
+StaticSpace::StaticSpace(const tw::Int dim[4],const tw::vec4& size,tw::Int ghostCellLayers)
 {
-	tw::Int domainIndex[4] = { 0,0,0,0 };
-	tw::Int domainCount[4] = { 1,1,1,1 };
-	dim[0] = 1;
-	dim[1] = xDim;
-	dim[2] = yDim;
-	dim[3] = zDim;
+	const tw::Int domains[4] = { 1, 1, 1, 1 };
+	Resize(domains,dim,size,ghostCellLayers);
+}
 
-	for (tw::Int i=0;i<4;i++) {
+void StaticSpace::Resize(const tw::Int domains[4],const tw::Int gdim[4],const tw::vec4& gsize,tw::Int ghostCellLayers)
+{
+	for (auto i=0;i<4;i++)
+		dim[i] = gdim[i]/domains[i];
+
+	for (auto i=0;i<4;i++) {
 		if (dim[i]==1) {
 			layers[i] = 0;
 			lfg[i] = 1;
@@ -221,73 +179,13 @@ DiscreteSpace::DiscreteSpace(tw::Int xDim,tw::Int yDim,tw::Int zDim,const tw::ve
 		ignorable[i] = (dim[i]==1 ? 1 : 0);
 	}
 
-	globalCorner = gcorner;
-	globalSize = gsize;
 	for (tw::Int i=0;i<4;i++) {
-		globalCells[i] = dim[i];
-		lowSideCells[i] = domainIndex[i]*dim[i];
-		spacing[i] = globalSize[i]/dim[i];
+		spacing[i] = gsize[i]/gdim[i];
 		freq[i] = 1/spacing[i];
-		size[i] = dim[i]*spacing[i];
-		corner[i] = gcorner[i] + domainIndex[i]*size[i];
 	}
 }
 
-void DiscreteSpace::Resize(Task *task,const tw::Int gdim[4],const tw::vec4& gcorner,const tw::vec4& gsize,tw::Int ghostCellLayers)
-{
-	tw::Int domainIndex[4],domainCount[4];
-	task->strip[0].Get_coords(3,domainIndex);
-	domainCount[0] = 1;
-	dim[0] = gdim[0];
-	if (dim[0] != 1) {
-		logger::WARN(std::format("time dimension was not 1 ({})",dim[0]));
-	}
-	for (auto i = 1; i <= 3; i++) {
-		domainCount[i] = task->strip[i].Get_size();
-		dim[i] = gdim[i] / domainCount[i];
-	}
-	logger::DEBUG(std::format("resize domain to {}x{}x{}x{}",dim[0],dim[1],dim[2],dim[3]));
-
-	for (tw::Int i=0;i<4;i++) {
-		if (dim[i]==1) {
-			layers[i] = 0;
-			lfg[i] = 1;
-			ufg[i] = 1;
-			lng[i] = 1;
-			ung[i] = 1;
-		} else {
-			layers[i] = ghostCellLayers;
-			lfg[i] = 1 - layers[i];
-			ufg[i] = dim[i] + layers[i];
-			lng[i] = 0;
-			ung[i] = dim[i] + 1;
-		}
-		num[i] = ufg[i] - lfg[i] + 1;
-	}
-
-	decodingStride[0] = num[1]*num[2]*num[3];
-	decodingStride[1] = num[2]*num[3];
-	decodingStride[2] = num[3];
-	decodingStride[3] = 1;
-
-	for (tw::Int i=0;i<4;i++) {
-		encodingStride[i] = (dim[i]==1 ? 0 : decodingStride[i]);
-		ignorable[i] = (dim[i]==1 ? 1 : 0);
-	}
-
-	globalCorner = gcorner;
-	globalSize = gsize;
-	for (tw::Int i=0;i<4;i++) {
-		globalCells[i] = gdim[i];
-		lowSideCells[i] = domainIndex[i]*dim[i];
-		spacing[i] = globalSize[i]/gdim[i];
-		freq[i] = 1/spacing[i];
-		size[i] = dim[i]*spacing[i];
-		corner[i] = gcorner[i] + domainIndex[i]*size[i];
-	}
-}
-
-inline bool DiscreteSpace::IsRefCellWithin(const Primitive& q,tw::Int inset) const
+inline bool StaticSpace::IsRefCellWithin(const Primitive& q,tw::Int inset) const
 {
 	tw::Int ijk[4];
 	DecodeCell(q,ijk);
@@ -297,28 +195,7 @@ inline bool DiscreteSpace::IsRefCellWithin(const Primitive& q,tw::Int inset) con
 	return ans;
 }
 
-inline bool DiscreteSpace::IsPointWithinInterior(const tw::vec4& P)
-{
-	const tw::vec4 PLoc = P - corner;
-	return PLoc[1]>=0.0 && PLoc[1]<size[1] && PLoc[2]>=0.0 && PLoc[2]<size[2] && PLoc[3]>=0.0 && PLoc[3]<size[3];
-}
-
-inline tw::Int DiscreteSpace::SpatialDims()
-{
-	return tw::Int(3) - ignorable[1] - ignorable[2] - ignorable[3];
-}
-
-inline bool DiscreteSpace::PowersOfTwo()
-{
-	return (isPowerOfTwo(dim[1]) || dim[1]==1) && (isPowerOfTwo(dim[2]) || dim[2]==1) && (isPowerOfTwo(dim[3]) || dim[3]==1);
-}
-
-inline bool DiscreteSpace::TransversePowersOfTwo()
-{
-	return (isPowerOfTwo(dim[1]) || dim[1]==1) && (isPowerOfTwo(dim[2]) || dim[2]==1);
-}
-
-inline bool DiscreteSpace::RefCellInSpatialDomain(const Primitive& q) const
+inline bool StaticSpace::RefCellInSpatialDomain(const Primitive& q) const
 {
 	tw::Int ijk[4];
 	DecodeCell(q,ijk);
@@ -327,30 +204,9 @@ inline bool DiscreteSpace::RefCellInSpatialDomain(const Primitive& q) const
 			((ijk[3]>=1 && ijk[3]<=dim[3]) || dim[3]==1);
 }
 
-inline tw::vec4 DiscreteSpace::PositionFromPrimitive(const Primitive& q) const
-{
-	tw::Int ijk[4];
-	tw::vec4 ans;
-	DecodeCell(q,ijk);
-	for (tw::Int i=0;i<4;i++)
-		ans[i] = corner[i] + spacing[i] * (tw::Float(q.x[i]) + tw::Float(ijk[i]) - tw::Float(0.5));
-	return ans;
-}
-
-inline void DiscreteSpace::SetPrimitiveWithPosition(Primitive& q,const tw::vec4& P) const
-{
-	tw::Int ijk[4];
-	const tw::vec4 PLoc(P - corner);
-	for (tw::Int i=0;i<4;i++)
-		ijk[i] = tw::Int(std::floor(PLoc[i]*freq[i])) + 1;
-	q.cell = EncodeCell(ijk[0],ijk[1],ijk[2],ijk[3]);
-	for (tw::Int i=0;i<4;i++)
-		q.x[i] = PLoc[i]*freq[i] - tw::Float(ijk[i]) + tw::Float(0.5);
-}
-
 /// Bundle version of `MinimizePrimitive`.  The bundle version also sets the `domainMask` to 0
 /// for particles out of the interior domain, 1 otherwise.  Also the topological indices are loaded for further use.
-inline void DiscreteSpace::MinimizePrimitive(tw::Int cell[tw::max_bundle_size],tw::Int ijk[4][tw::max_bundle_size],float x[4][tw::max_bundle_size],float domainMask[tw::max_bundle_size]) const
+inline void StaticSpace::MinimizePrimitive(tw::Int cell[tw::max_bundle_size],tw::Int ijk[4][tw::max_bundle_size],float x[4][tw::max_bundle_size],float domainMask[tw::max_bundle_size]) const
 {
 	const float eps = std::numeric_limits<float>::epsilon();
 	const auto N = tw::max_bundle_size;
@@ -388,7 +244,7 @@ inline void DiscreteSpace::MinimizePrimitive(tw::Int cell[tw::max_bundle_size],t
 /// This leaves x[ax] within the normal range [-.5,.5) *except* when the particle
 /// has left the extended domain.  In the latter case the reference cell is pegged to
 /// the current extended domain, leaving x[ax] out of normal range.
-inline void DiscreteSpace::MinimizePrimitive(Primitive& q) const
+inline void StaticSpace::MinimizePrimitive(Primitive& q) const
 {
 	tw::Int ijk[4],displ,max_displ,pos,neg;
 	const float eps = std::numeric_limits<float>::epsilon();
@@ -409,14 +265,7 @@ inline void DiscreteSpace::MinimizePrimitive(Primitive& q) const
 	q.cell = EncodeCell(ijk[0],ijk[1],ijk[2],ijk[3]);
 }
 
-inline void DiscreteSpace::GetWeights(weights_3D* weights,const tw::vec4& P)
-{
-	Primitive q;
-	SetPrimitiveWithPosition(q,P);
-	GetWeights(weights,q);
-}
-
-inline void DiscreteSpace::GetWeights(weights_3D* weights,const Primitive& q)
+inline void StaticSpace::GetWeights(weights_3D* weights,const Primitive& q)
 {
 	weights->cell = q.cell;
 	weights->w[0][0] = 0.125f - 0.5f*q.x[1] + 0.5f*q.x[1]*q.x[1];
@@ -430,7 +279,7 @@ inline void DiscreteSpace::GetWeights(weights_3D* weights,const Primitive& q)
 	weights->w[2][2] = 0.125f + 0.5f*q.x[3] + 0.5f*q.x[3]*q.x[3];
 }
 
-inline void DiscreteSpace::GetWeights(float w[3][3][tw::max_bundle_size],float x[4][tw::max_bundle_size])
+inline void StaticSpace::GetWeights(float w[3][3][tw::max_bundle_size],float x[4][tw::max_bundle_size])
 {
 	tw::Int N = tw::max_bundle_size;
 	#pragma omp simd aligned(w,x:tw::vec_align_bytes)
@@ -448,7 +297,7 @@ inline void DiscreteSpace::GetWeights(float w[3][3][tw::max_bundle_size],float x
 	}
 }
 
-inline void DiscreteSpace::GetWallWeights(float w[3][3][tw::max_bundle_size],float x[4][tw::max_bundle_size])
+inline void StaticSpace::GetWallWeights(float w[3][3][tw::max_bundle_size],float x[4][tw::max_bundle_size])
 {
 	tw::Int N = tw::max_bundle_size;
 	#pragma omp simd aligned(w,x:tw::vec_align_bytes)
@@ -466,33 +315,23 @@ inline void DiscreteSpace::GetWallWeights(float w[3][3][tw::max_bundle_size],flo
 	}
 }
 
-void DiscreteSpace::ReadCheckpoint(std::ifstream& inFile)
-{
-	inFile.read((char *)this,sizeof(*this));
-}
-
-void DiscreteSpace::WriteCheckpoint(std::ofstream& outFile)
-{
-	outFile.write((char *)this,sizeof(*this));
-}
-
 #ifdef USE_OPENCL
 
-void DiscreteSpace::CellUpdateProtocol(cl_kernel k,cl_command_queue q)
+void StaticSpace::CellUpdateProtocol(cl_kernel k,cl_command_queue q)
 {
 	size_t cells = num[1]*num[2]*num[3];
 	clEnqueueNDRangeKernel(q,k,1,NULL,&cells,NULL,0,NULL,NULL);
 	clFinish(q);
 }
 
-void DiscreteSpace::ElementUpdateProtocol(cl_kernel k,cl_command_queue q)
+void StaticSpace::ElementUpdateProtocol(cl_kernel k,cl_command_queue q)
 {
 	size_t elements = num[0]*num[1]*num[2]*num[3];
 	clEnqueueNDRangeKernel(q,k,1,NULL,&elements,NULL,0,NULL,NULL);
 	clFinish(q);
 }
 
-void DiscreteSpace::LocalUpdateProtocol(cl_kernel k,cl_command_queue q)
+void StaticSpace::LocalUpdateProtocol(cl_kernel k,cl_command_queue q)
 {
  	size_t global_offset[3] = { (size_t)layers[1],(size_t)layers[2],(size_t)layers[3] };
 	size_t global_work_range[3] = {(size_t)dim[1],(size_t)dim[2],(size_t)dim[3]};
@@ -500,7 +339,7 @@ void DiscreteSpace::LocalUpdateProtocol(cl_kernel k,cl_command_queue q)
 	clFinish(q);
 }
 
-void DiscreteSpace::PointUpdateProtocol(cl_kernel k,cl_command_queue q)
+void StaticSpace::PointUpdateProtocol(cl_kernel k,cl_command_queue q)
 {
 	size_t global_work_range[3] = { (size_t)num[1],(size_t)num[2],(size_t)num[3] };
 	clEnqueueNDRangeKernel(q,k,3,NULL,global_work_range,NULL,0,NULL,NULL);

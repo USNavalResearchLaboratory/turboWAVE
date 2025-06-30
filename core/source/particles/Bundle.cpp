@@ -158,13 +158,13 @@ void ParticleBundle::PrepareGather()
 	PadBundle();
 	cell0 = cell[0];
 	mov.ms->DecodeCell(cell0,ijk0);
-	mov.ms->GetWeights(w0,x);
+	mov.ms->StaticSpace::GetWeights(w0,x);
 	mov.ms->GetWallWeights(l0,x);
 }
 
 void ParticleBundle::PrepareScatter()
 {
 	mov.ms->MinimizePrimitive(cell,ijk,x,domainMask);
-	mov.ms->GetWeights(w1,x);
+	mov.ms->StaticSpace::GetWeights(w1,x);
 	set_cell_mask(cellMask,cell0,cell);
 }

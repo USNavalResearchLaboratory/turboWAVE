@@ -776,7 +776,7 @@ void Schroedinger::Update()
 			CopyComputeBuffer(psi0,psi1);
 			tw::Int j = i > 2 ? i-2 : i+1; // 2 , 3 , 1
 			tw::Int k = i > 1 ? i-1 : i+2; // 3 , 1 , 2
-			DiscreteSpace mpi_layout;
+			DynSpace mpi_layout;
 			tw::Int dim[4] = { 1, owner->localCells[j], owner->localCells[k], 1 };
 			tw::Int gdim[4] = { 1, owner->globalCells[j], owner->globalCells[k], 1 };
 			tw::Int dom[4] = { 1, owner->domains[j], owner->domains[k], 1 };

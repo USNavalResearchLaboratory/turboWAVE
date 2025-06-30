@@ -169,7 +169,7 @@ export struct FarFieldDiagnostic : Module
 {
 	// In the far field space the index space goes like (t,theta,phi)
 	tw::Float radius,bounds[6];
-	tw::Int dims[3];
+	tw::Int dims[4];
 	tw::Int period;
 
 	Vec3Field A;
@@ -703,9 +703,12 @@ DirectSolver::DirectSolver(const std::string& name,Simulation* sim):Electromagne
 	for (tw::Int i=0;i<6;i++) layerThickness[i] = 0;
 	for (tw::Int i=0;i<6;i++) reflectionCoefficient[i] = 0.01;
 	A.Initialize(12,*this,owner);
-	PMLx.Initialize(6,DiscreteSpace(dim[1],1,1,corner,size),owner); // sx,tx,jx,sxstar,txstar,jxstar
-	PMLy.Initialize(6,DiscreteSpace(dim[2],1,1,corner,size),owner);
-	PMLz.Initialize(6,DiscreteSpace(dim[3],1,1,corner,size),owner);
+	const tw::Int xdims[4] = {1,dim[1],1,1};
+	const tw::Int ydims[4] = {1,dim[2],1,1};
+	const tw::Int zdims[4] = {1,dim[3],1,1};
+	PMLx.Initialize(6,DynSpace(xdims,corner,size),owner); // sx,tx,jx,sxstar,txstar,jxstar
+	PMLy.Initialize(6,DynSpace(ydims,corner,size),owner);
+	PMLz.Initialize(6,DynSpace(zdims,corner,size),owner);
 
 	#ifdef USE_OPENCL
 	A.InitializeComputeBuffer();
@@ -1230,7 +1233,7 @@ FarFieldDiagnostic::FarFieldDiagnostic(const std::string& name,Simulation *sim) 
 	J4 = NULL;
 	directives.Add("radius",new tw::input::Float(&radius));
 	directives.Add("bounds",new tw::input::Numbers<tw::Float>(&bounds[0],6));
-	directives.Add("dims",new tw::input::Numbers<tw::Int>(&dims[0],3));
+	directives.Add("dims",new tw::input::Numbers<tw::Int>(&dims[1],3));
 	directives.Add("period",new tw::input::Int(&period));
 }
 
@@ -1240,7 +1243,8 @@ void FarFieldDiagnostic::Initialize()
 		throw tw::FatalError("Far field diagnostic did not find a source field.");
 	tw::vec4 corner(-0.5*dx(0),bounds[0],bounds[2],bounds[4]);
 	tw::vec4 size(dx(0),bounds[1]-bounds[0],bounds[3]-bounds[2],bounds[5]-bounds[4]);
-	A.Initialize(DiscreteSpace(dims[0],dims[1],dims[2],corner,size,1),owner);
+	dims[0] = 1;
+	A.Initialize(DynSpace(dims,corner,size,1),owner);
 }
 
 bool FarFieldDiagnostic::InspectResource(void *resource,const std::string& description)
@@ -1327,23 +1331,22 @@ void FarFieldDiagnostic::FinalReport()
 		}
 
 		npy_writer writer;
-		tw::Int shape[4] = { 1 , dims[0] , dims[1] , dims[2] };
-		std::valarray<float> gData(shape[1]*shape[2]*shape[3]);
+		std::valarray<float> gData(dims[1]*dims[2]*dims[3]);
 
 		fileName = name + "-Atheta.npy";
-		writer.write_header(fileName,shape);
-		for (tw::Int i=1;i<=shape[1];i++)
-			for (tw::Int j=1;j<=shape[2];j++)
-				for (tw::Int k=1;k<=shape[3];k++)
-					gData[(i-1)*shape[2]*shape[3] + (j-1)*shape[3] + (k-1)] = accum(i,j,k).y;
-		writer.add_frame(fileName,(char*)&gData[0],shape);
+		writer.write_header(fileName,dims);
+		for (tw::Int i=1;i<=dims[1];i++)
+			for (tw::Int j=1;j<=dims[2];j++)
+				for (tw::Int k=1;k<=dims[3];k++)
+					gData[(i-1)*dims[2]*dims[3] + (j-1)*dims[3] + (k-1)] = accum(i,j,k).y;
+		writer.add_frame(fileName,(char*)&gData[0],dims);
 
 		fileName = name + "-Aphi.npy";
-		writer.write_header(fileName,shape);
-		for (tw::Int i=1;i<=shape[1];i++)
-			for (tw::Int j=1;j<=shape[2];j++)
-				for (tw::Int k=1;k<=shape[3];k++)
-					gData[(i-1)*shape[2]*shape[3] + (j-1)*shape[3] + (k-1)] = accum(i,j,k).z;
-		writer.add_frame(fileName,(char*)&gData[0],shape);
+		writer.write_header(fileName,dims);
+		for (tw::Int i=1;i<=dims[1];i++)
+			for (tw::Int j=1;j<=dims[2];j++)
+				for (tw::Int k=1;k<=dims[3];k++)
+					gData[(i-1)*dims[2]*dims[3] + (j-1)*dims[3] + (k-1)] = accum(i,j,k).z;
+		writer.add_frame(fileName,(char*)&gData[0],dims);
 	}
 }

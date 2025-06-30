@@ -3,7 +3,7 @@ module;
 #include "tw_includes.h"
 
 export module numerics;
-import discrete_space;
+import dyn_space;
 import metric_space;
 
 /// @brief invert A * phi = rho, rows of A are (b,c,0,...)(a,b,c,0,...)(0,a,b,c,0,...)...(0,...,a,b,c)(0,...,a,b)
@@ -131,7 +131,7 @@ public:
 	/// @brief set the data for the given system
 	/// @param system index of the system being solved starting at zero, a system is typically one of the strips being solved
 	/// @param theData pointer to the first element of data (the near ghost cell) in this system
-	/// @param stride stride in units of T, n.b. `Field` strides are in units of tw::Float, `DiscreteSpace` strides are in units of cells
+	/// @param stride stride in units of T, n.b. `Field` strides are in units of tw::Float, `DynSpace` strides are in units of cells
 	void SetData(tw::Int system, T* theData, tw::Int stride);
 	void SetMatrix(tw::Int system, T a, T b, T c, T theta, T eta);
 	void SetMatrix(tw::Int system, T a, std::valarray<T>& b, T c, T theta, T eta);

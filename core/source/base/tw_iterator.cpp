@@ -4,7 +4,7 @@ module;
 
 export module tw_iterator;
 import base;
-import discrete_space;
+import dyn_space;
 
 // TurboWAVE iterators serve the specific purpose of accessing the Field class.
 // They are not intended for generalized use.  They imitate the standard library, but there are differences.
@@ -24,8 +24,8 @@ import discrete_space;
 // what results from dereferencing tw::iterator.
 
 // Range classes are aware of OpenMP state and automatically split the work accross threads.
-// Range classes are created from a DiscreteSpace, and therefore may only be used in Field objects created from
-// the same DiscreteSpace.
+// Range classes are created from a DynSpace, and therefore may only be used in Field objects created from
+// the same DynSpace.
 
 export namespace tw
 {
@@ -87,7 +87,7 @@ export namespace tw
 			this->j = j;
 			this->k = k;
 		}
-		cell(const DiscreteSpace& ds,const tw::Int& i,const tw::Int& j,const tw::Int& k)
+		cell(const DynSpace& ds,const tw::Int& i,const tw::Int& j,const tw::Int& k)
 		{
 			this->i = i;
 			this->j = j;
@@ -132,7 +132,7 @@ export namespace tw
 			dj = tw::Int(ax==2);
 			dk = tw::Int(ax==3);
 		}
-		strip(const tw::Int& ax,const DiscreteSpace& ds,const tw::Int& i,const tw::Int& j,const tw::Int& k)
+		strip(const tw::Int& ax,const DynSpace& ds,const tw::Int& i,const tw::Int& j,const tw::Int& k)
 		{
 			this->ax = ax;
 			this->i = i;
@@ -192,7 +192,7 @@ export namespace tw
 		{
 			// no need to do anything
 		}
-		xstrip(const DiscreteSpace& ds,const tw::Int& i,const tw::Int& j,const tw::Int& k) : strip(AX,ds,i,j,k)
+		xstrip(const DynSpace& ds,const tw::Int& i,const tw::Int& j,const tw::Int& k) : strip(AX,ds,i,j,k)
 		{
 			// no need to do anything
 		}
@@ -231,7 +231,7 @@ export class CellRange:public TWRange
 	tw::Int io,jo,ko,is,js,ks,iCells,jCells,kCells;
 
 public:
-	CellRange(const DiscreteSpace& space,bool includeGhostCells)
+	CellRange(const DynSpace& space,bool includeGhostCells)
 	{
 		io = includeGhostCells ? 0 : space.Layers(1);
 		jo = includeGhostCells ? 0 : space.Layers(2);
@@ -258,7 +258,7 @@ public:
 export class EntireCellRange:public CellRange
 {
 public:
-	EntireCellRange(const DiscreteSpace& space) : CellRange(space,true)
+	EntireCellRange(const DynSpace& space) : CellRange(space,true)
 	{
 	}
 };
@@ -266,7 +266,7 @@ public:
 export class InteriorCellRange:public CellRange
 {
 public:
-	InteriorCellRange(const DiscreteSpace& space) : CellRange(space,false)
+	InteriorCellRange(const DynSpace& space) : CellRange(space,false)
 	{
 	}
 };
@@ -287,7 +287,7 @@ protected:
 	tw::Int ax,di,dj,dk,io,jo,ko,is,js,ks,iCells,jCells,kCells;
 
 public:
-	StripRange(const DiscreteSpace& space,tw::Int axis,strongbool includeGhostCells)
+	StripRange(const DynSpace& space,tw::Int axis,strongbool includeGhostCells)
 	{
 		ax = axis;
 		di = tw::Int(ax==1);
@@ -301,7 +301,7 @@ public:
 		ko = includeGhostCells==strongbool::yes ? 0 : space.Layers(3);
 		// the reference cell index in the strip direction is indirectly visible to caller because it interacts with
 		// the caller's cell index in the strip direction.  The caller expects the cell index to be consistent
-		// with the DiscreteSpace standard indexing (i.e., 1...dim label the interior cells).
+		// with the DynSpace standard indexing (i.e., 1...dim label the interior cells).
 		// Therefore the reference index in the strip direction has to be treated specially.
 		io = (1-di)*io - di*is;
 		jo = (1-dj)*jo - dj*js;
@@ -326,7 +326,7 @@ export template <tw::Int AX>
 class VectorStripRange:public StripRange
 {
 public:
-	VectorStripRange(const DiscreteSpace& space,bool includeGhostCells) : StripRange(space,AX,includeGhostCells==true ? strongbool::yes : strongbool::no)
+	VectorStripRange(const DynSpace& space,bool includeGhostCells) : StripRange(space,AX,includeGhostCells==true ? strongbool::yes : strongbool::no)
 	{
 		// no need to do anything
 	}

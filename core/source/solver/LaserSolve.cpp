@@ -419,6 +419,7 @@ void PGCSolver::MoveWindow()
 
 void PGCSolver::AntiMoveWindow()
 {
+	// assumes resolution = 1
 	const tw::Float dth = 0.5*dx(0);
 	for (auto s : StripRange(*this,3,strongbool::yes))
 	{
@@ -434,11 +435,11 @@ void PGCSolver::AntiMoveWindow()
 			pos.z = owner->ToLab(pos.z,dth);
 			incoming1 += polarizationFactor*pulse->VectorPotentialEnvelope(owner->WindowPos(0)+dth,pos,laserFreq);
 		}
-		a0.Shift(s,1,incoming0);
-		a1.Shift(s,1,incoming1);
+		HRa0.Shift(s,1,incoming0);
+		HRa1.Shift(s,1,incoming1);
 	}
-	a0.UpwardCopy(tw::grid::z,1);
-	a1.UpwardCopy(tw::grid::z,1);
+	HRa0.UpwardCopy(tw::grid::z,1);
+	HRa1.UpwardCopy(tw::grid::z,1);
 }
 
 void PGCSolver::Update()

@@ -99,8 +99,8 @@ export struct BoxDiagnostic : Diagnostic
 
 	BoxDiagnostic(const std::string& name,MetricSpace *ms,Task *tsk);
 	virtual void Finish();
-	void GetLocalIndexing(const DiscreteSpace& F,const tw::Int pts[4],const tw::Int glb[6],tw::Int loc[6],const tw::Int coords[4]);
-	void GetGlobalIndexing(const DiscreteSpace& F,tw::Int pts[4],tw::Int glb[6]);
+	void GetLocalIndexing(const DynSpace& F,const tw::Int pts[4],const tw::Int glb[6],tw::Int loc[6],const tw::Int coords[4]);
+	void GetGlobalIndexing(const DynSpace& F,tw::Int pts[4],tw::Int glb[6]);
 	virtual void ReportField(const std::string& fieldName,const Field& F,const tw::Int c,const tw::dims unit = tw::dims::none,const std::string& pretty = "tw::none");
 };
 
@@ -618,10 +618,10 @@ BoxDiagnostic::BoxDiagnostic(const std::string& name,MetricSpace *ms,Task *tsk) 
 }
 
 /// @brief get topology of global diagnostic array
-/// @param F DiscreteSpace being written out
+/// @param F DynSpace being written out
 /// @param pts receives the diagnostic array dimensions
 /// @param glb receives the index bounds of the global data
-void BoxDiagnostic::GetGlobalIndexing(const DiscreteSpace& F,tw::Int pts[4],tw::Int glb[6])
+void BoxDiagnostic::GetGlobalIndexing(const DynSpace& F,tw::Int pts[4],tw::Int glb[6])
 {
 	theRgn->GetGlobalCellBounds(glb,*space,task);
 
@@ -638,12 +638,12 @@ void BoxDiagnostic::GetGlobalIndexing(const DiscreteSpace& F,tw::Int pts[4],tw::
 }
 
 /// @brief called on a domain that is contributing to building the data
-/// @param F DiscreteSpace we are writing
+/// @param F DynSpace we are writing
 /// @param pts cells along each dimension
 /// @param glb global index bounds
 /// @param loc receives the local index bounds
 /// @param coords cartesian MPI domain indices (not necessarily domain of execution)
-void BoxDiagnostic::GetLocalIndexing(const DiscreteSpace& F,const tw::Int pts[4],const tw::Int glb[6],tw::Int loc[6],const tw::Int coords[4])
+void BoxDiagnostic::GetLocalIndexing(const DynSpace& F,const tw::Int pts[4],const tw::Int glb[6],tw::Int loc[6],const tw::Int coords[4])
 {
 	tw::Int i0;
 	for (tw::Int ax=1;ax<=3;ax++)
@@ -935,7 +935,7 @@ PhaseSpaceDiagnostic::PhaseSpaceDiagnostic(const std::string& name,MetricSpace *
 	ax[3] = tw::grid::py;
 	bounds[0] = bounds[2] = bounds[4] = 0.0;
 	bounds[1] = bounds[3] = bounds[5] = 1.0;
-	dims[0] = 0;
+	dims[0] = 0; // dumps ; updated as npy file is appended
 	dims[1] = 100;
 	dims[2] = 100;
 	dims[3] = 1;
@@ -969,9 +969,10 @@ void PhaseSpaceDiagnostic::Start()
 		// don't set headerWritten until end of Finish() due to grid file
 	}
 
+	const tw::Int currDims[4] = { 1, dims[1], dims[2], dims[3] };
 	tw::vec4 phaseSpaceMin(0.0,bounds[0],bounds[2],bounds[4]);
 	tw::vec4 phaseSpaceSize(1.0,bounds[1]-bounds[0],bounds[3]-bounds[2],bounds[5]-bounds[4]);
-	fxp.Initialize(DiscreteSpace(dims[1],dims[2],dims[3],phaseSpaceMin,phaseSpaceSize,1),task);
+	fxp.Initialize(DynSpace(currDims,phaseSpaceMin,phaseSpaceSize,1),task);
 	fxp.SetBoundaryConditions(tw::grid::x,tw::bc::fld::dirichletCell,tw::bc::fld::dirichletCell);
 	fxp.SetBoundaryConditions(tw::grid::y,tw::bc::fld::dirichletCell,tw::bc::fld::dirichletCell);
 	fxp.SetBoundaryConditions(tw::grid::z,tw::bc::fld::dirichletCell,tw::bc::fld::dirichletCell);

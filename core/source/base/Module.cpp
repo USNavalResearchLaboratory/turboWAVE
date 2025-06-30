@@ -9,7 +9,7 @@ import compute_tool;
 import region;
 import injection;
 import diagnostics;
-import discrete_space;
+import dyn_space;
 import metric_space;
 import tw_iterator;
 
@@ -148,7 +148,7 @@ export struct Simulation: Task, MetricSpace, tw::input::Visitor
 
 };
 
-struct Module:DiscreteSpace
+struct Module:DynSpace
 {
 	std::string name;
 	Simulation *owner;
@@ -247,7 +247,7 @@ Module::Module(const std::string& name,Simulation* sim)
 	for (tw::Int i=0;i<4;i++)
 		smoothing[i] = compensation[i] = 0;
 	suppressNextUpdate = false;
-	DiscreteSpace::operator=(*sim);
+	DynSpace::operator=(*sim);
 	// Units
 	native = sim->units;
 	natural = tw::UnitConverter(tw::units::natural,native);
@@ -309,7 +309,7 @@ void Module::MoveWindow()
 
 void Module::ReadCheckpoint(std::ifstream& inFile)
 {
-	DiscreteSpace::ReadCheckpoint(inFile);
+	DynSpace::ReadCheckpoint(inFile);
 	inFile.read((char *)&spacing,sizeof(spacing));
 	inFile.read((char *)&freq,sizeof(freq));
 }
@@ -317,7 +317,7 @@ void Module::ReadCheckpoint(std::ifstream& inFile)
 void Module::WriteCheckpoint(std::ofstream& outFile)
 {
 	outFile << name << " ";
-	DiscreteSpace::WriteCheckpoint(outFile);
+	DynSpace::WriteCheckpoint(outFile);
 	outFile.write((char *)&spacing,sizeof(spacing));
 	outFile.write((char *)&freq,sizeof(freq));
 }
@@ -378,6 +378,9 @@ void Module::ReadInputFileBlock(TSTreeCursor *curs,const std::string& src)
 			if (tw::input::next_named_node(curs,true)) {
 				do
 				{
+					if (tw::input::node_kind(curs)=="comment") {
+						continue;
+					}
 					if (!directives.ReadNext(curs,src)) {
 						if (!ReadInputFileDirective(curs,src)) {
 							tw::input::ThrowParsingError(curs,src,"unknown directive");

@@ -108,9 +108,10 @@ target_sources(tw3d PUBLIC
         base/logger.cpp
         base/pic_primitives.cpp
         base/tensor.cpp
-        base/DiscreteSpace.cpp
-        base/tw_iterator.cpp
+        base/StaticSpace.cpp
+        base/DynSpace.cpp
         base/MetricSpace.cpp
+        base/tw_iterator.cpp
         base/Region.cpp
         base/ComputeTool.cpp
         base/Module.cpp

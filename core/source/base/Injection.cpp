@@ -1378,9 +1378,9 @@ void LindmanBoundary::Initialize(Task *task,MetricSpace *ms,std::vector<Wave*> *
 	tw::Int ax = tw::grid::naxis(axis);
 	assert(ms->Dim(ax)!=1);
 	assert(ax>=1 && ax<=3);
-	tw::Int bdim[4] = { 0, ms->Dim(1), ms->Dim(2), ms->Dim(3) };
+	tw::Int bdim[4] = { 1, ms->Dim(1), ms->Dim(2), ms->Dim(3) };
 	bdim[ax] = 1;
-	boundaryMemory.Initialize(9, DiscreteSpace(bdim[1],bdim[2],bdim[3],ms->Corner(),ms->PhysicalSize()), task);
+	boundaryMemory.Initialize(9, DynSpace(bdim,ms->Corner(),ms->PhysicalSize()), task);
 	boundaryMemory.SetBoundaryConditions(tw::grid::x,fld::none,fld::none);
 	boundaryMemory.SetBoundaryConditions(tw::grid::y,fld::none,fld::none);
 	boundaryMemory.SetBoundaryConditions(tw::grid::z,fld::none,fld::none);
