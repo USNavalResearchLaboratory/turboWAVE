@@ -706,9 +706,9 @@ DirectSolver::DirectSolver(const std::string& name,Simulation* sim):Electromagne
 	const tw::Int xdims[4] = {1,dim[1],1,1};
 	const tw::Int ydims[4] = {1,dim[2],1,1};
 	const tw::Int zdims[4] = {1,dim[3],1,1};
-	PMLx.Initialize(6,DynSpace(xdims,corner,size),owner); // sx,tx,jx,sxstar,txstar,jxstar
-	PMLy.Initialize(6,DynSpace(ydims,corner,size),owner);
-	PMLz.Initialize(6,DynSpace(zdims,corner,size),owner);
+	PMLx.Initialize(6,StaticSpace(xdims,sim->PhysicalSize()),owner); // sx,tx,jx,sxstar,txstar,jxstar
+	PMLy.Initialize(6,StaticSpace(ydims,sim->PhysicalSize()),owner);
+	PMLz.Initialize(6,StaticSpace(zdims,sim->PhysicalSize()),owner);
 
 	#ifdef USE_OPENCL
 	A.InitializeComputeBuffer();

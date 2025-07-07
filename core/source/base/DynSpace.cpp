@@ -12,6 +12,7 @@ import logger;
 #include "tw_logger.h"
 
 /// This object adds dynamical quantities to StaticSpace, but stops short of adding metric information.
+/// An important task is to track the way fixed reference points move relative to StaticSpace.
 export struct DynSpace : StaticSpace
 {
 	protected:
@@ -49,7 +50,6 @@ export struct DynSpace : StaticSpace
 	/// memory at any one time, as distinct from the union of all windows that occur during the system evolution.
 	/// This makes MPI calls on `task` to get the domain information.
 	void Resize(Task *task,const tw::Int gdim[4],const tw::vec4& gcorner,const tw::vec4& gsize,tw::Int ghostCellLayers=2);
-	/// Change the time step.  Use `Simulation::UpdateTimestep` to do this for all modules.
 	void SetupTimeInfo(tw::Float dt0) { spacing[0] = dt0; freq[0] = 1.0/dt0; }
 	void UpdateWindow(const DynSpace& src) {
 		solutionPosition = src.solutionPosition;
@@ -110,7 +110,7 @@ DynSpace::DynSpace(const tw::Int dim[4],const tw::vec4& corner,const tw::vec4& s
 void DynSpace::Resize(Task *task,const tw::Int gdim[4],const tw::vec4& gcorner,const tw::vec4& gsize,tw::Int ghostCellLayers)
 {
 	tw::Int domainIndex[4],domainCount[4];
-	task->strip[0].Get_coords(3,domainIndex);
+	task->strip[0].Get_coords4(domainIndex);
 	domainCount[0] = 1;
 	dim[0] = gdim[0];
 	if (dim[0] != 1) {

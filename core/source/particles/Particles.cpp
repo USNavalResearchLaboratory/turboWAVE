@@ -1189,7 +1189,7 @@ tw::Float Species::AddDensity(const LoadingData& theData)
 		// as in the center of the temporal ghost cell.  The field data is known at t = 0, i.e., on the
 		// high wall of the temporal ghost cell.
 		q.cell = EncodeCell(theData.timeLevel,theData.cell.dcd1(),theData.cell.dcd2(),theData.cell.dcd3());
-		const tw::vec4 x = PositionFromPrimitive(q);
+		const tw::vec4 x = owner->PositionFromPrimitive(q);
 		const tw::Float N = theData.GeometryFactor(x[1],cellCenter.x)*particleDensity*cellVolume;
 		AddParticle(N,q,p,tw::vec4(0.0),0.0);
 		DepositInitialCharge(x,N*charge);
@@ -1244,7 +1244,7 @@ tw::Float Species::AddDensityRandom(const LoadingData& theData)
 		// as in the center of the temporal ghost cell.  The field data is known at t = 0, i.e., on the
 		// high wall of the temporal ghost cell.
 		q.cell = EncodeCell(theData.timeLevel,theData.cell.dcd1(),theData.cell.dcd2(),theData.cell.dcd3());
-		const tw::vec4 x = PositionFromPrimitive(q);
+		const tw::vec4 x = owner->PositionFromPrimitive(q);
 		const tw::Float N = theData.GeometryFactor(x[1],cellCenter.x)*particleDensity*cellVolume;
 		AddParticle(N,q,p,tw::vec4(0.0),0.0);
 		DepositInitialCharge(x,N*charge);

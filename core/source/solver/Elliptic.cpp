@@ -524,16 +524,16 @@ void PoissonSolver::Solve(ScalarField& phi,ScalarField& source,tw::Float mul)
 		case tw::bc::fld::normalFluxFixed:
         	break;
 		case tw::bc::fld::periodic:
-			source.TransverseFFT();
+			source.TransverseFFT(*space);
 			break;
 		case tw::bc::fld::neumannWall:
-			source.TransverseCosineTransform();
+			source.TransverseCosineTransform(*space);
 			break;
 		case tw::bc::fld::dirichletWall:
-			source.TransverseSineTransform();
+			source.TransverseSineTransform(*space);
 			break;
 		case tw::bc::fld::dirichletCell:
-			source.TransverseSineTransform();
+			source.TransverseSineTransform(*space);
 			break;
 	}
 
@@ -562,9 +562,9 @@ void PoissonSolver::Solve(ScalarField& phi,ScalarField& source,tw::Float mul)
 		{
 			std::valarray<tw::Float> s(zDim),u(zDim),T1(zDim),T2(zDim),T3(zDim);
 			if (x0==tw::bc::fld::periodic)
-				eigenvalue = phi.CyclicEigenvalue(i,j);
+				eigenvalue = phi.CyclicEigenvalue(i,j,*space);
 			else
-				eigenvalue = phi.Eigenvalue(i,j);
+				eigenvalue = phi.Eigenvalue(i,j,*space);
 			for (k=1;k<=zDim;k++)
 			{
 				s[k-1] = mul*source(i,j,k);
@@ -626,9 +626,9 @@ void PoissonSolver::Solve(ScalarField& phi,ScalarField& source,tw::Float mul)
 			for (i=1;i<=xDim;i++)
 			{
 				if (x0==tw::bc::fld::periodic)
-					eigenvalue = phi.CyclicEigenvalue(i,j);
+					eigenvalue = phi.CyclicEigenvalue(i,j,*space);
 				else
-					eigenvalue = phi.Eigenvalue(i,j);
+					eigenvalue = phi.Eigenvalue(i,j,*space);
 				if (eigenvalue==0.0)
 					phi(i,j,0) = phi0;
 				else
@@ -647,9 +647,9 @@ void PoissonSolver::Solve(ScalarField& phi,ScalarField& source,tw::Float mul)
 			for (i=1;i<=xDim;i++)
 			{
 				if (x0==tw::bc::fld::periodic)
-					eigenvalue = phi.CyclicEigenvalue(i,j);
+					eigenvalue = phi.CyclicEigenvalue(i,j,*space);
 				else
-					eigenvalue = phi.Eigenvalue(i,j);
+					eigenvalue = phi.Eigenvalue(i,j,*space);
 				if (eigenvalue==0.0)
 					phi(i,j,zDim+1) = phiN1;
 				else
@@ -671,19 +671,19 @@ void PoissonSolver::Solve(ScalarField& phi,ScalarField& source,tw::Float mul)
 		case tw::bc::fld::normalFluxFixed:
 			break;
 		case tw::bc::fld::periodic:
-			phi.InverseTransverseFFT();
+			phi.InverseTransverseFFT(*space);
 			//source.InverseTransverseFFT();
 			break;
 		case tw::bc::fld::neumannWall:
-			phi.InverseTransverseCosineTransform();
+			phi.InverseTransverseCosineTransform(*space);
 			//source.InverseTransverseCosineTransform();
 			break;
 		case tw::bc::fld::dirichletWall:
-			phi.InverseTransverseSineTransform();
+			phi.InverseTransverseSineTransform(*space);
 			//source.InverseTransverseSineTransform();
 			break;
 		case tw::bc::fld::dirichletCell:
-			phi.InverseTransverseSineTransform();
+			phi.InverseTransverseSineTransform(*space);
 			//source.InverseTransverseSineTransform();
 			break;
 	}

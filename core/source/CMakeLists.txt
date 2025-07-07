@@ -1,10 +1,19 @@
 cmake_minimum_required(VERSION 4.0.3)
 
-# Reminders
+# REMINDERS
+#
 # For MSVC, we have to specify release at build time `cmake --build . --config Release`
 # For non-MSVC, we specify release at config time `cmake [options] -DCMAKE_BUILD_TYPE=Release ..`
 # For clangd support, add -DCMAKE_EXPORT_COMPILE_COMMANDS=1 during config
 # it may be necessary to build std by hand
+# 
+# To build module std for LLVM libc++:
+# git clone https://github.com/llvm/llvm-project.git
+# cd llvm-project
+# mkdir build
+# cmake -G Ninja -S runtimes -DLLVM_ENABLE_RUNTIMES="libcxx;libcxxabi;libunwind" -B build -DCMAKE_CXX_COMPILER=/home/linuxbrew/.linuxbrew/opt/llvm/bin/clang++ -DCMAKE_C_COMPILER=/home/linuxbrew/.linuxbrew/opt/llvm/bin/clang
+# ninja -C build
+# this puts std.cppm into llvm-project/build/modules/c++/v1
 
 if(WIN32)
     # This requires installing some things with winget:
@@ -32,10 +41,10 @@ if(APPLE OR UNIX)
 	set(CMAKE_SYSTEM_INCLUDE_PATH "$ENV{HOMEBREW_PREFIX}/opt/llvm/include")
 endif()
 if(APPLE)
-    # Shocking we still need this in 2025:
-    # Use if errors are encounted pertaining to `j0`, `j1`, or `std::some_special_function`.
-    # It appears the LLVM libc++ creates this situation.
+    # For Apple it sometimes is best to use libc++
     set(CMAKE_CXX_FLAGS "-stdlib=libc++")
+    # It seems that libstdc++ handles c++17 special functions correctly and libc++ does not.
+    # So if we are using libc++ we have to use our own wrappers.
     add_definitions(-DUSE_TWSF)
 endif()
 

@@ -67,11 +67,11 @@ void Species::ReflectionTest()
 	const tw::Float tolerance = 1e-5;
 	Primitive q0;
 	tw::vec4 dr(0.5*this->dx(0),0,0,0.35*this->dx(3));
-	tw::vec4 r0 = this->Corner() - dr;
-	tw::vec4 rexpect = owner->strip[3].Get_rank() == 0 ? this->Corner() + dr : r0;
+	tw::vec4 r0 = owner->Corner() - dr;
+	tw::vec4 rexpect = owner->strip[3].Get_rank() == 0 ? owner->Corner() + dr : r0;
 	tw::vec4 p0(sqrt(2),0,0,-1);
 	tw::vec4 s0(1,0,0,0);
-	SetPrimitiveWithPosition(q0,r0);
+	owner->SetPrimitiveWithPosition(q0,r0);
 	ASSERT_NEAR(q0.x[0], 0.0, tolerance);
 	ASSERT_NEAR(q0.x[3], 0.15, tolerance);
 	AddParticle(1.0,q0,p0,s0,0.0);
@@ -94,7 +94,7 @@ void Species::ReflectionTest()
 	// as an extra check, make sure we recover expected global coordinates
 	tw::Int cell = EncodeCell(transfer[0].ijk[0],transfer[0].ijk[1],transfer[0].ijk[2],transfer[0].ijk[3]);
 	Primitive qf(cell,transfer[0].x[0],transfer[0].x[1],transfer[0].x[2],transfer[0].x[3]);
-	tw::vec4 ractual = PositionFromPrimitive(qf);
+	tw::vec4 ractual = owner->PositionFromPrimitive(qf);
 	ASSERT_NEAR(ractual[3], rexpect[3], tolerance);
 	delete EM;
 	delete sources;
@@ -124,8 +124,8 @@ void Species::MoveWindowTest()
 	tw::vec4 p0(1,0,0,0),s0(1,0,0,0);
 	if (owner->strip[3].Get_rank()==1)
 	{
-		r0 = tw::vec4(-0.5*this->dx(0),0,0,this->Corner()[3]);
-		SetPrimitiveWithPosition(q0,r0);
+		r0 = tw::vec4(-0.5*this->dx(0),0,0,owner->Corner()[3]);
+		owner->SetPrimitiveWithPosition(q0,r0);
 		AddParticle(1.0,q0,p0,s0,0.0);
 		BeginMoveWindow();
 		ASSERT_EQ(particle.size(),0);

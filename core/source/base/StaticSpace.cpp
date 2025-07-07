@@ -41,9 +41,8 @@ export struct StaticSpace : Testable
 	tw::vec4 spacing; ///< center-to-center cell separation along each axis (uniform grids only)
 	tw::vec4 freq; ///< inverse of spacing component by component (uniform grids only)
 	/// `dim[0..=3]` are the number of cells along each axis.
-	/// The notion of field components does not come in at this level.
-	/// The space-time domain should be thought of as a window that can shift as a simulation advances.
-	/// Often dim[0]=1 and globalCorner[0] advances by spacing[0] each step.
+	/// At this level we have only a static view into an empty spacetime.
+	/// We will often have dim[0] = 1, i.e., the view being considered is a snapshot.
 	tw::Int dim[4];
 	/// `num` is similar to `dim`, except ghost cells are included.
 	tw::Int num[4];

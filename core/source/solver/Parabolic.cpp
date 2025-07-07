@@ -276,8 +276,8 @@ void EigenmodePropagator::Advance(ComplexField& a0,ComplexField& a1,ComplexField
 
 	if (space->car==1.0)
 	{
-		a0.TransverseFFT();
-		chi.TransverseFFT();
+		a0.TransverseFFT(*space);
+		chi.TransverseFFT(*space);
 	}
 	else
 	{
@@ -295,7 +295,7 @@ void EigenmodePropagator::Advance(ComplexField& a0,ComplexField& a1,ComplexField
 		{
 			tw::strip s = *it;
 			if (space->car==1.0)
-				lambda = a0.CyclicEigenvalue(s.dcd1(0),s.dcd2(0));
+				lambda = a0.CyclicEigenvalue(s.dcd1(0),s.dcd2(0),*space);
 			else
 				lambda = localEig[s.dcd1(0)];
 			for (tw::Int k=1;k<=zDim;k++)
@@ -327,8 +327,8 @@ void EigenmodePropagator::Advance(ComplexField& a0,ComplexField& a1,ComplexField
 
 	if (space->car==1.0)
 	{
-		a1.InverseTransverseFFT();
-		chi.InverseTransverseFFT();
+		a1.InverseTransverseFFT(*space);
+		chi.InverseTransverseFFT(*space);
 	}
 	else
 	{

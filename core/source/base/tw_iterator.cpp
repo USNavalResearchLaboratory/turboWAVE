@@ -4,7 +4,7 @@ module;
 
 export module tw_iterator;
 import base;
-import dyn_space;
+import static_space;
 
 // TurboWAVE iterators serve the specific purpose of accessing the Field class.
 // They are not intended for generalized use.  They imitate the standard library, but there are differences.
@@ -24,8 +24,8 @@ import dyn_space;
 // what results from dereferencing tw::iterator.
 
 // Range classes are aware of OpenMP state and automatically split the work accross threads.
-// Range classes are created from a DynSpace, and therefore may only be used in Field objects created from
-// the same DynSpace.
+// Range classes are created from a StaticSpace, and therefore may only be used in Field objects created from
+// the same StaticSpace.
 
 export namespace tw
 {
@@ -87,14 +87,14 @@ export namespace tw
 			this->j = j;
 			this->k = k;
 		}
-		cell(const DynSpace& ds,const tw::Int& i,const tw::Int& j,const tw::Int& k)
+		cell(const StaticSpace& ss,const tw::Int& i,const tw::Int& j,const tw::Int& k)
 		{
 			this->i = i;
 			this->j = j;
 			this->k = k;
-			i0 = i - ds.LFG(1);
-			j0 = j - ds.LFG(2);
-			k0 = k - ds.LFG(3);
+			i0 = i - ss.LFG(1);
+			j0 = j - ss.LFG(2);
+			k0 = k - ss.LFG(3);
 		}
 		void Decode(tw::Int *x,tw::Int *y,tw::Int *z) const
 		{
@@ -132,7 +132,7 @@ export namespace tw
 			dj = tw::Int(ax==2);
 			dk = tw::Int(ax==3);
 		}
-		strip(const tw::Int& ax,const DynSpace& ds,const tw::Int& i,const tw::Int& j,const tw::Int& k)
+		strip(const tw::Int& ax,const StaticSpace& ss,const tw::Int& i,const tw::Int& j,const tw::Int& k)
 		{
 			this->ax = ax;
 			this->i = i;
@@ -141,9 +141,9 @@ export namespace tw
 			di = tw::Int(ax==1);
 			dj = tw::Int(ax==2);
 			dk = tw::Int(ax==3);
-			i0 = i - ds.LFG(1);
-			j0 = j - ds.LFG(2);
-			k0 = k - ds.LFG(3);
+			i0 = i - ss.LFG(1);
+			j0 = j - ss.LFG(2);
+			k0 = k - ss.LFG(3);
 		}
 		tw::Int Axis() const { return ax; } // axis parallel to the strip
 		void Decode(tw::Int s,tw::Int *x,tw::Int *y,tw::Int *z) const
@@ -192,7 +192,7 @@ export namespace tw
 		{
 			// no need to do anything
 		}
-		xstrip(const DynSpace& ds,const tw::Int& i,const tw::Int& j,const tw::Int& k) : strip(AX,ds,i,j,k)
+		xstrip(const StaticSpace& ss,const tw::Int& i,const tw::Int& j,const tw::Int& k) : strip(AX,ss,i,j,k)
 		{
 			// no need to do anything
 		}
@@ -231,7 +231,7 @@ export class CellRange:public TWRange
 	tw::Int io,jo,ko,is,js,ks,iCells,jCells,kCells;
 
 public:
-	CellRange(const DynSpace& space,bool includeGhostCells)
+	CellRange(const StaticSpace& space,bool includeGhostCells)
 	{
 		io = includeGhostCells ? 0 : space.Layers(1);
 		jo = includeGhostCells ? 0 : space.Layers(2);
@@ -258,7 +258,7 @@ public:
 export class EntireCellRange:public CellRange
 {
 public:
-	EntireCellRange(const DynSpace& space) : CellRange(space,true)
+	EntireCellRange(const StaticSpace& space) : CellRange(space,true)
 	{
 	}
 };
@@ -266,7 +266,7 @@ public:
 export class InteriorCellRange:public CellRange
 {
 public:
-	InteriorCellRange(const DynSpace& space) : CellRange(space,false)
+	InteriorCellRange(const StaticSpace& space) : CellRange(space,false)
 	{
 	}
 };
@@ -287,7 +287,7 @@ protected:
 	tw::Int ax,di,dj,dk,io,jo,ko,is,js,ks,iCells,jCells,kCells;
 
 public:
-	StripRange(const DynSpace& space,tw::Int axis,strongbool includeGhostCells)
+	StripRange(const StaticSpace& space,tw::Int axis,strongbool includeGhostCells)
 	{
 		ax = axis;
 		di = tw::Int(ax==1);
@@ -301,7 +301,7 @@ public:
 		ko = includeGhostCells==strongbool::yes ? 0 : space.Layers(3);
 		// the reference cell index in the strip direction is indirectly visible to caller because it interacts with
 		// the caller's cell index in the strip direction.  The caller expects the cell index to be consistent
-		// with the DynSpace standard indexing (i.e., 1...dim label the interior cells).
+		// with the StaticSpace standard indexing (i.e., 1...dim label the interior cells).
 		// Therefore the reference index in the strip direction has to be treated specially.
 		io = (1-di)*io - di*is;
 		jo = (1-dj)*jo - dj*js;
@@ -326,7 +326,7 @@ export template <tw::Int AX>
 class VectorStripRange:public StripRange
 {
 public:
-	VectorStripRange(const DynSpace& space,bool includeGhostCells) : StripRange(space,AX,includeGhostCells==true ? strongbool::yes : strongbool::no)
+	VectorStripRange(const StaticSpace& space,bool includeGhostCells) : StripRange(space,AX,includeGhostCells==true ? strongbool::yes : strongbool::no)
 	{
 		// no need to do anything
 	}

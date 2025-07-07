@@ -3,6 +3,7 @@ module;
 #include "tw_includes.h"
 
 export module fields;
+export import static_space;
 export import dyn_space;
 export import metric_space;
 export import tw_iterator;
@@ -186,16 +187,16 @@ public:
 	}
 };
 
-/// Field is a DynSpace with data assigned to the cells, and operations on the data.
+/// Field is a StaticSpace with data assigned to the cells, and operations on the data.
 /// The data is some fixed number of floating point values per cell.
 /// The storage pattern is variable, and can be specified by designating a packed axis.
-/// The topology (dimensions, ghost cells) is inherited from the DynSpace passed to the constructor.
+/// The topology (dimensions, ghost cells) is inherited from the StaticSpace passed to the constructor.
 /// It is possible to mix Fields with varying ghost cell layers, but it is MUCH SAFER
 /// to keep the ghost cell layers the same for all Field instances in a calculation.
 ///
-/// Note the Field does not inherit from MetricSpace.  The intention is to have only a single
-/// instance of MetricSpace active at any time (mainly to avoid replicating the metric data)
-export struct Field: DynSpace
+/// Note the Field does not inherit from DynSpace or MetricSpace, because these are
+/// too variable and too heavyweight to carry around with every Field.
+export struct Field: StaticSpace
 {
 protected:
 
@@ -232,7 +233,7 @@ public:
 
 	Field();
 	virtual ~Field();
-	void Initialize(tw::Int components, const DynSpace& ds, Task* task, const tw::grid::axis& axis = tw::grid::z);
+	void Initialize(tw::Int components, const StaticSpace& ss, Task* task, const tw::grid::axis& axis = tw::grid::z);
 	void SetBoundaryConditions(const Element& e, const tw::grid::axis& axis, tw::bc::fld low, tw::bc::fld high);
 	friend void CopyBoundaryConditions(Field& dst, const Element& dstElement, Field& src, const Element& srcElement);
 
@@ -395,16 +396,16 @@ public:
 
 	// Transformation
 
-	void MultiplyCellVolume(const MetricSpace& ds);
-	void DivideCellVolume(const MetricSpace& ds);
+	void MultiplyCellVolume(const MetricSpace& ms);
+	void DivideCellVolume(const MetricSpace& ms);
 	friend void Swap(Field& f1, Field& f2);
 	void Swap(const Element& e1, const Element& e2);
 	friend void CopyFieldData(Field& dst, const Element& e_dst, Field& src, const Element& e_src);
 	friend void CopyGhostCellData(Field& dst, const Element& e_dst, Field& src, const Element& e_src);
 	friend void AddFieldData(Field& dst, const Element& e_dst, Field& src, const Element& e_src);
 	friend void AddMulFieldData(Field& dst, const Element& e_dst, Field& src, const Element& e_src, tw::Float mul);
-	void SmoothingPass(tw::Int ax, const Element& e, const MetricSpace& ds, const tw::Float& X0, const tw::Float& X1, const tw::Float& X2);
-	void Smooth(const Element& e, const MetricSpace& ds, tw::Int smoothPasses[4], tw::Int compPasses[4]);
+	void SmoothingPass(tw::Int ax, const Element& e, const MetricSpace& ms, const tw::Float& X0, const tw::Float& X1, const tw::Float& X2);
+	void Smooth(const Element& e, const MetricSpace& ms, tw::Int smoothPasses[4], tw::Int compPasses[4]);
 	void Shift(const Element& e, const tw::strip& s, tw::Int cells, const tw::Float* incoming);
 	void Shift(const Element& e, const tw::strip& s, tw::Int cells, const tw::Float& incoming);
 	void Hankel(const Element& e, tw::Int modes, std::valarray<tw::Float>& matrix);
@@ -523,9 +524,9 @@ public:
 	{
 		ZeroGhostCells(All(*this));
 	}
-	void Smooth(const MetricSpace& ds, tw::Int smoothPasses[4], tw::Int compPasses[4])
+	void Smooth(const MetricSpace& ms, tw::Int smoothPasses[4], tw::Int compPasses[4])
 	{
-		Smooth(All(*this), ds, smoothPasses, compPasses);
+		Smooth(All(*this), ms, smoothPasses, compPasses);
 	}
 	void Shift(const tw::strip& s, tw::Int cells, const tw::Float* incoming)
 	{
@@ -937,9 +938,9 @@ struct AutoField : Field
 		packedAxis = 0;
 		num[0] = sizeof(T) / sizeof(tw::Float);
 	}
-	void Initialize(const DynSpace& ds, Task* task)
+	void Initialize(const StaticSpace& ss, Task* task)
 	{
-		Field::Initialize(num[0], ds, task, tw::grid::t);
+		Field::Initialize(num[0], ss, task, tw::grid::t);
 	}
 
 	// Interface to superclass accessors
@@ -1072,19 +1073,19 @@ struct AutoField : Field
 
 export struct ScalarField :AutoField<tw::Float>
 {
-	tw::Float AxialEigenvalue(tw::Int z);
-	tw::Float Eigenvalue(tw::Int x, tw::Int y);
-	tw::Float CyclicEigenvalue(tw::Int x, tw::Int y);
-	tw::Float CyclicEigenvalue(tw::Int x, tw::Int y, tw::Int z);
+	tw::Float AxialEigenvalue(tw::Int z,const DynSpace& ds);
+	tw::Float Eigenvalue(tw::Int x, tw::Int y,const DynSpace& ds);
+	tw::Float CyclicEigenvalue(tw::Int x, tw::Int y,const DynSpace& ds);
+	tw::Float CyclicEigenvalue(tw::Int x, tw::Int y, tw::Int z,const DynSpace& ds);
 
-	void AxialSineTransform();
-	void InverseAxialSineTransform();
-	void TransverseSineTransform();
-	void InverseTransverseSineTransform();
-	void TransverseCosineTransform();
-	void InverseTransverseCosineTransform();
-	void TransverseFFT();
-	void InverseTransverseFFT();
+	void AxialSineTransform(const DynSpace& ds);
+	void InverseAxialSineTransform(const DynSpace& ds);
+	void TransverseSineTransform(const DynSpace& ds);
+	void InverseTransverseSineTransform(const DynSpace& ds);
+	void TransverseCosineTransform(const DynSpace& ds);
+	void InverseTransverseCosineTransform(const DynSpace& ds);
+	void TransverseFFT(const DynSpace& ds);
+	void InverseTransverseFFT(const DynSpace& ds);
 
 	// Assignment
 
@@ -1124,12 +1125,12 @@ export struct ScalarField :AutoField<tw::Float>
 
 export struct ComplexField :AutoField<tw::Complex>
 {
-	tw::Float CyclicEigenvalue(tw::Int x, tw::Int y);
-	tw::Float CyclicEigenvalue(tw::Int x, tw::Int y, tw::Int z);
-	void FFT();
-	void InverseFFT();
-	void TransverseFFT();
-	void InverseTransverseFFT();
+	tw::Float CyclicEigenvalue(tw::Int x, tw::Int y,const DynSpace& ds);
+	tw::Float CyclicEigenvalue(tw::Int x, tw::Int y, tw::Int z,const DynSpace& ds);
+	void FFT(const DynSpace& ds);
+	void InverseFFT(const DynSpace& ds);
+	void TransverseFFT(const DynSpace& ds);
+	void InverseTransverseFFT(const DynSpace& ds);
 
 	// Assignment
 
@@ -1366,7 +1367,7 @@ void BoundaryCondition::Reset()
 
 void BoundaryCondition::Set(tw::bc::fld theBoundaryCondition,tw::grid::side whichSide)
 {
-	// In this routine, indexing is offset from DynSpace indexing convention.
+	// In this routine, indexing is offset from StaticSpace indexing convention.
 	// Namely, 0 is the outer ghost cell layer, 1 is the inner, 2 is the edge cell, etc.
 	// When BC is applied, negative strides are used to produce mirror image indexing on high side
 
@@ -1521,12 +1522,12 @@ Field::~Field()
 
 /// @brief initialize the field, must call this before using
 /// @param components number of floats to arrange along axis 0
-/// @param ds discrete space to use for this Field, data is copied
+/// @param ss discrete space to use for this Field, data is copied
 /// @param task pointer to the concurrent task with this Field's domain
 /// @param axis use this as the packed axis, only affects storage pattern
-void Field::Initialize(tw::Int components,const DynSpace& ds,Task *task,const tw::grid::axis& axis)
+void Field::Initialize(tw::Int components,const StaticSpace& ss,Task *task,const tw::grid::axis& axis)
 {
-	DynSpace::operator=(ds);
+	StaticSpace::operator=(ss);
 	this->task = task;
 	packedAxis = tw::grid::naxis(axis);
 	totalCells = num[1]*num[2]*num[3];
@@ -2224,7 +2225,7 @@ void Field::Transpose(const Element& e,const tw::grid::axis& axis1,const tw::gri
 		dim_T[ax1] = dim[ax1]*nodes;
 		dim_T[ax2] = interiorCellsPerBlock;
 		dim_T[ax3] = dim[ax3];
-		target->Initialize(e.Components(),DynSpace(dim_T,corner,size),task);
+		target->Initialize(e.Components(),StaticSpace(dim_T,tw::vec4(1,1,1,1)),task);
 	}
 
   // The message passing pattern is to have simultaneous exchanges between pairs.
@@ -2350,7 +2351,7 @@ void Field::Transpose(const Element& e,const tw::grid::axis& axis1,const tw::gri
 /////////////////
 
 
-void Field::SmoothingPass(tw::Int ax,const Element& e,const MetricSpace& ds,const tw::Float& X0,const tw::Float& X1,const tw::Float& X2)
+void Field::SmoothingPass(tw::Int ax,const Element& e,const MetricSpace& ms,const tw::Float& X0,const tw::Float& X1,const tw::Float& X2)
 {
 	tw::Int i,c;
 	tw::Float ansNow,temp;
@@ -2375,20 +2376,20 @@ void Field::SmoothingPass(tw::Int ax,const Element& e,const MetricSpace& ds,cons
 	DownwardCopy(axs[ax],e,1);
 }
 
-void Field::Smooth(const Element& e,const MetricSpace& ds,tw::Int smoothPasses[4],tw::Int compPasses[4])
+void Field::Smooth(const Element& e,const MetricSpace& ms,tw::Int smoothPasses[4],tw::Int compPasses[4])
 {
 	for (tw::Int ax=1;ax<=3;ax++)
 	{
 		for (tw::Int ipass=0;ipass<smoothPasses[ax];ipass++)
-			SmoothingPass(ax,e,ds,0.25,0.5,0.25);
+			SmoothingPass(ax,e,ms,0.25,0.5,0.25);
 		for (tw::Int ipass=0;ipass<compPasses[ax];ipass++)
-			SmoothingPass(ax,e,ds,-1.25,3.5,-1.25);
+			SmoothingPass(ax,e,ms,-1.25,3.5,-1.25);
 	}
 }
 
 void Field::ReadCheckpoint(std::ifstream& inFile)
 {
-	DynSpace::ReadCheckpoint(inFile);
+	StaticSpace::ReadCheckpoint(inFile);
 	inFile.read((char*)&packedAxis,sizeof(tw::Int));
 	inFile.read((char*)&bc0(0,0),sizeof(BoundaryCondition)*num[0]*4);
 	inFile.read((char*)&bc1(0,0),sizeof(BoundaryCondition)*num[0]*4);
@@ -2397,7 +2398,7 @@ void Field::ReadCheckpoint(std::ifstream& inFile)
 
 void Field::WriteCheckpoint(std::ofstream& outFile)
 {
-	DynSpace::WriteCheckpoint(outFile);
+	StaticSpace::WriteCheckpoint(outFile);
 	outFile.write((char *)&packedAxis,sizeof(tw::Int));
 	outFile.write((char*)&bc0(0,0),sizeof(BoundaryCondition)*num[0]*4);
 	outFile.write((char*)&bc1(0,0),sizeof(BoundaryCondition)*num[0]*4);
@@ -2485,60 +2486,60 @@ export void AddMulFieldData(Field& dst,const Element& e_dst,Field& src,const Ele
 //////////////////////////
 
 
-tw::Float ScalarField::AxialEigenvalue(tw::Int z)
+tw::Float ScalarField::AxialEigenvalue(tw::Int z,const DynSpace& ds)
 {
 	// eigenvalues for sine and cosine transforms are the same
-	return eigenvalue_FST(GlobalCellIndex(z,3)-1,GlobalDim(3),freq[3]);
+	return eigenvalue_FST(ds.GlobalCellIndex(z,3)-1,ds.GlobalDim(3),freq[3]);
 }
 
-tw::Float ScalarField::Eigenvalue(tw::Int x,tw::Int y)
+tw::Float ScalarField::Eigenvalue(tw::Int x,tw::Int y,const DynSpace& ds)
 {
 	// eigenvalues for sine and cosine transforms are the same
-	return eigenvalue_FST(GlobalCellIndex(x,1)-1,GlobalDim(1),freq[1]) + eigenvalue_FST(GlobalCellIndex(y,2)-1,GlobalDim(2),freq[2]);
+	return eigenvalue_FST(ds.GlobalCellIndex(x,1)-1,ds.GlobalDim(1),freq[1]) + eigenvalue_FST(ds.GlobalCellIndex(y,2)-1,ds.GlobalDim(2),freq[2]);
 }
 
-tw::Float ScalarField::CyclicEigenvalue(tw::Int x,tw::Int y)
+tw::Float ScalarField::CyclicEigenvalue(tw::Int x,tw::Int y,const DynSpace& ds)
 {
 	tw::Float ans;
-	x = GlobalCellIndex(x,1);
-	y = GlobalCellIndex(y,2);
+	x = ds.GlobalCellIndex(x,1);
+	y = ds.GlobalCellIndex(y,2);
 
-	ans = eigenvalue_RFFT(x-1,GlobalDim(1),freq[1]);
+	ans = eigenvalue_RFFT(x-1,ds.GlobalDim(1),freq[1]);
 
 	if (x==1 || x==2)
-		ans += eigenvalue_RFFT(y-1,GlobalDim(2),freq[2]);
+		ans += eigenvalue_RFFT(y-1,ds.GlobalDim(2),freq[2]);
 	else
-		ans += eigenvalue_CFFT(y-1,GlobalDim(2),freq[2]);
+		ans += eigenvalue_CFFT(y-1,ds.GlobalDim(2),freq[2]);
 
 	return ans;
 }
 
-tw::Float ScalarField::CyclicEigenvalue(tw::Int x,tw::Int y,tw::Int z)
+tw::Float ScalarField::CyclicEigenvalue(tw::Int x,tw::Int y,tw::Int z,const DynSpace& ds)
 {
 	tw::Float ans;
-	x = GlobalCellIndex(x,1);
-	y = GlobalCellIndex(y,2);
-	z = GlobalCellIndex(z,3);
+	x = ds.GlobalCellIndex(x,1);
+	y = ds.GlobalCellIndex(y,2);
+	z = ds.GlobalCellIndex(z,3);
 
-	ans = eigenvalue_RFFT(x-1,GlobalDim(1),freq[1]);
+	ans = eigenvalue_RFFT(x-1,ds.GlobalDim(1),freq[1]);
 
 	if (x==1 || x==2)
-		ans += eigenvalue_RFFT(y-1,GlobalDim(2),freq[2]);
+		ans += eigenvalue_RFFT(y-1,ds.GlobalDim(2),freq[2]);
 	else
-		ans += eigenvalue_CFFT(y-1,GlobalDim(2),freq[2]);
+		ans += eigenvalue_CFFT(y-1,ds.GlobalDim(2),freq[2]);
 
 	if ((x==1 || x==2) && (y==1 || y==2))
-		ans += eigenvalue_RFFT(z-1,GlobalDim(3),freq[3]);
+		ans += eigenvalue_RFFT(z-1,ds.GlobalDim(3),freq[3]);
 	else
-		ans += eigenvalue_CFFT(z-1,GlobalDim(3),freq[3]);
+		ans += eigenvalue_CFFT(z-1,ds.GlobalDim(3),freq[3]);
 
 	return ans;
 }
 
-void ScalarField::AxialSineTransform()
+void ScalarField::AxialSineTransform(const DynSpace& ds)
 {
 	Field T;
-	if (GlobalDim(3)>1)
+	if (ds.GlobalDim(3)>1)
 	{
 		Transpose(tw::grid::z,tw::grid::x,&T,1);
 		#pragma omp parallel
@@ -2550,10 +2551,10 @@ void ScalarField::AxialSineTransform()
 	}
 }
 
-void ScalarField::InverseAxialSineTransform()
+void ScalarField::InverseAxialSineTransform(const DynSpace& ds)
 {
 	Field T;
-	if (GlobalDim(3)>1)
+	if (ds.GlobalDim(3)>1)
 	{
 		Transpose(tw::grid::z,tw::grid::x,&T,1);
 		#pragma omp parallel
@@ -2569,7 +2570,7 @@ void ScalarField::InverseAxialSineTransform()
 	}
 }
 
-void ScalarField::TransverseCosineTransform()
+void ScalarField::TransverseCosineTransform(const DynSpace& ds)
 {
 	Field T;
 	tw::grid::axis axis1,axis2;
@@ -2577,7 +2578,7 @@ void ScalarField::TransverseCosineTransform()
 	{
 		axis1 = tw::grid::enumaxis(ax);
 		axis2 = tw::grid::z;
-		if (GlobalDim(ax)>1)
+		if (ds.GlobalDim(ax)>1)
 		{
 			Transpose(axis1,axis2,&T,1);
 			#pragma omp parallel
@@ -2590,7 +2591,7 @@ void ScalarField::TransverseCosineTransform()
 	}
 }
 
-void ScalarField::InverseTransverseCosineTransform()
+void ScalarField::InverseTransverseCosineTransform(const DynSpace& ds)
 {
 	Field T;
 	tw::grid::axis axis1,axis2;
@@ -2598,7 +2599,7 @@ void ScalarField::InverseTransverseCosineTransform()
 	{
 		axis1 = tw::grid::enumaxis(ax);
 		axis2 = tw::grid::z;
-		if (GlobalDim(ax)>1)
+		if (ds.GlobalDim(ax)>1)
 		{
 			Transpose(axis1,axis2,&T,1);
 			#pragma omp parallel
@@ -2615,7 +2616,7 @@ void ScalarField::InverseTransverseCosineTransform()
 	}
 }
 
-void ScalarField::TransverseSineTransform()
+void ScalarField::TransverseSineTransform(const DynSpace& ds)
 {
 	Field T;
 	tw::grid::axis axis1,axis2;
@@ -2623,7 +2624,7 @@ void ScalarField::TransverseSineTransform()
 	{
 		axis1 = tw::grid::enumaxis(ax);
 		axis2 = tw::grid::z;
-		if (GlobalDim(ax)>1)
+		if (ds.GlobalDim(ax)>1)
 		{
 			Transpose(axis1,axis2,&T,1);
 			#pragma omp parallel
@@ -2636,7 +2637,7 @@ void ScalarField::TransverseSineTransform()
 	}
 }
 
-void ScalarField::InverseTransverseSineTransform()
+void ScalarField::InverseTransverseSineTransform(const DynSpace& ds)
 {
 	Field T;
 	tw::grid::axis axis1,axis2;
@@ -2644,7 +2645,7 @@ void ScalarField::InverseTransverseSineTransform()
 	{
 		axis1 = tw::grid::enumaxis(ax);
 		axis2 = tw::grid::z;
-		if (GlobalDim(ax)>1)
+		if (ds.GlobalDim(ax)>1)
 		{
 			Transpose(axis1,axis2,&T,1);
 			#pragma omp parallel
@@ -2661,11 +2662,11 @@ void ScalarField::InverseTransverseSineTransform()
 	}
 }
 
-void ScalarField::TransverseFFT()
+void ScalarField::TransverseFFT(const DynSpace& ds)
 {
 	Field T;
 
-	if (GlobalDim(1)>1)
+	if (ds.GlobalDim(1)>1)
 	{
 		Transpose(tw::grid::x,tw::grid::z,&T,1);
 		#pragma omp parallel
@@ -2676,7 +2677,7 @@ void ScalarField::TransverseFFT()
 		Transpose(tw::grid::x,tw::grid::z,&T,-1);
 	}
 
-	if (GlobalDim(2)>1)
+	if (ds.GlobalDim(2)>1)
 	{
 		Transpose(tw::grid::y,tw::grid::z,&T,1);
 		const tw::Int xDim=T.Dim(1),zN0=T.LFG(3),zN1=T.UFG(3);
@@ -2684,7 +2685,7 @@ void ScalarField::TransverseFFT()
 		for (tw::Int i=1;i<=xDim;i+=2) // can't include ghost cells due to complex numbers; instead do copy ops below
 			for (tw::Int k=zN0;k<=zN1;k++)
 			{
-				if (GlobalCellIndex(i,1)==1)
+				if (ds.GlobalCellIndex(i,1)==1)
 				{
 					RealFFT( &T(i,1,k,0), T.Dim(2), T.Stride(2), 1);
 					RealFFT( &T(i+1,1,k,0), T.Dim(2), T.Stride(2), 1);
@@ -2698,11 +2699,11 @@ void ScalarField::TransverseFFT()
 	}
 }
 
-void ScalarField::InverseTransverseFFT()
+void ScalarField::InverseTransverseFFT(const DynSpace& ds)
 {
 	Field T;
 
-	if (GlobalDim(2)>1)
+	if (ds.GlobalDim(2)>1)
 	{
 		Transpose(tw::grid::y,tw::grid::z,&T,1);
 		const tw::Int xDim=T.Dim(1),zN0=T.LFG(3),zN1=T.UFG(3);
@@ -2710,7 +2711,7 @@ void ScalarField::InverseTransverseFFT()
 		for (tw::Int i=1;i<=xDim;i+=2) // can't include ghost cells due to complex numbers; instead do copy ops below
 			for (tw::Int k=zN0;k<=zN1;k++)
 			{
-				if (GlobalCellIndex(i,1)==1)
+				if (ds.GlobalCellIndex(i,1)==1)
 				{
 					RealFFT( &T(i,1,k,0), T.Dim(2), T.Stride(2), -1);
 					T(i,T.LNG(2),k,0) = T(i,T.Dim(2),k,0);
@@ -2733,7 +2734,7 @@ void ScalarField::InverseTransverseFFT()
 		Transpose(tw::grid::y,tw::grid::z,&T,-1);
 	}
 
-	if (GlobalDim(1)>1)
+	if (ds.GlobalDim(1)>1)
 	{
 		Transpose(tw::grid::x,tw::grid::z,&T,1);
 		#pragma omp parallel
@@ -2757,22 +2758,22 @@ void ScalarField::InverseTransverseFFT()
 ///////////////////////////
 
 
-tw::Float ComplexField::CyclicEigenvalue(tw::Int x,tw::Int y)
+tw::Float ComplexField::CyclicEigenvalue(tw::Int x,tw::Int y,const DynSpace& ds)
 {
-	x = GlobalCellIndex(x,1);
-	y = GlobalCellIndex(y,2);
-	return eigenvalue_CFFT(x-1,GlobalDim(1),freq[1]) + eigenvalue_CFFT(y-1,GlobalDim(2),freq[2]);
+	x = ds.GlobalCellIndex(x,1);
+	y = ds.GlobalCellIndex(y,2);
+	return eigenvalue_CFFT(x-1,ds.GlobalDim(1),freq[1]) + eigenvalue_CFFT(y-1,ds.GlobalDim(2),freq[2]);
 }
 
-tw::Float ComplexField::CyclicEigenvalue(tw::Int x,tw::Int y,tw::Int z)
+tw::Float ComplexField::CyclicEigenvalue(tw::Int x,tw::Int y,tw::Int z,const DynSpace& ds)
 {
-	x = GlobalCellIndex(x,1);
-	y = GlobalCellIndex(y,2);
-	z = GlobalCellIndex(z,3);
-	return eigenvalue_CFFT(x-1,GlobalDim(1),freq[1]) + eigenvalue_CFFT(y-1,GlobalDim(2),freq[2]) + eigenvalue_CFFT(z-1,GlobalDim(3),freq[3]);
+	x = ds.GlobalCellIndex(x,1);
+	y = ds.GlobalCellIndex(y,2);
+	z = ds.GlobalCellIndex(z,3);
+	return eigenvalue_CFFT(x-1,ds.GlobalDim(1),freq[1]) + eigenvalue_CFFT(y-1,ds.GlobalDim(2),freq[2]) + eigenvalue_CFFT(z-1,ds.GlobalDim(3),freq[3]);
 }
 
-void ComplexField::TransverseFFT()
+void ComplexField::TransverseFFT(const DynSpace& ds)
 {
 	Field T;
 	tw::grid::axis axis1,axis2;
@@ -2780,7 +2781,7 @@ void ComplexField::TransverseFFT()
 	{
 		axis1 = tw::grid::enumaxis(ax);
 		axis2 = tw::grid::z;
-		if (GlobalDim(ax)>1)
+		if (ds.GlobalDim(ax)>1)
 		{
 			Transpose(axis1,axis2,&T,1);
 			#pragma omp parallel
@@ -2793,7 +2794,7 @@ void ComplexField::TransverseFFT()
 	}
 }
 
-void ComplexField::InverseTransverseFFT()
+void ComplexField::InverseTransverseFFT(const DynSpace& ds)
 {
 	Field T;
 	tw::grid::axis axis1,axis2;
@@ -2801,7 +2802,7 @@ void ComplexField::InverseTransverseFFT()
 	{
 		axis1 = tw::grid::enumaxis(ax);
 		axis2 = tw::grid::z;
-		if (GlobalDim(ax)>1)
+		if (ds.GlobalDim(ax)>1)
 		{
 			Transpose(axis1,axis2,&T,1);
 			#pragma omp parallel
@@ -2820,7 +2821,7 @@ void ComplexField::InverseTransverseFFT()
 	}
 }
 
-void ComplexField::FFT()
+void ComplexField::FFT(const DynSpace& ds)
 {
 	Field T;
 	tw::grid::axis axis1,axis2;
@@ -2828,7 +2829,7 @@ void ComplexField::FFT()
 	{
 		axis1 = tw::grid::enumaxis(ax);
 		axis2 = tw::grid::enumaxis(ax==3 ? 1 : ax+1);
-		if (GlobalDim(ax)>1)
+		if (ds.GlobalDim(ax)>1)
 		{
 			Transpose(axis1,axis2,&T,1);
 			#pragma omp parallel
@@ -2841,7 +2842,7 @@ void ComplexField::FFT()
 	}
 }
 
-void ComplexField::InverseFFT()
+void ComplexField::InverseFFT(const DynSpace& ds)
 {
 	Field T;
 	tw::grid::axis axis1,axis2;
@@ -2849,7 +2850,7 @@ void ComplexField::InverseFFT()
 	{
 		axis1 = tw::grid::enumaxis(ax);
 		axis2 = tw::grid::enumaxis(ax==3 ? 1 : ax+1);
-		if (GlobalDim(ax)>1)
+		if (ds.GlobalDim(ax)>1)
 		{
 			Transpose(axis1,axis2,&T,1);
 			#pragma omp parallel

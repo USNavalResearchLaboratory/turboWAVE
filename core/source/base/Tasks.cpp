@@ -87,19 +87,23 @@ export namespace tw
 			*src = srci;
 			*dst = dsti;
 		}
-		void Get_coords(tw::Int max_dims,tw::Int *xyz)
+		/// get 4d domain indices for this rank, time will always be 0
+		void Get_coords4(tw::Int *txyz)
 		{
 			int i,temp[3];
-			MPI_Cart_coords(comm_cart,Get_rank(),max_dims,temp);
-			for (i=0;i<max_dims;i++)
-				xyz[i+1] = temp[i];
+			MPI_Cart_coords(comm_cart,Get_rank(),3,temp);
+			txyz[0] = 0;
+			for (i=0;i<3;i++)
+				txyz[i+1] = temp[i];
 		}
-		void Get_coords(tw::Int max_dims,tw::Int rank,tw::Int *xyz)
+		/// get 4d domain indices for other rank, time will always be 0
+		void Get_coords4(tw::Int rank,tw::Int *txyz)
 		{
 			int i,temp[3];
-			MPI_Cart_coords(comm_cart,rank,max_dims,temp);
-			for (i=0;i<max_dims;i++)
-				xyz[i+1] = temp[i];
+			MPI_Cart_coords(comm_cart,rank,3,temp);
+			txyz[0] = 0;
+			for (i=0;i<3;i++)
+				txyz[i+1] = temp[i];
 		}
 		void Get_periods(tw::Int max_dims,bool *periods)
 		{
@@ -294,7 +298,7 @@ void Task::Initialize(const tw::Int doms[4],const tw::Int cyclic[4])
 
 	// Full 3D cartesian domain
 	strip[0].Initialize3D(domains,periodic);
-	strip[0].Get_coords(3,domainIndex);
+	strip[0].Get_coords4(domainIndex);
 	strip[0].Shift(1,1,&n0[1],&n1[1]);
 	strip[0].Shift(2,1,&n0[2],&n1[2]);
 	strip[0].Shift(3,1,&n0[3],&n1[3]);

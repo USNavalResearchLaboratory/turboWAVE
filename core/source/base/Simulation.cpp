@@ -82,9 +82,7 @@ Simulation::~Simulation()
 
 void Simulation::UpdateTimestep(tw::Float dt0)
 {
-	SetupTimeInfo(dt0);
-	for (auto m : module)
-		m->SetupTimeInfo(dt0);
+	DynSpace::SetupTimeInfo(dt0);
 }
 
 void Simulation::SetupIO()
@@ -591,8 +589,6 @@ void Simulation::FundamentalCycle()
 
 	corner[0] += spacing[0];
 	windowPosition[0] += spacing[0];
-	for (auto m : module)
-		m->UpdateTime(spacing[0]);
 	
 	if (movingWindow && solutionPosition[3]>=windowPosition[3] + spacing[3] && dim[3]>1) {
 		logger::TRACE(std::format("move lab at {:.5} triggered by {:.5}",windowPosition[3],solutionPosition[3]));

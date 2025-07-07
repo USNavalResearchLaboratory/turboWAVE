@@ -9,7 +9,7 @@ import compute_tool;
 import region;
 import injection;
 import diagnostics;
-import dyn_space;
+import static_space;
 import metric_space;
 import tw_iterator;
 
@@ -148,7 +148,7 @@ export struct Simulation: Task, MetricSpace, tw::input::Visitor
 
 };
 
-struct Module:DynSpace
+struct Module:StaticSpace
 {
 	std::string name;
 	Simulation *owner;
@@ -186,10 +186,6 @@ struct Module:DynSpace
 	virtual void Initialize();
 	virtual void Reset() {;}
 	virtual void Update() {;}
-	void UpdateTime(tw::Float dt) {
-		corner[0] += dt;
-		windowPosition[0] += dt;
-	}
 	virtual void MoveWindow();
 	virtual void AntiMoveWindow() {;}
 	virtual void AdaptGrid() {;}
@@ -247,7 +243,7 @@ Module::Module(const std::string& name,Simulation* sim)
 	for (tw::Int i=0;i<4;i++)
 		smoothing[i] = compensation[i] = 0;
 	suppressNextUpdate = false;
-	DynSpace::operator=(*sim);
+	StaticSpace::operator=(*sim);
 	// Units
 	native = sim->units;
 	natural = tw::UnitConverter(tw::units::natural,native);
@@ -303,23 +299,17 @@ void Module::Initialize()
 
 void Module::MoveWindow()
 {
-	corner[3] += spacing[3];
-	globalCorner[3] += spacing[3];
 }
 
 void Module::ReadCheckpoint(std::ifstream& inFile)
 {
-	DynSpace::ReadCheckpoint(inFile);
-	inFile.read((char *)&spacing,sizeof(spacing));
-	inFile.read((char *)&freq,sizeof(freq));
+	StaticSpace::ReadCheckpoint(inFile);
 }
 
 void Module::WriteCheckpoint(std::ofstream& outFile)
 {
 	outFile << name << " ";
-	DynSpace::WriteCheckpoint(outFile);
-	outFile.write((char *)&spacing,sizeof(spacing));
-	outFile.write((char *)&freq,sizeof(freq));
+	StaticSpace::WriteCheckpoint(outFile);
 }
 
 void Module::VerifyInput()
