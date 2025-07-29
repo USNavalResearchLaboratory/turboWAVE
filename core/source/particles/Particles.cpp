@@ -197,11 +197,11 @@ void Kinetics::MoveWindow()
 	// i.e., charge from a given particle should be on only one node
 	// therefore charge has to be zeroed on one node after being sent to another
 	rho00.DownwardDeposit(tw::grid::z,1);
-	for (auto s : StripRange(*this,3,strongbool::yes))
+	for (auto s : StripRange(*this,3,0,1,strongbool::yes))
 	{
 		rho00(s,0) = 0.0;
 		rho00(s,1) = 0.0;
-		rho00.Shift(s,-1,0.0);
+		rho00.Shift(All(rho00),s,-1,0.0);
 	}
 
 	for (i=0;i<species.size();i++)
@@ -239,7 +239,7 @@ void Kinetics::Update()
 	}
 
 	if (sources && owner->neutralize)
-		for (auto cell : EntireCellRange(*this))
+		for (auto cell : EntireCellRange(*this,1))
 			(*sources)(cell,0) -= rho00(cell);
 
 	// Take care of boundaries in source arrays within field solvers
@@ -386,7 +386,7 @@ void Kinetics::Ionize()
 				probability = a2 = 0.0;
 				if (species[s]->laser)
 				{
-					species[s]->laser->Interpolate(Fp,Element(6),weights);
+					species[s]->laser->Interpolate(Rng(6),Fp,weights);
 					a2 = Fp[6];
 					w0 = *species[s]->carrierFrequency;
 					if (theLaserSolver->polarizationType==circularPolarization)
@@ -394,7 +394,7 @@ void Kinetics::Ionize()
 					else
 						probability += this->dx(0)*ionizer->AverageRate(w0,w0*sqrt(a2));
 				}
-				species[s]->EM->Interpolate(temp,Element(0,2),weights);
+				species[s]->EM->Interpolate(Rng(0,3),temp,weights);
 				E.x = temp[0]; E.y = temp[1]; E.z = temp[2];
 				probability += this->dx(0)*ionizer->InstantRate(1e-6,Magnitude(E));
 				gamma = sqrt(sqr(curr.p[0]/m0) + 0.5*sqr(q0/m0)*a2);
@@ -465,7 +465,7 @@ void Kinetics::ProcessQED()
 				vel = part.p.spatial()/gamma/species[s]->restMass;
 
 				owner->StaticSpace::GetWeights(&weights,part.q);
-				species[s]->EM->Interpolate(temp,Element(0,5),weights);
+				species[s]->EM->Interpolate(Rng(0,6),temp,weights);
 
 				for (tw::Int n=0;n<3;n++)
 					vel[n] = vel[n] * tw::dims::velocity >> native >> cgs;
@@ -540,7 +540,7 @@ void Kinetics::ProcessQED()
 				omega = (part.p[0] * tw::dims::energy >> native >> cgs)/cgs::hbar;
 
 				owner->StaticSpace::GetWeights(&weights,part.q);
-				species[s]->EM->Interpolate(temp,Element(0,5),weights);
+				species[s]->EM->Interpolate(Rng(0,6),temp,weights);
 
 				for (tw::Int n=0;n<3;n++)
 					temp[n] = temp[n] * tw::dims::electric_field >> native >> cgs;
@@ -1031,7 +1031,7 @@ void Species::GenerateParticles(bool init)
 	tw::Float add;
 	for (auto prof : profile)
 		if ( prof->TimeGate(owner->WindowPos(0),&add) )
-			for (auto cell : InteriorCellRange(*this))
+			for (auto cell : InteriorCellRange(*this,1))
 			{
 				LoadingData loadingData(*owner,distributionInCell,cell);
 				loadingData.densToAdd = prof->GetValue(owner->Pos(cell),*owner);
@@ -1282,7 +1282,7 @@ void Species::FinishMoveWindow()
 			for (tw::Int j=1;j<=dim[2];j++)
 				for (tw::Int i=1;i<=dim[1];i++)
 				{
-					LoadingData loadingData(*owner,distributionInCell,tw::cell(*this,i,j,dim[3]));
+					LoadingData loadingData(*owner,distributionInCell,tw::cell(*this,1,i,j,dim[3]));
 					loadingData.densToAdd = prof->GetValue(owner->Pos(i,j,dim[3]),*owner);
 					loadingData.neutralize = owner->neutralize;
 					loadingData.thermalMomentum = prof->thermalMomentum;
@@ -1374,9 +1374,9 @@ void Species::CalculateDensity(ScalarField& dens)
 	dens.SetBoundaryConditions(tw::grid::z,fld::dirichletCell,fld::dirichletCell);
 	dens.DepositFromNeighbors();
 	dens.ApplyFoldingCondition();
-	dens.DivideCellVolume(*owner);
+	dens.DivideCellVolume(All(dens),*owner);
 	dens.ApplyBoundaryCondition();
-	dens.Smooth(*owner,smoothing,compensation);
+	dens.Smooth(All(dens),*owner,smoothing,compensation);
 }
 
 void Species::CalculateEnergyDensity(ScalarField& dens)
@@ -1399,9 +1399,9 @@ void Species::CalculateEnergyDensity(ScalarField& dens)
 	dens.SetBoundaryConditions(tw::grid::z,fld::dirichletCell,fld::dirichletCell);
 	dens.DepositFromNeighbors();
 	dens.ApplyFoldingCondition();
-	dens.DivideCellVolume(*owner);
+	dens.DivideCellVolume(All(dens),*owner);
 	dens.ApplyBoundaryCondition();
-	dens.Smooth(*owner,smoothing,compensation);
+	dens.Smooth(All(dens),*owner,smoothing,compensation);
 }
 
 void Species::CalculateQuantumParameter(ScalarField& dens)
@@ -1423,9 +1423,9 @@ void Species::CalculateQuantumParameter(ScalarField& dens)
 	dens.SetBoundaryConditions(tw::grid::z,fld::dirichletCell,fld::dirichletCell);
 	dens.DepositFromNeighbors();
 	dens.ApplyFoldingCondition();
-	dens.DivideCellVolume(*owner);
+	dens.DivideCellVolume(All(dens),*owner);
 	dens.ApplyBoundaryCondition();
-	dens.Smooth(*owner,smoothing,compensation);
+	dens.Smooth(All(dens),*owner,smoothing,compensation);
 }
 
 tw::Float Species::KineticEnergy(const Region& theRgn)
@@ -1458,21 +1458,21 @@ void Species::Report(Diagnostic& diagnostic)
 	diagnostic.ReportNumber("Number_"+name,ParticleNumber(*diagnostic.theRgn),false);
 	diagnostic.ReportNumber("Creation_"+name,numberCreated,false);
 	CalculateDensity(temp);
-	diagnostic.ReportField(name,temp,0,tw::dims::density,"$n_{\\rm "+name+"}$");
+	diagnostic.ReportField(name,temp,1,0,tw::dims::density,"$n_{\\rm "+name+"}$");
 	CalculateEnergyDensity(temp);
-	diagnostic.ReportField("u_"+name,temp,0,tw::dims::energy_density,"$u_{\\rm "+name+"}$");
+	diagnostic.ReportField("u_"+name,temp,1,0,tw::dims::energy_density,"$u_{\\rm "+name+"}$");
 	CalculateQuantumParameter(temp);
-	diagnostic.ReportField("Q_"+name,temp,0,tw::dims::none,"$Q_{\\rm "+name+"}$");
+	diagnostic.ReportField("Q_"+name,temp,1,0,tw::dims::none,"$Q_{\\rm "+name+"}$");
 
 	if (qo_j4!=NULL)
 	{
 		temp *= restMass;
-		diagnostic.VolumeIntegral("tot_mass",temp,0);
+		diagnostic.VolumeIntegral("tot_mass",temp,1,0);
 		temp /= restMass;
 
-		for (auto cell : InteriorCellRange(*this))
+		for (auto cell : InteriorCellRange(*this,1))
 			temp(cell) = sqrt(fabs((*qo_j4)(cell,0) * temp(cell)));
-		diagnostic.VolumeIntegral("overlap",temp,0); // square in post-processing to get population
+		diagnostic.VolumeIntegral("overlap",temp,1,0); // square in post-processing to get population
 	}
 
 	for (auto par : particle)

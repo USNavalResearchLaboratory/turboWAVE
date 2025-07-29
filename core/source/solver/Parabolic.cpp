@@ -81,7 +81,7 @@ export struct ParabolicSolver:BoundedTool
 	ParabolicSolver(const std::string& name,MetricSpace *m,Task *tsk);
 	virtual ~ParabolicSolver();
 
-	void FixTemperature(Field& T,const Element& e,Region* theRegion,const tw::Float& T0);
+	void FixTemperature(Field& T,const Rng04& r,Region* theRegion,const tw::Float& T0);
 	void FormOperatorStencil(tw::Float *D1,tw::Float *D2,const ScalarField& fluxMask,Field *coeff,tw::Int c,const tw::strip& s,tw::Int i);
 	virtual void Advance(const tw::grid::axis& axis,ScalarField& psi,ScalarField& fluxMask,tw::Float coeff,tw::Float dt);
 	virtual void Advance(ScalarField& psi,ScalarField& fluxMask,tw::Float coeff,tw::Float dt);
@@ -268,7 +268,7 @@ void EigenmodePropagator::Advance(ComplexField& a0,ComplexField& a1,ComplexField
 			chi_ref[k] = std::real(chi(1,1,k));
 		task->strip[1].Bcast(&chi_ref[0],sizeof(tw::Float)*chi_ref.size(),0);
 	}
-	for (auto s : StripRange(*space,3,strongbool::yes))
+	for (auto s : StripRange(*space,3,0,1,strongbool::yes))
 		for (tw::Int k=0;k<=zDim+1;k++)
 			chi(s,k) = (chi(s,k) - chi_ref[k])*a1(s,k);
 
@@ -290,12 +290,12 @@ void EigenmodePropagator::Advance(ComplexField& a0,ComplexField& a1,ComplexField
 	{
 		tw::Float lambda;
 		std::valarray<tw::Complex> T2z(zDim),source(zDim),ans(zDim);
-		StripRange range(*space,3,strongbool::no);
+		StripRange range(*space,3,0,1,strongbool::no);
 		for (auto it=range.begin();it!=range.end();++it)
 		{
 			tw::strip s = *it;
 			if (space->car==1.0)
-				lambda = a0.CyclicEigenvalue(s.dcd1(0),s.dcd2(0),*space);
+				lambda = a0.ComplexCyclicEigenvalue(s.dcd1(0),s.dcd2(0),*space);
 			else
 				lambda = localEig[s.dcd1(0)];
 			for (tw::Int k=1;k<=zDim;k++)
@@ -314,7 +314,7 @@ void EigenmodePropagator::Advance(ComplexField& a0,ComplexField& a1,ComplexField
 			}
 
 			globalIntegrator->SetMatrix(it.global_count(),T1,T2z,T3,T1,T3);
-			globalIntegrator->SetData(it.global_count(),&a1(s,0),a1.Stride(3)/2); // need complex stride and stride[0]=1
+			globalIntegrator->SetData(it.global_count(),&a1(s,0,0),a1.Stride(3),a1.Stride(4));
 		}
 	}
 	CopyGhostCellData(a0,All(a0),a1,All(a1));
@@ -350,11 +350,11 @@ void EigenmodePropagator::Advance(ComplexField& a0,ComplexField& a1,ComplexField
 	a1.ApplyBoundaryCondition();
 
 	if (task->n0[3]==MPI_PROC_NULL && zDim>1)
-		for (auto s : StripRange(*space,3,strongbool::yes))
+		for (auto s : StripRange(*space,3,0,1,strongbool::yes))
 			a1(s,space->LFG(3)) = a0(s,space->LFG(3));
 
 	if (task->n1[3]==MPI_PROC_NULL && zDim>1)
-		for (auto s : StripRange(*space,3,strongbool::yes))
+		for (auto s : StripRange(*space,3,0,1,strongbool::yes))
 			a1(s,space->UFG(3)) = a0(s,space->UFG(3));
 }
 
@@ -402,11 +402,14 @@ void ADIPropagator::AdvanceAxis(tw::Int ua,ComplexField& a0,ComplexField& a1,Com
 	std::valarray<tw::Complex> src(uDim),ans(uDim),T1(uDim),T2(uDim),T3(uDim);
 	for (auto k=wDim;k>=-1;k--) {
 		for (auto j=1;j<=vDim;j++) {
-			const auto u = ua == 1 ? tw::strip(ua,*space,0,j,k) : tw::strip(ua,*space,j,0,k);
+			auto coord = ua == 1 ? tw::node4 {1,0,j,k} : tw::node4 {1,j,0,k};
+			const auto u = tw::strip(*space,ua,0,coord);
 			#pragma omp parallel for
 			for (auto i=1;i<=uDim;i++) {
-				const auto v = ua == 1 ? tw::strip(va,*space,i,0,k) : tw::strip(va,*space,0,i,k);
-				const auto w = ua == 1 ? tw::strip(3,*space,i,j,0) : tw::strip(3,*space,j,i,0);
+				coord = ua == 1 ? tw::node4 {1,i,0,k} : tw::node4 {1,0,i,k};
+				const auto v = tw::strip(*space,va,0,coord);
+				coord = ua == 1 ? tw::node4 {1,i,j,0} : tw::node4 {1,j,i,0};
+				const auto w = tw::strip(*space,3,0,coord);
 				const auto Vol = space->dS(u,i,0);
 
 				A0 = space->dS(u,i,ua);
@@ -443,7 +446,7 @@ void ADIPropagator::AdvanceAxis(tw::Int ua,ComplexField& a0,ComplexField& a1,Com
 
 			const auto system = (k+1)*vDim + j - 1;
 			globalIntegrator[ua]->SetMatrix(system,T1,T2,T3);
-			globalIntegrator[ua]->SetData(system,&a1(u,0),a1.Stride(ua)/2); // need complex stride and stride[0]=1
+			globalIntegrator[ua]->SetData(system,&a1(u,0,0),a1.Stride(ua),a1.Stride(4));
 		}
 	}
 
@@ -460,8 +463,14 @@ void ADIPropagator::Advance(ComplexField& a0,ComplexField& a1,ComplexField& chi)
 	const tw::Int yDim = space->Dim(2);
 	const tw::Int zDim = space->Dim(3);
 
-	Slice<tw::Float> send_lookahead(Element(0,1),space->LFG(1),space->UFG(1),space->LFG(2),space->UFG(2),1,2);
-	Slice<tw::Float> recv_lookahead(Element(0,1),space->LFG(1),space->UFG(1),space->LFG(2),space->UFG(2),zDim+1,zDim+2);
+	Slice<tw::Float> send_lookahead(
+		{1,space->LFG(1),space->LFG(2),1,0},
+		{2,space->UFG(1)+1,space->UFG(2)+1,3,1}
+	);
+	Slice<tw::Float> recv_lookahead(
+		{1,space->LFG(1),space->LFG(2),zDim+1,0},
+		{2,space->UFG(1)+1,space->UFG(2)+1,zDim+3,1}
+	);
 	
 	tw::Int n0,n1;
 	task->strip[3].Shift(1,1,&n0,&n1);
@@ -546,7 +555,7 @@ void SchroedingerPropagator::DepositCurrent(const tw::grid::axis& axis,ComplexFi
 	{
 		#pragma omp parallel
 		{
-			for (auto cell : InteriorCellRange(*space))
+			for (auto cell : InteriorCellRange(*space,1))
 				J4(cell,0) += half*norm(psi1(cell));
 		}
 	}
@@ -557,7 +566,7 @@ void SchroedingerPropagator::DepositCurrent(const tw::grid::axis& axis,ComplexFi
 			#pragma omp parallel
 			{
 				tw::Complex f11,f12,f21,f22;
-				for (auto s : StripRange(*space,ax,strongbool::no))
+				for (auto s : StripRange(*space,ax,0,1,strongbool::no))
 				{
 					for (tw::Int i=1;i<=space->Dim(ax);i++)
 					{
@@ -585,7 +594,7 @@ void SchroedingerPropagator::ApplyNumerator(const tw::grid::axis& axis,ComplexFi
 		#pragma omp parallel firstprivate(dt)
 		{
 			std::valarray<tw::Complex> src(space->Dim(ax));
-			for (auto s : StripRange(*space,ax,strongbool::no))
+			for (auto s : StripRange(*space,ax,0,1,strongbool::no))
 			{
 				for (tw::Int i=1;i<=space->Dim(ax);i++)
 				{
@@ -626,7 +635,7 @@ void SchroedingerPropagator::ApplyDenominator(const tw::grid::axis& axis,Complex
 	{
 		#pragma omp parallel firstprivate(dt)
 		{
-			StripRange range(*space,ax,strongbool::no);
+			StripRange range(*space,ax,0,1,strongbool::no);
 			std::valarray<tw::Complex> src(sDim),ans(sDim),T1(sDim),T2(sDim),T3(sDim);
 			for (auto it=range.begin();it!=range.end();++it)
 			{
@@ -661,7 +670,7 @@ void SchroedingerPropagator::ApplyDenominator(const tw::grid::axis& axis,Complex
 					psi(s,i) = ans[i-1];
 
 				globalIntegrator[ax]->SetMatrix(it.global_count(),T1,T2,T3);
-				globalIntegrator[ax]->SetData(it.global_count(),&psi(s,0),psi.Stride(ax)/2); // need complex stride and stride[0]=1
+				globalIntegrator[ax]->SetData(it.global_count(),&psi(s,0,0),psi.Stride(ax),psi.Stride(4));
 			}
 		}
 
@@ -683,12 +692,12 @@ void SchroedingerPropagator::UpdateSpin(ComplexField& psi,ComplexField& chi,Fiel
 		for (j=1;j<=yDim;j++)
 			for (i=1;i<=xDim;i++)
 			{
-				Bx = (A4(i,j+1,k,3)-A4(i,j-1,k,3))/space->dL(i,j,k,2);
-				Bx -= (A4(i,j,k+1,2)-A4(i,j,k-1,2))/space->dL(i,j,k,3);
-				By = (A4(i,j,k+1,1)-A4(i,j,k-1,1))/space->dL(i,j,k,3);
-				By -= (A4(i+1,j,k,3)-A4(i-1,j,k,3))/space->dL(i,j,k,1);
-				Bz = (A4(i+1,j,k,2)-A4(i-1,j,k,2))/space->dL(i,j,k,1);
-				Bz -= (A4(i,j+1,k,1)-A4(i,j-1,k,1))/space->dL(i,j,k,2);
+				Bx = (A4(1,i,j+1,k,3)-A4(1,i,j-1,k,3))/space->dL(i,j,k,2);
+				Bx -= (A4(1,i,j,k+1,2)-A4(1,i,j,k-1,2))/space->dL(i,j,k,3);
+				By = (A4(1,i,j,k+1,1)-A4(1,i,j,k-1,1))/space->dL(i,j,k,3);
+				By -= (A4(1,i+1,j,k,3)-A4(1,i-1,j,k,3))/space->dL(i,j,k,1);
+				Bz = (A4(1,i+1,j,k,2)-A4(1,i-1,j,k,2))/space->dL(i,j,k,1);
+				Bz -= (A4(1,i,j+1,k,1)-A4(1,i,j-1,k,1))/space->dL(i,j,k,2);
 
 				B2 = Bx*Bx + By*By + Bz*Bz;
 				denom = tw::Float(16)+B2*sqr(adt);
@@ -732,13 +741,14 @@ ParabolicSolver::~ParabolicSolver()
 			delete g;
 }
 
-void ParabolicSolver::FixTemperature(Field& T,const Element& e,Region* theRegion,const tw::Float& T0)
+void ParabolicSolver::FixTemperature(Field& T,const Rng04& r,Region* theRegion,const tw::Float& T0)
 {
 	#pragma omp parallel
 	{
-		for (auto cell : EntireCellRange(*space))
+		for (auto n=r.b0; n<r.e0; n++)
+		for (auto cell : EntireCellRange(*space,n))
 			if (theRegion->Inside(space->Pos(cell),*space))
-				for (tw::Int c=e.low;c<=e.high;c++)
+				for (tw::Int c=r.b4; c<=r.e4; c++)
 					T(cell,c) = T0;
 	}
 }
@@ -754,8 +764,8 @@ inline void ParabolicSolver::FormOperatorStencil(tw::Float *D1,tw::Float *D2,con
 		*D1 *= 0.5*((*coeff)(s,i-1,c) + (*coeff)(s,i,c));
 		*D2 *= 0.5*((*coeff)(s,i,c) + (*coeff)(s,i+1,c));
 	}
-	*D1 *= fluxMask(s,i-1,0)*fluxMask(s,i,0);
-	*D2 *= fluxMask(s,i,0)*fluxMask(s,i+1,0);
+	*D1 *= fluxMask(s,i-1)*fluxMask(s,i);
+	*D2 *= fluxMask(s,i)*fluxMask(s,i+1);
 }
 
 void ParabolicSolver::Advance(const tw::grid::axis& axis,ScalarField& psi,ScalarField& fluxMask,tw::Float coeff,tw::Float dt)
@@ -768,7 +778,7 @@ void ParabolicSolver::Advance(const tw::grid::axis& axis,ScalarField& psi,Scalar
 
 	#pragma omp parallel
 	{
-		StripRange range(*space,ax,strongbool::no);
+		StripRange range(*space,ax,0,1,strongbool::no);
 		tw::Float D1,D2;
 		std::valarray<tw::Float> src,ans,T1,T2,T3;
 
@@ -799,7 +809,7 @@ void ParabolicSolver::Advance(const tw::grid::axis& axis,ScalarField& psi,Scalar
 				psi(s,i) = ans[i-1];
 
 			globalIntegrator[ax]->SetMatrix(it.global_count(),T1,T2,T3);
-			globalIntegrator[ax]->SetData(it.global_count(),&psi(s,0),psi.Stride(ax));
+			globalIntegrator[ax]->SetData(it.global_count(),&psi(s,0),psi.Stride(ax),psi.Stride(4));
 		}
 	}
 
@@ -842,7 +852,7 @@ void ParabolicSolver::Advance(	const tw::grid::axis& axis,
 
 	#pragma omp parallel
 	{
-		StripRange range(*space,ax,strongbool::no);
+		StripRange range(*space,ax,0,1,strongbool::no);
 		tw::Float D1,D2;
 		std::valarray<tw::Float> src,ans,T1,T2,T3;
 
@@ -864,21 +874,21 @@ void ParabolicSolver::Advance(	const tw::grid::axis& axis,
 			}
 
 			if (task->n0[ax]==MPI_PROC_NULL)
-				psi.AdjustTridiagonalForBoundaries(Element(psi_idx),axis,tw::grid::low,T1,T2,T3,src,psi(s,space->LFG(ax),psi_idx));
+				psi.AdjustTridiagonalForBoundaries(Rng(psi_idx),axis,tw::grid::low,T1,T2,T3,src,psi(s,space->LFG(ax),psi_idx));
 			if (task->n1[ax]==MPI_PROC_NULL)
-				psi.AdjustTridiagonalForBoundaries(Element(psi_idx),axis,tw::grid::high,T1,T2,T3,src,psi(s,space->UFG(ax),psi_idx));
+				psi.AdjustTridiagonalForBoundaries(Rng(psi_idx),axis,tw::grid::high,T1,T2,T3,src,psi(s,space->UFG(ax),psi_idx));
 
 			TriDiagonal(ans,src,T1,T2,T3);
 			for (tw::Int i=1;i<=sDim;i++)
 				psi(s,i,psi_idx) = ans[i-1];
 
 			globalIntegrator[ax]->SetMatrix(it.global_count(),T1,T2,T3);
-			globalIntegrator[ax]->SetData(it.global_count(),&psi(s,0,psi_idx),psi.Stride(ax));
+			globalIntegrator[ax]->SetData(it.global_count(),&psi(s,0,psi_idx),psi.Stride(ax),psi.Stride(4));
 		}
 	}
 
 	globalIntegrator[ax]->Parallelize();
-	psi.ApplyBoundaryCondition(Element(psi_idx),false);
+	psi.ApplyBoundaryCondition(Rng(psi_idx),false);
 	// Leaving ghost cells in orthogonal directions unspecified.
 	// They will be set when those axes are propagated.
 }
@@ -1007,7 +1017,7 @@ void IsotropicPropagator::Advance(
 				amplitude(i,j,k) = ans[k-1];
 
 			zGlobalIntegrator->SetMatrix(idx,Z1,Z2,Z3);
-			zGlobalIntegrator->SetData(idx,&amplitude(i,j,0),amplitude.Stride(3)/2); // need complex stride and stride[0]=1
+			zGlobalIntegrator->SetData(idx,&amplitude(1,i,j,0,0),amplitude.Stride(3),amplitude.Stride(4));
 			idx++;
 		}
 

@@ -117,10 +117,10 @@ export template <class T>
 class GlobalIntegrator
 {
 	tw::comm* strip;
-	tw::Int N, systems;
+	tw::Int N, systems, components;
 	std::valarray<T> v, w;
-	std::valarray<T*> theData;
-	std::valarray<tw::Int> stride; // units of T (beware of passing strides from Field objects)
+	std::valarray<tw::Float*> theData;
+	std::valarray<tw::Int> posStride,compStride;
 
 public:
 	/// @brief create an object that inverts tridiagonals no matter the decomposition
@@ -131,8 +131,23 @@ public:
 	/// @brief set the data for the given system
 	/// @param system index of the system being solved starting at zero, a system is typically one of the strips being solved
 	/// @param theData pointer to the first element of data (the near ghost cell) in this system
-	/// @param stride stride in units of T, n.b. `Field` strides are in units of tw::Float, `DynSpace` strides are in units of cells
-	void SetData(tw::Int system, T* theData, tw::Int stride);
+	/// @param posStride stride in units of tw::Float from start of `T` to next start of `T`
+	/// @param compStride stride in units of tw::Float from first `T` component to next `T` component
+	void SetData(tw::Int system, tw::Float* theData, tw::Int posStride, tw::Int compStride);
+	void Pack(const T& val,const tw::Int& system, const tw::Int& idx) {
+		const tw::Float *ptr = (tw::Float*)&val;
+		for (auto i=0; i< components; i++) {
+			theData[system][i*compStride[system]+idx*posStride[system]] = ptr[i];
+		}
+	}
+	T Unpack(const tw::Int& system, const tw::Int& idx) {
+		T ans;
+		tw::Float *ptr = (tw::Float*)&ans;
+		for (auto i=0; i<components; i++) {
+			ptr[i] = theData[system][i*compStride[system]+idx*posStride[system]];
+		}
+		return ans;
+	}
 	void SetMatrix(tw::Int system, T a, T b, T c, T theta, T eta);
 	void SetMatrix(tw::Int system, T a, std::valarray<T>& b, T c, T theta, T eta);
 	void SetMatrix(tw::Int system, std::valarray<T>& a, std::valarray<T>& b, std::valarray<T>& c);
@@ -142,6 +157,7 @@ public:
 template <class T>
 GlobalIntegrator<T>::GlobalIntegrator(tw::comm* strip, tw::Int systems, tw::Int cells)
 {
+	this->components = sizeof(T)/sizeof(tw::Float);
 	this->strip = strip;
 	this->systems = systems;
 	N = cells;
@@ -150,14 +166,16 @@ GlobalIntegrator<T>::GlobalIntegrator(tw::comm* strip, tw::Int systems, tw::Int 
 	w.resize(systems * (N + 2));
 
 	theData.resize(systems);
-	stride.resize(systems);
+	posStride.resize(systems);
+	compStride.resize(systems);
 }
 
 template <class T>
-void GlobalIntegrator<T>::SetData(tw::Int system, T* row, tw::Int stride)
+void GlobalIntegrator<T>::SetData(tw::Int system, tw::Float* row, tw::Int posStride, tw::Int compStride)
 {
 	this->theData[system] = row;
-	this->stride[system] = stride;
+	this->posStride[system] = posStride;
+	this->compStride[system] = compStride;
 }
 
 template <class T>
@@ -308,22 +326,22 @@ void ComputeAlphasAndBetas(tw::comm* strip, tw::Int systems, T* mpi_packet)
 template <class T>
 void GlobalIntegrator<T>::Parallelize()
 {
-	int i, j;
-
 	// make temporary space for calculation of alpha and beta
 	// packet layout : ss=system stride ; domain stride = ss*systems
 	// layout must match assumptions in ComputeAlphasAndBetas
 	tw::Int ss = 8;
 	std::valarray<T> mpi_packet(ss * systems);
 
-	for (j = 0; j < systems; j++)
+	for (auto j = 0; j < systems; j++)
 	{
-		mpi_packet[0 + ss * j] = theData[j][stride[j]];
+		T val;
+
+		mpi_packet[0 + ss * j] = Unpack(j,1);
 		mpi_packet[1 + ss * j] = v[j * (N + 2) + N];
 		mpi_packet[2 + ss * j] = w[j * (N + 2) + N];
 		mpi_packet[3 + ss * j] = v[j * (N + 2) + 1];
 		mpi_packet[4 + ss * j] = w[j * (N + 2) + 1];
-		mpi_packet[5 + ss * j] = theData[j][N * stride[j]];
+		mpi_packet[5 + ss * j] = Unpack(j,N);
 		mpi_packet[6 + ss * j] = 0.0; // alpha, to be computed
 		mpi_packet[7 + ss * j] = 0.0; // beta, to be computed
 	}
@@ -332,12 +350,14 @@ void GlobalIntegrator<T>::Parallelize()
 
 	// APPLY THE CORRECTION FACTORS
 
-	for (j = 0; j < systems; j++)
+	for (auto j = 0; j < systems; j++)
 	{
-		theData[j][0] = mpi_packet[6 + ss * j];
-		for (i = 1; i <= N; i++)
-			theData[j][i * stride[j]] -= mpi_packet[6 + ss * j] * v[j * (N + 2) + i] + mpi_packet[7 + ss * j] * w[j * (N + 2) + i];
-		theData[j][(N + 1) * stride[j]] = mpi_packet[7 + ss * j];
+		Pack(mpi_packet[6 + ss * j], j, 0);
+		for (auto i = 1; i <= N; i++) {
+			T val = Unpack(j,i) - mpi_packet[6 + ss * j] * v[j * (N + 2) + i] + mpi_packet[7 + ss * j] * w[j * (N + 2) + i];
+			Pack(val,j,i);
+		}
+		Pack( mpi_packet[7 + ss * j], j, N+1);
 
 		// N.b. exterior ghost cell calculation only valid for periodic or dirichlet boundary conditions
 		// (interior domains OK for any boundary conditions)
@@ -902,35 +922,57 @@ export void ComputeTransformMatrices(tw::bc::fld radial_bc,std::valarray<tw::Flo
 /// @tparam T type we are splining
 export template <class T>
 class GlobalSpline {
-	tw::Int dim;
+	tw::Int dim,components;
 	tw::comm *strip_comm;
+	std::valarray<tw::Int> posStride,compStride;
+	std::valarray<tw::Float*> theData;
 	std::valarray<T> moments;
 	GlobalIntegrator<T> *gintegrator;
 public:
 	GlobalSpline(tw::comm* strip_comm, tw::Int strips, tw::Int cells);
 	~GlobalSpline();
+	void Pack(const T& val,const tw::Int& strip, const tw::Int& idx) {
+		const tw::Float *ptr = (tw::Float*)&val;
+		for (auto i=0; i< components; i++) {
+			theData[strip][i*compStride[strip]+idx*posStride[strip]] = ptr[i];
+		}
+	}
+	T Unpack(const tw::Int& strip, const tw::Int& idx) {
+		T ans;
+		tw::Float *ptr = (tw::Float*)&ans;
+		for (auto i=0; i<components; i++) {
+			ptr[i] = theData[strip][i*compStride[strip]+idx*posStride[strip]];
+		}
+		return ans;
+	}
 	/// @brief thread safe function to setup one strip
 	/// @param ax axis of the strip
 	/// @param strip index of the strip
 	/// @param theData pointer to near ghost cell of the strip's data
-	/// @param stride stride of the strip's data
-	void SetStrip(tw::Int strip, T* theData, tw::Int stride);
+	/// @param posStride stride of the strip's positions
+	/// @param compStride stride of the strip's components
+	void SetStrip(tw::Int strip, tw::Float* theData, tw::Int posStride, tw::Int compStride);
 	void Solve();
 	/// @brief get value of the spline at a point
 	/// @param strip index of the strip
 	/// @param x fractional point, interpoint spacing is always normalized
 	/// @param theData pointer to near ghost cell of the strip's data
-	/// @param stride stride of the strip's data
+	/// @param posStride stride of the strip's positions
+	/// @param compStride stride of the strip's components
 	/// @return interpolated value
-	T Interpolate(tw::Float x,tw::Int strip,T* theData,tw::Int stride);
+	T Interpolate(tw::Float x,tw::Int strip);
 };
 
 template <class T>
 GlobalSpline<T>::GlobalSpline(tw::comm* strip_comm, tw::Int strips, tw::Int cells) {
+	this->components = sizeof(T)/sizeof(tw::Float);
 	this->strip_comm = strip_comm;
 	dim = cells;
 	gintegrator = new GlobalIntegrator<T>(strip_comm,strips,cells);
 	moments.resize(strips*(cells+2));
+	posStride.resize(strips);
+	compStride.resize(strips);
+	theData.resize(strips);
 }
 
 template <class T>
@@ -939,15 +981,19 @@ GlobalSpline<T>::~GlobalSpline() {
 }
 
 template <class T>
-void GlobalSpline<T>::SetStrip(tw::Int strip, T* theData, tw::Int stride) {
+void GlobalSpline<T>::SetStrip(tw::Int strip, tw::Float* theData, tw::Int posStride, tw::Int compStride) {
 	std::valarray<T> phi(dim);
 	std::valarray<T> rho(dim);
 	std::valarray<T> a(dim);
 	std::valarray<T> b(dim);
 	std::valarray<T> c(dim);
 
+	this->theData[strip] = theData;
+	this->posStride[strip] = posStride;
+	this->compStride[strip] = compStride;
+	
 	for (auto i = 1; i <= dim; i++) {
-		rho[i-1] = tw::Float(3)*(theData[stride*(i-1)] - two*theData[stride*i] + theData[stride*(i+1)]);
+		rho[i-1] = tw::Float(3)*(Unpack(strip,i-1) - two*Unpack(strip,i) + Unpack(strip,i+1));
 		a[i-1] = 0.5;
 		b[i-1] = 2.0;
 		c[i-1] = 0.5;
@@ -968,7 +1014,7 @@ void GlobalSpline<T>::SetStrip(tw::Int strip, T* theData, tw::Int stride) {
 	for (auto i = 1; i <= dim; i++) {
 		moments[(dim+2)*strip + i] = phi[i-1];
 	}
-	gintegrator->SetData(strip,&moments[strip*(dim+2)],1);
+	gintegrator->SetData(strip,(tw::Float*)&moments[strip*(dim+2)],components,1);
 	gintegrator->SetMatrix(strip,a,b,c);
 }
 
@@ -978,13 +1024,13 @@ void GlobalSpline<T>::Solve() {
 }
 
 template <class T>
-T GlobalSpline<T>::Interpolate(tw::Float x,tw::Int strip,T* theData,tw::Int stride) {
+T GlobalSpline<T>::Interpolate(tw::Float x,tw::Int strip) {
 	tw::Int i = x;
 	tw::Float w = x - i;
 	T m1 = moments[(dim+2)*strip + i];
 	T m2 = moments[(dim+2)*strip + i + 1];
-	T y1 = theData[stride*i];
-	T y2 = theData[stride*(i+1)];
+	T y1 = Unpack(strip,i);
+	T y2 = Unpack(strip,i+1);
 	return y1 + w*(y2-y1-(two*m1+m2)/tw::Float(6)) + half*w*w*m1 + w*w*w*(m2-m1)/tw::Float(6);
 }
 

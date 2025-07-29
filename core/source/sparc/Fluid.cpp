@@ -114,12 +114,12 @@ export struct EquilibriumGroup:Module
 	}
 	void LoadMassDensity(ScalarField& nm,const Field& f)
 	{
-		for (auto cell : EntireCellRange(*this))
+		for (auto cell : EntireCellRange(*this,1))
 			nm(cell) = DensityWeightedSum(f,matset.mass,cell);
 	}
 	void LoadMassDensityCv(ScalarField& nmcv,const Field& f)
 	{
-		for (auto cell : EntireCellRange(*this))
+		for (auto cell : EntireCellRange(*this,1))
 			nmcv(cell) = DensityWeightedSum(f,matset.cvm,cell);
 	}
 	tw::vec3 Velocity(const Field& f,const tw::cell& cell)
@@ -131,7 +131,7 @@ export struct EquilibriumGroup:Module
 	{
 		// assumes velocity components appear in order in state vector
 		tw::Float nm;
-		for (auto cell : EntireCellRange(*this))
+		for (auto cell : EntireCellRange(*this,1))
 		{
 			nm = DensityWeightedSum(f,matset.mass,cell);
 			vel(cell) = f(cell,hidx.npx+ax-1)/(tw::small_pos + nm);
@@ -340,45 +340,45 @@ void Fluid::Initialize()
 
 	if (owner->movingWindow)
 	{
-		state0.SetBoundaryConditions(tw::grid::x,xParallel,other);
-		state0.SetBoundaryConditions(tw::grid::y,other,other);
-		state0.SetBoundaryConditions(tw::grid::z,other,fld::none);
-		state0.SetBoundaryConditions(Element(1),tw::grid::x,xNormal,other);
+		state0.SetBoundaryConditions(All(state0),tw::grid::x,xParallel,other);
+		state0.SetBoundaryConditions(All(state0),tw::grid::y,other,other);
+		state0.SetBoundaryConditions(All(state0),tw::grid::z,other,fld::none);
+		state0.SetBoundaryConditions(Rng(1),tw::grid::x,xNormal,other);
 
-		state1.SetBoundaryConditions(tw::grid::x,xParallel,other);
-		state1.SetBoundaryConditions(tw::grid::y,other,other);
-		state1.SetBoundaryConditions(tw::grid::z,other,fld::none);
-		state1.SetBoundaryConditions(Element(1),tw::grid::x,xNormal,other);
+		state1.SetBoundaryConditions(All(state1),tw::grid::x,xParallel,other);
+		state1.SetBoundaryConditions(All(state1),tw::grid::y,other,other);
+		state1.SetBoundaryConditions(All(state1),tw::grid::z,other,fld::none);
+		state1.SetBoundaryConditions(Rng(1),tw::grid::x,xNormal,other);
 
 		gas.SetBoundaryConditions(tw::grid::x,xParallel,other);
 		gas.SetBoundaryConditions(tw::grid::y,other,other);
 		gas.SetBoundaryConditions(tw::grid::z,other,fld::none);
 
-		vel.SetBoundaryConditions(tw::grid::x,xParallel,other);
-		vel.SetBoundaryConditions(tw::grid::y,other,other);
-		vel.SetBoundaryConditions(tw::grid::z,other,other);
+		vel.SetBoundaryConditions(All(vel),tw::grid::x,xParallel,other);
+		vel.SetBoundaryConditions(All(vel),tw::grid::y,other,other);
+		vel.SetBoundaryConditions(All(vel),tw::grid::z,other,other);
 	}
 	else
 	{
-		state0.SetBoundaryConditions(tw::grid::x,fld::neumannWall,fld::neumannWall);
-		state0.SetBoundaryConditions(tw::grid::y,fld::neumannWall,fld::neumannWall);
-		state0.SetBoundaryConditions(tw::grid::z,fld::neumannWall,fld::neumannWall);
-		state0.SetBoundaryConditions(Element(1),tw::grid::x,xNormal,fld::neumannWall);
-		state0.SetBoundaryConditions(Element(3),tw::grid::z,fld::dirichletWall,fld::dirichletWall);
+		state0.SetBoundaryConditions(All(state0),tw::grid::x,fld::neumannWall,fld::neumannWall);
+		state0.SetBoundaryConditions(All(state0),tw::grid::y,fld::neumannWall,fld::neumannWall);
+		state0.SetBoundaryConditions(All(state0),tw::grid::z,fld::neumannWall,fld::neumannWall);
+		state0.SetBoundaryConditions(Rng(1),tw::grid::x,xNormal,fld::neumannWall);
+		state0.SetBoundaryConditions(Rng(3),tw::grid::z,fld::dirichletWall,fld::dirichletWall);
 
-		state1.SetBoundaryConditions(tw::grid::x,fld::neumannWall,fld::neumannWall);
-		state1.SetBoundaryConditions(tw::grid::y,fld::neumannWall,fld::neumannWall);
-		state1.SetBoundaryConditions(tw::grid::z,fld::neumannWall,fld::neumannWall);
-		state1.SetBoundaryConditions(Element(1),tw::grid::x,xNormal,fld::neumannWall);
-		state1.SetBoundaryConditions(Element(3),tw::grid::z,fld::dirichletWall,fld::dirichletWall);
+		state1.SetBoundaryConditions(All(state1),tw::grid::x,fld::neumannWall,fld::neumannWall);
+		state1.SetBoundaryConditions(All(state1),tw::grid::y,fld::neumannWall,fld::neumannWall);
+		state1.SetBoundaryConditions(All(state1),tw::grid::z,fld::neumannWall,fld::neumannWall);
+		state1.SetBoundaryConditions(Rng(1),tw::grid::x,xNormal,fld::neumannWall);
+		state1.SetBoundaryConditions(Rng(3),tw::grid::z,fld::dirichletWall,fld::dirichletWall);
 
 		gas.SetBoundaryConditions(tw::grid::x,fld::neumannWall,fld::neumannWall);
 		gas.SetBoundaryConditions(tw::grid::y,fld::neumannWall,fld::neumannWall);
 		gas.SetBoundaryConditions(tw::grid::z,fld::neumannWall,fld::neumannWall);
 
-		vel.SetBoundaryConditions(tw::grid::x,fld::neumannWall,fld::neumannWall);
-		vel.SetBoundaryConditions(tw::grid::y,fld::neumannWall,fld::neumannWall);
-		vel.SetBoundaryConditions(tw::grid::z,fld::neumannWall,fld::neumannWall);
+		vel.SetBoundaryConditions(All(vel),tw::grid::x,fld::neumannWall,fld::neumannWall);
+		vel.SetBoundaryConditions(All(vel),tw::grid::y,fld::neumannWall,fld::neumannWall);
+		vel.SetBoundaryConditions(All(vel),tw::grid::z,fld::neumannWall,fld::neumannWall);
 	}
 
 	#pragma omp parallel
@@ -387,7 +387,7 @@ void Fluid::Initialize()
 		tw::Float density;
 		const tw::Float dth = 0.5*dx(0);
 
-		for (auto cell : EntireCellRange(*this))
+		for (auto cell : EntireCellRange(*this,1))
 		{
 			pos = owner->Pos(cell);
 
@@ -443,10 +443,10 @@ void Fluid::Initialize()
 	if (initialIonizationFraction<=0.0 || initialIonizationFraction>1.0)
 		throw tw::FatalError("Fluid module reports initial ionization fraction out of range.");
 
-	state0.CopyFromNeighbors();
-	state0.ApplyBoundaryCondition();
-	state1.CopyFromNeighbors();
-	state1.ApplyBoundaryCondition();
+	state0.CopyFromNeighbors(All(state0));
+	state0.ApplyBoundaryCondition(All(state0));
+	state1.CopyFromNeighbors(All(state1));
+	state1.ApplyBoundaryCondition(All(state1));
 	gas.CopyFromNeighbors();
 	gas.ApplyBoundaryCondition();
 }
@@ -457,7 +457,7 @@ void Fluid::MoveWindow()
 	Module::MoveWindow();
 	#pragma omp parallel
 	{
-		for (auto s : StripRange(*this,3,strongbool::yes))
+		for (auto s : StripRange(*this,3,0,1,strongbool::yes))
 		{
 			tw::Int k = Dim(s.Axis())+1;
 			tw::vec3 pos,A0,A1;
@@ -474,10 +474,10 @@ void Fluid::MoveWindow()
 					incomingPlasma[0] += 1e-6*profile[p]->GetValue(pos,*owner); // add a little plasma
 				}
 			}
-			state0.Shift(s,-1,incomingPlasma);
-			state1.Shift(s,-1,incomingPlasma);
-			fixed.Shift(s,-1,0.0);
-			gas.Shift(s,-1,incomingGas);
+			state0.Shift(All(state0),s,-1,incomingPlasma);
+			state1.Shift(All(state1),s,-1,incomingPlasma);
+			fixed.Shift(All(fixed),s,-1,0.0);
+			gas.Shift(All(gas),s,-1,incomingGas);
 			if (owner->neutralize)
 				fixed(s,k) += incomingPlasma[0];
 
@@ -496,8 +496,8 @@ void Fluid::MoveWindow()
 		}
 	}
 
-	state0.DownwardCopy(tw::grid::z,1);
-	state1.DownwardCopy(tw::grid::z,1);
+	state0.DownwardCopy(All(state0),tw::grid::z,1);
+	state1.DownwardCopy(All(state1),tw::grid::z,1);
 	fixed.DownwardCopy(tw::grid::z,1);
 	gas.DownwardCopy(tw::grid::z,1);
 }
@@ -506,11 +506,11 @@ void Fluid::AddDensity(tw::Float densToAdd,tw::Int i,tw::Int j,tw::Int k)
 {
 	if (densToAdd>0.0)
 	{
-		tw::Float scaleFactor = state1(i,j,k,0) / (state1(i,j,k,0) + densToAdd);
-		state1(i,j,k,0) += densToAdd;
-		state1(i,j,k,1) *= scaleFactor;
-		state1(i,j,k,2) *= scaleFactor;
-		state1(i,j,k,3) *= scaleFactor;
+		tw::Float scaleFactor = state1(1,i,j,k,0) / (state1(1,i,j,k,0) + densToAdd);
+		state1(1,i,j,k,0) += densToAdd;
+		state1(1,i,j,k,1) *= scaleFactor;
+		state1(1,i,j,k,2) *= scaleFactor;
+		state1(1,i,j,k,3) *= scaleFactor;
 		if (owner->neutralize)
 			fixed(i,j,k) += densToAdd;
 	}
@@ -552,7 +552,7 @@ void Fluid::Update()
 	#pragma omp parallel
 	{
 		// Apply half of E-field impulse and put relativistic mass into vel(cell,0)
-		for (auto v : VectorStripRange<3>(*this,false))
+		for (auto v : VectorStripRange<3>(*this,0,1,false))
 		{
 			#pragma omp simd
 			for (tw::Int k=1;k<=dim[3];k++)
@@ -574,8 +574,8 @@ void Fluid::Update()
 		}
 	}
 
-	vel.CopyFromNeighbors(Element(0));
-	vel.ApplyBoundaryCondition(Element(0));
+	vel.CopyFromNeighbors(Rng(0));
+	vel.ApplyBoundaryCondition(Rng(0));
 	#pragma omp parallel
 	{
 		tw::Float kT_eff,temp;
@@ -583,7 +583,7 @@ void Fluid::Update()
 		const tw::Float nconv = 1.0*tw::dims::density >> native >> cgs;
 		const tw::Float Tconv = 1.0*tw::dims::temperature >> native >> cgs;
 		const tw::Float fconv = 1.0*tw::dims::frequency >> cgs >> native;
-		for (auto v : VectorStripRange<3>(*this,false))
+		for (auto v : VectorStripRange<3>(*this,0,1,false))
 		{
 			#pragma omp simd
 			for (tw::Int k=1;k<=dim[3];k++)
@@ -597,9 +597,9 @@ void Fluid::Update()
 			#pragma omp simd
 			for (tw::Int k=1;k<=dim[3];k++)
 			{
-				state1(v,k,1) -= dt*vel(v,k,0,1);
-				state1(v,k,2) -= dt*vel(v,k,0,2);
-				state1(v,k,3) -= dt*vel(v,k,0,3);
+				state1(v,k,1) -= dt*vel.d1(v,k,0,1);
+				state1(v,k,2) -= dt*vel.d1(v,k,0,2);
+				state1(v,k,3) -= dt*vel.d1(v,k,0,3);
 				state1(v,k,1) += dth*q0*(*EM).sfwd(v,k,0,1);
 				state1(v,k,2) += dth*q0*(*EM).sfwd(v,k,1,2);
 				state1(v,k,3) += dth*q0*(*EM).sfwd(v,k,2,3);
@@ -609,14 +609,14 @@ void Fluid::Update()
 			}
 		}
 	}
-	state1.CopyFromNeighbors();
-	state1.ApplyBoundaryCondition();
+	state1.CopyFromNeighbors(All(state1));
+	state1.ApplyBoundaryCondition(All(state1));
 
 	// Compute 1/mass and velocity at t = 1/2
 
 	#pragma omp parallel
 	{
-		for (auto v : VectorStripRange<3>(*this,true))
+		for (auto v : VectorStripRange<3>(*this,0,1,true))
 		{
 			#pragma omp simd
 			for (tw::Int k=lfg[3];k<=ufg[3];k++)
@@ -642,7 +642,7 @@ void Fluid::Update()
 
 	state0 = state1; // dens0(t=0) , dens1(t=0)
 	FCT_Driver convector(&state0,&state1,&vel,NULL,owner);
-	convector.SetDensityElements(Element(0));
+	convector.SetDensityElements(Rng(0));
 	if (dim[1]>1)
 	{
 		convector.SetVelocityElement(1);
@@ -667,20 +667,20 @@ void Fluid::Update()
 	{
 		convector.SetVelocityElement(1);
 		convector.Convect(tw::grid::x, tw::bc::fld::dirichletCell, tw::bc::fld::dirichletCell, dt);
-		convector.GetTrueFlux(vel,Element(1),Element(0));
+		convector.GetTrueFlux(vel,Rng(1),Rng(0));
 	}
 	if (dim[2]>1)
 	{
 		convector.SetVelocityElement(2);
 		convector.Convect(tw::grid::y, tw::bc::fld::dirichletCell, tw::bc::fld::dirichletCell, dt);
-		convector.GetTrueFlux(vel,Element(2),Element(0));
+		convector.GetTrueFlux(vel,Rng(2),Rng(0));
 	}
 	if (dim[3]>1)
 	{
 		bc = owner->movingWindow ? tw::bc::fld::neumannWall : tw::bc::fld::dirichletCell;
 		convector.SetVelocityElement(3);
 		convector.Convect(tw::grid::z,bc,bc,dt);
-		convector.GetTrueFlux(vel,Element(3),Element(0));
+		convector.GetTrueFlux(vel,Rng(3),Rng(0));
 	}
 	Swap(state0,state1); // dens0(t=1/2) , dens1(t=1)
 
@@ -692,7 +692,7 @@ void Fluid::Update()
 			for (tw::Int j=lfg[2];j<=ufg[2];j++)
 				for (tw::Int k=lfg[3];k<=ufg[3];k++)
 				{
-					field = std::sqrt(sqr((*EM)(i,j,k,0))+sqr((*EM)(i,j,k,1))+sqr((*EM)(i,j,k,2)));
+					field = std::sqrt(sqr((*EM)(1,i,j,k,0))+sqr((*EM)(1,i,j,k,1))+sqr((*EM)(1,i,j,k,2)));
 					ionizedDensity = gas(i,j,k)*dt*ionizer->InstantRate(1e-6,field);
 					if (ionizedDensity > gas(i,j,k))
 						ionizedDensity = gas(i,j,k);
@@ -715,21 +715,21 @@ void Fluid::Update()
 			// Here cell walls and centers need not be distinguished (dim=1).
 			if (dim[1]==1)
 			{
-				for (auto v : VectorStripRange<3>(*this,false))
+				for (auto v : VectorStripRange<3>(*this,0,1,false))
 					#pragma omp simd
 					for (tw::Int k=1;k<=dim[3];k++)
 						vel(v,k,1) *= owner->dS(v,k,1) * dt * state0(v,k,0);
 			}
 			if (dim[2]==1)
 			{
-				for (auto v : VectorStripRange<3>(*this,false))
+				for (auto v : VectorStripRange<3>(*this,0,1,false))
 					#pragma omp simd
 					for (tw::Int k=1;k<=dim[3];k++)
 						vel(v,k,2) *= owner->dS(v,k,2) * dt * state0(v,k,0);
 			}
 			if (dim[3]==1)
 			{
-				for (auto v : VectorStripRange<3>(*this,false))
+				for (auto v : VectorStripRange<3>(*this,0,1,false))
 					#pragma omp simd
 					for (tw::Int k=1;k<=dim[3];k++)
 						vel(v,k,3) *= owner->dS(v,k,3) * dt * state0(v,k,0);
@@ -737,7 +737,7 @@ void Fluid::Update()
 		}
 		#pragma omp parallel
 		{
-			for (auto v : VectorStripRange<3>(*this,false))
+			for (auto v : VectorStripRange<3>(*this,0,1,false))
 			{
 				#pragma omp simd
 				for (tw::Int k=1;k<=dim[3];k++)
@@ -755,7 +755,7 @@ void Fluid::Update()
 	{
 		#pragma omp parallel
 		{
-			for (auto cell : InteriorCellRange(*this))
+			for (auto cell : InteriorCellRange(*this,1))
 				(*chi)(cell) -= owner->dS(cell,0)*q0*q0*state0(cell,0)/(m0*vel(cell,0));
 		}
 	}
@@ -782,8 +782,8 @@ void Fluid::WriteCheckpoint(std::ofstream& outFile)
 void Fluid::Report(Diagnostic& diagnostic)
 {
 	Module::Report(diagnostic);
-	diagnostic.ReportField(name+"_e",state1,0,tw::dims::density,"$n_e$");
-	diagnostic.ReportField(name+"_n",gas,0,tw::dims::density,"$n_g$");
+	diagnostic.ReportField(name+"_e",state1,1,0,tw::dims::density,"$n_e$");
+	diagnostic.ReportField(name+"_n",gas,1,0,tw::dims::density,"$n_g$");
 }
 
 /////////////////////
@@ -910,7 +910,7 @@ bool Chemical::LoadFluid(Field& hydro)
 		if ( prof->TimeGate(owner->WindowPos(0),&add) )
 		{
 			const tw::vec3 p0 = prof->DriftMomentum(mat.mass);
-			for (auto cell : EntireCellRange(*this))
+			for (auto cell : EntireCellRange(*this,1))
 			{
 				const tw::Float dens = prof->GetValue(owner->Pos(cell),*owner);
 				if (prof->whichQuantity==tw::profile::quantity::density && dens>0.0)
@@ -945,7 +945,7 @@ bool Chemical::LoadFluid(Field& hydro)
 			}
 		}
 	}
-	hydro.ApplyBoundaryCondition(Element(ns,Xi));
+	hydro.ApplyBoundaryCondition(Rng(ns,Xi+1));
 	return massLoaded;
 }
 
@@ -963,7 +963,7 @@ void Chemical::LoadInternalEnergy(Field& hydro,Field& eos)
 		{
 			// Get the target temperature for this profile
 			const tw::Float kT = prof->Temperature(mat.mass);
-			for (auto cell : EntireCellRange(*this))
+			for (auto cell : EntireCellRange(*this,1))
 			{
 				// Put the target mass density in the scratch array
 				master->scratch(cell) = mat.mass * prof->GetValue(owner->Pos(cell),*owner);
@@ -980,7 +980,7 @@ void Chemical::LoadInternalEnergy(Field& hydro,Field& eos)
 			group->eosMixData->UpdateEnergy(master->scratch,master->scratch2,hydro,eos);
 		}
 	}
-	hydro.ApplyBoundaryCondition(Element(group->hidx.u));
+	hydro.ApplyBoundaryCondition(Rng(group->hidx.u));
 }
 
 
@@ -1296,7 +1296,7 @@ void sparc::HydroManager::Initialize()
 	}
 	refractiveIndex = tw::Complex(1.0,0.0);
 
-	ellipticSolver->SetFieldsBoundaryConditions(phi,Element(0));
+	ellipticSolver->SetFieldsBoundaryConditions(phi,Rng(0));
 	rho.SetBoundaryConditions(tw::grid::x,fld::neumannWall,fld::neumannWall);
 	rho.SetBoundaryConditions(tw::grid::y,fld::neumannWall,fld::neumannWall);
 	rho.SetBoundaryConditions(tw::grid::z,fld::neumannWall,fld::neumannWall);
@@ -1329,12 +1329,12 @@ void sparc::HydroManager::Initialize()
 	// setup the flux mask used to make conductors impermeable
 	// also used for reflecting boundary conditions at simulation walls
 	fluxMask = 1.0;
-	for (auto cell : EntireCellRange(*this))
+	for (auto cell : EntireCellRange(*this,1))
 		for (auto c : conductor)
 			if (c->theRgn->Inside(owner->Pos(cell),*owner))
 				fluxMask(cell) = 0.0;
 	for (tw::Int ax=1;ax<=3;ax++)
-		for (auto strip : StripRange(*this,ax,strongbool::yes))
+		for (auto strip : StripRange(*this,ax,0,1,strongbool::yes))
 		{
 			if (bc0[ax]==fld::dirichletWall && owner->n0[ax]==MPI_PROC_NULL && dim[ax]>1)
 				fluxMask(strip,lfg[ax]) = fluxMask(strip,lng[ax]) = 0.0;
@@ -1343,24 +1343,24 @@ void sparc::HydroManager::Initialize()
 		}
 
 	// Default boundary conditions, refine after setting up indexing.
-	state0.SetBoundaryConditions(tw::grid::x,fld::neumannWall,fld::neumannWall);
-	state0.SetBoundaryConditions(tw::grid::y,fld::neumannWall,fld::neumannWall);
-	state0.SetBoundaryConditions(tw::grid::z,fld::neumannWall,fld::neumannWall);
-	state1.SetBoundaryConditions(tw::grid::x,fld::neumannWall,fld::neumannWall);
-	state1.SetBoundaryConditions(tw::grid::y,fld::neumannWall,fld::neumannWall);
-	state1.SetBoundaryConditions(tw::grid::z,fld::neumannWall,fld::neumannWall);
-	eos0.SetBoundaryConditions(tw::grid::x,fld::neumannWall,fld::neumannWall);
-	eos0.SetBoundaryConditions(tw::grid::y,fld::neumannWall,fld::neumannWall);
-	eos0.SetBoundaryConditions(tw::grid::z,fld::neumannWall,fld::neumannWall);
-	eos1.SetBoundaryConditions(tw::grid::x,fld::neumannWall,fld::neumannWall);
-	eos1.SetBoundaryConditions(tw::grid::y,fld::neumannWall,fld::neumannWall);
-	eos1.SetBoundaryConditions(tw::grid::z,fld::neumannWall,fld::neumannWall);
-	creationRate.SetBoundaryConditions(tw::grid::x,fld::neumannWall,fld::neumannWall);
-	creationRate.SetBoundaryConditions(tw::grid::y,fld::neumannWall,fld::neumannWall);
-	creationRate.SetBoundaryConditions(tw::grid::z,fld::neumannWall,fld::neumannWall);
-	destructionRate.SetBoundaryConditions(tw::grid::x,fld::neumannWall,fld::neumannWall);
-	destructionRate.SetBoundaryConditions(tw::grid::y,fld::neumannWall,fld::neumannWall);
-	destructionRate.SetBoundaryConditions(tw::grid::z,fld::neumannWall,fld::neumannWall);
+	state0.SetBoundaryConditions(All(state0),tw::grid::x,fld::neumannWall,fld::neumannWall);
+	state0.SetBoundaryConditions(All(state0),tw::grid::y,fld::neumannWall,fld::neumannWall);
+	state0.SetBoundaryConditions(All(state0),tw::grid::z,fld::neumannWall,fld::neumannWall);
+	state1.SetBoundaryConditions(All(state1),tw::grid::x,fld::neumannWall,fld::neumannWall);
+	state1.SetBoundaryConditions(All(state1),tw::grid::y,fld::neumannWall,fld::neumannWall);
+	state1.SetBoundaryConditions(All(state1),tw::grid::z,fld::neumannWall,fld::neumannWall);
+	eos0.SetBoundaryConditions(All(eos0),tw::grid::x,fld::neumannWall,fld::neumannWall);
+	eos0.SetBoundaryConditions(All(eos0),tw::grid::y,fld::neumannWall,fld::neumannWall);
+	eos0.SetBoundaryConditions(All(eos0),tw::grid::z,fld::neumannWall,fld::neumannWall);
+	eos1.SetBoundaryConditions(All(eos1),tw::grid::x,fld::neumannWall,fld::neumannWall);
+	eos1.SetBoundaryConditions(All(eos1),tw::grid::y,fld::neumannWall,fld::neumannWall);
+	eos1.SetBoundaryConditions(All(eos1),tw::grid::z,fld::neumannWall,fld::neumannWall);
+	creationRate.SetBoundaryConditions(All(creationRate),tw::grid::x,fld::neumannWall,fld::neumannWall);
+	creationRate.SetBoundaryConditions(All(creationRate),tw::grid::y,fld::neumannWall,fld::neumannWall);
+	creationRate.SetBoundaryConditions(All(creationRate),tw::grid::z,fld::neumannWall,fld::neumannWall);
+	destructionRate.SetBoundaryConditions(All(destructionRate),tw::grid::x,fld::neumannWall,fld::neumannWall);
+	destructionRate.SetBoundaryConditions(All(destructionRate),tw::grid::y,fld::neumannWall,fld::neumannWall);
+	destructionRate.SetBoundaryConditions(All(destructionRate),tw::grid::z,fld::neumannWall,fld::neumannWall);
 	nu_e.SetBoundaryConditions(tw::grid::x,fld::neumannWall,fld::neumannWall);
 	nu_e.SetBoundaryConditions(tw::grid::y,fld::neumannWall,fld::neumannWall);
 	nu_e.SetBoundaryConditions(tw::grid::z,fld::neumannWall,fld::neumannWall);
@@ -1394,25 +1394,25 @@ void sparc::HydroManager::Initialize()
 	// Refine boundary conditions for particular quantities
 	for (auto grp : group)
 	{
-		Element e;
+		Rng e;
 		// Temperature
-		e = Element(grp->eidx.T);
+		e = Rng(grp->eidx.T);
 		parabolicSolver->SetFieldsBoundaryConditions(eos0,e);
 		parabolicSolver->SetFieldsBoundaryConditions(eos1,e);
 		// X-Component
-		e = Element(grp->hidx.npx);
+		e = Rng(grp->hidx.npx);
 		state0.SetBoundaryConditions(e,tw::grid::x,bc0[1],bc1[1]);
 		state1.SetBoundaryConditions(e,tw::grid::x,bc0[1],bc1[1]);
 		creationRate.SetBoundaryConditions(e,tw::grid::x,bc0[1],bc1[1]);
 		destructionRate.SetBoundaryConditions(e,tw::grid::x,bc0[1],bc1[1]);
 		// Y-Component
-		e = Element(grp->hidx.npy);
+		e = Rng(grp->hidx.npy);
 		state0.SetBoundaryConditions(e,tw::grid::y,bc0[2],bc1[2]);
 		state1.SetBoundaryConditions(e,tw::grid::y,bc0[2],bc1[2]);
 		creationRate.SetBoundaryConditions(e,tw::grid::y,bc0[2],bc1[2]);
 		destructionRate.SetBoundaryConditions(e,tw::grid::y,bc0[2],bc1[2]);
 		// Z-Component
-		e = Element(grp->hidx.npz);
+		e = Rng(grp->hidx.npz);
 		state0.SetBoundaryConditions(e,tw::grid::z,bc0[3],bc1[3]);
 		state1.SetBoundaryConditions(e,tw::grid::z,bc0[3],bc1[3]);
 		creationRate.SetBoundaryConditions(e,tw::grid::z,bc0[3],bc1[3]);
@@ -1482,7 +1482,7 @@ void sparc::HydroManager::LoadCollisionRate(Collision *coll,ScalarField& R)
 	tw::Float N1,N2,T1,T2,v12,Ti,phonon,coulomb;
 
 	if (coll->type==sparc::hard_sphere)
-		for (auto cell : InteriorCellRange(*this))
+		for (auto cell : InteriorCellRange(*this,1))
 		{
 			T1 = eos1(cell,coll->e1.T) * econv;
 			T2 = eos1(cell,coll->e2.T) * econv;
@@ -1491,7 +1491,7 @@ void sparc::HydroManager::LoadCollisionRate(Collision *coll,ScalarField& R)
 		}
 
 	if (coll->type==sparc::coulomb)
-		for (auto cell : InteriorCellRange(*this))
+		for (auto cell : InteriorCellRange(*this,1))
 		{
 			N1 = state1(cell,coll->h1.ni) * nconv;
 			N2 = state1(cell,coll->h2.ni) * nconv;
@@ -1504,7 +1504,7 @@ void sparc::HydroManager::LoadCollisionRate(Collision *coll,ScalarField& R)
 	if (coll->type==sparc::metallic)
 		// Electron-phonon rate is the collision frequency divided by a reference density
 		// The collision frequency is defined by the momentum loss rate, e.g., dp/dt = -nu*p
-		for (auto cell : InteriorCellRange(*this))
+		for (auto cell : InteriorCellRange(*this,1))
 		{
 			N1 = state1(cell,coll->h1.ni) * nconv;
 			N2 = state1(cell,coll->h2.ni) * nconv;
@@ -1524,16 +1524,16 @@ void sparc::HydroManager::ComputeElectronCollisionFrequency()
 {
 	#pragma omp parallel
 	{
-		for (auto cell : InteriorCellRange(*this))
+		for (auto cell : InteriorCellRange(*this,1))
 			nu_e(cell) = 0.0;
 		for (auto coll : collision)
 		{
 			LoadCollisionRate(coll,scratch);
 			if (coll->h1.ni==ie)
-				for (auto cell : InteriorCellRange(*this))
+				for (auto cell : InteriorCellRange(*this,1))
 					nu_e(cell) += state1(cell,coll->h2.ni) * scratch(cell);
 			if (coll->h2.ni==ie)
-				for (auto cell : InteriorCellRange(*this))
+				for (auto cell : InteriorCellRange(*this,1))
 					nu_e(cell) += state1(cell,coll->h1.ni) * scratch(cell);
 		}
 	}
@@ -1550,7 +1550,7 @@ void sparc::HydroManager::ComputeCollisionalSources()
 		// REACTIONS
 
 		for (auto rx : reaction)
-			for (auto cell : InteriorCellRange(*this))
+			for (auto cell : InteriorCellRange(*this,1))
 			{
 				rateNow = rx->PrimitiveRate(eos1(cell,rx->catalyst.T));
 				for (auto s : rx->sub)
@@ -1622,7 +1622,7 @@ void sparc::HydroManager::ComputeCollisionalSources()
 		for (auto coll : collision)
 		{
 			LoadCollisionRate(coll,scratch);
-			for (auto cell : InteriorCellRange(*this))
+			for (auto cell : InteriorCellRange(*this,1))
 			{
 				const tw::Float R = scratch(cell);
 				const tw::Float N1 = state1(cell,coll->h1.ni);
@@ -1656,7 +1656,7 @@ void sparc::HydroManager::ComputeCollisionalSources()
 		// VIBRATIONS
 
 		for (auto x : excitation)
-			for (auto cell : InteriorCellRange(*this))
+			for (auto cell : InteriorCellRange(*this,1))
 			{
 				const tw::Float Te = eos1(cell,x->e1.T);
 				const tw::Float Tv = eos1(cell,x->e2.Tv);
@@ -1695,7 +1695,7 @@ void sparc::HydroManager::ComputeRadiativeSources()
 		// Ohmic heating due to static and laser fields
 		if (electrons)
 		{
-			for (auto cell : InteriorCellRange(*this))
+			for (auto cell : InteriorCellRange(*this,1))
 			{
 				const tw::Float sig_AC = nu_e(cell)*state1(cell,ie)/(sqr(laserFrequency) + sqr(nu_e(cell)));
 				const tw::Float sig_DC = state1(cell,ie)/nu_e(cell);
@@ -1710,7 +1710,7 @@ void sparc::HydroManager::ComputeRadiativeSources()
 		}
 
 		// Photoionization
-		for (auto cell : InteriorCellRange(*this))
+		for (auto cell : InteriorCellRange(*this,1))
 			if (radiationIntensity(cell)>0.0)
 				for (auto grp : group)
 					for (auto chem : grp->chemical)
@@ -1752,7 +1752,7 @@ void sparc::HydroManager::ComputeRadiativeSources()
 		// The effective LTE temperature is estimated from (total pressure / total density)
 		if (radModel!=sparc::noRadiation)
 		{
-			for (auto cell : InteriorCellRange(*this))
+			for (auto cell : InteriorCellRange(*this,1))
 			{
 				tw::Float Ptot=tw::small_pos, ntot=tw::small_pos;
 				for (auto grp : group)
@@ -1793,7 +1793,7 @@ tw::vec3 sparc::HydroManager::ComputeForceOnBody(tw::Int i,tw::Int j,tw::Int k)
 		const tw::Float Az0 = owner->dS(i,j,k,3);
 		const tw::Float Az1 = owner->dS(i,j,k+1,3);
 
-		const tw::Float Pc = eos1(i,j,k,g->eidx.P);
+		const tw::Float Pc = eos1(1,i,j,k,g->eidx.P);
 
 		if (fluxMask(i-1,j,k)==0.0 && fluxMask(i,j,k)==1.0)
 			ans.x -= Pc*Ax0;
@@ -1831,7 +1831,7 @@ void sparc::HydroManager::ComputeHydroSources()
 				// mass and momentum density are convected, but then reset to restore quasineutrality and heavy particle velocity
 
 				// take away any collisional sources of momentum
-				for (auto cell : InteriorCellRange(*this))
+				for (auto cell : InteriorCellRange(*this,1))
 				{
 					creationRate(cell,g->hidx.npx) = 0.0;
 					creationRate(cell,g->hidx.npy) = 0.0;
@@ -1848,7 +1848,7 @@ void sparc::HydroManager::ComputeHydroSources()
 					#pragma omp barrier
 					g->LoadVelocity(scratch,state1,ax);
 					#pragma omp barrier
-					for (auto cell : InteriorCellRange(*this))
+					for (auto cell : InteriorCellRange(*this,1))
 					{
 						tw::Float dV,dS0,dS1,dl0,dl1,P0,P1,v0,v1;
 						tw::Float forceDensity = 0.0;
@@ -1908,7 +1908,7 @@ void sparc::HydroManager::ComputeHydroSources()
 				// Undifferentiated tensor divergence terms
 				//#pragma omp barrier
 				if (owner->gridGeometry==tw::grid::cylindrical)
-					for (auto cell : InteriorCellRange(*this))
+					for (auto cell : InteriorCellRange(*this,1))
 					{
 						const tw::Float nm = g->DensityWeightedSum(state1,g->matset.mass,cell);
 						const tw::Float Pc = eos1(cell,g->eidx.P);
@@ -1918,7 +1918,7 @@ void sparc::HydroManager::ComputeHydroSources()
 						DestroyMomentum(cell,2,fluxMask(cell)*nm*vc.x*vc.y/pos.x,g->hidx);
 					}
 				if (owner->gridGeometry==tw::grid::spherical)
-					for (auto cell : InteriorCellRange(*this))
+					for (auto cell : InteriorCellRange(*this,1))
 					{
 						const tw::Float nm = g->DensityWeightedSum(state1,g->matset.mass,cell);
 						const tw::Float Pc = eos1(cell,g->eidx.P);
@@ -1944,11 +1944,11 @@ void sparc::HydroManager::ComputeSources()
 	ComputeRadiativeSources();
 	ComputeHydroSources();
 
-	creationRate.CopyFromNeighbors();
-	creationRate.ApplyBoundaryCondition();
+	creationRate.CopyFromNeighbors(All(creationRate));
+	creationRate.ApplyBoundaryCondition(All(creationRate));
 
-	destructionRate.CopyFromNeighbors();
-	destructionRate.ApplyBoundaryCondition();
+	destructionRate.CopyFromNeighbors(All(destructionRate));
+	destructionRate.ApplyBoundaryCondition(All(destructionRate));
 }
 
 void sparc::HydroManager::LaserAdvance(tw::Float dt)
@@ -1967,7 +1967,7 @@ void sparc::HydroManager::LaserAdvance(tw::Float dt)
 	{
 		#pragma omp parallel
 		{
-			for (auto cell : InteriorCellRange(*this))
+			for (auto cell : InteriorCellRange(*this,1))
 			{
 				tw::Complex fwd = 0.0;
 				tw::Complex bak = 0.0;
@@ -1991,7 +1991,7 @@ void sparc::HydroManager::LaserAdvance(tw::Float dt)
 		{
 			tw::Complex a0,a1; // amplitudes of incoming waves on left
 			tw::Complex aN,aN1; // amplitudes of incoming waves on right
-			for (auto strip : StripRange(*this,3,strongbool::no))
+			for (auto strip : StripRange(*this,3,0,1,strongbool::no))
 			{
 				a0 = a1 = aN = aN1 = 0.0;
 				const tw::Float z0 = owner->Pos(strip,0).z;
@@ -2038,7 +2038,7 @@ void sparc::HydroManager::LaserAdvance(tw::Float dt)
 
 		#pragma omp parallel
 		{
-			for (auto cell : InteriorCellRange(*this))
+			for (auto cell : InteriorCellRange(*this,1))
 				radiationIntensity(cell) = real(refractiveIndex(cell))*0.5*norm(laserAmplitude(cell));
 		}
 	}
@@ -2063,7 +2063,7 @@ tw::Float sparc::HydroManager::EstimateTimeStep()
 
 		// Courant condition
 
-		for (auto cell : InteriorCellRange(*this))
+		for (auto cell : InteriorCellRange(*this,1))
 			for (tw::Int s=0;s<group.size();s++)
 			{
 				const tw::vec3 vel = group[s]->Velocity(state1,cell);
@@ -2101,13 +2101,13 @@ tw::Float sparc::HydroManager::EstimateTimeStep()
 		for (auto g : group)
 		{
 			for (auto chem : g->chemical)
-				for (auto cell : InteriorCellRange(*this))
+				for (auto cell : InteriorCellRange(*this,1))
 					dtMax[tid] = AsymptoticStep(cell,chem->indexInState);
 
-			for (auto cell : InteriorCellRange(*this))
+			for (auto cell : InteriorCellRange(*this,1))
 				dtMax[tid] = AsymptoticStep(cell,g->hidx.u);
 
-			for (auto cell : InteriorCellRange(*this))
+			for (auto cell : InteriorCellRange(*this,1))
 				dtMax[tid] = AsymptoticStep(cell,g->hidx.x);
 		}
 	} // end parallel region
@@ -2158,9 +2158,9 @@ void sparc::HydroManager::DiffusionAdvance(tw::Float dt)
 		// HEAT CONDUCTION
 
 		for (auto c : conductor)
-			parabolicSolver->FixTemperature(eos1,Element(g->eidx.T),c->theRgn,c->Temperature(owner->WindowPos(0)));
+			parabolicSolver->FixTemperature(eos1,Rng(g->eidx.T),c->theRgn,c->Temperature(owner->WindowPos(0)));
 		g->LoadMassDensity(scratch,state1);
-		CopyFieldData(scratch2,Element(0),eos1,Element(g->eidx.T));
+		CopyFieldData(scratch2,Rng(0),eos1,Rng(g->eidx.T));
 		parabolicSolver->Advance(eos1,g->eidx.T,fluxMask,&eos1,g->eidx.nmcv,&eos1,g->eidx.K,dt);
 		g->eosMixData->UpdateEnergy(scratch,scratch2,state1,eos1);
 
@@ -2173,16 +2173,16 @@ void sparc::HydroManager::DiffusionAdvance(tw::Float dt)
 			parabolicSolver->Advance(scratch2,0,fluxMask,&scratch,0,&eos1,g->eidx.visc,dt);
 			#pragma omp parallel
 			{
-				for (auto cell : InteriorCellRange(*this))
+				for (auto cell : InteriorCellRange(*this,1))
 					state1(cell,g->hidx.npx+ax-1) = scratch(cell)*scratch2(cell);
 			}
 		}
 	}
 
-	state1.CopyFromNeighbors();
-	state1.ApplyBoundaryCondition();
-	eos1.CopyFromNeighbors();
-	eos1.ApplyBoundaryCondition();
+	state1.CopyFromNeighbors(All(state1));
+	state1.ApplyBoundaryCondition(All(state1));
+	eos1.CopyFromNeighbors(All(eos1));
+	eos1.ApplyBoundaryCondition(All(eos1));
 }
 
 void sparc::HydroManager::FieldAdvance(tw::Float dt)
@@ -2200,7 +2200,7 @@ void sparc::HydroManager::FieldAdvance(tw::Float dt)
 		#pragma omp parallel
 		{
 			tw::Float D1,D2,P0,P1,mu0,mu1,dV,dS0,dS1,dl0,dl1;
-			for (auto cell : InteriorCellRange(*this))
+			for (auto cell : InteriorCellRange(*this,1))
 			{
 				rho(cell) = rho0(cell);
 				for (tw::Int ax=1;ax<=3;ax++)
@@ -2269,17 +2269,17 @@ void sparc::HydroManager::HydroAdvance(const tw::grid::axis& axis,tw::Float dt)
 
 		for (auto g : group)
 		{
-			convector.SetDensityElements(Element(g->hidx.first,g->hidx.last));
+			convector.SetDensityElements(Rng(g->hidx.first,g->hidx.last+1));
 			convector.SetVelocityElement(0);
 			#pragma omp parallel
 			{
 				g->LoadVelocity(scratch,state1,ax);
-				for (auto cell : EntireCellRange(*this))
+				for (auto cell : EntireCellRange(*this,1))
 					scratch(cell) *= fluxMask(cell);
 			}
 			convector.Convect(axis,bc0,bc1,dt);
 		}
-		state0.ApplyBoundaryCondition();
+		state0.ApplyBoundaryCondition(All(state0));
 	}
 }
 
@@ -2291,8 +2291,8 @@ void sparc::HydroManager::ChemAdvance(tw::Float dt)
 	destructionRate *= dt;
 	state0 -= destructionRate;
 
-	state0.CopyFromNeighbors();
-	state0.ApplyBoundaryCondition();
+	state0.CopyFromNeighbors(All(state0));
+	state0.ApplyBoundaryCondition(All(state0));
 }
 
 void sparc::HydroManager::EOSAdvance(tw::Float dt)
@@ -2332,7 +2332,7 @@ void sparc::HydroManager::EOSAdvance(tw::Float dt)
 		tw::Float ionChargeDensity;
 		tw::vec3 ionVelocity;
 
-		for (auto cell : EntireCellRange(*this))
+		for (auto cell : EntireCellRange(*this,1))
 		{
 			ionChargeDensity = 0.0;
 			ionVelocity = 0.0;
@@ -2374,17 +2374,11 @@ void sparc::HydroManager::EOSAdvance(tw::Float dt)
 
 	// Check for numerical failure, defined by NaN in the hydro state vector
 	tw::Int badCells = 0;
-	for (auto cell : EntireCellRange(*this))
+	for (auto cell : EntireCellRange(*this,1))
 		for (tw::Int c=0;c<state1.Components();c++)
 			badCells += std::isnan(state1(cell,c));
 	if (badCells)
 		throw tw::FatalError("Encountered NaN in hydrodynamic state");
-
-	// DFG - EntireCellRange has been updated, no need for message passing.
-	// state1.CopyFromNeighbors();
-	// state1.ApplyBoundaryCondition();
-	// eos0.CopyFromNeighbors();
-	// eos0.ApplyBoundaryCondition();
 }
 
 void sparc::HydroManager::FirstOrderAdvance(tw::Float dt,bool computeSources)
@@ -2481,9 +2475,9 @@ void sparc::HydroManager::Report(Diagnostic& diagnostic)
 
 	auto WriteSubmoduleData = [&] (Field& theData,tw::Int comp,const std::string& filename,const tw::dims units=tw::dims::none,const std::string& pretty="tw::none")
 	{
-		CopyFieldData(scratch,Element(0),theData,Element(comp));
+		CopyFieldData(scratch,Rng(0),theData,Rng(comp));
 		scratch *= fluxMask;
-		diagnostic.ReportField(filename,scratch,0,units,pretty);
+		diagnostic.ReportField(filename,scratch,1,0,units,pretty);
 	};
 
 	// Mass, Charge, Energy
@@ -2495,16 +2489,16 @@ void sparc::HydroManager::Report(Diagnostic& diagnostic)
 		scratch2 *= fluxMask;
 		scratch += scratch2;
 	}
-	diagnostic.VolumeIntegral("Mass",scratch,0);
-	diagnostic.ReportField("massdensity",scratch,0,tw::dims::mass_density,"$\\rho$");
+	diagnostic.VolumeIntegral("Mass",scratch,1,0);
+	diagnostic.ReportField("massdensity",scratch,1,0,tw::dims::mass_density,"$\\rho$");
 
-	diagnostic.VolumeIntegral("Charge",rho,0);
+	diagnostic.VolumeIntegral("Charge",rho,1,0);
 
 	scratch = 0.0;
 	for (auto g : group)
-		for (auto cell : InteriorCellRange(*this))
+		for (auto cell : InteriorCellRange(*this,1))
 			scratch(cell) += state1(cell,g->hidx.u);
-	diagnostic.VolumeIntegral("Energy",scratch,0);
+	diagnostic.VolumeIntegral("Energy",scratch,1,0);
 
 	// Momentum
 
@@ -2512,41 +2506,41 @@ void sparc::HydroManager::Report(Diagnostic& diagnostic)
 	{
 		scratch = 0.0;
 		for (auto g : group)
-			for (auto cell : InteriorCellRange(*this))
+			for (auto cell : InteriorCellRange(*this,1))
 				scratch(cell) += state1(cell,g->hidx.npx+ax-1);
-		diagnostic.VolumeIntegral("P"+xyz[ax],scratch,0);
+		diagnostic.VolumeIntegral("P"+xyz[ax],scratch,1,0);
 	}
 
 	// Dipole moment
 
-	diagnostic.FirstMoment("Dx",rho,0,dipoleCenter,tw::grid::x);
-	diagnostic.FirstMoment("Dy",rho,0,dipoleCenter,tw::grid::y);
-	diagnostic.FirstMoment("Dz",rho,0,dipoleCenter,tw::grid::z);
+	diagnostic.FirstMoment("Dx",rho,1,0,dipoleCenter,tw::grid::x);
+	diagnostic.FirstMoment("Dy",rho,1,0,dipoleCenter,tw::grid::y);
+	diagnostic.FirstMoment("Dz",rho,1,0,dipoleCenter,tw::grid::z);
 
 	// Impermeable Region
 
-	diagnostic.ReportField("impermeable",fluxMask,0);
+	diagnostic.ReportField("impermeable",fluxMask,1,0);
 
 	// Collision Diagnostic
 
-	diagnostic.ReportField("collisionFreq",nu_e,0,tw::dims::frequency,"$\\nu_e$");
+	diagnostic.ReportField("collisionFreq",nu_e,1,0,tw::dims::frequency,"$\\nu_e$");
 
 	// Radiation Diagnostic
 
-	diagnostic.ReportField("rad-intensity",radiationIntensity,0,tw::dims::intensity,"$I$");
-	diagnostic.ReportField("rad-ereal",laserAmplitude,0,tw::dims::electric_field,"$\\Re E$");
-	diagnostic.ReportField("rad-eimag",laserAmplitude,1,tw::dims::electric_field,"$\\Im E$");
-	diagnostic.ReportField("rad-losses",radiativeLosses,0,tw::dims::power_density,"${\\cal P}$");
-	diagnostic.ReportField("rad-nreal",refractiveIndex,0);
-	diagnostic.ReportField("rad-nimag",refractiveIndex,1);
-	diagnostic.ReportField("me_eff",me_eff,0);
+	diagnostic.ReportField("rad-intensity",radiationIntensity,1,0,tw::dims::intensity,"$I$");
+	diagnostic.ReportField("rad-ereal",laserAmplitude,1,0,tw::dims::electric_field,"$\\Re E$");
+	diagnostic.ReportField("rad-eimag",laserAmplitude,1,1,tw::dims::electric_field,"$\\Im E$");
+	diagnostic.ReportField("rad-losses",radiativeLosses,1,0,tw::dims::power_density,"${\\cal P}$");
+	diagnostic.ReportField("rad-nreal",refractiveIndex,1,0);
+	diagnostic.ReportField("rad-nimag",refractiveIndex,1,1);
+	diagnostic.ReportField("me_eff",me_eff,1,0);
 
 	// Electrostatics
 
 	if (electrons)
 	{
-		diagnostic.ReportField("chem-phi",phi,0,tw::dims::scalar_potential,"$\\phi$");
-		diagnostic.ReportField("chem-rho",rho,0,tw::dims::charge_density,"$\\rho$");
+		diagnostic.ReportField("chem-phi",phi,1,0,tw::dims::scalar_potential,"$\\phi$");
+		diagnostic.ReportField("chem-rho",rho,1,0,tw::dims::charge_density,"$\\rho$");
 	}
 
 	// Constituents and groups
@@ -2566,7 +2560,7 @@ void sparc::HydroManager::Report(Diagnostic& diagnostic)
 		{
 			g->LoadVelocity(scratch,state1,ax);
 			scratch *= fluxMask;
-			diagnostic.ReportField("v"+xyz[ax]+"_"+g->name,scratch,0,tw::dims::velocity,"$v_"+xyz[ax]+"$");
+			diagnostic.ReportField("v"+xyz[ax]+"_"+g->name,scratch,1,0,tw::dims::velocity,"$v_"+xyz[ax]+"$");
 		}
 	}
 }

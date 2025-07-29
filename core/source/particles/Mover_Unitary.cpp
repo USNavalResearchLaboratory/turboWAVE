@@ -12,15 +12,17 @@ void UnitaryMover::Advance()
 		DoTasks<BundleMoverUnitary3D>();
 }
 
-void BundleMoverUnitary2D::LoadFieldSlice(tw::Int low[4],tw::Int high[4],tw::Int ignorable[4])
+void BundleMoverUnitary2D::LoadFieldSlice(tw::node5& beg,tw::node5& end)
 {
-	Fx.Resize(Element(0,5),low,high,ignorable);
+	beg[4] = 0; end[4] = 6;
+	Fx.Resize(beg,end);
 	mov.EM->LoadDataIntoSlice<float>(&Fx);
 }
 
-void BundleMoverUnitary2D::InitSourceSlice(tw::Int low[4],tw::Int high[4],tw::Int ignorable[4])
+void BundleMoverUnitary2D::InitSourceSlice(tw::node5& beg,tw::node5& end)
 {
-	Jx.Resize(Element(0,3),low,high,ignorable);
+	beg[4] = 0; end[4] = 4;
+	Jx.Resize(beg,end);
 	Jx = 0.0f;
 }
 
@@ -47,15 +49,17 @@ void BundleMoverUnitary2D::Move(tw::Float dts)
 	StoreJTile(Jx);
 }
 
-void BundleMoverUnitary3D::LoadFieldSlice(tw::Int low[4],tw::Int high[4],tw::Int ignorable[4])
+void BundleMoverUnitary3D::LoadFieldSlice(tw::node5& beg,tw::node5& end)
 {
-	Fx.Resize(Element(0,5),low,high,ignorable);
+	beg[4] = 0; end[4] = 6;
+	Fx.Resize(beg,end);
 	mov.EM->LoadDataIntoSlice<float>(&Fx);
 }
 
-void BundleMoverUnitary3D::InitSourceSlice(tw::Int low[4],tw::Int high[4],tw::Int ignorable[4])
+void BundleMoverUnitary3D::InitSourceSlice(tw::node5& beg,tw::node5& end)
 {
-	Jx.Resize(Element(0,3),low,high,ignorable);
+	beg[4] = 0; end[4] = 4;
+	Jx.Resize(beg,end);
 	Jx = 0.0f;
 }
 

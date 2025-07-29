@@ -603,7 +603,7 @@ void EOSComponent::SetHeatCapacity(ScalarField& nm,Field& eos)
 {
 	#pragma omp parallel
 	{
-		for (auto cell : EntireCellRange(*space))
+		for (auto cell : EntireCellRange(*space,0))
 			eos(cell,eidx.nmcv) = nm(cell) * mat.cvm / mat.mass;
 	}
 }
@@ -612,7 +612,7 @@ void EOSComponent::AddHeatCapacity(Field& hydro,Field& eos)
 {
 	#pragma omp parallel
 	{
-		for (auto cell : EntireCellRange(*space))
+		for (auto cell : EntireCellRange(*space,0))
 			eos(cell,eidx.nmcv) += hydro(cell,hidx.ni) * mat.cvm;
 	}
 }
@@ -621,7 +621,7 @@ void EOSComponent::AddPKV(ScalarField& IE, ScalarField& nm, ScalarField& nu_e, F
 {
 	#pragma omp parallel
 	{
-		for (auto cell : EntireCellRange(*space))
+		for (auto cell : EntireCellRange(*space,0))
 		{
 			const tw::Float ngas = hydro(cell,hidx.ni);
 			eos(cell,eidx.P) += ngas*eos(cell,eidx.T);
@@ -657,7 +657,7 @@ void EOSHotElectrons::AddPKV(ScalarField& IE, ScalarField& nm, ScalarField& nu_e
 {
 	#pragma omp parallel
 	{
-		for (auto cell : EntireCellRange(*space))
+		for (auto cell : EntireCellRange(*space,0))
 		{
 			const tw::Float ne = hydro(cell,hidx.ni);
 			eos(cell,eidx.P) += ne*eos(cell,eidx.T);
@@ -686,7 +686,7 @@ void EOSSimpleMieGruneisen::AddPKV(ScalarField& IE, ScalarField& nm, ScalarField
 {
 	#pragma omp parallel
 	{
-		for (auto cell : EntireCellRange(*space))
+		for (auto cell : EntireCellRange(*space,0))
 		{
 			const tw::Float nion = hydro(cell,hidx.ni);
 			const tw::Float partial_IE = IE(cell) * nion * mat.mass / nm(cell);
@@ -730,7 +730,7 @@ void EOSLinearMieGruneisen::AddPKV(ScalarField& IE, ScalarField& nm, ScalarField
 {
 	#pragma omp parallel
 	{
-		for (auto cell : EntireCellRange(*space))
+		for (auto cell : EntireCellRange(*space,0))
 		{
 			const tw::Float nion = hydro(cell,hidx.ni);
 			const tw::Float partial_IE = IE(cell) * nion * mat.mass / nm(cell);
@@ -798,7 +798,7 @@ void EOSTillotson::AddPKV(ScalarField& IE, ScalarField& nm, ScalarField& nu_e, F
 {
 	#pragma omp parallel
 	{
-		for (auto cell : EntireCellRange(*space))
+		for (auto cell : EntireCellRange(*space,0))
 		{
 			const tw::Float ndens = hydro(cell,hidx.ni);
 			const tw::Float u = hydro(cell,hidx.u);
@@ -876,7 +876,7 @@ void EOSMixture::ComputeTemperature(ScalarField& IE, ScalarField& nm, Field& hyd
 
 	#pragma omp parallel
 	{
-		for (auto cell : EntireCellRange(*space))
+		for (auto cell : EntireCellRange(*space,0))
 		{
 			nm(cell) = MassDensity(hydro,cell);
 			IE(cell) = InternalEnergy(nm(cell),hydro,cell);
@@ -897,7 +897,7 @@ void EOSMixture::ComputeTemperature(ScalarField& IE, ScalarField& nm, Field& hyd
 
 	#pragma omp parallel
 	{
-		for (auto cell : EntireCellRange(*space))
+		for (auto cell : EntireCellRange(*space,0))
 		{
 			const tw::Float nm1 = tw::small_pos + MassDensity(hydro,cell);
 			const tw::Float IE1 = InternalEnergy(nm1,hydro,cell);
@@ -922,7 +922,7 @@ void EOSMixture::UpdateEnergy(ScalarField& nm,ScalarField& T0,Field& hydro,Field
 	// Not centered, because cv is not updated.
 	#pragma omp parallel
 	{
-		for (auto cell : EntireCellRange(*space))
+		for (auto cell : EntireCellRange(*space,0))
 			hydro(cell,hidx.u) += eos(cell,eidx.nmcv) * (eos(cell,eidx.T) - T0(cell));
 	}
 }
@@ -946,7 +946,7 @@ void EOSIdealGasMix::ComputeTemperature(ScalarField& IE, ScalarField& nm, Field&
 
 	#pragma omp parallel
 	{
-		for (auto cell : EntireCellRange(*space))
+		for (auto cell : EntireCellRange(*space,0))
 		{
 			const tw::Float nm1 = MassDensity(hydro,cell);
 			const tw::Float IE1 = InternalEnergy(nm1,hydro,cell);

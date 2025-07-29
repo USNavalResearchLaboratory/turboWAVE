@@ -490,28 +490,29 @@ tw::module_type Module::CreateTypeFromInput(const tw::input::Preamble& preamble)
 
 bool Module::SetTestGrid(tw::module_type theType,tw::Int gridId,Simulation *sim)
 {
-	const tw::Int cyclic[4] = {0,1,1,0};
-	const tw::Int domains[4] = {1,1,1,2};
-	const tw::Int gdim1d[4] = {1,1,1,4};
-	const tw::Int gdim2d[4] = {1,4,1,4};
-	const tw::Int gdim3d[4] = {1,4,4,4};
+	const tw::node4 cyclic = {0,1,1,0};
+	const tw::node4 domains = {1,1,1,2};
+	const tw::node5 gdim1d = {1,1,1,4,1};
+	const tw::node5 gdim2d = {1,4,1,4,1};
+	const tw::node5 gdim3d = {1,4,4,4,1};
+	const tw::node4 layers = {0,2,2,2};
 	sim->Initialize(domains,cyclic);
 	switch (theType)
 	{
 		case tw::module_type::species:
 			if (gridId==1)
 			{
-				sim->Resize(sim,gdim2d,tw::vec4(0,0,0,0),tw::vec4(0.1,0.8,0.2,0.8),2);
+				sim->Resize(sim,gdim2d,tw::vec4(0,0,0,0),tw::vec4(0.1,0.8,0.2,0.8),std_packing,layers);
 				return true;
 			} else if (gridId==2) {
-				sim->Resize(sim,gdim3d,tw::vec4(0,0,0,0),tw::vec4(0.1,0.8,0.8,0.8),2);
+				sim->Resize(sim,gdim3d,tw::vec4(0,0,0,0),tw::vec4(0.1,0.8,0.8,0.8),std_packing,layers);
 				return true;
 			}
 			return false;
 		default:
 			if (gridId>1)
 				return false;
-			sim->Resize(sim,gdim3d,tw::vec4(0,0,0,0),tw::vec4(0.1,0.8,0.8,0.8),2);
+			sim->Resize(sim,gdim3d,tw::vec4(0,0,0,0),tw::vec4(0.1,0.8,0.8,0.8),std_packing,layers);
 			return true;
 	}
 }

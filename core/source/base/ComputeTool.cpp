@@ -17,7 +17,8 @@ export module compute_tool;
 import base;
 import input;
 import region;
-import fields;
+import static_space;
+import metric_space;
 
 export namespace tw
 {
@@ -90,18 +91,6 @@ export struct ComputeTool : Testable
 	static std::map<std::string,tw::tool_type> Map();
 	static tw::tool_type CreateTypeFromInput(const tw::input::Preamble& preamble);
 	static bool SetTestGrid(tw::tool_type theType,tw::Int gridId,MetricSpace *ms,Task *tsk);
-};
-
-export struct BoundedTool : ComputeTool
-{
-	tw::bc::fld x0,x1,y0,y1,z0,z1;
-	tw::bc::fld x0s,x1s,y0s,y1s,z0s,z1s; // saved BC's
-
-	BoundedTool(const std::string& name,MetricSpace *ms,Task *tsk);
-	void SetBoundaryConditions(tw::bc::fld x0,tw::bc::fld x1,tw::bc::fld y0,tw::bc::fld y1,tw::bc::fld z0,tw::bc::fld z1);
-	void SaveBoundaryConditions();
-	void RestoreBoundaryConditions();
-	void SetFieldsBoundaryConditions(Field& F,const Element& e);
 };
 
 //////////////////////////
@@ -300,86 +289,39 @@ tw::tool_type ComputeTool::CreateTypeFromInput(const tw::input::Preamble& preamb
 
 bool ComputeTool::SetTestGrid(tw::tool_type theType,tw::Int gridId,MetricSpace *ms,Task *tsk)
 {
-	const tw::Int cyclic[4] = {0,1,1,0};
-	const tw::Int domains[4] = {1,1,1,2};
-	const tw::Int gdim1d[4] = {1,1,1,4};
-	const tw::Int gdim2d[4] = {1,4,1,4};
-	const tw::Int gdim3d[4] = {1,4,4,4};
+	const tw::node4 cyclic = {0,1,1,0};
+	const tw::node4 domains = {1,1,1,2};
+	const tw::node5 gdim1d = {1,1,1,4,1};
+	const tw::node5 gdim2d = {1,4,1,4,1};
+	const tw::node5 gdim3d = {1,4,4,4,1};
+	const tw::node4 layers = {0,2,2,2};
+	const tw::vec4 gcorner(0,0,0,0);
 	tsk->Initialize(domains,cyclic);
 	switch (theType)
 	{
 		case tw::tool_type::ellipticSolver1D:
 			if (gridId>1)
 				return false;
-			ms->Resize(tsk,gdim1d,tw::vec4(0,0,0,0),tw::vec4(0.1,0.2,0.2,0.8),2);
+			ms->Resize(tsk,gdim1d,gcorner,tw::vec4(0.1,0.2,0.2,0.8),std_packing,layers);
 			return true;
 		case tw::tool_type::pgcMover:
 		case tw::tool_type::hcMover:
 		case tw::tool_type::borisMover:
 			if (gridId==1) {
-				ms->Resize(tsk,gdim1d,tw::vec4(0,0,0,0),tw::vec4(0.1,0.2,0.2,0.8),2);
+				ms->Resize(tsk,gdim1d,gcorner,tw::vec4(0.1,0.2,0.2,0.8),std_packing,layers);
 				return true;
 			} else if (gridId==2) {
-				ms->Resize(tsk,gdim2d,tw::vec4(0,0,0,0),tw::vec4(0.1,0.8,0.2,0.8),2);
+				ms->Resize(tsk,gdim2d,gcorner,tw::vec4(0.1,0.8,0.2,0.8),std_packing,layers);
 				return true;
 			} else if (gridId==3) {
-				ms->Resize(tsk,gdim3d,tw::vec4(0,0,0,0),tw::vec4(0.1,0.8,0.8,0.8),2);
+				ms->Resize(tsk,gdim3d,gcorner,tw::vec4(0.1,0.8,0.8,0.8),std_packing,layers);
 				return true;
 			}
 			return false;
 		default:
 			if (gridId>1)
 				return false;
-			ms->Resize(tsk,gdim3d,tw::vec4(0,0,0,0),tw::vec4(0.1,0.8,0.8,0.8),2);
+			ms->Resize(tsk,gdim3d,gcorner,tw::vec4(0.1,0.8,0.8,0.8),std_packing,layers);
 			return true;
 	}
-}
-
-// BoundedTool derived class
-// Expect that many tools will want basic access to boundary conditions.
-// Therefore provide a derived class at a low level to provide this.
-
-BoundedTool::BoundedTool(const std::string& name,MetricSpace *m,Task *tsk) : ComputeTool(name,m,tsk)
-{
-	x0 = x1 = y0 = y1 = z0 = z1 = tw::bc::fld::neumannWall;
-	directives.Add("xboundary",new tw::input::Enums<tw::bc::fld>(tw::bc::fld_map(),&x0,&x1),false);
-	directives.Add("yboundary",new tw::input::Enums<tw::bc::fld>(tw::bc::fld_map(),&y0,&y1),false);
-	directives.Add("zboundary",new tw::input::Enums<tw::bc::fld>(tw::bc::fld_map(),&z0,&z1),false);
-}
-
-void BoundedTool::SetBoundaryConditions(tw::bc::fld x0,tw::bc::fld x1,tw::bc::fld y0,tw::bc::fld y1,tw::bc::fld z0,tw::bc::fld z1)
-{
-	this->x0 = x0;
-	this->y0 = y0;
-	this->z0 = z0;
-	this->x1 = x1;
-	this->y1 = y1;
-	this->z1 = z1;
-}
-
-void BoundedTool::SaveBoundaryConditions()
-{
-	x0s = x0;
-	x1s = x1;
-	y0s = y0;
-	y1s = y1;
-	z0s = z0;
-	z1s = z1;
-}
-
-void BoundedTool::RestoreBoundaryConditions()
-{
-	x0 = x0s;
-	x1 = x1s;
-	y0 = y0s;
-	y1 = y1s;
-	z0 = z0s;
-	z1 = z1s;
-}
-
-void BoundedTool::SetFieldsBoundaryConditions(Field& F,const Element& e)
-{
-	F.SetBoundaryConditions(e,tw::grid::x,x0,x1);
-	F.SetBoundaryConditions(e,tw::grid::y,y0,y1);
-	F.SetBoundaryConditions(e,tw::grid::z,z0,z1);
 }

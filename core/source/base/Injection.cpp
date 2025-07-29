@@ -898,7 +898,7 @@ void PulseShape::Initialize(const tw::Float time_origin)
 	{
 		tw::Float *re = &reinterpret_cast<tw::Float(&)[2]>(amplitude[0])[0];
 		tw::Float *im = &reinterpret_cast<tw::Float(&)[2]>(amplitude[0])[1];
-		ComplexFFT(re,im,N,2,1.0);
+		fft::ComplexFFT(re,im,N,2,1.0);
 		for (tw::Int i=0;i<N;i++)
 		{
 			tw::Float psi = 0.0;
@@ -906,7 +906,7 @@ void PulseShape::Initialize(const tw::Float time_origin)
 				psi += spectral_phase_coeff[c]*pow(wpts[i],c+2)/Factorial(c+2);
 			amplitude[i] *= std::exp(ii*psi);
 		}
-		ComplexFFT(re,im,N,2,-1.0);
+		fft::ComplexFFT(re,im,N,2,-1.0);
 		// Impose nice behavior at the boundaries
 		for (tw::Int i=0;i<N/8;i++)
 			amplitude[i] *= QuinticRise(tw::Float(i)/tw::Float(N/8));
@@ -1340,20 +1340,20 @@ void Conductor::DepositSources(Field& sources,tw::Float t,tw::Float dt)
 					const tw::vec3 I3 = (Q1 - Q0)/dt;
 
 					// Deposit cell charge using small displacement model
-					sources(i-1,j,k,0) -= Q1.x;
-					sources(i,j-1,k,0) -= Q1.y;
-					sources(i,j,k-1,0) -= Q1.z;
-					sources(i,j,k+1,0) += Q1.z;
-					sources(i,j+1,k,0) += Q1.y;
-					sources(i+1,j,k,0) += Q1.x;
+					sources(1,i-1,j,k,0) -= Q1.x;
+					sources(1,i,j-1,k,0) -= Q1.y;
+					sources(1,i,j,k-1,0) -= Q1.z;
+					sources(1,i,j,k+1,0) += Q1.z;
+					sources(1,i,j+1,k,0) += Q1.y;
+					sources(1,i+1,j,k,0) += Q1.x;
 
 					// Deposit wall current using small displacement model
-					sources(i,j,k,1) += I3.x;
-					sources(i+1,j,k,1) += I3.x;
-					sources(i,j,k,2) += I3.y;
-					sources(i,j+1,k,2) += I3.y;
-					sources(i,j,k,3) += I3.z;
-					sources(i,j,k+1,3) += I3.z;
+					sources(1,i,j,k,1) += I3.x;
+					sources(1,i+1,j,k,1) += I3.x;
+					sources(1,i,j,k,2) += I3.y;
+					sources(1,i,j+1,k,2) += I3.y;
+					sources(1,i,j,k,3) += I3.z;
+					sources(1,i,j,k+1,3) += I3.z;
 				}
 			}
 }
@@ -1378,12 +1378,12 @@ void LindmanBoundary::Initialize(Task *task,MetricSpace *ms,std::vector<Wave*> *
 	tw::Int ax = tw::grid::naxis(axis);
 	assert(ms->Dim(ax)!=1);
 	assert(ax>=1 && ax<=3);
-	tw::Int bdim[4] = { 1, ms->Dim(1), ms->Dim(2), ms->Dim(3) };
+	tw::node5 bdim { 1, ms->Dim(1), ms->Dim(2), ms->Dim(3), 9 };
 	bdim[ax] = 1;
-	boundaryMemory.Initialize(9, DynSpace(bdim,ms->Corner(),ms->PhysicalSize()), task);
-	boundaryMemory.SetBoundaryConditions(tw::grid::x,fld::none,fld::none);
-	boundaryMemory.SetBoundaryConditions(tw::grid::y,fld::none,fld::none);
-	boundaryMemory.SetBoundaryConditions(tw::grid::z,fld::none,fld::none);
+	boundaryMemory.Initialize(StaticSpace(bdim,ms->PhysicalSize(),std_packing,tw::node4{1,1,1,1,}),task);
+	boundaryMemory.SetBoundaryConditions(All(boundaryMemory),tw::grid::x,fld::none,fld::none);
+	boundaryMemory.SetBoundaryConditions(All(boundaryMemory),tw::grid::y,fld::none,fld::none);
+	boundaryMemory.SetBoundaryConditions(All(boundaryMemory),tw::grid::z,fld::none,fld::none);
 }
 
 void LindmanBoundary::UpdateBoundaryMemory(Field& A,tw::Float dt)
@@ -1398,28 +1398,30 @@ void LindmanBoundary::UpdateBoundaryMemory(Field& A,tw::Float dt)
 	s0 = side==tw::grid::low ? 0 : A.Dim(ax);
 	s1 = side==tw::grid::low ? 1 : A.Dim(ax)+1;
 
-	for (auto strip : StripRange(A,ax,strongbool::no))
+	for (auto strip : StripRange(A,ax,0,1,strongbool::no))
 	{
 		source = A.d2(strip,s1,c0,1) + A.d2(strip,s1,c0,2) + A.d2(strip,s1,c0,3) - A.d2(strip,s1,c0,ax);
 		source -= A.d2(strip,s0,c0,1) + A.d2(strip,s0,c0,2) + A.d2(strip,s0,c0,3) - A.d2(strip,s0,c0,ax);
 		source = A.d2(strip,s1,c1,1) + A.d2(strip,s1,c1,2) + A.d2(strip,s1,c1,3) - A.d2(strip,s1,c1,ax);
 		source -= A.d2(strip,s0,c1,1) + A.d2(strip,s0,c1,2) + A.d2(strip,s0,c1,3) - A.d2(strip,s0,c1,ax);
-		strip.Decode(0,&i,&j,&k);
+		i = strip.dcd1(0);
+		j = strip.dcd2(0);
+		k = strip.dcd3(0);
 		for (s=0;s<3;s++)
 		{
-			dtt =  A.dk(1)*A.dk(1)*(boundaryMemory(i-1,j,k,3+s) - 2.0*boundaryMemory(i,j,k,3+s) + boundaryMemory(i+1,j,k,3+s));
-			dtt += A.dk(2)*A.dk(2)*(boundaryMemory(i,j-1,k,3+s) - 2.0*boundaryMemory(i,j,k,3+s) + boundaryMemory(i,j+1,k,3+s));
-			dtt += A.dk(3)*A.dk(3)*(boundaryMemory(i,j,k-1,3+s) - 2.0*boundaryMemory(i,j,k,3+s) + boundaryMemory(i,j,k+1,3+s));
+			dtt =  A.dk(1)*A.dk(1)*(boundaryMemory(1,i-1,j,k,3+s) - 2.0*boundaryMemory(1,i,j,k,3+s) + boundaryMemory(1,i+1,j,k,3+s));
+			dtt += A.dk(2)*A.dk(2)*(boundaryMemory(1,i,j-1,k,3+s) - 2.0*boundaryMemory(1,i,j,k,3+s) + boundaryMemory(1,i,j+1,k,3+s));
+			dtt += A.dk(3)*A.dk(3)*(boundaryMemory(1,i,j,k-1,3+s) - 2.0*boundaryMemory(1,i,j,k,3+s) + boundaryMemory(1,i,j,k+1,3+s));
 			dtt =  dt*dt*(beta[s]*dtt + alpha[s]*source);
-			boundaryMemory(i,j,k,6+s) = 2.0*boundaryMemory(i,j,k,3+s) - boundaryMemory(i,j,k,s) + dtt;
+			boundaryMemory(1,i,j,k,6+s) = 2.0*boundaryMemory(1,i,j,k,3+s) - boundaryMemory(1,i,j,k,s) + dtt;
 		}
 	}
 
 	//boundaryMemory.ApplyBoundaryCondition(Element(6,8));
-	boundaryMemory.CopyFromNeighbors(Element(6,8));
+	boundaryMemory.CopyFromNeighbors(Rng04(1,2,6,9));
 
-	boundaryMemory.Swap(Element(0,2),Element(3,5));
-	boundaryMemory.Swap(Element(3,5),Element(6,8));
+	boundaryMemory.Swap(Rng04(1,2,0,3),Rng04(1,2,3,6));
+	boundaryMemory.Swap(Rng04(1,2,3,6),Rng04(1,2,6,9));
 }
 
 void LindmanBoundary::Set(Field& A,tw::Float t0,tw::Float dt)
@@ -1438,10 +1440,12 @@ void LindmanBoundary::Set(Field& A,tw::Float t0,tw::Float dt)
 
 	s0 = side==tw::grid::low ? 0 : A.Dim(ax)+1;
 	s1 = side==tw::grid::low ? 1 : A.Dim(ax);
-	for (auto strip : StripRange(A,ax,strongbool::no))
+	for (auto strip : StripRange(A,ax,0,1,strongbool::no))
 	{
-		strip.Decode(s0,&i,&j,&k);
-		correction = boundaryMemory(i,j,k,3) + boundaryMemory(i,j,k,4) + boundaryMemory(i,j,k,5);
+		i = strip.dcd1(s0);
+		j = strip.dcd2(s0);
+		k = strip.dcd3(s0);
+		correction = boundaryMemory(1,i,j,k,3) + boundaryMemory(1,i,j,k,4) + boundaryMemory(1,i,j,k,5);
 		pos = ms->Pos(i,j,k) + sgn*offset;
 		Ain = 0.0;
 		for (s=0;s<wave->size();s++)

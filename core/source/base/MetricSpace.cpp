@@ -57,10 +57,11 @@ export struct MetricSpace:DynSpace
 
 private:
 	void SetTopology(Task *task,
-		const tw::Int gdim[4],
+		const tw::node5& gdim,
 		const tw::vec4& gcorner,
 		const tw::vec4& gsize,
-		tw::Int ghostCellLayers);
+		const tw::node5& packing,
+		const tw::node4& ghostCellLayers);
 	void Allocate();
 	void SetSpacings();
 	void UpdateHulls(Task *task);
@@ -70,10 +71,11 @@ private:
 	void SetSphericalGeometry();
 public:
 	void Resize(Task *task,
-		const tw::Int gdim[4],
+		const tw::node5& gdim,
 		const tw::vec4& gcorner,
 		const tw::vec4& gsize,
-		tw::Int ghostCellLayers=2,
+		const tw::node5& packing,
+		const tw::node4& ghostCellLayers,
 		tw::grid::geometry geo=tw::grid::cartesian);
 	void ReadCheckpoint(std::ifstream& inFile);
 	void WriteCheckpoint(std::ofstream& outFile);
@@ -119,9 +121,9 @@ public:
 	{
 		return width[mnum[0]*ax-mlb[ax]+i];
 	}
-	tw::vec3 Pos(const tw::Int& x,const tw::Int& y,const tw::Int& z) const
+	tw::vec3 Pos(const tw::Int& i,const tw::Int& j,const tw::Int& k) const
 	{
-		return tw::vec3(gpos[mnum[0]*1-mlb[1]+x],gpos[mnum[0]*2-mlb[2]+y],gpos[mnum[0]*3-mlb[3]+z]);
+		return tw::vec3(gpos[mnum[0]*1-mlb[1]+i],gpos[mnum[0]*2-mlb[2]+j],gpos[mnum[0]*3-mlb[3]+k]);
 	}
 	tw::vec3 Pos(const tw::cell& cell) const
 	{
@@ -129,15 +131,17 @@ public:
 	}
 	tw::vec3 Pos(const tw::strip& s,const tw::Int& i) const
 	{
-		return Pos(s.dcd1(i),s.dcd2(i),s.dcd3(i));
+		tw::Int coord[4];
+		s.Decode(i,coord);
+		return Pos(coord[1],coord[2],coord[3]);
 	}
 	tw::vec3 Pos(const tw::xstrip<3>& v,const tw::Int& k) const
 	{
 		return Pos(v.dcd1(k),v.dcd2(k),k);
 	}
-	tw::vec3 dPos(const tw::Int& x,const tw::Int& y,const tw::Int& z) const
+	tw::vec3 dPos(const tw::Int& i,const tw::Int& j,const tw::Int& k) const
 	{
-		return tw::vec3(width[mnum[0]*1-mlb[1]+x],width[mnum[0]*2-mlb[2]+y],width[mnum[0]*3-mlb[3]+z]);
+		return tw::vec3(width[mnum[0]*1-mlb[1]+i],width[mnum[0]*2-mlb[2]+j],width[mnum[0]*3-mlb[3]+k]);
 	}
 	tw::vec3 dPos(const tw::cell& cell) const
 	{
@@ -145,16 +149,18 @@ public:
 	}
 	tw::vec3 dPos(const tw::strip& s,const tw::Int& i) const
 	{
-		return dPos(s.dcd1(i),s.dcd2(i),s.dcd3(i));
+		tw::Int coord[4];
+		s.Decode(i,coord);
+		return dPos(coord[1],coord[2],coord[3]);
 	}
 	tw::vec3 dPos(const tw::xstrip<3>& v,const tw::Int& k) const
 	{
 		return dPos(v.dcd1(k),v.dcd2(k),k);
 	}
 	/// returns wall area for ax = axis normal to wall.  ax = 0 returns cell volume.
-	tw::Float dS(const tw::Int& x,const tw::Int& y,const tw::Int& z,const tw::Int& ax) const
+	tw::Float dS(const tw::Int& i,const tw::Int& j,const tw::Int& k,const tw::Int& ax) const
 	{
-		return cell_area_x[ax*mnum[1] - mlb[1] + x] * cell_area_z[ax*mnum[3] - mlb[3] + z];
+		return cell_area_x[ax*mnum[1] - mlb[1] + i] * cell_area_z[ax*mnum[3] - mlb[3] + k];
 	}
 	tw::Float dS(const tw::cell& cell,const tw::Int& ax) const
 	{
@@ -162,7 +168,9 @@ public:
 	}
 	tw::Float dS(const tw::strip& s,const tw::Int& i,const tw::Int& ax) const
 	{
-		return dS(s.dcd1(i),s.dcd2(i),s.dcd3(i),ax);
+		tw::Int coord[4];
+		s.Decode(i,coord);
+		return dS(coord[1],coord[2],coord[3],ax);
 	}
 	tw::Float dS(const tw::xstrip<1>& v,const tw::Int& i,const tw::Int& ax) const
 	{
@@ -173,9 +181,9 @@ public:
 		return dS(v.dcd1(k),v.dcd2(k),k,ax);
 	}
 	/// returns arc length from cell center to cell center, along axis=ax, from low side
-	tw::Float dl(const tw::Int& x,const tw::Int& y,const tw::Int& z,const tw::Int& ax) const
+	tw::Float dl(const tw::Int& i,const tw::Int& j,const tw::Int& k,const tw::Int& ax) const
 	{
-		return cell_arc_x[(ax-1)*mnum[1] - mlb[1] + x] * cell_arc_z[(ax-1)*mnum[3] - mlb[3] + z];
+		return cell_arc_x[(ax-1)*mnum[1] - mlb[1] + i] * cell_arc_z[(ax-1)*mnum[3] - mlb[3] + k];
 	}
 	tw::Float dl(const tw::cell& cell,const tw::Int& ax) const
 	{
@@ -183,16 +191,18 @@ public:
 	}
 	tw::Float dl(const tw::strip& s,const tw::Int& i,const tw::Int& ax) const
 	{
-		return dl(s.dcd1(i),s.dcd2(i),s.dcd3(i),ax);
+		tw::Int coord[4];
+		s.Decode(i,coord);
+		return dl(coord[1],coord[2],coord[3],ax);
 	}
 	tw::Float dl(const tw::xstrip<3>& v,const tw::Int& k,const tw::Int& ax) const
 	{
 		return dl(v.dcd1(k),v.dcd2(k),k,ax);
 	}
 	/// returns midplane area for ax = axis normal to area.  ax = 0 returns cell volume.
-	tw::Float dSh(const tw::Int& x,const tw::Int& y,const tw::Int& z,const tw::Int& ax) const
+	tw::Float dSh(const tw::Int& i,const tw::Int& j,const tw::Int& k,const tw::Int& ax) const
 	{
-		return dS(x,y,z,ax+4);
+		return dS(i,j,k,ax+4);
 	}
 	tw::Float dSh(const tw::cell& cell,const tw::Int& ax) const
 	{
@@ -203,9 +213,9 @@ public:
 		return dS(v,k,ax+4);
 	}
 	/// returns arc length from cell wall to cell wall, along axis=ax, along low side edge
-	tw::Float dlh(const tw::Int& x,const tw::Int& y,const tw::Int& z,const tw::Int& ax) const
+	tw::Float dlh(const tw::Int& i,const tw::Int& j,const tw::Int& k,const tw::Int& ax) const
 	{
-		return dl(x,y,z,ax+3);
+		return dl(i,j,k,ax+3);
 	}
 	tw::Float dlh(const tw::cell& cell,const tw::Int& ax) const
 	{
@@ -216,9 +226,9 @@ public:
 		return dl(v,k,ax+3);
 	}
 	/// returns arc length between 2 cell centers adjacent to this cell center, along axis=ax
-	tw::Float dL(const tw::Int& x,const tw::Int& y,const tw::Int& z,const tw::Int& ax) const
+	tw::Float dL(const tw::Int& i,const tw::Int& j,const tw::Int& k,const tw::Int& ax) const
 	{
-		return dl(x,y,z,ax) + dl(x+kdelta(1,ax),y,z+kdelta(3,ax),ax);
+		return dl(i,j,k,ax) + dl(i+kdelta(1,ax),j,k+kdelta(3,ax),ax);
 	}
 	tw::Float dL(const tw::cell& cell,const tw::Int& ax) const
 	{
@@ -226,7 +236,9 @@ public:
 	}
 	tw::Float dL(const tw::xstrip<3>& v,const tw::Int& k,const tw::Int& ax) const
 	{
-		return dL(v.dcd1(k),v.dcd2(k),k,ax);
+		tw::Int coord[4];
+		v.Decode(k,coord);
+		return dL(coord[1],coord[2],k,ax);
 	}
 	void GetCellMetrics(const tw::cell& cell,const tw::Int& ax,tw::Float *dV,tw::Float *dS0,tw::Float *dS1,tw::Float *dl0,tw::Float *dl1) const
 	{
@@ -299,13 +311,14 @@ MetricSpace::~MetricSpace()
 /// The `gsize` should be the size of the hull assuming uniform spacing.
 /// It will be adjusted automatically to account for warps.
 void MetricSpace::Resize(Task *task,
-	const tw::Int gdim[4],
+	const tw::node5& gdim,
 	const tw::vec4& gcorner,
 	const tw::vec4& gsize,
-	tw::Int ghostCellLayers,
+	const tw::node5& packing,
+	const tw::node4& ghostCellLayers,
 	tw::grid::geometry geo)
 {
-	SetTopology(task,gdim,gcorner,gsize,ghostCellLayers);
+	SetTopology(task,gdim,gcorner,gsize,packing,ghostCellLayers);
 	Allocate();
 	SetSpacings();
 	UpdateHulls(task);
@@ -463,12 +476,13 @@ void MetricSpace::StripUpdateProtocol(cl_kernel k,cl_command_queue q,tw::Int axi
 
 /// Setup topological information only (step 1)
 void MetricSpace::SetTopology(Task *task,
-	const tw::Int gdim[4],
+	const tw::node5& gdim,
 	const tw::vec4& gcorner,
 	const tw::vec4& gsize,
-	tw::Int ghostCellLayers)
+	const tw::node5& packing,
+	const tw::node4& ghostCellLayers)
 {
-	DynSpace::Resize(task,gdim,gcorner,gsize,ghostCellLayers);
+	DynSpace::Resize(task,gdim,gcorner,gsize,packing,ghostCellLayers);
 
 	// Metric arrays have ghost cell layers even when dim=1.
 	// Hence the topology of the metric data differs from that of other data

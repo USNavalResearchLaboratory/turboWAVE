@@ -34,7 +34,7 @@ export namespace tw
 	{
 		RNG *range;
 		// The RNG class is responsible for decoding the count.
-		// The decoding produces a triple that Field can use to retrieve floating point data.
+		// The decoding produces a tuple that Field can use to retrieve floating point data.
 		// The decoded indices are encapsulated in the REF class.
 		tw::Int curr,first,last;
 		// curr is the encoded index of the current object, called the count.
@@ -74,24 +74,21 @@ export namespace tw
 
 	class cell
 	{
-		tw::Int i0,j0,k0; // zero offset indexing
-		tw::Int i,j,k; // standard indexing
+		tw::Int stride[5];
+		tw::Int n0,i0,j0,k0; // zero offset indexing
+		tw::Int n,i,j,k; // standard indexing
 
 	public:
-		cell(const tw::Int& i0,const tw::Int& j0,const tw::Int& k0,const tw::Int& i,const tw::Int& j,const tw::Int& k)
+		cell(const StaticSpace& ss,const tw::Int& n,const tw::Int& i,const tw::Int& j,const tw::Int& k)
 		{
-			this->i0 = i0;
-			this->j0 = j0;
-			this->k0 = k0;
+			for (auto ax=0;ax<5;ax++) {
+				stride[ax] = ss.Stride(ax);
+			}
+			this->n = n;
 			this->i = i;
 			this->j = j;
 			this->k = k;
-		}
-		cell(const StaticSpace& ss,const tw::Int& i,const tw::Int& j,const tw::Int& k)
-		{
-			this->i = i;
-			this->j = j;
-			this->k = k;
+			n0 = n - ss.LFG(0);
 			i0 = i - ss.LFG(1);
 			j0 = j - ss.LFG(2);
 			k0 = k - ss.LFG(3);
@@ -105,109 +102,105 @@ export namespace tw
 		tw::Int dcd1() const { return i; }
 		tw::Int dcd2() const { return j; }
 		tw::Int dcd3() const { return k; }
-		tw::Int Index(const tw::Int& c,const tw::Int stride[4]) const
+		tw::Int Index(const tw::Int& c) const
 		{
-			return stride[0]*c + stride[1]*i0 + stride[2]*j0 + stride[3]*k0;
+			return stride[0]*n0 + stride[1]*i0 + stride[2]*j0 + stride[3]*k0 + stride[4]*c;
 		}
 	};
 
 	class strip
 	{
-		tw::Int ax;
-		tw::Int i0,j0,k0; // zero offset indexing
-		tw::Int i,j,k; // standard indexing
-		tw::Int di,dj,dk; // id the strip direction
+		tw::Int strip_stride,comp_stride;
+		tw::Int strip_lfg,off;
+		tw::Int lfg[4],x[4],iter_ax[4],strip_ax[4],fixed_ax[4];
 
 	public:
-		strip(const tw::Int& ax,const tw::Int& i0,const tw::Int& j0,const tw::Int& k0,const tw::Int& i,const tw::Int& j,const tw::Int& k)
+		strip(const StaticSpace& ss,const tw::Int& strip_ax,const tw::Int& fixed_ax,const node4& coord)
 		{
-			this->ax = ax;
-			this->i0 = i0;
-			this->j0 = j0;
-			this->k0 = k0;
-			this->i = i;
-			this->j = j;
-			this->k = k;
-			di = tw::Int(ax==1);
-			dj = tw::Int(ax==2);
-			dk = tw::Int(ax==3);
+			strip_stride = ss.Stride(strip_ax);
+			strip_lfg = ss.LFG(strip_ax);
+			comp_stride = ss.Stride(5);
+			off = 0;
+			for (auto i=0; i<4; i++) {
+				x[i] = coord[i];
+				this->strip_ax[i] = i==strip_ax;
+				this->fixed_ax[i] = i==fixed_ax;
+				this->iter_ax[i] = i!=strip_ax && i!=fixed_ax;
+				off += (i!=strip_ax) * (coord[i] - ss.LFG(i)) * ss.Stride(i);
+			}
 		}
-		strip(const tw::Int& ax,const StaticSpace& ss,const tw::Int& i,const tw::Int& j,const tw::Int& k)
+		tw::Int Axis() const
 		{
-			this->ax = ax;
-			this->i = i;
-			this->j = j;
-			this->k = k;
-			di = tw::Int(ax==1);
-			dj = tw::Int(ax==2);
-			dk = tw::Int(ax==3);
-			i0 = i - ss.LFG(1);
-			j0 = j - ss.LFG(2);
-			k0 = k - ss.LFG(3);
+			for (auto i=0; i<4; i++) {
+				if (strip_ax[i]) {
+					return i;
+				}
+			}
+			return 0;
 		}
-		tw::Int Axis() const { return ax; } // axis parallel to the strip
-		void Decode(tw::Int s,tw::Int *x,tw::Int *y,tw::Int *z) const
+		/// get standard cell indices
+		void Decode(tw::Int s, tw::Int coord[4]) const
 		{
-			// Get the standard cell indices
-			*x = (1-di)*i + di*s;
-			*y = (1-dj)*j + dj*s;
-			*z = (1-dk)*k + dk*s;
+			for (auto i=0; i<4; i++) {
+				coord[i] = x[i] * iter_ax[i] + x[i] * fixed_ax[i] + s * strip_ax[i];
+			}
 		}
-		// The following decode the standard cell indices one at a time
-		tw::Int dcd1(tw::Int s) const { return (1-di)*i + di*s; }
-		tw::Int dcd2(tw::Int s) const { return (1-dj)*j + dj*s; }
-		tw::Int dcd3(tw::Int s) const { return (1-dk)*k + dk*s; }
-		tw::Int Index(const tw::Int& s,const tw::Int& c,const tw::Int stride[4]) const
+		/// decode the standard cell index for axis 1
+		tw::Int dcd1(tw::Int s) const { return x[1]*iter_ax[1] + x[1]*fixed_ax[1] + s*strip_ax[1]; }
+		/// decode the standard cell index for axis 2
+		tw::Int dcd2(tw::Int s) const { return x[2]*iter_ax[2] + x[2]*fixed_ax[2] + s*strip_ax[2]; }
+		/// decode the standard cell index for axis 3
+		tw::Int dcd3(tw::Int s) const { return x[3]*iter_ax[3] + x[3]*fixed_ax[3] + s*strip_ax[3]; }
+		/// Get the index into the field data
+		tw::Int Index(const tw::Int& s,const tw::Int& c) const
 		{
-			return stride[0]*c + stride[1]*(s*di+i0) + stride[2]*(s*dj+j0) + stride[3]*(s*dk+k0);
+			return off + (s-strip_lfg)*strip_stride + c*comp_stride;
 		}
-		// Following 3 functions assume packing along the axis indicated
-		// The compiler should be able to vectorize efficiently with respect to s
-		tw::Int Index1(const tw::Int& s,const tw::Int& c,const tw::Int stride[4]) const
+		/// Get the index into the field data assuming the strip axis is packed.
+		// The compiler should be able to vectorize efficiently with respect to s.
+		tw::Int Index1(const tw::Int& s,const tw::Int& c) const
 		{
-			return s + i0 + stride[0]*c + stride[2]*j0 + stride[3]*k0;
-		}
-		tw::Int Index2(const tw::Int& s,const tw::Int& c,const tw::Int stride[4]) const
-		{
-			return s + j0 + stride[0]*c + stride[1]*i0 + stride[3]*k0;
-		}
-		tw::Int Index3(const tw::Int& s,const tw::Int& c,const tw::Int stride[4]) const
-		{
-			return s + k0 + stride[0]*c + stride[1]*i0 + stride[2]*j0;
+			return off + s - strip_lfg + c*comp_stride;
 		}
 	};
 
+	/// Strip reference with explicit packed axis, for promoting compiler vectorization.
+	/// Performance assumption is that AX is the packed axis.
+	/// This allows Field accessors to drop the stride multiplier so the compiler can figure
+	/// out that the data is packed.
+	/// This specialization happens in the Field class.
+	/// That is, this class appearing as an argument triggers special treatment.
 	template <tw::Int AX>
 	class xstrip : public strip
 	{
-		// Strip reference with explicit packed axis, for promoting compiler vectorization.
-		// Performance assumption is that AX is the packed axis.
-		// This allows Field accessors to drop the stride multiplier so the compiler can figure
-		// out that the data is packed.
-		// This specialization happens in the Field class.
-		// That is, this class appearing as an argument triggers special treatment.
-
 	public:
-		xstrip(const tw::Int& i0,const tw::Int& j0,const tw::Int& k0,const tw::Int& i,const tw::Int& j,const tw::Int& k) : strip(AX,i0,j0,k0,i,j,k)
-		{
+		/// general constructor
+		xstrip(const StaticSpace& ss,const tw::Int& fixed_ax,const tw::node4& coord) : strip(ss,AX,fixed_ax,coord) {
 			// no need to do anything
 		}
-		xstrip(const StaticSpace& ss,const tw::Int& i,const tw::Int& j,const tw::Int& k) : strip(AX,ss,i,j,k)
-		{
+		/// special constructor for spatial strips at time 1, (i,j) map to the coordinates in the normal
+		/// plane in cyclic fashion, i.e. (y,z), (z,x), or (x,y).
+		xstrip(const StaticSpace& ss,const tw::Int& i,const tw::Int& j) : strip(ss,AX,0,get_coord(i,j)) {
 			// no need to do anything
+		}
+		constexpr node4 get_coord(const tw::Int& i,const tw::Int& j) {
+			if (AX==1) {
+				return node4{1,1,i,j};
+			} else if (AX==2) {
+				return node4{1,j,1,i};
+			} else {
+				return node4{1,i,j,1};
+			}
 		}
 	};
 }
 
-
+/// abstract base class providing automatic parallel threads
 class TWRange
 {
-	// TWRange is an abstract base class
-	// The abstact class defines no encoding; the encoding is particular to derived classes.
-
 protected:
+	const StaticSpace *ss;
 	tw::Int first,last;
-
 public:
 	void SetCountRange(tw::Int global_size)
 	{
@@ -218,47 +211,48 @@ public:
 	tw::Int size() const { return last-first+1; }
 };
 
+/// Steps through spatial cells without concern for order or geometry.
+/// The time position is fixed upon construction.
 export class CellRange:public TWRange
 {
-	// Step through cells without concern for geometry.
-	// Ghost cells are included if includeGhostCells=true in constructor.
-
-	// INTERNALS:
-
 	// io,jo,ko,is,js,ks are decoding offsets.
 	// iCells,jCells,kCells measure offsets in index space as the count increases.
 
+	tw::Int n;
 	tw::Int io,jo,ko,is,js,ks,iCells,jCells,kCells;
 
 public:
-	CellRange(const StaticSpace& space,bool includeGhostCells)
+	CellRange(const StaticSpace& space,const tw::Int& n,bool include_ghost_cells)
 	{
-		io = includeGhostCells ? 0 : space.Layers(1);
-		jo = includeGhostCells ? 0 : space.Layers(2);
-		ko = includeGhostCells ? 0 : space.Layers(3);
+		ss = &space;
+		this->n = n;
+		io = include_ghost_cells ? 0 : space.Layers(1);
+		jo = include_ghost_cells ? 0 : space.Layers(2);
+		ko = include_ghost_cells ? 0 : space.Layers(3);
 		is = space.LFG(1);
 		js = space.LFG(2);
 		ks = space.LFG(3);
-		iCells = includeGhostCells ? space.Num(1) : space.Dim(1);
-		jCells = includeGhostCells ? space.Num(2) : space.Dim(2);
-		kCells = includeGhostCells ? space.Num(3) : space.Dim(3);
+		iCells = include_ghost_cells ? space.Num(1) : space.Dim(1);
+		jCells = include_ghost_cells ? space.Num(2) : space.Dim(2);
+		kCells = include_ghost_cells ? space.Num(3) : space.Dim(3);
 		SetCountRange(iCells*jCells*kCells);
 	}
 	tw::iterator<CellRange,tw::cell> begin() { return tw::iterator<CellRange,tw::cell>(this,first,first,last); }
 	tw::iterator<CellRange,tw::cell> end() { return tw::iterator<CellRange,tw::cell>(this,last+1,first,last); }
 	tw::cell GetReference(tw::Int global_count)
 	{
+		// the access order is considered unimportant
 		const tw::Int i0 = io + global_count/(jCells*kCells);
 		const tw::Int j0 = jo + (global_count%(jCells*kCells)) / kCells;
 		const tw::Int k0 = ko + (global_count%(jCells*kCells)) % kCells;
-		return tw::cell(i0,j0,k0,i0+is,j0+js,k0+ks);
+		return tw::cell(*ss,n,i0+is,j0+js,k0+ks);
 	}
 };
 
 export class EntireCellRange:public CellRange
 {
 public:
-	EntireCellRange(const StaticSpace& space) : CellRange(space,true)
+	EntireCellRange(const StaticSpace& space,const tw::Int& n) : CellRange(space,n,true)
 	{
 	}
 };
@@ -266,59 +260,64 @@ public:
 export class InteriorCellRange:public CellRange
 {
 public:
-	InteriorCellRange(const StaticSpace& space) : CellRange(space,false)
+	InteriorCellRange(const StaticSpace& space,const tw::Int& n) : CellRange(space,n,false)
 	{
 	}
 };
 
+/// Take a 3D subpace and iterate over parallel strips.
+/// Strips of ghost cells are included if includeGhostCells=true in constructor.
+/// Ordinary integer loop is intended to be nested within for stepping through cells along the strip.
+/// A cell is indexed by counting cells along the strip in the usual way (interior cells start at 1).
 export class StripRange:public TWRange
 {
-	// Step across and along strips in a given direction.
-	// Strips of ghost cells are included if includeGhostCells=true in constructor.
-	// Ordinary integer loop is intended to be nested within for stepping through cells along the strip.
-	// A cell is indexed by counting cells along the strip in the usual way (interior cells start at 1).
-
-	// INTERNALS:
-
-	// io,jo,ko,is,js,ks are decoding offsets.
-	// di,dj,dk are 0 except for the element in the strip direction which is 1
-
 protected:
-	tw::Int ax,di,dj,dk,io,jo,ko,is,js,ks,iCells,jCells,kCells;
-
+	tw::Int strip_ax,fixed_ax;
+	tw::Int ref[4],D[4],M[4];
 public:
-	StripRange(const StaticSpace& space,tw::Int axis,strongbool includeGhostCells)
+	StripRange(const StaticSpace& space,tw::Int strip_ax,tw::Int fixed_ax,tw::Int fixed_pos,strongbool include_ghost_cells)
 	{
-		ax = axis;
-		di = tw::Int(ax==1);
-		dj = tw::Int(ax==2);
-		dk = tw::Int(ax==3);
-		is = space.LFG(1);
-		js = space.LFG(2);
-		ks = space.LFG(3);
-		io = includeGhostCells==strongbool::yes ? 0 : space.Layers(1);
-		jo = includeGhostCells==strongbool::yes ? 0 : space.Layers(2);
-		ko = includeGhostCells==strongbool::yes ? 0 : space.Layers(3);
-		// the reference cell index in the strip direction is indirectly visible to caller because it interacts with
-		// the caller's cell index in the strip direction.  The caller expects the cell index to be consistent
-		// with the StaticSpace standard indexing (i.e., 1...dim label the interior cells).
-		// Therefore the reference index in the strip direction has to be treated specially.
-		io = (1-di)*io - di*is;
-		jo = (1-dj)*jo - dj*js;
-		ko = (1-dk)*ko - dk*ks;
-		iCells = includeGhostCells==strongbool::yes ? space.Num(1) : space.Dim(1);
-		jCells = includeGhostCells==strongbool::yes ? space.Num(2) : space.Dim(2);
-		kCells = includeGhostCells==strongbool::yes ? space.Num(3) : space.Dim(3);
-		SetCountRange(di*jCells*kCells + dj*iCells*kCells + dk*iCells*jCells);
+		tw::Int N[4];
+		// This sets us up so we can do coord[i] = global_count/D[i]%M[i] for any axis.
+		// (it will come to 0 for ax1 or ax2)
+		assert(ax1 != ax2);
+		this->ss = &space;
+		this->fixed_ax = fixed_ax;
+		this->strip_ax = strip_ax;
+		tw::Int max_count = 1, last_hidden_dim = 1;
+		for (auto i=0; i<4; i++) {
+			N[i] = include_ghost_cells==strongbool::yes ? space.Num(i) : space.Dim(i);
+			if (i==strip_ax) {
+				ref[i] = space.LFG(i);
+				D[i] = 1;
+				M[i] = 1;
+			} else if (i==fixed_ax) {
+				ref[i] = fixed_pos;
+				D[i] = 1;
+				M[i] = 1;
+			} else {
+				ref[i] = include_ghost_cells==strongbool::yes ? space.LFG(i) : 1;
+				D[i] = last_hidden_dim == 1 ? 1 : last_hidden_dim;
+				M[i] = last_hidden_dim == 1 ? N[i] : 0xffffffff; // second alt is anything > max(dim)
+				max_count *= N[i];
+				last_hidden_dim = N[i];
+			}
+		}
+		SetCountRange(max_count);
 	}
 	tw::iterator<StripRange,tw::strip> begin() { return tw::iterator<StripRange,tw::strip>(this,first,first,last); }
 	tw::iterator<StripRange,tw::strip> end() { return tw::iterator<StripRange,tw::strip>(this,last+1,first,last); }
 	tw::strip GetReference(tw::Int global_count)
 	{
-		const tw::Int i0 = di*io + dj*(io + global_count/kCells) + dk*(io + global_count/jCells);
-		const tw::Int j0 = di*(jo + global_count%jCells) + dj*jo + dk*(jo + global_count%jCells);
-		const tw::Int k0 = di*(ko + global_count/jCells) + dj*(ko + global_count%kCells) + dk*ko;
-		return tw::strip(ax,i0,j0,k0,i0+is,j0+js,k0+ks);
+		// The access order across strips is considered unimportant.
+		// We only care about access order along strips, which the caller will control.
+		tw::node4 coord = {
+			ref[0] + (global_count/D[0]) % M[0],
+			ref[1] + (global_count/D[1]) % M[1],
+			ref[2] + (global_count/D[2]) % M[2],
+			ref[3] + (global_count/D[3]) % M[3]
+		};
+		return tw::strip(*ss,strip_ax,fixed_ax,coord);
 	}
 };
 
@@ -326,7 +325,8 @@ export template <tw::Int AX>
 class VectorStripRange:public StripRange
 {
 public:
-	VectorStripRange(const StaticSpace& space,bool includeGhostCells) : StripRange(space,AX,includeGhostCells==true ? strongbool::yes : strongbool::no)
+	VectorStripRange(const StaticSpace& space,tw::Int fixed_ax,tw::Int fixed_pos,bool include_ghost_cells):
+		StripRange(space,AX,fixed_ax,fixed_pos,include_ghost_cells==true ? strongbool::yes : strongbool::no)
 	{
 		// no need to do anything
 	}
@@ -340,9 +340,14 @@ public:
 	}
 	tw::xstrip<AX> GetReference(tw::Int global_count)
 	{
-		const tw::Int i0 = di*io + dj*(io + global_count/kCells) + dk*(io + global_count/jCells);
-		const tw::Int j0 = di*(jo + global_count%jCells) + dj*jo + dk*(jo + global_count%jCells);
-		const tw::Int k0 = di*(ko + global_count/jCells) + dj*(ko + global_count%kCells) + dk*ko;
-		return tw::xstrip<AX>(i0,j0,k0,i0+is,j0+js,k0+ks);
+		// The access order across strips is considered unimportant.
+		// We only care about access order along strips, which the caller will control.
+		tw::node4 coord = {
+			ref[0] + (global_count/D[0]) % M[0],
+			ref[1] + (global_count/D[1]) % M[1],
+			ref[2] + (global_count/D[2]) % M[2],
+			ref[3] + (global_count/D[3]) % M[3]
+		};
+		return tw::xstrip<AX>(*ss,fixed_ax,coord);
 	}
 };

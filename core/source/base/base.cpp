@@ -17,6 +17,9 @@ export namespace tw
 	typedef int64_t Int;
 	typedef uint64_t Uint;
 	using Complex = std::complex<tw::Float>;
+	using node4 = std::array<tw::Int,4>;
+	using node5 = std::array<tw::Int,5>;
+
 	class FatalError : public std::exception
 	{
 		char messg[256];

@@ -62,7 +62,7 @@ export namespace tw
 			MPI_Cart_rank(comm_cart,coords,&ans);
 			return ans;
 		}
-		void Initialize3D(tw::Int *domains,tw::Int *periodic)
+		void Initialize3D(const node4& domains,const node4& periodic)
 		{
 			int d[3] = { (int)domains[1],(int)domains[2],(int)domains[3] };
 			int p[3] = { (int)periodic[1],(int)periodic[2],(int)periodic[3] };
@@ -88,28 +88,26 @@ export namespace tw
 			*dst = dsti;
 		}
 		/// get 4d domain indices for this rank, time will always be 0
-		void Get_coords4(tw::Int *txyz)
+		node4 Get_coords4()
 		{
-			int i,temp[3];
-			MPI_Cart_coords(comm_cart,Get_rank(),3,temp);
-			txyz[0] = 0;
-			for (i=0;i<3;i++)
-				txyz[i+1] = temp[i];
+			return Get_coords4(Get_rank());
 		}
 		/// get 4d domain indices for other rank, time will always be 0
-		void Get_coords4(tw::Int rank,tw::Int *txyz)
+		node4 Get_coords4(tw::Int rank)
 		{
-			int i,temp[3];
-			MPI_Cart_coords(comm_cart,rank,3,temp);
-			txyz[0] = 0;
-			for (i=0;i<3;i++)
-				txyz[i+1] = temp[i];
+			node4 ans;
+			int temp[4];
+			MPI_Cart_coords(comm_cart,rank,3,&temp[1]);
+			ans[0] = 0;
+			for (auto i=1; i<4; i++)
+				ans[i] = temp[i];
+			return ans;
 		}
-		void Get_periods(tw::Int max_dims,bool *periods)
+		void Get_periods(bool *periods)
 		{
 			int i,d[3],c[3],temp[3];
-			MPI_Cart_get(comm_cart,max_dims,d,temp,c);
-			for (i=0;i<max_dims;i++)
+			MPI_Cart_get(comm_cart,3,d,temp,c);
+			for (i=0;i<3;i++)
 				periods[i+1] = temp[i];
 		}
 		void Send(void *buff,tw::Int buffSize,tw::Int dst)
@@ -215,8 +213,8 @@ export struct Task
 {
 	tw::comm strip[4]; // all,x,y,z
 	tw::comm finiteStrip[4]; // same as strip, but ignoring all periodicity
-	tw::Int domains[4],periodic[4],domainIndex[4]; // blank,x,y,z
-	tw::Int n0[4],n1[4]; // low and high neighbors : blank,x,y,z
+	tw::node4 domains,periodic,domainIndex; // blank,x,y,z
+	tw::node4 n0,n1; // low and high neighbors : blank,x,y,z
 
 	std::string unitTest,inputFileName,restartFileName; // keep with task so ComputeTool can access
 
@@ -241,7 +239,7 @@ export struct Task
 
 	Task();
 	virtual ~Task();
-	void Initialize(const tw::Int doms[4],const tw::Int cyclic[4]);
+	void Initialize(const tw::node4& doms,const tw::node4& cyclic);
 	tw::Int NumTasks() { return domains[1]*domains[2]*domains[3]; }
 };
 
@@ -286,9 +284,9 @@ Task::~Task()
 	#endif
 }
 
-void Task::Initialize(const tw::Int doms[4],const tw::Int cyclic[4])
+void Task::Initialize(const tw::node4& doms,const tw::node4& cyclic)
 {
-	tw::Int aperiodic[4] = { 0,0,0,0 };
+	tw::node4 aperiodic { 0,0,0,0 };
 
 	for (auto i=0;i<4;i++)
 	{
@@ -298,7 +296,7 @@ void Task::Initialize(const tw::Int doms[4],const tw::Int cyclic[4])
 
 	// Full 3D cartesian domain
 	strip[0].Initialize3D(domains,periodic);
-	strip[0].Get_coords4(domainIndex);
+	domainIndex = strip[0].Get_coords4();
 	strip[0].Shift(1,1,&n0[1],&n1[1]);
 	strip[0].Shift(2,1,&n0[2],&n1[2]);
 	strip[0].Shift(3,1,&n0[3],&n1[3]);

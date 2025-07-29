@@ -134,7 +134,7 @@ void BoundElectrons::Initialize()
 	crystalBasis.v.RotateY(theta);
 	crystalBasis.w.RotateY(theta);
 
-	for (auto cell : InteriorCellRange(*this))
+	for (auto cell : InteriorCellRange(*this,1))
 	{
 		for (s=0;s<3;s++)
 		{
@@ -247,19 +247,19 @@ void BoundElectrons::MoveWindow()
 	
 	// must prepare before shift
 	dens.DownwardCopy(tw::grid::z,1);
-	R0.DownwardCopy(tw::grid::z,1);
-	R1.DownwardCopy(tw::grid::z,1);
+	R0.DownwardCopy(Rng(0,3),tw::grid::z,1);
+	R1.DownwardCopy(Rng(0,3),tw::grid::z,1);
 
 	// carry out shift
-	for (auto s : StripRange(*this,3,strongbool::yes))
+	for (auto s : StripRange(*this,3,0,1,strongbool::yes))
 	{
 		tw::vec3 pos = owner->Pos(s,Dim(s.Axis())+1);
 		tw::Float incomingMaterial = 0.0;
 		for (tw::Int p=0;p<profile.size();p++)
 			incomingMaterial += profile[p]->GetValue(pos,*owner);
-		dens.Shift(s,-1,incomingMaterial);
-		R0.Shift(s,-1,0.0);
-		R1.Shift(s,-1,0.0);
+		dens.Shift(Rng(0),s,-1,incomingMaterial);
+		R0.Shift(Rng(0,3),s,-1,0.0);
+		R1.Shift(Rng(0,3),s,-1,0.0);
 	}
 }
 
@@ -285,7 +285,7 @@ void BoundElectrons::Update()
 		tw::Float RR[7];
 		const tw::Float dt = dx(0);
 
-		for (auto v : VectorStripRange<3>(*this,false))
+		for (auto v : VectorStripRange<3>(*this,0,1,false))
 			for (tw::Int k=1;k<=zLast;k++)
 				if (dens(v,k)!=0.0)
 				{
@@ -324,30 +324,31 @@ void BoundElectrons::Update()
 					// current in either cell wall
 					const tw::vec3 I3 = (Q1 - Q0)/dt;
 
-					tw::Int i,j,kout;
-					v.Decode(k,&i,&j,&kout);
+					auto i = v.dcd1(k);
+					auto j = v.dcd2(k);
+					auto kout = v.dcd3(k);
 
 					// Deposit cell charge using small displacement model
 					#pragma omp atomic update
-					(*sources)(i-1,j,k,0) -= Q1.x;
+					(*sources)(1,i-1,j,k,0) -= Q1.x;
 					#pragma omp atomic update
-					(*sources)(i,j-1,k,0) -= Q1.y;
-					(*sources)(i,j,k-1,0) -= Q1.z;
-					(*sources)(i,j,k+1,0) += Q1.z;
+					(*sources)(1,i,j-1,k,0) -= Q1.y;
+					(*sources)(1,i,j,k-1,0) -= Q1.z;
+					(*sources)(1,i,j,k+1,0) += Q1.z;
 					#pragma omp atomic update
-					(*sources)(i,j+1,k,0) += Q1.y;
+					(*sources)(1,i,j+1,k,0) += Q1.y;
 					#pragma omp atomic update
-					(*sources)(i+1,j,k,0) += Q1.x;
+					(*sources)(1,i+1,j,k,0) += Q1.x;
 
 					// Deposit wall current using small displacement model
-					(*sources)(i,j,k,1) += I3.x;
+					(*sources)(1,i,j,k,1) += I3.x;
 					#pragma omp atomic update
-					(*sources)(i+1,j,k,1) += I3.x;
-					(*sources)(i,j,k,2) += I3.y;
+					(*sources)(1,i+1,j,k,1) += I3.x;
+					(*sources)(1,i,j,k,2) += I3.y;
 					#pragma omp atomic update
-					(*sources)(i,j+1,k,2) += I3.y;
-					(*sources)(i,j,k,3) += I3.z;
-					(*sources)(i,j,k+1,3) += I3.z;
+					(*sources)(1,i,j+1,k,2) += I3.y;
+					(*sources)(1,i,j,k,3) += I3.z;
+					(*sources)(1,i,j,k+1,3) += I3.z;
 				}
 	}
 }
@@ -407,19 +408,19 @@ void BoundElectrons::Report(Diagnostic& diagnostic)
 	temp.Initialize(*this,owner);
 	tw::Float dt = dx(0);
 	
-	for (auto cell : InteriorCellRange(*this))
+	for (auto cell : InteriorCellRange(*this,1))
 	{
 		const tw::vec3 vel = oscStrength*(R1.Vec3(cell,0) - R0.Vec3(cell,0))/dt;
 		temp(cell) = 0.5*m0*dens(cell)*Norm(vel);
 	}
-	diagnostic.VolumeIntegral("bound-KE",temp,0);
+	diagnostic.VolumeIntegral("bound-KE",temp,1,0);
 
-	for (auto cell : InteriorCellRange(*this))
+	for (auto cell : InteriorCellRange(*this,1))
 		temp(cell) = 0.5*m0*dens(cell)*Norm(resFreq*R1.Vec3(cell,0));
-	diagnostic.VolumeIntegral("bound-PE",temp,0);
+	diagnostic.VolumeIntegral("bound-PE",temp,1,0);
 
-	diagnostic.ReportField(name,dens,0,tw::dims::density,"$n_{\\rm "+name+"}$");
-	diagnostic.ReportField(name+"_x",R1,0,tw::dims::length,"$\\delta x$["+name+"]");
-	diagnostic.ReportField(name+"_y",R1,1,tw::dims::length,"$\\delta y$["+name+"]");
-	diagnostic.ReportField(name+"_z",R1,2,tw::dims::length,"$\\delta z$["+name+"]");
+	diagnostic.ReportField(name,dens,1,0,tw::dims::density,"$n_{\\rm "+name+"}$");
+	diagnostic.ReportField(name+"_x",R1,1,0,tw::dims::length,"$\\delta x$["+name+"]");
+	diagnostic.ReportField(name+"_y",R1,1,1,tw::dims::length,"$\\delta y$["+name+"]");
+	diagnostic.ReportField(name+"_z",R1,1,2,tw::dims::length,"$\\delta z$["+name+"]");
 }

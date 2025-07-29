@@ -7,6 +7,7 @@
 	#include <assert.h>
 	#include <memory.h>
 #else
+	#include <ranges>
 	#include <bit>
 	#include <cassert>
 	#include <cmath>

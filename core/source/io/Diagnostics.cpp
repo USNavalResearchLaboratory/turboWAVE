@@ -56,10 +56,10 @@ export struct Diagnostic : ComputeTool
 	virtual void Start(const MetricSpace *alt = NULL);
 	virtual void Finish();
 	virtual void ReportNumber(const std::string& label,tw::Float val,bool avg);
-	virtual void ReportField(const std::string& fieldName,const Field& F,const tw::Int c,const tw::dims unit = tw::dims::none,const std::string& pretty = "tw::none");
+	virtual void ReportField(const std::string& fieldName,const Field& F,const tw::Int n,const tw::Int c,const tw::dims unit = tw::dims::none,const std::string& pretty = "tw::none");
 	virtual void ReportParticle(const Particle& par,tw::Float m0);
-	virtual tw::Float VolumeIntegral(const std::string& fieldName,const Field& F,const tw::Int c);
-	virtual tw::Float FirstMoment(const std::string& fieldName,const Field& F,const tw::Int c,const tw::vec3& r0,const tw::grid::axis axis);
+	virtual tw::Float VolumeIntegral(const std::string& fieldName,const Field& F,const tw::Int n,const tw::Int c);
+	virtual tw::Float FirstMoment(const std::string& fieldName,const Field& F,const tw::Int n,const tw::Int c,const tw::vec3& r0,const tw::grid::axis axis);
 	virtual void ReadCheckpoint(std::ifstream& inFile);
 	virtual void WriteCheckpoint(std::ofstream& outFile);
 };
@@ -80,8 +80,8 @@ struct TextTableBase : Diagnostic
 export struct VolumeDiagnostic : TextTableBase
 {
 	VolumeDiagnostic(const std::string& name,MetricSpace *ms,Task *tsk);
-	virtual tw::Float VolumeIntegral(const std::string& fieldName,const Field& F,const tw::Int c);
-	virtual tw::Float FirstMoment(const std::string& fieldName,const Field& F,const tw::Int c,const tw::vec3& r0,const tw::grid::axis axis);
+	virtual tw::Float VolumeIntegral(const std::string& fieldName,const Field& F,const tw::Int n,const tw::Int c);
+	virtual tw::Float FirstMoment(const std::string& fieldName,const Field& F,const tw::Int n,const tw::Int c,const tw::vec3& r0,const tw::grid::axis axis);
 };
 
 export struct PointDiagnostic : TextTableBase
@@ -89,7 +89,7 @@ export struct PointDiagnostic : TextTableBase
 	tw::vec3 thePoint;
 
 	PointDiagnostic(const std::string& name,MetricSpace *ms,Task *tsk);
-	virtual void ReportField(const std::string& fieldName,const Field& F,const tw::Int c,const tw::dims unit = tw::dims::none,const std::string& pretty = "tw::none");
+	virtual void ReportField(const std::string& fieldName,const Field& F,const tw::Int n,const tw::Int c,const tw::dims unit = tw::dims::none,const std::string& pretty = "tw::none");
 	virtual void ReadCheckpoint(std::ifstream& inFile);
 	virtual void WriteCheckpoint(std::ofstream& outFile);
 };
@@ -104,7 +104,7 @@ export struct BoxDiagnostic : Diagnostic
 	virtual void Finish();
 	void GetLocalIndexing(const DynSpace& F,const tw::Int pts[4],const tw::Int glb[6],tw::Int loc[6],const tw::Int coords[4]);
 	void GetGlobalIndexing(const DynSpace& F,tw::Int pts[4],tw::Int glb[6]);
-	virtual void ReportField(const std::string& fieldName,const Field& F,const tw::Int c,const tw::dims unit = tw::dims::none,const std::string& pretty = "tw::none");
+	virtual void ReportField(const std::string& fieldName,const Field& F,const tw::Int n,const tw::Int c,const tw::dims unit = tw::dims::none,const std::string& pretty = "tw::none");
 };
 
 export struct PhaseSpaceDiagnostic : Diagnostic
@@ -423,7 +423,7 @@ void Diagnostic::ReportNumber(const std::string& label,tw::Float val,bool averag
 {
 }
 
-tw::Float Diagnostic::VolumeIntegral(const std::string& fieldName,const Field& F,const tw::Int c)
+tw::Float Diagnostic::VolumeIntegral(const std::string& fieldName,const Field& F,const tw::Int n,const tw::Int c)
 {
 	tw::Float ans = 0.0;
 	tw::Int loc[6];
@@ -432,11 +432,11 @@ tw::Float Diagnostic::VolumeIntegral(const std::string& fieldName,const Field& F
 		for (tw::Int j=loc[2];j<=loc[3];j++)
 			for (tw::Int i=loc[0];i<=loc[1];i++)
 				if (theRgn->Inside(space->Pos(i,j,k),*space))
-					ans += F(i,j,k,c) * space->dS(i,j,k,0);
+					ans += F(n,i,j,k,c) * space->dS(i,j,k,0);
 	return ans;
 }
 
-tw::Float Diagnostic::FirstMoment(const std::string& fieldName,const Field& F,const tw::Int c,const tw::vec3& r0,const tw::grid::axis axis)
+tw::Float Diagnostic::FirstMoment(const std::string& fieldName,const Field& F,const tw::Int n,const tw::Int c,const tw::vec3& r0,const tw::grid::axis axis)
 {
 	tw::Float ans = 0.0;
 	const tw::Int ax = tw::grid::naxis(axis);
@@ -453,13 +453,13 @@ tw::Float Diagnostic::FirstMoment(const std::string& fieldName,const Field& F,co
 					tw::vec3 r2 = pos;
 					space->CurvilinearToCartesian(&r1);
 					space->CurvilinearToCartesian(&r2);
-					ans += F(i,j,k,c) * (r2[ax-1]-r1[ax-1]) * space->dS(i,j,k,0);
+					ans += F(n,i,j,k,c) * (r2[ax-1]-r1[ax-1]) * space->dS(i,j,k,0);
 				}
 			}
 	return ans;
 }
 
-void Diagnostic::ReportField(const std::string& fieldName,const Field& F,const tw::Int c,tw::dims unit,const std::string& pretty)
+void Diagnostic::ReportField(const std::string& fieldName,const Field& F,const tw::Int n,const tw::Int c,tw::dims unit,const std::string& pretty)
 {
 }
 
@@ -555,18 +555,18 @@ VolumeDiagnostic::VolumeDiagnostic(const std::string& name,MetricSpace *ms,Task 
 	filename = "energy";
 }
 
-tw::Float VolumeDiagnostic::VolumeIntegral(const std::string& fieldName,const Field& F,const tw::Int c)
+tw::Float VolumeDiagnostic::VolumeIntegral(const std::string& fieldName,const Field& F,const tw::Int n,const tw::Int c)
 {
-	const tw::Float ans = Diagnostic::VolumeIntegral(fieldName,F,c);
+	const tw::Float ans = Diagnostic::VolumeIntegral(fieldName,F,n,c);
 	labels.push_back(fieldName);
 	values.push_back(ans);
 	avg.push_back(false);
 	return ans;
 }
 
-tw::Float VolumeDiagnostic::FirstMoment(const std::string& fieldName,const Field& F,const tw::Int c,const tw::vec3& r0,const tw::grid::axis axis)
+tw::Float VolumeDiagnostic::FirstMoment(const std::string& fieldName,const Field& F,const tw::Int n,const tw::Int c,const tw::vec3& r0,const tw::grid::axis axis)
 {
-	const tw::Float ans = Diagnostic::FirstMoment(fieldName,F,c,r0,axis);
+	const tw::Float ans = Diagnostic::FirstMoment(fieldName,F,n,c,r0,axis);
 	labels.push_back(fieldName);
 	values.push_back(ans);
 	avg.push_back(false);
@@ -580,7 +580,7 @@ PointDiagnostic::PointDiagnostic(const std::string& name,MetricSpace *ms,Task *t
 	directives.Add("point",new tw::input::Vec3(&thePoint));
 }
 
-void PointDiagnostic::ReportField(const std::string& fieldName,const Field& F,const tw::Int c,tw::dims unit,const std::string& pretty)
+void PointDiagnostic::ReportField(const std::string& fieldName,const Field& F,const tw::Int n,const tw::Int c,tw::dims unit,const std::string& pretty)
 {
 	tw::vec4 x4(t,thePoint + vGalileo*t);
 	if (space->IsPointWithinInterior(x4)) // assumes uniform grid
@@ -588,7 +588,7 @@ void PointDiagnostic::ReportField(const std::string& fieldName,const Field& F,co
 		std::valarray<tw::Float> ans(1);
 		weights_3D w;
 		space->GetWeights(&w,x4);
-		F.Interpolate(ans,Element(c),w);
+		F.Interpolate(Rng04(n,n+1,c,c+1),ans,w);
 		labels.push_back(fieldName);
 		values.push_back(ans[0]);
 		avg.push_back(false);
@@ -670,7 +670,7 @@ void BoxDiagnostic::GetLocalIndexing(const DynSpace& F,const tw::Int pts[4],cons
 	}
 }
 
-void BoxDiagnostic::ReportField(const std::string& fieldName,const Field& F,const tw::Int c,tw::dims unit,const std::string& pretty)
+void BoxDiagnostic::ReportField(const std::string& fieldName,const Field& F,const tw::Int n,const tw::Int c,tw::dims unit,const std::string& pretty)
 {
 	if (std::find(no_reports.begin(),no_reports.end(),fieldName)!=no_reports.end())
 		return;
@@ -722,7 +722,7 @@ void BoxDiagnostic::ReportField(const std::string& fieldName,const Field& F,cons
 										i0 = pts[2]*pts[3]*(ms->GlobalCellIndex(i,1) - glb[0])/s[1];
 										i0 += pts[3]*(ms->GlobalCellIndex(j,2) - glb[2])/s[2];
 										i0 += (ms->GlobalCellIndex(k,3) - glb[4])/s[3];
-										gData[i0] = F(i,j,k,c);
+										gData[i0] = F(n,i,j,k,c);
 									}
 						}
 						else
@@ -737,7 +737,7 @@ void BoxDiagnostic::ReportField(const std::string& fieldName,const Field& F,cons
 										i0 = (loc[3]-loc[2]+s[2])*(loc[5]-loc[4]+s[3])*(i - loc[0])/(s[1]*s[2]*s[3]);
 										i0 += (loc[5]-loc[4]+s[3])*(j - loc[2])/(s[2]*s[3]);
 										i0 += (k - loc[4])/s[3];
-										buffer[i0] = F(i,j,k,c);
+										buffer[i0] = F(n,i,j,k,c);
 									}
 							task->strip[0].Send(&buffer[0],sizeof(float)*buffSize,master);
 						}
@@ -977,10 +977,11 @@ void PhaseSpaceDiagnostic::Start(const MetricSpace *alt)
 		// don't set headerWritten until end of Finish() due to grid file
 	}
 
-	const tw::Int currDims[4] = { 1, dims[1], dims[2], dims[3] };
+	const tw::node5 currDims { 1, dims[1], dims[2], dims[3], 1 };
+	const tw::node4 layers {1,1,1,1};
 	tw::vec4 phaseSpaceMin(0.0,bounds[0],bounds[2],bounds[4]);
 	tw::vec4 phaseSpaceSize(1.0,bounds[1]-bounds[0],bounds[3]-bounds[2],bounds[5]-bounds[4]);
-	fxp_spc = DynSpace(currDims,phaseSpaceMin,phaseSpaceSize,1);
+	fxp_spc = DynSpace(currDims,phaseSpaceMin,phaseSpaceSize,std_packing,layers);
 	fxp.Initialize(fxp_spc,task);
 	fxp.SetBoundaryConditions(tw::grid::x,tw::bc::fld::dirichletCell,tw::bc::fld::dirichletCell);
 	fxp.SetBoundaryConditions(tw::grid::y,tw::bc::fld::dirichletCell,tw::bc::fld::dirichletCell);
@@ -1064,7 +1065,7 @@ void PhaseSpaceDiagnostic::ReportParticle(const Particle& par,tw::Float m0)
 		if (q[1]>=bounds[0] && q[1]<=bounds[1] && q[2]>=bounds[2] && q[2]<=bounds[3] && q[3]>=bounds[4] && q[3]<=bounds[5])
 		{
 			fxp_spc.GetWeights(&weights,q);
-			fxp.InterpolateOnto( par.number/dV, weights );
+			fxp.InterpolateOnto(par.number/dV, weights);
 		}
 	}
 }

@@ -140,15 +140,15 @@ void YeePropagatorPML::AdvanceE(Field& A,Field& PMLx,Field& PMLy,Field& PMLz,Fie
 
 	tw::Float sx,tx,sy,ty;
 	std::valarray<tw::Float> sz(space->Num(3)),tz(space->Num(3));
-	PMLz.GetStrip(sz,tw::strip(1,PMLz,0,0,0),0);
-	PMLz.GetStrip(tz,tw::strip(1,PMLz,0,0,0),1);
+	PMLz.GetStrip(sz,tw::strip(PMLz,1,0,std_coord),0);
+	PMLz.GetStrip(tz,tw::strip(PMLz,1,0,std_coord),1);
 
 	#pragma omp parallel private(sx,sy,tx,ty)
 	{
-		for (auto v : VectorStripRange<3>(*space,false))
+		for (auto v : VectorStripRange<3>(*space,0,1,false))
 		{
-			sx = PMLx(v.dcd1(0),0,0,0); tx = PMLx(v.dcd1(0),0,0,1);
-			sy = PMLy(v.dcd2(0),0,0,0); ty = PMLy(v.dcd2(0),0,0,1);
+			sx = PMLx(0,v.dcd1(0),0,0,0); tx = PMLx(0,v.dcd1(0),0,0,1);
+			sy = PMLy(0,v.dcd2(0),0,0,0); ty = PMLy(0,v.dcd2(0),0,0,1);
 			#pragma omp simd
 			for (tw::Int k=1;k<=zDim;k++)
 				A(v,k,0) = sy*A(v,k,0) + ty*(A.dfwd(v,k,10,2) + A.dfwd(v,k,11,2) - 0.5*j4(v,k,1));
@@ -170,7 +170,7 @@ void YeePropagatorPML::AdvanceE(Field& A,Field& PMLx,Field& PMLy,Field& PMLz,Fie
 		}
 	}
 	UpdateExteriorBoundary(A,PMLx,PMLy,PMLz); // must precede MPI
-	A.CopyFromNeighbors(Element(0,5));
+	A.CopyFromNeighbors(Rng04(1,2,0,6));
 }
 
 void YeePropagatorPML::AdvanceB(Field& A,Field& PMLx,Field& PMLy,Field& PMLz)
@@ -181,16 +181,16 @@ void YeePropagatorPML::AdvanceB(Field& A,Field& PMLx,Field& PMLy,Field& PMLz)
 
 	tw::Float sx,tx,sy,ty;
 	std::valarray<tw::Float> sz(space->Num(3)),tz(space->Num(3));
-	PMLz.GetStrip(sz,tw::strip(1,PMLz,0,0,0),3);
-	PMLz.GetStrip(tz,tw::strip(1,PMLz,0,0,0),4);
+	PMLz.GetStrip(sz,tw::strip(PMLz,1,0,std_coord),3);
+	PMLz.GetStrip(tz,tw::strip(PMLz,1,0,std_coord),4);
 
 	#pragma omp parallel for private(sx,sy,tx,ty) collapse(2) schedule(static)
 	for (tw::Int i=1;i<=xN1;i++)
 		for (tw::Int j=1;j<=yN1;j++)
 		{
-			tw::xstrip<3> v(*space,i,j,0);
-			sx = PMLx(i,0,0,3); tx = PMLx(i,0,0,4);
-			sy = PMLy(j,0,0,3); ty = PMLy(j,0,0,4);
+			tw::xstrip<3> v(A,0,{0,i,j,0});
+			sx = PMLx(0,i,0,0,3); tx = PMLx(0,i,0,0,4);
+			sy = PMLy(0,j,0,0,3); ty = PMLy(0,j,0,0,4);
 			#pragma omp simd
 			for (tw::Int k=1;k<=zN1;k++)
 				A(v,k,6) = sy*A(v,k,6) - ty*(A.dbak(v,k,4,2) + A.dbak(v,k,5,2));
@@ -210,39 +210,39 @@ void YeePropagatorPML::AdvanceB(Field& A,Field& PMLx,Field& PMLy,Field& PMLz)
 			for (tw::Int k=1;k<=zN1;k++)
 				A(v,k,11) = sy*A(v,k,11) + ty*(A.dbak(v,k,0,2) + A.dbak(v,k,1,2));
 		}
-	A.UpwardCopy(tw::grid::x,Element(6,11),1);
-	A.UpwardCopy(tw::grid::y,Element(6,11),1);
-	A.UpwardCopy(tw::grid::z,Element(6,11),1);
+	A.UpwardCopy(Rng04(1,2,6,12),tw::grid::x,1);
+	A.UpwardCopy(Rng04(1,2,6,12),tw::grid::y,1);
+	A.UpwardCopy(Rng04(1,2,6,12),tw::grid::z,1);
 }
 
 void YeePropagatorPML::PrepCenteredFields(Field& F,Field& A,tw::vec3& E0,tw::vec3& B0)
 {
 	F = 0.0;
-	add_const_vec<0,1,2>(F,E0);
-	add_const_vec<3,4,5>(F,B0);
-	AddMulFieldData(F,Element(3),A,Element(6),0.5);
-	AddMulFieldData(F,Element(3),A,Element(7),0.5);
-	AddMulFieldData(F,Element(4),A,Element(8),0.5);
-	AddMulFieldData(F,Element(4),A,Element(9),0.5);
-	AddMulFieldData(F,Element(5),A,Element(10),0.5);
-	AddMulFieldData(F,Element(5),A,Element(11),0.5);
+	add_const_vec<0,1,2>(1,F,E0);
+	add_const_vec<3,4,5>(1,F,B0);
+	AddMulFieldData(F,Rng04(3),A,Rng04(6),0.5);
+	AddMulFieldData(F,Rng04(3),A,Rng04(7),0.5);
+	AddMulFieldData(F,Rng04(4),A,Rng04(8),0.5);
+	AddMulFieldData(F,Rng04(4),A,Rng04(9),0.5);
+	AddMulFieldData(F,Rng04(5),A,Rng04(10),0.5);
+	AddMulFieldData(F,Rng04(5),A,Rng04(11),0.5);
 }
 
 void YeePropagatorPML::CenteredFields(Field& F,Field& A)
 {
-	AddFieldData(F,Element(0),A,Element(0));
-	AddFieldData(F,Element(0),A,Element(1));
-	AddFieldData(F,Element(1),A,Element(2));
-	AddFieldData(F,Element(1),A,Element(3));
-	AddFieldData(F,Element(2),A,Element(4));
-	AddFieldData(F,Element(2),A,Element(5));
+	AddFieldData(F,Rng04(0),A,Rng04(0));
+	AddFieldData(F,Rng04(0),A,Rng04(1));
+	AddFieldData(F,Rng04(1),A,Rng04(2));
+	AddFieldData(F,Rng04(1),A,Rng04(3));
+	AddFieldData(F,Rng04(2),A,Rng04(4));
+	AddFieldData(F,Rng04(2),A,Rng04(5));
 
-	AddMulFieldData(F,Element(3),A,Element(6),0.5);
-	AddMulFieldData(F,Element(3),A,Element(7),0.5);
-	AddMulFieldData(F,Element(4),A,Element(8),0.5);
-	AddMulFieldData(F,Element(4),A,Element(9),0.5);
-	AddMulFieldData(F,Element(5),A,Element(10),0.5);
-	AddMulFieldData(F,Element(5),A,Element(11),0.5);
+	AddMulFieldData(F,Rng04(3),A,Rng04(6),0.5);
+	AddMulFieldData(F,Rng04(3),A,Rng04(7),0.5);
+	AddMulFieldData(F,Rng04(4),A,Rng04(8),0.5);
+	AddMulFieldData(F,Rng04(4),A,Rng04(9),0.5);
+	AddMulFieldData(F,Rng04(5),A,Rng04(10),0.5);
+	AddMulFieldData(F,Rng04(5),A,Rng04(11),0.5);
 }
 
 #endif
@@ -262,24 +262,24 @@ void YeePropagatorPML::UpdateExteriorBoundary(Field& A,Field& PMLx,Field& PMLy,F
 		for (j=1;j<=yDim;j++)
 			for (k=1;k<=zDim;k++)
 			{
-				A(i,j,k,0) = PMLy(j,0,0,0)*A(i,j,k,0) + PMLy(j,0,0,1)*freq.y*(A(i,j+1,k,10)+A(i,j+1,k,11)-A(i,j,k,10)-A(i,j,k,11));
-				A(i,j,k,1) = PMLz(k,0,0,0)*A(i,j,k,1) - PMLz(k,0,0,1)*freq.z*(A(i,j,k+1,8)+A(i,j,k+1,9)-A(i,j,k,8)-A(i,j,k,9));
+				A(0,i,j,k,0) = PMLy(0,j,0,0,0)*A(0,i,j,k,0) + PMLy(0,j,0,0,1)*freq.y*(A(0,i,j+1,k,10)+A(0,i,j+1,k,11)-A(0,i,j,k,10)-A(0,i,j,k,11));
+				A(0,i,j,k,1) = PMLz(0,k,0,0,0)*A(0,i,j,k,1) - PMLz(0,k,0,0,1)*freq.z*(A(0,i,j,k+1,8)+A(0,i,j,k+1,9)-A(0,i,j,k,8)-A(0,i,j,k,9));
 			}
 	j = A.UNG(2);
 	if (task->n1[2]==MPI_PROC_NULL)
 		for (i=1;i<=xDim;i++)
 			for (k=1;k<=zDim;k++)
 			{
-				A(i,j,k,2) = PMLz(k,0,0,0)*A(i,j,k,2) + PMLz(k,0,0,1)*freq.z*(A(i,j,k+1,6)+A(i,j,k+1,7)-A(i,j,k,6)-A(i,j,k,7));
-				A(i,j,k,3) = PMLx(i,0,0,0)*A(i,j,k,3) - PMLx(i,0,0,1)*freq.x*(A(i+1,j,k,10)+A(i+1,j,k,11)-A(i,j,k,10)-A(i,j,k,11));
+				A(0,i,j,k,2) = PMLz(0,k,0,0,0)*A(0,i,j,k,2) + PMLz(0,k,0,0,1)*freq.z*(A(0,i,j,k+1,6)+A(0,i,j,k+1,7)-A(0,i,j,k,6)-A(0,i,j,k,7));
+				A(0,i,j,k,3) = PMLx(0,i,0,0,0)*A(0,i,j,k,3) - PMLx(0,i,0,0,1)*freq.x*(A(0,i+1,j,k,10)+A(0,i+1,j,k,11)-A(0,i,j,k,10)-A(0,i,j,k,11));
 			}
 	k = A.UNG(3);
 	if (task->n1[3]==MPI_PROC_NULL)
 		for (i=1;i<=xDim;i++)
 			for (j=1;j<=yDim;j++)
 			{
-				A(i,j,k,4) = PMLx(i,0,0,0)*A(i,j,k,4) + PMLx(i,0,0,1)*freq.x*(A(i+1,j,k,8)+A(i+1,j,k,9)-A(i,j,k,8)-A(i,j,k,9));
-				A(i,j,k,5) = PMLy(j,0,0,0)*A(i,j,k,5) - PMLy(j,0,0,1)*freq.y*(A(i,j+1,k,6)+A(i,j+1,k,7)-A(i,j,k,6)-A(i,j,k,7));
+				A(0,i,j,k,4) = PMLx(0,i,0,0,0)*A(0,i,j,k,4) + PMLx(0,i,0,0,1)*freq.x*(A(0,i+1,j,k,8)+A(0,i+1,j,k,9)-A(0,i,j,k,8)-A(0,i,j,k,9));
+				A(0,i,j,k,5) = PMLy(0,j,0,0,0)*A(0,i,j,k,5) - PMLy(0,j,0,0,1)*freq.y*(A(0,i,j+1,k,6)+A(0,i,j+1,k,7)-A(0,i,j,k,6)-A(0,i,j,k,7));
 			}
 }
 
@@ -295,39 +295,39 @@ void YeePropagatorPML::UpdateInteriorBoundaryE(Field& A,const ScalarField& condu
 	for (tw::Int i=1;i<=xN1;i++)
 		for (tw::Int j=1;j<=yN1;j++)
 		{
-			tw::xstrip<3> v(*space,i,j,0);
-			tw::xstrip<3> vi(*space,i-1,j,0);
-			tw::xstrip<3> vj(*space,i,j-1,0);
-			tw::xstrip<3> vij(*space,i-1,j-1,0);
+			tw::xstrip<3> v(A,i,j);
+			tw::xstrip<3> vi(A,i-1,j);
+			tw::xstrip<3> vj(A,i,j-1);
+			tw::xstrip<3> vij(A,i-1,j-1);
 			#pragma omp simd
 			for (tw::Int k=1;k<=zN1;k++)
 			{
-				A(v,k,0) *= conductor(v,k,0);
-				A(vj,k,0) *= conductor(v,k,0);
-				A(v,k-1,0) *= conductor(v,k,0);
-				A(vj,k-1,0) *= conductor(v,k,0);
-				A(v,k,1) *= conductor(v,k,0);
-				A(vj,k,1) *= conductor(v,k,0);
-				A(v,k-1,1) *= conductor(v,k,0);
-				A(vj,k-1,1) *= conductor(v,k,0);
+				A(v,k,0) *= conductor(v,k);
+				A(vj,k,0) *= conductor(v,k);
+				A(v,k-1,0) *= conductor(v,k);
+				A(vj,k-1,0) *= conductor(v,k);
+				A(v,k,1) *= conductor(v,k);
+				A(vj,k,1) *= conductor(v,k);
+				A(v,k-1,1) *= conductor(v,k);
+				A(vj,k-1,1) *= conductor(v,k);
 
-				A(v,k,2) *= conductor(v,k,0);
-				A(vi,k,2) *= conductor(v,k,0);
-				A(v,k-1,2) *= conductor(v,k,0);
-				A(vi,k-1,2) *= conductor(v,k,0);
-				A(v,k,3) *= conductor(v,k,0);
-				A(vi,k,3) *= conductor(v,k,0);
-				A(v,k-1,3) *= conductor(v,k,0);
-				A(vi,k-1,3) *= conductor(v,k,0);
+				A(v,k,2) *= conductor(v,k);
+				A(vi,k,2) *= conductor(v,k);
+				A(v,k-1,2) *= conductor(v,k);
+				A(vi,k-1,2) *= conductor(v,k);
+				A(v,k,3) *= conductor(v,k);
+				A(vi,k,3) *= conductor(v,k);
+				A(v,k-1,3) *= conductor(v,k);
+				A(vi,k-1,3) *= conductor(v,k);
 
-				A(v,k,4) *= conductor(v,k,0);
-				A(vi,k,4) *= conductor(v,k,0);
-				A(vj,k,4) *= conductor(v,k,0);
-				A(vij,k,4) *= conductor(v,k,0);
-				A(v,k,5) *= conductor(v,k,0);
-				A(vi,k,5) *= conductor(v,k,0);
-				A(vj,k,5) *= conductor(v,k,0);
-				A(vij,k,5) *= conductor(v,k,0);
+				A(v,k,4) *= conductor(v,k);
+				A(vi,k,4) *= conductor(v,k);
+				A(vj,k,4) *= conductor(v,k);
+				A(vij,k,4) *= conductor(v,k);
+				A(v,k,5) *= conductor(v,k);
+				A(vi,k,5) *= conductor(v,k);
+				A(vj,k,5) *= conductor(v,k);
+				A(vij,k,5) *= conductor(v,k);
 			}
 		}
 }
@@ -344,26 +344,26 @@ void YeePropagatorPML::UpdateInteriorBoundaryB(Field& A,const ScalarField& condu
 	for (tw::Int i=1;i<=xN1;i++)
 		for (tw::Int j=1;j<=yN1;j++)
 		{
-			tw::xstrip<3> v(*space,i,j,0);
-			tw::xstrip<3> vi(*space,i-1,j,0);
-			tw::xstrip<3> vj(*space,i,j-1,0);
+			tw::xstrip<3> v(A,i,j);
+			tw::xstrip<3> vi(A,i-1,j);
+			tw::xstrip<3> vj(A,i,j-1);
 			#pragma omp simd
 			for (tw::Int k=1;k<=zN1;k++)
 			{
-				A(v,k,6) *= conductor(v,k,0);
-				A(vi,k,6) *= conductor(v,k,0);
-				A(v,k,7) *= conductor(v,k,0);
-				A(vi,k,7) *= conductor(v,k,0);
+				A(v,k,6) *= conductor(v,k);
+				A(vi,k,6) *= conductor(v,k);
+				A(v,k,7) *= conductor(v,k);
+				A(vi,k,7) *= conductor(v,k);
 
-				A(v,k,8) *= conductor(v,k,0);
-				A(vj,k,8) *= conductor(v,k,0);
-				A(v,k,9) *= conductor(v,k,0);
-				A(vj,k,9) *= conductor(v,k,0);
+				A(v,k,8) *= conductor(v,k);
+				A(vj,k,8) *= conductor(v,k);
+				A(v,k,9) *= conductor(v,k);
+				A(vj,k,9) *= conductor(v,k);
 
-				A(v,k,10) *= conductor(v,k,0);
-				A(v,k-1,10) *= conductor(v,k,0);
-				A(v,k,11) *= conductor(v,k,0);
-				A(v,k-1,11) *= conductor(v,k,0);
+				A(v,k,10) *= conductor(v,k);
+				A(v,k-1,10) *= conductor(v,k);
+				A(v,k,11) *= conductor(v,k);
+				A(v,k-1,11) *= conductor(v,k);
 			}
 		}
 }
@@ -447,18 +447,18 @@ void LorentzPropagator::Advance(Field& A4,Field& Ao4,Field& j4,const tw::Float m
 	{
 		#pragma omp parallel firstprivate(c,mult,dt)
 		{
-			for (auto v : VectorStripRange<1>(*space,false))
+			for (auto v : VectorStripRange<1>(*space,0,1,false))
 				for (tw::Int i=1;i<=A4.Dim(1);i++)
 					Ao4(v,i,c) = 2*A4(v,i,c) - Ao4(v,i,c) + dt*dt*(mult*j4(v,i,c) + A4.d2(v,i,c,1) + A4.d2(v,i,c,2) + A4.d2(v,i,c,3));
 		}
 		#pragma omp parallel firstprivate(c)
 		{
-			for (auto v : VectorStripRange<1>(*space,true))
+			for (auto v : VectorStripRange<1>(*space,0,1,true))
 				for (tw::Int i=A4.LNG(1);i<=A4.UNG(1);i++)
 					std::swap(A4(v,i,c),Ao4(v,i,c));
 		}
 	}
-	A4.CopyFromNeighbors(Element(1,3));
+	A4.CopyFromNeighbors(Rng04(1,2,1,4));
 }
 
 void LorentzPropagator::MidstepEstimate(Field& A4,Field& Ao4)
@@ -468,7 +468,7 @@ void LorentzPropagator::MidstepEstimate(Field& A4,Field& Ao4)
 	{
 		#pragma omp parallel firstprivate(c)
 		{
-			for (auto v : VectorStripRange<1>(*space,true))
+			for (auto v : VectorStripRange<1>(*space,0,1,true))
 				for (tw::Int i=A4.LNG(1);i<=A4.UNG(1);i++)
 					A4(v,i,c) = 0.5*(Ao4(v,i,c) + A4(v,i,c));
 		}
@@ -482,7 +482,7 @@ void LorentzPropagator::UndoMidstepEstimate(Field& A4,Field& Ao4)
 	{
 		#pragma omp parallel firstprivate(c)
 		{
-			for (auto v : VectorStripRange<1>(*space,true))
+			for (auto v : VectorStripRange<1>(*space,0,1,true))
 				for (tw::Int i=A4.LNG(1);i<=A4.UNG(1);i++)
 					A4(v,i,c) = 2.0*A4(v,i,c) - Ao4(v,i,c);
 		}

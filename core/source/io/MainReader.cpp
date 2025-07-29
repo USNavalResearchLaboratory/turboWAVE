@@ -369,7 +369,7 @@ void Simulation::InputFileFirstPass()
 	periodic[3] = bc0[3]==tw::bc::par::periodic ? 1 : 0;
 	stepsToTake = gridReader->Steps();
 	auto gdim_idx4 = gridReader->GlobalDims();
-	tw::Int gdim[4] = { 1, gdim_idx4.array[1], gdim_idx4.array[2], gdim_idx4.array[3] };
+	tw::node5 gdim { 1, gdim_idx4.array[1], gdim_idx4.array[2], gdim_idx4.array[3], 1 };
 
 	// Check integer viability
 	int64_t totalCellsPerRank = int64_t(gdim[1])*int64_t(gdim[2])*int64_t(gdim[3])/int64_t(numRanksProvided);
@@ -413,7 +413,8 @@ void Simulation::InputFileFirstPass()
 		if (gdim[i]>1 && gdim[i]/domains[i]%2>0)
 			throw tw::FatalError(std::format("local number of cells is not even along non-ignorable axis {}",i));
 	}
-	Resize(this,gdim,gridReader->GlobalCorner(),gridReader->GlobalSize(),2,gridReader->Geometry());
+	auto ghostCellLayers = tw::node4 {0,2,2,2};
+	Resize(this,gdim,gridReader->GlobalCorner(),gridReader->GlobalSize(),std_packing,ghostCellLayers,gridReader->Geometry());
 	delete gridReader;
 	ts_tree_delete(tree);
 

@@ -26,7 +26,7 @@ export struct Mover:ComputeTool
 	void AddTransferParticle(const Particle& src);
 	template <class MoverType>
 	void CopyBack(MoverType *b);
-	void GetSubarrayBounds(std::vector<ParticleRef>& sorted,tw::Int low[4],tw::Int high[4],tw::Int layers);
+	std::pair<tw::node5,tw::node5> GetSubarrayBounds(std::vector<ParticleRef>& sorted,tw::Int layers);
 	void SpreadTasks(std::vector<tw::Int>& task_map);
 	void BunchTasks(std::vector<tw::Int>& task_map);
 	template <class MoverType>
@@ -104,8 +104,8 @@ struct BundleMoverBoris2D : BundleTilerEM2D,BundlePusherBoris
 {
 	Slice<float> Fx,Jx;
 	BundleMoverBoris2D(const MoverParams& mov) : ParticleBundle(mov), BundleTilerEM2D(mov), BundlePusherBoris(mov) {}
-	void LoadFieldSlice(tw::Int low[4],tw::Int high[4],tw::Int ignorable[4]);
-	void InitSourceSlice(tw::Int low[4],tw::Int high[4],tw::Int ignorable[4]);
+	void LoadFieldSlice(tw::node5& beg,tw::node5& end);
+	void InitSourceSlice(tw::node5& beg,tw::node5& end);
 	void DepositSourceSlice(bool needsAtomic);
 	void Move(tw::Float dts);
 };
@@ -114,8 +114,8 @@ struct BundleMoverBoris3D : BundleTilerEM3D,BundlePusherBoris
 {
 	Slice<float> Fx,Jx;
 	BundleMoverBoris3D(const MoverParams& mov) : ParticleBundle(mov), BundleTilerEM3D(mov), BundlePusherBoris(mov) {}
-	void LoadFieldSlice(tw::Int low[4],tw::Int high[4],tw::Int ignorable[4]);
-	void InitSourceSlice(tw::Int low[4],tw::Int high[4],tw::Int ignorable[4]);
+	void LoadFieldSlice(tw::node5& beg,tw::node5& end);
+	void InitSourceSlice(tw::node5& beg,tw::node5& end);
 	void DepositSourceSlice(bool needsAtomic);
 	void Move(tw::Float dts);
 };
@@ -124,8 +124,8 @@ struct BundleMoverHC2D : BundleTilerEM2D,BundlePusherHC
 {
 	Slice<float> Fx,Jx;
 	BundleMoverHC2D(const MoverParams& mov) : ParticleBundle(mov), BundleTilerEM2D(mov), BundlePusherHC(mov) {}
-	void LoadFieldSlice(tw::Int low[4],tw::Int high[4],tw::Int ignorable[4]);
-	void InitSourceSlice(tw::Int low[4],tw::Int high[4],tw::Int ignorable[4]);
+	void LoadFieldSlice(tw::node5& beg,tw::node5& end);
+	void InitSourceSlice(tw::node5& beg,tw::node5& end);
 	void DepositSourceSlice(bool needsAtomic);
 	void Move(tw::Float dts);
 };
@@ -134,8 +134,8 @@ struct BundleMoverHC3D : BundleTilerEM3D,BundlePusherHC
 {
 	Slice<float> Fx,Jx;
 	BundleMoverHC3D(const MoverParams& mov) : ParticleBundle(mov), BundleTilerEM3D(mov), BundlePusherHC(mov) {}
-	void LoadFieldSlice(tw::Int low[4],tw::Int high[4],tw::Int ignorable[4]);
-	void InitSourceSlice(tw::Int low[4],tw::Int high[4],tw::Int ignorable[4]);
+	void LoadFieldSlice(tw::node5& beg,tw::node5& end);
+	void InitSourceSlice(tw::node5& beg,tw::node5& end);
 	void DepositSourceSlice(bool needsAtomic);
 	void Move(tw::Float dts);
 };
@@ -144,8 +144,8 @@ struct BundleMoverUnitary2D : BundleTilerEM2D,BundlePusherUnitary
 {
 	Slice<float> Fx,Jx;
 	BundleMoverUnitary2D(const MoverParams& mov) : ParticleBundle(mov), BundleTilerEM2D(mov), BundlePusherUnitary(mov) {}
-	void LoadFieldSlice(tw::Int low[4],tw::Int high[4],tw::Int ignorable[4]);
-	void InitSourceSlice(tw::Int low[4],tw::Int high[4],tw::Int ignorable[4]);
+	void LoadFieldSlice(tw::node5& beg,tw::node5& end);
+	void InitSourceSlice(tw::node5& beg,tw::node5& end);
 	void DepositSourceSlice(bool needsAtomic);
 	void Move(tw::Float dts);
 };
@@ -154,8 +154,8 @@ struct BundleMoverUnitary3D : BundleTilerEM3D,BundlePusherUnitary
 {
 	Slice<float> Fx,Jx;
 	BundleMoverUnitary3D(const MoverParams& mov) : ParticleBundle(mov), BundleTilerEM3D(mov), BundlePusherUnitary(mov) {}
-	void LoadFieldSlice(tw::Int low[4],tw::Int high[4],tw::Int ignorable[4]);
-	void InitSourceSlice(tw::Int low[4],tw::Int high[4],tw::Int ignorable[4]);
+	void LoadFieldSlice(tw::node5& beg,tw::node5& end);
+	void InitSourceSlice(tw::node5& beg,tw::node5& end);
 	void DepositSourceSlice(bool needsAtomic);
 	void Move(tw::Float dts);
 };
@@ -164,8 +164,8 @@ struct BundleMoverPGC2D : BundleTilerPGC2D,BundleTilerEM2D,BundlePusherPGC
 {
 	Slice<float> Fx,Jx,lasx,chix;
 	BundleMoverPGC2D(const MoverParams& mov) : ParticleBundle(mov), BundleTilerPGC2D(mov), BundleTilerEM2D(mov), BundlePusherPGC(mov) {}
-	void LoadFieldSlice(tw::Int low[4],tw::Int high[4],tw::Int ignorable[4]);
-	void InitSourceSlice(tw::Int low[4],tw::Int high[4],tw::Int ignorable[4]);
+	void LoadFieldSlice(tw::node5& beg,tw::node5& end);
+	void InitSourceSlice(tw::node5& beg,tw::node5& end);
 	void DepositSourceSlice(bool needsAtomic);
 	void Move(tw::Float dts);
 };
@@ -175,8 +175,8 @@ struct BundleMoverPGC3D : BundleTilerPGC3D,BundleTilerEM3D,BundlePusherPGC
 	Slice<float> Fx,Jx,lasx,chix;
 	BundleMoverPGC3D(const MoverParams& mov) : ParticleBundle(mov), BundleTilerPGC3D(mov), BundleTilerEM3D(mov), BundlePusherPGC(mov) {}
 	// For PGC we have to call two slicers explicitly
-	void LoadFieldSlice(tw::Int low[4],tw::Int high[4],tw::Int ignorable[4]);
-	void InitSourceSlice(tw::Int low[4],tw::Int high[4],tw::Int ignorable[4]);
+	void LoadFieldSlice(tw::node5& beg,tw::node5& end);
+	void InitSourceSlice(tw::node5& beg,tw::node5& end);
 	void DepositSourceSlice(bool needsAtomic);
 	void Move(tw::Float dts);
 };
@@ -185,8 +185,8 @@ struct BundleMoverBohmian2D : BundleTilerBohmian2D,BundlePusherBohmian
 {
 	Slice<float> Jx;
 	BundleMoverBohmian2D(const MoverParams& mov) : ParticleBundle(mov), BundleTilerBohmian2D(mov), BundlePusherBohmian(mov) {}
-	void LoadFieldSlice(tw::Int low[4],tw::Int high[4],tw::Int ignorable[4]);
-	void InitSourceSlice(tw::Int low[4],tw::Int high[4],tw::Int ignorable[4]);
+	void LoadFieldSlice(tw::node5& beg,tw::node5& end);
+	void InitSourceSlice(tw::node5& beg,tw::node5& end);
 	void DepositSourceSlice(bool needsAtomic);
 	void Move(tw::Float dts);
 };
@@ -195,8 +195,8 @@ struct BundleMoverBohmian3D : BundleTilerBohmian3D,BundlePusherBohmian
 {
 	Slice<float> Jx;
 	BundleMoverBohmian3D(const MoverParams& mov) : ParticleBundle(mov), BundleTilerBohmian3D(mov), BundlePusherBohmian(mov) {}
-	void LoadFieldSlice(tw::Int low[4],tw::Int high[4],tw::Int ignorable[4]);
-	void InitSourceSlice(tw::Int low[4],tw::Int high[4],tw::Int ignorable[4]);
+	void LoadFieldSlice(tw::node5& beg,tw::node5& end);
+	void InitSourceSlice(tw::node5& beg,tw::node5& end);
 	void DepositSourceSlice(bool needsAtomic);
 	void Move(tw::Float dts);
 };
@@ -205,8 +205,8 @@ struct BundleMoverPhoton2D : BundleTilerEM2D,BundlePusherPhoton
 {
 	Slice<float> Fx,Jx;
 	BundleMoverPhoton2D(const MoverParams& mov) : ParticleBundle(mov), BundleTilerEM2D(mov), BundlePusherPhoton(mov) {}
-	void LoadFieldSlice(tw::Int low[4],tw::Int high[4],tw::Int ignorable[4]);
-	void InitSourceSlice(tw::Int low[4],tw::Int high[4],tw::Int ignorable[4]);
+	void LoadFieldSlice(tw::node5& beg,tw::node5& end);
+	void InitSourceSlice(tw::node5& beg,tw::node5& end);
 	void DepositSourceSlice(bool needsAtomic);
 	void Move(tw::Float dts);
 };
@@ -215,8 +215,8 @@ struct BundleMoverPhoton3D : BundleTilerEM3D,BundlePusherPhoton
 {
 	Slice<float> Fx,Jx;
 	BundleMoverPhoton3D(const MoverParams& mov) : ParticleBundle(mov), BundleTilerEM3D(mov), BundlePusherPhoton(mov) {}
-	void LoadFieldSlice(tw::Int low[4],tw::Int high[4],tw::Int ignorable[4]);
-	void InitSourceSlice(tw::Int low[4],tw::Int high[4],tw::Int ignorable[4]);
+	void LoadFieldSlice(tw::node5& beg,tw::node5& end);
+	void InitSourceSlice(tw::node5& beg,tw::node5& end);
 	void DepositSourceSlice(bool needsAtomic);
 	void Move(tw::Float dts);
 };
@@ -301,11 +301,13 @@ void Mover::CopyBack(MoverType *b)
 	}
 }
 
-void Mover::GetSubarrayBounds(std::vector<ParticleRef>& sorted,tw::Int low[4],tw::Int high[4],tw::Int layers)
+/// return a <beg,end> pair of node5, the internal axis will select component 0.
+std::pair<tw::node5,tw::node5> Mover::GetSubarrayBounds(std::vector<ParticleRef>& sorted,tw::Int layers)
 {
 	// Assumes particles are sorted in increasing memory order
 	// This depends in turn on the cell encoding respecting memory order
 
+	tw::Int low[4],high[4];
 	space->DecodeCell(sorted.front().cell,low);
 	space->DecodeCell(sorted.back().cell,high);
 	// Sorting by cell only sorts the outermost topological index in general.
@@ -339,6 +341,10 @@ void Mover::GetSubarrayBounds(std::vector<ParticleRef>& sorted,tw::Int low[4],tw
 		// ASSERT_GTREQ(low[i],space->LFG(i));
 		// ASSERT_LESSEQ(high[i],space->UFG(i));
 	}
+	return std::pair<tw::node5,tw::node5>(
+		tw::node5 {low[0],low[1],low[2],low[3],0},
+		tw::node5 {high[0]+1,high[1]+1,high[2]+1,high[3]+1,1}
+	);
 }
 
 void Mover::BunchTasks(std::vector<tw::Int>& task_map)
@@ -386,7 +392,7 @@ void Mover::SpreadTasks(std::vector<tw::Int>& task_map)
 template <class MoverType>
 void Mover::MoveSlice(tw::Int tasks,tw::Int tid,tw::Int bounds_data[][8])
 {
-	tw::Int first,last,next,low[4],high[4];
+	tw::Int first,last,next;
 	std::vector<ParticleRef> map;
 	MoverType b(GetParams());
 	first = bounds_data[tid][0];
@@ -398,15 +404,15 @@ void Mover::MoveSlice(tw::Int tasks,tw::Int tid,tw::Int bounds_data[][8])
 		map.push_back(ParticleRef(i,(*particle)[i]));
 	}
 	std::sort(map.begin(),map.end());
-	GetSubarrayBounds(map,low,high,1);
-	b.LoadFieldSlice(low,high,ignorable);
-	GetSubarrayBounds(map,low,high,2);
-	b.InitSourceSlice(low,high,ignorable);
+	auto bounds = GetSubarrayBounds(map,1);
+	b.LoadFieldSlice(bounds.first,bounds.second);
+	bounds = GetSubarrayBounds(map,2);
+	b.InitSourceSlice(bounds.first,bounds.second);
 	// Save the bounds information
 	for (tw::Int i=1;i<=3;i++)
 	{
-		bounds_data[tid][i*2] = low[i];
-		bounds_data[tid][i*2+1] = high[i];
+		bounds_data[tid][i*2] = bounds.first[i];
+		bounds_data[tid][i*2+1] = bounds.second[i];
 	}
 	for (tw::Int i=first;i<=last;i++)
 	{

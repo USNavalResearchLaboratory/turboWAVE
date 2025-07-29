@@ -12,19 +12,23 @@ void PGCMover::Advance()
 		DoTasks<BundleMoverPGC3D>();
 }
 
-void BundleMoverPGC2D::LoadFieldSlice(tw::Int low[4],tw::Int high[4],tw::Int ignorable[4])
+void BundleMoverPGC2D::LoadFieldSlice(tw::node5& beg,tw::node5& end)
 {
-	Fx.Resize(Element(0,5),low,high,ignorable);
+	beg[4] = 0; end[4] = 6;
+	Fx.Resize(beg,end);
 	mov.EM->LoadDataIntoSlice<float>(&Fx);
-	lasx.Resize(Element(0,7),low,high,ignorable);
+	beg[4] = 0; end[4] = 8;
+	lasx.Resize(beg,end);
 	mov.laser->LoadDataIntoSlice<float>(&lasx);
 }
 
-void BundleMoverPGC2D::InitSourceSlice(tw::Int low[4],tw::Int high[4],tw::Int ignorable[4])
+void BundleMoverPGC2D::InitSourceSlice(tw::node5& beg,tw::node5& end)
 {
-	Jx.Resize(Element(0,3),low,high,ignorable);
+	beg[4] = 0; end[4] = 4;
+	Jx.Resize(beg,end);
 	Jx = 0.0f;
-	chix.Resize(Element(0),low,high,ignorable);
+	beg[4] = 0; end[4] = 1;
+	chix.Resize(beg,end);
 	chix = 0.0f;
 }
 
@@ -60,19 +64,23 @@ void BundleMoverPGC2D::Move(tw::Float dts)
 	StoreChiTile(chix);
 }
 
-void BundleMoverPGC3D::LoadFieldSlice(tw::Int low[4],tw::Int high[4],tw::Int ignorable[4])
+void BundleMoverPGC3D::LoadFieldSlice(tw::node5& beg,tw::node5& end)
 {
-	Fx.Resize(Element(0,5),low,high,ignorable);
+	beg[4] = 0; end[4] = 6;
+	Fx.Resize(beg,end);
 	mov.EM->LoadDataIntoSlice<float>(&Fx);
-	lasx.Resize(Element(0,7),low,high,ignorable);
+	beg[4] = 0; end[4] = 8;
+	lasx.Resize(beg,end);
 	mov.laser->LoadDataIntoSlice<float>(&lasx);
 }
 
-void BundleMoverPGC3D::InitSourceSlice(tw::Int low[4],tw::Int high[4],tw::Int ignorable[4])
+void BundleMoverPGC3D::InitSourceSlice(tw::node5& beg,tw::node5& end)
 {
-	Jx.Resize(Element(0,3),low,high,ignorable);
+	beg[4] = 0; end[4] = 4;
+	Jx.Resize(beg,end);
 	Jx = 0.0f;
-	chix.Resize(Element(0),low,high,ignorable);
+	beg[4] = 0; end[4] = 1;
+	chix.Resize(beg,end);
 	chix = 0.0f;
 }
 

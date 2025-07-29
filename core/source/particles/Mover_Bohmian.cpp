@@ -12,13 +12,14 @@ void BohmianMover::Advance()
 		DoTasks<BundleMoverBohmian3D>();
 }
 
-void BundleMoverBohmian2D::LoadFieldSlice(tw::Int low[4],tw::Int high[4],tw::Int ignorable[4])
+void BundleMoverBohmian2D::LoadFieldSlice(tw::node5& beg,tw::node5& end)
 {
-	Jx.Resize(Element(0,3),low,high,ignorable);
+	beg[4] = 0; end[4] = 4;
+	Jx.Resize(beg,end);
 	mov.qo_j4->LoadDataIntoSlice<float>(&Jx);
 }
 
-void BundleMoverBohmian2D::InitSourceSlice(tw::Int low[4],tw::Int high[4],tw::Int ignorable[4])
+void BundleMoverBohmian2D::InitSourceSlice(tw::node5& beg,tw::node5& end)
 {
 }
 
@@ -38,13 +39,14 @@ void BundleMoverBohmian2D::Move(tw::Float dts)
 	mov.ms->MinimizePrimitive(cell,ijk,x,domainMask);
 }
 
-void BundleMoverBohmian3D::LoadFieldSlice(tw::Int low[4],tw::Int high[4],tw::Int ignorable[4])
+void BundleMoverBohmian3D::LoadFieldSlice(tw::node5& beg,tw::node5& end)
 {
-	Jx.Resize(Element(0,3),low,high,ignorable);
+	beg[4] = 0; end[4] = 4;
+	Jx.Resize(beg,end);
 	mov.qo_j4->LoadDataIntoSlice<float>(&Jx);
 }
 
-void BundleMoverBohmian3D::InitSourceSlice(tw::Int low[4],tw::Int high[4],tw::Int ignorable[4])
+void BundleMoverBohmian3D::InitSourceSlice(tw::node5& beg,tw::node5& end)
 {
 }
 

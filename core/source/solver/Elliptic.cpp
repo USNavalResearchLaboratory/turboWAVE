@@ -125,7 +125,7 @@ void EllipticSolver::FixPotential(ScalarField& phi,Region* theRegion,const tw::F
 {
 	#pragma omp parallel
 	{
-		for (auto cell : EntireCellRange(*space))
+		for (auto cell : EntireCellRange(*space,1))
 			if (theRegion->Inside(space->Pos(cell),*space))
 				phi(cell) = thePotential;
 	}
@@ -234,7 +234,7 @@ void EllipticSolver1D::Solve(ScalarField& phi,ScalarField& source,tw::Float mul)
 		dk = 1;
 	}
 	ax = tw::grid::naxis(axis);
-	tw::strip strip(ax,*space,0,0,0);
+	tw::strip strip(*space,ax,0,std_coord);
 
 	std::valarray<tw::Float> T1(sDim),T2(sDim),T3(sDim),src(sDim),ans(sDim);
 
@@ -254,7 +254,7 @@ void EllipticSolver1D::Solve(ScalarField& phi,ScalarField& source,tw::Float mul)
 	for (s=1;s<=sDim;s++)
 		phi(strip,s) = ans[s-1];
 	globalIntegrator->SetMatrix(0,T1,T2,T3);
-	globalIntegrator->SetData(0,&phi(0,0,0),1);
+	globalIntegrator->SetData(0,&phi(0,0,0),phi.Stride(ax),0);
 
 	globalIntegrator->Parallelize();
 
@@ -326,7 +326,7 @@ void IterativePoissonSolver::FixPotential(ScalarField& phi,Region* theRegion,con
 	#pragma omp parallel
 	{
 		tw::Int i,j,k,n;
-		for (auto cell : InteriorCellRange(*space))
+		for (auto cell : InteriorCellRange(*space,1))
 		{
 			cell.Decode(&i,&j,&k);
 			n = (i-1) + (j-1)*space->Dim(1) + (k-1)*space->Dim(1)*space->Dim(2);
@@ -511,10 +511,10 @@ void PoissonSolver::Solve(ScalarField& phi,ScalarField& source,tw::Float mul)
 
 	// Use outer ghost cells of the source to transform the boundary data for free
 	if (task->n0[3]==MPI_PROC_NULL)
-		for (auto strip : StripRange(*space,3,strongbool::no))
+		for (auto strip : StripRange(*space,3,0,1,strongbool::no))
 			source(strip,space->LFG(3)) = phi(strip,space->LFG(3));
 	if (task->n1[3]==MPI_PROC_NULL)
-		for (auto strip : StripRange(*space,3,strongbool::no))
+		for (auto strip : StripRange(*space,3,0,1,strongbool::no))
 			source(strip,space->UFG(3)) = phi(strip,space->UFG(3));
 
 	switch (x0)
@@ -539,10 +539,10 @@ void PoissonSolver::Solve(ScalarField& phi,ScalarField& source,tw::Float mul)
 
 	// Copy the transformed boundary data back into the potential
 	if (task->n0[3]==MPI_PROC_NULL)
-		for (auto strip : StripRange(*space,3,strongbool::no))
+		for (auto strip : StripRange(*space,3,0,1,strongbool::no))
 			phi(strip,space->LFG(3)) = source(strip,space->LFG(3));
 	if (task->n1[3]==MPI_PROC_NULL)
-		for (auto strip : StripRange(*space,3,strongbool::no))
+		for (auto strip : StripRange(*space,3,0,1,strongbool::no))
 			phi(strip,space->UFG(3)) = source(strip,space->UFG(3));
 
 	// Solve on single node
@@ -562,9 +562,9 @@ void PoissonSolver::Solve(ScalarField& phi,ScalarField& source,tw::Float mul)
 		{
 			std::valarray<tw::Float> s(zDim),u(zDim),T1(zDim),T2(zDim),T3(zDim);
 			if (x0==tw::bc::fld::periodic)
-				eigenvalue = phi.CyclicEigenvalue(i,j,*space);
+				eigenvalue = phi.RealCyclicEigenvalue(i,j,*space);
 			else
-				eigenvalue = phi.Eigenvalue(i,j,*space);
+				eigenvalue = phi.RealEigenvalue(i,j,*space);
 			for (k=1;k<=zDim;k++)
 			{
 				s[k-1] = mul*source(i,j,k);
@@ -611,7 +611,7 @@ void PoissonSolver::Solve(ScalarField& phi,ScalarField& source,tw::Float mul)
 				phi(i,j,k) = u[k-1];
 
 			globalIntegrator->SetMatrix( (j-1)*xDim + (i-1) ,T1,T2,T3);
-			globalIntegrator->SetData( (j-1)*xDim + (i-1) ,&phi(i,j,0),phi.Stride(3));
+			globalIntegrator->SetData( (j-1)*xDim + (i-1) ,&phi(i,j,0),phi.Stride(3),0);
 		}
 
 	// Take into account the other nodes
@@ -626,9 +626,9 @@ void PoissonSolver::Solve(ScalarField& phi,ScalarField& source,tw::Float mul)
 			for (i=1;i<=xDim;i++)
 			{
 				if (x0==tw::bc::fld::periodic)
-					eigenvalue = phi.CyclicEigenvalue(i,j,*space);
+					eigenvalue = phi.RealCyclicEigenvalue(i,j,*space);
 				else
-					eigenvalue = phi.Eigenvalue(i,j,*space);
+					eigenvalue = phi.RealEigenvalue(i,j,*space);
 				if (eigenvalue==0.0)
 					phi(i,j,0) = phi0;
 				else
@@ -647,9 +647,9 @@ void PoissonSolver::Solve(ScalarField& phi,ScalarField& source,tw::Float mul)
 			for (i=1;i<=xDim;i++)
 			{
 				if (x0==tw::bc::fld::periodic)
-					eigenvalue = phi.CyclicEigenvalue(i,j,*space);
+					eigenvalue = phi.RealCyclicEigenvalue(i,j,*space);
 				else
-					eigenvalue = phi.Eigenvalue(i,j,*space);
+					eigenvalue = phi.RealEigenvalue(i,j,*space);
 				if (eigenvalue==0.0)
 					phi(i,j,zDim+1) = phiN1;
 				else
@@ -749,10 +749,10 @@ void EigenmodePoissonSolver::Solve(ScalarField& phi,ScalarField& source,tw::Floa
 
 	// Use outer ghost cells of the source to transform the boundary data for free
 	if (task->n0[3]==MPI_PROC_NULL)
-		for (auto strip : StripRange(*space,3,strongbool::no))
+		for (auto strip : StripRange(*space,3,0,1,strongbool::no))
 			source(strip,space->LFG(3)) = phi(strip,space->LFG(3));
 	if (task->n1[3]==MPI_PROC_NULL)
-		for (auto strip : StripRange(*space,3,strongbool::no))
+		for (auto strip : StripRange(*space,3,0,1,strongbool::no))
 			source(strip,space->UFG(3)) = phi(strip,space->UFG(3));
 
 	// Perform hankel transform
@@ -761,10 +761,10 @@ void EigenmodePoissonSolver::Solve(ScalarField& phi,ScalarField& source,tw::Floa
 
 	// Copy the transformed boundary data back into the potential
 	if (task->n0[3]==MPI_PROC_NULL)
-		for (auto strip : StripRange(*space,3,strongbool::no))
+		for (auto strip : StripRange(*space,3,0,1,strongbool::no))
 			phi(strip,space->LFG(3)) = source(strip,space->LFG(3));
 	if (task->n1[3]==MPI_PROC_NULL)
-		for (auto strip : StripRange(*space,3,strongbool::no))
+		for (auto strip : StripRange(*space,3,0,1,strongbool::no))
 			phi(strip,space->UFG(3)) = source(strip,space->UFG(3));
 
 	// Solve on single node
@@ -826,7 +826,7 @@ void EigenmodePoissonSolver::Solve(ScalarField& phi,ScalarField& source,tw::Floa
 			phi(i,0,k) = u[k-1];
 
 		globalIntegrator->SetMatrix(i-1,T1,T2,T3);
-		globalIntegrator->SetData(i-1,&phi(i,0,0),phi.Stride(3));
+		globalIntegrator->SetData(i-1,&phi(i,0,0),phi.Stride(3),0);
 	}
 
 	// Take into account the other nodes

@@ -26,9 +26,7 @@ if(WIN32)
     set(CMAKE_C_COMPILER "$ENV{ProgramFiles}/llvm/bin/clang.exe")
     set(CMAKE_SYSTEM_LIBRARY_PATH "$ENV{ProgramFiles}/LLVM/lib")
     set(CMAKE_SYSTEM_INCLUDE_PATH "$ENV{ProgramFiles}/LLVM/include")
-endif()
-if(APPLE OR UNIX)
-    # Supposing homebrew/linuxbrew is used for LLVM:
+elseif(APPLE)
     # brew install llvm
     # brew install cmake
     # brew install libomp (maybe packed with llvm)
@@ -39,13 +37,23 @@ if(APPLE OR UNIX)
 	set(CMAKE_C_COMPILER "$ENV{HOMEBREW_PREFIX}/opt/llvm/bin/clang")
 	set(CMAKE_SYSTEM_LIBRARY_PATH "$ENV{HOMEBREW_PREFIX}/opt/llvm/lib")
 	set(CMAKE_SYSTEM_INCLUDE_PATH "$ENV{HOMEBREW_PREFIX}/opt/llvm/include")
-endif()
-if(APPLE)
     # For Apple it sometimes is best to use libc++
     set(CMAKE_CXX_FLAGS "-stdlib=libc++")
     # It seems that libstdc++ handles c++17 special functions correctly and libc++ does not.
     # So if we are using libc++ we have to use our own wrappers.
     add_definitions(-DUSE_TWSF)
+elseif(UNIX)
+    # n.b. we need snap, apt, and linuxbrew.
+    # snap install cmake
+    # apt install ninja-build
+    # apt install gcc-14
+    # apt install libstdc++-14-dev
+    # apt install libopenmpi-dev
+    # brew install llvm
+	set(CMAKE_CXX_COMPILER "$ENV{HOMEBREW_PREFIX}/opt/llvm/bin/clang++")
+	set(CMAKE_C_COMPILER "$ENV{HOMEBREW_PREFIX}/opt/llvm/bin/clang")
+	set(CMAKE_SYSTEM_LIBRARY_PATH "$ENV{HOMEBREW_PREFIX}/opt/llvm/lib")
+	set(CMAKE_SYSTEM_INCLUDE_PATH "$ENV{HOMEBREW_PREFIX}/opt/llvm/include")
 endif()
 
 set(CMAKE_CXX_STANDARD 23)
@@ -106,12 +114,12 @@ target_sources(tw3d PUBLIC
 
 target_sources(tw3d PUBLIC
     FILE_SET HEADERS
-    BASE_DIRS base io particles solver sparc
+    BASE_DIRS base io particles fields solver sparc
 )
 
 target_sources(tw3d PUBLIC
     FILE_SET CXX_MODULES
-    BASE_DIRS base io particles solver sparc
+    BASE_DIRS base io particles fields solver sparc
     FILES
         base/base.cpp
         base/logger.cpp
@@ -127,9 +135,15 @@ target_sources(tw3d PUBLIC
         base/Injection.cpp
         base/Factory.cpp
         base/FFT.cpp
-        base/Fields.cpp
         base/Functions.cpp
         base/Tasks.cpp
+        fields/Fields.cpp
+        fields/primitives.cpp
+        fields/base.cpp
+        fields/vector_ops.cpp
+        fields/transform.cpp
+        fields/aggregates.cpp
+        fields/tools.cpp
         io/Navigate.cpp
         io/Preprocess.cpp
         io/Assignment.cpp

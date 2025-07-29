@@ -36,20 +36,20 @@ export struct DynSpace : StaticSpace
 	tw::vec4 max_spacing; ///< maximum spacing to use for adaptive grids (including time levels)
 	tw::vec4 critical_spacing; ///< threshold that triggers some action when we have an adaptive grid
 	/// number of interior cells along the given axis, summed over all domains on the low-side of this domain
-	tw::Int lowSideCells[4];
+	tw::node4 lowSideCells;
 	/// number of interior cells along the given axis, summed over all domains
-	tw::Int globalCells[4];
+	tw::node4 globalCells;
 
 	public:
 
 	/// Create an empty `DynSpace`, the normal pattern is to do this and then `Resize`.
 	DynSpace();
 	/// Create a `DynSpace` with a single time node and purely *local* coordinates
-	DynSpace(const tw::Int dim[4],const tw::vec4& corner,const tw::vec4& size,tw::Int ghostCellLayers=2);
+	DynSpace(const tw::node5& dim,const tw::vec4& corner,const tw::vec4& size,const tw::node5& packing,const tw::node4& ghostCellLayers);
 	/// Change the topology and coordinates:  `gdim`, `gcorner`, and `gsize` describe global window that exists in distributed
 	/// memory at any one time, as distinct from the union of all windows that occur during the system evolution.
 	/// This makes MPI calls on `task` to get the domain information.
-	void Resize(Task *task,const tw::Int gdim[4],const tw::vec4& gcorner,const tw::vec4& gsize,tw::Int ghostCellLayers=2);
+	void Resize(Task *task,const tw::node5& gdim,const tw::vec4& gcorner,const tw::vec4& gsize,const tw::node5& packing,const tw::node4& ghostCellLayers);
 	void SetupTimeInfo(tw::Float dt0) { spacing[0] = dt0; freq[0] = 1.0/dt0; }
 	void UpdateWindow(const DynSpace& src) {
 		solutionPosition = src.solutionPosition;
@@ -95,7 +95,8 @@ DynSpace::DynSpace()
 	solutionVelocity = tw::vec4(1.0,0.0,0.0,0.0);
 }
 
-DynSpace::DynSpace(const tw::Int dim[4],const tw::vec4& corner,const tw::vec4& size,tw::Int ghostCellLayers): StaticSpace(dim,size,ghostCellLayers)
+DynSpace::DynSpace(const tw::node5& dim,const tw::vec4& corner,const tw::vec4& size,const tw::node5& packing,const tw::node4& ghostCellLayers):
+	StaticSpace(dim,size,packing,ghostCellLayers)
 {
 	globalCorner = corner;
 	globalSize = size;
@@ -107,19 +108,15 @@ DynSpace::DynSpace(const tw::Int dim[4],const tw::vec4& corner,const tw::vec4& s
 	}
 }
 
-void DynSpace::Resize(Task *task,const tw::Int gdim[4],const tw::vec4& gcorner,const tw::vec4& gsize,tw::Int ghostCellLayers)
+void DynSpace::Resize(Task *task,const tw::node5& gdim,const tw::vec4& gcorner,const tw::vec4& gsize,const tw::node5& packing,const tw::node4& ghostCellLayers)
 {
-	tw::Int domainIndex[4],domainCount[4];
-	task->strip[0].Get_coords4(domainIndex);
-	domainCount[0] = 1;
+	tw::node4 domainIndex = task->strip[0].Get_coords4();
+	tw::node5 domainCount { 1, task->strip[1].Get_size(), task->strip[2].Get_size(), task->strip[3].Get_size(), 1 };
 	dim[0] = gdim[0];
 	if (dim[0] != 1) {
 		logger::WARN(std::format("time dimension was not 1 ({})",dim[0]));
 	}
-	for (auto i = 1; i <= 3; i++) {
-		domainCount[i] = task->strip[i].Get_size();
-	}
-	StaticSpace::Resize(domainCount,gdim,gsize,ghostCellLayers);
+	StaticSpace::Resize(domainCount,gdim,gsize,packing,ghostCellLayers);
 	logger::DEBUG(std::format("resize domain to {}x{}x{}x{}",dim[0],dim[1],dim[2],dim[3]));
 
 	globalCorner = gcorner;

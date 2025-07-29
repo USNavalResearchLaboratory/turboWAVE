@@ -34,7 +34,7 @@ void Fluid::AdvectionTest()
 
     // setup a step function and velocity profile
     // important to have flux = 0 at boundaries
-    for (auto strip : StripRange(*owner,3,strongbool::no))
+    for (auto strip : StripRange(*owner,3,0,1,strongbool::no))
     {
         for (tw::Int k=1;k<=Dim(3);k++)
         {
@@ -47,13 +47,13 @@ void Fluid::AdvectionTest()
     // advection
 	state0 = state1; // state1 is the predicted state used to advance state0
 	FCT_Driver convector(&state0,&state1,&vel,NULL,owner);
-	convector.SetDensityElements(Element(0));
+	convector.SetDensityElements(Rng(0));
 	convector.SetVelocityElement(3);
 	convector.Convect(tw::grid::z,fld::dirichletCell,fld::dirichletCell,0.5*dx(0));
 
     // check positivity
     tw::Float pos = 1.0;
-    for (auto cell : CellRange(*owner,false))
+    for (auto cell : CellRange(*owner,1,false))
         pos *= state0(cell,0)>0.0 ? 1.0 : 0.0;
 
     ASSERT_NEAR(pos,1.0,1e-6);
@@ -73,7 +73,7 @@ void Fluid::ConservationTest()
 
     // setup a step function and velocity profile
     // important to have flux = 0 at boundaries
-    for (auto strip : StripRange(*owner,3,strongbool::no))
+    for (auto strip : StripRange(*owner,3,0,1,strongbool::no))
     {
         for (tw::Int k=1;k<=Dim(3);k++)
         {
@@ -85,20 +85,20 @@ void Fluid::ConservationTest()
 
     // initial mass for conservation check
     tw::Float initialMass = 0.0;
-    for (auto cell : CellRange(*owner,false))
+    for (auto cell : CellRange(*owner,1,false))
         initialMass += state1(cell,0);
     owner->strip[0].AllSum(&initialMass,&initialMass,sizeof(tw::Float),0);
 
     // advection
 	state0 = state1; // state1 is the predicted state used to advance state0
 	FCT_Driver convector(&state0,&state1,&vel,NULL,owner);
-	convector.SetDensityElements(Element(0));
+	convector.SetDensityElements(Rng(0));
 	convector.SetVelocityElement(3);
 	convector.Convect(tw::grid::z,fld::dirichletCell,fld::dirichletCell,0.5*dx(0));
 
     // check conservation
     tw::Float finalMass = 0.0;
-    for (auto cell : CellRange(*owner,false))
+    for (auto cell : CellRange(*owner,1,false))
         finalMass += state0(cell,0);
      owner->strip[0].AllSum(&finalMass,&finalMass,sizeof(tw::Float),0);
 

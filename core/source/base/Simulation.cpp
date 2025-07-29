@@ -231,8 +231,9 @@ void Simulation::Test()
 	// TODO: we need to unify handling of all testables.
 
 	std::println(std::cout,"\ntesting {}{}metric space{}",term::bold,term::cyan,term::reset_all);
- 	Initialize(tw::idx4(1,1,1,2).array,tw::idx4(0,1,1,0).array);
-	Resize(this,tw::idx4(1,4,1,4).array,tw::vec4(0,0,0,0),tw::vec4(0.1,0.8,0.2,0.8),2);
+	auto ghostCellLayers = tw::node4 {0,2,2,2};
+	Initialize(tw::node4{1,1,1,2},tw::node4{0,1,1,0});
+	Resize(this,tw::node5{1,4,1,4,1},tw::vec4(0,0,0,0),tw::vec4(0.1,0.8,0.2,0.8),std_packing,ghostCellLayers);
 	tw::Int testId = 1;
 	failed = 0;
 	try {

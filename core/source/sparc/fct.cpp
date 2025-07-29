@@ -23,7 +23,7 @@ export struct FCT_Engine
 
 export struct FCT_Driver
 {
-	Element en; // indices of density components
+	Rng en; // indices of density components
 	tw::Int vi; // index to velocity component
 	Field* diff, * net_flux;
 
@@ -36,10 +36,10 @@ export struct FCT_Driver
 
 	FCT_Driver(Field* rho, Field* rho1, Field* vel, ScalarField* fluxMask, MetricSpace* ms);
 	~FCT_Driver();
-	void SetDensityElements(const Element& e) { en = e; }
+	void SetDensityElements(const Rng& e) { en = e; }
 	void SetVelocityElement(tw::Int v) { vi = v; }
 	void Convect(const tw::grid::axis& axis, tw::bc::fld low, tw::bc::fld high, tw::Float dt);
-	void GetTrueFlux(Field& flux, const Element& dst, const Element& src)
+	void GetTrueFlux(Field& flux, const Rng04& dst, const Rng04& src)
 	{
 		CopyFieldData(flux, dst, *net_flux, src);
 	}
@@ -243,10 +243,10 @@ void FCT_Driver::Convect(const tw::grid::axis& axis,tw::bc::fld low,tw::bc::fld 
 		delete net_flux;
 	diff = new Field;
 	net_flux = new Field;
-	diff->Initialize(en.Components(),*rho,rho->task);
-	net_flux->Initialize(en.Components(),*rho,rho->task);
-	diff->SetBoundaryConditions(axis,low,high);
-	net_flux->SetBoundaryConditions(axis,low,high);
+	diff->Initialize(*rho,rho->task);
+	net_flux->Initialize(*rho,rho->task);
+	diff->SetBoundaryConditions(All(*rho),axis,low,high);
+	net_flux->SetBoundaryConditions(All(*rho),axis,low,high);
 
 	#pragma omp parallel
 	{
@@ -257,9 +257,9 @@ void FCT_Driver::Convect(const tw::grid::axis& axis,tw::bc::fld low,tw::bc::fld 
 
 		// TRANSPORT
 
-		for (c=en.low;c<=en.high;c++)
+		for (c=en.beg; c<en.end; c++)
 		{
-			for (auto s : StripRange(*ms,ax,strongbool::yes))
+			for (auto s : StripRange(*ms,ax,0,1,strongbool::yes))
 			{
 				engine.Reset(s,*ms,fluxMask);
 				rho->GetStrip(va_rho,s,c);
@@ -267,85 +267,85 @@ void FCT_Driver::Convect(const tw::grid::axis& axis,tw::bc::fld low,tw::bc::fld 
 				vel->GetStrip(va_vel,s,vi);
 				engine.Transport(va_vel,va_rho,va_rho1,va_diff,va_flux,dt);
 				rho->SetStrip(va_rho,s,c);
-				diff->SetStrip(va_diff,s,c-en.low);
-				net_flux->SetStrip(va_flux,s,c-en.low);
+				diff->SetStrip(va_diff,s,c-en.beg);
+				net_flux->SetStrip(va_flux,s,c-en.beg);
 			}
 		}
 		#pragma omp barrier
 		#pragma omp single
 		{
-			rho->DownwardCopy(axis,en,1);
-			rho->UpwardCopy(axis,en,1);
+			rho->DownwardCopy(en,axis,1);
+			rho->UpwardCopy(en,axis,1);
 			rho->ApplyBoundaryCondition(en);
 		}
 
 		// DIFFUSE
 
-		for (c=en.low;c<=en.high;c++)
+		for (c=en.beg; c<en.end; c++)
 		{
-			for (auto s : StripRange(*ms,ax,strongbool::yes))
+			for (auto s : StripRange(*ms,ax,0,1,strongbool::yes))
 			{
 				engine.Reset(s,*ms,fluxMask);
 				rho->GetStrip(va_rho,s,c);
-				diff->GetStrip(va_diff,s,c-en.low);
+				diff->GetStrip(va_diff,s,c-en.beg);
 				vel->GetStrip(va_vel,s,vi);
 				engine.Diffuse(va_vel,va_rho,va_diff,dt);
 				rho->SetStrip(va_rho,s,c);
-				diff->SetStrip(va_diff,s,c-en.low);
+				diff->SetStrip(va_diff,s,c-en.beg);
 			}
 		}
 		#pragma omp barrier
 		#pragma omp single
 		{
-			rho->DownwardCopy(axis,en,1);
-			rho->UpwardCopy(axis,en,2); // need 2 low-side ghost cells for clipping operation
+			rho->DownwardCopy(en,axis,1);
+			rho->UpwardCopy(en,axis,2); // need 2 low-side ghost cells for clipping operation
 			// leave ghost cell with transported un-diffused value (no call to rho->ApplyBoundaryCondition)
 		}
 
 		// CLIP
 
-		for (c=en.low;c<=en.high;c++)
+		for (c=en.beg; c<=en.end; c++)
 		{
-			for (auto s : StripRange(*ms,ax,strongbool::yes))
+			for (auto s : StripRange(*ms,ax,0,1,strongbool::yes))
 			{
 				engine.Reset(s,*ms,fluxMask);
 				rho->GetStrip(va_rho,s,c);
-				diff->GetStrip(va_diff,s,c-en.low);
+				diff->GetStrip(va_diff,s,c-en.beg);
 				va_rho00 = (*rho)(s,-1,c);
 				engine.Clip(va_rho,va_diff,va_rho00);
-				diff->SetStrip(va_diff,s,c-en.low);
+				diff->SetStrip(va_diff,s,c-en.beg);
 			}
 		}
 		#pragma omp barrier
 		#pragma omp single
 		{
-			diff->DownwardCopy(axis,1);
-			diff->ApplyBoundaryCondition();
+			diff->DownwardCopy(All(*diff),axis,1);
+			diff->ApplyBoundaryCondition(All(*diff));
 		}
 
 		// ANTI-DIFFUSE
 
-		for (c=en.low;c<=en.high;c++)
+		for (c=en.beg; c<en.end; c++)
 		{
-			for (auto s : StripRange(*ms,ax,strongbool::yes))
+			for (auto s : StripRange(*ms,ax,0,1,strongbool::yes))
 			{
 				engine.Reset(s,*ms,fluxMask);
 				rho->GetStrip(va_rho,s,c);
-				diff->GetStrip(va_diff,s,c-en.low);
-				net_flux->GetStrip(va_flux,s,c-en.low);
+				diff->GetStrip(va_diff,s,c-en.beg);
+				net_flux->GetStrip(va_flux,s,c-en.beg);
 				engine.AntiDiffuse(va_rho,va_diff,va_flux);
 				rho->SetStrip(va_rho,s,c);
-				net_flux->SetStrip(va_flux,s,c-en.low);
+				net_flux->SetStrip(va_flux,s,c-en.beg);
 			}
 		}
 		#pragma omp barrier
 		#pragma omp single
 		{
-			rho->DownwardCopy(axis,en,1);
-			rho->UpwardCopy(axis,en,1);
+			rho->DownwardCopy(en,axis,1);
+			rho->UpwardCopy(en,axis,1);
 			rho->ApplyBoundaryCondition(en);
-			net_flux->UpwardCopy(axis,1);
-			net_flux->ApplyBoundaryCondition();
+			net_flux->UpwardCopy(All(*net_flux),axis,1);
+			net_flux->ApplyBoundaryCondition(All(*net_flux));
 		}
 	}
 }

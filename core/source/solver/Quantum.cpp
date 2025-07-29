@@ -28,7 +28,7 @@ struct AtomicPhysics:Module
 	tw::Float timeRelaxingToGround;
 
 	// Data
-	Field psi_r,psi_i; // real and imaginary parts of wavefunction
+	Field psi_r,psi_i; // real and imaginary parts of wavefunction, could involve spinor components
 	Field A4,Ao4; // EM 4-potential and old 4-potential
 	Field J4; // EM 4-current
 
@@ -43,7 +43,7 @@ struct AtomicPhysics:Module
 
 	tw::Complex Psi(const tw::Int& i,const tw::Int& j,const tw::Int& k,const tw::Int& c) const
 	{
-		return tw::Complex(psi_r(i,j,k,c),psi_i(i,j,k,c));
+		return tw::Complex(psi_r(1,i,j,k,c),psi_i(1,i,j,k,c));
 	}
 	tw::Complex Psi(const tw::cell& cell,const tw::Int& c) const
 	{
@@ -183,7 +183,7 @@ void Dirac::LeapFrog(tw::Float sgn)
 		tw::Float *D2r = tw::alloc_aligned_floats(dim[1],AB);
 		tw::Float *D2i = tw::alloc_aligned_floats(dim[1],AB);
 
-		for (auto v : VectorStripRange<1>(*this,false))
+		for (auto v : VectorStripRange<1>(*this,0,1,false))
 		{
 			// unitary operator of time translation for diagonal part of Hamiltonian
 			#pragma omp simd aligned(Ur,Ui:AB)
@@ -197,18 +197,18 @@ void Dirac::LeapFrog(tw::Float sgn)
 			#pragma omp simd aligned(D1r,D2r,D1i,D2i:AB)
 			for (tw::Int i=1;i<=dim[1];i++)
 			{
-				D1r[i-1] = -psi_r(v,i,IN1,3) - q0*A4(v,i,3)*psi_i(v,i,IN1);
-				D1i[i-1] = -psi_i(v,i,IN1,3) + q0*A4(v,i,3)*psi_r(v,i,IN1);
-				D2r[i-1] = -psi_r(v,i,IN1,1) + psi_i(v,i,IN1,2) - q0*A4(v,i,1)*psi_i(v,i,IN1) - q0*A4(v,i,2)*psi_r(v,i,IN1);
-				D2i[i-1] = -psi_i(v,i,IN1,1) - psi_r(v,i,IN1,2) + q0*A4(v,i,1)*psi_r(v,i,IN1) - q0*A4(v,i,2)*psi_i(v,i,IN1);
+				D1r[i-1] = -psi_r.d1(v,i,IN1,3) - q0*A4(v,i,3)*psi_i(v,i,IN1);
+				D1i[i-1] = -psi_i.d1(v,i,IN1,3) + q0*A4(v,i,3)*psi_r(v,i,IN1);
+				D2r[i-1] = -psi_r.d1(v,i,IN1,1) + psi_i.d1(v,i,IN1,2) - q0*A4(v,i,1)*psi_i(v,i,IN1) - q0*A4(v,i,2)*psi_r(v,i,IN1);
+				D2i[i-1] = -psi_i.d1(v,i,IN1,1) - psi_r.d1(v,i,IN1,2) + q0*A4(v,i,1)*psi_r(v,i,IN1) - q0*A4(v,i,2)*psi_i(v,i,IN1);
 			}
 			#pragma omp simd aligned(D1r,D2r,D1i,D2i:AB)
 			for (tw::Int i=1;i<=dim[1];i++)
 			{
-				D1r[i-1] += -psi_r(v,i,IN2,1) - psi_i(v,i,IN2,2) - q0*A4(v,i,1)*psi_i(v,i,IN2) + q0*A4(v,i,2)*psi_r(v,i,IN2);
-				D1i[i-1] += -psi_i(v,i,IN2,1) + psi_r(v,i,IN2,2) + q0*A4(v,i,1)*psi_r(v,i,IN2) + q0*A4(v,i,2)*psi_i(v,i,IN2);
-				D2r[i-1] += psi_r(v,i,IN2,3) + q0*A4(v,i,3)*psi_i(v,i,IN2);
-				D2i[i-1] += psi_i(v,i,IN2,3) - q0*A4(v,i,3)*psi_r(v,i,IN2);
+				D1r[i-1] += -psi_r.d1(v,i,IN2,1) - psi_i.d1(v,i,IN2,2) - q0*A4(v,i,1)*psi_i(v,i,IN2) + q0*A4(v,i,2)*psi_r(v,i,IN2);
+				D1i[i-1] += -psi_i.d1(v,i,IN2,1) + psi_r.d1(v,i,IN2,2) + q0*A4(v,i,1)*psi_r(v,i,IN2) + q0*A4(v,i,2)*psi_i(v,i,IN2);
+				D2r[i-1] += psi_r.d1(v,i,IN2,3) + q0*A4(v,i,3)*psi_i(v,i,IN2);
+				D2i[i-1] += psi_i.d1(v,i,IN2,3) - q0*A4(v,i,3)*psi_r(v,i,IN2);
 			}
 
 			#pragma omp simd aligned(Ur,Ui,D1r,D1i:AB)
@@ -275,9 +275,15 @@ AtomicPhysics::AtomicPhysics(const std::string& name,Simulation* sim):Module(nam
 	H.rnuc = 0.01;
 	H.B0 = 0.0;
 
-	A4.Initialize(4,*this,owner,tw::grid::x);
-	Ao4.Initialize(4,*this,owner,tw::grid::x);
-	J4.Initialize(4,*this,owner,tw::grid::x);
+	auto ss = StaticSpace(
+		tw::node5 {1,dim[1],dim[2],dim[3],4},
+		sim->PhysicalSize(),
+		tw::node5 {4,0,2,3,1},
+		std_coord
+	);
+	A4.Initialize(ss,owner);
+	Ao4.Initialize(ss,owner);
+	J4.Initialize(ss,owner);
 
 	photonPropagator = NULL;
 
@@ -326,34 +332,34 @@ void AtomicPhysics::Initialize()
 	tw::bc::fld psiDefaultBC,A4DefaultBC;
 	psiDefaultBC = fld::neumannWall;
 	A4DefaultBC = fld::dirichletWall;
-	psi_r.SetBoundaryConditions(tw::grid::x,psiDefaultBC,psiDefaultBC);
-	psi_r.SetBoundaryConditions(tw::grid::y,psiDefaultBC,psiDefaultBC);
-	psi_r.SetBoundaryConditions(tw::grid::z,psiDefaultBC,psiDefaultBC);
-	psi_i.SetBoundaryConditions(tw::grid::x,psiDefaultBC,psiDefaultBC);
-	psi_i.SetBoundaryConditions(tw::grid::y,psiDefaultBC,psiDefaultBC);
-	psi_i.SetBoundaryConditions(tw::grid::z,psiDefaultBC,psiDefaultBC);
-	A4.SetBoundaryConditions(tw::grid::x,A4DefaultBC,A4DefaultBC);
-	A4.SetBoundaryConditions(tw::grid::y,A4DefaultBC,A4DefaultBC);
-	A4.SetBoundaryConditions(tw::grid::z,A4DefaultBC,A4DefaultBC);
-	J4.SetBoundaryConditions(tw::grid::x,A4DefaultBC,A4DefaultBC);
-	J4.SetBoundaryConditions(tw::grid::y,A4DefaultBC,A4DefaultBC);
-	J4.SetBoundaryConditions(tw::grid::z,A4DefaultBC,A4DefaultBC);
+	psi_r.SetBoundaryConditions(All(psi_r),tw::grid::x,psiDefaultBC,psiDefaultBC);
+	psi_r.SetBoundaryConditions(All(psi_r),tw::grid::y,psiDefaultBC,psiDefaultBC);
+	psi_r.SetBoundaryConditions(All(psi_r),tw::grid::z,psiDefaultBC,psiDefaultBC);
+	psi_i.SetBoundaryConditions(All(psi_i),tw::grid::x,psiDefaultBC,psiDefaultBC);
+	psi_i.SetBoundaryConditions(All(psi_i),tw::grid::y,psiDefaultBC,psiDefaultBC);
+	psi_i.SetBoundaryConditions(All(psi_i),tw::grid::z,psiDefaultBC,psiDefaultBC);
+	A4.SetBoundaryConditions(All(A4),tw::grid::x,A4DefaultBC,A4DefaultBC);
+	A4.SetBoundaryConditions(All(A4),tw::grid::y,A4DefaultBC,A4DefaultBC);
+	A4.SetBoundaryConditions(All(A4),tw::grid::z,A4DefaultBC,A4DefaultBC);
+	J4.SetBoundaryConditions(All(J4),tw::grid::x,A4DefaultBC,A4DefaultBC);
+	J4.SetBoundaryConditions(All(J4),tw::grid::y,A4DefaultBC,A4DefaultBC);
+	J4.SetBoundaryConditions(All(J4),tw::grid::z,A4DefaultBC,A4DefaultBC);
 
 	switch (owner->gridGeometry)
 	{
 		case tw::grid::cartesian:
 			break;
 		case tw::grid::cylindrical:
-			A4.SetBoundaryConditions(Element(0),tw::grid::x,fld::neumannWall,fld::dirichletWall);
-			A4.SetBoundaryConditions(Element(3),tw::grid::x,fld::neumannWall,fld::dirichletWall);
-			J4.SetBoundaryConditions(Element(0),tw::grid::x,fld::neumannWall,fld::dirichletWall);
-			J4.SetBoundaryConditions(Element(3),tw::grid::x,fld::neumannWall,fld::dirichletWall);
+			A4.SetBoundaryConditions(Rng(0),tw::grid::x,fld::neumannWall,fld::dirichletWall);
+			A4.SetBoundaryConditions(Rng(3),tw::grid::x,fld::neumannWall,fld::dirichletWall);
+			J4.SetBoundaryConditions(Rng(0),tw::grid::x,fld::neumannWall,fld::dirichletWall);
+			J4.SetBoundaryConditions(Rng(3),tw::grid::x,fld::neumannWall,fld::dirichletWall);
 			break;
 		case tw::grid::spherical:
-			A4.SetBoundaryConditions(Element(0),tw::grid::y,fld::neumannWall,fld::neumannWall);
-			A4.SetBoundaryConditions(Element(1),tw::grid::y,fld::neumannWall,fld::neumannWall);
-			J4.SetBoundaryConditions(Element(0),tw::grid::y,fld::neumannWall,fld::neumannWall);
-			J4.SetBoundaryConditions(Element(1),tw::grid::y,fld::neumannWall,fld::neumannWall);
+			A4.SetBoundaryConditions(Rng(0),tw::grid::y,fld::neumannWall,fld::neumannWall);
+			A4.SetBoundaryConditions(Rng(1),tw::grid::y,fld::neumannWall,fld::neumannWall);
+			J4.SetBoundaryConditions(Rng(0),tw::grid::y,fld::neumannWall,fld::neumannWall);
+			J4.SetBoundaryConditions(Rng(1),tw::grid::y,fld::neumannWall,fld::neumannWall);
 			break;
 	}
 
@@ -383,7 +389,7 @@ void AtomicPhysics::FormPotentials(tw::Float t)
 	{
 		tw::Float phiNow,r;
 		tw::vec3 A0,A1,r_curv,r_cart;
-		for (auto cell : EntireCellRange(*this))
+		for (auto cell : EntireCellRange(*this,1))
 		{
 			r = owner->SphericalRadius(owner->Pos(cell));
 			phiNow = GetSphericalPotential(r);
@@ -411,9 +417,9 @@ void AtomicPhysics::FormPotentials(tw::Float t)
 		}
 	}
 
-	Ao4.CopyFromNeighbors();
+	Ao4.CopyFromNeighbors(All(Ao4));
 	//Ao4.ApplyBoundaryCondition();
-	A4.CopyFromNeighbors();
+	A4.CopyFromNeighbors(All(A4));
 	//A4.ApplyBoundaryCondition();
 }
 
@@ -423,7 +429,7 @@ void AtomicPhysics::FormGhostCellPotentials(tw::Float t)
 		if (A4.Dim(ax)>1)
 			#pragma omp parallel firstprivate(t,ax)
 			{
-				for (auto s : StripRange(*this,ax,strongbool::no))
+				for (auto s : StripRange(*this,ax,0,1,strongbool::no))
 					for (tw::Int ghostCell=0;ghostCell<=Dim(s.Axis())+1;ghostCell+=Dim(s.Axis())+1)
 					{
 						tw::vec3 pos(owner->Pos(s,ghostCell));
@@ -558,15 +564,15 @@ void AtomicPhysics::Report(Diagnostic& diagnostic)
 	diagnostic.ReportNumber("Ay",ANow.y,true);
 	diagnostic.ReportNumber("Az",ANow.z,true);
 
-	diagnostic.ReportField("rho",J4,0,tw::dims::charge_density,"$\\rho$");
-	diagnostic.ReportField("Jx",J4,1,tw::dims::current_density,"$j_x$");
-	diagnostic.ReportField("Jy",J4,2,tw::dims::current_density,"$j_y$");
-	diagnostic.ReportField("Jz",J4,3,tw::dims::current_density,"$j_z$");
+	diagnostic.ReportField("rho",J4,1,0,tw::dims::charge_density,"$\\rho$");
+	diagnostic.ReportField("Jx",J4,1,1,tw::dims::current_density,"$j_x$");
+	diagnostic.ReportField("Jy",J4,1,2,tw::dims::current_density,"$j_y$");
+	diagnostic.ReportField("Jz",J4,1,3,tw::dims::current_density,"$j_z$");
 
-	diagnostic.ReportField("phi",A4,0,tw::dims::scalar_potential,"$\\phi$");
-	diagnostic.ReportField("Ax",A4,1,tw::dims::vector_potential,"$A_x$");
-	diagnostic.ReportField("Ay",A4,2,tw::dims::vector_potential,"$A_y$");
-	diagnostic.ReportField("Az",A4,3,tw::dims::vector_potential,"$A_z$");
+	diagnostic.ReportField("phi",A4,1,0,tw::dims::scalar_potential,"$\\phi$");
+	diagnostic.ReportField("Ax",A4,1,1,tw::dims::vector_potential,"$A_x$");
+	diagnostic.ReportField("Ay",A4,1,2,tw::dims::vector_potential,"$A_y$");
+	diagnostic.ReportField("Az",A4,1,3,tw::dims::vector_potential,"$A_z$");
 
 	// ScalarField temp;
 	// temp.Initialize(*this,owner);
@@ -701,7 +707,7 @@ void Schroedinger::Initialize()
 
 	#pragma omp parallel
 	{
-		for (auto cell : EntireCellRange(*this))
+		for (auto cell : EntireCellRange(*this,1))
 			for (auto w : waveFunction)
 				psi1(cell) += w->Amplitude(H,owner->Pos(cell),0.0,0);
 	}
@@ -709,7 +715,7 @@ void Schroedinger::Initialize()
 	psi0 = psi1;
 	#pragma omp parallel
 	{
-		for (auto cell : EntireCellRange(*this))
+		for (auto cell : EntireCellRange(*this,1))
 			J4(cell,0) = norm(psi1(cell));
 	}
 
@@ -847,8 +853,8 @@ void Schroedinger::Update()
 
 	propagator->DepositCurrent(tw::grid::t,psi0,psi1,A4,J4,dtc);
 
-	J4.CopyFromNeighbors();
-	J4.ApplyBoundaryCondition();
+	J4.CopyFromNeighbors(All(J4));
+	J4.ApplyBoundaryCondition(All(J4));
 	if (owner->WindowPos(0) < timeRelaxingToGround)
 		Normalize();
 }
@@ -890,19 +896,19 @@ void Schroedinger::UpdateJ4()
 				psi_y = (psi1(i,j+1,k) - psi1(i,j-1,k))/owner->dL(i,j,k,2);
 				psi_z = (psi1(i,j,k+1) - psi1(i,j,k-1))/owner->dL(i,j,k,3);
 
-				J4(i,j,k,0) = norm(psiNow);
-				J4(i,j,k,1) = -real((half*ii/H.morb) * (conj(psiNow)*psi_x - conj(psi_x)*psiNow)) - H.qorb*A4(i,j,k,1)*norm(psiNow)/H.morb;
-				J4(i,j,k,2) = -real((half*ii/H.morb) * (conj(psiNow)*psi_y - conj(psi_y)*psiNow)) - H.qorb*A4(i,j,k,2)*norm(psiNow)/H.morb;
-				J4(i,j,k,3) = -real((half*ii/H.morb) * (conj(psiNow)*psi_z - conj(psi_z)*psiNow)) - H.qorb*A4(i,j,k,3)*norm(psiNow)/H.morb;
+				J4(1,i,j,k,0) = norm(psiNow);
+				J4(1,i,j,k,1) = -real((half*ii/H.morb) * (conj(psiNow)*psi_x - conj(psi_x)*psiNow)) - H.qorb*A4(1,i,j,k,1)*norm(psiNow)/H.morb;
+				J4(1,i,j,k,2) = -real((half*ii/H.morb) * (conj(psiNow)*psi_y - conj(psi_y)*psiNow)) - H.qorb*A4(1,i,j,k,2)*norm(psiNow)/H.morb;
+				J4(1,i,j,k,3) = -real((half*ii/H.morb) * (conj(psiNow)*psi_z - conj(psi_z)*psiNow)) - H.qorb*A4(1,i,j,k,3)*norm(psiNow)/H.morb;
 			}
-	J4.CopyFromNeighbors();
-	J4.ApplyBoundaryCondition();
+	J4.CopyFromNeighbors(All(J4));
+	J4.ApplyBoundaryCondition(All(J4));
 }
 
 void Schroedinger::Normalize()
 {
 	tw::Float totalProbability = 0.0;
-	for (auto cell : InteriorCellRange(*this))
+	for (auto cell : InteriorCellRange(*this,1))
 		totalProbability += norm(psi1(cell)) * owner->dS(cell,0);
 	owner->strip[0].AllSum(&totalProbability,&totalProbability,sizeof(tw::Float),0);
 	psi1 *= 1.0/std::sqrt(totalProbability);
@@ -918,15 +924,15 @@ void Schroedinger::Report(Diagnostic& diagnostic)
 	ScalarField temp;
 	temp.Initialize(*this,owner);
 
-	for (auto cell : InteriorCellRange(*this))
+	for (auto cell : InteriorCellRange(*this,1))
 		temp(cell) = norm(psi1(cell));
-	diagnostic.VolumeIntegral("TotalProb",temp,0);
-	diagnostic.FirstMoment("Dx",temp,0,r0,tw::grid::x);
-	diagnostic.FirstMoment("Dy",temp,0,r0,tw::grid::y);
-	diagnostic.FirstMoment("Dz",temp,0,r0,tw::grid::z);
+	diagnostic.VolumeIntegral("TotalProb",temp,1,0);
+	diagnostic.FirstMoment("Dx",temp,1,0,r0,tw::grid::x);
+	diagnostic.FirstMoment("Dy",temp,1,0,r0,tw::grid::y);
+	diagnostic.FirstMoment("Dz",temp,1,0,r0,tw::grid::z);
 
-	diagnostic.ReportField("psi_r",psi1,0,tw::dims::none,"$\\Re\\psi$");
-	diagnostic.ReportField("psi_i",psi1,1,tw::dims::none,"$\\Im\\psi$");
+	diagnostic.ReportField("psi_r",psi1,1,0,tw::dims::none,"$\\Re\\psi$");
+	diagnostic.ReportField("psi_i",psi1,1,1,tw::dims::none,"$\\Im\\psi$");
 }
 
 void Schroedinger::StartDiagnostics()
@@ -1094,7 +1100,7 @@ void Pauli::Update()
 void Pauli::Normalize()
 {
 	tw::Float totalProbability = 0.0;
-	for (auto cell : InteriorCellRange(*this))
+	for (auto cell : InteriorCellRange(*this,1))
 		totalProbability += (norm(psi1(cell))+norm(chi1(cell))) * owner->dS(cell,0);
 	owner->strip[0].AllSum(&totalProbability,&totalProbability,sizeof(tw::Float),0);
 	psi1 *= 1.0/std::sqrt(totalProbability);
@@ -1113,22 +1119,22 @@ void Pauli::Report(Diagnostic& diagnostic)
 	ScalarField temp;
 	temp.Initialize(*this,owner);
 
-	for (auto cell : InteriorCellRange(*this))
+	for (auto cell : InteriorCellRange(*this,1))
 		temp(cell) = norm(psi1(cell)) + norm(chi1(cell));
-	diagnostic.VolumeIntegral("TotalProb",temp,0);
-	diagnostic.FirstMoment("Dx",temp,0,r0,tw::grid::x);
-	diagnostic.FirstMoment("Dy",temp,0,r0,tw::grid::y);
-	diagnostic.FirstMoment("Dz",temp,0,r0,tw::grid::z);
+	diagnostic.VolumeIntegral("TotalProb",temp,1,0);
+	diagnostic.FirstMoment("Dx",temp,1,0,r0,tw::grid::x);
+	diagnostic.FirstMoment("Dy",temp,1,0,r0,tw::grid::y);
+	diagnostic.FirstMoment("Dz",temp,1,0,r0,tw::grid::z);
 
-	diagnostic.ReportField("psi_r",psi1,0,tw::dims::none,"$\\Re\\psi$");
-	diagnostic.ReportField("psi_i",psi1,1,tw::dims::none,"$\\Im\\psi$");
-	diagnostic.ReportField("chi_r",chi1,0,tw::dims::none,"$\\Re\\chi$");
-	diagnostic.ReportField("chi_i",chi1,1,tw::dims::none,"$\\Im\\chi$");
+	diagnostic.ReportField("psi_r",psi1,1,0,tw::dims::none,"$\\Re\\psi$");
+	diagnostic.ReportField("psi_i",psi1,1,1,tw::dims::none,"$\\Im\\psi$");
+	diagnostic.ReportField("chi_r",chi1,1,0,tw::dims::none,"$\\Re\\chi$");
+	diagnostic.ReportField("chi_i",chi1,1,1,tw::dims::none,"$\\Im\\chi$");
 
-	for (auto cell : InteriorCellRange(*this))
+	for (auto cell : InteriorCellRange(*this,1))
 		temp(cell) = norm(psi1(cell)) - norm(chi1(cell));
-	diagnostic.ReportField("Sz",temp,0);
-	diagnostic.VolumeIntegral("Sz",temp,0);
+	diagnostic.ReportField("Sz",temp,1,0);
+	diagnostic.VolumeIntegral("Sz",temp,1,0);
 }
 
 void Pauli::StartDiagnostics()
@@ -1168,8 +1174,15 @@ KleinGordon::KleinGordon(const std::string& name,Simulation* sim) : AtomicPhysic
 	H.qorb = -std::sqrt(alpha);
 	H.qnuc = std::sqrt(alpha);
 	dipoleApproximation = false;
-	psi_r.Initialize(2,*this,owner,tw::grid::x);
-	psi_i.Initialize(2,*this,owner,tw::grid::x);
+
+	auto ss = StaticSpace(
+		tw::node5 {1,dim[1],dim[2],dim[3],2},
+		sim->PhysicalSize(),
+		tw::node5 {4,0,2,3,1},
+		std_coord
+	);
+	psi_r.Initialize(ss,owner);
+	psi_i.Initialize(ss,owner);
 
 	#ifdef USE_OPENCL
 	cl_int err;
@@ -1203,7 +1216,7 @@ void KleinGordon::Initialize()
 {
 	AtomicPhysics::Initialize();
 
-	for (auto cell : InteriorCellRange(*this))
+	for (auto cell : InteriorCellRange(*this,1))
 	{
 		const tw::vec3 pos = owner->Pos(cell);
 		const tw::Float dth = 0.5*dx(0);
@@ -1216,8 +1229,8 @@ void KleinGordon::Initialize()
 		}
 	}
 
-	psi_r.CopyFromNeighbors();
-	psi_i.CopyFromNeighbors();
+	psi_r.CopyFromNeighbors(All(psi_r));
+	psi_i.CopyFromNeighbors(All(psi_i));
 	FormPotentials(owner->WindowPos(0));
 	Normalize();
 	UpdateJ4();
@@ -1245,7 +1258,7 @@ void KleinGordon::UpdateJ4()
 {
 	#pragma omp parallel
 	{
-		for (auto v : VectorStripRange<1>(*this,false))
+		for (auto v : VectorStripRange<1>(*this,0,1,false))
 		{
 			for (tw::Int i=1;i<=dim[1];i++)
 			{
@@ -1256,22 +1269,22 @@ void KleinGordon::UpdateJ4()
 			}
 		}
 	}
-	J4.CopyFromNeighbors();
-	J4.ApplyBoundaryCondition();
+	J4.CopyFromNeighbors(All(J4));
+	J4.ApplyBoundaryCondition(All(J4));
 }
 
 void KleinGordon::Normalize()
 {
 	tw::Float totalCharge = 0.0;
-	for (auto cell : InteriorCellRange(*this))
+	for (auto cell : InteriorCellRange(*this,1))
 		totalCharge += ComputeRho(cell) * owner->dS(cell,0);
 	owner->strip[0].AllSum(&totalCharge,&totalCharge,sizeof(tw::Float),0);
 	psi_r *= std::sqrt(std::fabs(H.qorb/totalCharge));
 	psi_i *= std::sqrt(std::fabs(H.qorb/totalCharge));
-	psi_r.CopyFromNeighbors();
-	psi_r.ApplyBoundaryCondition();
-	psi_i.CopyFromNeighbors();
-	psi_i.ApplyBoundaryCondition();
+	psi_r.CopyFromNeighbors(All(psi_r));
+	psi_r.ApplyBoundaryCondition(All(psi_r));
+	psi_i.CopyFromNeighbors(All(psi_i));
+	psi_i.ApplyBoundaryCondition(All(psi_i));
 }
 
 #ifdef USE_OPENCL
@@ -1319,7 +1332,7 @@ void KleinGordon::Update()
 		tw::Float *Dr = tw::alloc_aligned_floats(dim[1],AB);
 		tw::Float *Di = tw::alloc_aligned_floats(dim[1],AB);
 		// Update psi
-		for (auto v : VectorStripRange<1>(*this,false))
+		for (auto v : VectorStripRange<1>(*this,0,1,false))
 		{
 			#pragma omp simd aligned(Ur,Ui:AB)
 			for (tw::Int i=1;i<=dim[1];i++)
@@ -1351,10 +1364,10 @@ void KleinGordon::Update()
 		tw::free_aligned_floats(Di);
 	}
 
-	psi_r.CopyFromNeighbors(Element(0));
-	psi_r.ApplyBoundaryCondition(Element(0));
-	psi_i.CopyFromNeighbors(Element(0));
-	psi_i.ApplyBoundaryCondition(Element(0));
+	psi_r.CopyFromNeighbors(Rng(0));
+	psi_r.ApplyBoundaryCondition(Rng(0));
+	psi_i.CopyFromNeighbors(Rng(0));
+	psi_i.ApplyBoundaryCondition(Rng(0));
 
 	photonPropagator->Advance(A4,Ao4,J4,0.0,dt);
 	FormGhostCellPotentials(owner->WindowPos(0)+dt);
@@ -1368,7 +1381,7 @@ void KleinGordon::Update()
 		tw::Float *Dr = tw::alloc_aligned_floats(dim[1],AB);
 		tw::Float *Di = tw::alloc_aligned_floats(dim[1],AB);
 		// Update chi
-		for (auto v : VectorStripRange<1>(*this,false))
+		for (auto v : VectorStripRange<1>(*this,0,1,false))
 		{
 			#pragma omp simd aligned(Ur,Ui:AB)
 			for (tw::Int i=1;i<=dim[1];i++)
@@ -1417,10 +1430,10 @@ void KleinGordon::Update()
 		tw::free_aligned_floats(Di);
 	}
 
-	psi_r.CopyFromNeighbors(Element(1));
-	psi_r.ApplyBoundaryCondition(Element(1));
-	psi_i.CopyFromNeighbors(Element(1));
-	psi_i.ApplyBoundaryCondition(Element(1));
+	psi_r.CopyFromNeighbors(Rng(1));
+	psi_r.ApplyBoundaryCondition(Rng(1));
+	psi_i.CopyFromNeighbors(Rng(1));
+	psi_i.ApplyBoundaryCondition(Rng(1));
 
 	photonPropagator->UndoMidstepEstimate(A4,Ao4);
 }
@@ -1431,13 +1444,13 @@ void KleinGordon::Report(Diagnostic& diagnostic)
 	AtomicPhysics::Report(diagnostic);
 
 	const tw::vec3 r0 = 0.0;
-	diagnostic.VolumeIntegral("TotalCharge",J4,0);
-	diagnostic.FirstMoment("Dx",J4,0,r0,tw::grid::x);
-	diagnostic.FirstMoment("Dy",J4,0,r0,tw::grid::y);
-	diagnostic.FirstMoment("Dz",J4,0,r0,tw::grid::z);
+	diagnostic.VolumeIntegral("TotalCharge",J4,1,0);
+	diagnostic.FirstMoment("Dx",J4,1,0,r0,tw::grid::x);
+	diagnostic.FirstMoment("Dy",J4,1,0,r0,tw::grid::y);
+	diagnostic.FirstMoment("Dz",J4,1,0,r0,tw::grid::z);
 
-	diagnostic.ReportField("psi0_r",psi_r,0,tw::dims::none,"$\\Re\\psi_0$");
-	diagnostic.ReportField("psi1_r",psi_r,1,tw::dims::none,"$\\Re\\psi_1$");
+	diagnostic.ReportField("psi0_r",psi_r,1,0,tw::dims::none,"$\\Re\\psi_0$");
+	diagnostic.ReportField("psi1_r",psi_r,1,1,tw::dims::none,"$\\Re\\psi_1$");
 }
 
 void KleinGordon::StartDiagnostics()
@@ -1471,8 +1484,15 @@ Dirac::Dirac(const std::string& name,Simulation* sim) : AtomicPhysics(name,sim)
 	H.qorb = -std::sqrt(alpha);
 	H.qnuc = std::sqrt(alpha);
 	dipoleApproximation = false;
-	psi_r.Initialize(4,*this,owner,tw::grid::x);
-	psi_i.Initialize(4,*this,owner,tw::grid::x);
+
+	auto ss = StaticSpace(
+		tw::node5 {1,dim[1],dim[2],dim[3],4},
+		sim->PhysicalSize(),
+		tw::node5 {4,0,2,3,1},
+		std_coord
+	);
+	psi_r.Initialize(ss,owner);
+	psi_i.Initialize(ss,owner);
 
 	#ifdef USE_OPENCL
 	cl_int err;
@@ -1494,13 +1514,13 @@ Dirac::~Dirac()
 void Dirac::Initialize()
 {
 	AtomicPhysics::Initialize();
-	psi_r.SetBoundaryConditions(tw::grid::x,fld::neumannWall,fld::none);
-	psi_i.SetBoundaryConditions(tw::grid::x,fld::neumannWall,fld::none);
+	psi_r.SetBoundaryConditions(All(psi_r),tw::grid::x,fld::neumannWall,fld::none);
+	psi_i.SetBoundaryConditions(All(psi_i),tw::grid::x,fld::neumannWall,fld::none);
 
 	#pragma omp parallel
 	{
 		const tw::Float dth = 0.5*dx(0);
-		for (auto cell : InteriorCellRange(*this))
+		for (auto cell : InteriorCellRange(*this,1))
 		{
 			tw::vec3 pos = owner->Pos(cell);
 			for (auto w : waveFunction)
@@ -1517,8 +1537,8 @@ void Dirac::Initialize()
 		}
 	}
 
-	psi_r.CopyFromNeighbors();
-	psi_i.CopyFromNeighbors();
+	psi_r.CopyFromNeighbors(All(psi_r));
+	psi_i.CopyFromNeighbors(All(psi_i));
 	FormPotentials(owner->WindowPos(0));
 	Normalize();
 	UpdateJ4();
@@ -1552,7 +1572,7 @@ void Dirac::UpdateJ4()
 	#pragma omp parallel
 	{
 		tw::Complex z0,z1,z2,z3;
-		for (auto cell : InteriorCellRange(*this))
+		for (auto cell : InteriorCellRange(*this,1))
 		{
 			z0 = tw::Complex(psi_r(cell,0),psi_i(cell,0));
 			z1 = tw::Complex(psi_r(cell,1),psi_i(cell,1));
@@ -1564,22 +1584,22 @@ void Dirac::UpdateJ4()
 			J4(cell,3) = two*H.qorb*real(z0*conj(z2) - z1*conj(z3));
 		}
 	}
-	J4.CopyFromNeighbors();
-	J4.ApplyBoundaryCondition();
+	J4.CopyFromNeighbors(All(J4));
+	J4.ApplyBoundaryCondition(All(J4));
 }
 
 void Dirac::Normalize()
 {
 	tw::Float totalCharge = 0.0;
-	for (auto cell : InteriorCellRange(*this))
+	for (auto cell : InteriorCellRange(*this,1))
 		totalCharge += ComputeRho(cell) * owner->dS(cell,0);
 	owner->strip[0].AllSum(&totalCharge,&totalCharge,sizeof(tw::Float),0);
 	psi_r *= std::sqrt(std::fabs(H.qorb/totalCharge));
 	psi_i *= std::sqrt(std::fabs(H.qorb/totalCharge));
-	psi_r.CopyFromNeighbors();
-	psi_r.ApplyBoundaryCondition();
-	psi_i.CopyFromNeighbors();
-	psi_i.ApplyBoundaryCondition();
+	psi_r.CopyFromNeighbors(All(psi_r));
+	psi_r.ApplyBoundaryCondition(All(psi_r));
+	psi_i.CopyFromNeighbors(All(psi_i));
+	psi_i.ApplyBoundaryCondition(All(psi_i));
 }
 
 #ifdef USE_OPENCL
@@ -1643,20 +1663,20 @@ void Dirac::Update()
 	const tw::Float dt = dx(0);
 	
 	LeapFrog<0,1,2,3>(1.0);
-	psi_r.CopyFromNeighbors(Element(0,1));
-	psi_r.ApplyBoundaryCondition(Element(0,1));
-	psi_i.CopyFromNeighbors(Element(0,1));
-	psi_i.ApplyBoundaryCondition(Element(0,1));
+	psi_r.CopyFromNeighbors(Rng(0,2));
+	psi_r.ApplyBoundaryCondition(Rng(0,2));
+	psi_i.CopyFromNeighbors(Rng(0,2));
+	psi_i.ApplyBoundaryCondition(Rng(0,2));
 
 	photonPropagator->Advance(A4,Ao4,J4,0.0,dt);
 	FormGhostCellPotentials(owner->WindowPos(0)+dt);
 	photonPropagator->MidstepEstimate(A4,Ao4);
 
 	LeapFrog<2,3,0,1>(-1.0);
-	psi_r.CopyFromNeighbors(Element(2,3));
-	psi_r.ApplyBoundaryCondition(Element(2,3));
-	psi_i.CopyFromNeighbors(Element(2,3));
-	psi_i.ApplyBoundaryCondition(Element(2,3));
+	psi_r.CopyFromNeighbors(Rng(2,4));
+	psi_r.ApplyBoundaryCondition(Rng(2,4));
+	psi_i.CopyFromNeighbors(Rng(2,4));
+	psi_i.ApplyBoundaryCondition(Rng(2,4));
 
 	photonPropagator->UndoMidstepEstimate(A4,Ao4);
 }
@@ -1667,19 +1687,19 @@ void Dirac::Report(Diagnostic& diagnostic)
 	AtomicPhysics::Report(diagnostic);
 
 	const tw::vec3 r0 = 0.0;
-	diagnostic.VolumeIntegral("TotalCharge",J4,0);
-	diagnostic.FirstMoment("Dx",J4,0,r0,tw::grid::x);
-	diagnostic.FirstMoment("Dy",J4,0,r0,tw::grid::y);
-	diagnostic.FirstMoment("Dz",J4,0,r0,tw::grid::z);
+	diagnostic.VolumeIntegral("TotalCharge",J4,1,0);
+	diagnostic.FirstMoment("Dx",J4,1,0,r0,tw::grid::x);
+	diagnostic.FirstMoment("Dy",J4,1,0,r0,tw::grid::y);
+	diagnostic.FirstMoment("Dz",J4,1,0,r0,tw::grid::z);
 
-	diagnostic.ReportField("psi0_r",psi_r,0,tw::dims::none,"$\\Re\\psi_0$");
-	diagnostic.ReportField("psi1_r",psi_r,1,tw::dims::none,"$\\Re\\psi_1$");
-	diagnostic.ReportField("psi2_r",psi_r,2,tw::dims::none,"$\\Re\\psi_2$");
-	diagnostic.ReportField("psi3_r",psi_r,3,tw::dims::none,"$\\Re\\psi_3$");
-	diagnostic.ReportField("psi0_i",psi_i,0,tw::dims::none,"$\\Im\\psi_0$");
-	diagnostic.ReportField("psi1_i",psi_i,1,tw::dims::none,"$\\Im\\psi_1$");
-	diagnostic.ReportField("psi2_i",psi_i,2,tw::dims::none,"$\\Im\\psi_2$");
-	diagnostic.ReportField("psi3_i",psi_i,3,tw::dims::none,"$\\Im\\psi_3$");
+	diagnostic.ReportField("psi0_r",psi_r,1,0,tw::dims::none,"$\\Re\\psi_0$");
+	diagnostic.ReportField("psi1_r",psi_r,1,1,tw::dims::none,"$\\Re\\psi_1$");
+	diagnostic.ReportField("psi2_r",psi_r,1,2,tw::dims::none,"$\\Re\\psi_2$");
+	diagnostic.ReportField("psi3_r",psi_r,1,3,tw::dims::none,"$\\Re\\psi_3$");
+	diagnostic.ReportField("psi0_i",psi_i,1,0,tw::dims::none,"$\\Im\\psi_0$");
+	diagnostic.ReportField("psi1_i",psi_i,1,1,tw::dims::none,"$\\Im\\psi_1$");
+	diagnostic.ReportField("psi2_i",psi_i,1,2,tw::dims::none,"$\\Im\\psi_2$");
+	diagnostic.ReportField("psi3_i",psi_i,1,3,tw::dims::none,"$\\Im\\psi_3$");
 }
 
 void Dirac::StartDiagnostics()
@@ -1751,24 +1771,24 @@ void PopulationDiagnostic::Report(Diagnostic& diagnostic)
 	for (auto ref : refState)
 	{
 		// Real part
-		for (auto cell : InteriorCellRange(*this))
+		for (auto cell : InteriorCellRange(*this,1))
 		{
 			const tw::vec3 pos = owner->Pos(cell);
 			// the following is a gauge transformation to "remove" the uniform A
 			const tw::Complex psiNow = (*psi)(cell)*std::exp(-ii*H->qorb*(ANow^pos));
 			temp(cell) = real(conj(ref->Amplitude(*H,pos,owner->WindowPos(0),0))*psiNow);
 		}
-		diagnostic.VolumeIntegral("real<"+ref->name+"|psi>",temp,0);
+		diagnostic.VolumeIntegral("real<"+ref->name+"|psi>",temp,1,0);
 
 		// Imaginary part
-		for (auto cell : InteriorCellRange(*this))
+		for (auto cell : InteriorCellRange(*this,1))
 		{
 			const tw::vec3 pos = owner->Pos(cell);
 			// the following is a gauge transformation to "remove" the uniform A
 			const tw::Complex psiNow = (*psi)(cell)*std::exp(-ii*H->qorb*(ANow^pos));
 			temp(cell) = imag(conj(ref->Amplitude(*H,pos,owner->WindowPos(0),0))*psiNow);
 		}
-		diagnostic.VolumeIntegral("imag<"+ref->name+"|psi>",temp,0);
+		diagnostic.VolumeIntegral("imag<"+ref->name+"|psi>",temp,1,0);
 	}
 
 	// Relativistic scalar overlaps - enable this later.
