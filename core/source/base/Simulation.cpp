@@ -212,8 +212,6 @@ void Simulation::Test()
 	// diverting output
 	std::stringstream test_out;
 	std::stringstream test_report;
-	std::stringstream null_out;
-	std::streambuf *save_buf = std::cout.rdbuf();
 
 	// each test must setup its own task and grid
 	if (numRanksProvided!=2)
@@ -221,147 +219,119 @@ void Simulation::Test()
 	AttachUnits(tw::units::plasma,1e19);
 
 	tw::Float failed = 0;
-	bool tested = false;
 	success_count = 0;
 	failure_count = 0;
 	ComputeTool *tool;
 	Module *module;
+	
+	logger::INFO("Test Compute Tools");
 
-	// Testables that are not ComputeTool or Module
-	// TODO: we need to unify handling of all testables.
-
-	std::println(std::cout,"\ntesting {}{}metric space{}",term::bold,term::cyan,term::reset_all);
-	auto ghostCellLayers = tw::node4 {0,2,2,2};
-	Initialize(tw::node4{1,1,1,2},tw::node4{0,1,1,0});
-	Resize(this,tw::node5{1,4,1,4,1},tw::vec4(0,0,0,0),tw::vec4(0.1,0.8,0.2,0.8),std_packing,ghostCellLayers);
-	tw::Int testId = 1;
-	failed = 0;
-	try {
-		tested = MetricSpace::Test(testId);
-	} catch (tw::FatalError& e) {
-		failed = 1;
-		test_report << failure_count+1 << ". metric space" << std::endl;
-		test_report << e.what() << std::endl;
-	}
-	strip[0].AllSum(&failed,&failed,sizeof(tw::Float),0);
-	if (tested && failed == 0) {
-		success_count++;
-		test_out << "    " << term::ok << " " << term::green << "metric space" << term::reset_all << std::endl;
-	} else if (failed > 0) {
-		failure_count++;
-		test_out << "    " << term::err << " " << term::red << "metric space" << term::reset_all << std::endl;
-	}
-	std::print(std::cout,"{}",test_out.str());
-	test_out.str("");
-	test_out.clear();
-
-	// Test ComputeTools
-
-	for (auto m : ComputeTool::Map())
+	for (auto [tool_key,theType] : ComputeTool::Map())
 	{
-		if (unitTest==m.first || unitTest=="--all")
+		if (unitTest==tool_key || unitTest=="--all")
 		{
-			std::println(std::cout,"\ntesting {}{}{}{}",term::bold,term::cyan,m.first,term::reset_all);
-			tw::Int gridId = 1;
-			while (ComputeTool::SetTestGrid(m.second,gridId,this,this))
+			std::println(std::cout,"\ntesting {}{}{}{}",term::bold,term::cyan,tool_key,term::reset_all);
+			tw::Int enviro = 1;
+			while (ComputeTool::SetTestEnvironment(theType,enviro,this,this))
 			{
+				logger::TRACE("test grid succeeded");
 				auto gridStr = std::format("    {}x{}x{} grid",this->GlobalDim(1),this->GlobalDim(2),this->GlobalDim(3));
-				std::cout.rdbuf(null_out.rdbuf());
-				tw::Int testId = 1;
-				do
-				{
-					try
-					{
-						tool = CreateTool("test_tool",m.second);
-					}
-					catch (tw::FatalError& e)
-					{
-						test_out << gridStr + "    " << term::yellow << "tool rejected the environment" << term::reset_all << std::endl;
-						tool = NULL;
-					}
-					if (tool!=NULL)
-					{
+				tool = CreateTool("test_tool",theType);
+				logger::TRACE("register tests using tool prototype...");
+				tool->RegisterTests();
+				auto test_names = tool->test_names;
+				auto test_cases = tool->tests;
+				logger::TRACE("remove prototype tool...");
+				RemoveTool(tool);
+				for (auto id=0; id < test_cases.size(); id++) {
+					logger::DEBUG(std::format("begin test case {}",id));
+					try {
+						tool = CreateTool("test_tool",theType);
 						failed = 0;
 						try {
-							tested = tool->Test(testId);
+							test_cases[id](*tool);
+							success_count++;
+							std::println(test_out,"{}    {} {}{}{}",gridStr,term::ok,term::green,test_names[id],term::reset_all);
 						} catch(tw::FatalError& e) {
 							failed = 1;
-							test_report << failure_count+1 << ". " << m.first << " grid " << gridId << std::endl;
-							test_report << e.what() << std::endl;
+							std::println(test_out,"{}    {} {}{}{}",gridStr,term::err,term::red,test_names[id],term::reset_all);
+							std::println(test_report,"{}. {} grid {}",++failure_count,tool_key,enviro);
+							std::println(test_report,"{}",e.what());
 						}
+						logger::TRACE("begin MPI sum of failures");
 						strip[0].AllSum(&failed,&failed,sizeof(tw::Float),0);
-						if (tested && failed == 0) {
-							success_count++;
-							test_out << gridStr << "    " << term::ok << " " << term::green << tool->testName << term::reset_all << std::endl;
-						} else if (failed > 0) {
-							failure_count++;
-							test_out << gridStr << "    " << term::err << " " << term::red << tool->testName <<  term::reset_all << std::endl;
-						}
+						logger::TRACE("end MPI sum of failures");
 						RemoveTool(tool);
+					} catch (tw::FatalError& e) {
+						std::println(test_out,"{}    {}tool rejected the environment{}",gridStr,term::yellow,term::reset_all);
 					}
-				} while (testId>1);
+					logger::DEBUG(std::format("finish test case {}",id));
+				}
+				logger::TRACE("wait at MPI barrier");
 				MPI_Barrier(MPI_COMM_WORLD);
-				std::cout.rdbuf(save_buf);
+				logger::TRACE("continue from MPI barrier");
 				std::print(std::cout,"{}",test_out.str());
 				test_out.str("");
 				test_out.clear();
-				gridId++;
+				enviro++;
 			}
+		} else {
+			logger::INFO(std::format("skip test of tool {}",tool_key));
 		}
 	}
 
-	// Test Modules
+	logger::INFO("Test Modules");
 
-	for (auto m : Module::Map())
+	for (auto [mod_key,theType] : Module::Map())
 	{
-		if (unitTest==m.first || unitTest=="--all")
+		if (unitTest==mod_key || unitTest=="--all")
 		{
-			std::println(std::cout,"\ntesting {}{}{}{}",term::bold,term::cyan,m.first,term::reset_all);
-			tw::Int gridId = 1;
-			while (Module::SetTestGrid(m.second,gridId,this))
+			std::println(std::cout,"\ntesting {}{}{}{}",term::bold,term::cyan,mod_key,term::reset_all);
+			tw::Int enviro = 1;
+			while (Module::SetTestEnvironment(theType,enviro,this))
 			{
 				auto gridStr = std::format("    {}x{}x{} grid",this->GlobalDim(1),this->GlobalDim(2),this->GlobalDim(3));
-				std::cout.rdbuf(null_out.rdbuf());
-				tw::Int testId = 1;
-				do
-				{
-					try
-					{
-	 					module = factory::CreateModuleFromType("test_module",m.second,this);
-					}
-					catch (tw::FatalError& e)
-					{
-						test_out << "    " << term::yellow << "module rejected the environment" << term::reset_all << std::endl;
-						module = NULL;
-					}
-					if (module!=NULL)
-					{
+				module = factory::CreateModuleFromType("test_module",theType,this);
+				logger::TRACE("register tests using module prototype...");
+				module->RegisterTests();
+				auto test_names = tool->test_names;
+				auto test_cases = tool->tests;
+				logger::TRACE("remove prototype module...");
+				delete module;
+				for (auto id = 0; id < test_cases.size(); id++) {
+					logger::DEBUG(std::format("begin test case {}",id));
+					try {
+	 					module = factory::CreateModuleFromType("test_module",theType,this);
 						failed = 0;
 						try {
-							tested = module->Test(testId);
+							test_cases[id](*module);
+							success_count++;
+							std::println(test_out,"{}    {} {}{}{}",gridStr,term::ok,term::green,test_names[id],term::reset_all);
 						} catch(tw::FatalError& e) {
 							failed = 1;
-							test_report << ++failure_count << ". " << m.first << " grid " << gridId << std::endl;
-							test_report << e.what() << std::endl;
+							std::println(test_out,"{}    {} {}{}{}",gridStr,term::err,term::red,test_names[id],term::reset_all);
+							std::println(test_report,"{}. {} grid {}",++failure_count,mod_key,enviro);
+							std::println(test_report,"{}",e.what());
 						}
+						logger::TRACE("begin MPI sum of failures");
 						strip[0].AllSum(&failed,&failed,sizeof(tw::Float),0);
-						if (tested && failed == 0) {
-							success_count++;
-							test_out << gridStr << "    " << term::ok << " " << term::green << module->testName << term::reset_all << std::endl;
-						} else if (failed > 0) {
-							failure_count++;
-							test_out << gridStr << "    " << term::err << " " << term::red << module->testName <<  term::reset_all << std::endl;
-						}
+						logger::TRACE("end MPI sum of failures");
 						delete module;
+					} catch (tw::FatalError& e) {
+						std::println(test_out,"    {}module rejected the environment{}",term::yellow,term::reset_all);
 					}
-				} while (testId>1);
+					logger::DEBUG(std::format("finish test case {}",id));
+				}
+				logger::TRACE("wait at MPI barrier");
 				MPI_Barrier(MPI_COMM_WORLD);
-				std::cout.rdbuf(save_buf);
+				logger::TRACE("continue from MPI barrier");
 				std::print(std::cout,"{}",test_out.str());
 				test_out.str("");
 				test_out.clear();
-				gridId++;
+				enviro++;
 			}
+		} else {
+			logger::INFO(std::format("skip test of module {}",mod_key));
 		}
 	}
 
@@ -680,7 +650,7 @@ ComputeTool* Simulation::CreateTool(const std::string& basename,tw::tool_type th
 {
 	std::string name(basename);
 	MangleToolName(name);
-	std::println(std::cout,"Creating Tool <{}>...",name);
+	logger::INFO(std::format("Creating Tool <{}>...",name));
 	computeTool.push_back(factory::CreateToolFromType(name,theType,this,this));
 	computeTool.back()->refCount++;
 	return computeTool.back();
@@ -707,11 +677,13 @@ bool Simulation::RemoveTool(ComputeTool *theTool)
 	if (iter==computeTool.end())
 		throw tw::FatalError("Attempt to remove a non-existant tool.");
 	(*iter)->refCount--;
+	logger::TRACE(std::format("remove tool to refcount {}",(*iter)->refCount));
 	if ((*iter)->refCount==0)
 	{
-		delete *iter;
-		computeTool.erase(iter);
-		return true;
+		logger::WARN("tool was not removed");
+		//delete *iter;
+		//computeTool.erase(iter);
+		//return true;
 	}
 	return false;
 }

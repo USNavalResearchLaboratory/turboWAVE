@@ -49,7 +49,9 @@ export namespace tw
 		// Quantum Electrodynamics
 		photonGenerator,pairCreator,
 		// Movers
-		borisMover,hcMover,pgcMover,unitaryMover,bohmianMover,photonMover
+		borisMover,hcMover,pgcMover,unitaryMover,bohmianMover,photonMover,
+		// Testers
+		iteratorTest,metricSpaceTest
 	};
 }
 
@@ -84,21 +86,15 @@ export struct ComputeTool : Testable
 	virtual bool ReadInputFileDirective(const TSTreeCursor *curs,const std::string& src);
 	virtual void ReadCheckpoint(std::ifstream& inFile);
 	virtual void WriteCheckpoint(std::ofstream& outFile);
-	virtual bool Test(tw::Int& id);
 
 	void InitializeCLProgram(const std::string& filename);
 
 	static std::map<std::string,tw::tool_type> Map();
 	static tw::tool_type CreateTypeFromInput(const tw::input::Preamble& preamble);
-	static bool SetTestGrid(tw::tool_type theType,tw::Int gridId,MetricSpace *ms,Task *tsk);
+	/// setup grid, native units, or other environmental factors affecting a test, returns
+	/// whether an environment was defined for the given enviro
+	static bool SetTestEnvironment(tw::tool_type theType,tw::Int enviro,MetricSpace *ms,Task *tsk);
 };
-
-//////////////////////////
-//                      //
-//  COMPUTE TOOL CLASS  //
-//                      //
-//////////////////////////
-
 
 ComputeTool::ComputeTool(const std::string& name,MetricSpace *ms,Task *tsk)
 {
@@ -135,11 +131,6 @@ ComputeTool::~ComputeTool()
 void ComputeTool::Initialize()
 {
 	// Typically constructor should be complete, nothing to do here, unless MPI needed.
-}
-
-bool ComputeTool::Test(tw::Int& id)
-{
-	return false; // did not test, id unchanged means no next test
 }
 
 void ComputeTool::InitializeCLProgram(const std::string& filename)
@@ -261,7 +252,9 @@ std::map<std::string,tw::tool_type> ComputeTool::Map()
 		{"pgc mover",tw::tool_type::pgcMover},
 		{"unitary mover",tw::tool_type::unitaryMover},
 		{"bohmian mover",tw::tool_type::bohmianMover},
-		{"photon mover",tw::tool_type::photonMover}
+		{"photon mover",tw::tool_type::photonMover},
+		{"iterator test",tw::tool_type::iteratorTest},
+		{"metric space test",tw::tool_type::metricSpaceTest}
 	};
 }
 
@@ -287,7 +280,7 @@ tw::tool_type ComputeTool::CreateTypeFromInput(const tw::input::Preamble& preamb
 	}
 }
 
-bool ComputeTool::SetTestGrid(tw::tool_type theType,tw::Int gridId,MetricSpace *ms,Task *tsk)
+bool ComputeTool::SetTestEnvironment(tw::tool_type theType,tw::Int enviro,MetricSpace *ms,Task *tsk)
 {
 	const tw::node4 cyclic = {0,1,1,0};
 	const tw::node4 domains = {1,1,1,2};
@@ -300,28 +293,33 @@ bool ComputeTool::SetTestGrid(tw::tool_type theType,tw::Int gridId,MetricSpace *
 	switch (theType)
 	{
 		case tw::tool_type::ellipticSolver1D:
-			if (gridId>1)
+			if (enviro==1) {
+				ms->Resize(tsk,gdim1d,gcorner,tw::vec4(0.1,0.2,0.2,0.8),std_packing,layers);
+				return true;
+			} else {
 				return false;
-			ms->Resize(tsk,gdim1d,gcorner,tw::vec4(0.1,0.2,0.2,0.8),std_packing,layers);
-			return true;
+			}
 		case tw::tool_type::pgcMover:
 		case tw::tool_type::hcMover:
 		case tw::tool_type::borisMover:
-			if (gridId==1) {
+			if (enviro==1) {
 				ms->Resize(tsk,gdim1d,gcorner,tw::vec4(0.1,0.2,0.2,0.8),std_packing,layers);
 				return true;
-			} else if (gridId==2) {
+			} else if (enviro==2) {
 				ms->Resize(tsk,gdim2d,gcorner,tw::vec4(0.1,0.8,0.2,0.8),std_packing,layers);
 				return true;
-			} else if (gridId==3) {
+			} else if (enviro==3) {
 				ms->Resize(tsk,gdim3d,gcorner,tw::vec4(0.1,0.8,0.8,0.8),std_packing,layers);
 				return true;
-			}
-			return false;
-		default:
-			if (gridId>1)
+			} else {
 				return false;
-			ms->Resize(tsk,gdim3d,gcorner,tw::vec4(0.1,0.8,0.8,0.8),std_packing,layers);
-			return true;
+			}
+		default:
+			if (enviro==1) {
+				ms->Resize(tsk,gdim3d,gcorner,tw::vec4(0.1,0.8,0.8,0.8),std_packing,layers);
+				return true;
+			} else {
+				return false;
+			}
 	}
 }

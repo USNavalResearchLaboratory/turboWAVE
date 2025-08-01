@@ -121,40 +121,6 @@ void Mover::TranslationTest()
 	CloseTest();
 }
 
-bool Mover::Test(tw::Int& id)
-{
-	if (id==1) {
-		id++;
-		EncodingTest();
-		return true;
-	} else if (id==2) {
-		id++;
-		MinimizePrimitiveScalarTest();
-		return true;
-	} else if (id==3) {
-		id++;
-		MinimizePrimitiveVectorTest();
-		return true;
-	} else if (id==4) {
-		id++;
-		TranslationTest();
-		return true;
-	} else if (id==5) {
-		id++;
-		UniformETest();
-		return true;
-	} else if (id==6) {
-		id++;
-		UniformBTest();
-		return true;
-	} else if (id==7) {
-		id=0;
-		PlaneWaveTest();
-		return true;
-	}
-	return false;
-}
-
 void BorisMover::InitTest()
 {
 	Mover::InitTest();

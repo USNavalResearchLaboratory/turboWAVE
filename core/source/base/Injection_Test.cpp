@@ -1,17 +1,15 @@
 module;
 
 #include "tw_includes.h"
-import base;
 #include "tw_test.h"
 
 module injection;
+import base;
 
-bool HermiteGauss::Test(tw::Int& id)
+void HermiteGauss::SpotCheckFieldsTest()
 {
     // test simple Gaussian beam at a few spacetime points
     tw::vec3 a1;
-    REGISTER_TEST();
-    id = 0;
     direction = tw::vec3(0.0,0.0,1.0);
     focusPosition = tw::vec3(0.0,0.0,0.0);
     a = tw::vec3(1.0,0.0,0.0);
@@ -41,6 +39,4 @@ bool HermiteGauss::Test(tw::Int& id)
         ASSERT_NEAR(a1.y,0.0,1e-4);
         ASSERT_NEAR(a1.z,0.0,1e-4);
     }
-
-    return true;
 }

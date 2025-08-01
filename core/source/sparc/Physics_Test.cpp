@@ -5,7 +5,7 @@ module;
 
 module physics;
 
-bool ADK::Test(tw::Int& id)
+void ADK::HeTest()
 {
 	ionizationPotential = 24.587*tw::dims::temperature >> cgs >> native;
     electrons = 2;
@@ -18,10 +18,9 @@ bool ADK::Test(tw::Int& id)
         const tw::Float expected = 4.546e-7;
         ASSERT_NEAR(rate , expected , expected/100);
     }
-	return true;
 }
 
-bool PPT_Tunneling::Test(tw::Int& id)
+void PPT_Tunneling::HeTest()
 {
 	ionizationPotential = 24.587*tw::dims::temperature >> cgs >> native;
     electrons = 2;
@@ -34,5 +33,4 @@ bool PPT_Tunneling::Test(tw::Int& id)
         const tw::Float expected = 3.6774e-7;
         ASSERT_NEAR(rate , expected , expected/100);
     }
-	return true;
 }

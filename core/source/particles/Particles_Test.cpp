@@ -12,24 +12,6 @@ module particles;
 
 using namespace tw::bc;
 
-bool Species::Test(tw::Int& id)
-{
-	if (id==1) {
-		id++;
-		EncodingTest();
-		return true;
-	} else if (id==2) {
-		id++;
-		ReflectionTest();
-		return true;
-	} else if (id==3) {
-		id=0;
-		MoveWindowTest();
-		return true;
-	}
-	return false;
-}
-
 void Species::EncodingTest()
 {
 	tw::Int ijk[4];
@@ -103,7 +85,6 @@ void Species::ReflectionTest()
 
 void Species::MoveWindowTest()
 {
-	REGISTER_TEST();
 	laser = NULL;
 	chi = NULL;
 	qo_j4 = NULL;

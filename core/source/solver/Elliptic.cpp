@@ -1,6 +1,7 @@
 module;
 
 #include "tw_includes.h"
+#include "tw_test.h"
 
 export module elliptic;
 import input;
@@ -68,7 +69,10 @@ export struct PoissonSolver:EllipticSolver
 	PoissonSolver(const std::string& name,MetricSpace *m,Task *tsk);
 	virtual ~PoissonSolver();
 	virtual void Solve(ScalarField& phi,ScalarField& source,tw::Float mul);
-	virtual bool Test(tw::Int& id);
+	virtual void RegisterTests() {
+		REGISTER(PoissonSolver,Test);
+	}
+	void Test();
 };
 
 export struct EigenmodePoissonSolver:EllipticSolver

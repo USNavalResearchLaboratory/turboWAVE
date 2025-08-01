@@ -8,6 +8,7 @@
 	#include <memory.h>
 #else
 	#include <ranges>
+	#include <functional>
 	#include <bit>
 	#include <cassert>
 	#include <cmath>

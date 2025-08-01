@@ -42,12 +42,12 @@ export namespace logger {
         std::string file = path.substr(path.rfind('/')+1);
         switch (level) {
             case 1:
-                std::println(std::cout,"{}ERROR{}[{}][{}][{}]: {}",
-                    term::error,term::reset_all,file,func,line,mess);
+                std::println(std::cout,"{}[{}][{}][{}]: {}",
+                    term::error,file,func,line,mess);
                 break;
             case 2:
-                std::println(std::cout,"{}WARNING{}[{}][{}][{}]: {}",
-                    term::warning,term::reset_all,file,func,line,mess);
+                std::println(std::cout,"{}[{}][{}][{}]: {}",
+                    term::warning,file,func,line,mess);
                 break;
             case 3:
                 std::println(std::cout,"{}INFO{}[{}][{}][{}]: {}",

@@ -8,20 +8,6 @@ import twmodule;
 
 using namespace tw::bc;
 
-bool Fluid::Test(tw::Int& id)
-{
-	if (id==1) {
-		id++;
-		AdvectionTest();
-		return true;
-	} else if (id==2) {
-		id=0;
-		ConservationTest();
-		return true;
-	}
-	return false;
-}
-
 void Fluid::AdvectionTest()
 {
     Profile *bkg = new UniformProfile("hello",owner,owner);

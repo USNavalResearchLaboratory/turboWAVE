@@ -47,6 +47,7 @@ The two biggest changes are C++20 modules, and handling of field topology.
 * Eliminated `AutoField` template
     - `ScalarField` and `ComplexField` derive directly from `Field` and live in the `fields:aggregates` partition module
     - Aggregated field components just work (no more caveats about storage patterns or stride units)
+* Test framework has changed
 
 ### About Inclusive and Exclusive Bounds
 

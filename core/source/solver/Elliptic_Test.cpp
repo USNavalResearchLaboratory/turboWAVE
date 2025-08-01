@@ -5,13 +5,11 @@ module;
 
 module elliptic;
 
-bool PoissonSolver::Test(tw::Int& id)
+void PoissonSolver::Test()
 {
     // test solution for sheet of charge
     // phi(i) = -rho*dz*|i*dz| / 2
     // where i measures cell displacement from the sheet
-    REGISTER_TEST();
-    id = 0;
     const tw::Float chargeElement = 1.0;
     x0 = x1 = y0 = y1 = tw::bc::fld::periodic;
     z0 = z1 = tw::bc::fld::natural;
@@ -29,5 +27,4 @@ bool PoissonSolver::Test(tw::Int& id)
         ASSERT_NEAR(phi(1,1,2),-0.5*chargeElement*sqr(space->dx(3)),1e-6);
         ASSERT_NEAR(phi(1,1,1),-chargeElement*sqr(space->dx(3)),1e-6);
     }
-    return true;
 }

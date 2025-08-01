@@ -2,6 +2,8 @@ module;
 
 #include <tree_sitter/api.h>
 #include "tw_includes.h"
+#include "tw_test.h"
+#include "tw_logger.h"
 
 export module fluid;
 import input;
@@ -16,7 +18,6 @@ import chemistry;
 import parabolic;
 import elliptic;
 import logger;
-#include "tw_logger.h"
 
 using namespace tw::bc;
 
@@ -57,7 +58,10 @@ export struct Fluid:Module
 	virtual void WriteCheckpoint(std::ofstream& outFile);
 
 	virtual void Report(Diagnostic&);
-	virtual bool Test(tw::Int& id);
+	virtual void RegisterTests() {
+		REGISTER(Fluid,AdvectionTest);
+		REGISTER(Fluid,ConservationTest);
+	}
 	void AdvectionTest();
 	void ConservationTest();
 };

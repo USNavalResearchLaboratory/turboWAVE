@@ -9,6 +9,7 @@ export import :vector_ops;
 export import :transform;
 export import :aggregates;
 export import :tools;
+export import :test;
 
 // re-export things we will usually want with fields
 

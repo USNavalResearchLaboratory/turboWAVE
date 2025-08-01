@@ -57,7 +57,7 @@ class GridReader
 export struct Simulation: Task, MetricSpace, tw::input::Visitor
 {
 	tw::Float unitDensityCGS;
-	tw::units nativeUnits;
+	tw::units nativeUnits; ///< only used as a bridge from input file
 
 	bool interactive,neutralize,movingWindow;
 	tw::Int outputLevel,errorCheckingLevel,success_count,failure_count;
@@ -148,7 +148,7 @@ export struct Simulation: Task, MetricSpace, tw::input::Visitor
 
 };
 
-struct Module:StaticSpace
+struct Module:StaticSpace,Testable
 {
 	std::string name;
 	Simulation *owner;
@@ -204,14 +204,15 @@ struct Module:StaticSpace
 	virtual void Report(Diagnostic&);
 	virtual void WarningMessage();
 	virtual void StatusMessage(std::ostream *dest) {;}
-	virtual bool Test(tw::Int& id);
 
 	static std::map<std::string,tw::module_type> Map();
 	static bool SingularType(tw::module_type theType);
 	static bool AutoModuleType(tw::module_type theType);
 	static tw::module_type RequiredSupermoduleType(tw::module_type submoduleType);
 	static tw::module_type CreateTypeFromInput(const tw::input::Preamble& preamble);
-	static bool SetTestGrid(tw::module_type theType,tw::Int gridId,Simulation *sim);
+	/// setup grid, native units, or other environmental factors affecting a test, returns
+	/// whether an environment was defined for the given enviro
+	static bool SetTestEnvironment(tw::module_type theType,tw::Int enviro,Simulation *sim);
 };
 
 export struct ModuleComparator
@@ -396,11 +397,6 @@ void Module::Report(Diagnostic& diagnostic)
 {
 }
 
-bool Module::Test(tw::Int& id)
-{
-	return false; // did not test, id unchanged means no next test
-}
-
 void Module::WarningMessage()
 {
 	if (buildLog.size()>4)
@@ -488,7 +484,7 @@ tw::module_type Module::CreateTypeFromInput(const tw::input::Preamble& preamble)
 	}
 }
 
-bool Module::SetTestGrid(tw::module_type theType,tw::Int gridId,Simulation *sim)
+bool Module::SetTestEnvironment(tw::module_type theType,tw::Int enviro,Simulation *sim)
 {
 	const tw::node4 cyclic = {0,1,1,0};
 	const tw::node4 domains = {1,1,1,2};
@@ -500,19 +496,43 @@ bool Module::SetTestGrid(tw::module_type theType,tw::Int gridId,Simulation *sim)
 	switch (theType)
 	{
 		case tw::module_type::species:
-			if (gridId==1)
-			{
+			if (enviro==1) {
+				sim->AttachUnits(tw::units::plasma,sim->unitDensityCGS);
 				sim->Resize(sim,gdim2d,tw::vec4(0,0,0,0),tw::vec4(0.1,0.8,0.2,0.8),std_packing,layers);
 				return true;
-			} else if (gridId==2) {
+			} else if (enviro==2) {
+				sim->AttachUnits(tw::units::plasma,sim->unitDensityCGS);
 				sim->Resize(sim,gdim3d,tw::vec4(0,0,0,0),tw::vec4(0.1,0.8,0.8,0.8),std_packing,layers);
 				return true;
-			}
-			return false;
-		default:
-			if (gridId>1)
+			} else {
 				return false;
-			sim->Resize(sim,gdim3d,tw::vec4(0,0,0,0),tw::vec4(0.1,0.8,0.8,0.8),std_packing,layers);
-			return true;
+			}
+		case tw::module_type::pauli:
+			return false;
+		case tw::module_type::schroedinger:
+			if (enviro==1) {
+				sim->AttachUnits(tw::units::atomic,sim->unitDensityCGS);
+				sim->Resize(sim,gdim3d,tw::vec4(0,0,0,0),tw::vec4(0.1,0.8,0.8,0.8),std_packing,layers);
+				return true;
+			} else {
+				return false;
+			}
+		case tw::module_type::dirac:
+		case tw::module_type::kleinGordon:
+			if (enviro==1) {
+				sim->AttachUnits(tw::units::natural,sim->unitDensityCGS);
+				sim->Resize(sim,gdim3d,tw::vec4(0,0,0,0),tw::vec4(0.1,0.8,0.8,0.8),std_packing,layers);
+				return true;
+			} else {
+				return false;
+			}
+		default:
+			if (enviro==1) {
+				sim->AttachUnits(tw::units::plasma,sim->unitDensityCGS);
+				sim->Resize(sim,gdim3d,tw::vec4(0,0,0,0),tw::vec4(0.1,0.8,0.8,0.8),std_packing,layers);
+				return true;
+			} else {
+				return false;
+			}
 	}
 }

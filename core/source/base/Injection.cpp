@@ -2,6 +2,7 @@ module;
 
 #include <tree_sitter/api.h>
 #include "tw_includes.h"
+#include "tw_test.h"
 
 export module injection;
 import input;
@@ -247,7 +248,10 @@ export struct HermiteGauss : Wave
 	HermiteGauss(const std::string& name,MetricSpace *m,Task *tsk);
 	virtual void Initialize();
 	virtual tw::Complex PrimitivePhasor(const tw::vec4& x4) const;
-	virtual bool Test(tw::Int& id);
+	virtual void RegisterTests() {
+		REGISTER(HermiteGauss,SpotCheckFieldsTest);
+	}
+	void SpotCheckFieldsTest();
 };
 
 export struct LaguerreGauss : Wave

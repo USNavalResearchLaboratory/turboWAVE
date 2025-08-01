@@ -136,7 +136,7 @@ tw::input::navigation Simulation::visit(TSTreeCursor *curs) {
 				auto curs1 = tw::input::Cursor(curs);
 				tw::input::Preamble preamble = tw::input::GetPreamble(curs1.get(),src);
 				MangleToolName(preamble.obj_name);
-				std::println(std::cout,"Creating Tool <{}>...",preamble.obj_name);
+				logger::INFO(std::format("Creating Tool <{}>...",preamble.obj_name));
 				// Do not use CreateTool, do not want to increase refCount
 				computeTool.push_back(factory::CreateToolFromType(preamble.obj_name,tw::tool_type::warp,this,this));
 				computeTool.back()->ReadInputFileBlock(curs1.get(),src);
@@ -202,7 +202,7 @@ tw::input::navigation Simulation::visit(TSTreeCursor *curs) {
 					GetModule(preamble.owner_name)->moduleTool.push_back(tool);
 				} else {
 					bool duplicate = MangleToolName(preamble.obj_name);
-					std::println(std::cout,"Creating Tool <{}>...",preamble.obj_name);
+					logger::INFO(std::format("Creating Tool <{}>...",preamble.obj_name));
 					if (duplicate && errorCheckingLevel>0)
 						tw::input::ThrowParsingError(curs,src,"duplicate tool name.");
 					// Do not use CreateTool, do not want to increase refCount

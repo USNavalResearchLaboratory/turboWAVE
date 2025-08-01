@@ -112,9 +112,8 @@ void DynSpace::Resize(Task *task,const tw::node5& gdim,const tw::vec4& gcorner,c
 {
 	tw::node4 domainIndex = task->strip[0].Get_coords4();
 	tw::node5 domainCount { 1, task->strip[1].Get_size(), task->strip[2].Get_size(), task->strip[3].Get_size(), 1 };
-	dim[0] = gdim[0];
-	if (dim[0] != 1) {
-		logger::WARN(std::format("time dimension was not 1 ({})",dim[0]));
+	if (gdim[0] != 1) {
+		logger::WARN(std::format("time dimension was not 1 ({})",gdim[0]));
 	}
 	StaticSpace::Resize(domainCount,gdim,gsize,packing,ghostCellLayers);
 	logger::DEBUG(std::format("resize domain to {}x{}x{}x{}",dim[0],dim[1],dim[2],dim[3]));

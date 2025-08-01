@@ -6,7 +6,7 @@ export module factory;
 import base;
 import compute_tool;
 import twmodule;
-import metric_space;
+import fields;
 import injection;
 import parabolic;
 import hyperbolic;
@@ -243,6 +243,12 @@ ComputeTool* CreateToolFromType(const std::string& name,tw::tool_type theType,Me
 			break;
 		case tw::tool_type::photonMover:
 			ans = new PhotonMover(name,ms,tsk);
+			break;
+		case tw::tool_type::iteratorTest:
+			ans = new IteratorTest(name,ms,tsk);
+			break;
+		case tw::tool_type::metricSpaceTest:
+			ans = new MetricSpaceTest(name,ms,tsk);
 			break;
 	}
 	return ans;

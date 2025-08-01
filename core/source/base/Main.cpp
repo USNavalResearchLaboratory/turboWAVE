@@ -1,6 +1,9 @@
 #include "mpi.h"
 #include "tw_includes.h"
 #include <thread>
+#ifdef _WIN64
+#include <Windows.h>
+#endif
 import base;
 import twmodule;
 import logger;
@@ -256,6 +259,10 @@ void start_interactive(Simulation *tw)
 
 int main(int argc,char *argv[])
 {
+	#ifdef _WIN64
+	SetConsoleCP(CP_UTF8);
+	SetConsoleOutputCP(CP_UTF8);
+	#endif
 	std::thread ithread;
 	tw::Int failure_count = 0;
 	bool interactive = false;
@@ -288,11 +295,15 @@ int main(int argc,char *argv[])
 		ithread = std::thread(start_interactive,tw);
 	}
 
-	if (tw->unitTest=="tw::none") {
-		tw->Run();
-	} else {
-		tw->Test();
-		failure_count = tw->failure_count;
+	try {
+		if (tw->unitTest=="tw::none") {
+			tw->Run();
+		} else {
+			tw->Test();
+			failure_count = tw->failure_count;
+		}
+	} catch (tw::FatalError& e) {
+		std::println("TOP LEVEL ERROR {}",e.what());
 	}
 
 	std::flush(std::cout);

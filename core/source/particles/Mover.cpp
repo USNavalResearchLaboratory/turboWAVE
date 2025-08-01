@@ -1,6 +1,7 @@
 module;
 
 #include "tw_includes.h"
+#include "tw_test.h"
 #include <algorithm>
 
 export module mover;
@@ -36,15 +37,14 @@ export struct Mover:ComputeTool
 	virtual void Advance() {}
 
 	virtual void InitTest();
-	virtual void EncodingTest();
-	virtual void MinimizePrimitiveScalarTest();
-	virtual void MinimizePrimitiveVectorTest();
-	virtual void TranslationTest();
-	virtual void UniformETest();
-	virtual void UniformBTest();
-	virtual void PlaneWaveTest();
-	virtual bool Test(tw::Int& id);
-	virtual void CloseTest();
+	void CloseTest();
+	void EncodingTest();
+	void MinimizePrimitiveScalarTest();
+	void MinimizePrimitiveVectorTest();
+	void TranslationTest();
+	void UniformETest();
+	void UniformBTest();
+	void PlaneWaveTest();
 };
 
 // Subclasses of the Mover Tool
@@ -56,6 +56,15 @@ export struct BorisMover:Mover
 {
 	BorisMover(const std::string& name,MetricSpace *m,Task *tsk): Mover(name,m,tsk) {}
 	virtual void Advance();
+	virtual void RegisterTests() {
+		REGISTER(BorisMover,EncodingTest);
+		REGISTER(BorisMover,MinimizePrimitiveScalarTest);
+		REGISTER(BorisMover,MinimizePrimitiveVectorTest);
+		REGISTER(BorisMover,TranslationTest);
+		REGISTER(BorisMover,UniformETest);
+		REGISTER(BorisMover,UniformBTest);
+		REGISTER(BorisMover,PlaneWaveTest);
+	}
 	virtual void InitTest();
 };
 
@@ -63,6 +72,15 @@ export struct HCMover:Mover
 {
 	HCMover(const std::string& name,MetricSpace *m,Task *tsk): Mover(name,m,tsk) {}
 	virtual void Advance();
+	virtual void RegisterTests() {
+		REGISTER(HCMover,EncodingTest);
+		REGISTER(HCMover,MinimizePrimitiveScalarTest);
+		REGISTER(HCMover,MinimizePrimitiveVectorTest);
+		REGISTER(HCMover,TranslationTest);
+		REGISTER(HCMover,UniformETest);
+		REGISTER(HCMover,UniformBTest);
+		REGISTER(HCMover,PlaneWaveTest);
+	}
 	virtual void InitTest();
 };
 
@@ -70,6 +88,15 @@ export struct UnitaryMover:Mover
 {
 	UnitaryMover(const std::string& name,MetricSpace *m,Task *tsk): Mover(name,m,tsk) {}
 	virtual void Advance();
+	virtual void RegisterTests() {
+		REGISTER(UnitaryMover,EncodingTest);
+		REGISTER(UnitaryMover,MinimizePrimitiveScalarTest);
+		REGISTER(UnitaryMover,MinimizePrimitiveVectorTest);
+		REGISTER(UnitaryMover,TranslationTest);
+		REGISTER(UnitaryMover,UniformETest);
+		REGISTER(UnitaryMover,UniformBTest);
+		REGISTER(UnitaryMover,PlaneWaveTest);
+	}
 	virtual void InitTest();
 };
 
@@ -77,6 +104,15 @@ export struct PGCMover:Mover
 {
 	PGCMover(const std::string& name,MetricSpace *m,Task *tsk): Mover(name,m,tsk) {}
 	virtual void Advance();
+	virtual void RegisterTests() {
+		REGISTER(PGCMover,EncodingTest);
+		REGISTER(PGCMover,MinimizePrimitiveScalarTest);
+		REGISTER(PGCMover,MinimizePrimitiveVectorTest);
+		REGISTER(PGCMover,TranslationTest);
+		REGISTER(PGCMover,UniformETest);
+		REGISTER(PGCMover,UniformBTest);
+		REGISTER(PGCMover,PlaneWaveTest);
+	}
 	virtual void InitTest();
 };
 
@@ -84,13 +120,22 @@ export struct BohmianMover:Mover
 {
 	BohmianMover(const std::string& name,MetricSpace *m,Task *tsk): Mover(name,m,tsk) {}
 	virtual void Advance();
-	virtual bool Test(tw::Int& id) { return false; }
+	virtual void RegisterTests() {}
 };
 
 export struct PhotonMover:Mover
 {
 	PhotonMover(const std::string& name,MetricSpace *m,Task *tsk): Mover(name,m,tsk) {}
 	virtual void Advance();
+	virtual void RegisterTests() {
+		REGISTER(PhotonMover,EncodingTest);
+		REGISTER(PhotonMover,MinimizePrimitiveScalarTest);
+		REGISTER(PhotonMover,MinimizePrimitiveVectorTest);
+		REGISTER(PhotonMover,TranslationTest);
+		REGISTER(PhotonMover,UniformETest);
+		REGISTER(PhotonMover,UniformBTest);
+		REGISTER(PhotonMover,PlaneWaveTest);
+	}
 	virtual void InitTest();
 };
 

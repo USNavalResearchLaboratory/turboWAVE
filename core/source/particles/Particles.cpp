@@ -3,6 +3,7 @@ module;
 #include <algorithm>
 #include <tree_sitter/api.h>
 #include "tw_includes.h"
+#include "tw_test.h"
 
 export module particles;
 import input;
@@ -106,7 +107,11 @@ export struct Species:Module
 	virtual void Report(Diagnostic&);
 	virtual void WarningMessage();
 
-	virtual bool Test(tw::Int& id);
+	virtual void RegisterTests() {
+		REGISTER(Species,EncodingTest);
+		REGISTER(Species,ReflectionTest);
+		REGISTER(Species,MoveWindowTest);
+	}
 	void EncodingTest();
 	void ReflectionTest();
 	void MoveWindowTest();

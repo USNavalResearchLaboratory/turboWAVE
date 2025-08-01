@@ -100,7 +100,14 @@ export const tw::Float root2 = std::sqrt(2);
 /////////////////////////////////
 
 export struct Testable {
-	std::string testName;
+	std::string curr_test_name;
+	std::vector<std::string> test_names;
+	std::vector<std::function<void(const Testable&)>> tests;
+	virtual void RegisterTests() {}
+	void Register(std::function<void(const Testable&)> func,std::string name) {
+		test_names.push_back(name);
+		tests.push_back(func);
+	}
 };
 
 export void assertFailed(tw::Float actual,tw::Float expected,const std::string& expr,const std::string& file,int line,const std::string& func)

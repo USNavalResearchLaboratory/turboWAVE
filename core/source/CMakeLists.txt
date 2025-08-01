@@ -78,7 +78,6 @@ set(src_base
     base/Main.cpp
     base/Simulation.cpp
     base/Injection_Test.cpp
-    base/MetricSpace_Test.cpp
 )
 set(src_io
     io/parser.c
@@ -144,6 +143,7 @@ target_sources(tw3d PUBLIC
         fields/transform.cpp
         fields/aggregates.cpp
         fields/tools.cpp
+        fields/test.cpp
         io/Navigate.cpp
         io/Preprocess.cpp
         io/Assignment.cpp

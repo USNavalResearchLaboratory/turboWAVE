@@ -38,7 +38,7 @@ export const tw::node4 std_coord {1,1,1,1};
 ///
 /// Storage patterns are dictated by the `packing` array, which in turn provides a cell encoding that
 /// maps the topological indices to a memory location.
-export struct StaticSpace : Testable
+export struct StaticSpace
 {
 	protected:
 
