@@ -222,19 +222,19 @@ export class CellRange:public TWRange
 	tw::Int io,jo,ko,is,js,ks,iCells,jCells,kCells;
 
 public:
-	CellRange(const StaticSpace& space,const tw::Int& n,bool include_ghost_cells)
+	CellRange(const StaticSpace& space,const tw::Int& n,strongbool include_ghost_cells)
 	{
 		ss = &space;
 		this->n = n;
-		io = include_ghost_cells ? 0 : space.Layers(1);
-		jo = include_ghost_cells ? 0 : space.Layers(2);
-		ko = include_ghost_cells ? 0 : space.Layers(3);
+		io = include_ghost_cells==strongbool::yes ? 0 : space.Layers(1);
+		jo = include_ghost_cells==strongbool::yes ? 0 : space.Layers(2);
+		ko = include_ghost_cells==strongbool::yes ? 0 : space.Layers(3);
 		is = space.LFG(1);
 		js = space.LFG(2);
 		ks = space.LFG(3);
-		iCells = include_ghost_cells ? space.Num(1) : space.Dim(1);
-		jCells = include_ghost_cells ? space.Num(2) : space.Dim(2);
-		kCells = include_ghost_cells ? space.Num(3) : space.Dim(3);
+		iCells = include_ghost_cells==strongbool::yes ? space.Num(1) : space.Dim(1);
+		jCells = include_ghost_cells==strongbool::yes ? space.Num(2) : space.Dim(2);
+		kCells = include_ghost_cells==strongbool::yes ? space.Num(3) : space.Dim(3);
 		SetCountRange(iCells*jCells*kCells);
 	}
 	tw::iterator<CellRange,tw::cell> begin() { return tw::iterator<CellRange,tw::cell>(this,first,first,last); }
@@ -252,7 +252,7 @@ public:
 export class EntireCellRange:public CellRange
 {
 public:
-	EntireCellRange(const StaticSpace& space,const tw::Int& n) : CellRange(space,n,true)
+	EntireCellRange(const StaticSpace& space,const tw::Int& n) : CellRange(space,n,strongbool::yes)
 	{
 	}
 };
@@ -260,7 +260,7 @@ public:
 export class InteriorCellRange:public CellRange
 {
 public:
-	InteriorCellRange(const StaticSpace& space,const tw::Int& n) : CellRange(space,n,false)
+	InteriorCellRange(const StaticSpace& space,const tw::Int& n) : CellRange(space,n,strongbool::no)
 	{
 	}
 };
@@ -279,8 +279,7 @@ public:
 	{
 		tw::Int N[4];
 		// This sets us up so we can do coord[i] = global_count/D[i]%M[i] for any axis.
-		// (it will come to 0 for ax1 or ax2)
-		assert(ax1 != ax2);
+		// (it will come to 0 for strip_ax or fixed_ax)
 		this->ss = &space;
 		this->fixed_ax = fixed_ax;
 		this->strip_ax = strip_ax;

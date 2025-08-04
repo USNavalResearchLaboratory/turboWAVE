@@ -1,6 +1,7 @@
 module;
 
 #include "tw_includes.h"
+#include "tw_logger.h"
 
 export module field_solve;
 import input;
@@ -13,7 +14,6 @@ import diagnostics;
 import injection;
 import functions;
 import logger;
-#include "tw_logger.h"
 
 using namespace tw::bc;
 
@@ -109,7 +109,7 @@ void Electromagnetic::LoadVectorPotential(Field& A,tw::Float t)
 	{
 		tw::Int i,j,k,s;
 		tw::vec3 r1,r2,r3;
-		for (auto cell : CellRange(A,1,true))
+		for (auto cell : EntireCellRange(A,1))
 		{
 			cell.Decode(&i,&j,&k);
 			r1.x = owner->X(i,1) - 0.5*owner->dX(i,1);
@@ -1337,7 +1337,7 @@ void FarFieldDiagnostic::FinalReport()
 			for (tw::Int j=1;j<=dims[2];j++)
 				for (tw::Int k=1;k<=dims[3];k++)
 					gData[(i-1)*dims[2]*dims[3] + (j-1)*dims[3] + (k-1)] = accum(i,j,k).y;
-		writer.add_frame(fileName,(char*)&gData[0],dims);
+		writer.add_frame(fileName,&gData[0],dims);
 
 		fileName = name + "-Aphi.npy";
 		writer.write_header(fileName,dims);
@@ -1345,6 +1345,6 @@ void FarFieldDiagnostic::FinalReport()
 			for (tw::Int j=1;j<=dims[2];j++)
 				for (tw::Int k=1;k<=dims[3];k++)
 					gData[(i-1)*dims[2]*dims[3] + (j-1)*dims[3] + (k-1)] = accum(i,j,k).z;
-		writer.add_frame(fileName,(char*)&gData[0],dims);
+		writer.add_frame(fileName,&gData[0],dims);
 	}
 }

@@ -2,6 +2,7 @@ module;
 
 #include <tree_sitter/api.h>
 #include "tw_includes.h"
+#include "tw_logger.h"
 
 export module input;
 export import base;
@@ -9,7 +10,6 @@ export import navigate;
 export import assignment;
 export import units;
 import logger;
-#include "tw_logger.h"
 
 extern "C" {
 	TSLanguage *tree_sitter_turbowave();

@@ -1,10 +1,15 @@
 module;
 
 #include "tw_includes.h"
+#ifndef USE_STD_MODULE
+	#include <functional>
+	#include <fstream>
+	#include <array>
+#endif
 
 export module base;
 #ifdef USE_STD_MODULE
-	import module std;
+	export import module std;
 #endif
 
 constexpr bool LittleEndian() {
@@ -344,68 +349,59 @@ export int NearestIdx(const std::vector<tw::Float>& vector, tw::Float value)
 	return iter - vector.begin();
 }
 
-export void ReverseBytes(char *bytes,tw::Int n)
+export template <class T>
+void WriteBigEndian(const T *dat,tw::Int n,std::ofstream& outFile)
 {
-	tw::Int i;
-	char temp;
-	for (i=0;i<n/2;i++)
+	T big;
+	for (auto i=0; i<n; i++)
 	{
-		temp = bytes[i];
-		bytes[i] = bytes[n-1-i];
-		bytes[n-1-i] = temp;
+		if (LittleEndian()) {
+			big = std::byteswap(dat[i]);
+		} else {
+			big = dat[i];
+		}
+		outFile.write((char*)&big,sizeof(T));
 	}
 }
 
-export void WriteBigEndian(const char *bytes,tw::Int n,tw::Int blockSize,std::ofstream& outFile)
+export template <class T>
+void ReadLittleEndian(T* dat,tw::Int n,std::ifstream& inFile)
 {
-	if (!blockSize) blockSize = n;
-	char *temp = new char[blockSize];
-	for (tw::Int i=0;i<n/blockSize;i++)
+	T little;
+	for (auto i=0; i<n; i++)
 	{
-		memcpy(temp,&bytes[i*blockSize],blockSize);
-		if (LittleEndian())
-			ReverseBytes(temp,blockSize);
-		outFile.write(temp,blockSize);
+		inFile.read((char*)&little,sizeof(T));
+		if (!LittleEndian()) {
+			dat[i] = std::byteswap(little);
+		} else {
+			dat[i] = little;
+		}
 	}
-	delete [] temp;
 }
 
-export void ReadLittleEndian(char *bytes,tw::Int n,tw::Int blockSize,std::ifstream& inFile)
+export template <class T>
+void WriteLittleEndian(const T *dat,tw::Int n,std::fstream& outFile)
 {
-	if (!blockSize) blockSize = n;
-	char *temp = new char[blockSize];
-	for (tw::Int i=0;i<n/blockSize;i++)
+	T little;
+	for (auto i=0; i<n; i++)
 	{
-		inFile.read(temp,blockSize);
-		if (!LittleEndian())
-			ReverseBytes(temp,blockSize);
-		memcpy(&bytes[i*blockSize],temp,blockSize);
+		if (!LittleEndian()) {
+			little = std::byteswap(dat[i]);
+		} else {
+			little = dat[i];
+		}
+		outFile.write((char*)&little,sizeof(T));
 	}
-	delete [] temp;
 }
 
-export void WriteLittleEndian(const char *bytes,tw::Int n,tw::Int blockSize,std::fstream& outFile)
+export template <class T>
+void BufferLittleEndian(T *dat,tw::Int n)
 {
-	if (!blockSize) blockSize = n;
-	char *temp = new char[blockSize];
-	for (tw::Int i=0;i<n/blockSize;i++)
-	{
-		memcpy(temp,&bytes[i*blockSize],blockSize);
-		if (!LittleEndian())
-			ReverseBytes(temp,blockSize);
-		outFile.write(temp,blockSize);
+	if (!LittleEndian()) {
+		for (auto i=0; i<n; i++) {
+			dat[i] = std::byteswap(dat[i]);
+		}
 	}
-	delete [] temp;
-}
-
-export void BufferLittleEndian(char *bytes,tw::Int n)
-{
-	char *temp = new char[n];
-	memcpy(temp,bytes,n);
-	if (!LittleEndian())
-		ReverseBytes(temp,n);
-	memcpy(bytes,temp,n);
-	delete [] temp;
 }
 
 export tw::Int MyFloor(tw::Float a)

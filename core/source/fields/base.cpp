@@ -1,6 +1,7 @@
 module;
 
 #include "tw_includes.h"
+#include "tw_logger.h"
 
 export module fields:base;
 import :primitives;
@@ -11,7 +12,6 @@ import metric_space;
 import tw_iterator;
 import numerics;
 import logger;
-#include "tw_logger.h"
 
 /// Field is a StaticSpace with data assigned to the cells, and operations on the data.
 /// The data is some fixed number of floating point values per cell.
@@ -409,6 +409,8 @@ void Field::Initialize(const tw::Int& components,const StaticSpace& ss,Task *tas
 /// @param task pointer to the concurrent task with this Field's domain
 void Field::Initialize(const StaticSpace& ss,Task *task) {
 	StaticSpace::operator = (ss);
+	logger::TRACE(std::format("field init dim {}",dim));
+	logger::TRACE(std::format("field init estride {}",encodingStride));
 	this->task = task;
 	totalCells = num[0]*num[1]*num[2]*num[3];
 	bc0.resize(4,num[4]);
@@ -1137,7 +1139,7 @@ export void CopyFieldData(Field& dst,const Rng04& r_dst,Field& src,const Rng04& 
 	}
 	for (auto n=0;n<r_dst.Times();n++)
 		for (auto c=0;c<r_dst.Components();c++)
-			for (auto cell : CellRange(dst,n,true))
+			for (auto cell : EntireCellRange(dst,n))
 				dst(cell,r_dst.b4+c) = src(cell,r_src.b4+c);
 }
 
@@ -1164,7 +1166,7 @@ export void AddFieldData(Field& dst,const Rng04& r_dst,Field& src,const Rng04& r
 	}
 	for (auto n=0;n<r_dst.Times();n++)
 		for (auto c=0;c<r_dst.Components();c++)
-			for (auto cell : CellRange(dst,n,true))
+			for (auto cell : EntireCellRange(dst,n))
 				dst(cell,r_dst.b4+c) += src(cell,r_src.b4+c);
 }
 
@@ -1175,7 +1177,7 @@ export void AddMulFieldData(Field& dst,const Rng04& r_dst,Field& src,const Rng04
 	}
 	for (auto n=0;n<r_dst.Times();n++)
 		for (auto c=0;c<r_dst.Components();c++)
-			for (auto cell : CellRange(dst,n,true))
+			for (auto cell : EntireCellRange(dst,n))
 				dst(cell,r_dst.b4+c) += mul*src(cell,r_src.b4+c);
 }
 

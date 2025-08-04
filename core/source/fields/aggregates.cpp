@@ -1,6 +1,7 @@
 module;
 
 #include "tw_includes.h"
+#include "tw_logger.h"
 
 /// This module provides easy access to aggregated interal dimensions.
 /// As a simple example, a Vec3Field
@@ -16,7 +17,6 @@ import tw_iterator;
 import numerics;
 import fft;
 import logger;
-#include "tw_logger.h"
 
 
 export struct ScalarField: Field

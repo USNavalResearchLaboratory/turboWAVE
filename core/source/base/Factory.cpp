@@ -25,6 +25,8 @@ import fluid;
 import particles;
 import quantum;
 import input;
+import metric_space_test;
+import iterator_test;
 
 export namespace factory {
 

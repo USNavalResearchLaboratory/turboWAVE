@@ -1,5 +1,9 @@
-// macros for testing must be in a header file.
-// this has to be included after base is imported.
+// Macros for testing.
+// When expanded these macros call into the `base/base` module.
+
+#ifndef USE_STD_MODULE
+    #include <functional>
+#endif
 
 #define ASSERT_EQ(actual,expected) assertEqualInt(actual,expected,__FILE__,__LINE__,__func__,curr_test_name)
 #define ASSERT_NEAR(actual,expected,tol) assertClose(actual,expected,tol,__FILE__,__LINE__,__func__,curr_test_name)

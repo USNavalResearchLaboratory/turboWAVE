@@ -32,7 +32,7 @@ void conserved_current_to_dens(const tw::Int& n, Field& current, const MetricSpa
 {
 #pragma omp parallel
 	{
-		for (auto cell : CellRange(m,n, true))
+		for (auto cell : EntireCellRange(m,n))
 		{
 			current(cell, T) /= m.dS(cell, 0);
 			current(cell, X) /= m.dS(cell, 1) + tw::small_pos;

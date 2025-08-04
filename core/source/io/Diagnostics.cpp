@@ -1,6 +1,7 @@
 module;
 
 #include "tw_includes.h"
+#include "tw_logger.h"
 
 export module diagnostics;
 
@@ -8,7 +9,6 @@ import input;
 import compute_tool;
 import fields;
 import logger;
-#include "tw_logger.h"
 
 // Diagnostics are implemented as ComputeTool objects.
 // The flow of control starts from Simulation, which calls Module::Report for every Module.
@@ -34,9 +34,9 @@ public:
 	std::string form_header(tw::Int shape[4]);
 	void write_header(const std::string& name,tw::Int shape[4]);
 	void update_shape(const std::string& name,tw::Int shape[4]);
-	void get_frame(const std::string& name,char *gData,tw::Int shape[4],tw::Int frame);
-	void set_frame(const std::string& name,const char *gData,tw::Int shape[4],tw::Int frame);
-	void add_frame(const std::string& name,const char *gData,tw::Int shape[4]);
+	void get_frame(const std::string& name,float *gData,tw::Int shape[4],tw::Int frame);
+	void set_frame(const std::string& name,const float *gData,tw::Int shape[4],tw::Int frame);
+	void add_frame(const std::string& name,const float *gData,tw::Int shape[4]);
 };
 
 export struct Diagnostic : ComputeTool
@@ -254,15 +254,11 @@ std::string npy_writer::form_header(tw::Int shape[4])
 	}
 	HEADER_LEN++;
 	dict << "\n";
-	// Form bytes for the little endian integer giving the header length
-	char hbuff[type_size];
-	memcpy(hbuff,(char*)&HEADER_LEN,type_size);
-	BufferLittleEndian(hbuff,type_size);
+	BufferLittleEndian(&HEADER_LEN,1);
 	// Now put it all together in a string
 	std::stringstream ans;
 	ans << vers;
-	for (tw::Int i=0;i<type_size;i++)
-		ans << hbuff[i];
+	ans.write((char*)&HEADER_LEN,type_size);
 	ans << dict.str();
 	return ans.str();
 }
@@ -297,33 +293,36 @@ void npy_writer::update_shape(const std::string& name,tw::Int shape[4])
 	outFile.close();
 }
 
-void npy_writer::get_frame(const std::string& name,char *gData,tw::Int shape[4],tw::Int frame)
+void npy_writer::get_frame(const std::string& name,float *gData,tw::Int shape[4],tw::Int frame)
 {
 	std::ifstream inFile;
 	std::string header(form_header(shape));
 	size_t frameSize = sizeof(float)*shape[1]*shape[2]*shape[3];
 	inFile.open(name.c_str(),std::ios::binary);
 	inFile.seekg(header.size()+frame*frameSize,std::ios::beg);
-	ReadLittleEndian(gData,frameSize,sizeof(float),inFile);
+	assert(sizeof(float)==sizeof(uint32_t));
+	ReadLittleEndian((uint32_t*)gData,frameSize/sizeof(float),inFile);
 	inFile.close();
 }
 
-void npy_writer::set_frame(const std::string& name,const char *gData,tw::Int shape[4],tw::Int frame)
+void npy_writer::set_frame(const std::string& name,const float *gData,tw::Int shape[4],tw::Int frame)
 {
 	std::fstream outFile;
 	std::string header(form_header(shape));
 	size_t frameSize = sizeof(float)*shape[1]*shape[2]*shape[3];
 	outFile.open(name.c_str(),std::ios::binary | std::ios::out | std::ios::in);
 	outFile.seekp(header.size()+frame*frameSize,std::ios::beg);
-	WriteLittleEndian(gData,frameSize,sizeof(float),outFile);
+	assert(sizeof(float)==sizeof(uint32_t));
+	WriteLittleEndian((uint32_t*)gData,frameSize/sizeof(float),outFile);
 	outFile.close();
 }
 
-void npy_writer::add_frame(const std::string& name,const char *gData,tw::Int shape[4])
+void npy_writer::add_frame(const std::string& name,const float *gData,tw::Int shape[4])
 {
 	std::fstream outFile;
 	outFile.open(name.c_str(),std::ios::binary | std::ios::out | std::ios::app);
-	WriteLittleEndian(gData,sizeof(float)*shape[1]*shape[2]*shape[3],sizeof(float),outFile);
+	assert(sizeof(float)==sizeof(uint32_t));
+	WriteLittleEndian((uint32_t*)gData,shape[1]*shape[2]*shape[3],outFile);
 	outFile.close();
 }
 
@@ -781,7 +780,7 @@ void BoxDiagnostic::ReportField(const std::string& fieldName,const Field& F,cons
 				meta.define_axis(xname,4,pretty,unit,true);
 			meta.finish_entry();
 		}
-		writer.add_frame(xname,(char*)&gData[0],pts);
+		writer.add_frame(xname,&gData[0],pts);
 		writer.update_shape(xname,pts);
 	}
 }
@@ -863,7 +862,7 @@ void ParticleOrbits::Finish()
 			headerWritten = true;
 		}
 		false_shape[3] = pts;
-		writer.add_frame(xname,(char*)&parBuffer[0],false_shape);
+		writer.add_frame(xname,&parBuffer[0],false_shape);
 		for (tw::Int i=0;i<task->strip[0].Get_size();i++)
 		{
 			if (i!=master)
@@ -872,12 +871,12 @@ void ParticleOrbits::Finish()
 				parBuffer.resize(pts);
 				task->strip[0].Recv(&parBuffer[0],sizeof(float)*pts,i);
 				false_shape[3] = pts;
-				writer.add_frame(xname,(char*)&parBuffer[0],false_shape);
+				writer.add_frame(xname,&parBuffer[0],false_shape);
 			}
 		}
 		float separator[11] = {0.0,0.0,0.0,0.0,0.0,
 			0.0,0.0,0.0,0.0,0.0,0.0};
-		writer.add_frame(xname,(char*)&separator[0],shape);
+		writer.add_frame(xname,&separator[0],shape);
 		writer.update_shape(xname,shape);
 	}
 }
@@ -999,7 +998,7 @@ void PhaseSpaceDiagnostic::Finish()
 		std::string xname = filename + ".npy";
 		std::valarray<float> gData(dims[1]*dims[2]*dims[3]);
 		if (accumulate && dims[0]!=0)
-			writer.get_frame(xname,(char*)&gData[0],dims,0);
+			writer.get_frame(xname,&gData[0],dims,0);
 		else
 			gData = 0.0f;
 		for (tw::Int i=1;i<=dims[1];i++)
@@ -1007,9 +1006,9 @@ void PhaseSpaceDiagnostic::Finish()
 				for (tw::Int k=1;k<=dims[3];k++)
 					gData[(i-1)*dims[2]*dims[3] + (j-1)*dims[3] + (k-1)] += fxp(i,j,k);
 		if (accumulate && dims[0]!=0)
-			writer.set_frame(xname,(char*)&gData[0],dims,0);
+			writer.set_frame(xname,&gData[0],dims,0);
 		else
-			writer.add_frame(xname,(char*)&gData[0],dims);
+			writer.add_frame(xname,&gData[0],dims);
 		writer.update_shape(xname,dims);
 	}
 

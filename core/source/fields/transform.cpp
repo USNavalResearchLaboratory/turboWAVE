@@ -1,6 +1,7 @@
 module;
 
 #include "tw_includes.h"
+#include "tw_logger.h"
 
 export module fields:transform;
 import :base;
@@ -10,7 +11,6 @@ import dyn_space;
 import numerics;
 import fft;
 import logger;
-#include "tw_logger.h"
 
 tw::Float Field::RealAxialEigenvalue(tw::Int z,const DynSpace& ds)
 {

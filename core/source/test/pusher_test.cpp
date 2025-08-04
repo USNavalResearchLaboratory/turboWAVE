@@ -11,7 +11,7 @@ void Mover::UniformETest()
     InitTest();
     const tw::Float tolerance = 1e-3;
     // Create uniform electric field
-    for (auto cell : CellRange(*space,1,true))
+    for (auto cell : EntireCellRange(*EM,1))
         (*EM)(cell,2) = 1.0;
     Primitive q;
     tw::Float qmRatio = m0==0.0 ? 0.0 : q0/m0;
@@ -33,7 +33,7 @@ void Mover::UniformBTest()
     InitTest();
     const tw::Float tolerance = 1e-3;
     // Create uniform magnetic field
-    for (auto cell : CellRange(*space,1,true))
+    for (auto cell : EntireCellRange(*EM,1))
         (*EM)(cell,4) = 1.0;
     Primitive q;
     tw::vec4 r0 = space->Corner() + 0.5 * tw::vec4(-space->dx(0),space->dx(1),space->dx(2),space->dx(3));
@@ -70,7 +70,7 @@ void Mover::PlaneWaveTest()
     for (tw::Int i=0;i<steps;i++)
     {
         // Update plane wave grid analytically
-        for (auto cell : CellRange(*space,1,true))
+        for (auto cell : EntireCellRange(*EM,1))
         {
             (*EM)(cell,0) = 1*std::sin(w0*dt*i - k0*space->Pos(cell).z);
             (*EM)(cell,4) = 1*std::sin(w0*dt*i - k0*(space->Pos(cell).z - dr/2));

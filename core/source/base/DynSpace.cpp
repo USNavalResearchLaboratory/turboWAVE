@@ -1,6 +1,7 @@
 module;
 
 #include "tw_includes.h"
+#include "tw_logger.h"
 
 export module dyn_space;
 import base;
@@ -9,7 +10,6 @@ export import tensor;
 export import tasks;
 import static_space;
 import logger;
-#include "tw_logger.h"
 
 /// This object adds dynamical quantities to StaticSpace, but stops short of adding metric information.
 /// An important task is to track the way fixed reference points move relative to StaticSpace.

@@ -2,6 +2,7 @@ module;
 
 #include <tree_sitter/api.h>
 #include "tw_includes.h"
+#include "tw_logger.h"
 
 module twmodule;
 import base;
@@ -9,7 +10,6 @@ import preprocess;
 import input;
 import factory;
 import logger;
-#include "tw_logger.h"
 
 GridReader::GridReader(tw::UnitConverter& uc)
 {

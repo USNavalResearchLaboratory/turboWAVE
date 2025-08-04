@@ -1,6 +1,7 @@
 module;
 
 #include "tw_includes.h"
+#include "tw_logger.h"
 
 export module metric_space;
 export import base;
@@ -11,7 +12,6 @@ export import tasks;
 import dyn_space;
 import tw_iterator;
 import logger;
-#include "tw_logger.h"
 
 // This abstract class is needed to anticipate ComputeTool::Warp.
 export struct warp_base

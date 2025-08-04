@@ -1,9 +1,11 @@
 module;
 
 #include "tw_includes.h"
+#include "tw_logger.h"
 
 export module tasks;
 import base;
+import logger;
 
 export namespace tw
 {
@@ -115,9 +117,10 @@ export namespace tw
 			if (dst==Get_rank())
 				if (sendToSelfData!=NULL)
 				{
-					if (buff==sendToSelfData)
-						std::cout << term::warning << ": memcpy in place during send to self." << std::endl;
-					std::memcpy(sendToSelfData,buff,buffSize);
+					if (buff==sendToSelfData) {
+						logger::WARN("copy in place during send to self");
+					}
+					std::copy((char*)buff,(char*)buff+buffSize,(char*)sendToSelfData);
 					sendToSelfData = NULL;
 				}
 				else
@@ -132,9 +135,10 @@ export namespace tw
 			if (src==Get_rank())
 				if (sendToSelfData!=NULL)
 				{
-					if (buff==sendToSelfData)
-						std::cout << term::warning << ": memcpy in place during recv from self." << std::endl;
-					std::memcpy(buff,sendToSelfData,buffSize);
+					if (buff==sendToSelfData) {
+						logger::WARN("copy in place during recv from self");
+					}
+					std::copy((char*)sendToSelfData,(char*)sendToSelfData+buffSize,(char*)buff);
 					sendToSelfData = NULL;
 				}
 				else

@@ -1,15 +1,16 @@
 module;
 
-#include <algorithm>
 #include "tw_includes.h"
+#include "tw_logger.h"
+#ifndef USE_STD_MODULE
+    #include <algorithm>
+#endif
 
 module twmodule;
 import base;
 import logger;
 import input;
 import factory;
-
-#include "tw_logger.h"
 
 Simulation::Simulation(const bool interactive,
 	const std::string& test_name,
@@ -234,7 +235,6 @@ void Simulation::Test()
 			tw::Int enviro = 1;
 			while (ComputeTool::SetTestEnvironment(theType,enviro,this,this))
 			{
-				logger::TRACE("test grid succeeded");
 				auto gridStr = std::format("    {}x{}x{} grid",this->GlobalDim(1),this->GlobalDim(2),this->GlobalDim(3));
 				tool = CreateTool("test_tool",theType);
 				logger::TRACE("register tests using tool prototype...");
@@ -255,7 +255,7 @@ void Simulation::Test()
 						} catch(tw::FatalError& e) {
 							failed = 1;
 							std::println(test_out,"{}    {} {}{}{}",gridStr,term::err,term::red,test_names[id],term::reset_all);
-							std::println(test_report,"{}. {} grid {}",++failure_count,tool_key,enviro);
+							std::println(test_report,"{}. {}: environment {}",++failure_count,tool_key,enviro);
 							std::println(test_report,"{}",e.what());
 						}
 						logger::TRACE("begin MPI sum of failures");
@@ -310,7 +310,7 @@ void Simulation::Test()
 						} catch(tw::FatalError& e) {
 							failed = 1;
 							std::println(test_out,"{}    {} {}{}{}",gridStr,term::err,term::red,test_names[id],term::reset_all);
-							std::println(test_report,"{}. {} grid {}",++failure_count,mod_key,enviro);
+							std::println(test_report,"{}. {}: environment {}",++failure_count,mod_key,enviro);
 							std::println(test_report,"{}",e.what());
 						}
 						logger::TRACE("begin MPI sum of failures");

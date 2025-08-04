@@ -1,9 +1,9 @@
 module;
 
 #include "tw_includes.h"
-
+#include "tw_logger.h"
 module mover;
-
+import logger;
 void BorisMover::Advance()
 {
 	if (space->Dim(2)==1)

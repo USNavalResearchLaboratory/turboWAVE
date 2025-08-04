@@ -1,13 +1,13 @@
 module;
 
 #include "tw_includes.h"
+#include "tw_logger.h"
 
 export module fields:primitives;
 import base;
 import pic_primitives;
 import static_space;
 import logger;
-#include "tw_logger.h"
 
 export template <class T>
 struct Matrix
@@ -332,7 +332,7 @@ public:
 			(j - beg[2]) * encodingStride[2] +
 			(k - beg[3]) * encodingStride[3] +
 			(c - beg[4]) * encodingStride[4];
-		#ifdef NDEBUG
+		#ifndef NDEBUG
 		if (idx < 0 || idx > data.size()) {
 			logger::ERROR(std::format("bad slice access {} >= {}",idx,data.size()));
 			logger::DEBUG(std::format("coords {},{},{},{},{}",n,i,j,k,c));
@@ -349,11 +349,13 @@ public:
 			(j - beg[2]) * encodingStride[2] +
 			(k - beg[3]) * encodingStride[3] +
 			(c - beg[4]) * encodingStride[4];
+		#ifndef NDEBUG
 		if (idx < 0 || idx > data.size()) {
 			logger::ERROR(std::format("bad slice access {} >= {}",idx,data.size()));
 			logger::DEBUG(std::format("coords {},{},{},{},{}",n,i,j,k,c));
 			logger::DEBUG(std::format("beg {} end {} strides {}",beg,end,encodingStride));
 		}
+		#endif
 		return data[idx];
 	}
 	Slice<T>& operator = (T a)

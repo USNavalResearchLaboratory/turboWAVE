@@ -35,13 +35,18 @@ elseif(APPLE)
     # maybe necessary to set LD_LIBRARY_PATH to find libomp.so
 	set(CMAKE_CXX_COMPILER "$ENV{HOMEBREW_PREFIX}/opt/llvm/bin/clang++")
 	set(CMAKE_C_COMPILER "$ENV{HOMEBREW_PREFIX}/opt/llvm/bin/clang")
-	set(CMAKE_SYSTEM_LIBRARY_PATH "$ENV{HOMEBREW_PREFIX}/opt/llvm/lib")
-	set(CMAKE_SYSTEM_INCLUDE_PATH "$ENV{HOMEBREW_PREFIX}/opt/llvm/include")
-    # For Apple it sometimes is best to use libc++
-    set(CMAKE_CXX_FLAGS "-stdlib=libc++")
+	# set(CMAKE_SYSTEM_LIBRARY_PATH "$ENV{HOMEBREW_PREFIX}/opt/llvm/lib")
+	# set(CMAKE_SYSTEM_INCLUDE_PATH "$ENV{HOMEBREW_PREFIX}/opt/llvm/include")
+	# set(CMAKE_CXX_COMPILER "$ENV{HOMEBREW_PREFIX}/opt/gcc/bin/g++-15")
+	# set(CMAKE_C_COMPILER "$ENV{HOMEBREW_PREFIX}/opt/gcc/bin/gcc-15")
+	# set(CMAKE_SYSTEM_LIBRARY_PATH "$ENV{HOMEBREW_PREFIX}/opt/gcc/lib")
+	# set(CMAKE_SYSTEM_INCLUDE_PATH "$ENV{HOMEBREW_PREFIX}/opt/gcc/include")
+    # For Apple we may be forced to use libc++
+    # set(CMAKE_CXX_FLAGS "-stdlib=libstdc++")
+    # set(CMAKE_CXX_FLAGS "-stdlib=libc++")
     # It seems that libstdc++ handles c++17 special functions correctly and libc++ does not.
     # So if we are using libc++ we have to use our own wrappers.
-    add_definitions(-DUSE_TWSF)
+    # add_definitions(-DUSE_TWSF)
 elseif(UNIX)
     # n.b. we need snap, apt, and linuxbrew.
     # snap install cmake
@@ -52,8 +57,8 @@ elseif(UNIX)
     # brew install llvm
 	set(CMAKE_CXX_COMPILER "$ENV{HOMEBREW_PREFIX}/opt/llvm/bin/clang++")
 	set(CMAKE_C_COMPILER "$ENV{HOMEBREW_PREFIX}/opt/llvm/bin/clang")
-	set(CMAKE_SYSTEM_LIBRARY_PATH "$ENV{HOMEBREW_PREFIX}/opt/llvm/lib")
-	set(CMAKE_SYSTEM_INCLUDE_PATH "$ENV{HOMEBREW_PREFIX}/opt/llvm/include")
+	# set(CMAKE_SYSTEM_LIBRARY_PATH "$ENV{HOMEBREW_PREFIX}/opt/llvm/lib")
+	# set(CMAKE_SYSTEM_INCLUDE_PATH "$ENV{HOMEBREW_PREFIX}/opt/llvm/include")
 endif()
 
 set(CMAKE_CXX_STANDARD 23)
@@ -74,51 +79,37 @@ configure_file(base/config.h.in config.h)
 find_package(OpenMP REQUIRED)
 find_package(MPI REQUIRED)
 
-set(src_base
+# Regular sources or module implementations go here
+target_sources(tw3d PUBLIC
     base/Main.cpp
     base/Simulation.cpp
-    base/Injection_Test.cpp
-)
-set(src_io
     io/parser.c
     io/tree-sitter/lib/src/lib.c
     io/MainReader.cpp
-)
-set(src_par
-    particles/Mover_Test.cpp
-    particles/Particles_Test.cpp
-    particles/Pusher_Test.cpp
     particles/Mover_Bohmian.cpp
     particles/Mover_Boris.cpp
     particles/Mover_HC.cpp
     particles/Mover_PGC.cpp
     particles/Mover_Photon.cpp
     particles/Mover_Unitary.cpp
-)
-set(src_solv
-    solver/Elliptic_Test.cpp
-)
-set(src_sparc
-    sparc/Fluid_Test.cpp
-    sparc/Physics_Test.cpp
-)
-
-target_sources(tw3d PUBLIC
-    ${src_base}
-    ${src_io}
-    ${src_par}
-    ${src_solv}
-    ${src_sparc}
+    test/mover_test.cpp
+    test/particles_test.cpp
+    test/pusher_test.cpp
+    test/elliptic_test.cpp
+    test/fluid_test.cpp
+    test/physics_test.cpp
+    test/injection_test.cpp
 )
 
 target_sources(tw3d PUBLIC
     FILE_SET HEADERS
-    BASE_DIRS base io particles fields solver sparc
+    BASE_DIRS base io particles fields solver sparc test
 )
 
+# Module interfaces go here
 target_sources(tw3d PUBLIC
     FILE_SET CXX_MODULES
-    BASE_DIRS base io particles fields solver sparc
+    BASE_DIRS base io particles fields solver sparc test
     FILES
         base/base.cpp
         base/logger.cpp
@@ -143,7 +134,6 @@ target_sources(tw3d PUBLIC
         fields/transform.cpp
         fields/aggregates.cpp
         fields/tools.cpp
-        fields/test.cpp
         io/Navigate.cpp
         io/Preprocess.cpp
         io/Assignment.cpp
@@ -169,7 +159,10 @@ target_sources(tw3d PUBLIC
         solver/Hyperbolic.cpp
         solver/LaserSolve.cpp
         solver/Electrostatic.cpp
-        solver/Elliptic.cpp)
+        solver/Elliptic.cpp
+        test/iterator_test.cpp
+        test/metric_space_test.cpp
+)
 
 if (MSVC)
     target_compile_options(tw3d PUBLIC -openmp:experimental -openmp:llvm)

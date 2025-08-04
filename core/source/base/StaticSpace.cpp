@@ -1,6 +1,7 @@
 module;
 
 #include "tw_includes.h"
+#include "tw_logger.h"
 
 export module static_space;
 import base;
@@ -8,7 +9,6 @@ import pic_primitives;
 export import tensor;
 export import tasks;
 import logger;
-#include "tw_logger.h"
 
 export const tw::node5 std_packing {4,0,1,2,3};
 export const tw::node4 std_coord {1,1,1,1};

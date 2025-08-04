@@ -2,8 +2,7 @@ module;
 
 #include "tw_includes.h"
 
-/// module logger works together with macros in tw_logger.h, which is to be
-/// included *after* importing the logger.
+/// module logger works together with macros in tw_logger.h.
 /// usage example: `logger::DEBUG(std::format("result was {}",result))`
 /// level is controlled by `TW_LOG` environment variable.
 /// levels are error,warn,info,debug,trace.

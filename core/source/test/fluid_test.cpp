@@ -39,7 +39,7 @@ void Fluid::AdvectionTest()
 
     // check positivity
     tw::Float pos = 1.0;
-    for (auto cell : CellRange(*owner,1,false))
+    for (auto cell : InteriorCellRange(*owner,1))
         pos *= state0(cell,0)>0.0 ? 1.0 : 0.0;
 
     ASSERT_NEAR(pos,1.0,1e-6);
@@ -71,7 +71,7 @@ void Fluid::ConservationTest()
 
     // initial mass for conservation check
     tw::Float initialMass = 0.0;
-    for (auto cell : CellRange(*owner,1,false))
+    for (auto cell : InteriorCellRange(*owner,1))
         initialMass += state1(cell,0);
     owner->strip[0].AllSum(&initialMass,&initialMass,sizeof(tw::Float),0);
 
@@ -84,7 +84,7 @@ void Fluid::ConservationTest()
 
     // check conservation
     tw::Float finalMass = 0.0;
-    for (auto cell : CellRange(*owner,1,false))
+    for (auto cell : InteriorCellRange(*owner,1))
         finalMass += state0(cell,0);
      owner->strip[0].AllSum(&finalMass,&finalMass,sizeof(tw::Float),0);
 

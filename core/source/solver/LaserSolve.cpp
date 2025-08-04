@@ -1,6 +1,7 @@
 module;
 
 #include "tw_includes.h"
+#include "tw_logger.h"
 
 export module laser_solve;
 import input;
@@ -11,7 +12,6 @@ import fields;
 import diagnostics;
 import numerics;
 import logger;
-#include "tw_logger.h"
 
 using namespace tw::bc;
 
