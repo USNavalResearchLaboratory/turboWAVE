@@ -12,6 +12,7 @@ import logger;
 
 export const tw::node5 std_packing {4,0,1,2,3};
 export const tw::node4 std_coord {1,1,1,1};
+export const tw::node4 std_layers {0,2,2,2};
 
 /// This object is an indexing and interpolation scheme for a 5D structured grid.
 /// The five dimensions are spacetime plus an internal dimension such as vector components.
@@ -191,12 +192,12 @@ StaticSpace::StaticSpace(const tw::Int& components,const StaticSpace& base) {
 
 void StaticSpace::Resize(const tw::node5& domains,const tw::node5& gdim,const tw::vec4& gsize,const tw::node5& packing,const tw::node4& ghostCellLayers)
 {
-	for (auto i=0;i<5;i++) {
+	for (auto i=0; i<5; i++) {
 		dim[i] = gdim[i]/domains[i];
 		this->packing[i] = packing[i];
 	}
 
-	for (auto i=0;i<4;i++) {
+	for (auto i=0; i<4; i++) {
 		if (dim[i]==1) {
 			layers[i] = 0;
 			lfg[i] = 1;
@@ -221,12 +222,17 @@ void StaticSpace::Resize(const tw::node5& domains,const tw::node5& gdim,const tw
 		stride *= num[ax];
 	}
 
-	for (tw::Int i=0;i<5;i++) {
-		encodingStride[i] = (dim[i]==1 ? 0 : decodingStride[i]);
+	// Don't collapse internal dimension, so that Fields with common external
+	// dimensions can use the same iterator.  This requires that packing[0]=4.
+	if (packing[0]!=4) {
+		throw tw::FatalError("internal dimension is not largest stride");
+	}
+	for (auto i=0; i<5; i++) {
+		encodingStride[i] = (dim[i]==1 && i!=4 ? 0 : decodingStride[i]);
 		ignorable[i] = (dim[i]==1 ? 1 : 0);
 	}
 
-	for (tw::Int i=0;i<4;i++) {
+	for (auto i=0; i<4; i++) {
 		spacing[i] = gsize[i]/gdim[i];
 		freq[i] = 1/spacing[i];
 	}

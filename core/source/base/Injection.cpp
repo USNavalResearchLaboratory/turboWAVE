@@ -1384,7 +1384,7 @@ void LindmanBoundary::Initialize(Task *task,MetricSpace *ms,std::vector<Wave*> *
 	assert(ax>=1 && ax<=3);
 	tw::node5 bdim { 1, ms->Dim(1), ms->Dim(2), ms->Dim(3), 9 };
 	bdim[ax] = 1;
-	boundaryMemory.Initialize(StaticSpace(bdim,ms->PhysicalSize(),std_packing,tw::node4{1,1,1,1,}),task);
+	boundaryMemory.Initialize(StaticSpace(bdim,ms->PhysicalSize(),std_packing,std_layers),task);
 	boundaryMemory.SetBoundaryConditions(All(boundaryMemory),tw::grid::x,fld::none,fld::none);
 	boundaryMemory.SetBoundaryConditions(All(boundaryMemory),tw::grid::y,fld::none,fld::none);
 	boundaryMemory.SetBoundaryConditions(All(boundaryMemory),tw::grid::z,fld::none,fld::none);

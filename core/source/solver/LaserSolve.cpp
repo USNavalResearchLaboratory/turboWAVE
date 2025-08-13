@@ -161,10 +161,10 @@ void LaserSolver::Initialize()
 		for (auto pulse : wave) {
 			pos = HRSpace.Pos(cell);
 			pos.z = HRSpace.ToLab(pos.z,-dth);
-			HRa0(cell) += polarizationFactor*pulse->VectorPotentialEnvelope(-dth,pos,laserFreq);
+			HRa0.Pack(cell, HRa0(cell) + polarizationFactor*pulse->VectorPotentialEnvelope(-dth,pos,laserFreq));
 			pos = HRSpace.Pos(cell);
 			pos.z = HRSpace.ToLab(pos.z,dth);
-			HRa1(cell) += polarizationFactor*pulse->VectorPotentialEnvelope(dth,pos,laserFreq);
+			HRa1.Pack(cell, HRa1(cell) + polarizationFactor*pulse->VectorPotentialEnvelope(dth,pos,laserFreq));
 		}
 	}
 
@@ -255,7 +255,7 @@ void LaserSolver::Upsample(ComplexField& hiRes,ComplexField& loRes) {
 		do {
 			for (auto i=1;i<=hiRes.Dim(3);i++) {
 				tw::Float x = 0.5 + tw::Float(i-0.5)/resolution;
-				hiRes(*hiStrip,i) = spliner->Interpolate(x,loStrip.global_count());
+				hiRes.Pack(*hiStrip,i, spliner->Interpolate(x,loStrip.global_count()));
 			}
 			++loStrip;
 			++hiStrip;
@@ -359,7 +359,7 @@ QSSolver::QSSolver(const std::string& name,Simulation* sim):LaserSolver(name,sim
 
 PGCSolver::PGCSolver(const std::string& name,Simulation* sim):LaserSolver(name,sim)
 {
-	F.Initialize(*this,sim);
+	F.Initialize(8,*this,sim);
 }
 
 void PGCSolver::ExchangeResources()
@@ -464,7 +464,7 @@ void PGCSolver::Update()
 		for (auto s : StripRange(*this,3,0,1,strongbool::yes))
 		{
 			for (tw::Int k=1;k<=dim[3];k++)
-				chi(s,k) = owner->ValueOnLightGrid<ComplexField,tw::Complex>(chi,s,k,dth);
+				chi.Pack(s,k, owner->ValueOnLightGrid<ComplexField,tw::Complex>(chi,s,k,dth));
 		}
 	}
 	chi.DownwardCopy(tw::grid::z,1);
@@ -477,7 +477,7 @@ void PGCSolver::Update()
 
 void PGCSolver::ComputeFinalFields()
 {
-	logger::TRACE("compute PGC forces");
+	logger::TRACE("compute PGC potentials");
 	#pragma omp parallel
 	{
 		const tw::Float dth = 0.5*dx(0);
@@ -495,6 +495,7 @@ void PGCSolver::ComputeFinalFields()
 	F.DownwardCopy(Rng(6,8),tw::grid::z,1);
 	F.UpwardCopy(Rng(6,8),tw::grid::z,1);
 
+	logger::TRACE("compute PGC forces");
 	#pragma omp parallel
 	{
 		for (auto cell : InteriorCellRange(*this,1))

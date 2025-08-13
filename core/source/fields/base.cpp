@@ -75,37 +75,45 @@ public:
 	// Accessors for stepping through spatial cells without concern for direction
 	tw::Float& operator () (const tw::cell& cell, const tw::Int& c)
 	{
+		BOUNDS(cell.Index(c));
 		return array[cell.Index(c)];
 	}
 	tw::Float operator () (const tw::cell& cell, const tw::Int& c) const
 	{
+		BOUNDS(cell.Index(c));
 		return array[cell.Index(c)];
 	}
 	// Accessors for iterating across strips
 	// Given a strip, returns component c in cell s as measured along the strip, t is the secondary visible axis, often time.
 	tw::Float& operator () (const tw::strip& strip, const tw::Int& s, const tw::Int& c)
 	{
+		BOUNDS(strip.Index(s,c));
 		return array[strip.Index(s,c)];
 	}
 	tw::Float operator () (const tw::strip& strip, const tw::Int& s, const tw::Int& c) const
 	{
+		BOUNDS(strip.Index(s,c));
 		return array[strip.Index(s,c)];
 	}
 	// Accessors for promoting compiler vectorization
 	tw::Float& operator () (const tw::xstrip<1>& v, const tw::Int& s, const tw::Int& c)
 	{
+		BOUNDS(v.Index1(s,c));
 		return array[v.Index1(s,c)];
 	}
 	tw::Float operator () (const tw::xstrip<1>& v, const tw::Int& s, const tw::Int& c) const
 	{
+		BOUNDS(v.Index1(s,c));
 		return array[v.Index1(s,c)];
 	}
 	tw::Float& operator () (const tw::xstrip<3>& v, const tw::Int& s, const tw::Int& c)
 	{
+		BOUNDS(v.Index1(s,c));
 		return array[v.Index1(s,c)];
 	}
 	tw::Float operator () (const tw::xstrip<3>& v, const tw::Int& s, const tw::Int& c) const
 	{
+		BOUNDS(v.Index1(s,c));
 		return array[v.Index1(s,c)];
 	}
 	// Centered Differencing
@@ -266,15 +274,15 @@ public:
 		for (tw::Int i = 0; i <= UNG(s.Axis()); i++)
 			(*this)(s, i, c) = cpy[i];
 	}
-	tw::vec3 Vec3(const tw::Int& n, const tw::Int& i, const tw::Int& j, const tw::Int& k, const tw::Int& c) const
+	const tw::vec3 Vec3(const tw::Int& n, const tw::Int& i, const tw::Int& j, const tw::Int& k, const tw::Int& c) const
 	{
 		return tw::vec3((*this)(n, i, j, k, c), (*this)(n, i, j, k, c + 1), (*this)(n, i, j, k, c + 2));
 	}
-	tw::vec3 Vec3(const tw::cell& cell, const tw::Int& c) const
+	const tw::vec3 Vec3(const tw::cell& cell, const tw::Int& c) const
 	{
 		return tw::vec3((*this)(cell, c), (*this)(cell, c + 1), (*this)(cell, c + 2));
 	}
-	tw::vec3 Vec3(const tw::strip& strip, const tw::Int& s, const tw::Int& c) const
+	const tw::vec3 Vec3(const tw::strip& strip, const tw::Int& s, const tw::Int& c) const
 	{
 		return tw::vec3((*this)(strip, s, c), (*this)(strip, s, c + 1), (*this)(strip, s, c + 2));
 	}

@@ -706,9 +706,9 @@ DirectSolver::DirectSolver(const std::string& name,Simulation* sim):Electromagne
 	const tw::node5 xdims {1,dim[1],1,1,6};
 	const tw::node5 ydims {1,dim[2],1,1,6};
 	const tw::node5 zdims {1,dim[3],1,1,6};
-	PMLx.Initialize(StaticSpace(xdims,sim->PhysicalSize(),std_packing,std_coord),owner); // sx,tx,jx,sxstar,txstar,jxstar
-	PMLy.Initialize(StaticSpace(ydims,sim->PhysicalSize(),std_packing,std_coord),owner);
-	PMLz.Initialize(StaticSpace(zdims,sim->PhysicalSize(),std_packing,std_coord),owner);
+	PMLx.Initialize(StaticSpace(xdims,sim->PhysicalSize(),std_packing,std_layers),owner); // sx,tx,jx,sxstar,txstar,jxstar
+	PMLy.Initialize(StaticSpace(ydims,sim->PhysicalSize(),std_packing,std_layers),owner);
+	PMLz.Initialize(StaticSpace(zdims,sim->PhysicalSize(),std_packing,std_layers),owner);
 
 	#ifdef USE_OPENCL
 	A.InitializeComputeBuffer();
@@ -1242,7 +1242,7 @@ void FarFieldDiagnostic::Initialize()
 	if (J4==NULL)
 		throw tw::FatalError("Far field diagnostic did not find a source field.");
 	tw::vec4 size(dx(0),bounds[1]-bounds[0],bounds[3]-bounds[2],bounds[5]-bounds[4]);
-	A.Initialize(StaticSpace(tw::node5{1,dims[1],dims[2],dims[3],3},size,std_packing,std_coord),owner);
+	A.Initialize(StaticSpace(tw::node5{1,dims[1],dims[2],dims[3],3},size,std_packing,std_layers),owner);
 }
 
 bool FarFieldDiagnostic::InspectResource(void *resource,const std::string& description)
@@ -1295,7 +1295,7 @@ void FarFieldDiagnostic::Update()
 						weights_3D w;
 						owner->GetWeights(&w,tw::vec4(tp,rp));
 						J4->Interpolate(All(*J4),j4,w);
-						A(farCell) += tw::vec3(j4[1],j4[2],j4[3]) * dS * dtau / radius;
+						A.Pack(farCell,A(farCell) + tw::vec3(j4[1],j4[2],j4[3]) * dS * dtau / radius);
 					}
 				}
 			}
@@ -1325,7 +1325,7 @@ void FarFieldDiagnostic::FinalReport()
 			const tw::vec3 nq( std::cos(theta)*std::cos(phi) , std::cos(theta)*std::sin(phi) , -std::sin(theta) );
 			const tw::vec3 nf( -std::sin(phi) , std::cos(phi) , 0.0 );
 			const tw::vec3 ACG = nr | (accum(farCell) | nr); // form coulomb gauge A
-			accum(farCell) = tw::vec3( ACG^nr , ACG^nq , ACG^nf ); // put in spherical coordinates
+			accum.Pack(farCell, tw::vec3( ACG^nr , ACG^nq , ACG^nf )); // put in spherical coordinates
 		}
 
 		npy_writer writer;

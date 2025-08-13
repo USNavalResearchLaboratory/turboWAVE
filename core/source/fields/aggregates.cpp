@@ -331,24 +331,51 @@ export struct ComplexField: Field
 		return Field::operator()(v, k, c);
 	}
 
-	// Access by value
+	// No access by reference, pack instead
 
-	tw::Complex operator () (const tw::Int& i, const tw::Int& j, const tw::Int& k) const {
+	void Pack(const tw::Int& i, const tw::Int& j, const tw::Int& k, tw::Complex val) {
+		Field::operator () (1,i,j,k,0) = val.real();
+		Field::operator () (1,i,j,k,1) = val.imag();
+	}
+	void Pack(const tw::Int& n,const tw::Int& i, const tw::Int& j, const tw::Int& k, tw::Complex val) {
+		Field::operator () (n,i,j,k,0) = val.real();
+		Field::operator () (n,i,j,k,1) = val.imag();
+	}
+	void Pack(const tw::cell& cell, tw::Complex val) {
+		Field::operator () (cell,0) = val.real();
+		Field::operator () (cell,1) = val.imag();
+	}
+	void Pack(const tw::strip &strip, const tw::Int &s, tw::Complex val) {
+		Field::operator () (strip,s,0) = val.real();
+		Field::operator () (strip,s,1) = val.imag();
+	}
+	void Pack(const tw::xstrip<1> &v, const tw::Int &i, tw::Complex val) {
+		Field::operator () (v,i,0) = val.real();
+		Field::operator () (v,i,1) = val.imag();
+	}
+	void Pack(const tw::xstrip<3> &v, const tw::Int &k, tw::Complex val) {
+		Field::operator () (v,k,0) = val.real();
+		Field::operator () (v,k,1) = val.imag();
+	}
+
+	// Access by value (important to return const to prevent assigning to it)
+
+	const tw::Complex operator () (const tw::Int& i, const tw::Int& j, const tw::Int& k) const {
 		return tw::Complex(Field::operator () (1,i,j,k,0), Field::operator () (0,i,j,k,1));
 	}
-	tw::Complex operator () (const tw::Int& n,const tw::Int& i, const tw::Int& j, const tw::Int& k) const {
+	const tw::Complex operator () (const tw::Int& n,const tw::Int& i, const tw::Int& j, const tw::Int& k) const {
 		return tw::Complex(Field::operator () (n,i,j,k,0), Field::operator () (n,i,j,k,1));
 	}
-	tw::Complex operator () (const tw::cell& cell) const {
+	const tw::Complex operator () (const tw::cell& cell) const {
 		return tw::Complex(Field::operator () (cell,0), Field::operator () (cell,1));
 	}
-	tw::Complex operator()(const tw::strip &strip, const tw::Int &s) const {
+	const tw::Complex operator()(const tw::strip &strip, const tw::Int &s) const {
 		return tw::Complex(Field::operator()(strip, s, 0), Field::operator()(strip, s, 1));
 	}
-	tw::Complex operator()(const tw::xstrip<1> &v, const tw::Int &i) const {
+	const tw::Complex operator()(const tw::xstrip<1> &v, const tw::Int &i) const {
 		return tw::Complex(Field::operator()(v, i, 0), Field::operator()(v, i, 1));
 	}
-	tw::Complex operator()(const tw::xstrip<3> &v, const tw::Int &k) const {
+	const tw::Complex operator()(const tw::xstrip<3> &v, const tw::Int &k) const {
 		return tw::Complex(Field::operator()(v, k, 0), Field::operator()(v, k, 1));
 	}
 
@@ -436,24 +463,51 @@ export struct Vec3Field: Field
 		return Field::operator()(v, k, c);
 	}
 
-	// Access by value
+	// No access by reference, pack instead
 
-	tw::vec3 operator () (const tw::Int& i, const tw::Int& j, const tw::Int& k) const {
+	void Pack(const tw::Int& i, const tw::Int& j, const tw::Int& k, tw::vec3 val) {
+		for (auto c=0;c<3;c++)
+			Field::operator () (1,i,j,k,c) = val[c];
+	}
+	void Pack(const tw::Int& n,const tw::Int& i, const tw::Int& j, const tw::Int& k, tw::vec3 val) {
+		for (auto c=0;c<3;c++)
+			Field::operator () (n,i,j,k,c) = val[c];
+	}
+	void Pack(const tw::cell& cell, tw::vec3 val) {
+		for (auto c=0;c<3;c++)
+			Field::operator () (cell,c) = val[c];
+	}
+	void Pack(const tw::strip &strip, const tw::Int &s, tw::vec3 val) {
+		for (auto c=0;c<3;c++)
+			Field::operator () (strip,s,c) = val[c];
+	}
+	void Pack(const tw::xstrip<1> &v, const tw::Int &i, tw::vec3 val) {
+		for (auto c=0;c<3;c++)
+			Field::operator () (v,i,c) = val[c];
+	}
+	void Pack(const tw::xstrip<3> &v, const tw::Int &k, tw::vec3 val) {
+		for (auto c=0;c<3;c++)
+			Field::operator () (v,k,c) = val[c];
+	}
+
+	// Access by value (important to return const to prevent assigning to it)
+
+	const tw::vec3 operator () (const tw::Int& i, const tw::Int& j, const tw::Int& k) const {
 		return tw::vec3((*this)(1,i,j,k,0), (*this)(0,i,j,k,1), (*this)(0,i,j,k,2));
 	}
-	tw::vec3 operator () (const tw::Int& n,const tw::Int& i, const tw::Int& j, const tw::Int& k) const {
+	const tw::vec3 operator () (const tw::Int& n,const tw::Int& i, const tw::Int& j, const tw::Int& k) const {
 		return tw::vec3((*this)(n,i,j,k,0), (*this)(n,i,j,k,1), (*this)(n,i,j,k,2));
 	}
-	tw::vec3 operator () (const tw::cell& cell) const {
+	const tw::vec3 operator () (const tw::cell& cell) const {
 		return tw::vec3((*this)(cell,0), (*this)(cell,1), (*this)(cell,2));
 	}
-	tw::vec3 operator()(const tw::strip &strip, const tw::Int &s) const {
+	const tw::vec3 operator()(const tw::strip &strip, const tw::Int &s) const {
 		return tw::vec3((*this)(strip,s,0), (*this)(strip,s,1), (*this)(strip,s,2));
 	}
-	tw::vec3 operator()(const tw::xstrip<1> &v, const tw::Int &i) const {
+	const tw::vec3 operator()(const tw::xstrip<1> &v, const tw::Int &i) const {
 		return tw::vec3((*this)(v,i,0), (*this)(v,i,1), (*this)(v,i,2));
 	}
-	tw::vec3 operator()(const tw::xstrip<3> &v, const tw::Int &k) const {
+	const tw::vec3 operator()(const tw::xstrip<3> &v, const tw::Int &k) const {
 		return tw::vec3((*this)(v,k,0), (*this)(v,k,1), (*this)(v,k,2));
 	}
 };

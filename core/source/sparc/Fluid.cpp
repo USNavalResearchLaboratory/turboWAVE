@@ -759,8 +759,9 @@ void Fluid::Update()
 	{
 		#pragma omp parallel
 		{
-			for (auto cell : InteriorCellRange(*this,1))
-				(*chi)(cell) -= owner->dS(cell,0)*q0*q0*state0(cell,0)/(m0*vel(cell,0));
+			for (auto cell : InteriorCellRange(*this,1)) {
+				(*chi)(cell,0) -= owner->dS(cell,0)*q0*q0*state0(cell,0)/(m0*vel(cell,0));
+			}
 		}
 	}
 }
@@ -1983,7 +1984,7 @@ void sparc::HydroManager::LaserAdvance(tw::Float dt)
 					else
 						bak += pulse->VectorPotentialEnvelope(owner->WindowPos(0),pos,laserFrequency);
 				}
-				laserAmplitude(cell) = vacuumE(fwd,laserFrequency,pos.z) + vacuumE(bak,-laserFrequency,pos.z);
+				laserAmplitude.Pack(cell, vacuumE(fwd,laserFrequency,pos.z) + vacuumE(bak,-laserFrequency,pos.z));
 				radiationIntensity(cell) = 0.5*norm(laserAmplitude(cell));
 			}
 		}
@@ -2022,18 +2023,21 @@ void sparc::HydroManager::LaserAdvance(tw::Float dt)
 
 				for (tw::Int k=1;k<=dim[3];k++)
 				{
-					refractiveIndex(strip,k) = 0.0;
+					refractiveIndex.Pack(strip,k, 0.0);
 					// Add dispersionless part of susceptibility
 					for (auto grp : group)
 						for (auto chem : grp->chemical)
 						{
 							tw::Complex susceptibility(chem->mat.eps[0] - 1.0,chem->mat.eps[1]);
-							refractiveIndex(strip,k) += state1(strip,k,chem->indexInState) * susceptibility;
+							refractiveIndex(strip,k,0) += state1(strip,k,chem->indexInState) * susceptibility.real();
+							refractiveIndex(strip,k,1) += state1(strip,k,chem->indexInState) * susceptibility.imag();
 						}
 					// Add plasma contribution to susceptibility
-					refractiveIndex(strip,k) -= state1(strip,k,ie)/sqr(laserFrequency)*(one - ii*nu_e(strip,k)/laserFrequency)/(one + sqr(nu_e(strip,k)/laserFrequency));
+					const tw::Float plas_real = -state1(strip,k,ie)/(sqr(laserFrequency) + sqr(nu_e(strip,k)));
+					refractiveIndex(strip,k,0) += plas_real;
+					refractiveIndex(strip,k,1) -= plas_real*nu_e(strip,k)/laserFrequency;
 					// Convert susceptibility to refractive index
-					refractiveIndex(strip,k) = std::sqrt(one + refractiveIndex(strip,k));
+					refractiveIndex.Pack(strip,k, std::sqrt(one + refractiveIndex(strip,k)));
 				}
 			}
 		}

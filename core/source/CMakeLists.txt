@@ -150,6 +150,8 @@ target_sources(tw3d PUBLIC
         sparc/fct.cpp
         sparc/Chemistry.cpp
         sparc/Fluid.cpp
+        solver/numerics_serial.cpp
+        solver/numerics_parallel.cpp
         solver/Numerics.cpp
         solver/SolidState.cpp
         solver/Parabolic.cpp

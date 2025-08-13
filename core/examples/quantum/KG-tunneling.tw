@@ -34,21 +34,22 @@ zboundary = ( periodic , periodic )
 
 new grid
 {
+	steps = 8000
 	origin = ( 0, 0, 0, 0.5 )
 	shift = ( 0, -14.8952172976, -14.8952172976, 0 )
-	dimensions = ( 8000 1000 1000 1 )
+	dimensions = ( 1 1000 1000 1 )
 	cell size = ( 0.02655350991, 0.10621403964 0.10621403964 1.0 )
 	decomposition = ( 1, 2 , 10 , 1 )
 	geometry = cartesian
 }
 
-new klein gordon module 'tdkge'
+new klein gordon solver 'tdkge'
 {
 	soft core potential charge = 6.398259757531933 , radius = 0.637284237839
 
 	new qstate tabulated
 	{
-		filename = z92_c00.txt
+		filename = 'z92_c00.txt'
 	}
 }
 
@@ -88,15 +89,15 @@ new energy diagnostic 'full'
 	precision = 15
 }
 
-new region circ s1
+new region circ 's1'
 {
 	radius = 29.7904345953
 }
 
 new energy diagnostic 'sphere'
 {
-	filename = s1
+	filename = 's1'
 	period = 1000
 	precision = 15
-	clipping region = s1
+	clipping region = 's1'
 }

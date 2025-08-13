@@ -413,8 +413,7 @@ void Simulation::InputFileFirstPass()
 		if (gdim[i]>1 && gdim[i]/domains[i]%2>0)
 			throw tw::FatalError(std::format("local number of cells is not even along non-ignorable axis {}",i));
 	}
-	auto ghostCellLayers = tw::node4 {0,2,2,2};
-	Resize(this,gdim,gridReader->GlobalCorner(),gridReader->GlobalSize(),std_packing,ghostCellLayers,gridReader->Geometry());
+	Resize(this,gdim,gridReader->GlobalCorner(),gridReader->GlobalSize(),std_packing,std_layers,gridReader->Geometry());
 	delete gridReader;
 	ts_tree_delete(tree);
 

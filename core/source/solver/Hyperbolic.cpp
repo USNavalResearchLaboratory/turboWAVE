@@ -447,13 +447,13 @@ void LorentzPropagator::Advance(Field& A4,Field& Ao4,Field& j4,const tw::Float m
 	{
 		#pragma omp parallel firstprivate(c,mult,dt)
 		{
-			for (auto v : VectorStripRange<1>(*space,0,1,false))
+			for (auto v : VectorStripRange<1>(A4,0,1,false))
 				for (tw::Int i=1;i<=A4.Dim(1);i++)
 					Ao4(v,i,c) = 2*A4(v,i,c) - Ao4(v,i,c) + dt*dt*(mult*j4(v,i,c) + A4.d2(v,i,c,1) + A4.d2(v,i,c,2) + A4.d2(v,i,c,3));
 		}
 		#pragma omp parallel firstprivate(c)
 		{
-			for (auto v : VectorStripRange<1>(*space,0,1,true))
+			for (auto v : VectorStripRange<1>(A4,0,1,true))
 				for (tw::Int i=A4.LNG(1);i<=A4.UNG(1);i++)
 					std::swap(A4(v,i,c),Ao4(v,i,c));
 		}
@@ -468,7 +468,7 @@ void LorentzPropagator::MidstepEstimate(Field& A4,Field& Ao4)
 	{
 		#pragma omp parallel firstprivate(c)
 		{
-			for (auto v : VectorStripRange<1>(*space,0,1,true))
+			for (auto v : VectorStripRange<1>(A4,0,1,true))
 				for (tw::Int i=A4.LNG(1);i<=A4.UNG(1);i++)
 					A4(v,i,c) = 0.5*(Ao4(v,i,c) + A4(v,i,c));
 		}
@@ -482,7 +482,7 @@ void LorentzPropagator::UndoMidstepEstimate(Field& A4,Field& Ao4)
 	{
 		#pragma omp parallel firstprivate(c)
 		{
-			for (auto v : VectorStripRange<1>(*space,0,1,true))
+			for (auto v : VectorStripRange<1>(A4,0,1,true))
 				for (tw::Int i=A4.LNG(1);i<=A4.UNG(1);i++)
 					A4(v,i,c) = 2.0*A4(v,i,c) - Ao4(v,i,c);
 		}

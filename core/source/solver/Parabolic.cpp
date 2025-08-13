@@ -1,7 +1,8 @@
 module;
 
-#include "tw_includes.h"
 #include <memory>
+#include "tw_includes.h"
+#include "tw_logger.h"
 
 export module parabolic;
 import input;
@@ -9,6 +10,7 @@ import compute_tool;
 import region;
 import fields;
 import numerics;
+import logger;
 
 using namespace tw::bc;
 
@@ -21,7 +23,6 @@ export struct LaserPropagator:ComputeTool
 	bool movingWindow;
 
 	LaserPropagator(const std::string& name,MetricSpace *m,Task *tsk);
-	virtual ~LaserPropagator();
 	virtual void SetData(tw::Float w0,tw::Float dt,tw_polarization_type pol,bool mov,MetricSpace *refined = NULL);
 	void SetBoundaryConditions(ComplexField& a0,ComplexField& a1,ComplexField& chi);
 	virtual void Advance(ComplexField& a0,ComplexField& a1,ComplexField& chi) = 0;
@@ -37,10 +38,9 @@ export struct EigenmodePropagator:LaserPropagator
 	// non-integral values are legal, and give a linear combination
 	tw::Float causality,dampingTime;
 	std::valarray<tw::Float> eigenvalue,hankel,inverseHankel;
-	GlobalIntegrator<tw::Complex>* globalIntegrator;
+	std::unique_ptr<GlobalIntegrator<tw::Complex>> globalIntegrator;
 
 	EigenmodePropagator(const std::string& name,MetricSpace *m,Task *tsk);
-	virtual ~EigenmodePropagator();
 	virtual void SetData(tw::Float w0,tw::Float dt,tw_polarization_type pol,bool mov,MetricSpace *refined = NULL);
 	virtual void Advance(ComplexField& a0,ComplexField& a1,ComplexField& chi);
 };
@@ -55,7 +55,6 @@ export struct ADIPropagator:LaserPropagator
 	bool evenTime;
 
 	ADIPropagator(const std::string& name,MetricSpace *m,Task *tsk);
-	virtual ~ADIPropagator();
 	virtual void SetData(tw::Float w0,tw::Float dt,tw_polarization_type pol,bool mov,MetricSpace *refined = NULL);
 	virtual void AdvanceAxis(tw::Int ax,ComplexField& a0,ComplexField& a1,ComplexField& chi);
 	virtual void Advance(ComplexField& a0,ComplexField& a1,ComplexField& chi);
@@ -63,10 +62,9 @@ export struct ADIPropagator:LaserPropagator
 
 export struct SchroedingerPropagator:ComputeTool
 {
-	std::vector<GlobalIntegrator<tw::Complex>*> globalIntegrator;
+	std::unique_ptr<GlobalIntegrator<tw::Complex>> globalIntegrator[4];
 
 	SchroedingerPropagator(const std::string& name,MetricSpace *m,Task *tsk);
-	virtual ~SchroedingerPropagator();
 	virtual void DepositCurrent(const tw::grid::axis& axis,ComplexField& psi0,ComplexField& psi1,Field& A4,Field& J4,tw::Complex dt);
 	virtual void ApplyNumerator(const tw::grid::axis& axis,ComplexField& psi,Field& A4,bool keepA2Term,tw::Complex dt);
 	virtual void ApplyDenominator(const tw::grid::axis& axis,ComplexField& psi,Field& A4,bool keepA2Term,tw::Complex dt);
@@ -76,10 +74,9 @@ export struct SchroedingerPropagator:ComputeTool
 export struct ParabolicSolver:BoundedTool
 {
 	// inhomogeneous boundary conditions are handled as described in elliptic.h
-	std::vector<GlobalIntegrator<tw::Float>*> globalIntegrator;
+	std::unique_ptr<GlobalIntegrator<tw::Float>> globalIntegrator[4]; 
 
 	ParabolicSolver(const std::string& name,MetricSpace *m,Task *tsk);
-	virtual ~ParabolicSolver();
 
 	void FixTemperature(Field& T,const Rng04& r,Region* theRegion,const tw::Float& T0);
 	void FormOperatorStencil(tw::Float *D1,tw::Float *D2,const ScalarField& fluxMask,Field *coeff,tw::Int c,const tw::strip& s,tw::Int i);
@@ -106,20 +103,19 @@ export struct ParabolicSolver:BoundedTool
 
 export struct IsotropicPropagator:ComputeTool
 {
-	GlobalIntegrator<tw::Complex>* zGlobalIntegrator;
+	std::unique_ptr<GlobalIntegrator<tw::Complex>> zGlobalIntegrator;
 	std::valarray<tw::Complex> Z1,Z2,Z3;
 
 	IsotropicPropagator(const std::string& name,MetricSpace *m,Task *tsk);
-	virtual ~IsotropicPropagator();
 
 	void SetupIncomingWaveLeft(const tw::strip& s,ComplexField& amplitude,tw::Complex a0,tw::Complex a1,tw::Complex w0) const
 	{
-		amplitude(s,0) = a1 - a0 + ii*w0*space->dl(s,1,3)*half*(a0+a1);
+		amplitude.Pack(s, 0, a1 - a0 + ii*w0*space->dl(s,1,3)*half*(a0+a1));
 	}
 
 	void SetupIncomingWaveRight(const tw::strip& s,ComplexField& amplitude,tw::Complex aN,tw::Complex aN1,tw::Complex w0) const
 	{
-		amplitude(s,space->Dim(s.Axis())+1) = aN1 - aN - ii*w0*space->dl(s,space->Dim(s.Axis())+1,3)*half*(aN+aN1);
+		amplitude.Pack(s,space->Dim(s.Axis())+1, aN1 - aN - ii*w0*space->dl(s,space->Dim(s.Axis())+1,3)*half*(aN+aN1));
 	}
 
 	virtual void Advance(ComplexField& amplitude, // this is the array to update
@@ -140,10 +136,6 @@ LaserPropagator::LaserPropagator(const std::string& name,MetricSpace *m,Task *ts
 	w0 = 10.0;
 	polarization = linearPolarization;
 	movingWindow = true;
-}
-
-LaserPropagator::~LaserPropagator()
-{
 }
 
 void LaserPropagator::SetData(tw::Float w0,tw::Float dt,tw_polarization_type pol,bool mov,MetricSpace *refined)
@@ -200,7 +192,7 @@ EigenmodePropagator::EigenmodePropagator(const std::string& name,MetricSpace *m,
 	causality = 0.0;
 	dampingTime = 1e10;
 	layers = 8;
-	globalIntegrator = new GlobalIntegrator<tw::Complex>(&task->strip[3],xDim*yDim,zDim);
+	globalIntegrator = std::make_unique<GlobalIntegrator<tw::Complex>>(&task->strip[3],xDim*yDim,zDim);
 
 	directives.Add("modes",new tw::input::Int(&modes),false);
 	directives.Add("damping time",new tw::input::Float(&dampingTime),false);
@@ -208,17 +200,11 @@ EigenmodePropagator::EigenmodePropagator(const std::string& name,MetricSpace *m,
 	directives.Add("causality",new tw::input::Float(&causality),false);
 }
 
-EigenmodePropagator::~EigenmodePropagator()
-{
-	delete globalIntegrator;
-}
-
 void EigenmodePropagator::SetData(tw::Float w0,tw::Float dt,tw_polarization_type pol,bool mov,MetricSpace *refined)
 {
 	LaserPropagator::SetData(w0,dt,pol,mov,refined);
 	if (refined!=NULL) {
-		delete globalIntegrator;
-		globalIntegrator = new GlobalIntegrator<tw::Complex>(&task->strip[3],refined->Dim(1)*refined->Dim(2),refined->Dim(3));
+		globalIntegrator = std::make_unique<GlobalIntegrator<tw::Complex>>(&task->strip[3],refined->Dim(1)*refined->Dim(2),refined->Dim(3));
 	}
 	if (space->car!=1.0)
 		ComputeTransformMatrices(fld::dirichletWall,eigenvalue,hankel,inverseHankel,space,task);
@@ -270,7 +256,7 @@ void EigenmodePropagator::Advance(ComplexField& a0,ComplexField& a1,ComplexField
 	}
 	for (auto s : StripRange(*space,3,0,1,strongbool::yes))
 		for (tw::Int k=0;k<=zDim+1;k++)
-			chi(s,k) = (chi(s,k) - chi_ref[k])*a1(s,k);
+			chi.Pack(s, k, (chi(s,k) - chi_ref[k])*a1(s,k));
 
 	// Diagonalize Laplacian and solve in laser frame
 
@@ -309,8 +295,8 @@ void EigenmodePropagator::Advance(ComplexField& a0,ComplexField& a1,ComplexField
 
 			for (tw::Int k=1;k<=zDim;k++)
 			{
-				a0(s,k) = a1(s,k);
-				a1(s,k) = ans[k-1];
+				a0.Pack(s, k, a1(s,k));
+				a1.Pack(s, k, ans[k-1]);
 			}
 
 			globalIntegrator->SetMatrix(it.global_count(),T1,T2z,T3,T1,T3);
@@ -345,17 +331,17 @@ void EigenmodePropagator::Advance(ComplexField& a0,ComplexField& a1,ComplexField
 		first = space->LFG(1);
 	for (tw::Int i=first;i<=space->UFG(1);i++)
 		for (tw::Int k=0;k<=zDim+1;k++)
-			a1(i,1,k) *= exp(-(i-xstart_local+1)*dt/dampingTime/tw::Float(layers));
+			a1.Pack(i,1,k, a1(i,1,k) * exp(-(i-xstart_local+1)*dt/dampingTime/tw::Float(layers)));
 
 	a1.ApplyBoundaryCondition();
 
 	if (task->n0[3]==MPI_PROC_NULL && zDim>1)
 		for (auto s : StripRange(*space,3,0,1,strongbool::yes))
-			a1(s,space->LFG(3)) = a0(s,space->LFG(3));
+			a1.Pack(s,space->LFG(3), a0(s,space->LFG(3)));
 
 	if (task->n1[3]==MPI_PROC_NULL && zDim>1)
 		for (auto s : StripRange(*space,3,0,1,strongbool::yes))
-			a1(s,space->UFG(3)) = a0(s,space->UFG(3));
+			a1.Pack(s,space->UFG(3), a0(s,space->UFG(3)));
 }
 
 
@@ -369,10 +355,6 @@ void EigenmodePropagator::Advance(ComplexField& a0,ComplexField& a1,ComplexField
 ADIPropagator::ADIPropagator(const std::string& name,MetricSpace *m,Task *tsk) : LaserPropagator(name,m,tsk)
 {
 	evenTime = true;
-}
-
-ADIPropagator::~ADIPropagator()
-{
 }
 
 void ADIPropagator::SetData(tw::Float w0,tw::Float dt,tw_polarization_type pol,bool mov,MetricSpace *refined)
@@ -441,7 +423,7 @@ void ADIPropagator::AdvanceAxis(tw::Int ua,ComplexField& a0,ComplexField& a1,Com
 
 			TriDiagonal(ans,src,T1,T2,T3);
 			for (auto i=1;i<=uDim;i++) {
-				a1(u,i) = ans[i-1];
+				a1.Pack(u, i, ans[i-1]);
 			}
 
 			const auto system = (k+1)*vDim + j - 1;
@@ -489,7 +471,7 @@ void ADIPropagator::Advance(ComplexField& a0,ComplexField& a1,ComplexField& chi)
 			const auto T2p = (2.0*ii*w0/dt) - 3.0*dtidzi + chi(1,1,k); 
 			const auto T2m = (2.0*ii*w0/dt) - 3.0*dtidzi - chi(1,1,k);
 			const auto lookahead = dtidzi*(4.0*a1(1,1,k+1) - 4.0*a0(1,1,k+1) + a0(1,1,k+2) - a1(1,1,k+2));
-			a1(1,1,k) = (T2m*a0(1,1,k) - lookahead) / T2p;
+			a1.Pack(1,1,k, (T2m*a0(1,1,k) - lookahead) / T2p);
 		}
 	} else if ((!evenTime && xDim>1) || (yDim==1 && xDim>1)) {
 		AdvanceAxis(1,a0,a1,chi);
@@ -517,27 +499,20 @@ void ADIPropagator::Advance(ComplexField& a0,ComplexField& a1,ComplexField& chi)
 
 SchroedingerPropagator::SchroedingerPropagator(const std::string& name,MetricSpace *m,Task *tsk) : ComputeTool(name,m,tsk)
 {
-	globalIntegrator.assign(4,NULL);
-
 	const tw::Int xDim = space->Dim(1);
 	const tw::Int yDim = space->Dim(2);
 	const tw::Int zDim = space->Dim(3);
 
 	if (xDim>1)
-		globalIntegrator[1] = new GlobalIntegrator<tw::Complex>(&task->strip[1],yDim*zDim,xDim);
+		globalIntegrator[1] = std::make_unique<GlobalIntegrator<tw::Complex>>(&task->strip[1],yDim*zDim,xDim);
 
 	if (yDim>1)
-		globalIntegrator[2] = new GlobalIntegrator<tw::Complex>(&task->strip[2],xDim*zDim,yDim);
+		globalIntegrator[2] = std::make_unique<GlobalIntegrator<tw::Complex>>(&task->strip[2],xDim*zDim,yDim);
 
 	if (zDim>1)
-		globalIntegrator[3] = new GlobalIntegrator<tw::Complex>(&task->strip[3],xDim*yDim,zDim);
-}
+		globalIntegrator[3] = std::make_unique<GlobalIntegrator<tw::Complex>>(&task->strip[3],xDim*yDim,zDim);
 
-SchroedingerPropagator::~SchroedingerPropagator()
-{
-	for (auto g : globalIntegrator)
-		if (g!=NULL)
-			delete g;
+	logger::TRACE("end constructor");
 }
 
 void SchroedingerPropagator::DepositCurrent(const tw::grid::axis& axis,ComplexField& psi0,ComplexField& psi1,Field& A4,Field& J4,tw::Complex dt)
@@ -547,7 +522,8 @@ void SchroedingerPropagator::DepositCurrent(const tw::grid::axis& axis,ComplexFi
 	// this is the conservative current evaluation from J. Comp. Phys. 280, 457 (2015)
 
 	const tw::Int ax=tw::grid::naxis(axis);
-
+	logger::TRACE(std::format("deposit J{}",ax));
+	
 	if (imag(dt)!=0.0)
 		return;
 
@@ -589,6 +565,8 @@ void SchroedingerPropagator::ApplyNumerator(const tw::grid::axis& axis,ComplexFi
 	const tw::Float partitionFactor = 1.0 / ((space->Dim(1)>1 ? 1.0 : 0.0) + (space->Dim(2)>1 ? 1.0 : 0.0) + (space->Dim(3)>1 ? 1.0 : 0.0));
 	const tw::Float A2Factor = keepA2Term ? 0.5 : 0.0;
 
+	logger::TRACE(std::format("apply numerator {}",ax));
+
 	if (space->Dim(ax)>1)
 	{
 		#pragma omp parallel firstprivate(dt)
@@ -616,7 +594,7 @@ void SchroedingerPropagator::ApplyNumerator(const tw::grid::axis& axis,ComplexFi
 				}
 
 				for (tw::Int i=1;i<=space->Dim(ax);i++)
-					psi(s,i) = src[i-1];
+					psi.Pack(s, i, src[i-1]);
 			}
 		}
 		psi.CopyFromNeighbors();
@@ -630,6 +608,8 @@ void SchroedingerPropagator::ApplyDenominator(const tw::grid::axis& axis,Complex
 	const tw::Int sDim = space->Dim(ax);
 	const tw::Float partitionFactor = 1.0 / ((space->Dim(1)>1 ? 1.0 : 0.0) + (space->Dim(2)>1 ? 1.0 : 0.0) + (space->Dim(3)>1 ? 1.0 : 0.0));
 	const tw::Float A2Factor = keepA2Term ? 0.5 : 0.0;
+
+	logger::TRACE(std::format("apply denominator {}",ax));
 
 	if (sDim>1)
 	{
@@ -667,10 +647,10 @@ void SchroedingerPropagator::ApplyDenominator(const tw::grid::axis& axis,Complex
 
 				TriDiagonal(ans,src,T1,T2,T3);
 				for (tw::Int i=1;i<=sDim;i++)
-					psi(s,i) = ans[i-1];
+					psi.Pack(s, i, ans[i-1]);
 
-				globalIntegrator[ax]->SetMatrix(it.global_count(),T1,T2,T3);
 				globalIntegrator[ax]->SetData(it.global_count(),&psi(s,0,0),psi.Stride(ax),psi.Stride(4));
+				globalIntegrator[ax]->SetMatrix(it.global_count(),T1,T2,T3);
 			}
 		}
 
@@ -707,8 +687,8 @@ void SchroedingerPropagator::UpdateSpin(ComplexField& psi,ComplexField& chi,Fiel
 				U22 = (tw::Float(16)+adt*(-tw::Float(8)*ii*Bz-B2*adt))/denom;
 
 				temp = psi(i,j,k);
-				psi(i,j,k) = U11*psi(i,j,k) + U12*chi(i,j,k);
-				chi(i,j,k) = U21*temp + U22*chi(i,j,k);
+				psi.Pack(i,j,k,U11*psi(i,j,k) + U12*chi(i,j,k));
+				chi.Pack(i,j,k,U21*temp + U22*chi(i,j,k));
 			}
 }
 
@@ -722,23 +702,14 @@ void SchroedingerPropagator::UpdateSpin(ComplexField& psi,ComplexField& chi,Fiel
 
 ParabolicSolver::ParabolicSolver(const std::string& name,MetricSpace *m,Task *tsk) : BoundedTool(name,m,tsk)
 {
-	globalIntegrator.assign(4,NULL);
-
 	if (space->Dim(1)>1)
-		globalIntegrator[1] = new GlobalIntegrator<tw::Float>(&task->strip[1],space->Dim(2)*space->Dim(3),space->Dim(1));
+		globalIntegrator[1] = std::make_unique<GlobalIntegrator<tw::Float>>(&task->strip[1],space->Dim(2)*space->Dim(3),space->Dim(1));
 
 	if (space->Dim(2)>1)
-		globalIntegrator[2] = new GlobalIntegrator<tw::Float>(&task->strip[2],space->Dim(3)*space->Dim(1),space->Dim(2));
+		globalIntegrator[2] = std::make_unique<GlobalIntegrator<tw::Float>>(&task->strip[2],space->Dim(3)*space->Dim(1),space->Dim(2));
 
 	if (space->Dim(3)>1)
-		globalIntegrator[3] = new GlobalIntegrator<tw::Float>(&task->strip[3],space->Dim(1)*space->Dim(2),space->Dim(3));
-}
-
-ParabolicSolver::~ParabolicSolver()
-{
-	for (auto g : globalIntegrator)
-		if (g!=NULL)
-			delete g;
+		globalIntegrator[3] = std::make_unique<GlobalIntegrator<tw::Float>>(&task->strip[3],space->Dim(1)*space->Dim(2),space->Dim(3));
 }
 
 void ParabolicSolver::FixTemperature(Field& T,const Rng04& r,Region* theRegion,const tw::Float& T0)
@@ -935,13 +906,7 @@ IsotropicPropagator::IsotropicPropagator(const std::string& name,MetricSpace *m,
 	Z3.resize(zDim);
 
 	if (zDim>1)
-		zGlobalIntegrator = new GlobalIntegrator<tw::Complex>(&task->strip[3],xDim*yDim,zDim);
-}
-
-IsotropicPropagator::~IsotropicPropagator()
-{
-	if (zGlobalIntegrator!=NULL)
-		delete zGlobalIntegrator;
+		zGlobalIntegrator = std::make_unique<GlobalIntegrator<tw::Complex>>(&task->strip[3],xDim*yDim,zDim);
 }
 
 void IsotropicPropagator::Advance(
@@ -1014,7 +979,7 @@ void IsotropicPropagator::Advance(
 
 			TriDiagonal(ans,src,Z1,Z2,Z3);
 			for (k=1;k<=zDim;k++)
-				amplitude(i,j,k) = ans[k-1];
+				amplitude.Pack(i,j,k,ans[k-1]);
 
 			zGlobalIntegrator->SetMatrix(idx,Z1,Z2,Z3);
 			zGlobalIntegrator->SetData(idx,&amplitude(1,i,j,0,0),amplitude.Stride(3),amplitude.Stride(4));
@@ -1028,8 +993,8 @@ void IsotropicPropagator::Advance(
 		for (i=1;i<=xDim;i++)
 		{
 			if (task->n0[3]==MPI_PROC_NULL)
-				amplitude(i,j,0) = amplitude(i,j,1)*eta_p/eta_m - amplitude(i,j,0)/eta_m;
+				amplitude.Pack(i,j,0,amplitude(i,j,1)*eta_p/eta_m - amplitude(i,j,0)/eta_m);
 			if (task->n1[3]==MPI_PROC_NULL)
-				amplitude(i,j,zDim+1) = amplitude(i,j,zDim)*eta_p/eta_m + amplitude(i,j,zDim+1)/eta_m;
+				amplitude.Pack(i,j,zDim+1,amplitude(i,j,zDim)*eta_p/eta_m + amplitude(i,j,zDim+1)/eta_m);
 		}
 }

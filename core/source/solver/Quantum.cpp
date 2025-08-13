@@ -2,6 +2,7 @@ module;
 
 #include <tree_sitter/api.h>
 #include "tw_includes.h"
+#include "tw_logger.h"
 
 export module quantum;
 import input;
@@ -13,6 +14,7 @@ import fields;
 import diagnostics;
 import hyperbolic;
 import parabolic;
+import logger;
 
 using namespace tw::bc;
 
@@ -28,7 +30,6 @@ struct AtomicPhysics:Module
 	tw::Float timeRelaxingToGround;
 
 	// Data
-	Field psi_r,psi_i; // real and imaginary parts of wavefunction, could involve spinor components
 	Field A4,Ao4; // EM 4-potential and old 4-potential
 	Field J4; // EM 4-current
 
@@ -41,22 +42,30 @@ struct AtomicPhysics:Module
 	void FormGhostCellPotentials(tw::Float t);
 	tw::vec4 GetA4AtOrigin();
 
-	tw::Complex Psi(const tw::Int& i,const tw::Int& j,const tw::Int& k,const tw::Int& c) const
-	{
-		return tw::Complex(psi_r(1,i,j,k,c),psi_i(1,i,j,k,c));
-	}
-	tw::Complex Psi(const tw::cell& cell,const tw::Int& c) const
-	{
-		return tw::Complex(psi_r(cell,c),psi_i(cell,c));
-	}
-	tw::Complex Psi(const tw::xstrip<1>& v,const tw::Int& i,const tw::Int& c) const
-	{
-		return tw::Complex(psi_r(v,i,c),psi_i(v,i,c));
-	}
 	virtual void VerifyInput();
 	virtual bool ReadInputFileDirective(const TSTreeCursor *curs,const std::string& src);
-	virtual void ReadCheckpoint(std::ifstream& inFile);
-	virtual void WriteCheckpoint(std::ofstream& outFile);
+	virtual void ReadCheckpoint(std::ifstream& inFile) {
+		Module::ReadCheckpoint(inFile);
+		J4.ReadCheckpoint(inFile);
+		Ao4.ReadCheckpoint(inFile);
+		A4.ReadCheckpoint(inFile);
+		#ifdef USE_OPENCL
+		J4.SendToComputeBuffer();
+		Ao4.SendToComputeBuffer();
+		A4.SendToComputeBuffer();
+		#endif
+	}
+	virtual void WriteCheckpoint(std::ofstream& outFile) {
+		Module::WriteCheckpoint(outFile);
+		#ifdef USE_OPENCL
+		J4.ReceiveFromComputeBuffer();
+		Ao4.ReceiveFromComputeBuffer();
+		A4.ReceiveFromComputeBuffer();
+		#endif
+		J4.WriteCheckpoint(outFile);
+		Ao4.WriteCheckpoint(outFile);
+		A4.WriteCheckpoint(outFile);
+	}
 	virtual void Report(Diagnostic&);
 };
 
@@ -75,8 +84,26 @@ export struct Schroedinger:AtomicPhysics
 	virtual void ExchangeResources();
 	virtual void Update();
 	virtual void VerifyInput();
-	virtual void ReadCheckpoint(std::ifstream& inFile);
-	virtual void WriteCheckpoint(std::ofstream& outFile);
+	virtual void ReadCheckpoint(std::ifstream& inFile) {
+		AtomicPhysics::ReadCheckpoint(inFile);
+		psi0.ReadCheckpoint(inFile);
+		psi1.ReadCheckpoint(inFile);
+		#ifdef USE_OPENCL
+		psi0.SendToComputeBuffer();
+		psi1.SendToComputeBuffer();
+		#endif
+	}
+
+	virtual void WriteCheckpoint(std::ofstream& outFile) {
+		AtomicPhysics::WriteCheckpoint(outFile);
+		#ifdef USE_OPENCL
+		psi0.ReceiveFromComputeBuffer();
+		psi1.ReceiveFromComputeBuffer();
+		#endif
+		psi0.WriteCheckpoint(outFile);
+		psi1.WriteCheckpoint(outFile);
+	}
+
 
 	virtual void UpdateJ4();
 	virtual void Normalize();
@@ -96,8 +123,33 @@ export struct Pauli:AtomicPhysics
 	virtual void Initialize();
 	virtual void Update();
 	virtual void VerifyInput();
-	virtual void ReadCheckpoint(std::ifstream& inFile);
-	virtual void WriteCheckpoint(std::ofstream& outFile);
+	virtual void ReadCheckpoint(std::ifstream& inFile) {
+		AtomicPhysics::ReadCheckpoint(inFile);
+		psi0.ReadCheckpoint(inFile);
+		psi1.ReadCheckpoint(inFile);
+		chi0.ReadCheckpoint(inFile);
+		chi1.ReadCheckpoint(inFile);
+		#ifdef USE_OPENCL
+		psi0.SendToComputeBuffer();
+		psi1.SendToComputeBuffer();
+		chi0.SendToComputeBuffer();
+		chi1.SendToComputeBuffer();
+		#endif
+	}
+
+	virtual void WriteCheckpoint(std::ofstream& outFile) {
+		AtomicPhysics::WriteCheckpoint(outFile);
+		#ifdef USE_OPENCL
+		psi0.ReceiveFromComputeBuffer();
+		psi1.ReceiveFromComputeBuffer();
+		chi0.ReceiveFromComputeBuffer();
+		chi1.ReceiveFromComputeBuffer();
+		#endif
+		psi0.WriteCheckpoint(outFile);
+		psi1.WriteCheckpoint(outFile);
+		chi0.WriteCheckpoint(outFile);
+		chi1.WriteCheckpoint(outFile);
+	}
 
 	//virtual void UpdateJ4();
 	virtual void Normalize();
@@ -108,6 +160,7 @@ export struct Pauli:AtomicPhysics
 
 export struct KleinGordon:AtomicPhysics
 {
+	Field psi_r,psi_i;
 	#ifdef USE_OPENCL
 	cl_kernel updatePsi;
 	cl_kernel updateChi;
@@ -119,6 +172,18 @@ export struct KleinGordon:AtomicPhysics
 	virtual void Update();
 
 	tw::Float ComputeRho(const tw::cell& cell);
+	tw::Complex Psi(const tw::Int& i,const tw::Int& j,const tw::Int& k,const tw::Int& c) const
+	{
+		return tw::Complex(psi_r(1,i,j,k,c),psi_i(1,i,j,k,c));
+	}
+	tw::Complex Psi(const tw::cell& cell,const tw::Int& c) const
+	{
+		return tw::Complex(psi_r(cell,c),psi_i(cell,c));
+	}
+	tw::Complex Psi(const tw::xstrip<1>& v,const tw::Int& i,const tw::Int& c) const
+	{
+		return tw::Complex(psi_r(v,i,c),psi_i(v,i,c));
+	}
 	// The following give the Feshbach-Villars decomposition
 	// If sgn = 1.0, returns electron part, if sgn=-1.0 returns positron part
 	tw::Complex FV(const tw::Int& i,const tw::Int& j,const tw::Int& k,const tw::Float& sgn) const
@@ -138,10 +203,29 @@ export struct KleinGordon:AtomicPhysics
 
 	virtual void StartDiagnostics();
 	virtual void Report(Diagnostic&);
+	virtual void ReadCheckpoint(std::ifstream& inFile) {
+		AtomicPhysics::ReadCheckpoint(inFile);
+		psi_r.ReadCheckpoint(inFile);
+		psi_i.ReadCheckpoint(inFile);
+		#ifdef USE_OPENCL
+		psi_r.SendToComputeBuffer();
+		psi_i.SendToComputeBuffer();
+		#endif
+	}
+	virtual void WriteCheckpoint(std::ofstream& outFile) {
+		AtomicPhysics::WriteCheckpoint(outFile);
+		#ifdef USE_OPENCL
+		psi_r.ReceiveFromComputeBuffer();
+		psi_i.ReceiveFromComputeBuffer();
+		#endif
+		psi_r.WriteCheckpoint(outFile);
+		psi_i.WriteCheckpoint(outFile);
+	}
 };
 
 export struct Dirac:AtomicPhysics
 {
+	Field psi_r,psi_i;
 	#ifdef USE_OPENCL
 	cl_kernel leapFrog;
 	#endif
@@ -159,87 +243,25 @@ export struct Dirac:AtomicPhysics
 
 	virtual void StartDiagnostics();
 	virtual void Report(Diagnostic&);
-};
-
-template <tw::Int OUT1,tw::Int OUT2,tw::Int IN1,tw::Int IN2>
-void Dirac::LeapFrog(tw::Float sgn)
-{
-	// Leapfrog electron/positron component over positron/electron component
-	// The spinor (OUT1,OUT2) is leapfrogged over the spinor (IN1,IN2)
-	// If (OUT1,OUT2) is the electron then sgn=1.0 (positive energy)
-	// If (OUT1,OUT2) is the positron then sgn=-1.0 (negative energy)
-
-	static const tw::Float q0 = H.qorb;
-	static const tw::Float m0 = H.morb;
-	static const tw::Int AB = tw::vec_align_bytes;
-	static const tw::Float dt = dx(0);
-	static const tw::Float dth = 0.5*dx(0);
-	#pragma omp parallel firstprivate(sgn)
-	{
-		tw::Float *Ur = tw::alloc_aligned_floats(dim[1],AB);
-		tw::Float *Ui = tw::alloc_aligned_floats(dim[1],AB);
-		tw::Float *D1r = tw::alloc_aligned_floats(dim[1],AB);
-		tw::Float *D1i = tw::alloc_aligned_floats(dim[1],AB);
-		tw::Float *D2r = tw::alloc_aligned_floats(dim[1],AB);
-		tw::Float *D2i = tw::alloc_aligned_floats(dim[1],AB);
-
-		for (auto v : VectorStripRange<1>(*this,0,1,false))
-		{
-			// unitary operator of time translation for diagonal part of Hamiltonian
-			#pragma omp simd aligned(Ur,Ui:AB)
-			for (tw::Int i=1;i<=dim[1];i++)
-			{
-				const tw::Float dq = dt*(sgn*m0+q0*A4(v,i,0));
-				Ur[i-1] = std::cos(dq);
-				Ui[i-1] = -std::sin(dq);
-			}
-
-			#pragma omp simd aligned(D1r,D2r,D1i,D2i:AB)
-			for (tw::Int i=1;i<=dim[1];i++)
-			{
-				D1r[i-1] = -psi_r.d1(v,i,IN1,3) - q0*A4(v,i,3)*psi_i(v,i,IN1);
-				D1i[i-1] = -psi_i.d1(v,i,IN1,3) + q0*A4(v,i,3)*psi_r(v,i,IN1);
-				D2r[i-1] = -psi_r.d1(v,i,IN1,1) + psi_i.d1(v,i,IN1,2) - q0*A4(v,i,1)*psi_i(v,i,IN1) - q0*A4(v,i,2)*psi_r(v,i,IN1);
-				D2i[i-1] = -psi_i.d1(v,i,IN1,1) - psi_r.d1(v,i,IN1,2) + q0*A4(v,i,1)*psi_r(v,i,IN1) - q0*A4(v,i,2)*psi_i(v,i,IN1);
-			}
-			#pragma omp simd aligned(D1r,D2r,D1i,D2i:AB)
-			for (tw::Int i=1;i<=dim[1];i++)
-			{
-				D1r[i-1] += -psi_r.d1(v,i,IN2,1) - psi_i.d1(v,i,IN2,2) - q0*A4(v,i,1)*psi_i(v,i,IN2) + q0*A4(v,i,2)*psi_r(v,i,IN2);
-				D1i[i-1] += -psi_i.d1(v,i,IN2,1) + psi_r.d1(v,i,IN2,2) + q0*A4(v,i,1)*psi_r(v,i,IN2) + q0*A4(v,i,2)*psi_i(v,i,IN2);
-				D2r[i-1] += psi_r.d1(v,i,IN2,3) + q0*A4(v,i,3)*psi_i(v,i,IN2);
-				D2i[i-1] += psi_i.d1(v,i,IN2,3) - q0*A4(v,i,3)*psi_r(v,i,IN2);
-			}
-
-			#pragma omp simd aligned(Ur,Ui,D1r,D1i:AB)
-			for (tw::Int i=1;i<=dim[1];i++)
-			{
-				psi_r(v,i,OUT1) += dth*D1r[i-1];
-				psi_i(v,i,OUT1) += dth*D1i[i-1];
-				complex_multiply_assign(psi_r(v,i,OUT1),psi_i(v,i,OUT1),Ur[i-1],Ui[i-1]);
-				psi_r(v,i,OUT1) += dth*D1r[i-1];
-				psi_i(v,i,OUT1) += dth*D1i[i-1];
-			}
-
-			#pragma omp simd aligned(Ur,Ui,D2r,D2i:AB)
-			for (tw::Int i=1;i<=dim[1];i++)
-			{
-				psi_r(v,i,OUT2) += dth*D2r[i-1];
-				psi_i(v,i,OUT2) += dth*D2i[i-1];
-				complex_multiply_assign(psi_r(v,i,OUT2),psi_i(v,i,OUT2),Ur[i-1],Ui[i-1]);
-				psi_r(v,i,OUT2) += dth*D2r[i-1];
-				psi_i(v,i,OUT2) += dth*D2i[i-1];
-			}
-		}
-
-		tw::free_aligned_floats(Ur);
-		tw::free_aligned_floats(Ui);
-		tw::free_aligned_floats(D1r);
-		tw::free_aligned_floats(D1i);
-		tw::free_aligned_floats(D2r);
-		tw::free_aligned_floats(D2i);
+	virtual void ReadCheckpoint(std::ifstream& inFile) {
+		AtomicPhysics::ReadCheckpoint(inFile);
+		psi_r.ReadCheckpoint(inFile);
+		psi_i.ReadCheckpoint(inFile);
+		#ifdef USE_OPENCL
+		psi_r.SendToComputeBuffer();
+		psi_i.SendToComputeBuffer();
+		#endif
 	}
-}
+	virtual void WriteCheckpoint(std::ofstream& outFile) {
+		AtomicPhysics::WriteCheckpoint(outFile);
+		#ifdef USE_OPENCL
+		psi_r.ReceiveFromComputeBuffer();
+		psi_i.ReceiveFromComputeBuffer();
+		#endif
+		psi_r.WriteCheckpoint(outFile);
+		psi_i.WriteCheckpoint(outFile);
+	}
+};
 
 export struct PopulationDiagnostic : Module
 {
@@ -275,15 +297,9 @@ AtomicPhysics::AtomicPhysics(const std::string& name,Simulation* sim):Module(nam
 	H.rnuc = 0.01;
 	H.B0 = 0.0;
 
-	auto ss = StaticSpace(
-		tw::node5 {1,dim[1],dim[2],dim[3],4},
-		sim->PhysicalSize(),
-		tw::node5 {4,0,2,3,1},
-		std_coord
-	);
-	A4.Initialize(ss,owner);
-	Ao4.Initialize(ss,owner);
-	J4.Initialize(ss,owner);
+	A4.Initialize(4,*this,owner);
+	Ao4.Initialize(4,*this,owner);
+	J4.Initialize(4,*this,owner);
 
 	photonPropagator = NULL;
 
@@ -329,15 +345,7 @@ void AtomicPhysics::Initialize()
 	// Boundary conditions should preserve hermiticity
 	// One way is to have A = 0 and grad(psi)=0 for components normal to boundary
 
-	tw::bc::fld psiDefaultBC,A4DefaultBC;
-	psiDefaultBC = fld::neumannWall;
-	A4DefaultBC = fld::dirichletWall;
-	psi_r.SetBoundaryConditions(All(psi_r),tw::grid::x,psiDefaultBC,psiDefaultBC);
-	psi_r.SetBoundaryConditions(All(psi_r),tw::grid::y,psiDefaultBC,psiDefaultBC);
-	psi_r.SetBoundaryConditions(All(psi_r),tw::grid::z,psiDefaultBC,psiDefaultBC);
-	psi_i.SetBoundaryConditions(All(psi_i),tw::grid::x,psiDefaultBC,psiDefaultBC);
-	psi_i.SetBoundaryConditions(All(psi_i),tw::grid::y,psiDefaultBC,psiDefaultBC);
-	psi_i.SetBoundaryConditions(All(psi_i),tw::grid::z,psiDefaultBC,psiDefaultBC);
+	tw::bc::fld A4DefaultBC = fld::dirichletWall;
 	A4.SetBoundaryConditions(All(A4),tw::grid::x,A4DefaultBC,A4DefaultBC);
 	A4.SetBoundaryConditions(All(A4),tw::grid::y,A4DefaultBC,A4DefaultBC);
 	A4.SetBoundaryConditions(All(A4),tw::grid::z,A4DefaultBC,A4DefaultBC);
@@ -367,7 +375,7 @@ void AtomicPhysics::Initialize()
 
 	for (auto w : waveFunction)
 	{
-		std::println(std::cout,"{}: energy = {}, Cn = {}", w->name, w->Energy(H), w->NormalizationConstant(H));
+		logger::INFO(std::format("{}: energy = {}, Cn = {}", w->name, w->Energy(H), w->NormalizationConstant(H)));
 		if (!w->GoodQuantumNumbers(H))
 			throw tw::FatalError("Bad quantum numbers detected in module <"+name+">");
 	}
@@ -389,7 +397,7 @@ void AtomicPhysics::FormPotentials(tw::Float t)
 	{
 		tw::Float phiNow,r;
 		tw::vec3 A0,A1,r_curv,r_cart;
-		for (auto cell : EntireCellRange(*this,1))
+		for (auto cell : EntireCellRange(A4,1))
 		{
 			r = owner->SphericalRadius(owner->Pos(cell));
 			phiNow = GetSphericalPotential(r);
@@ -429,7 +437,7 @@ void AtomicPhysics::FormGhostCellPotentials(tw::Float t)
 		if (A4.Dim(ax)>1)
 			#pragma omp parallel firstprivate(t,ax)
 			{
-				for (auto s : StripRange(*this,ax,0,1,strongbool::no))
+				for (auto s : StripRange(A4,ax,0,1,strongbool::no))
 					for (tw::Int ghostCell=0;ghostCell<=Dim(s.Axis())+1;ghostCell+=Dim(s.Axis())+1)
 					{
 						tw::vec3 pos(owner->Pos(s,ghostCell));
@@ -510,40 +518,6 @@ bool AtomicPhysics::ReadInputFileDirective(const TSTreeCursor *curs0,const std::
 	}
 
 	return false;
-}
-
-void AtomicPhysics::ReadCheckpoint(std::ifstream& inFile)
-{
-	Module::ReadCheckpoint(inFile);
-	psi_r.ReadCheckpoint(inFile);
-	psi_i.ReadCheckpoint(inFile);
-	J4.ReadCheckpoint(inFile);
-	Ao4.ReadCheckpoint(inFile);
-	A4.ReadCheckpoint(inFile);
-	#ifdef USE_OPENCL
-	psi_r.SendToComputeBuffer();
-	psi_i.SendToComputeBuffer();
-	J4.SendToComputeBuffer();
-	Ao4.SendToComputeBuffer();
-	A4.SendToComputeBuffer();
-	#endif
-}
-
-void AtomicPhysics::WriteCheckpoint(std::ofstream& outFile)
-{
-	#ifdef USE_OPENCL
-	psi_r.ReceiveFromComputeBuffer();
-	psi_i.ReceiveFromComputeBuffer();
-	J4.ReceiveFromComputeBuffer();
-	Ao4.ReceiveFromComputeBuffer();
-	A4.ReceiveFromComputeBuffer();
-	#endif
-	Module::WriteCheckpoint(outFile);
-	psi_r.WriteCheckpoint(outFile);
-	psi_i.WriteCheckpoint(outFile);
-	J4.WriteCheckpoint(outFile);
-	Ao4.WriteCheckpoint(outFile);
-	A4.WriteCheckpoint(outFile);
 }
 
 void AtomicPhysics::Report(Diagnostic& diagnostic)
@@ -703,50 +677,35 @@ void Schroedinger::Initialize()
 	for (tw::Int i=0;i<dim;i++)
 		phi_r[i] = GetSphericalPotential((tw::Float(i)+0.5)*dr);
 	tw::Float groundStateEnergy = GetSphericalGroundState(eigenvector,phi_r,dr);
-	std::println(std::cout,"Numerical ground state energy = {}",groundStateEnergy);
+	logger::INFO(std::format("numerical ground state energy = {}",groundStateEnergy));
 
 	#pragma omp parallel
 	{
-		for (auto cell : EntireCellRange(*this,1))
-			for (auto w : waveFunction)
-				psi1(cell) += w->Amplitude(H,owner->Pos(cell),0.0,0);
+		for (auto cell : EntireCellRange(psi1,1)) {
+			for (auto w : waveFunction) {
+				tw::Complex ampl(w->Amplitude(H,owner->Pos(cell),0.0,0));
+				psi1(cell,0) += ampl.real();
+				psi1(cell,1) += ampl.imag();
+			}
+		}
 	}
+	logger::DEBUG("normalize wavefunction");
 	Normalize();
 	psi0 = psi1;
+	logger::DEBUG("initialize charge density");
 	#pragma omp parallel
 	{
-		for (auto cell : EntireCellRange(*this,1))
+		for (auto cell : EntireCellRange(J4,1))
 			J4(cell,0) = norm(psi1(cell));
 	}
 
+	logger::DEBUG("initialize potentials");
 	FormPotentials(owner->WindowPos(0));
 
 	#ifdef USE_OPENCL
 	psi1.SendToComputeBuffer();
 	A4.SendToComputeBuffer();
 	#endif
-}
-
-void Schroedinger::ReadCheckpoint(std::ifstream& inFile)
-{
-	AtomicPhysics::ReadCheckpoint(inFile);
-	psi0.ReadCheckpoint(inFile);
-	psi1.ReadCheckpoint(inFile);
-	#ifdef USE_OPENCL
-	psi0.SendToComputeBuffer();
-	psi1.SendToComputeBuffer();
-	#endif
-}
-
-void Schroedinger::WriteCheckpoint(std::ofstream& outFile)
-{
-	AtomicPhysics::WriteCheckpoint(outFile);
-	#ifdef USE_OPENCL
-	psi0.ReceiveFromComputeBuffer();
-	psi1.ReceiveFromComputeBuffer();
-	#endif
-	psi0.WriteCheckpoint(outFile);
-	psi1.WriteCheckpoint(outFile);
 }
 
 #ifdef USE_OPENCL
@@ -1000,36 +959,6 @@ void Pauli::Initialize()
 	AtomicPhysics::Initialize();
 }
 
-void Pauli::ReadCheckpoint(std::ifstream& inFile)
-{
-	AtomicPhysics::ReadCheckpoint(inFile);
-	psi0.ReadCheckpoint(inFile);
-	psi1.ReadCheckpoint(inFile);
-	chi0.ReadCheckpoint(inFile);
-	chi1.ReadCheckpoint(inFile);
-	#ifdef USE_OPENCL
-	psi0.SendToComputeBuffer();
-	psi1.SendToComputeBuffer();
-	chi0.SendToComputeBuffer();
-	chi1.SendToComputeBuffer();
-	#endif
-}
-
-void Pauli::WriteCheckpoint(std::ofstream& outFile)
-{
-	AtomicPhysics::WriteCheckpoint(outFile);
-	#ifdef USE_OPENCL
-	psi0.ReceiveFromComputeBuffer();
-	psi1.ReceiveFromComputeBuffer();
-	chi0.ReceiveFromComputeBuffer();
-	chi1.ReceiveFromComputeBuffer();
-	#endif
-	psi0.WriteCheckpoint(outFile);
-	psi1.WriteCheckpoint(outFile);
-	chi0.WriteCheckpoint(outFile);
-	chi1.WriteCheckpoint(outFile);
-}
-
 #ifdef USE_OPENCL
 void Pauli::Update()
 {
@@ -1175,14 +1104,19 @@ KleinGordon::KleinGordon(const std::string& name,Simulation* sim) : AtomicPhysic
 	H.qnuc = std::sqrt(alpha);
 	dipoleApproximation = false;
 
-	auto ss = StaticSpace(
-		tw::node5 {1,dim[1],dim[2],dim[3],2},
-		sim->PhysicalSize(),
-		tw::node5 {4,0,2,3,1},
-		std_coord
-	);
-	psi_r.Initialize(ss,owner);
-	psi_i.Initialize(ss,owner);
+	StaticSpace ss(this->dim,sim->PhysicalSize(),tw::node5 {4,0,2,3,1},this->layers);
+	psi_r.Initialize(2,ss,owner);
+	psi_i.Initialize(2,ss,owner);
+	J4.Initialize(4,ss,owner);
+	A4.Initialize(4,ss,owner);
+	Ao4.Initialize(4,ss,owner);
+	tw::bc::fld psiDefaultBC = fld::neumannWall;
+	psi_r.SetBoundaryConditions(All(psi_r),tw::grid::x,psiDefaultBC,psiDefaultBC);
+	psi_r.SetBoundaryConditions(All(psi_r),tw::grid::y,psiDefaultBC,psiDefaultBC);
+	psi_r.SetBoundaryConditions(All(psi_r),tw::grid::z,psiDefaultBC,psiDefaultBC);
+	psi_i.SetBoundaryConditions(All(psi_i),tw::grid::x,psiDefaultBC,psiDefaultBC);
+	psi_i.SetBoundaryConditions(All(psi_i),tw::grid::y,psiDefaultBC,psiDefaultBC);
+	psi_i.SetBoundaryConditions(All(psi_i),tw::grid::z,psiDefaultBC,psiDefaultBC);
 
 	#ifdef USE_OPENCL
 	cl_int err;
@@ -1216,7 +1150,7 @@ void KleinGordon::Initialize()
 {
 	AtomicPhysics::Initialize();
 
-	for (auto cell : InteriorCellRange(*this,1))
+	for (auto cell : InteriorCellRange(psi_r,1))
 	{
 		const tw::vec3 pos = owner->Pos(cell);
 		const tw::Float dth = 0.5*dx(0);
@@ -1258,7 +1192,7 @@ void KleinGordon::UpdateJ4()
 {
 	#pragma omp parallel
 	{
-		for (auto v : VectorStripRange<1>(*this,0,1,false))
+		for (auto v : VectorStripRange<1>(J4,0,1,false))
 		{
 			for (tw::Int i=1;i<=dim[1];i++)
 			{
@@ -1276,8 +1210,9 @@ void KleinGordon::UpdateJ4()
 void KleinGordon::Normalize()
 {
 	tw::Float totalCharge = 0.0;
-	for (auto cell : InteriorCellRange(*this,1))
+	for (auto cell : InteriorCellRange(psi_r,1)) {
 		totalCharge += ComputeRho(cell) * owner->dS(cell,0);
+	}
 	owner->strip[0].AllSum(&totalCharge,&totalCharge,sizeof(tw::Float),0);
 	psi_r *= std::sqrt(std::fabs(H.qorb/totalCharge));
 	psi_i *= std::sqrt(std::fabs(H.qorb/totalCharge));
@@ -1332,7 +1267,7 @@ void KleinGordon::Update()
 		tw::Float *Dr = tw::alloc_aligned_floats(dim[1],AB);
 		tw::Float *Di = tw::alloc_aligned_floats(dim[1],AB);
 		// Update psi
-		for (auto v : VectorStripRange<1>(*this,0,1,false))
+		for (auto v : VectorStripRange<1>(psi_r,0,1,false))
 		{
 			#pragma omp simd aligned(Ur,Ui:AB)
 			for (tw::Int i=1;i<=dim[1];i++)
@@ -1381,7 +1316,7 @@ void KleinGordon::Update()
 		tw::Float *Dr = tw::alloc_aligned_floats(dim[1],AB);
 		tw::Float *Di = tw::alloc_aligned_floats(dim[1],AB);
 		// Update chi
-		for (auto v : VectorStripRange<1>(*this,0,1,false))
+		for (auto v : VectorStripRange<1>(psi_r,0,1,false))
 		{
 			#pragma omp simd aligned(Ur,Ui:AB)
 			for (tw::Int i=1;i<=dim[1];i++)
@@ -1485,14 +1420,12 @@ Dirac::Dirac(const std::string& name,Simulation* sim) : AtomicPhysics(name,sim)
 	H.qnuc = std::sqrt(alpha);
 	dipoleApproximation = false;
 
-	auto ss = StaticSpace(
-		tw::node5 {1,dim[1],dim[2],dim[3],4},
-		sim->PhysicalSize(),
-		tw::node5 {4,0,2,3,1},
-		std_coord
-	);
-	psi_r.Initialize(ss,owner);
-	psi_i.Initialize(ss,owner);
+	StaticSpace ss(this->dim,sim->PhysicalSize(),tw::node5 {4,0,2,3,1},this->layers);
+	psi_r.Initialize(4,ss,owner);
+	psi_i.Initialize(4,ss,owner);
+	J4.Initialize(4,ss,owner);
+	A4.Initialize(4,ss,owner);
+	Ao4.Initialize(4,ss,owner);
 
 	#ifdef USE_OPENCL
 	cl_int err;
@@ -1514,13 +1447,20 @@ Dirac::~Dirac()
 void Dirac::Initialize()
 {
 	AtomicPhysics::Initialize();
+	tw::bc::fld psiDefaultBC = fld::neumannWall;
+	psi_r.SetBoundaryConditions(All(psi_r),tw::grid::x,psiDefaultBC,psiDefaultBC);
+	psi_r.SetBoundaryConditions(All(psi_r),tw::grid::y,psiDefaultBC,psiDefaultBC);
+	psi_r.SetBoundaryConditions(All(psi_r),tw::grid::z,psiDefaultBC,psiDefaultBC);
+	psi_i.SetBoundaryConditions(All(psi_i),tw::grid::x,psiDefaultBC,psiDefaultBC);
+	psi_i.SetBoundaryConditions(All(psi_i),tw::grid::y,psiDefaultBC,psiDefaultBC);
+	psi_i.SetBoundaryConditions(All(psi_i),tw::grid::z,psiDefaultBC,psiDefaultBC);
 	psi_r.SetBoundaryConditions(All(psi_r),tw::grid::x,fld::neumannWall,fld::none);
 	psi_i.SetBoundaryConditions(All(psi_i),tw::grid::x,fld::neumannWall,fld::none);
 
 	#pragma omp parallel
 	{
 		const tw::Float dth = 0.5*dx(0);
-		for (auto cell : InteriorCellRange(*this,1))
+		for (auto cell : InteriorCellRange(psi_r,1))
 		{
 			tw::vec3 pos = owner->Pos(cell);
 			for (auto w : waveFunction)
@@ -1572,7 +1512,7 @@ void Dirac::UpdateJ4()
 	#pragma omp parallel
 	{
 		tw::Complex z0,z1,z2,z3;
-		for (auto cell : InteriorCellRange(*this,1))
+		for (auto cell : InteriorCellRange(psi_r,1))
 		{
 			z0 = tw::Complex(psi_r(cell,0),psi_i(cell,0));
 			z1 = tw::Complex(psi_r(cell,1),psi_i(cell,1));
@@ -1591,7 +1531,7 @@ void Dirac::UpdateJ4()
 void Dirac::Normalize()
 {
 	tw::Float totalCharge = 0.0;
-	for (auto cell : InteriorCellRange(*this,1))
+	for (auto cell : InteriorCellRange(psi_r,1))
 		totalCharge += ComputeRho(cell) * owner->dS(cell,0);
 	owner->strip[0].AllSum(&totalCharge,&totalCharge,sizeof(tw::Float),0);
 	psi_r *= std::sqrt(std::fabs(H.qorb/totalCharge));
@@ -1600,6 +1540,86 @@ void Dirac::Normalize()
 	psi_r.ApplyBoundaryCondition(All(psi_r));
 	psi_i.CopyFromNeighbors(All(psi_i));
 	psi_i.ApplyBoundaryCondition(All(psi_i));
+}
+
+template <tw::Int OUT1,tw::Int OUT2,tw::Int IN1,tw::Int IN2>
+void Dirac::LeapFrog(tw::Float sgn)
+{
+	// Leapfrog electron/positron component over positron/electron component
+	// The spinor (OUT1,OUT2) is leapfrogged over the spinor (IN1,IN2)
+	// If (OUT1,OUT2) is the electron then sgn=1.0 (positive energy)
+	// If (OUT1,OUT2) is the positron then sgn=-1.0 (negative energy)
+
+	static const tw::Float q0 = H.qorb;
+	static const tw::Float m0 = H.morb;
+	static const tw::Int AB = tw::vec_align_bytes;
+	static const tw::Float dt = dx(0);
+	static const tw::Float dth = 0.5*dx(0);
+	#pragma omp parallel firstprivate(sgn)
+	{
+		tw::Float *Ur = tw::alloc_aligned_floats(dim[1],AB);
+		tw::Float *Ui = tw::alloc_aligned_floats(dim[1],AB);
+		tw::Float *D1r = tw::alloc_aligned_floats(dim[1],AB);
+		tw::Float *D1i = tw::alloc_aligned_floats(dim[1],AB);
+		tw::Float *D2r = tw::alloc_aligned_floats(dim[1],AB);
+		tw::Float *D2i = tw::alloc_aligned_floats(dim[1],AB);
+
+		for (auto v : VectorStripRange<1>(A4,0,1,false))
+		{
+			// unitary operator of time translation for diagonal part of Hamiltonian
+			#pragma omp simd aligned(Ur,Ui:AB)
+			for (tw::Int i=1;i<=dim[1];i++)
+			{
+				const tw::Float dq = dt*(sgn*m0+q0*A4(v,i,0));
+				Ur[i-1] = std::cos(dq);
+				Ui[i-1] = -std::sin(dq);
+			}
+
+			#pragma omp simd aligned(D1r,D2r,D1i,D2i:AB)
+			for (tw::Int i=1;i<=dim[1];i++)
+			{
+				D1r[i-1] = -psi_r.d1(v,i,IN1,3) - q0*A4(v,i,3)*psi_i(v,i,IN1);
+				D1i[i-1] = -psi_i.d1(v,i,IN1,3) + q0*A4(v,i,3)*psi_r(v,i,IN1);
+				D2r[i-1] = -psi_r.d1(v,i,IN1,1) + psi_i.d1(v,i,IN1,2) - q0*A4(v,i,1)*psi_i(v,i,IN1) - q0*A4(v,i,2)*psi_r(v,i,IN1);
+				D2i[i-1] = -psi_i.d1(v,i,IN1,1) - psi_r.d1(v,i,IN1,2) + q0*A4(v,i,1)*psi_r(v,i,IN1) - q0*A4(v,i,2)*psi_i(v,i,IN1);
+			}
+			#pragma omp simd aligned(D1r,D2r,D1i,D2i:AB)
+			for (tw::Int i=1;i<=dim[1];i++)
+			{
+				D1r[i-1] += -psi_r.d1(v,i,IN2,1) - psi_i.d1(v,i,IN2,2) - q0*A4(v,i,1)*psi_i(v,i,IN2) + q0*A4(v,i,2)*psi_r(v,i,IN2);
+				D1i[i-1] += -psi_i.d1(v,i,IN2,1) + psi_r.d1(v,i,IN2,2) + q0*A4(v,i,1)*psi_r(v,i,IN2) + q0*A4(v,i,2)*psi_i(v,i,IN2);
+				D2r[i-1] += psi_r.d1(v,i,IN2,3) + q0*A4(v,i,3)*psi_i(v,i,IN2);
+				D2i[i-1] += psi_i.d1(v,i,IN2,3) - q0*A4(v,i,3)*psi_r(v,i,IN2);
+			}
+
+			#pragma omp simd aligned(Ur,Ui,D1r,D1i:AB)
+			for (tw::Int i=1;i<=dim[1];i++)
+			{
+				psi_r(v,i,OUT1) += dth*D1r[i-1];
+				psi_i(v,i,OUT1) += dth*D1i[i-1];
+				complex_multiply_assign(psi_r(v,i,OUT1),psi_i(v,i,OUT1),Ur[i-1],Ui[i-1]);
+				psi_r(v,i,OUT1) += dth*D1r[i-1];
+				psi_i(v,i,OUT1) += dth*D1i[i-1];
+			}
+
+			#pragma omp simd aligned(Ur,Ui,D2r,D2i:AB)
+			for (tw::Int i=1;i<=dim[1];i++)
+			{
+				psi_r(v,i,OUT2) += dth*D2r[i-1];
+				psi_i(v,i,OUT2) += dth*D2i[i-1];
+				complex_multiply_assign(psi_r(v,i,OUT2),psi_i(v,i,OUT2),Ur[i-1],Ui[i-1]);
+				psi_r(v,i,OUT2) += dth*D2r[i-1];
+				psi_i(v,i,OUT2) += dth*D2i[i-1];
+			}
+		}
+
+		tw::free_aligned_floats(Ur);
+		tw::free_aligned_floats(Ui);
+		tw::free_aligned_floats(D1r);
+		tw::free_aligned_floats(D1i);
+		tw::free_aligned_floats(D2r);
+		tw::free_aligned_floats(D2i);
+	}
 }
 
 #ifdef USE_OPENCL

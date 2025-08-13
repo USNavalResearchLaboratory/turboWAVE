@@ -11,12 +11,14 @@ The two biggest changes are C++20 modules, and handling of field topology.
     - Quantum synchrotron
     - Nonlinear Breit-Wheeler
 
-### User Interface
+### User Interaction
 
 * The input file parser is far more sophisticated
     - More strict syntax, but...
     - ...also better error messages
     - Faster: no more reliance on the comically slow std::regex
+* Logging system
+* Compile flags for bounds checking
 
 ### Physics Structure
 
@@ -58,5 +60,6 @@ The two biggest changes are C++20 modules, and handling of field topology.
 
 ### Modernization
 
-* std::array is used for index nodes, e.g. `typedef std::array<tw::Int,4> node4`
+* std::array is used for topological nodes, e.g. `typedef std::array<tw::Int,4> node4`
 * smart pointer usage
+* C++23 things such as `std::println` & friends

@@ -156,6 +156,8 @@ void Field::Transpose(const Rng04& r,const tw::grid::axis& axis1,const tw::grid:
 	const tw::Int cellsRemaining = num[ax2] - cellsPerBlock*fullBlocks;
 	std::vector<tw::Int> blockSize(nodes),start(nodes),stop(nodes),offset(nodes);
 
+	logger::TRACE(std::format("transposing {},{}",ax1,ax2));
+
 	if (inversion==1)
 	{
 		dN0 = 1;

@@ -358,16 +358,19 @@ void Simulation::PrepareSimulation()
 	ReadInputFile();
 
 	// The following is where Modules process the ComputeTool instances attached by the user.
-	for (auto m : module)
+	for (auto m : module) {
+		logger::DEBUG(std::format("verify input for {}",m->name));
 		m->VerifyInput();
+	}
 
 	// Attach clipping regions to tools
-	for (auto tool : computeTool)
-	{
-		if (tool->region_name=="tw::entire")
+	for (auto tool : computeTool) {
+		if (tool->region_name=="tw::entire") {
 			tool->theRgn = clippingRegion[0];
-		else
+		} else {
+			logger::DEBUG(std::format("attach {} to {}",tool->region_name,tool->name));
 			tool->theRgn = Region::FindRegion(clippingRegion,tool->region_name);
+		}
 	}
 
 	// Start the metadata dictionary
@@ -408,8 +411,10 @@ void Simulation::PrepareSimulation()
 
 	// Initialize Regions
 
-	for (auto rgn : clippingRegion)
+	for (auto rgn : clippingRegion) {
+		logger::DEBUG(std::format("initialize region {}",rgn->name));
 		rgn->Initialize(*this,this);
+	}
 
 	// Sort Modules
 
@@ -420,10 +425,12 @@ void Simulation::PrepareSimulation()
 	// Must precede module initialization
 
 	std::println(std::cout,"\nInitializing Compute Tools...\n");
+	std::flush(std::cout);
 
 	for (auto tool : computeTool)
 	{
 		std::println(std::cout,"Tool: {}",tool->name);
+		std::flush(std::cout);
 		tool->Initialize();
 		tool->WarningMessage();
 	}
@@ -433,6 +440,7 @@ void Simulation::PrepareSimulation()
 	// Initialize Modules
 
 	std::println(std::cout,"\nInitialize Modules...\n");
+	std::flush(std::cout);
 
 	for (auto m : module)
 		m->ExchangeResources();
@@ -440,6 +448,7 @@ void Simulation::PrepareSimulation()
 	for (auto m : module)
 	{
 		std::println(std::cout,"Module: {}",m->name);
+		std::flush(std::cout);
 		m->Initialize();
 		m->WarningMessage();
 	}
@@ -452,6 +461,7 @@ void Simulation::PrepareSimulation()
 		std::ifstream restartFile;
 		fileName << strip[0].Get_rank() << "_dump.chk";
 		std::println(std::cout,"\nReading restart file {}...",fileName.str());
+		std::flush(std::cout);
 		restartFile.open(fileName.str().c_str());
 		ReadCheckpoint(restartFile);
 		restartFile.close();
@@ -541,14 +551,18 @@ void Simulation::InteractiveCommand(const std::string& cmd,std::ostream *theStre
 
 void Simulation::FundamentalCycle()
 {
-	logger::TRACE(std::format("step {}",stepNow));
+	logger::DEBUG(std::format("step {}",stepNow));
 	Diagnose();
 
-	for (auto m : module)
+	for (auto m : module) {
+		logger::DEBUG(std::format("reset {}",m->name));
 		m->Reset();
+	}
 
-	for (auto m : module)
+	for (auto m : module) {
+		logger::DEBUG(std::format("update {}",m->name));
 		m->Update();
+	}
 
 	solutionPosition += spacing[0]*solutionVelocity;
 	altSolutionPosition += spacing[0]*(solutionVelocity - tw::vec4(0,0,0,1));
@@ -581,6 +595,7 @@ void Simulation::FundamentalCycle()
 	bool doing_restart = dumpPeriod>0 && stepNow%dumpPeriod==0;
 	if (doing_restart)
 	{
+		logger::INFO(std::format("checkpoint {}",stepNow/dumpPeriod));
 		std::ofstream restartFile;
 		std::string fileName = std::to_string(curr) + "_dump.chk";
 		restartFile.open(fileName.c_str(),std::ios::binary);

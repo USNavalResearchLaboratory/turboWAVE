@@ -323,6 +323,13 @@ void npy_writer::add_frame(const std::string& name,const float *gData,tw::Int sh
 	outFile.open(name.c_str(),std::ios::binary | std::ios::out | std::ios::app);
 	assert(sizeof(float)==sizeof(uint32_t));
 	WriteLittleEndian((uint32_t*)gData,shape[1]*shape[2]*shape[3],outFile);
+	bool any_data = false;
+	for (auto i=0; i< shape[1]*shape[2]*shape[3]; i++) {
+		any_data = any_data || gData[i] != 0.0;
+	}
+	if (!any_data) {
+		logger::DEBUG(std::format("{} is 0",name));
+	}
 	outFile.close();
 }
 

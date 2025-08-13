@@ -6,4 +6,6 @@
 
 #define VBITS 256
 
+#define ENABLE_BOUNDS_CHECKING
+
 //#define USE_STD_MODULE
