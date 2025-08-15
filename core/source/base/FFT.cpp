@@ -38,6 +38,7 @@ export namespace fft {
 		theBits = ans;
 	}
 
+	/// `inversion == 1.0` forward, `inversion == -1.0` reverse
 	void ComplexFFT(tw::Float *realPart,tw::Float *imagPart,tw::Int numPoints,tw::Int interval,tw::Float inversion) {
 		/*** ARRANGE DATA IN BIT REVERSED ORDER ***/
 
@@ -99,6 +100,7 @@ export namespace fft {
 		}
 	}
 
+	/// `inversion == 1` forward, `inversion == -1` reverse
 	void RealFFT(tw::Float *array,tw::Int num,tw::Int interval,tw::Int inversion) {
 		// Computes N/2-1 complex numbers and 2 real numbers
 		// The two reals are the lowest and highest frequencies
@@ -111,7 +113,7 @@ export namespace fft {
 		tw::Float c2,wtemp,theta;
 		tw::Float h1r,h1i,h2r,h2i,wr,wi,wpr,wpi;
 
-		theta = 3.141592653589793/num/2;
+		theta = 3.141592653589793/tw::Float(num/2);
 		if (inversion==1)
 		{
 			c2 = -0.5;

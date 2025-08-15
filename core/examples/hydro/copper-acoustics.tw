@@ -21,8 +21,9 @@ zboundary = ( periodic  periodic )
 
 new grid
 {
+	steps = 100000
 	origin = ( 0 , 0.5 , 0.5 , 0.5 )
-	dimensions = ( 100000 , 2048 , 1 , 1 )
+	dimensions = ( 1 , 2048 , 1 , 1 )
 	cell size = ( 1000 , 1 , 1 , 1 )
 	decomposition = ( 1  1  1  1 )
 	geometry = cartesian

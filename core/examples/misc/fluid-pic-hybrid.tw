@@ -16,8 +16,9 @@ zboundary = ( absorbing , absorbing )
 
 new grid
 {
+	steps = 500
 	origin = ( 0, 0.5, 0.5, 1.0 )
-	dimensions = ( 500, 128 , 1 , 128 )
+	dimensions = ( 1, 128 , 1 , 128 )
 	cell size = ( 0.08, 0.25 , 1 , 0.1 )
 	decomposition = ( 1, 1, 1, 1 )
 }
@@ -31,7 +32,7 @@ new pgc laser module 'pgc'
 	carrier frequency = 50
 }
 
-new hermite gauss for 'pgc'
+new hermite gauss pulse for 'pgc'
 {
 	a = ( 0.5 , 0.0 , 0.0 )
 	r0 = ( 5 , 1e5 )

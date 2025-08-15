@@ -27,6 +27,7 @@ import quantum;
 import input;
 import metric_space_test;
 import iterator_test;
+import fft_test;
 
 export namespace factory {
 
@@ -251,6 +252,9 @@ ComputeTool* CreateToolFromType(const std::string& name,tw::tool_type theType,Me
 			break;
 		case tw::tool_type::metricSpaceTest:
 			ans = new MetricSpaceTest(name,ms,tsk);
+			break;
+		case tw::tool_type::fftTest:
+			ans = new FFTTest(name,ms,tsk);
 			break;
 	}
 	return ans;

@@ -13,6 +13,7 @@ The two biggest changes are C++20 modules, and handling of field topology.
 
 ### User Interaction
 
+* External MPI is now required, always launch with `mpirun` or similar
 * The input file parser is far more sophisticated
     - More strict syntax, but...
     - ...also better error messages

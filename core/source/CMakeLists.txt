@@ -164,6 +164,7 @@ target_sources(tw3d PUBLIC
         solver/Elliptic.cpp
         test/iterator_test.cpp
         test/metric_space_test.cpp
+        test/fft_test.cpp
 )
 
 if (MSVC)

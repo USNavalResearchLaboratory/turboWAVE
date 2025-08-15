@@ -14,8 +14,9 @@ zboundary = ( absorbing , absorbing )
 
 new grid
 {
+	steps = 60000
 	origin = ( 0, 0.5, 0.5, 0 )
-	dimensions = ( 60000, 1, 1, 32768 )
+	dimensions = ( 1, 1, 1, 32768 )
 	cell size = ( 0.038, 1.0, 1.0, 0.04 )
 	decomposition = ( 1, 1, 1, 16 )
 }
@@ -25,11 +26,11 @@ new region rect 'r1'
 	bounds = ( -100 100 -1 1 100 900 )
 }
 
-new coulomb electromagnetic module 'em'
+new coulomb gauge solver 'em'
 {
 }
 
-new hermite gauss for 'em'
+new hermite gauss pulse for 'em'
 {
 	a = ( 0 5.3e-4 0 ) // 7 mJ, r0 = 3 mm, 80 fs FWHM
 	w = 1

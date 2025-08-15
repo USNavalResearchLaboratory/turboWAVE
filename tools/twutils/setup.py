@@ -5,7 +5,7 @@ with open('README.md','r',encoding='utf-8') as fh:
 	long_description = fh.read()
 
 setup(name='twutils',
-	version='4.8.0',
+	version='5.0.0',
 	license='PUBLIC-DOMAIN',
 	author='Daniel Gordon',
 	author_email='daniel.gordon@nrl.navy.mil',
@@ -18,15 +18,14 @@ setup(name='twutils',
 	],
 	package_dir={'':'src'},
 	packages=find_packages(where='src'),
-	python_requires='>=3.8',
+	python_requires='>=3.12',
 	install_requires=[
-		'numpy>=1.22',
-		'scipy>=1.10',
-		'matplotlib>=3.7',
-		'jupyter>=1',
-		'pillow>=9',
-		'h5py',
-		'meson>=1.1'
+		'numpy>=2.3',
+		'scipy>=1.16',
+		'matplotlib>=3.10',
+		'jupyter>=1.1',
+		'pillow>=11.3',
+		'h5py>=3.14',
 	],
 	include_package_data=True,
 	entry_points = { 'console_scripts': [

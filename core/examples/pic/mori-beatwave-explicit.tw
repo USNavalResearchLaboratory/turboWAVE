@@ -16,13 +16,14 @@ zboundary = ( absorbing , absorbing )
 
 new grid
 {
+	steps = 7500
 	origin = ( 0, 0.5, 0.5, 0 )
-	dimensions = ( 7500, 128, 1, 1200 )
+	dimensions = ( 1, 128, 1, 1200 )
 	cell size = ( 0.04, 0.5, 1.0, 0.05 )
 	decomposition = ( 1, 1, 1, 1 )
 }
 
-new coulomb electromagnetic module 'coul'
+new coulomb gauge solver 'coul'
 {
 }
 
@@ -31,7 +32,7 @@ new facr elliptic solver for 'coul'
 	zboundary = ( dirichlet , neumann )
 }
 
-new hermite gauss for 'coul'
+new hermite gauss pulse for 'coul'
 {
 	a = ( 0 , 0.56 , 0 )
 	direction = ( 0 , 0 , 1 )
@@ -45,7 +46,7 @@ new hermite gauss for 'coul'
 	exponent = ( 1 , 1 ) // odd induces cos^(exponent+1)
 }
 
-new hermite gauss for 'coul'
+new hermite gauss pulse for 'coul'
 {
 	a = ( 0 , 0.56 , 0 )
 	direction = ( 0 , 0 , 1 )

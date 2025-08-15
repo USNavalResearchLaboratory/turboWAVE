@@ -135,14 +135,12 @@ class base_config(dictionary_view):
         self.choices['Platform'] = ['Linux','MacOS','Windows','HPC']
         # the list of vectors is assumed to be in order of ascending preference
         self.choices['Vectors'] = ['SSE','SSE2','AVX','AVX2','AVX512']
-        self.choices['Byte Order'] = ['Little Endian','Big Endian']
         self.data['Tools Version'] = importlib.metadata.version('twutils')
         self.data['Core Version'] = ''
         self.data['Build Path'] = ''
         self.data['Platform'] = self.choices['Platform'][0]
         self.data['Vectors'] = self.choices['Vectors'][0]
-        self.data['Byte Order'] = self.choices['Byte Order'][0]
-        self.selectable = ['Platform','Vectors','Byte Order']
+        self.selectable = ['Platform','Vectors']
         # Try to initialize the configuration based on environment
         if 'linux' in sys.platform:
             self.data['Platform'] = 'Linux'
@@ -171,8 +169,6 @@ class base_config(dictionary_view):
         if 'win32' in sys.platform:
             self.data['Platform'] = 'Windows'
             self.data['Vectors'] = 'AVX2'
-        if sys.byteorder=='big':
-            self.data['Byte Order'] = 'Big Endian'
         self.choice2env['Platform'] = {
             'Linux': [],
             'MacOS': [('CXX',self.mac_cxx)],
@@ -186,10 +182,6 @@ class base_config(dictionary_view):
             'AVX2': [],
             'AVX512': []
         }
-        self.choice2env['Byte Order'] = {
-            'Little Endian': [],
-            'Big Endian': []
-        }
         self.choice2opt['Platform'] = {
             'Linux': ['-Dhpc=false'],
             'MacOS': ['-Dhpc=false'],
@@ -202,10 +194,6 @@ class base_config(dictionary_view):
             'AVX': ['-Dvbits=256'],
             'AVX2': ['-Dvbits=256'],
             'AVX512': ['-Dvbits=512']
-        }
-        self.choice2opt['Byte Order'] = {
-            'Little Endian': ['-Dbigendian=false'],
-            'Big Endian': ['-Dbigendian=true']
         }
     def connect(self,tasks):
         self.tasks = tasks
@@ -373,25 +361,21 @@ class base_tasks(dictionary_view):
             os.chdir(self.src_path)
             enter_shell()
             try:
-                key_on = ['Platform','Vectors','Byte Order']
+                key_on = ['Platform','Vectors']
                 for k in key_on:
                     choice = self.conf.get(k)
                     for env in self.conf.choice2env[k][choice]:
                         os.environ[env[0]] = env[1]
-                compl = subprocess.run(['meson','setup','build','--wipe'],universal_newlines=True)
-                if compl.returncode!=0:
-                    raise RuntimeError
+                os.makedirs(self.src_path / 'build',exist_ok=True)
                 os.chdir(self.src_path / 'build')
-                compl = subprocess.run(['meson','configure','--buildtype=release'])
+                compl = subprocess.run(['cmake','-G','Ninja','..','-DCMAKE_BUILD_TYPE=release'],universal_newlines=True)
                 if compl.returncode!=0:
                     raise RuntimeError
                 for k in key_on:
                     choice = self.conf.get(k)
                     for opt in self.conf.choice2opt[k][choice]:
                         print('Setting option '+opt)
-                        compl = subprocess.run(['meson','configure',opt],universal_newlines=True)
-                        if compl.returncode!=0:
-                            raise RuntimeError
+                        print('WARNING: script did not know how to set '+opt)
                 self.set('Configure Build','done')
             except FileNotFoundError:
                 leave_shell()
@@ -421,7 +405,7 @@ class base_tasks(dictionary_view):
             os.chdir(self.src_path / 'build')
             enter_shell()
             try:
-                compl = subprocess.run(['meson','compile'],universal_newlines=True)
+                compl = subprocess.run(['cmake','--build','.'],universal_newlines=True)
                 if compl.returncode==0:
                     self.set('Compile Code','done')
                 if self.get('Compile Code')!='done':

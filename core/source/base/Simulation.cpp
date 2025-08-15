@@ -432,7 +432,6 @@ void Simulation::PrepareSimulation()
 		std::println(std::cout,"Tool: {}",tool->name);
 		std::flush(std::cout);
 		tool->Initialize();
-		tool->WarningMessage();
 	}
 	if (computeTool.size()==0)
 		std::println(std::cout,"(no tools)");
@@ -450,7 +449,6 @@ void Simulation::PrepareSimulation()
 		std::println(std::cout,"Module: {}",m->name);
 		std::flush(std::cout);
 		m->Initialize();
-		m->WarningMessage();
 	}
 
 	// Read checkpoint data

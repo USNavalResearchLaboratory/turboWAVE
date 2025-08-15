@@ -21,14 +21,15 @@ zboundary = ( absorbing , absorbing )
 
 new grid
 {
+	steps = 1000
 	origin = ( 0, 0 , 0.5 , 1.0 )
-	dimensions = ( 1000, 240, 1, 200 )
+	dimensions = ( 1, 240, 1, 200 )
 	cell size = ( 0.05, 0.1, 6.28, 0.1 )
 	decomposition = ( 1, 2, 1, 2 )
 	geometry = cylindrical
 }
 
-new curvilinear direct solver 'em'
+new curvilinear maxwell solver 'em'
 {
 	new eigenmode elliptic solver 'eig-poisson'
 	{
@@ -37,7 +38,7 @@ new curvilinear direct solver 'em'
 	}
 }
 
-new pgc laser module 'pgc'
+new pgc laser solver 'pgc'
 {
 	carrier frequency = 80
 	new eigenmode propagator 'eig-propagator'

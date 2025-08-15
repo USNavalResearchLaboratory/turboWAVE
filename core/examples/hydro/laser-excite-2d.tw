@@ -22,8 +22,9 @@ zboundary = ( absorbing  absorbing )
 
 new grid
 {
+	steps = 2000
 	origin = ( 0 , 0 , 0.5 , 0.5 )
-	dimensions = ( 2000, 100, 1, 200 )
+	dimensions = ( 1, 100, 1, 200 )
 	cell size = ( 100 [fs], 1.0, 6.2832, 20.0 )
 	decomposition = ( 1, 2, 1, 4 )
 	geometry = cylindrical

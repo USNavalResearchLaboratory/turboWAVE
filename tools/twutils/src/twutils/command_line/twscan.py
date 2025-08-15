@@ -20,7 +20,7 @@ def print_usage():
     print('-c : number of OpenMP threads per MPI task (parallel-serial only)')
     print('--dry-run : only create files, do not submit jobs')
     print('--input-file,-i : name of input file')
-    print('--launch,-l: MPI launcher, if needed')
+    print('--launch,-l: MPI launcher')
     print('--submit: job submission command, if needed')
     print('--script: job submission script, if needed')
     print('--help,-h : this message')
@@ -43,7 +43,7 @@ def main():
     input_name = 'stdin'
     script_name = ''
     submit = ''
-    launch = ''
+    launch = 'mpirun'
     regex_dict = {   '' : '',
                     'qsub' : r'^#PBS\s+-N\s+',
                     'sbatch' : r'^#SBATCH\s+(--job-name|-J)\s*=\s*' }
@@ -167,7 +167,7 @@ def main():
                 print('Executing job',job_str)
                 print('-------------------------------\n')
                 os.chdir(rundir)
-                subprocess.run([exec_name,'-n',str(mpi_tasks),'-c',str(omp_threads),'--no-interactive','--input-file',input_name])
+                subprocess.run([launch,'-np',str(mpi_tasks),exec_name,'-c',str(omp_threads),'--input-file',input_name])
                 os.chdir(root_dir)
         else:
             # This is a parallel batch

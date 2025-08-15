@@ -14,14 +14,15 @@ zboundary = ( reflecting , reflecting )
 
 new grid
 {
+	steps = 2000
 	origin = ( 0, 0, 0.5, 0 )
-	dimensions = ( 2000, 128, 1, 2048 )
+	dimensions = ( 1, 128, 1, 2048 )
 	cell size = ( 0.08, 0.5, 6.28318, 0.1 )
 	decomposition = ( 1, 1, 1, 1 )
 	geometry = cylindrical
 }
 
-new curvilinear direct module 'em'
+new curvilinear maxwell solver 'em'
 {
 }
 
@@ -29,7 +30,7 @@ new eigenmode elliptic solver for 'em'
 {
 }
 
-new hermite gauss for 'em'
+new hermite gauss pulse for 'em'
 {
 	a = (0.1 0.0 0.0)
 	w = 4.0

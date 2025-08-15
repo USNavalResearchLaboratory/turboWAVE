@@ -202,7 +202,6 @@ struct Module:StaticSpace,Testable
 
 	virtual void StartDiagnostics();
 	virtual void Report(Diagnostic&);
-	virtual void WarningMessage();
 	virtual void StatusMessage(std::ostream *dest) {;}
 
 	static std::map<std::string,tw::module_type> Map();
@@ -395,19 +394,6 @@ void Module::StartDiagnostics()
 
 void Module::Report(Diagnostic& diagnostic)
 {
-}
-
-void Module::WarningMessage()
-{
-	if (buildLog.size()>4)
-	{
-		std::println(std::cout,"{}: Build log for {} is not empty:",term::warning,programFilename);
-		std::println(std::cout,"{}",buildLog);
-	}
-	if (owner->movingWindow)
-		for (tw::Int i=0;i<profile.size();i++)
-			if (profile[i]->theRgn->moveWithWindow==true && profile[i]->theRgn->name!="entire")
-				std::println(std::cout,"{}: region {} in motion in module {}",term::warning,profile[i]->theRgn->name,name);
 }
 
 ////// STATIC MEMBERS FOLLOW

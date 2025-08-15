@@ -12,14 +12,15 @@ zboundary = ( reflecting , reflecting )
 
 new grid
 {
+	steps = 256
 	origin = ( 0, 0 , 0.5 , 0.5 )
-	dimensions = ( 256, 64, 1, 128 )
+	dimensions = ( 1, 64, 1, 128 )
 	cell size = ( 0.1, 0.2, 6.2832, 0.2 )
 	decomposition = ( 1, 2, 1, 2 )
 	geometry = cylindrical
 }
 
-new electrostatic field solver 'es'
+new electrostatic solver 'es'
 {
 }
 

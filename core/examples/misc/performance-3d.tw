@@ -19,13 +19,14 @@ zboundary = ( periodic , periodic )
 
 new grid
 {
+	steps = 300
 	origin = ( 0, 0, 0, 0 )
-	dimensions = ( 300, 64 , 64 , 32 )
+	dimensions = ( 1, 64 , 64 , 32 )
 	cell size = ( 0.02, 0.05, 0.05, 0.05 )
 	decomposition = ( 1, 4, 4, 4 )
 }
 
-new direct electromagnetic module 'em'
+new maxwell solver 'em'
 {
 }
 

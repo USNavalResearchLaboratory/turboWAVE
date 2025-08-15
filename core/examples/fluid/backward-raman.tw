@@ -18,13 +18,14 @@ zboundary = ( absorbing , absorbing )
 
 new grid
 {
+	steps = 10000
 	origin = ( 0 , 0.5 , 0.5 , 0.0 )
-	dimensions = ( 10000 , 1 , 1 , 4000 )
+	dimensions = ( 1 , 1 , 1 , 4000 )
 	cell size = ( 0.049 , 1.0 , 1.0 , 0.05 )
 	decomposition = ( 1 , 1 , 1 , 1 )
 }
 
-new coulomb electromagnetic module 'coul'
+new coulomb gauge solver 'coul'
 {
 }
 

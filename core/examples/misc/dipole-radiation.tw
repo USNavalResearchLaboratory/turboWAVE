@@ -15,8 +15,9 @@ zboundary = ( open  open )
 
 new grid
 {
+	steps = 1000
 	origin = ( 0, 0.5, 0.5, 0.5 )
-	dimensions = ( 1000 512 1 512 )
+	dimensions = ( 1 512 1 512 )
 	cell size = ( 0.5 1.0 1.0 1.0 )
 	decomposition = ( 1  1  1  1 )
 }
@@ -26,7 +27,7 @@ new region rect 'antenna_rect'
 	bounds = ( -1.0 , 1.0 , -1e5 , 1e5 , -1.0 , 1.0 )
 }
 
-new direct solver 'em'
+new maxwell solver 'em'
 {
 	layers = (16 16 0 0 16 16)
 	reflection coefficient = (1e-4 1e-4 1e-4 1e-4 1e-4 1e-4)

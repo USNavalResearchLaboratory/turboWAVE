@@ -40,14 +40,13 @@ export struct EllipticSolver:BoundedTool
 
 export struct IterativePoissonSolver:EllipticSolver
 {
-	char *mask1,*mask2;
+	std::valarray<char> mask1,mask2;
 	tw::Int iterationsPerformed;
 	tw::Float normResidualAchieved,normSource;
 	tw::Int maxIterations;
 	tw::Float tolerance,overrelaxation,minimumNorm;
 
 	IterativePoissonSolver(const std::string& name,MetricSpace *m,Task *tsk);
-	virtual ~IterativePoissonSolver();
 	virtual void FixPotential(ScalarField& phi,Region* theRegion,const tw::Float& thePotential);
 	virtual void Solve(ScalarField& phi,ScalarField& source,tw::Float mul);
 	virtual void StatusMessage(std::ostream *dest);
@@ -55,19 +54,17 @@ export struct IterativePoissonSolver:EllipticSolver
 
 export struct EllipticSolver1D:EllipticSolver
 {
-	GlobalIntegrator<tw::Float> *globalIntegrator;
+	std::unique_ptr<GlobalIntegrator<tw::Float>> globalIntegrator;
 
 	EllipticSolver1D(const std::string& name,MetricSpace *m,Task *tsk);
-	virtual ~EllipticSolver1D();
 	virtual void Solve(ScalarField& phi,ScalarField& source,tw::Float mul);
 };
 
 export struct PoissonSolver:EllipticSolver
 {
-	GlobalIntegrator<tw::Float> *globalIntegrator;
+	std::unique_ptr<GlobalIntegrator<tw::Float>> globalIntegrator;
 
 	PoissonSolver(const std::string& name,MetricSpace *m,Task *tsk);
-	virtual ~PoissonSolver();
 	virtual void Solve(ScalarField& phi,ScalarField& source,tw::Float mul);
 	virtual void RegisterTests() {
 		REGISTER(PoissonSolver,Test);
@@ -78,10 +75,9 @@ export struct PoissonSolver:EllipticSolver
 export struct EigenmodePoissonSolver:EllipticSolver
 {
 	std::valarray<tw::Float> eigenvalue,hankel,inverseHankel;
-	GlobalIntegrator<tw::Float> *globalIntegrator;
+	std::unique_ptr<GlobalIntegrator<tw::Float>> globalIntegrator;
 
 	EigenmodePoissonSolver(const std::string& name,MetricSpace *m,Task *tsk);
-	virtual ~EigenmodePoissonSolver();
 	virtual void Initialize();
 	virtual void Solve(ScalarField& phi,ScalarField& source,tw::Float mul);
 };
@@ -190,20 +186,12 @@ EllipticSolver1D::EllipticSolver1D(const std::string& name,MetricSpace *m,Task *
 {
 	if (space->SpatialDims()!=1)
 		throw tw::FatalError("EllipticSolver1D cannot be used in multi-dimensions.");
-	globalIntegrator = NULL;
 	if (space->GlobalDim(1)>1)
-		globalIntegrator = new GlobalIntegrator<tw::Float>(&task->strip[1],space->Dim(3)*space->Dim(2),space->Dim(1));
+		globalIntegrator = std::make_unique<GlobalIntegrator<tw::Float>>(&task->strip[1],space->Dim(3)*space->Dim(2),space->Dim(1));
 	if (space->GlobalDim(2)>1)
-		globalIntegrator = new GlobalIntegrator<tw::Float>(&task->strip[2],space->Dim(1)*space->Dim(3),space->Dim(2));
+		globalIntegrator = std::make_unique<GlobalIntegrator<tw::Float>>(&task->strip[2],space->Dim(1)*space->Dim(3),space->Dim(2));
 	if (space->GlobalDim(3)>1)
-		globalIntegrator = new GlobalIntegrator<tw::Float>(&task->strip[3],space->Dim(1)*space->Dim(2),space->Dim(3));
-	if (globalIntegrator==NULL)
-		throw tw::FatalError("EllipticSolver1D could not create global integrator.");
-}
-
-EllipticSolver1D::~EllipticSolver1D()
-{
-	delete globalIntegrator;
+		globalIntegrator = std::make_unique<GlobalIntegrator<tw::Float>>(&task->strip[3],space->Dim(1)*space->Dim(2),space->Dim(3));
 }
 
 void EllipticSolver1D::Solve(ScalarField& phi,ScalarField& source,tw::Float mul)
@@ -281,8 +269,8 @@ IterativePoissonSolver::IterativePoissonSolver(const std::string& name,MetricSpa
 	const tw::Int xDim = space->Dim(1);
 	const tw::Int yDim = space->Dim(2);
 	const tw::Int zDim = space->Dim(3);
-	mask1 = new char[xDim*yDim*zDim];
-	mask2 = new char[xDim*yDim*zDim];
+	mask1 = std::valarray<char>(xDim*yDim*zDim);
+	mask2 = std::valarray<char>(xDim*yDim*zDim);
 	maxIterations = 1000;
 	tolerance = 1e-8;
 	const tw::Int SOR1 = m->GlobalDim(1) - (m->GlobalDim(1)==1 ? 1 : 0);
@@ -316,12 +304,6 @@ IterativePoissonSolver::IterativePoissonSolver(const std::string& name,MetricSpa
 	}
 	directives.Add("tolerance",new tw::input::Float(&tolerance));
 	directives.Add("overrelaxation",new tw::input::Float(&overrelaxation),false);
-}
-
-IterativePoissonSolver::~IterativePoissonSolver()
-{
-	delete [] mask1;
-	delete [] mask2;
 }
 
 void IterativePoissonSolver::FixPotential(ScalarField& phi,Region* theRegion,const tw::Float& thePotential)
@@ -419,7 +401,7 @@ void IterativePoissonSolver::Solve(ScalarField& phi,ScalarField& source,tw::Floa
 {
 	// solve div(coeff*grad(phi)) = mul*source
 
-	char *maskNow;
+	std::valarray<char> *maskNow;
 	tw::Int iter,i,j,k,ipass;
 	const tw::Int xDim = space->Dim(1);
 	const tw::Int yDim = space->Dim(2);
@@ -442,13 +424,13 @@ void IterativePoissonSolver::Solve(ScalarField& phi,ScalarField& source,tw::Floa
 		normResidual = 0.0;
 		for (ipass=1;ipass<=2;ipass++)
 		{
-			maskNow = ipass==1 ? mask1 : mask2;
+			maskNow = ipass==1 ? &mask1 : &mask2;
 
 			for (k=1;k<=zDim;k++)
 				for (j=1;j<=yDim;j++)
 					for (i=1;i<=xDim;i++)
 					{
-						if (maskNow[(i-1) + (j-1)*xDim + (k-1)*xDim*yDim]==1)
+						if ((*maskNow)[(i-1) + (j-1)*xDim + (k-1)*xDim*yDim]==1)
 						{
 							FormOperatorStencil(D,i,j,k);
 							residual = D[1]*phi(i-1,j,k) + D[2]*phi(i+1,j,k) + D[3]*phi(i,j-1,k) + D[4]*phi(i,j+1,k) + D[5]*phi(i,j,k-1) + D[6]*phi(i,j,k+1) + D[0]*phi(i,j,k) - mul*source(i,j,k);
@@ -490,23 +472,16 @@ void IterativePoissonSolver::StatusMessage(std::ostream *dest)
 
 PoissonSolver::PoissonSolver(const std::string& name,MetricSpace *m,Task *tsk) : EllipticSolver(name,m,tsk)
 {
-	globalIntegrator = NULL;
 	z0 = tw::bc::fld::dirichletWall;
 	z1 = tw::bc::fld::neumannWall;
 	x0 = x1 = y0 = y1 = tw::bc::fld::periodic;
 	if (!space->TransversePowersOfTwo())
 		throw tw::FatalError("FACR elliptical solver requires all transverse dimensions be powers of two.");
-	globalIntegrator = new GlobalIntegrator<tw::Float>(&task->strip[3],space->Dim(1)*space->Dim(2),space->Dim(3));
-}
-
-PoissonSolver::~PoissonSolver()
-{
-	delete globalIntegrator;
+	globalIntegrator = std::make_unique<GlobalIntegrator<tw::Float>>(&task->strip[3],space->Dim(1)*space->Dim(2),space->Dim(3));
 }
 
 void PoissonSolver::Solve(ScalarField& phi,ScalarField& source,tw::Float mul)
 {
-	tw::Int i,j,k;
 	const tw::Int xDim = phi.Dim(1);
 	const tw::Int yDim = phi.Dim(2);
 	const tw::Int zDim = phi.Dim(3);
@@ -523,8 +498,8 @@ void PoissonSolver::Solve(ScalarField& phi,ScalarField& source,tw::Float mul)
 
 	switch (x0)
 	{
-  	case tw::bc::fld::none:
-  	case tw::bc::fld::natural:
+  		case tw::bc::fld::none:
+  		case tw::bc::fld::natural:
 		case tw::bc::fld::normalFluxFixed:
         	break;
 		case tw::bc::fld::periodic:
@@ -560,16 +535,16 @@ void PoissonSolver::Solve(ScalarField& phi,ScalarField& source,tw::Float mul)
 	if (z0==tw::bc::fld::natural || z1==tw::bc::fld::natural)
 		ZeroModeGhostCellValues(&phi0,&phiN1,source,mul);
 
-	#pragma omp parallel for private(i,j,k,eigenvalue,temp) collapse(2) schedule(static)
-	for (j=1;j<=yDim;j++)
-		for (i=1;i<=xDim;i++)
+	#pragma omp parallel for private(eigenvalue,temp) collapse(2) schedule(static)
+	for (auto j=1;j<=yDim;j++)
+		for (auto i=1;i<=xDim;i++)
 		{
 			std::valarray<tw::Float> s(zDim),u(zDim),T1(zDim),T2(zDim),T3(zDim);
 			if (x0==tw::bc::fld::periodic)
 				eigenvalue = phi.RealCyclicEigenvalue(i,j,*space);
 			else
 				eigenvalue = phi.RealEigenvalue(i,j,*space);
-			for (k=1;k<=zDim;k++)
+			for (auto k=1;k<=zDim;k++)
 			{
 				s[k-1] = mul*source(i,j,k);
 				T1[k-1] = a;
@@ -611,7 +586,7 @@ void PoissonSolver::Solve(ScalarField& phi,ScalarField& source,tw::Float mul)
 					phi.AdjustTridiagonalForBoundaries(tw::grid::z,tw::grid::high,T1,T2,T3,s,phi(i,j,space->UFG(3)));
 			}
 			TriDiagonal<tw::Float,tw::Float>(u,s,T1,T2,T3);
-			for (k=1;k<=zDim;k++)
+			for (auto k=1;k<=zDim;k++)
 				phi(i,j,k) = u[k-1];
 
 			globalIntegrator->SetMatrix( (j-1)*xDim + (i-1) ,T1,T2,T3);
@@ -626,8 +601,8 @@ void PoissonSolver::Solve(ScalarField& phi,ScalarField& source,tw::Float mul)
 
 	if (task->n0[3]==MPI_PROC_NULL && z0==tw::bc::fld::natural)
 	{
-		for (j=1;j<=yDim;j++)
-			for (i=1;i<=xDim;i++)
+		for (auto j=1;j<=yDim;j++)
+			for (auto i=1;i<=xDim;i++)
 			{
 				if (x0==tw::bc::fld::periodic)
 					eigenvalue = phi.RealCyclicEigenvalue(i,j,*space);
@@ -647,8 +622,8 @@ void PoissonSolver::Solve(ScalarField& phi,ScalarField& source,tw::Float mul)
 
 	if (task->n1[3]==MPI_PROC_NULL && z1==tw::bc::fld::natural)
 	{
-		for (j=1;j<=yDim;j++)
-			for (i=1;i<=xDim;i++)
+		for (auto j=1;j<=yDim;j++)
+			for (auto i=1;i<=xDim;i++)
 			{
 				if (x0==tw::bc::fld::periodic)
 					eigenvalue = phi.RealCyclicEigenvalue(i,j,*space);
@@ -718,12 +693,7 @@ EigenmodePoissonSolver::EigenmodePoissonSolver(const std::string& name,MetricSpa
 	const tw::Int rDim = space->Dim(1);
 	const tw::Int zDim = space->Dim(3);
 
-	globalIntegrator = new GlobalIntegrator<tw::Float>(&task->strip[3],rDim,zDim);
-}
-
-EigenmodePoissonSolver::~EigenmodePoissonSolver()
-{
-	delete globalIntegrator;
+	globalIntegrator = std::make_unique<GlobalIntegrator<tw::Float>>(&task->strip[3],rDim,zDim);
 }
 
 void EigenmodePoissonSolver::Initialize()

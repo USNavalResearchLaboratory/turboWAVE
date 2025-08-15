@@ -16,6 +16,7 @@ zboundary = ( reflecting , reflecting )
 
 new grid
 {
+	steps = 1
 	origin = ( 0, 0.5, 0.5, 0.5 )
 	dimensions = ( 1, 128, 128, 128 )
 	cell size = ( 0.005, 0.5, 0.5, 0.5 )

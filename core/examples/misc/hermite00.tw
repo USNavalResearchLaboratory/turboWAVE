@@ -16,8 +16,9 @@ zboundary = ( reflecting , reflecting )
 
 new grid
 {
+	steps = 4000
 	origin = ( 0, 0.5, 0.5, 1.0 )
-	dimensions = ( 4000, 256 , 1 , 256 )
+	dimensions = ( 1, 256 , 1 , 256 )
 	cell size = ( 0.04, 0.2 , 1.0 , 0.05 )
 	decomposition = ( 1, 4, 1, 2 )
 }
@@ -28,7 +29,7 @@ new direct electromagnetic module 'em'
 	reflection coefficient = (1e-4 1e-4 1e-4 1e-4 1e-4 1e-4)
 }
 
-new hermite gauss for 'em'
+new hermite gauss pulse for 'em'
 {
 	mode = (0 0)
 	a = (1.0 0.0 0.0)

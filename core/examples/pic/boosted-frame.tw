@@ -42,14 +42,15 @@ zboundary = ( absorbing , absorbing )
 
 new grid
 {
+	steps = $steps
 	origin = (0, 0.5, 0.5, 1)
 	shift = (0, 0, 0, $Lp)
-	dimensions = ($steps, $nx, 1, $nz)
+	dimensions = (1, $nx, 1, $nz)
 	cell size = ($dt, $dx, 1.0, $dz)
 	decomposition = (1, 16, 1, 1)
 }
 
-new coulomb field solver 'em'
+new coulomb gauge solver 'em'
 {
 	// Smoothing is needed to control numerical Cherenkov instability
 	smoothing = (4 4 4)

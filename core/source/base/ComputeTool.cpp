@@ -51,7 +51,7 @@ export namespace tw
 		// Movers
 		borisMover,hcMover,pgcMover,unitaryMover,bohmianMover,photonMover,
 		// Testers
-		iteratorTest,metricSpaceTest
+		iteratorTest,metricSpaceTest,fftTest
 	};
 }
 
@@ -80,7 +80,6 @@ export struct ComputeTool : Testable
 	ComputeTool(const std::string& name,MetricSpace *ms,Task *tsk);
 	virtual ~ComputeTool();
 	virtual void Initialize();
-	virtual void WarningMessage();
 	virtual void StatusMessage(std::ostream *dest) {;}
 	virtual void ReadInputFileBlock(TSTreeCursor *curs,const std::string& src);
 	virtual bool ReadInputFileDirective(const TSTreeCursor *curs,const std::string& src);
@@ -175,16 +174,6 @@ void ComputeTool::ReadInputFileBlock(TSTreeCursor *curs,const std::string& src)
 	directives.ThrowErrorIfMissingKeys(name);
 }
 
-void ComputeTool::WarningMessage()
-{
-	// Save any messages from OpenCL compiler for later output
-	if (buildLog.size()>4)
-	{
-		std::println(std::cout,"{}: Build log for {} is not empty:",term::warning,programFilename);
-		std::println(std::cout,"{}",buildLog);
-	}
-}
-
 void ComputeTool::ReadCheckpoint(std::ifstream& inFile)
 {
 }
@@ -254,7 +243,8 @@ std::map<std::string,tw::tool_type> ComputeTool::Map()
 		{"bohmian mover",tw::tool_type::bohmianMover},
 		{"photon mover",tw::tool_type::photonMover},
 		{"iterator test",tw::tool_type::iteratorTest},
-		{"metric space test",tw::tool_type::metricSpaceTest}
+		{"metric space test",tw::tool_type::metricSpaceTest},
+		{"fft test",tw::tool_type::fftTest}
 	};
 }
 

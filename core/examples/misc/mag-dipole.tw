@@ -17,8 +17,9 @@ zboundary = ( absorbing , absorbing )
 
 new grid
 {
+	steps = 200
 	origin = ( 0, 0.5, 0.5, 0.5)
-	dimensions = ( 200, 128 , 128 , 128)
+	dimensions = ( 1, 128 , 128 , 128)
 	cell size = ( 0.1, 0.2 , 0.2 , 0.2 )
 	decomposition = ( 1, 2, 2, 2 )
 }

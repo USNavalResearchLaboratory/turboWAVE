@@ -24,6 +24,7 @@ Conda Build
 ------------
 
 To build and test the conda package locally:
+* Install `conda-build` in the base environment
 * Edit `setup.py` and `meta.yaml` as appropriate, especially update the version
 * From the `tools` directory type `conda build twutils` (may be slow)
 * Create directory somewhere: `local-channel/noarch/`

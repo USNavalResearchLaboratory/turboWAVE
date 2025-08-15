@@ -20,13 +20,14 @@ zboundary = ( absorbing , absorbing )
 
 new grid
 {
+	steps = 1000
 	origin = ( 0 , 0.5 , 0.5 , 0.0 )
-	dimensions = ( 1000 , 128 , 128 , 512 )
+	dimensions = ( 1 , 128 , 128 , 512 )
 	cell size = ( 0.07 , 0.5 , 0.5 , 0.1 )
 	decomposition = ( 1 , 4 , 4 , 16 )
 }
 
-new coulomb electromagnetic module 'coul'
+new coulomb gauge solver 'coul'
 {
 }
 
@@ -40,7 +41,7 @@ new pgc laser module 'pgc'
 	carrier frequency = 31.0
 }
 
-new hermite gauss for 'pgc'
+new hermite gauss pulse for 'pgc'
 {
 	a = ( $a0 , 0 , 0 )
 	direction = ( 0 , 0 , 1 )
@@ -53,7 +54,7 @@ new hermite gauss for 'pgc'
 	r0 = ( $r0 , $r0 )
 }
 
-new hermite gauss for 'pgc'
+new hermite gauss pulse for 'pgc'
 {
 	a = ( $a0 , 0 , 0 )
 	direction = ( 0 , 0 , 1 )

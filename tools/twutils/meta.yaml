@@ -1,12 +1,12 @@
 {% set name = "twutils" %}
-{% set version = "4.8.0" %}
+{% set version = "5.0.0" %}
 
 package:
   name: "{{ name|lower }}"
   version: "{{ version }}"
 
 source:
-  path: .
+  path: ./src
 
 build:
   noarch: python
@@ -23,17 +23,17 @@ build:
 requirements:
   host:
     - pip
-    - python >=3.8
+    - python >=3.12
   run:
-    - h5py
-    - jupyter >=1
-    - matplotlib >=3.7
-    - pillow >=9
-    - python >=3.8
-    - numpy >=1.22
-    - scipy >=1.10
-    - meson >=1.1
-    - git >=2
+    - h5py >=3.14
+    - jupyter >=1.1
+    - matplotlib >=3.10
+    - pillow >=11.3
+    - python >=3.12
+    - numpy >=2.3
+    - scipy >=1.16
+    - git >=2.40
+    - cmake >=4.1
 
 test:
   imports:

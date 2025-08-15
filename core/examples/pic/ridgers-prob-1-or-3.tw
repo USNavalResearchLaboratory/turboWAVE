@@ -31,13 +31,14 @@ zboundary = ( reflecting , reflecting )
 
 new grid
 {
+    steps = 180
     origin = ( 0, 0.5, 0.5, 0.5 )
-    dimensions = ( 180, 512, 1, 512 )
+    dimensions = ( 1, 512, 1, 512 )
     cell size = ( $dt, 2.34375e-3, 1.0, 2.34375e-3 )
     decomposition = ( 1, 1, 1, 1 )
 }
 
-new direct electromagnetic module 'em'
+new maxwell solver 'em'
 {
     layers = (8 8 0 0 8 8)
     reflection coefficient = (1e-4 1e-4 1e-4 1e-4 1e-4 1e-4)

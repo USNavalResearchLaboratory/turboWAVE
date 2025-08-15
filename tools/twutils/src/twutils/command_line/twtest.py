@@ -346,7 +346,7 @@ def SeaTrials(args):
 					# Run this case
 					nprocs,nthreads = optimize_concurrency(mpi_procs,omp_threads,input_dict['dims'])
 					cmd = form_command(args['--command'],nprocs,nthreads)
-					cmd += ' --no-interactive --input-file ' + ex_path
+					cmd += ' --input-file ' + ex_path
 					print('Executing',cmd,'...')
 					html_doc += '<p>TW command line = <samp>'+cmd+'</samp></p>'
 					compl = subprocess.run(cmd.split(),stdout=subprocess.PIPE,universal_newlines=True)
@@ -489,7 +489,7 @@ def CITest(args):
 					# Run this case
 					nprocs,nthreads = optimize_concurrency(mpi_procs,omp_threads,input_dict['dims'])
 					cmd = form_command(args['--command'],nprocs,nthreads)
-					cmd += ' --no-interactive --input-file ' + ex_path
+					cmd += ' --input-file ' + ex_path
 					compl = subprocess.run(cmd.split(),stdout=subprocess.PIPE,stderr=subprocess.PIPE,universal_newlines=True)
 
 					# Check the results

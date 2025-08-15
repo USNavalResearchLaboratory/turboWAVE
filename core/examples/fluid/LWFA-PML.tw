@@ -16,13 +16,14 @@ zboundary = ( absorbing , absorbing )
 
 new grid
 {
+	steps = 1000
 	origin = ( 0 , 0.5 , 0.5 , 1 )
-	dimensions = ( 1000 , 128 , 1 , 256 )
+	dimensions = ( 1 , 128 , 1 , 256 )
 	cell size = ( 0.08 , 0.25 , 1.0 , 0.1 )
 	decomposition = ( 1 , 1 , 1 , 1 )
 }
 
-new direct electromagnetic module 'em'
+new maxwell solver 'em'
 {
 	layers = (8 8 0 0 0 0)
 	reflection coefficient = (1e-4 1e-4 1e-4 1e-4 1e-4 1e-4)
@@ -33,7 +34,7 @@ new pgc laser module 'pgc'
 	carrier frequency = 50
 }
 
-new hermite gauss for 'pgc'
+new hermite gauss pulse for 'pgc'
 {
 	a = ( 0.5 , 0.0 , 0.0 )
 	r0 = ( 5 , 1e5 )

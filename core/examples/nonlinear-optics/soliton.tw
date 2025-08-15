@@ -20,8 +20,9 @@ zboundary = ( absorbing , absorbing )
 
 new grid
 {
+	steps = 1000000
 	origin = ( 0, 0.5 , 0.5 , 1.0 )
-	dimensions = ( 1000000, 1, 1, 8000 )
+	dimensions = ( 1, 1, 1, 8000 )
 	cell size = ( 0.007, 1.0, 1.0, 0.01 )
 	decomposition = ( 1, 1, 1, 1 )
 }
@@ -32,7 +33,7 @@ new region rect 'r1'
 	move with window = false
 }
 
-new direct electromagnetic module 'em'
+new maxwell solver 'em'
 {
 	reflection coefficient = (1e-3 1e-3 1e-3 1e-3 1e-3 1e-3)
 	layers = (0 0 0 0 256 0)
@@ -43,7 +44,7 @@ new direct electromagnetic module 'em'
 // T0 = 20 fs
 // lambda = 2.1 microns
 
-new hermite gauss for 'em'
+new hermite gauss pulse for 'em'
 {
 	a = (0.00113 0 0)
 	w = 5.03

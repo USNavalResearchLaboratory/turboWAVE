@@ -9,14 +9,20 @@ on:
 jobs:
   build:
 
-    runs-on: ubuntu-latest
+    runs-on: windows-2025
 
     steps:
-    - uses: actions/checkout@v2
-    - name: Set up Python 3.10
-      uses: actions/setup-python@v2
+    - uses: actions/checkout@v4
+    - name: Set up CMake
+      uses: lukka/get-cmake@latest
+    - name: Set up MPI
+      run: |
+        winget install Microsoft.msmpisdk
+        winget install Microsoft.msmpi
+    - name: Set up Python 3.13
+      uses: actions/setup-python@v5
       with:
-        python-version: '3.10'
+        python-version: '3.13'
     - name: Add conda to system path
       run: |
         # $CONDA is an environment variable pointing to the root of the miniconda directory
@@ -26,13 +32,12 @@ jobs:
         conda install -c dfxgordon twutils
     - name: setup
       working-directory: ./core/source
-      run: meson setup build
-    - name: configure
-      working-directory: ./core/source/build
-      run:  meson configure -Domp=true -Docl=false -Dhpc=false
+      run: mkdir build
     - name: build
       working-directory: ./core/source/build
-      run: meson compile
+      run: | 
+        cmake -G Ninja ..
+        cmake --build .
     - name: turbowave unit testing
       working-directory: ./core/source/build
       run: ./tw3d -n 2 --unit-test --all

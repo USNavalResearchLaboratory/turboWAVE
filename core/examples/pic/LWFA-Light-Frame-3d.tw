@@ -1,7 +1,5 @@
 // NOTE: size of example not suitable for desktop machine
 // NERSC Cori-Haswell: 8 nodes, 15 minutes
-steps = 800
-timestep = 0.04
 dump period = 0
 moving window = yes
 neutralize = yes
@@ -17,8 +15,9 @@ zboundary = ( reflecting , reflecting )
 
 new grid
 {
+	steps = 800
 	origin = ( 0, 0.5, 0.5, 1.0 )
-	dimensions = ( 800, 256, 256, 1024 )
+	dimensions = ( 1, 256, 256, 1024 )
 	cell size = ( 0.04, 0.5, 0.5, 0.05 )
 	decomposition = ( 1, 16, 16, 1 )
 }
@@ -29,13 +28,13 @@ new region rect 'r1'
 	move with window = false
 }
 
-new direct electromagnetic module 'em'
+new maxwell solver 'em'
 {
 	layers = (8 8 8 8 0 0)
 	reflection coefficient = (1e-4 1e-4 1e-4 1e-4 1e-4 1e-4)
 }
 
-new hermite gauss for 'em'
+new hermite gauss pulse for 'em'
 {
 	a = (2.5 0.0 0.0)
 	w = 5.0

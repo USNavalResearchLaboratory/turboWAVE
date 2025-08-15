@@ -23,9 +23,10 @@ zboundary = ( periodic  periodic )
 
 new grid
 {
+	steps = 1000
 	origin = ( 0 , 0 , 0.5 , 0.5 )
 	shift = (0,0,0,0)
-	dimensions = ( 1000 , 400 , 1 , 1 )
+	dimensions = ( 1 , 400 , 1 , 1 )
 	cell size = ( 10000 , 2 , 6.2832 , 1 )
 	decomposition = ( 1  1  1  1 )
 	geometry = cylindrical

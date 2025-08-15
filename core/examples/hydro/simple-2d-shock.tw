@@ -21,8 +21,9 @@ zboundary = ( open  open )
 
 new grid
 {
+	steps = 5000
 	origin = ( 0 , 0.5 , 0.5 , 0.5 )
-	dimensions = ( 5000, 200, 200, 1 )
+	dimensions = ( 1, 200, 200, 1 )
 	cell size = ( 30 [ps], 5, 5, 1 )
 	decomposition = ( 1, 2, 2, 1 )
 	geometry = cartesian
