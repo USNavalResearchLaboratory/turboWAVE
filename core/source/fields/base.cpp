@@ -417,8 +417,8 @@ void Field::Initialize(const tw::Int& components,const StaticSpace& ss,Task *tas
 /// @param task pointer to the concurrent task with this Field's domain
 void Field::Initialize(const StaticSpace& ss,Task *task) {
 	StaticSpace::operator = (ss);
-	logger::TRACE(std::format("field init dim {}",dim));
-	logger::TRACE(std::format("field init estride {}",encodingStride));
+	//logger::TRACE(std::format("field init dim {}",dim));
+	//logger::TRACE(std::format("field init estride {}",encodingStride));
 	this->task = task;
 	totalCells = num[0]*num[1]*num[2]*num[3];
 	bc0.resize(4,num[4]);

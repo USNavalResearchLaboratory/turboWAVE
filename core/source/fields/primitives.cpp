@@ -336,7 +336,7 @@ public:
 		if (idx < 0 || idx > data.size()) {
 			logger::ERROR(std::format("bad slice access {} >= {}",idx,data.size()));
 			logger::DEBUG(std::format("coords {},{},{},{},{}",n,i,j,k,c));
-			logger::DEBUG(std::format("beg {} end {} strides {}",beg,end,encodingStride));
+			//logger::DEBUG(std::format("beg {} end {} strides {}",beg,end,encodingStride));
 		}
 		#endif
 		return data[idx];
@@ -353,7 +353,7 @@ public:
 		if (idx < 0 || idx > data.size()) {
 			logger::ERROR(std::format("bad slice access {} >= {}",idx,data.size()));
 			logger::DEBUG(std::format("coords {},{},{},{},{}",n,i,j,k,c));
-			logger::DEBUG(std::format("beg {} end {} strides {}",beg,end,encodingStride));
+			//logger::DEBUG(std::format("beg {} end {} strides {}",beg,end,encodingStride));
 		}
 		#endif
 		return data[idx];

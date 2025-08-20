@@ -1,6 +1,7 @@
 module;
 
 #include "tw_includes.h"
+#include <memory>
 #include "tw_logger.h"
 export module numerics:parallel;
 import :serial;

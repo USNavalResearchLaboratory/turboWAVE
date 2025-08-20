@@ -17,8 +17,8 @@ jobs:
       uses: lukka/get-cmake@latest
     - name: Set up MPI
       run: |
-        winget install Microsoft.msmpisdk
-        winget install Microsoft.msmpi
+        winget install Microsoft.msmpisdk --disable-interactivity --accept-source-agreements --accept-package-agreements
+        winget install Microsoft.msmpi --disable-interactivity --accept-source-agreements --accept-package-agreements
     - name: Set up Python 3.13
       uses: actions/setup-python@v5
       with:
