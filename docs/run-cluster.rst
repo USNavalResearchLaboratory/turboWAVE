@@ -83,10 +83,6 @@ Optional arguments following ``tw3d`` are as follows:
 
 	if present, bypasses simulation and runs units test instead.  The argument can be a single test, or ``--all``
 
-.. option:: --no-interactive
-
-	if present, suppresses the interactive thread.
-
 .. option:: --version, -v
 
 	if present, prints the version number.  If this is the only argument, no simulation is attempted.

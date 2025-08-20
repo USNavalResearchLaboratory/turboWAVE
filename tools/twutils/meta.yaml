@@ -6,7 +6,7 @@ package:
   version: "{{ version }}"
 
 source:
-  path: ./src
+  path: .
 
 build:
   noarch: python
@@ -22,7 +22,8 @@ build:
 
 requirements:
   host:
-    - pip
+    - setuptools >=80
+    - pip >=25.2
     - python >=3.12
   run:
     - h5py >=3.14

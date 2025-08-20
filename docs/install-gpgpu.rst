@@ -5,7 +5,7 @@ General Notes
 =============
 
 As of this writing, GPGPU support is only useful for Quantum Optics modules.
-To offload computations to a GPGPU, turboWAVE uses OpenCL.  Typically OpenCL can be used for any modern GPU from either AMD or NVIDIA.  In the case of NVIDIA devices, the OpenCL support is packaged with CUDA.
+To offload computations to a GPGPU, turboWAVE uses OpenCL.
 
 To run on GPGPU you must prepare a special executable.  Once the executable is prepared, running is almost the same as it is for a CPU.  The primary differences are as follows:
 
@@ -19,8 +19,7 @@ GPGPU on Windows
 #. Install CMake, making sure to put it in the path
 #. Install the latest drivers for the GPGPU
 #. ``conda install -c conda-forge khronos-opencl-icd-loader``
-#. Navigate to ``build`` and run ``meson configure -Docl=true``
-#. ``meson compile``
+#. TBD
 #. Copy executable *and* kernel (``.cl``) files to runtime directory
 
 GPGPU on MacOS
@@ -28,11 +27,7 @@ GPGPU on MacOS
 
 Apple deprecated OpenCL, but in some cases it still works.
 
-#. Navigate to ``build`` and run ``meson configure -Docl=true``
-#. ``meson configure -Dcpp_link_args=-framework\ OpenCL``
-#. Edit ``meson.build`` and comment out ``deps += [dependency('opencl')]``
-#. ``meson compile``
-#. Copy executable *and* kernel (``.cl``) files to runtime directory
+#. TBD
 
 NVIDIA GPGPU on Ubuntu 22.04
 ============================
@@ -49,10 +44,7 @@ Driver
 Compile with OpenCL
 -------------------
 
-#. Navigate to ``build`` and run ``meson configure -Docl=true``
-#. ``meson configure -Dcpp_link_args=-lOpenCL``
-#. Edit ``meson.build`` and comment out ``deps += [dependency('opencl')]``
-#. ``meson compile``
+#. TBD
 #. Copy executable *and* kernel (``.cl``) files to runtime directory
 
 Troubleshooting OpenCL

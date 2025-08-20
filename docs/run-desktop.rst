@@ -17,7 +17,7 @@ Running an Example
 #. Open a terminal window and navigate to a directory where you want to run, e.g., :samp:`~/Run` (create it if it doesn't exist).
 #. :samp:`cp {turboWAVE}/core/examples/pgc/LWFA-coulomb.tw stdin`
 #. This puts the input file in :samp:`~/Run` with the name :samp:`stdin`.  By default, turboWAVE assumes the input file is in the working directory with the name :samp:`stdin`.
-#. :samp:`tw3d -n 4`
+#. :samp:`mpirun -np 4 tw3d`
 #. The above command runs the problem with 4 MPI processes and 1 thread per process.  Of course this choice may not be optimal for your system, method of compiling, etc., but it should suffice for this example.
 #. As the problem runs, you can press the enter key to prompt turboWAVE to report the current step.  Enter :samp:`help` to get the full list of interactive commands.
 #. When the run is finished, you should have several files with the extension :samp:`npy`.  This is a simple binary format often used with numerical Python.
@@ -143,9 +143,9 @@ For desktop installations the command line options for the ``tw3d`` executable a
 
 	if present, bypasses simulation and runs units test instead.  The argument can be a single test, or ``--all``
 
-.. option:: --no-interactive
+.. option:: --interactive
 
-	if present, suppresses the interactive thread.  Generally you should add this if ``tw3d`` is invoked from another command (e.g. ``nohup`` or a user script).  N.b. ``twutils`` command line tools include this automatically where needed.
+	if present, run the interactive thread.  Do not use if the intention is to run in the background or as a subprocess.
 
 .. option:: --version, -v
 
@@ -159,7 +159,7 @@ If you enter only :samp:`tw3d` with no arguments, turboWAVE will use a single MP
 
 When you ran the example above, you may have noticed turboWAVE issuing a warning about the domain decomposition.  That is because if you choose to specify the domain decomposition in the input file, the product of the three integers is supposed to equal the number of processes requested.  If this is not the case, turboWAVE will try to find a suitable decomposition on its own.  There are some rules about how this can be done.  Sometimes turboWAVE will fail to find a suitable decomposition and report an error.
 
-Finally, if you want to disable the interactive thread, add the command line argument :samp:`--no-interactive`.  This can be important for batch processing, because when the interactive thread is used, the :samp:`tw3d` process will not stop without a keystroke from the user.
+Finally, if you want to interactively check the status, add the command line argument :samp:`--interactive`.  Please do not add this if the job is running in the background or as a subprocess.
 
 Error Handling
 --------------

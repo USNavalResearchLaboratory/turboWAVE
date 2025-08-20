@@ -1,7 +1,7 @@
 import sys
 import glob
 import os
-import pkg_resources
+import importlib.metadata
 import PIL.Image
 import numpy as np
 import matplotlib as mpl
@@ -48,7 +48,7 @@ def print_usage():
 	print('For example, zxyt=0,0,2:5 would animate time slices 2,3,4.')
 
 def print_version():
-    print('twplot is provided by twutils, version '+pkg_resources.get_distribution('twutils').version)
+    print('twplot is provided by twutils, version '+importlib.metadata.version('twutils'))
 
 # Label scheme
 

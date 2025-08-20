@@ -1,9 +1,9 @@
-Discrete Space
+Static Space
 ==============
 
-The ``DynSpace`` object is the basis of structured grid management in turboWAVE. While ``DynSpace`` provides topology and indexing, ``MetricSpace`` adds edge lengths, wall areas, and cell volumes, which define a specific grid geometry.
+The ``StaticSpace`` object is the basis of structured grid management in turboWAVE. While ``StaticSpace`` provides topology and indexing, ``MetricSpace`` adds edge lengths, wall areas, and cell volumes, which define a specific grid geometry.
 
-There is a tight coupling between certain concepts associated with particles and the ``DynSpace`` object.  As a result some of the lowest level particle objects appear in this scope.
+Owing to the nature of particle-in-cell, there is a tight coupling between certain concepts associated with particles and the ``StaticSpace`` object.
 
 Boundary Conditions
 -------------------
@@ -38,6 +38,6 @@ Particle Primitives
 DynSpace Object
 --------------------
 
-.. doxygenstruct:: DynSpace
+.. doxygenstruct:: StaticSpace
   :members:
   :protected-members:

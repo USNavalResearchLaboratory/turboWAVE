@@ -16,54 +16,21 @@ The unit test runner is a method of ``Simulation``.  This is what is invoked whe
 Test Suites
 -----------
 
-*Test suites* are created by overriding the ``Test`` method of ``ComputeTool`` and ``Module``.  As a corollary, there is at most one test suite for each derivative of either object.
+*Test suites* are created by overriding the ``RegisterTests`` method of ``ComputeTool`` or ``Module``.  As a corollary, there is at most one test suite for each derivative of either object.  It is important to note that nothing prevents you from deriving a ``ComputeTool`` for the sole purpose of testing things.
 
 .. highlight:: c++
 
-The signature of the ``Test`` function is::
+A typical ``RegisterTest`` function might look like this::
 
-    virtual bool Test(tw::Int& id); // dispatch test cases
-
-The function takes an integer ID number corresponding to some *test case*, and returns a boolean indicating whether a test was run or not.  The ``id`` is both an input and an output, with the following properties:
-
-    * The first ``id`` passed to ``Test`` is always 1
-    * If ``id<1`` on output, ``Test`` will not be called again
-    * If ``id>0`` on output, ``Test`` will be called again, with the output value passed back in.
-
-A typical ``Test`` function might look like this::
-
-    bool MyToolOrModule::Test(tw::Int& id)
-    {
-        // suite of 3 test cases
-        if (id==1) {
-            id++;
-            TestCase1();
-            return true;
-        } else if (id==2) {
-            id++;
-            TestCase2();
-            return true;
-        } else if (id==3) {
-            id=0;
-            TestCase3();
-            return true;
-        } else {
-            id=0;
-            return false;
-        }
+    #include "tw_test.h"
+    virtual void RegisterTests() {
+        REGISTER(MyTestTool,Test1);
+        REGISTER(MyTestTool,Test2);
     }
 
-The functions ``TestCase1()`` etc. are methods of ``Module`` or ``ComputeTool``, wherein you program your tests. It is important to understand that a new instance of the object is created for every call to ``Test``, and therefore for each test case. The function names will show up in the test outputs, so it is helpful if they are descriptive.  If there is only one test case, you can use the simpler structure::
+The name `MyTestTool` is the actual class name of the ``ComputeTool`` or ``Module``.  The functions ``Test1`` and ``Test2`` are methods thereof wherein you program your tests. It is important to understand that a new instance of the object is created for every test case. The function names will show up in the test outputs, so it is helpful if they are descriptive.
 
-    bool SimpleTool::Test(tw::Int& id)
-    {
-        // just one test case
-        // Add some code here to do testing
-        id = 0;
-        return true;
-    }
-
-There is no requirement on the filename or path wherein the test functions appear, these are simply methods of the ``ComputeTool`` and ``Module`` objects.  However, it is conventional to put all the test functions in a file with postfix ``_Test.cpp``.  You are free to define any initialization, cleanup, or other functions for use or re-use by the test cases.
+There is no requirement on the filename or path wherein the test functions appear, these are simply methods of the ``ComputeTool`` and ``Module`` objects.  However, it is conventional to put all the test functions in a file with postfix ``_test.cpp``.  You are free to define any initialization, cleanup, or other functions for use or re-use by the test cases.
 
 Test Cases
 ----------
@@ -81,7 +48,7 @@ The content of test cases is varied, but all test cases should use the test asse
 Parallel Testing
 ;;;;;;;;;;;;;;;;
 
-Test cases are parallel programs, so generally any assertions will be run in parallel on all the distributed compute nodes.  In some cases it may be useful to only make assertions on a particular node.  This presents no problems, as long as one does not forget to run the ``REGISTER_TEST`` macro on *all* nodes.
+Test cases are parallel programs, so generally any assertions will be run in parallel on all the distributed compute nodes.  In some cases it may be useful to only make assertions on a particular node.  This presents no problems, as long as one does not forget to run the ``REGISTER`` macro on *all* nodes.
 
 Example
 -------
@@ -93,22 +60,11 @@ Suppose we have a ``ComputeTool`` that adds two numbers::
         return x + y;
     }
 
-We want to test commutativity and associativity of addition.  The test suite dispatch is::
+We want to test commutativity and associativity of addition.  The registration is::
 
-    bool AddTool::Test(tw::Int& id)
-    {
-        if (id==1) {
-            id++;
-            CommutativityTest();
-            return true;
-        } else if (id==2) {
-            id=0;
-            AssociativityTest();
-            return true;
-        } else {
-            id=0;
-            return false;
-        }
+    virtual void RegisterTests() {
+        REGISTER(AddTool,CommutativityTest);
+        REGISTER(AddTool,AssociativityTest);
     }
 
 And the test cases are::
@@ -153,7 +109,7 @@ Optional Grid Control
 
 As of this writing, the domain decomposition for all tests is fixed as :math:`1\times 1\times 2`, but the set of grids used for the testing can be controlled for each test suite.  The test grid is controlled by a static function of either ``ComputeTool`` or ``Module``::
 
-	static bool SetTestGrid(tw::tool_type theType,tw::Int gridId,MetricSpace *ms,Task *tsk);
-	static bool SetTestGrid(tw::module_type theType,tw::Int gridId,Simulation* sim);
+	static bool SetTestEnvironment(tw::tool_type theType,tw::Int enviro,MetricSpace *ms,Task *tsk);
+	static bool SetTestEnvironment(tw::module_type theType,tw::Int enviro,Simulation* sim);
 
-These functions switch on the first argument, and create a grid that may depend on ``gridId``.  In order to control the grids that are used with a given test suite, cases in the switch must be modified.  The test runner will always start with ``gridId=1``, incrementing by 1.  Note that every test case in the suite will be called with every grid variant.  The individual test cases are free to do whatever they wish with a given grid, including nothing.
+These functions switch on the first argument, and create a grid that may depend on ``enviro``.  In order to control the grids that are used with a given test suite, cases in the switch must be modified.  The test runner will always start with ``enviro=1``, incrementing by 1.  Note that every test case in the suite will be called with every grid variant.  The individual test cases are free to do whatever they wish with a given grid, including nothing.

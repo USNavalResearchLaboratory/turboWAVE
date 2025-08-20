@@ -1,9 +1,9 @@
 # Changelog
 
-## [Unreleased]
+## [5.0.0-a] - 2025-08-20
 
-This is the largest rewrite turboWAVE has ever undergone.
-The two biggest changes are C++20 modules, and handling of field topology.
+This is a big rewrite intended to modernize and improve the internal structure.
+It was decided to finally adopt C++20 modules throughout.
 
 ### Physics Content
 

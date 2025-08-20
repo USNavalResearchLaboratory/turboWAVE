@@ -95,33 +95,16 @@ You can add language support for turboWAVE input files in various editors.
 	* Copy :samp:`{turboWAVE}/tools/config-files/filetype.vim` to ``%HomePath%\vimfiles\`` (Windows) or ``~/.vim/`` (others)
 	* Copy :samp:`{turboWAVE}/tools/config-files/turbowave.vim` to ``%HomePath%\vimfiles\syntax\`` or ``~/.vim/syntax/`` (others).
 
-#. To enable turboWAVE input file syntax highlights with the :samp:`neovim` editor
-
-	* Following is only tested on Linux as of this writing
-	* Install the ``nvim-treesitter`` package.  You can use your favorite ``neovim`` package manager, or clone ``nvim-treesitter`` into ``~/.local/share/nvim/site/pack/ts/start`` (Linux).
-	* Copy :samp:`{turbowave}/tools/config-files/init.vim` to ``~/.config/nvim`` (edit the settings if you like).
-	* Copy ``highlights.scm`` from ``tree-sitter-turbowave`` to ``~/.local/share/nvim/site/queries/turbowave``.
-	* Create a file ``~/.config/nvim/ftdetect/turbowave.vim`` with contents ``au BufRead,BufNewFile *.tw set filetype=turbowave``.
-	* Start a new ``nvim`` session and run the command ``:TSInstall turbowave``.
-	* You can run ``:checkhealth nvim-treesitter`` to see if it worked and diagnose any problems.  The list of parsers should include ``turbowave``.
-
 Core Installation
 =================
+
+As of this writing there is only one build system that can be used, CMake.
+This is because only CMake fully supports C++20 modules.
 
 Configuration
 -------------
 
-#. Navigate to ``core/source`` and type ``meson setup build``
-
-	* For MacOS you probably need to set ``CXX`` to the full path of the Homebrew or MacPorts compiler.
-
-#. Set options
-
-	* Options are set using :samp:`meson configure -D{key}={value} build`
-	* Set vector width, e.g., if you have AVX512, set ``vbits=512``
-	* To use turboWAVE's internal MPI set ``hpc=false``
-	* To use external MPI, set ``hpc=true`` (suitable library must be installed)
-	* To see all available options type ``meson configure build``
+#. Manually edit ``base/config.h.in``
 
 Performance Tuning Parameters
 -----------------------------
@@ -135,47 +118,9 @@ There are a few parameters hard coded in source that can be used to tune perform
 Build and Install
 -----------------
 
-#. From the ``source`` directory type ``meson compile -C build``, or from the ``build`` directory type ``meson compile``
-
-#. The executable can be installed to a per-OS standard location with ``meson install``.  You can use ``meson configure`` to change the default install location.  You can also simply move the executable.
+#. See the comments in ``CMakeLists.txt``
 
 Core Install for HPC
 ====================
 
-In referring to High Performance Computing (HPC), we have in mind a large scale computing cluster, managed by a professional staff, and accessed remotely.
-
-HPC modules
------------
-
-HPC systems usually have a system that allows for easy loading, unloading, and swapping of modules.  The commands include :samp:`module load {module}`, :samp:`module unload {module}`, and :samp:`module swap {oldModule} {newModule}`.
-
-Copy Components
----------------
-
-You can usually clone the repository and setup the ``twutils`` environment the same way as on a desktop.  What is required is at least the ``source`` directory and Meson.
-
-Build
------
-
-#. :samp:`conda activate {NAME}`
-
-#. Set ``CXX`` and ``CC`` environment variables to the compiler wrappers recommended by the HPC center, if applicable.  It is important that this be done first.
-
-	* For example, you might have ``export CXX=$(which CC)`` and ``export CC=$(which cc)``
-	* If you will be building often add these to the login environment
-
-#. Edit ``meson.build`` and comment out ``deps += [dependency('mpi')]``
-
-	* if the build fails you can try uncommenting this line
-
-#. Navigate to ``core/source``
-
-#. ``meson setup build``
-
-#. ``cd build``
-
-#. ``meson configure -Dhpc=true`` (and any other options that may be appropriate)
-
-#. ``meson compile``
-
-#. Copy the executable to the runtime directory
+As of this writing we have not found an HPC center with sufficiently up-to-date build tools

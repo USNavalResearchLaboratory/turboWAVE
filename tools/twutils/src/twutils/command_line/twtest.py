@@ -2,7 +2,7 @@ import os
 import glob
 import ntpath
 import sys
-import pkg_resources
+import importlib.metadata
 import traceback
 import subprocess
 import datetime
@@ -45,11 +45,11 @@ def print_usage():
 	print('  <cmd>       command line to execute for each test.')
 	print()
 	print('EXAMPLES:')
-	print('  twtest --categories hydro,pic --sea-trials --root ~/turboWAVE --command tw3d -n 4 -c 5')
+	print('  twtest --categories hydro,pic --sea-trials --root ~/turboWAVE --command mpirun -np 4 tw3d')
 	print('  twtest --integration --unit --root ~/turboWAVE --command mpirun -np 4 tw3d')
 
 def print_version():
-    print('twtest is provided by twutils, version '+pkg_resources.get_distribution('twutils').version)
+    print('twtest is provided by twutils, version '+importlib.metadata.version('twutils'))
 
 def cleanup(wildcarded_path):
 	cleanstr = glob.glob(wildcarded_path)

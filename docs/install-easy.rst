@@ -13,7 +13,7 @@ The following should work in any operating system, assuming compilers are instal
 
 	* This activates the environment. Each time a new terminal session is started, the environment needs to be activated.
 
-#. Run the installer
+#. Run the installer (for v5.x this may be dicey until further notice)
 
 	* Type ``twinstall`` for installations on a local machine, or a remote machine with tolerable X forwarding.
 	* Type ``twinstall --terminal`` for installation on a remote machine where X forwarding fails or is too slow (not available in PowerShell).
@@ -35,7 +35,7 @@ Upgrade
 #. Open a terminal
 #. :samp:`conda activate {NAME}`
 #. :samp:`conda update -c dfxgordon twutils`
-#. Run the installer
+#. Run the installer (for v5.x this may be dicey until further notice)
 
 	* If you delete the old local repository first, or select a new location for ``Get Components``, the process is identical to a new installation.
 	* Alternatively you can point ``Get Components`` to the old local repository and let the installer pull the latest from upstream.  Note the local repository has to be clean in this case.

@@ -1,7 +1,7 @@
 Field
 =====
 
-The ``Field`` object is essentially a 4-dimensional array, where one of the dimensions is a component, and the other three are spatial axes.  It provides the following specialized structure useful for simulation (not exhaustive):
+The ``Field`` object is essentially a 5-dimensional array (spacetime plus 1 internal axis).  It provides the following specialized structure useful for simulation (not exhaustive):
 
 	#. Common communication patterns between distributed compute nodes
 	#. Iterators to simplify common loop ranges
@@ -13,15 +13,15 @@ The ``Field`` object is essentially a 4-dimensional array, where one of the dime
 Index Space
 -----------
 
-No matter what the storage pattern is, the order of array indices always has the same meaning.  The first three indices are spatial, and the fourth indexes elements, such as vector components.  The meaning of the spatial indices depends on the coordinate system chosen.  The ordering for the various coordinate systems is as follows.
+No matter what the storage pattern is, the order of array indices always has the same meaning: 1 time, followed by 3 space, followed by 1 internal.  The meaning of the spatial indices depends on the coordinate system chosen.  The ordering for the various coordinate systems is as follows.
 
 .. csv-table:: Table I. Coordinates and Field Arrays.
 	:header: "System", "Array", "Function", "Comment"
 	:delim: ;
 
-	"Cartesian"; "A(i,j,k,c)"; :math:`A_c(x_i,y_j,z_k)`; :math:`{\bf e}_x\times{\bf e}_y = {\bf e}_z`
-	"Cylindrical"; "A(i,j,k,c)"; :math:`A_c(\varrho_i,\varphi_j,z_k)`; :math:`\varrho^2 = x^2 + y^2`
-	"Spherical"; "A(i,j,k,c)"; :math:`A_c(r_i,\varphi_j,\theta_k)`; "Polar angle is last"
+	"Cartesian"; "A(n,i,j,k,c)"; :math:`A_c(x_i,y_j,z_k)`; :math:`{\bf e}_x\times{\bf e}_y = {\bf e}_z`
+	"Cylindrical"; "A(n,i,j,k,c)"; :math:`A_c(\varrho_i,\varphi_j,z_k)`; :math:`\varrho^2 = x^2 + y^2`
+	"Spherical"; "A(n,i,j,k,c)"; :math:`A_c(r_i,\varphi_j,\theta_k)`; "Polar angle is last"
 
 The range of the component index is :math:`[0,1,...,N-1]`, where N is the number of components.  The range of a coordinate index is :math:`[1-L,2-L,...,M+L]`, where M is the number of coordinate points along the axis in question, and L is the number of ghost cell layers.
 
@@ -51,10 +51,12 @@ You can loop through a field in legacy fashion:
 
 .. code-block:: c++
 
+	int n = 1; // time index, often just 1
+	int c = 0; // internal index, starts at 0, sometimes just 1
 	for (int i=0;i<5;i++)
 		for (int j=0;j<5;j++)
 			for (int k=0;k<5;k++)
-				some_field(i,j,k,0) = 1.0;
+				some_field(n,i,j,k,c) = 1.0;
 
 This sets the first component to unity for the range of indices indicated.  Notice the FORTRAN style array access.
 
@@ -69,11 +71,11 @@ Range based loops over cells are used when the order of iterations does not requ
 
 	#pragma omp parallel
 	{
-		for (auto cell : InteriorCellRange(*this))
+		for (auto cell : InteriorCellRange(some_field,n))
 			some_field(cell,0) *= another_field(cell,1);
 	}
 
-In this example the first component of ``some_field`` is multiplied by the second component of ``another_field``.  Putting the loop inside a parallel region causes the ``InteriorCellRange`` object to automatically partition the iterations among the threads. The use of ``*this`` in the range constructor assumes that the loop is formed in the method of some object that derives from ``DynSpace``, such as a ``Module``.  If calling from a ``ComputeTool`` method, ``*this`` would be replaced by ``*space``.  The ``InteriorCellRange`` is so named because it does not include ghost cells. To include them use ``EntireCellRange``.
+In this example the first component of ``some_field`` is multiplied by the second component of ``another_field``.  Putting the loop inside a parallel region causes the ``InteriorCellRange`` object to automatically partition the iterations among the threads. The ``InteriorCellRange`` is so named because it does not include ghost cells. To include them use ``EntireCellRange``.
 
 .. Caution::
 
@@ -85,7 +87,7 @@ If an iteration index is required, one may use the more explicit notation:
 
 	#pragma omp parallel
 	{
-		CellRange range(*this,false);
+		CellRange range(some_field,n,false);
 		for (auto it=range.begin();it!=range.end();++it)
 		{
 			tw::cell cell = *it;
@@ -106,11 +108,13 @@ A frequent pattern is operating on strips of cells.  Often one would like to rep
 
 .. code-block:: c++
 
+	int fixed_ax = 0; // often we want to fix the position on the time axis
+	int fixed_pos = 1; // often there is only 1 time index
 	for (int ax=1;ax<=3;ax++)
 	{
 		#pragma omp parallel
 		{
-			for (auto strip : StripRange(*this,ax,strongbool::no))
+			for (auto strip : StripRange(some_field,ax,fixed_ax,fixed_pos,strongbool::no))
 				for (int s=1;s<=Dim(ax);s++)
 					some_field(strip,s,0) *= another_field(strip,s,1);
 		}
@@ -129,7 +133,7 @@ Suppose we have a ``Field`` with axis 3 as the packed axis.  Then an optimized l
 
 	#pragma omp parallel
 	{
-		for (auto v : VectorStripRange<3>(*this,false))
+		for (auto v : VectorStripRange<3>(some_field,0,1,false))
 		{
 			#pragma omp simd
 			for (tw::Int i=1;i<=Dim(3);i++)
@@ -152,7 +156,7 @@ The ``Field`` class provides for differencing patterns that occur often in compu
 
 	#pragma omp parallel
 	{
-		for (auto v : VectorStripRange<3>(*this,false))
+		for (auto v : VectorStripRange<3>(some_field,0,1,false))
 		{
 			#pragma omp simd
 			for (int i=1;i<=Dim(3);i++)
@@ -177,23 +181,23 @@ The most common message passing pattern is to update the ghost cells in a domain
 
 	// Assume we are in a module
 	Field A;
-	A.Initialize(2,*this,owner); // two components
+	A.Initialize(2,*this,owner); // two components, other axes are inherited from `*this`
 	DoSomethingToLoadFieldWithData(A);
 	// Carry out work on interior cells using a thread team.
 	// This will create a team of threads for each MPI process.
 	#pragma omp parallel
 	{
-		for (auto cell : InteriorCellRange(*this))
-			A(cell,0) += A(cell,1,1); // third argument on r.h.s. induces centered derivative in 1-direction
+		for (auto cell : InteriorCellRange(A,1))
+			A(cell,0) += A.d1(cell,1,1); // centered derivative of component 1 in 1-direction
 	}
 	// All that remains is to load the ghost cells using the neighbor's data
-	A.CopyFromNeighbors(Element(0));  // only need to copy component 0
+	A.CopyFromNeighbors(Rng(0));  // only need to copy component 0
 
 Message passing is a costly operation.  The above code could be optimized by noting that the differencing operation is only along one axis, and therefore the ghost cells bounding that axis are the only ones that have to be updated.  To take advantage of this the last line could be replaced with
 
 .. code-block:: c++
 
-	A.DownwardCopy(xAxis,Element(0),1); // update 1 ghost cell layer moving data in the negative x-direction only
-	A.UpwardCopy(xAxis,Element(0),1); // update 1 ghost cell layer moving data in the positive x-direction only
+	A.DownwardCopy(xAxis,Rng(0),1); // update 1 ghost cell layer moving data in the negative x-direction only
+	A.UpwardCopy(xAxis,Rng(0),1); // update 1 ghost cell layer moving data in the positive x-direction only
 
 This operation is roughly 3 times faster (internally, ``CopyFromNeighbors`` calls the same two functions, but once for each axis).

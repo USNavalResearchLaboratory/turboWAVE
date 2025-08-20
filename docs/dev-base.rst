@@ -4,29 +4,14 @@ Basic Architecture
 MPI Launch
 -----------
 
-At the most basic level, a turboWAVE simulation consists of multiple independently running MPI processes, which must communicate with each other.  The launch procedure takes two possible forms:
+At the most basic level, a turboWAVE simulation consists of multiple independently running MPI processes, which must communicate with each other.  Prior to v5 there was an internal MPI that could be used in place of an external library, but this has been discarded, since at this point, MPI libraries are easy to install on most platforms.
 
-	1. Internal MPI launch
-	2. External MPI launch
-
-Internal MPI launch
-,,,,,,,,,,,,,,,,,,,
-
-If the code is compiled using the internal implementation of MPI, then the MPI processes are treated as threads.  These threads are created and manipulated using the standard C++ library.
-
-In the internal launch mode, MPI processes are launched by a master thread from within the ``tw3d`` executable.  The master thread is encapsulated in a ``Launcher`` class defined in ``Main.cpp``.  The ``Launcher`` inherits from ``tw::Thread``, which is a wrapper for ``std::thread``.
-
-External MPI launch
-,,,,,,,,,,,,,,,,,,,
-
-If the code is compiled using an external MPI library, then the MPI processes are under the control of that library, but are typically distinct operating system processes, as opposed to threads running in the same process.
-
-In the external launch mode some third party program creates multiple instances of the ``tw3d`` executable.  In this case explicit threads are not used.  Implicit OpenMP threads may be forked by each process, however.
+As a result, turboWAVE will always be launched with ``mpirun``, ``mpiexec``, or other MPI launch command.
 
 Simulation Class
 ----------------
 
-Regardless of the launch mechanism, it results in the creation of a ``Simulation`` object for each MPI process.  The ``Simulation`` object is the master container object.  It inherits from two lower level classes, ``Task`` and ``MetricSpace``
+TurboWAVE will create a ``Simulation`` object for each MPI process.  The ``Simulation`` object is the master container object.  It inherits from two lower level classes, ``Task`` and ``MetricSpace``
 
 ``Task`` is a container for various MPI communicators.  It manages all kinds of communication between MPI processes.  It contains information on the structure of the domain decomposition.  ``MetricSpace`` defines the geometry of the grid cells.
 

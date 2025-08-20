@@ -3,7 +3,7 @@ import pathlib
 import glob
 import json
 import warnings
-import pkg_resources
+import importlib.metadata
 import numpy as np
 import h5py
 from scipy import constants as C
@@ -30,7 +30,7 @@ def print_usage():
     print('root = OSIRIS root data directory relative to working directory')
 
 def print_version():
-    print('os2tw is provided by twutils, version '+pkg_resources.get_distribution('twutils').version)
+    print('os2tw is provided by twutils, version '+importlib.metadata.version('twutils'))
 
 def str_to_range(rng_str,num):
     '''Convert a numpy-style slice string to a range'''
@@ -38,11 +38,11 @@ def str_to_range(rng_str,num):
     tup = ()
     for i,el in enumerate(rng):
         if el=='' and i==0:
-        	el = '0'
+            el = '0'
         if el=='' and i==1:
-        	el = str(num)
+            el = str(num)
         if el=='' and i==2:
-        	el = '1'
+            el = '1'
         tup += (int(el),)
     return range(tup[0],tup[1],tup[2])
 
@@ -250,11 +250,11 @@ def main():
 
     # TW shapes are always 4 dimensional, so add necessary axes
     if len(dset.shape)==1:
-    	new_shape = (1,1) + dset.shape
+        new_shape = (1,1) + dset.shape
     if len(dset.shape)==2:
-    	new_shape = (dset.shape[0],1,dset.shape[1])
+        new_shape = (dset.shape[0],1,dset.shape[1])
     if len(dset.shape)==3:
-    	new_shape = dset.shape
+        new_shape = dset.shape
     full_array = np.zeros((len(frame_list),)+new_shape)
     grid_str = ''
     count = 0

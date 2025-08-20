@@ -1,6 +1,14 @@
 What's New
 //////////
 
+What's new in 5.0
+=================
+
+#. Strong field QED
+#. Better (but more strict) input file parsing
+#. Major internal restructuring
+#. Uses C++23
+
 What's New in 4.8
 =================
 
