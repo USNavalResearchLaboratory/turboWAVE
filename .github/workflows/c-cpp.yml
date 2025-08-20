@@ -17,17 +17,15 @@ jobs:
       uses: lukka/get-cmake@latest
     - name: Set up MPI
       run: |
-        winget install Microsoft.msmpisdk --disable-interactivity --accept-source-agreements --accept-package-agreements
-        winget install Microsoft.msmpi --disable-interactivity --accept-source-agreements --accept-package-agreements
+        winget install Microsoft.msmpisdk
+        winget install Microsoft.msmpi
     - name: Set up Python 3.13
-      uses: actions/setup-python@v5
+      uses: conda-incubator/setup-miniconda@v3
       with:
         python-version: '3.13'
-    - name: Add conda to system path
-      run: |
-        # $CONDA is an environment variable pointing to the root of the miniconda directory
-        echo $CONDA/bin >> $GITHUB_PATH
+        miniforge-version: latest
     - name: Install dependencies
+      shell: pwsh
       run: |
         conda install -c dfxgordon twutils
     - name: setup
@@ -40,6 +38,6 @@ jobs:
         cmake --build .
     - name: turbowave unit testing
       working-directory: ./core/source/build
-      run: ./tw3d -n 2 --unit-test --all
+      run: mpiexec -np 2./tw3d --unit-test --all
     - name: turbowave integration testing
-      run: twtest --integration --root . --command ./core/source/build/tw3d -n 4
+      run: twtest --integration --root . --command mpiexec -np 4 ./core/source/build/tw3d
