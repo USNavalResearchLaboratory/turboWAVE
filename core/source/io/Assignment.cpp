@@ -39,6 +39,7 @@ export namespace tw
                 return false;
             }
         };
+        /// @brief capture literal-string or identifier, optionally casts any node to a string
         struct String : Assignment
         {
             std::string *str;
@@ -90,7 +91,8 @@ export namespace tw
         template <class T>
         struct StringList : Assignment {
             T *dat;
-            StringList(T *d) { dat=d; }
+            bool allow_cast;
+            StringList(T *d, bool allow_cast = false) { dat=d; this->allow_cast = allow_cast; }
             virtual bool Read(TSTreeCursor *curs,const std::string& src,const std::string& key,const tw::UnitConverter& native);
         };
         template <class T>
@@ -156,7 +158,16 @@ bool tw::input::StringList<T>::Read(TSTreeCursor *curs,const std::string& src,co
             if (ts_tree_cursor_goto_first_child(curs)) {
                 next_named_node(curs,true);
                 do {
-                    temp.push_back(node_text(curs,src));    
+                    if (node_kind(curs)=="string_literal") {
+                        ts_tree_cursor_goto_first_child(curs);
+                        ts_tree_cursor_goto_next_sibling(curs);
+                        temp.push_back(node_text(curs,src));
+                        ts_tree_cursor_goto_parent(curs);
+                    } else if (node_kind(curs)=="identifier" || allow_cast) {
+                        temp.push_back(node_text(curs,src));
+                    } else {
+                        tw::input::ThrowParsingError(curs,src,"expected string or identifier");
+                    }
                 } while (next_named_node(curs,false));
                 ts_tree_cursor_goto_parent(curs);
             } else {
@@ -230,11 +241,15 @@ template struct tw::input::Numbers<tw::Int>;
 bool tw::input::String::Read(TSTreeCursor *curs,const std::string& src,const std::string& key,const tw::UnitConverter& native)
 {
     if (next_named_node(curs,false)) {
-        if (tw::input::node_kind(curs) == "string_literal" || this->allow_cast) {
+        if (node_kind(curs)=="string_literal") {
+            ts_tree_cursor_goto_first_child(curs);
+            ts_tree_cursor_goto_next_sibling(curs);
             *str = node_text(curs,src);
-            StripQuotes(*str);
+            ts_tree_cursor_goto_parent(curs);
+        } else if (node_kind(curs)=="identifier" || allow_cast) {
+            *str = node_text(curs,src);
         } else {
-            tw::input::ThrowParsingError(curs,src,"expected string");
+            tw::input::ThrowParsingError(curs,src,"expected string or identifier");
         }
     } else {
         tw::input::ThrowParsingError(curs,src,"something missing");

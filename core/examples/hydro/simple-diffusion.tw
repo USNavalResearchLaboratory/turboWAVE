@@ -37,7 +37,7 @@ new hydrodynamics
 	radiation model = none
 }
 
-new chemical M
+new chemical 'M'
 {
 	charge = 0.0
 	mass = 50000
@@ -46,7 +46,7 @@ new chemical M
 	kinematic viscosity = 1.0[cm2/s]
 }
 
-generate piecewise M
+generate piecewise 'M'
 {
 	xpoints = { 0.0 100.0 1e5 }
 	xdensity = { 0.5 1.0 1.0 }
@@ -54,7 +54,7 @@ generate piecewise M
 	temperature = 0.00001[K] // no energy here, add it uniformly below
 }
 
-generate uniform M
+generate uniform 'M'
 {
 	type = energy
 	density = 0.23[J/cm3]

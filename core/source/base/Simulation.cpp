@@ -503,14 +503,14 @@ void Simulation::InteractiveCommand(const std::string& cmd,std::ostream *theStre
 	if (cmd=="help" || cmd=="?")
 	{
 		*theStream << "--- List of Interactive Commands ---" << std::endl;
-		*theStream << "status or [enter] : print current step and other status indicators" << std::endl;
+		*theStream << "status or /: print current step and other status indicators" << std::endl;
 		*theStream << "metrics : print grid and time step metrics for this simulation" << std::endl;
 		*theStream << "list : list modules and compute tools and their ID numbers" << std::endl;
 		//*theStream << "peek [x] [y] [z] : print current data at cell x,y,z" << std::endl;
 		*theStream << "Ctrl-C : abort the simulation" << std::endl;
 		*theStream << std::endl;
 	}
-	if (cmd=="status" || cmd=="")
+	if (cmd=="status" || cmd=="/")
 	{
 		*theStream << "Current step: " << stepNow << std::endl;
 		*theStream << "Current step size: " << spacing[0] << std::endl;

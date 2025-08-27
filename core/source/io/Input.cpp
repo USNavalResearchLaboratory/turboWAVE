@@ -221,7 +221,7 @@ tw::units tw::input::GetNativeUnits(TSTree *tree,const std::string& src) {
 std::string tw::input::PythonRange(TSTreeCursor *curs,const std::string& src,tw::Float *v0,tw::Float *v1)
 {
 	if (tw::input::node_kind(curs) != "range")
-		throw tw::FatalError("expected range node");
+		tw::input::ThrowParsingError(curs,src,"expected range node");
 	
 	ts_tree_cursor_goto_first_child(curs);
 	std::string ans = tw::input::node_text(curs,src);

@@ -108,7 +108,7 @@ CommandHandler::CommandHandler(int argc,char *argv[])
 	AddOption("","--platform","<plat_str>","OpenCL platform search string");
 	AddOption("","--device","<dev_str>","OpenCL device search string");
 	AddOption("","--output-level","<level>","0,1,...");
-	AddOptionMultiValued("","--unit-test","<test>","name of the test");
+	AddOptionMultiValued("","--unit-test","<test>","name of the test or --all");
 }
 
 void CommandHandler::Usage()

@@ -6,6 +6,7 @@ What's new in 5.0
 
 #. Strong field QED
 #. Better (but more strict) input file parsing
+#. Control of logging level and better logs
 #. Major internal restructuring
 #. Uses C++23
 

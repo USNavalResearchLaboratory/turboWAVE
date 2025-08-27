@@ -17,7 +17,8 @@ Running an Example
 #. Open a terminal window and navigate to a directory where you want to run, e.g., :samp:`~/Run` (create it if it doesn't exist).
 #. :samp:`cp {turboWAVE}/core/examples/pgc/LWFA-coulomb.tw stdin`
 #. This puts the input file in :samp:`~/Run` with the name :samp:`stdin`.  By default, turboWAVE assumes the input file is in the working directory with the name :samp:`stdin`.
-#. :samp:`mpirun -np 4 tw3d`
+#. Optionally change the logging level, e.g. :samp:`export TW_LOG=info` (bash) or :samp:`$env:TW_LOG="info"` (powershell).
+#. :samp:`mpirun -np 4 tw3d --interactive`
 #. The above command runs the problem with 4 MPI processes and 1 thread per process.  Of course this choice may not be optimal for your system, method of compiling, etc., but it should suffice for this example.
 #. As the problem runs, you can press the enter key to prompt turboWAVE to report the current step.  Enter :samp:`help` to get the full list of interactive commands.
 #. When the run is finished, you should have several files with the extension :samp:`npy`.  This is a simple binary format often used with numerical Python.
@@ -107,13 +108,9 @@ In this case, each argument is repeated for the new panel.  The panel separator 
 Command line arguments
 ----------------------
 
-For desktop installations the command line options for the ``tw3d`` executable are
+The command line options for the ``tw3d`` executable are
 
 .. program:: tw3d
-
-.. option:: -n <procs>
-
-	number of MPI processes (default=1, desktop only)
 
 .. option:: -c <threads>
 
@@ -168,3 +165,5 @@ It is important to pay attention to the output file if you are having problems. 
 
 	#. Run the simulation again with the command line option ``--output-level 1``
 	#. If the error is not reported on the console, try :samp:`grep ERROR *stdout*`
+
+You can control the logging level using the environment variable :samp:`TW_LOG`.  The valid levels are ``error``, ``warn``, ``info``, ``debug``, and ``trace``, in order of increasing detail.

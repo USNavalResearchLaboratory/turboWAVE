@@ -2,11 +2,13 @@ module;
 
 #include <tree_sitter/api.h>
 #include "tw_includes.h"
+#include "tw_logger.h"
 
 export module chemistry;
 import input;
 import compute_tool;
 import physics;
+import logger;
 
 export namespace sparc
 {
@@ -107,24 +109,29 @@ void PrimitiveReaction::ReadRate(TSTreeCursor *curs,const std::string& src,tw::I
 	std::string word;
 
 	if (tw::input::node_kind(curs) != "rate")
-		throw tw::FatalError("expected rate node");
-	ts_tree_cursor_goto_first_child(curs);
+		tw::input::ThrowParsingError(curs,src,"expected rate node");
+	ts_tree_cursor_goto_first_child(curs); // go in rate
 	if (tw::input::node_kind(curs) == "arrhenius") {
+		ts_tree_cursor_goto_first_child(curs); // go in arrhenius
 		c1 = stod(tw::input::next_named_node_text(curs,src),NULL);
 		c2 = stod(tw::input::next_named_node_text(curs,src),NULL);
 		c3 = stod(tw::input::next_named_node_text(curs,src),NULL);
 		c1 *= pow(unit_T_eV,c2);
 		c1 /= unit_rate_cgs;
 		c3 = c3*tw::dims::temperature >> cgs >> native;
+		ts_tree_cursor_goto_parent(curs);
 	} else if (tw::input::node_kind(curs) == "janev") {
+		ts_tree_cursor_goto_first_child(curs); // go in janev
 		c1 = 0.0;
 		for (tw::Int i=0;i<9;i++) {
 			b[i] = stod(tw::input::next_named_node_text(curs,src),NULL);
 		}
+		ts_tree_cursor_goto_parent(curs);
 		// janev coefficients are left in eV-cgs
 	} else {
-		throw tw::FatalError("unexpected node in reaction rate");
+		tw::input::ThrowParsingError(curs,src,"unexpected node in reaction rate");
 	}
+	ts_tree_cursor_goto_parent(curs);
 }
 
 /// @brief read half of subreaction
@@ -143,7 +150,6 @@ tw::Float ReadChemList(TSTreeCursor *curs,const std::string& src,std::vector<std
 			sign = -1.0;
 		else if (tw::input::node_kind(curs) == "identifier") {
 			std::string word = tw::input::node_text(curs,src);
-			tw::input::StripQuotes(word);
 			names.push_back(word);
 		} else if (tw::input::node_kind(curs) == "decimal") {
 			heat = sign*std::stod(tw::input::node_text(curs,src));
@@ -168,10 +174,12 @@ void Reaction::ReadInputFile(TSTreeCursor *curs,const std::string& src,const tw:
 
 	ts_tree_cursor_goto_first_child(curs);
 	tw::input::next_named_node(curs,false);
+	
+	logger::TRACE("parse the formula");
 	ts_tree_cursor_goto_first_child(curs); // go in full_formula node
-	// Read in reactants and products
 	while (tw::input::next_named_node(curs,false))
 	{
+		logger::TRACE(std::format("parse sub-formula {}",tw::input::node_text(curs,src)));
 		ts_tree_cursor_goto_first_child(curs); // go in subformula
 		sub.push_back(new SubReaction);
 		sub.back()->heat = ReadChemList(curs,src,sub.back()->reactant_names);
@@ -181,12 +189,14 @@ void Reaction::ReadInputFile(TSTreeCursor *curs,const std::string& src,const tw:
 		sub.back()->vheat = 0.0;
 		ts_tree_cursor_goto_parent(curs);
 	}
-
 	ts_tree_cursor_goto_parent(curs);
+
+	logger::TRACE("parse the rate");
 	tw::input::next_named_node(curs,false);
 	ReadRate(curs,src,numBodies,native);
 
-	// Get temperature range and catalyst
+	logger::TRACE("parse the catalyst");
+	tw::input::next_named_node(curs,false);
 	catalyst_name = tw::input::PythonRange(curs,src,&T0,&T1);
 	T0 = T0*tw::dims::temperature >> cgs >> native;
 	T1 = T1*tw::dims::temperature >> cgs >> native;
@@ -197,8 +207,6 @@ void Excitation::ReadInputFile(TSTreeCursor *curs,const std::string& src,const t
 	ts_tree_cursor_goto_first_child(curs);
 	name1 = tw::input::next_named_node_text(curs,src);
 	name2 = tw::input::next_named_node_text(curs,src);
-	tw::input::StripQuotes(name1);
-	tw::input::StripQuotes(name2);
 	level = std::stod(tw::input::next_named_node_text(curs,src));
 
 	T0 = 0.0;
@@ -221,27 +229,25 @@ void Collision::ReadInputFile(TSTreeCursor *curs,const std::string& src,const tw
 	ts_tree_cursor_goto_first_child(curs);
 	name1 = tw::input::next_named_node_text(curs,src);
 	name2 = tw::input::next_named_node_text(curs,src);
-	tw::input::StripQuotes(name1);
-	tw::input::StripQuotes(name2);
 
 	std::string word,species;
 	tw::UnitConverter cgs(tw::units::cgs,native);
 
 	ts_tree_cursor_goto_next_sibling(curs);
-	if (tw::input::node_text(curs,src) == "coulomb") {
+	if (tw::input::node_text(curs,src,true) == "coulomb") {
 		type = sparc::coulomb;
-	} else if (tw::input::node_text(curs,src) == "metallic") {
+	} else if (tw::input::node_text(curs,src,true) == "metallic") {
 		type = sparc::metallic;
 		ks = std::stod(tw::input::next_named_node_text(curs,src));
 		T_ref = std::stod(tw::input::next_named_node_text(curs,src));
 		n_ref = std::stod(tw::input::next_named_node_text(curs,src));
 		T_ref = T_ref*tw::dims::temperature >> cgs >> native;
 		n_ref = n_ref*tw::dims::density >> cgs >> native;
-	} else if (tw::input::node_text(curs,src) == "cross") {
+	} else if (tw::input::node_text(curs,src,true) == "cross") {
 		type = sparc::hard_sphere;
 		crossSection = std::stod(tw::input::next_named_node_text(curs,src));
 		crossSection = crossSection * tw::dims::cross_section >> cgs >> native;
 	} else {
-		throw tw::FatalError("unexpected token in collision");
+		tw::input::ThrowParsingError(curs, src, std::format("unexpected token `{}`",tw::input::node_text(curs,src)));
 	}
 }

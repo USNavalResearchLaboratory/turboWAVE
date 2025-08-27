@@ -44,7 +44,7 @@ new hermite gauss pulse for 'em'
 
 // 2 oscillator model for BBO
 
-new bound 'osc1'
+new bound solver 'osc1'
 {
 	resonance = ( 7.312 7.312 8.039 )
 	damping = ( 0 0 0 )
@@ -56,7 +56,7 @@ new bound 'osc1'
 	phi = 30[deg]
 }
 
-new bound 'osc2'
+new bound solver 'osc2'
 {
 	resonance = (3.46e-06 3.46e-06 3.48e-05)
 	damping = (0 0 0)
@@ -68,13 +68,13 @@ new bound 'osc2'
 generate uniform 'osc1'
 {
 	density = 18.04
-	clipping region = 'r1'
+	clipping region = r1
 }
 
 generate uniform 'osc2'
 {
 	density = .0018
-	clipping region = 'r1'
+	clipping region = r1
 }
 
 new box diagnostic

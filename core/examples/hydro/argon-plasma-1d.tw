@@ -39,14 +39,14 @@ new hydrodynamics
 
 #include "argon-1.tw"
 
-generate piecewise Ar
+generate piecewise 'Ar'
 {
 	xdensity = { 0.9 1.0 1.0 }
 	xpoints = { 0.0 100.0 1e5 }
 	temperature = 300 [K]
 }
 
-generate piecewise Ar[+]
+generate piecewise 'Ar[+]'
 {
 	xdensity = { 1e-1 1e-5 1e-5 }
 	xpoints = { 0.0 100.0 1e5 }
@@ -54,7 +54,7 @@ generate piecewise Ar[+]
 	shape = quintic
 }
 
-generate piecewise e
+generate piecewise 'e'
 {
 	xdensity = { 1e-1 1e-5 1e-5 }
 	xpoints = { 0.0 100.0 1e5 }

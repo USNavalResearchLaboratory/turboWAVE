@@ -20,7 +20,7 @@ Test Suites
 
 .. highlight:: c++
 
-A typical ``RegisterTest`` function might look like this::
+A typical ``RegisterTests`` function might look like this::
 
     #include "tw_test.h"
     virtual void RegisterTests() {
@@ -39,7 +39,6 @@ Upon entry, test case functions have access to the grid and to MPI (see :ref:`te
 
 The content of test cases is varied, but all test cases should use the test assertion macros so that the runner can properly analyze the test results.  As of this writing the available macros are::
 
-    REGISTER_TEST(); // optional, helps runner to find the name of the test
     ASSERT_EQ(actual,expected); // integers are equal
     ASSERT_NEAR(actual,expected,tol); // floating point difference is within tolerance
     ASSERT_GTREQ(actual,expected); // actual integer >= expected integer

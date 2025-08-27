@@ -304,7 +304,7 @@ void FCT_Driver::Convect(const tw::grid::axis& axis,tw::bc::fld low,tw::bc::fld 
 
 		// CLIP
 
-		for (c=en.beg; c<=en.end; c++)
+		for (c=en.beg; c<en.end; c++)
 		{
 			for (auto s : StripRange(*ms,ax,0,1,strongbool::yes))
 			{

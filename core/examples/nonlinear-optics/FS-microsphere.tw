@@ -75,19 +75,19 @@ new bound solver 'osc3'
 generate uniform 'osc1'
 {
 	density = 16558
-	clipping region = 'c1'
+	clipping region = c1
 }
 
 generate uniform 'osc2'
 {
 	density = 3498
-	clipping region = 'c1'
+	clipping region = c1
 }
 
 generate uniform 'osc3'
 {
 	density = 1.011
-	clipping region = 'c1'
+	clipping region = c1
 }
 
 new box diagnostic

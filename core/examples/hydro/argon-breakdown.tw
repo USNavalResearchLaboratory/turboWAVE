@@ -101,7 +101,7 @@ new conductor 'anode' for 'hydro'
 
 #include "argon-3.tw"
 
-generate uniform Ar
+generate uniform 'Ar'
 {
 	density = 0.01
 	temperature = $T0

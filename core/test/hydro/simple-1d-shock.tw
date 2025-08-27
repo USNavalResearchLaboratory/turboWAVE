@@ -39,7 +39,7 @@ new hydrodynamics
 	radiation model = none
 }
 
-new chemical air
+new chemical 'air'
 {
 	charge = 0.0
 	mass = 51078.5
@@ -48,13 +48,13 @@ new chemical air
 	kinematic viscosity = 0.15[cm2/s]
 }
 
-generate uniform air
+generate uniform 'air'
 {
 	density = 1.0
 	temperature = 300[K]
 }
 
-generate gaussian air
+generate gaussian 'air'
 {
 	type = energy
 	density = 1.15e10[J/m3]

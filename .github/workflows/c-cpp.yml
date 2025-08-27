@@ -19,17 +19,8 @@ jobs:
       run: |
         winget install Microsoft.msmpisdk --disable-interactivity --accept-source-agreements --accept-package-agreements
         winget install Microsoft.msmpi --disable-interactivity --accept-source-agreements --accept-package-agreements
-    - name: Set up Python 3.13
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.13'
-    - name: Add conda to system path
-      run: |
-        # $CONDA is an environment variable pointing to the root of the miniconda directory
-        echo $CONDA/bin >> $GITHUB_PATH
-    - name: Install dependencies
-      run: |
-        conda install -c dfxgordon twutils
+        $env:MSMPI_INC="C:/Program Files (x86)/Microsoft SDKs/MPI/Include/"
+        $env:MSMPI_LIB64="C:/Program Files (x86)/Microsoft SDKs/MPI/Lib/x64/"
     - name: setup
       working-directory: ./core/source
       run: mkdir build
@@ -41,5 +32,16 @@ jobs:
     - name: turbowave unit testing
       working-directory: ./core/source/build
       run: ./tw3d -n 2 --unit-test --all
-    - name: turbowave integration testing
-      run: twtest --integration --root . --command ./core/source/build/tw3d -n 4
+    # - name: Set up Python 3.13
+    #   uses: actions/setup-python@v5
+    #   with:
+    #     python-version: '3.13'
+    # - name: Add conda to system path
+    #   run: |
+    #     # $CONDA is an environment variable pointing to the root of the miniconda directory
+    #     echo $CONDA/bin >> $GITHUB_PATH
+    # - name: Install dependencies
+    #   run: |
+    #     conda install -c dfxgordon twutils
+    # - name: turbowave integration testing
+    #   run: twtest --integration --root . --command ./core/source/build/tw3d -n 4

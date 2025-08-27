@@ -30,7 +30,7 @@ new grid
 	adaptive timestep = on
 }
 
-new eos linear mie gruneisen tool 'mg-eos'
+new eos linear mie gruneisen 'mg-eos'
 {
 	gruneisen parameter = 2.0
 	reference density = 3011
@@ -44,23 +44,23 @@ new hydrodynamics
 	radiation model = none
 }
 
-new chemical Cu
+new chemical 'Cu'
 {
 	charge = 0.0
 	mass = 116680.0
 	cv = 2.92
 	thermometric conductivity = 1.17 [cm2/s]
 	kinematic viscosity = 0.0
-	get 'mg-eos'
+	use 'mg-eos'
 }
 
-generate uniform Cu
+generate uniform 'Cu'
 {
 	density = 3011
 	temperature = 300 [K]
 }
 
-generate gaussian Cu
+generate gaussian 'Cu'
 {
 	type = energy
 	density = 0.0001 // ping material to produce broadband sound waves

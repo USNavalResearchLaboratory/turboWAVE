@@ -1,30 +1,30 @@
 // Not an input file, intended to be #include(d)
 // Bare bones argon plasma chemistry
 
-new chemical e
+new chemical 'e'
 {
 	charge = -1.0
 	mass = 1.0
 	cv = 1.5
 }
 
-new group heavies
+new group 'heavies'
 {
-	new chemical Ar
+	new chemical 'Ar'
 	{
 		charge = 0.0
 		mass = 73440
 		cv = 1.5
 		thermometric conductivity = 1[cm2/s]
 	}
-	new chemical Ar[+]
+	new chemical 'Ar[+]'
 	{
 		charge = 1.0
 		mass = 73439
 		cv = 1.5
 		thermometric conductivity = 1[cm2/s]
 	}
-	new chemical Ar2[+]
+	new chemical 'Ar2[+]'
 	{
 		charge = 1.0
 		mass = 146879

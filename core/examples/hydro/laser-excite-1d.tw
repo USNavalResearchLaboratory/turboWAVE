@@ -52,7 +52,7 @@ new bessel beam for 'hydro'
 
 #include "argon-1.tw"
 
-new ppt ionization for Ar
+new ppt ionization for 'Ar'
 {
 	ionization potential = 15.76 [eV]
 	protons = 18
@@ -62,7 +62,7 @@ new ppt ionization for Ar
 	terms = 4
 }
 
-generate uniform Ar
+generate uniform 'Ar'
 {
 	density = 1.0
 	temperature = 300 [K]

@@ -87,15 +87,16 @@ void GridReader::UpdateSpace(MetricSpace& ms)
 
 /// @brief handle retrieval of named tools
 /// @param tool tool list owned by a module
-/// @param curs should be on a `get` node
+/// @param curs should be on a `use` node
 /// @param src source document
-void Simulation::ToolFromDirective(std::vector<ComputeTool*>& tool,TSTreeCursor *curs,const std::string& src)
+void Simulation::ParseUse(std::vector<ComputeTool*>& tool,TSTreeCursor *curs,const std::string& src)
 {
-	logger::DEBUG("get a named tool");
+	logger::DEBUG("use a named tool");
+	ts_tree_cursor_goto_first_child(curs);
 	auto word = tw::input::next_named_node_text(curs,src);
 	tw::input::StripQuotes(word);
 	if (CheckModule(word))
-		tw::input::ThrowParsingError(curs,src,"Tried to <get> module, but <get> can only be used for tools.");
+		tw::input::ThrowParsingError(curs,src,"Tried to <use> module, but <use> can only be used for tools.");
 	tool.push_back(GetTool(word,true));
 }
 
@@ -262,7 +263,7 @@ tw::input::navigation Simulation::visit(TSTreeCursor *curs) {
 /// @param curs should be on the outer directive node
 /// @param src source document
 /// @param super module that is adding the item
-void Simulation::NestedDeclaration(TSTreeCursor *curs,const std::string& src,Module *super)
+void Simulation::ParseNestedDeclaration(TSTreeCursor *curs,const std::string& src,Module *super)
 {
 	logger::DEBUG("handling nested declaration");
 	tw::input::Preamble preamble = tw::input::GetPreamble(curs,src);

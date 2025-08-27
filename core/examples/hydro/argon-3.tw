@@ -3,37 +3,37 @@
 // Full discussion in G.M. Petrov internal note 2020-03-30-v4
 // This has only one lumped excited state, but detail balances recombination
 
-new chemical e
+new chemical 'e'
 {
 	charge = -1.0
 	mass = 1.0
 	cv = 1.5
 }
 
-new group heavies
+new group 'heavies'
 {
-	new chemical Ar
+	new chemical 'Ar'
 	{
 		charge = 0.0
 		mass = 73440
 		cv = 1.5
 		thermometric conductivity = 1[cm2/s]
 	}
-	new chemical Ar[4s]
+	new chemical 'Ar[4s]'
 	{
 		charge = 0.0
 		mass = 73440
 		cv = 1.5
 		thermometric conductivity = 1[cm2/s]
 	}
-	new chemical Ar[+]
+	new chemical 'Ar[+]'
 	{
 		charge = 1.0
 		mass = 73439
 		cv = 1.5
 		thermometric conductivity = 1[cm2/s]
 	}
-	new chemical Ar2[+]
+	new chemical 'Ar2[+]'
 	{
 		charge = 1.0
 		mass = 146879

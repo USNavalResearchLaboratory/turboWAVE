@@ -141,11 +141,7 @@ Suppose we have a ``Field`` with axis 3 as the packed axis.  Then an optimized l
 		}
 	}
 
-Here, we have again assumed the block is defined inside a derivative of ``DynSpace``.  It is important to understand that this construction uses thread parallelism *across* strips, and vector parallelism *along* strips.  Therefore it is not effective for 1D problems.
-
-.. Warning::
-
-	Due to the assumption of a spatial axis being packed, derived field classes which assume components are packed, most notably ``ComplexField``, are incompatible with ``VectorStripRange``.
+Here, we have again assumed the block is defined inside a derivative of ``StaticSpace``.  It is important to understand that this construction uses thread parallelism *across* strips, and vector parallelism *along* strips.  Therefore it is not effective for 1D problems.
 
 Differencing
 ------------

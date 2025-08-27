@@ -24,9 +24,9 @@ new grid
 	decomposition = ( 1, 2, 2, 2 )
 }
 
-new dirac equation module 'dirac'
+new dirac solver 'dirac'
 {
-	soft core potential , charge = 1.0 , radius = 1.0
+	soft core potential charge = 1.0 , radius = 1.0
 	new qstate random
 	{
 		size = (10 10 10)

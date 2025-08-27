@@ -109,12 +109,12 @@ export struct Simulation: Task, MetricSpace, tw::input::Visitor
 	bool MangleToolName(std::string& name);
 	ComputeTool* CreateTool(const std::string& basename,tw::tool_type theType);
 	ComputeTool* GetTool(const std::string& name,bool attaching);
-	void ToolFromDirective(std::vector<ComputeTool*>& tool,TSTreeCursor *curs,const std::string& src);
+	void ParseUse(std::vector<ComputeTool*>& tool,TSTreeCursor *curs,const std::string& src);
 	bool RemoveTool(ComputeTool *theTool);
 
 	tw::input::navigation visit(TSTreeCursor *curs);
 	void InputFileFirstPass();
-	void NestedDeclaration(TSTreeCursor *curs,const std::string& src,Module *sup);
+	void ParseNestedDeclaration(TSTreeCursor *curs,const std::string& src,Module *sup);
 	Module* RecursiveAutoSuper(tw::module_type reqType,const std::string& basename);
 	void ReadInputFile();
 	void ReadCheckpoint(std::ifstream& inFile);
@@ -335,23 +335,23 @@ void Module::VerifyInput()
 }
 
 /// @brief called if an assignment was not handled normally
-/// @param curs on a directive, get, new, generate, or custom assignment
+/// @param curs on a directive, use, new, generate, or custom assignment
 /// @param src source document
 /// @returns whether any directive was handled
 bool Module::ReadInputFileDirective(const TSTreeCursor *curs0,const std::string& src)
 {
 	std::string command = tw::input::node_kind(curs0);
-	// Get an existing tool by searching for a name -- ``get = <name>``
-	if (command=="get") {
+	// Get an existing tool by searching for a name -- ``use <name>``
+	if (command=="use") {
 		auto curs = tw::input::Cursor(curs0);
-		owner->ToolFromDirective(moduleTool,curs.get(),src);
+		owner->ParseUse(moduleTool,curs.get(),src);
 		return true;
 	}
 
 	// Take care of nested declarations
 	if (command=="new" || command=="generate") {
 		auto curs = tw::input::Cursor(curs0);
-		owner->NestedDeclaration(curs.get(),src,this);
+		owner->ParseNestedDeclaration(curs.get(),src,this);
 		return true;
 	}
 

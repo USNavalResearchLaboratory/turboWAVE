@@ -1958,6 +1958,7 @@ void sparc::HydroManager::ComputeSources()
 
 void sparc::HydroManager::LaserAdvance(tw::Float dt)
 {
+	logger::DEBUG("laser advance");
 	// Currently SPARC ignores differences in frequency between injected pulses.
 	// The average frequency of all the pulses is used throughout (see also HydroManager::Initialize).
 
@@ -2054,6 +2055,7 @@ void sparc::HydroManager::LaserAdvance(tw::Float dt)
 
 tw::Float sparc::HydroManager::EstimateTimeStep()
 {
+	logger::DEBUG("estimate time step");
 	std::vector<tw::Float> dtMax(tw::GetOMPMaxThreads());
 	tw::Float dtMaxAllThreads,dtMaxAllNodes;
 
@@ -2161,6 +2163,7 @@ tw::Float sparc::HydroManager::EstimateTimeStep()
 
 void sparc::HydroManager::DiffusionAdvance(tw::Float dt)
 {
+	logger::DEBUG("diffusion advance");
 	for (auto g : group)
 	{
 		// HEAT CONDUCTION
@@ -2195,6 +2198,7 @@ void sparc::HydroManager::DiffusionAdvance(tw::Float dt)
 
 void sparc::HydroManager::FieldAdvance(tw::Float dt)
 {
+	logger::DEBUG("field advance");
 	if (!electrons)
 		return;
 
@@ -2265,9 +2269,8 @@ void sparc::HydroManager::FieldAdvance(tw::Float dt)
 
 void sparc::HydroManager::HydroAdvance(const tw::grid::axis& axis,tw::Float dt)
 {
-	// Convect the fluid
-
 	tw::Int ax = tw::grid::naxis(axis);
+	logger::DEBUG(std::format("convection advance axis {}",ax));
 
 	if (dim[ax] > 1)
 	{
@@ -2277,7 +2280,9 @@ void sparc::HydroManager::HydroAdvance(const tw::grid::axis& axis,tw::Float dt)
 
 		for (auto g : group)
 		{
+			logger::TRACE(std::format("group {}",g->name));
 			convector.SetDensityElements(Rng(g->hidx.first,g->hidx.last+1));
+			logger::TRACE("load velocity");
 			convector.SetVelocityElement(0);
 			#pragma omp parallel
 			{
@@ -2285,6 +2290,7 @@ void sparc::HydroManager::HydroAdvance(const tw::grid::axis& axis,tw::Float dt)
 				for (auto cell : EntireCellRange(*this,1))
 					scratch(cell) *= fluxMask(cell);
 			}
+			logger::TRACE("convect");
 			convector.Convect(axis,bc0,bc1,dt);
 		}
 		state0.ApplyBoundaryCondition(All(state0));
@@ -2293,6 +2299,7 @@ void sparc::HydroManager::HydroAdvance(const tw::grid::axis& axis,tw::Float dt)
 
 void sparc::HydroManager::ChemAdvance(tw::Float dt)
 {
+	logger::DEBUG("chemistry advance");
 	creationRate *= dt;
 	state0 += creationRate;
 
@@ -2411,6 +2418,7 @@ void sparc::HydroManager::FirstOrderAdvance(tw::Float dt,bool computeSources)
 
 void sparc::HydroManager::Update()
 {
+	logger::DEBUG("main update");
 	const tw::Float dt = dx(0);
 	tw::Float dts;
 

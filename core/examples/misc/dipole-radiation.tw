@@ -35,9 +35,9 @@ new maxwell solver 'em'
 
 // Conductor object serves as antenna
 // Conducting regions must not overlap PML regions
-generate conductor for 'em'
+new conductor for 'em'
 {
-	clipping region = 'antenna_rect'
+	clipping region = antenna_rect
 	current type = electric
 	enable electromagnetic = false // make the antenna invisible to EM waves
 	py = { 1.0 } // polarization density
@@ -67,11 +67,11 @@ new region rect 'tunnel'
 }
 new region intersection 'full_structure'
 {
-	elements = { 'walls' , 'cavity' , 'tunnel' }
+	elements = { walls , cavity , tunnel }
 }
-generate conductor for 'em'
+new conductor for 'em'
 {
-	clipping region = 'full_structure'
+	clipping region = full_structure
 }
 
 new box diagnostic

@@ -30,13 +30,13 @@ new grid
 // Note how translation and rotation directives are sequenced.
 // These directives should be thought of as operations.
 
-new region true_sphere s1
+new region true_sphere 's1'
 {
 	radius = 5
 	// leave in the default position, at the origin
 }
 
-new region cone c1
+new region cone 'c1'
 {
 	tip radius = 0
 	base radius = 5
@@ -46,7 +46,7 @@ new region cone c1
 	translation = (0 0 20)
 }
 
-new region cone c2
+new region cone 'c2'
 {
 	tip radius = 0
 	base radius = 5
@@ -56,7 +56,7 @@ new region cone c2
 	translation = (14 0 -14)
 }
 
-new region cone c3
+new region cone 'c3'
 {
 	tip radius = 0
 	base radius = 5
@@ -67,7 +67,7 @@ new region cone c3
 	rotation about z = 120[deg]
 }
 
-new region cone c4
+new region cone 'c4'
 {
 	tip radius = 0
 	base radius = 5
@@ -78,7 +78,7 @@ new region cone c4
 	rotation about z = -120[deg]
 }
 
-new region union u1
+new region union 'u1'
 {
 	elements = { s1 , c1 , c2 , c3 , c4 }
 }
@@ -90,7 +90,7 @@ new conductor 'rgn'
 
 new hydrodynamics
 {
-	get 'rgn'
+	use rgn
 }
 
 new chemical 'air'

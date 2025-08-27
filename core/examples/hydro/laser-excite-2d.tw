@@ -47,7 +47,7 @@ new iterative elliptic solver for 'hydro'
 	tolerance = 1e-3
 }
 
-new hermite gauss for 'hydro'
+new hermite gauss pulse for 'hydro'
 {
 	a = (.0015 0 0)
 	w = 10
@@ -60,7 +60,7 @@ new hermite gauss for 'hydro'
 
 #include "argon-2.tw"
 
-new ppt ionization for Ar
+new ppt ionization for 'Ar'
 {
 	ionization potential = 15.76[eV]
 	protons = 18
@@ -70,7 +70,7 @@ new ppt ionization for Ar
 	terms = 4
 }
 
-generate uniform Ar
+generate uniform 'Ar'
 {
 	density = 1.0
 	temperature = 300[K]

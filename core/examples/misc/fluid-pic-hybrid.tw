@@ -23,11 +23,11 @@ new grid
 	decomposition = ( 1, 1, 1, 1 )
 }
 
-new direct electromagnetic module 'em'
+new maxwell solver 'em'
 {
 }
 
-new pgc laser module 'pgc'
+new pgc laser solver 'pgc'
 {
 	carrier frequency = 50
 }

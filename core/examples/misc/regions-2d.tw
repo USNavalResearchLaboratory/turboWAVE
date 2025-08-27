@@ -28,18 +28,18 @@ new grid
 
 // first define the elements of the compound region:
 
-new region rect r1
+new region rect 'r1'
 {
 	bounds =  (-1.0 1.0 -1.0 1.0 -1.0 1.0)
 }
 
-new region circ c1
+new region circ 'c1'
 {
 	translation = (0.0 0.0 1.0)
 	radius = 1.0
 }
 
-new region circ not_c2
+new region circ 'not_c2'
 {
 	radius = 0.5
 	complement = true
@@ -47,14 +47,14 @@ new region circ not_c2
 
 // Now make the square with rounded top:
 
-new region union u1
+new region union 'u1'
 {
 	elements = { r1 , c1 }
 }
 
 // Now put a hole in it by using the union in an intersection:
 
-new region intersection i1
+new region intersection 'i1'
 {
 	elements = { u1 , not_c2 }
 	rotation about y = 20[deg]
@@ -63,7 +63,7 @@ new region intersection i1
 // the named region "i1" can now be included in any "generate" block
 // it can also be used in certain diagnostics, and in conductors
 
-new direct electromagnetic module
+new maxwell solver
 {
 	layers = (8 8 8 8 8 8)
 	reflection coefficient = (1e-4 1e-4 1e-4 1e-4 1e-4 1e-4)

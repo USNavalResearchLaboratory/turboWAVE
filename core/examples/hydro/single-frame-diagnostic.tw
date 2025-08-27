@@ -36,28 +36,28 @@ new hydrodynamics
 	background temperature = 300[K]
 }
 
-new chemical e
+new chemical 'e'
 {
 	charge = -1.0
 	mass = 1.0
 	cv = 1.5
 }
 
-new group heavies
+new group 'heavies'
 {
-	new chemical Ar
+	new chemical 'Ar'
 	{
 		charge = 0.0
 		mass = 73440
 		cv = 1.5
 	}
-	new chemical Ar[+]
+	new chemical 'Ar[+]'
 	{
 		charge = 1.0
 		mass = 73439
 		cv = 1.5
 	}
-	new chemical Ar2[+]
+	new chemical 'Ar2[+]'
 	{
 		charge = 1.0
 		mass = 146879
@@ -68,20 +68,20 @@ new group heavies
 
 #include "argon-0.tw"
 
-generate uniform Ar
+generate uniform 'Ar'
 {
 	density = 1
 	temperature = 300[K]
 }
 
-generate gaussian Ar[+]
+generate gaussian 'Ar[+]'
 {
 	density = 0.1
 	size = (5 10 10)
 	temperature = 300[K]
 }
 
-generate gaussian e
+generate gaussian 'e'
 {
 	density = 0.1
 	size = (5 10 10)

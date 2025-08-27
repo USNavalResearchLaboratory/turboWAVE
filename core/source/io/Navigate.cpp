@@ -68,20 +68,37 @@ export namespace tw
 			TSPoint p = ts_node_start_point(n);
 			return std::format("{},{}",p.row,p.column);
 		}
-		inline std::string node_text(TSNode node,const std::string& src) {
+		std::string trim(const std::string& str) {
+			const std::string whitespace = " \t\n\r\f\v";
+			size_t first = str.find_first_not_of(whitespace);
+			if (first == std::string::npos) {
+				return "";
+			}
+			size_t last = str.find_last_not_of(whitespace);
+			return str.substr(first, (last - first + 1));
+		}
+		std::string node_text(TSNode node,const std::string& src,bool trimmed=false) {
 			const int s = ts_node_start_byte(node);
 			const int e = ts_node_end_byte(node);
-			return src.substr(s,e-s);
+			if (trimmed) {
+				return trim(src.substr(s,e-s));
+			} else {
+				return src.substr(s,e-s);
+			}
 		}
-		inline std::string node_text(const TSTreeCursor *curs,const std::string &src) {
+		std::string node_text(const TSTreeCursor *curs,const std::string &src,bool trimmed=false) {
 			const int s = ts_node_start_byte(ts_tree_cursor_current_node(curs));
 			const int e = ts_node_end_byte(ts_tree_cursor_current_node(curs));
-			return src.substr(s,e-s);
+			if (trimmed) {
+				return trim(src.substr(s,e-s));
+			} else {
+				return src.substr(s,e-s);
+			}
 		}
-		inline std::string node_kind(const TSTreeCursor *curs) {
+		std::string node_kind(const TSTreeCursor *curs) {
 			return ts_node_type(ts_tree_cursor_current_node(curs));
 		}
-		inline bool next_named_node(TSTreeCursor *curs,bool include_curr) {
+		bool next_named_node(TSTreeCursor *curs,bool include_curr) {
 			if (include_curr) {
 				if (ts_node_is_named(ts_tree_cursor_current_node(curs))) {
 					return true;
@@ -95,7 +112,7 @@ export namespace tw
 			return false;
 		}
 		/// @brief advance to the next named sibling and return the text, or throw error
-		inline std::string next_named_node_text(TSTreeCursor *curs,const std::string &src) {
+		std::string next_named_node_text(TSTreeCursor *curs,const std::string &src) {
 			if (next_named_node(curs,false)) {
 				return node_text(curs,src);
 			} else {
@@ -104,21 +121,12 @@ export namespace tw
 			}
 		}
 		/// @brief advance to the next named sibling and return the type, or throw error
-		inline std::string next_named_node_kind(TSTreeCursor *curs) {
+		std::string next_named_node_kind(TSTreeCursor *curs) {
 			if (next_named_node(curs,false)) {
 				return node_kind(curs);
 			} else {
 				throw tw::FatalError("missing syntax node");
 			}
-		}
-		std::string trim(const std::string& str) {
-			const std::string whitespace = " \t\n\r\f\v";
-			size_t first = str.find_first_not_of(whitespace);
-			if (first == std::string::npos) {
-				return "";
-			}
-			size_t last = str.find_last_not_of(whitespace);
-			return str.substr(first, (last - first + 1));
 		}
 		void StripQuotes(std::string& str)
 		{

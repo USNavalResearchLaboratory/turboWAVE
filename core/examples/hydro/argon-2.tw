@@ -2,44 +2,44 @@
 // Argon plasma chemistry suitable for moderate pressures
 // Full discussion in G.M. Petrov internal note 2020-04-07-v3
 
-new chemical e
+new chemical 'e'
 {
 	charge = -1.0
 	mass = 1.0
 	cv = 1.5
 }
 
-new group heavies
+new group 'heavies'
 {
-	new chemical Ar
+	new chemical 'Ar'
 	{
 		charge = 0.0
 		mass = 73440
 		cv = 1.5
 		thermometric conductivity = 1[cm2/s]
 	}
-	new chemical Ar[4s]
+	new chemical 'Ar[4s]'
 	{
 		charge = 0.0
 		mass = 73440
 		cv = 1.5
 		thermometric conductivity = 1[cm2/s]
 	}
-	new chemical Ar[4p]
+	new chemical 'Ar[4p]'
 	{
 		charge = 0.0
 		mass = 73440
 		cv = 1.5
 		thermometric conductivity = 1[cm2/s]
 	}
-	new chemical Ar[+]
+	new chemical 'Ar[+]'
 	{
 		charge = 1.0
 		mass = 73439
 		cv = 1.5
 		thermometric conductivity = 1[cm2/s]
 	}
-	new chemical Ar2[+]
+	new chemical 'Ar2[+]'
 	{
 		charge = 1.0
 		mass = 146879
