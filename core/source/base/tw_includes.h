@@ -15,6 +15,7 @@
 	#include <string>
 	#include <format>
 	#include <print>
+	#include <memory>
 #endif
 
 #include <omp.h>

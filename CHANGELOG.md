@@ -1,5 +1,17 @@
 # Changelog
 
+## [Unreleased]
+
+### Fixes
+
+* Input file accepts either string or identifier as reference
+* Fix potential bug in Field::Transpose
+* Fix potential bug in dual grid decomposition
+
+### Breaking Changes
+
+* Tool retrieval is done with `use` instead of `get`
+
 ## [5.0.0-a] - 2025-08-20
 
 This is a big rewrite intended to modernize and improve the internal structure.

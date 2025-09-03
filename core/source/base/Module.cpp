@@ -69,7 +69,7 @@ export struct Simulation: Task, MetricSpace, tw::input::Visitor
 
 	tw::Int inputFilePass;
 	tw::input::DirectiveReader outerDirectives;
-	GridReader *gridReader;
+	std::unique_ptr<GridReader> gridReader;
 	std::string raw_src; // raw input file
 	std::string src; // expanded input file
 

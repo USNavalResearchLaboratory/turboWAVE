@@ -1,7 +1,6 @@
 module;
 
 #include "tw_includes.h"
-#include <memory>
 #include "tw_test.h"
 
 export module elliptic;
@@ -67,10 +66,11 @@ export struct PoissonSolver:EllipticSolver
 
 	PoissonSolver(const std::string& name,MetricSpace *m,Task *tsk);
 	virtual void Solve(ScalarField& phi,ScalarField& source,tw::Float mul);
-	virtual void RegisterTests() {
-		REGISTER(PoissonSolver,Test);
-	}
-	void Test();
+	virtual void RegisterTests();
+	void SheetChargeTestDirichlet();
+	void SheetChargeTestOpen();
+	void PointChargeTestDirichlet();
+	void PointChargeTestOpen();
 };
 
 export struct EigenmodePoissonSolver:EllipticSolver
@@ -489,7 +489,8 @@ void PoissonSolver::Solve(ScalarField& phi,ScalarField& source,tw::Float mul)
 
 	// Transform to frequency space in the transverse direction
 
-	// Use outer ghost cells of the source to transform the boundary data for free
+	// Use far ghost cells of the source to transform the boundary data for free.
+	// Recall any fixed boundary conditions are expected to be loaded in the far ghost cells.
 	if (task->n0[3]==MPI_PROC_NULL)
 		for (auto strip : StripRange(*space,3,0,1,strongbool::no))
 			source(strip,space->LFG(3)) = phi(strip,space->LFG(3));
@@ -517,7 +518,7 @@ void PoissonSolver::Solve(ScalarField& phi,ScalarField& source,tw::Float mul)
 			break;
 	}
 
-	// Copy the transformed boundary data back into the potential
+	// Copy the transformed boundary data back into the far ghost cells of the potential
 	if (task->n0[3]==MPI_PROC_NULL)
 		for (auto strip : StripRange(*space,3,0,1,strongbool::no))
 			phi(strip,space->LFG(3)) = source(strip,space->LFG(3));

@@ -2,9 +2,6 @@ module;
 
 #include "tw_includes.h"
 #include "tw_test.h"
-#ifndef USE_STD_MODULE
-    #include <memory>
-#endif
 
 export module iterator_test;
 import base;

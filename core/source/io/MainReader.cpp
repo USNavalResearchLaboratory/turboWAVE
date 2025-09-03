@@ -356,7 +356,7 @@ void Simulation::InputFileFirstPass()
 
 	outerDirectives.AttachUnits(units);
 	outerDirectives.Reset();
-	gridReader = new GridReader(units);
+	gridReader = std::make_unique<GridReader>(units);
 
 	inputFilePass = 1;
 	tw::input::WalkTree(tree,this);
@@ -415,7 +415,6 @@ void Simulation::InputFileFirstPass()
 			throw tw::FatalError(std::format("local number of cells is not even along non-ignorable axis {}",i));
 	}
 	Resize(this,gdim,gridReader->GlobalCorner(),gridReader->GlobalSize(),std_packing,std_layers,gridReader->Geometry());
-	delete gridReader;
 	ts_tree_delete(tree);
 
 	// Random numbers

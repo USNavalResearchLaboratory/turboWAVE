@@ -99,10 +99,10 @@ Slice<tw::Float>* Field::FormTransposeBlock(const Rng04& r,const tw::grid::axis&
 		} else {
 			beg[1] = lfg[1];
 			end[1] = ufg[1] + 1;
-			beg[3] = start1;
-			end[3] = stop1 + 1;
-			beg[2] = start2;
-			end[2] = stop2 + 1;
+			beg[2] = start1;
+			end[2] = stop1 + 1;
+			beg[3] = start2;
+			end[3] = stop2 + 1;
 		}
 	}
 	if (axis1==tw::grid::z)
@@ -117,34 +117,39 @@ Slice<tw::Float>* Field::FormTransposeBlock(const Rng04& r,const tw::grid::axis&
 		} else {
 			beg[1] = lfg[1];
 			end[1] = ufg[1] + 1;
-			beg[3] = start2;
-			end[3] = stop2 + 1;
-			beg[2] = start1;
-			end[2] = stop1 + 1;
+			beg[2] = start2;
+			end[2] = stop2 + 1;
+			beg[3] = start1;
+			end[3] = stop1 + 1;
 		}
 	}
 	return new Slice<tw::Float>(beg,end);
 }
 
-
-/// We have in mind a matrix whose rows consist of NODES arranged along axis1,
-/// and whose columns consist of BLOCKS arranged along axis2.
-/// In this picture, the global image of the data does not change.
-/// Instead, the nodes are lined up along a new axis.
-/// We choose the blocks so that #blocks <= #nodes.
-/// 'target' is an externally owned field that will receive the transposed data
+/// This routine is the key to parallelizing certain transformations like FFT.
+/// The trick is to rearrange so each node has full strips to work with.
+/// We start with axis1 split across nodes, and we intend to split axis2 into blocks.
+/// We choose the blocks so that #blocks <= #nodes.  Then we give each node a block to work on.
+/// N.b. (i) the blocks are understood to contain the global extent of axis1.
+/// N.b. (ii) the transformation does not change the order of the axes, only the range accessible to each node.
+/// 'target' is an externally owned field that will receive the rearranged data (it will be resized as needed).
 /// This routine resizes target when the forward transpose is invoked.
 /// Upon reverse transposing, the same target should be passed in.
-/// 'inversion' is 1 if forward transpose, -1 if reverse transpose
+/// 'direction' is 1 if forward transpose, -1 if reverse transpose
 ///
 /// Ghost cell policy:
 /// We send the ghost cells in the directions perp. to 'axis1'
 /// The ghost cells are not sent in the direction parallel to 'axis1'
-/// However, the ghost cells are sent in all directions if inversion=-1
-void Field::Transpose(const Rng04& r,const tw::grid::axis& axis1,const tw::grid::axis& axis2,Field *target,tw::Int inversion)
+/// However, the ghost cells are sent in all directions if direction=-1
+void Field::Transpose(const Rng04& r,const tw::grid::axis& axis1,const tw::grid::axis& axis2,Field *target,tw::Int direction)
 {
 	tw::Int dN0,dN1;
 	Slice<tw::Float>* block;
+
+	if (r.b0 != 1 || r.b4 != 0) {
+		// to allow for these conditions we would have to add some time and component translations
+		throw tw::FatalError("transpose range is invalid");
+	}
 
 	const tw::Int ax1 = tw::grid::naxis(axis1);
 	const tw::Int ax2 = tw::grid::naxis(axis2);
@@ -158,7 +163,7 @@ void Field::Transpose(const Rng04& r,const tw::grid::axis& axis1,const tw::grid:
 
 	logger::TRACE(std::format("transposing {},{}",ax1,ax2));
 
-	if (inversion==1)
+	if (direction==1)
 	{
 		dN0 = 1;
 		dN1 = dim[ax1];
@@ -182,7 +187,7 @@ void Field::Transpose(const Rng04& r,const tw::grid::axis& axis1,const tw::grid:
 		offset[i] = start[i] + layers[ax2] - 1;
 	}
 
-	if (inversion==1)
+	if (direction==1)
 	{
 		tw::Int ax3 = 1;
 		while (ax3==ax1 || ax3==ax2) ax3++;
@@ -193,8 +198,8 @@ void Field::Transpose(const Rng04& r,const tw::grid::axis& axis1,const tw::grid:
 		target->Initialize(StaticSpace(dim_T,tw::vec4(1,1,1,1),packing,layers),task);
 	}
 
-  // The message passing pattern is to have simultaneous exchanges between pairs.
-  // Each pair is made up of a sub-diagonal and corresponding super-diagonal element
+	// The message passing pattern is to have simultaneous exchanges between pairs.
+	// Each pair is made up of a sub-diagonal and corresponding super-diagonal element
 
 	// First do the diagonal, which involves no message passing
 
@@ -202,32 +207,31 @@ void Field::Transpose(const Rng04& r,const tw::grid::axis& axis1,const tw::grid:
 	{
 		const tw::Int j = thisNode;
 		block = FormTransposeBlock(r,axis1,axis2,dN0,dN1,start[j],stop[j]);
-		if (inversion==-1)
+		if (direction==-1)
 		{
-	    block->Translate(axis1,j*dim[ax1]);
-	    block->Translate(axis2,-offset[j]);
-	    target->LoadDataIntoSlice<tw::Float>(block);
-	    block->Translate(axis1,-j*dim[ax1]);
-	    block->Translate(axis2,offset[j]);
-	    SaveDataFromSlice<tw::Float>(block);
+			block->Translate(axis1,j*dim[ax1]);
+			block->Translate(axis2,-offset[j]);
+			target->LoadDataIntoSlice<tw::Float>(block);
+			block->Translate(axis1,-j*dim[ax1]);
+			block->Translate(axis2,offset[j]);
+			SaveDataFromSlice<tw::Float>(block);
 		}
 		else
 		{
-	    LoadDataIntoSlice<tw::Float>(block);
-	    block->Translate(axis1,j*dim[ax1]);
-	    block->Translate(axis2,-offset[j]);
-	    target->SaveDataFromSlice<tw::Float>(block);
+			LoadDataIntoSlice<tw::Float>(block);
+			block->Translate(axis1,j*dim[ax1]);
+			block->Translate(axis2,-offset[j]);
+			target->SaveDataFromSlice<tw::Float>(block);
 		}
 		delete block;
 	}
 
-  // Now exchange data between sub/super diagonal pairs
+	// Now exchange data between sub/super diagonal pairs
 
-	for (tw::Int i=1;i<nodes;i++) // Loop over sub-diagonals
-		for (tw::Int k=0;k<2;k++) // each sub-diagonal has 2 independent groups
-	    for (tw::Int l=k*i;l<nodes-i;l+=2*i) // Loop over super-blocks of this independent group
-	      for (tw::Int s=0;s<i && s<nodes-l-i;s++) // Loop over blocks in each super-block
-				{
+	for (tw::Int i=1;i<nodes;i++) { // Loop over sub-diagonals
+		for (tw::Int k=0;k<2;k++) { // each sub-diagonal has 2 independent groups
+			for (tw::Int l=k*i;l<nodes-i;l+=2*i) { // Loop over super-blocks of this independent group
+				for (tw::Int s=0;s<i && s<nodes-l-i;s++) { // Loop over blocks in each super-block
 					// sub-diagonal : (l+s , l+s+i) = (old node , old block) = (new block , new node)
 					// super-diagonal : (l+s+i , l+s) = (old node , old block) = (new block , new node)
 					if (thisNode==l+s+i)
@@ -236,7 +240,7 @@ void Field::Transpose(const Rng04& r,const tw::grid::axis& axis1,const tw::grid:
 						if (blockSize[l+s]>0)
 						{
 							block = FormTransposeBlock(r,axis1,axis2,dN0,dN1,start[l+s],stop[l+s]);
-							if (inversion==-1)
+							if (direction==-1)
 							{
 								task->strip[ax1].Recv(block->Buffer(),block->BufferSize(),l+s);
 								SaveDataFromSlice<tw::Float>(block);
@@ -255,7 +259,7 @@ void Field::Transpose(const Rng04& r,const tw::grid::axis& axis1,const tw::grid:
 							block = FormTransposeBlock(r,axis1,axis2,dN0,dN1,start[thisNode],stop[thisNode]);
 							block->Translate(axis1,(l+s)*dim[ax1]);
 							block->Translate(axis2,-offset[thisNode]);
-							if (inversion==-1)
+							if (direction==-1)
 							{
 								target->LoadDataIntoSlice<tw::Float>(block);
 								task->strip[ax1].Send(block->Buffer(),block->BufferSize(),l+s);
@@ -276,7 +280,7 @@ void Field::Transpose(const Rng04& r,const tw::grid::axis& axis1,const tw::grid:
 							block = FormTransposeBlock(r,axis1,axis2,dN0,dN1,start[thisNode],stop[thisNode]);
 							block->Translate(axis1,(l+s+i)*dim[ax1]);
 							block->Translate(axis2,-offset[thisNode]);
-							if (inversion==-1)
+							if (direction==-1)
 							{
 								target->LoadDataIntoSlice<tw::Float>(block);
 								task->strip[ax1].Send(block->Buffer(),block->BufferSize(),l+s+i);
@@ -293,7 +297,7 @@ void Field::Transpose(const Rng04& r,const tw::grid::axis& axis1,const tw::grid:
 						if (blockSize[l+s+i]>0)
 						{
 							block = FormTransposeBlock(r,axis1,axis2,dN0,dN1,start[l+s+i],stop[l+s+i]);
-							if (inversion==-1)
+							if (direction==-1)
 							{
 								task->strip[ax1].Recv(block->Buffer(),block->BufferSize(),l+s+i);
 								SaveDataFromSlice<tw::Float>(block);
@@ -307,6 +311,9 @@ void Field::Transpose(const Rng04& r,const tw::grid::axis& axis1,const tw::grid:
 						}
 					}
 				}
+			}
+		}
+	}
 }
 
 void Field::RealAxialSineTransform(const Rng04& r,const DynSpace& ds)
@@ -315,13 +322,14 @@ void Field::RealAxialSineTransform(const Rng04& r,const DynSpace& ds)
 	if (ds.GlobalDim(3)>1)
 	{
 		Transpose(r,tw::grid::z,tw::grid::x,&T,1);
-		for (auto n=r.b0; n<r.e0; n++) {
+		for (auto c=0; c<r.Components(); c++) {
+		for (auto n=1; n<=r.Times(); n++) {
 			#pragma omp parallel
 			{
 				for (auto strip : StripRange(T,3,0,n,strongbool::yes))
-					fft::SineTransform( &T(strip,1,0), T.Dim(3), T.Stride(3), 1 );
+					fft::SineTransform( &T(strip,1,c), T.Dim(3), T.Stride(3), 1 );
 			}
-		}
+		}}
 		Transpose(r,tw::grid::z,tw::grid::x,&T,-1);
 	}
 }
@@ -332,17 +340,18 @@ void Field::RealInverseAxialSineTransform(const Rng04& r,const DynSpace& ds)
 	if (ds.GlobalDim(3)>1)
 	{
 		Transpose(r,tw::grid::z,tw::grid::x,&T,1);
-		for (auto n=r.b0; n<r.e0; n++) {
+		for (auto c=0; c<r.Components(); c++) {
+		for (auto n=1; n<=r.Times(); n++) {
 			#pragma omp parallel
 			{
 				for (auto strip : StripRange(T,3,0,n,strongbool::yes))
 				{
-					fft::SineTransform( &T(strip,1,0), T.Dim(3), T.Stride(3), -1 );
-					T(strip,T.LNG(3),0) = -T(strip,2,0);
-					T(strip,T.UNG(3),0) = 0.0;
+					fft::SineTransform( &T(strip,1,c), T.Dim(3), T.Stride(3), -1 );
+					T(strip,T.LNG(3),c) = -T(strip,2,c);
+					T(strip,T.UNG(3),c) = 0.0;
 				}
 			}
-		}
+		}}
 		Transpose(r,tw::grid::z,tw::grid::x,&T,-1);
 	}
 }
@@ -358,13 +367,14 @@ void Field::RealTransverseCosineTransform(const Rng04& r,const DynSpace& ds)
 		if (ds.GlobalDim(ax)>1)
 		{
 			Transpose(r,axis1,axis2,&T,1);
-			for (auto n=r.b0; n<r.e0; n++) {
+			for (auto c=0; c<r.Components(); c++) {
+			for (auto n=1; n<=r.Times(); n++) {
 				#pragma omp parallel
 				{
 					for (auto strip : StripRange(T,ax,0,n,strongbool::yes))
-						fft::CosineTransform( &T(strip,1,0), T.Dim(ax), T.Stride(ax), 1 );
+						fft::CosineTransform( &T(strip,1,c), T.Dim(ax), T.Stride(ax), 1 );
 				}
-			}
+			}}
 			Transpose(r,axis1,axis2,&T,-1);
 		}
 	}
@@ -381,17 +391,18 @@ void Field::RealInverseTransverseCosineTransform(const Rng04& r,const DynSpace& 
 		if (ds.GlobalDim(ax)>1)
 		{
 			Transpose(r,axis1,axis2,&T,1);
-			for (auto n=r.b0; n<r.e0; n++) {
+			for (auto c=0; c<r.Components(); c++) {
+			for (auto n=1; n<=r.Times(); n++) {
 				#pragma omp parallel
 				{
 					for (auto strip : StripRange(T,ax,0,n,strongbool::yes))
 					{
 						fft::CosineTransform( &T(strip,1,0), T.Dim(ax), T.Stride(ax), -1 );
-						T(strip,T.LNG(ax),0) = T(strip,1,0);
-						T(strip,T.UNG(ax),0) = T(strip,T.Dim(ax),0);
+						T(strip,T.LNG(ax),c) = T(strip,1,c);
+						T(strip,T.UNG(ax),c) = T(strip,T.Dim(ax),c);
 					}
 				}
-			}
+			}}
 			Transpose(r,axis1,axis2,&T,-1);
 		}
 	}
@@ -408,13 +419,14 @@ void Field::RealTransverseSineTransform(const Rng04& r,const DynSpace& ds)
 		if (ds.GlobalDim(ax)>1)
 		{
 			Transpose(r,axis1,axis2,&T,1);
-			for (auto n=r.b0; n<r.e0; n++) {
+			for (auto c=0; c<r.Components(); c++) {
+			for (auto n=1; n<=r.Times(); n++) {
 				#pragma omp parallel
 				{
 					for (auto strip : StripRange(T,ax,0,n,strongbool::yes))
-						fft::SineTransform( &T(strip,1,0), T.Dim(ax), T.Stride(ax), 1 );
+						fft::SineTransform( &T(strip,1,c), T.Dim(ax), T.Stride(ax), 1 );
 				}
-			}
+			}}
 			Transpose(r,axis1,axis2,&T,-1);
 		}
 	}
@@ -431,17 +443,18 @@ void Field::RealInverseTransverseSineTransform(const Rng04& r,const DynSpace& ds
 		if (ds.GlobalDim(ax)>1)
 		{
 			Transpose(r,axis1,axis2,&T,1);
-			for (auto n=r.b0; n<r.e0; n++) {
+			for (auto c=0; c<r.Components(); c++) {
+			for (auto n=1; n<=r.Times(); n++) {
 				#pragma omp parallel
 				{
 					for (auto strip : StripRange(T,ax,0,n,strongbool::yes))
 					{
-						fft::SineTransform( &T(strip,1,0), T.Dim(ax), T.Stride(ax), -1 );
-						T(strip,T.LNG(ax),0) = -T(strip,2,0);
-						T(strip,T.UNG(ax),0) = 0.0;
+						fft::SineTransform( &T(strip,1,c), T.Dim(ax), T.Stride(ax), -1 );
+						T(strip,T.LNG(ax),c) = -T(strip,2,c);
+						T(strip,T.UNG(ax),c) = 0.0;
 					}
 				}
-			}
+			}}
 			Transpose(r,axis1,axis2,&T,-1);
 		}
 	}
@@ -454,20 +467,22 @@ void Field::RealTransverseFFT(const Rng04& r,const DynSpace& ds)
 	if (ds.GlobalDim(1)>1)
 	{
 		Transpose(r,tw::grid::x,tw::grid::z,&T,1);
-		for (auto n=r.b0; n<r.e0; n++) {
+		for (auto c=0; c<r.Components(); c++) {
+		for (auto n=1; n<=r.Times(); n++) {
 			#pragma omp parallel
 			{
 				for (auto strip : StripRange(T,1,0,n,strongbool::yes))
-					fft::RealFFT( &T(strip,1,0), T.Dim(1), T.Stride(1), 1);
+					fft::RealFFT( &T(strip,1,c), T.Dim(1), T.Stride(1), 1);
 			}
-		}
+		}}
 		Transpose(r,tw::grid::x,tw::grid::z,&T,-1);
 	}
 
 	if (ds.GlobalDim(2)>1)
 	{
 		Transpose(r,tw::grid::y,tw::grid::z,&T,1);
-		for (auto n=r.b0; n<r.e0; n++) {
+		for (auto c=0; c<r.Components(); c++) {
+		for (auto n=1; n<=r.Times(); n++) {
 			const tw::Int xDim=T.Dim(1),zN0=T.LFG(3),zN1=T.UFG(3);
 			#pragma omp parallel for collapse(2) schedule(static)
 			for (tw::Int i=1;i<=xDim;i+=2) { // can't include ghost cells due to complex numbers; instead do copy ops below
@@ -475,14 +490,14 @@ void Field::RealTransverseFFT(const Rng04& r,const DynSpace& ds)
 				{
 					if (ds.GlobalCellIndex(i,1)==1)
 					{
-						fft::RealFFT( &T(n,i,1,k,0), T.Dim(2), T.Stride(2), 1);
-						fft::RealFFT( &T(n,i+1,1,k,0), T.Dim(2), T.Stride(2), 1);
+						fft::RealFFT( &T(n,i,1,k,c), T.Dim(2), T.Stride(2), 1);
+						fft::RealFFT( &T(n,i+1,1,k,c), T.Dim(2), T.Stride(2), 1);
 					}
 					else
-						fft::ComplexFFT( &T(n,i,1,k,0), &T(n,i+1,1,k,0), T.Dim(2), T.Stride(2), 1.0);
+						fft::ComplexFFT( &T(n,i,1,k,c), &T(n,i+1,1,k,c), T.Dim(2), T.Stride(2), 1.0);
 				}
 			}
-		}
+		}}
 		T.UpwardCopy(r,tw::grid::x,1);
 		T.DownwardCopy(r,tw::grid::x,1);
 		Transpose(r,tw::grid::y,tw::grid::z,&T,-1);
@@ -492,11 +507,11 @@ void Field::RealTransverseFFT(const Rng04& r,const DynSpace& ds)
 void Field::RealInverseTransverseFFT(const Rng04& r,const DynSpace& ds)
 {
 	Field T;
-
 	if (ds.GlobalDim(2)>1)
 	{
 		Transpose(r,tw::grid::y,tw::grid::z,&T,1);
-		for (auto n=r.b0; n<r.e0; n++) {
+		for (auto c=0; c<r.Components(); c++) {
+		for (auto n=1; n<=r.Times(); n++) {
 			const tw::Int xDim=T.Dim(1),zN0=T.LFG(3),zN1=T.UFG(3);
 			#pragma omp parallel for collapse(2) schedule(static)
 			for (tw::Int i=1;i<=xDim;i+=2) { // can't include ghost cells due to complex numbers; instead do copy ops below
@@ -504,24 +519,24 @@ void Field::RealInverseTransverseFFT(const Rng04& r,const DynSpace& ds)
 				{
 					if (ds.GlobalCellIndex(i,1)==1)
 					{
-						fft::RealFFT( &T(n,i,1,k,0), T.Dim(2), T.Stride(2), -1);
-						T(n,i,T.LNG(2),k,0) = T(n,i,T.Dim(2),k,0);
-						T(n,i,T.UNG(2),k,0) = T(n,i,1,k,0);
-						fft::RealFFT( &T(n,i+1,1,k,0), T.Dim(2), T.Stride(2), -1);
-						T(n,i+1,T.LNG(2),k,0) = T(n,i+1,T.Dim(2),k,0);
-						T(n,i+1,T.UNG(2),k,0) = T(n,i+1,1,k,0);
+						fft::RealFFT( &T(n,i,1,k,c), T.Dim(2), T.Stride(2), -1);
+						T(n,i,T.LNG(2),k,c) = T(n,i,T.Dim(2),k,c);
+						T(n,i,T.UNG(2),k,c) = T(n,i,1,k,c);
+						fft::RealFFT( &T(n,i+1,1,k,c), T.Dim(2), T.Stride(2), -1);
+						T(n,i+1,T.LNG(2),k,c) = T(n,i+1,T.Dim(2),k,c);
+						T(n,i+1,T.UNG(2),k,c) = T(n,i+1,1,k,c);
 					}
 					else
 					{
-						fft::ComplexFFT( &T(n,i,1,k,0), &T(n,i+1,1,k,0), T.Dim(2), T.Stride(2), -1.0);
-						T(n,i,T.LNG(2),k,0) = T(n,i,T.Dim(2),k,0);
-						T(n,i,T.UNG(2),k,0) = T(n,i,1,k,0);
-						T(n,i+1,T.LNG(2),k,0) = T(n,i+1,T.Dim(2),k,0);
-						T(n,i+1,T.UNG(2),k,0) = T(n,i+1,1,k,0);
+						fft::ComplexFFT( &T(n,i,1,k,c), &T(n,i+1,1,k,c), T.Dim(2), T.Stride(2), -1.0);
+						T(n,i,T.LNG(2),k,c) = T(n,i,T.Dim(2),k,c);
+						T(n,i,T.UNG(2),k,c) = T(n,i,1,k,c);
+						T(n,i+1,T.LNG(2),k,c) = T(n,i+1,T.Dim(2),k,c);
+						T(n,i+1,T.UNG(2),k,c) = T(n,i+1,1,k,c);
 					}
 				}
 			}
-		}
+		}}
 		T.UpwardCopy(r,tw::grid::x,1);
 		T.DownwardCopy(r,tw::grid::x,1);
 		Transpose(r,tw::grid::y,tw::grid::z,&T,-1);
@@ -530,17 +545,18 @@ void Field::RealInverseTransverseFFT(const Rng04& r,const DynSpace& ds)
 	if (ds.GlobalDim(1)>1)
 	{
 		Transpose(r,tw::grid::x,tw::grid::z,&T,1);
-		for (auto n=r.b0; n<r.e0; n++) {
+		for (auto c=0; c<r.Components(); c++) {
+		for (auto n=1; n<=r.Times(); n++) {
 			#pragma omp parallel
 			{
 				for (auto strip : StripRange(T,1,0,n,strongbool::yes))
 				{
-					fft::RealFFT( &T(strip,1,0), T.Dim(1), T.Stride(1), -1);
-					T(strip,T.LNG(1),0) = T(strip,T.Dim(1),0);
-					T(strip,T.UNG(1),0) = T(strip,1,0);
+					fft::RealFFT( &T(strip,1,c), T.Dim(1), T.Stride(1), -1);
+					T(strip,T.LNG(1),c) = T(strip,T.Dim(1),c);
+					T(strip,T.UNG(1),c) = T(strip,1,c);
 				}
 			}
-		}
+		}}
 		Transpose(r,tw::grid::x,tw::grid::z,&T,-1);
 	}
 }
@@ -571,11 +587,11 @@ void Field::ComplexTransverseFFT(const Rng04& r,const DynSpace& ds)
 		if (ds.GlobalDim(ax)>1)
 		{
 			Transpose(r,axis1,axis2,&T,1);
-			for (auto n=r.b0; n<r.e0; n++) {
+			for (auto n=1; n<=r.Times(); n++) {
 				#pragma omp parallel
 				{
 					for (auto strip : StripRange(T,ax,0,n,strongbool::yes))
-						fft::ComplexFFT( &T(strip,1,r.b4+0), &T(strip,1,r.b4+1), T.Dim(ax), T.Stride(ax), 1.0 );
+						fft::ComplexFFT( &T(strip,1,0), &T(strip,1,1), T.Dim(ax), T.Stride(ax), 1.0 );
 				}
 			}
 			Transpose(r,axis1,axis2,&T,-1);
@@ -594,7 +610,7 @@ void Field::ComplexInverseTransverseFFT(const Rng04& r,const DynSpace& ds)
 		if (ds.GlobalDim(ax)>1)
 		{
 			Transpose(r,axis1,axis2,&T,1);
-			for (auto n=r.b0; n<r.e0; n++) {
+			for (auto n=1; n<=r.Times(); n++) {
 				#pragma omp parallel
 				{
 					for (auto strip : StripRange(T,ax,0,n,strongbool::yes))
@@ -623,11 +639,11 @@ void Field::ComplexFFT(const Rng04& r,const DynSpace& ds)
 		if (ds.GlobalDim(ax)>1)
 		{
 			Transpose(r,axis1,axis2,&T,1);
-			for (auto n=r.b0; n<r.e0; n++) {
+			for (auto n=1; n<=r.Times(); n++) {
 				#pragma omp parallel
 				{
 					for (auto strip : StripRange(T,ax,0,n,strongbool::yes))
-						fft::ComplexFFT( &T(strip,1,r.b4+0), &T(strip,1,r.b4+1), T.Dim(ax), T.Stride(ax), 1.0 );
+						fft::ComplexFFT( &T(strip,1,0), &T(strip,1,1), T.Dim(ax), T.Stride(ax), 1.0 );
 				}
 			}
 			Transpose(r,axis1,axis2,&T,-1);
@@ -646,16 +662,16 @@ void Field::ComplexInverseFFT(const Rng04& r,const DynSpace& ds)
 		if (ds.GlobalDim(ax)>1)
 		{
 			Transpose(r,axis1,axis2,&T,1);
-			for (auto n=r.b0; n<r.e0; n++) {
+			for (auto n=1; n<=r.Times(); n++) {
 				#pragma omp parallel
 				{
 					for (auto strip : StripRange(T,ax,0,n,strongbool::yes))
 					{
 						fft::ComplexFFT( &T(strip,1,0), &T(strip,1,1), T.Dim(ax), T.Stride(ax), -1.0 );
-						T(strip,T.LNG(ax),r.b4+0) = T(strip,T.Dim(ax),r.b4+0);
-						T(strip,T.LNG(ax),r.b4+1) = T(strip,T.Dim(ax),r.b4+1);
-						T(strip,T.UNG(ax),r.b4+0) = T(strip,1,r.b4+0);
-						T(strip,T.UNG(ax),r.b4+1) = T(strip,1,r.b4+1);
+						T(strip,T.LNG(ax),0) = T(strip,T.Dim(ax),0);
+						T(strip,T.LNG(ax),1) = T(strip,T.Dim(ax),1);
+						T(strip,T.UNG(ax),0) = T(strip,1,0);
+						T(strip,T.UNG(ax),1) = T(strip,1,1);
 					}
 				}
 			}
@@ -668,11 +684,11 @@ void Field::Hankel(const Rng04& r,tw::Int modes,std::valarray<tw::Float>& matrix
 {
 	Field T;
 	Transpose(r,tw::grid::x,tw::grid::z,&T,1);
-	for (auto n=r.b0; n<r.e0; n++) {
+	for (auto n=1; n<=r.Times(); n++) {
 		#pragma omp parallel
 		{
 			for (auto strip : StripRange(T,1,0,n,strongbool::yes))
-				for (auto c=r.b4; c<r.e4; c++)
+				for (auto c=0; c<r.Components(); c++)
 					Transform(&T(strip,1,c),T.Dim(1),modes,T.Stride(1),matrix);
 		}
 	}
@@ -683,11 +699,11 @@ void Field::InverseHankel(const Rng04& r,tw::Int modes,std::valarray<tw::Float>&
 {
 	Field T;
 	Transpose(r,tw::grid::x,tw::grid::z,&T,1);
-	for (auto n=r.b0; n<r.e0; n++) {
+	for (auto n=1; n<=r.Times(); n++) {
 		#pragma omp parallel
 		{
 			for (auto strip : StripRange(T,1,0,n,strongbool::yes))
-				for (auto c=r.b4; c<r.e4; c++)
+				for (auto c=0; c<r.Components(); c++)
 					ReverseTransform(&T(strip,1,c),T.Dim(1),modes,T.Stride(1),matrix);
 		}
 	}

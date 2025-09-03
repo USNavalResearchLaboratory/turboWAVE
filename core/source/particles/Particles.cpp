@@ -725,9 +725,8 @@ void Species::Initialize()
 		CopyFieldData(*sources,0,*rho00,0); // accepting redundant operations
 
 	// Choose a mover if none was specified
-	if (mover==NULL)
-	{
-		if (EM!=NULL && sources!=NULL && laser==NULL && qo_j4==NULL && restMass!=0.0f && charge!=0.0f)
+	if (mover==NULL) {
+		if (EM!=NULL && sources!=NULL && laser==NULL && qo_j4==NULL && restMass!=0.0f)
 			mover = (Mover*)owner->CreateTool("Boris-mover",tw::tool_type::borisMover);
 		if (EM!=NULL && sources!=NULL && laser!=NULL && qo_j4==NULL)
 			mover = (Mover*)owner->CreateTool("PGC-mover",tw::tool_type::pgcMover);
@@ -736,7 +735,9 @@ void Species::Initialize()
 		if (restMass==0.0f && charge==0.0f)
 			mover = (Mover*)owner->CreateTool("Photon-mover",tw::tool_type::photonMover);
 	}
-
+	if (mover==NULL) {
+		throw tw::FatalError(std::format("no mover was created for {}",name));
+	}
 	// Copy pointers to the mover tool
 	mover->q0 = charge;
 	mover->m0 = restMass;

@@ -1,7 +1,6 @@
 module;
 
 #include "tw_includes.h"
-#include <memory>
 #include "tw_logger.h"
 export module numerics:parallel;
 import :serial;
@@ -161,6 +160,9 @@ public:
 
 		strip->Scatter(&k[0], mpi_packet, sizeof(T) * ds, 0);
 	}
+	/// Once each system is prepared using SetMatrix and SetData, this will stitch together all the independent
+	/// solutions to form the global solution.  If inhomogeneous boundary conditions were built into the matrices,
+	/// the global boundaries will need to be set by the caller.  Ghost cells of interior nodes will be correct.
 	void Parallelize() {
 		// make temporary space for calculation of alpha and beta
 		// packet layout : ss=system stride ; domain stride = ss*systems
@@ -194,11 +196,6 @@ public:
 				Pack(val,j,i);
 			}
 			Pack( mpi_packet[7 + ss * j], j, N+1);
-
-			// N.b. exterior ghost cell calculation only valid for periodic or dirichlet boundary conditions
-			// (interior domains OK for any boundary conditions)
-			// Currently dirichlet b.c. is hard coded as 0
-			// Other cases must be handled outside this routine
 		}
 	}
 };

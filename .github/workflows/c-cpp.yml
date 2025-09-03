@@ -15,12 +15,18 @@ jobs:
     - uses: actions/checkout@v4
     - name: Set up CMake
       uses: lukka/get-cmake@latest
-    - name: Set up MPI
+    - name: Set up MS-MPI
+      shell: powershell
       run: |
-        winget install Microsoft.msmpisdk --disable-interactivity --accept-source-agreements --accept-package-agreements
-        winget install Microsoft.msmpi --disable-interactivity --accept-source-agreements --accept-package-agreements
-        $env:MSMPI_INC="C:/Program Files (x86)/Microsoft SDKs/MPI/Include/"
-        $env:MSMPI_LIB64="C:/Program Files (x86)/Microsoft SDKs/MPI/Lib/x64/"
+        Invoke-WebRequest -Uri "https://github.com/microsoft/Microsoft-MPI/releases/download/v10.1.1/msmpisetup.exe" -OutFile msmpisetup.exe
+        Invoke-WebRequest -Uri "https://github.com/microsoft/Microsoft-MPI/releases/download/v10.1.1/msmpisdk.msi" -OutFile msmpisdk.msi
+        Start-Process -FilePath msmpisetup.exe -ArgumentList "/quiet /norestart" -Wait
+        Start-Process -FilePath msmpisdk.msi -ArgumentList "/quiet /norestart" -Wait
+    - name: Set MS-MPI Environment Variables
+      shell: powershell
+      run: |
+        echo "MSMPI_INC=C:\Program Files (x86)\Microsoft SDKs\MPI\Include" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+        echo "MSMPI_LIB64=C:\Program Files (x86)\Microsoft SDKs\MPI\Lib\x64" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
     - name: setup
       working-directory: ./core/source
       run: mkdir build

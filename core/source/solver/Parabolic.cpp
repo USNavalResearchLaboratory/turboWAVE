@@ -1,6 +1,5 @@
 module;
 
-#include <memory>
 #include "tw_includes.h"
 #include "tw_logger.h"
 
@@ -363,11 +362,11 @@ void ADIPropagator::SetData(tw::Float w0,tw::Float dt,tw_polarization_type pol,b
 
 	aNow.Initialize(*space,task);
 
-	tw::Int systems = space->Dim(2) * (space->Dim(3) + 2);
+	tw::Int systems = space->Dim(2);
 	tw::Int cells = space->Dim(1);
 	globalIntegrator[1] = std::make_unique<GlobalIntegrator<tw::Complex>>(&task->strip[1],systems,cells);
 
-	systems = space->Dim(1) * (space->Dim(3) + 2);
+	systems = space->Dim(1);
 	cells = space->Dim(2);
 	globalIntegrator[2] = std::make_unique<GlobalIntegrator<tw::Complex>>(&task->strip[2],systems,cells);
 }
@@ -385,13 +384,13 @@ void ADIPropagator::AdvanceAxis(tw::Int ua,ComplexField& a0,ComplexField& a1,Com
 	for (auto k=wDim;k>=-1;k--) {
 		for (auto j=1;j<=vDim;j++) {
 			auto coord = ua == 1 ? tw::node4 {1,0,j,k} : tw::node4 {1,j,0,k};
-			const auto u = tw::strip(*space,ua,0,coord);
+			const auto u = tw::strip(a1,ua,0,coord);
 			#pragma omp parallel for
 			for (auto i=1;i<=uDim;i++) {
 				coord = ua == 1 ? tw::node4 {1,i,0,k} : tw::node4 {1,0,i,k};
-				const auto v = tw::strip(*space,va,0,coord);
+				const auto v = tw::strip(a1,va,0,coord);
 				coord = ua == 1 ? tw::node4 {1,i,j,0} : tw::node4 {1,j,i,0};
-				const auto w = tw::strip(*space,3,0,coord);
+				const auto w = tw::strip(a1,3,0,coord);
 				const auto Vol = space->dS(u,i,0);
 
 				A0 = space->dS(u,i,ua);
@@ -416,23 +415,23 @@ void ADIPropagator::AdvanceAxis(tw::Int ua,ComplexField& a0,ComplexField& a1,Com
 				T3[i-1] = D2;
 			}
 
-			//if (task->n0[ua]==MPI_PROC_NULL)
-			//	a1.AdjustTridiagonalForBoundaries(tw::grid::enumaxis(ua),tw::grid::low,T1,T2,T3,src,tw::Complex(0.0));
-			//if (task->n1[ua]==MPI_PROC_NULL)
-			//	a1.AdjustTridiagonalForBoundaries(tw::grid::enumaxis(ua),tw::grid::high,T1,T2,T3,src,tw::Complex(0.0));
+			if (task->n0[ua]==MPI_PROC_NULL)
+				a1.AdjustTridiagonalForBoundaries(tw::grid::enumaxis(ua),tw::grid::low,T1,T2,T3,src,tw::Complex(0.0));
+			if (task->n1[ua]==MPI_PROC_NULL)
+				a1.AdjustTridiagonalForBoundaries(tw::grid::enumaxis(ua),tw::grid::high,T1,T2,T3,src,tw::Complex(0.0));
 
 			TriDiagonal(ans,src,T1,T2,T3);
 			for (auto i=1;i<=uDim;i++) {
 				a1.Pack(u, i, ans[i-1]);
 			}
 
-			const auto system = (k+1)*vDim + j - 1;
+			const auto system = j - 1;
 			globalIntegrator[ua]->SetMatrix(system,T1,T2,T3);
 			globalIntegrator[ua]->SetData(system,&a1(u,0,0),a1.Stride(ua),a1.Stride(4));
 		}
+		globalIntegrator[ua]->Parallelize();
 	}
 
-	globalIntegrator[ua]->Parallelize();
 	a1.UpwardCopy(tw::grid::enumaxis(va),1);
 	a1.DownwardCopy(tw::grid::enumaxis(va),1);
 	a1.ApplyBoundaryCondition();
@@ -447,11 +446,11 @@ void ADIPropagator::Advance(ComplexField& a0,ComplexField& a1,ComplexField& chi)
 
 	Slice<tw::Float> send_lookahead(
 		{1,space->LFG(1),space->LFG(2),1,0},
-		{2,space->UFG(1)+1,space->UFG(2)+1,3,1}
+		{2,space->UFG(1)+1,space->UFG(2)+1,3,2}
 	);
 	Slice<tw::Float> recv_lookahead(
 		{1,space->LFG(1),space->LFG(2),zDim+1,0},
-		{2,space->UFG(1)+1,space->UFG(2)+1,zDim+3,1}
+		{2,space->UFG(1)+1,space->UFG(2)+1,zDim+3,2}
 	);
 	
 	tw::Int n0,n1;
