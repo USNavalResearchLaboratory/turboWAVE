@@ -48,13 +48,24 @@ elseif(APPLE)
     # So if we are using libc++ we have to use our own wrappers.
     # add_definitions(-DUSE_TWSF)
 elseif(UNIX)
-    # n.b. we need snap, apt, and linuxbrew.
-    # snap install cmake
-    # apt install ninja-build
-    # apt install gcc-14
-    # apt install libstdc++-14-dev
-    # apt install libopenmpi-dev
-    # brew install llvm
+    # Ubuntu
+    #   maybe `ln -s /var/lib/snapd/snap snap`
+    #   install snapd and linuxbrew
+    #   snap install cmake
+    #   apt install ninja-build
+    #   apt install gcc-14
+    #   apt install libstdc++-14-dev
+    #   apt install libopenmpi-dev
+    #   brew install llvm
+    # Fedora
+    #   maybe `ln -s /var/lib/snapd/snap snap`
+    #   install snapd
+    #   snap install cmake --classic
+    #   dnf install gcc
+    #   dnf install g++
+    #   dnf install ninja-build
+    #   dnf install openmpi-devel
+    #   module load mpi
 	set(CMAKE_CXX_COMPILER "$ENV{HOMEBREW_PREFIX}/opt/llvm/bin/clang++")
 	set(CMAKE_C_COMPILER "$ENV{HOMEBREW_PREFIX}/opt/llvm/bin/clang")
 	# set(CMAKE_SYSTEM_LIBRARY_PATH "$ENV{HOMEBREW_PREFIX}/opt/llvm/lib")

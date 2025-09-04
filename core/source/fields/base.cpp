@@ -576,7 +576,7 @@ void Field::AdjustTridiagonalForBoundaries(const Rng& r, const tw::grid::axis& a
 	const tw::Int ax = tw::grid::naxis(axis);
 	const tw::Int N = Dim(ax) - 1;
 	const tw::Int c = r.beg; // component determining the BC
-	assert(r.beg == r.end+1); // asking for more than one BC is not defined
+	assert(r.beg + 1 == r.end); // asking for more than one BC is not defined
 	assert(T1.size() == Dim(ax));
 	if (side == tw::grid::low)
 	{
