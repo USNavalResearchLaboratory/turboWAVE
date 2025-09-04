@@ -35,7 +35,9 @@ jobs:
         cmake --build .
     - name: turbowave unit testing
       working-directory: ./core/source/build
-      run: ./tw3d -n 2 --unit-test --all
+      run: |
+        eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+        ./tw3d -n 2 --unit-test --all
     # - name: Set up Python 3.13
     #   uses: actions/setup-python@v5
     #   with:
