@@ -39,7 +39,7 @@ jobs:
         eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
         ls /home/linuxbrew/.linuxbrew/opt/llvm/lib/x86_64-unknown-linux-gnu
         export LD_LIBRARY_PATH=/home/linuxbrew/.linuxbrew/opt/llvm/lib/x86_64-unknown-linux-gnu
-        ./tw3d -n 2 --unit-test --all
+        mpirun -n 2 ./tw3d --unit-test --all
     # - name: Set up Python 3.13
     #   uses: actions/setup-python@v5
     #   with:
