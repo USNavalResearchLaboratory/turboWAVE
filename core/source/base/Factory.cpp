@@ -71,191 +71,190 @@ bool VerifyKey(const std::string& raw_key,std::string& similar_keys)
 	}
 }
 
-ComputeTool* CreateToolFromType(const std::string& name,tw::tool_type theType,MetricSpace *ms,Task *tsk)
+SharedTool CreateToolFromType(const std::string& name,tw::tool_type theType,MetricSpace *ms,Task *tsk)
 {
-	ComputeTool *ans;
+	SharedTool ans;
 	switch (theType)
 	{
-		case tw::tool_type::none:
-			ans = NULL;
-			break;
 		case tw::tool_type::warp:
-			ans = new Warp(name,ms,tsk);
+			ans = std::make_shared<Warp>(name,ms,tsk);
 			break;
 		case tw::tool_type::conductor:
-			ans = new Conductor(name,ms,tsk);
+			ans = std::make_shared<Conductor>(name,ms,tsk);
 			break;
 		case tw::tool_type::planeWave:
-			ans = new PlaneWave(name,ms,tsk);
+			ans = std::make_shared<PlaneWave>(name,ms,tsk);
 			break;
 		case tw::tool_type::hermiteGauss:
-			ans = new HermiteGauss(name,ms,tsk);
+			ans = std::make_shared<HermiteGauss>(name,ms,tsk);
 			break;
 		case tw::tool_type::laguerreGauss:
-			ans = new LaguerreGauss(name,ms,tsk);
+			ans = std::make_shared<LaguerreGauss>(name,ms,tsk);
 			break;
 		case tw::tool_type::besselBeam:
-			ans = new BesselBeam(name,ms,tsk);
+			ans = std::make_shared<BesselBeam>(name,ms,tsk);
 			break;
 		case tw::tool_type::airyDisc:
-			ans = new AiryDisc(name,ms,tsk);
+			ans = std::make_shared<AiryDisc>(name,ms,tsk);
 			break;
 		case tw::tool_type::multipole:
-			ans = new Multipole(name,ms,tsk);
+			ans = std::make_shared<Multipole>(name,ms,tsk);
 			break;
 		case tw::tool_type::uniformProfile:
-			ans = new UniformProfile(name,ms,tsk);
+			ans = std::make_shared<UniformProfile>(name,ms,tsk);
 			break;
 		case tw::tool_type::piecewiseProfile:
-			ans = new PiecewiseProfile(name,ms,tsk);
+			ans = std::make_shared<PiecewiseProfile>(name,ms,tsk);
 			break;
 		case tw::tool_type::channelProfile:
-			ans = new ChannelProfile(name,ms,tsk);
+			ans = std::make_shared<ChannelProfile>(name,ms,tsk);
 			break;
 		case tw::tool_type::columnProfile:
-			ans = new ColumnProfile(name,ms,tsk);
+			ans = std::make_shared<ColumnProfile>(name,ms,tsk);
 			break;
 		case tw::tool_type::gaussianProfile:
-			ans = new GaussianProfile(name,ms,tsk);
+			ans = std::make_shared<GaussianProfile>(name,ms,tsk);
 			break;
 		case tw::tool_type::corrugatedProfile:
-			ans = new CorrugatedProfile(name,ms,tsk);
+			ans = std::make_shared<CorrugatedProfile>(name,ms,tsk);
 			break;
 		case tw::tool_type::eigenmodePropagator:
-			ans = new EigenmodePropagator(name,ms,tsk);
+			ans = std::make_shared<EigenmodePropagator>(name,ms,tsk);
 			break;
 		case tw::tool_type::adiPropagator:
-			ans = new ADIPropagator(name,ms,tsk);
+			ans = std::make_shared<ADIPropagator>(name,ms,tsk);
 			break;
 		case tw::tool_type::isotropicPropagator:
-			ans = new IsotropicPropagator(name,ms,tsk);
+			ans = std::make_shared<IsotropicPropagator>(name,ms,tsk);
 			break;
 		case tw::tool_type::generalParabolicPropagator:
-			ans = new ParabolicSolver(name,ms,tsk);
+			ans = std::make_shared<ParabolicSolver>(name,ms,tsk);
 			break;
 		case tw::tool_type::schroedingerPropagator:
-			ans = new SchroedingerPropagator(name,ms,tsk);
+			ans = std::make_shared<SchroedingerPropagator>(name,ms,tsk);
 			break;
 		case tw::tool_type::iterativePoissonSolver:
-			ans = new IterativePoissonSolver(name,ms,tsk);
+			ans = std::make_shared<IterativePoissonSolver>(name,ms,tsk);
 			break;
 		case tw::tool_type::ellipticSolver1D:
-			ans = new EllipticSolver1D(name,ms,tsk);
+			ans = std::make_shared<EllipticSolver1D>(name,ms,tsk);
 			break;
 		case tw::tool_type::facrPoissonSolver:
-			ans = new PoissonSolver(name,ms,tsk);
+			ans = std::make_shared<PoissonSolver>(name,ms,tsk);
 			break;
 		case tw::tool_type::eigenmodePoissonSolver:
-			ans = new EigenmodePoissonSolver(name,ms,tsk);
+			ans = std::make_shared<EigenmodePoissonSolver>(name,ms,tsk);
 			break;
 		case tw::tool_type::yeePropagatorPML:
-			ans = new YeePropagatorPML(name,ms,tsk);
+			ans = std::make_shared<YeePropagatorPML>(name,ms,tsk);
 			break;
 		case tw::tool_type::lorentzPropagator:
-			ans = new LorentzPropagator(name,ms,tsk);
+			ans = std::make_shared<LorentzPropagator>(name,ms,tsk);
 			break;
 		case tw::tool_type::eosData:
-			ans = new EOSComponent(name,ms,tsk);
+			ans = std::make_shared<EOSComponent>(name,ms,tsk);
 			break;
 		case tw::tool_type::eosIdealGas:
-			ans = new EOSIdealGas(name,ms,tsk);
+			ans = std::make_shared<EOSIdealGas>(name,ms,tsk);
 			break;
 		case tw::tool_type::eosHotElectrons:
-			ans = new EOSHotElectrons(name,ms,tsk);
+			ans = std::make_shared<EOSHotElectrons>(name,ms,tsk);
 			break;
 		case tw::tool_type::eosMixture:
-			ans = new EOSMixture(name,ms,tsk);
+			ans = std::make_shared<EOSMixture>(name,ms,tsk);
 			break;
 		case tw::tool_type::eosIdealGasMix:
-			ans = new EOSIdealGasMix(name,ms,tsk);
+			ans = std::make_shared<EOSIdealGasMix>(name,ms,tsk);
 			break;
 		case tw::tool_type::eosSimpleMieGruneisen:
-			ans = new EOSSimpleMieGruneisen(name,ms,tsk);
+			ans = std::make_shared<EOSSimpleMieGruneisen>(name,ms,tsk);
 			break;
 		case tw::tool_type::eosLinearMieGruneisen:
-			ans = new EOSLinearMieGruneisen(name,ms,tsk);
+			ans = std::make_shared<EOSLinearMieGruneisen>(name,ms,tsk);
 			break;
 		case tw::tool_type::eosTillotson:
-			ans = new EOSTillotson(name,ms,tsk);
+			ans = std::make_shared<EOSTillotson>(name,ms,tsk);
 			break;
 		case tw::tool_type::mpi:
-			ans = new Multiphoton(name,ms,tsk);
+			ans = std::make_shared<Multiphoton>(name,ms,tsk);
 			break;
 		case tw::tool_type::adk:
-			ans = new ADK(name,ms,tsk);
+			ans = std::make_shared<ADK>(name,ms,tsk);
 			break;
 		case tw::tool_type::ppt:
-			ans = new PPT(name,ms,tsk);
+			ans = std::make_shared<PPT>(name,ms,tsk);
 			break;
 		case tw::tool_type::ppt_tunneling:
-			ans = new PPT_Tunneling(name,ms,tsk);
+			ans = std::make_shared<PPT_Tunneling>(name,ms,tsk);
 			break;
 		case tw::tool_type::kyh:
-			ans = new KYH(name,ms,tsk);
+			ans = std::make_shared<KYH>(name,ms,tsk);
 			break;
 		case tw::tool_type::pmpb:
-			ans = new PMPB(name,ms,tsk);
+			ans = std::make_shared<PMPB>(name,ms,tsk);
 			break;
 		case tw::tool_type::boxDiagnostic:
-			ans = new BoxDiagnostic(name,ms,tsk);
+			ans = std::make_shared<BoxDiagnostic>(name,ms,tsk);
 			break;
 		case tw::tool_type::pointDiagnostic:
-			ans = new PointDiagnostic(name,ms,tsk);
+			ans = std::make_shared<PointDiagnostic>(name,ms,tsk);
 			break;
 		case tw::tool_type::volumeDiagnostic:
-			ans = new VolumeDiagnostic(name,ms,tsk);
+			ans = std::make_shared<VolumeDiagnostic>(name,ms,tsk);
 			break;
 		case tw::tool_type::particleOrbits:
-			ans = new ParticleOrbits(name,ms,tsk);
+			ans = std::make_shared<ParticleOrbits>(name,ms,tsk);
 			break;
 		case tw::tool_type::phaseSpaceDiagnostic:
-			ans = new PhaseSpaceDiagnostic(name,ms,tsk);
+			ans = std::make_shared<PhaseSpaceDiagnostic>(name,ms,tsk);
 			break;
 		case tw::tool_type::boundState:
-			ans = new BoundState(name,ms,tsk);
+			ans = std::make_shared<BoundState>(name,ms,tsk);
 			break;
 		case tw::tool_type::freeState:
-			ans = new FreeState(name,ms,tsk);
+			ans = std::make_shared<FreeState>(name,ms,tsk);
 			break;
 		case tw::tool_type::randomState:
-			ans = new RandomState(name,ms,tsk);
+			ans = std::make_shared<RandomState>(name,ms,tsk);
 			break;
 		case tw::tool_type::tabulatedState:
-			ans = new TabulatedState(name,ms,tsk);
+			ans = std::make_shared<TabulatedState>(name,ms,tsk);
 			break;
 		case tw::tool_type::photonGenerator:
-			ans = new PhotonGenerator(name,ms,tsk);
+			ans = std::make_shared<PhotonGenerator>(name,ms,tsk);
 			break;
 		case tw::tool_type::pairCreator:
-			ans = new PairCreator(name,ms,tsk);
+			ans = std::make_shared<PairCreator>(name,ms,tsk);
 			break;
 		case tw::tool_type::borisMover:
-			ans = new BorisMover(name,ms,tsk);
+			ans = std::make_shared<BorisMover>(name,ms,tsk);
 			break;
 		case tw::tool_type::hcMover:
-			ans = new HCMover(name,ms,tsk);
+			ans = std::make_shared<HCMover>(name,ms,tsk);
 			break;
 		case tw::tool_type::pgcMover:
-			ans = new PGCMover(name,ms,tsk);
+			ans = std::make_shared<PGCMover>(name,ms,tsk);
 			break;
 		case tw::tool_type::unitaryMover:
-			ans = new UnitaryMover(name,ms,tsk);
+			ans = std::make_shared<UnitaryMover>(name,ms,tsk);
 			break;
 		case tw::tool_type::bohmianMover:
-			ans = new BohmianMover(name,ms,tsk);
+			ans = std::make_shared<BohmianMover>(name,ms,tsk);
 			break;
 		case tw::tool_type::photonMover:
-			ans = new PhotonMover(name,ms,tsk);
+			ans = std::make_shared<PhotonMover>(name,ms,tsk);
 			break;
 		case tw::tool_type::iteratorTest:
-			ans = new IteratorTest(name,ms,tsk);
+			ans = std::make_shared<IteratorTest>(name,ms,tsk);
 			break;
 		case tw::tool_type::metricSpaceTest:
-			ans = new MetricSpaceTest(name,ms,tsk);
+			ans = std::make_shared<MetricSpaceTest>(name,ms,tsk);
 			break;
 		case tw::tool_type::fftTest:
-			ans = new FFTTest(name,ms,tsk);
+			ans = std::make_shared<FFTTest>(name,ms,tsk);
 			break;
+		default:
+			throw tw::FatalError("factory cannot create unknown tool type");
 	}
 	return ans;
 }

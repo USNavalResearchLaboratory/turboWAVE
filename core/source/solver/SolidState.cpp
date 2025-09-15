@@ -8,6 +8,7 @@ import input;
 import twmodule;
 import fields;
 import diagnostics;
+import injection;
 
 export struct BoundElectrons:Module
 {
@@ -28,6 +29,8 @@ export struct BoundElectrons:Module
 	tw::Float theta,phi;
 	tw::basis crystalBasis;
 
+	tw::Profiles profiles;
+
 	Field* EM;
 	Field* sources;
 	Field* laser;
@@ -39,6 +42,7 @@ export struct BoundElectrons:Module
 
 	BoundElectrons(const std::string& name,Simulation* sim);
 	virtual ~BoundElectrons();
+	virtual void VerifyInput();
 	virtual void Initialize();
 	virtual bool InspectResource(void* resource,const std::string& description);
 	virtual void MoveWindow();
@@ -120,6 +124,18 @@ BoundElectrons::~BoundElectrons()
 	#endif
 }
 
+void BoundElectrons::VerifyInput()
+{
+	Module::VerifyInput();
+	// Populate strongly typed tools
+	for (auto tool : tools)
+	{
+		if (std::dynamic_pointer_cast<Profile>(tool)) {
+			profiles.push_back(std::dynamic_pointer_cast<Profile>(tool));
+		}
+	}
+}
+
 void BoundElectrons::Initialize()
 {
 	tw::Int i,s;
@@ -143,8 +159,8 @@ void BoundElectrons::Initialize()
 		}
 		pos = owner->Pos(cell);
 		dens(cell) = 0.0;
-		for (s=0;s<profile.size();s++)
-			dens(cell) += profile[s]->GetValue(pos,*owner);
+		for (auto profile : profiles)
+			dens(cell) += profile->GetValue(pos,*owner);
 	}
 
 	dens.CopyFromNeighbors();
@@ -255,8 +271,8 @@ void BoundElectrons::MoveWindow()
 	{
 		tw::vec3 pos = owner->Pos(s,Dim(s.Axis())+1);
 		tw::Float incomingMaterial = 0.0;
-		for (tw::Int p=0;p<profile.size();p++)
-			incomingMaterial += profile[p]->GetValue(pos,*owner);
+		for (auto profile : profiles)
+			incomingMaterial += profile->GetValue(pos,*owner);
 		dens.Shift(Rng(0),s,-1,incomingMaterial);
 		R0.Shift(Rng(0,3),s,-1,0.0);
 		R1.Shift(Rng(0,3),s,-1,0.0);

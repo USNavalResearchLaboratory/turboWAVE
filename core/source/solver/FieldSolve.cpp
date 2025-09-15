@@ -19,10 +19,11 @@ using namespace tw::bc;
 
 export struct FieldSolver:Module
 {
-	EllipticSolver *ellipticSolver;
+	std::shared_ptr<EllipticSolver> ellipticSolver;
+	tw::Waves waves;
+	tw::Conductors conductors;
 
 	FieldSolver(const std::string& name,Simulation* sim);
-	virtual ~FieldSolver();
 	virtual void VerifyInput();
 };
 
@@ -80,10 +81,9 @@ export struct DirectSolver:Electromagnetic
 	tw::Float reflectionCoefficient[6];
 	bool enforceChargeConservation;
 
-	YeePropagatorPML *yeeTool;
+	std::shared_ptr<YeePropagatorPML> yeeTool;
 
 	DirectSolver(const std::string& name,Simulation* sim);
-	~DirectSolver();
 	virtual void Initialize();
 	virtual void Update();
 	virtual void MoveWindow();
@@ -127,11 +127,11 @@ void Electromagnetic::LoadVectorPotential(Field& A,tw::Float t)
 			A(1,i,j,k,X) = 0.0;
 			A(1,i,j,k,Y) = 0.0;
 			A(1,i,j,k,Z) = 0.0;
-			for (s=0;s<wave.size();s++)
+			for (auto wave : waves)
 			{
-				A(1,i,j,k,X) += wave[s]->VectorPotential(t,r1).x;
-				A(1,i,j,k,Y) += wave[s]->VectorPotential(t,r2).y;
-				A(1,i,j,k,Z) += wave[s]->VectorPotential(t,r3).z;
+				A(1,i,j,k,X) += wave->VectorPotential(t,r1).x;
+				A(1,i,j,k,Y) += wave->VectorPotential(t,r2).y;
+				A(1,i,j,k,Z) += wave->VectorPotential(t,r3).z;
 			}
 		}
 	}
@@ -197,28 +197,27 @@ FieldSolver::FieldSolver(const std::string& name,Simulation* sim):Module(name,si
 		throw tw::FatalError("FieldSolver module requires <native units = plasma>");
 
 	updateSequencePriority = tw::priority::field;
-	ellipticSolver = NULL;
-}
-
-FieldSolver::~FieldSolver()
-{
-	if (ellipticSolver!=NULL)
-		owner->RemoveTool(ellipticSolver);
 }
 
 void FieldSolver::VerifyInput()
 {
 	Module::VerifyInput();
-	// Find an elliptic solver on the list of tools associated with this module
-	for (auto tool : moduleTool)
+	// Populate strongly typed tools
+	for (auto tool : tools)
 	{
-		ellipticSolver = dynamic_cast<EllipticSolver*>(tool);
-		if (ellipticSolver!=NULL)
-			break;
+		if (std::dynamic_pointer_cast<EllipticSolver>(tool)) {
+			ellipticSolver = std::dynamic_pointer_cast<EllipticSolver>(tool);
+		} else if (std::dynamic_pointer_cast<Wave>(tool)) {
+			waves.push_back(std::dynamic_pointer_cast<Wave>(tool));
+		} else if (std::dynamic_pointer_cast<Conductor>(tool)) {
+			conductors.push_back(std::dynamic_pointer_cast<Conductor>(tool));
+		}
 	}
-	// If the tool could not be found, create one automatically
-	if (ellipticSolver==NULL)
-		ellipticSolver = (EllipticSolver*)owner->CreateTool("default_facr_poisson_solver",tw::tool_type::facrPoissonSolver);
+	// If no elliptic solver, create one automatically
+	if (!ellipticSolver) {
+		auto name = owner->CreateTool("default_facr_poisson_solver",tw::tool_type::facrPoissonSolver);
+		ellipticSolver = std::dynamic_pointer_cast<EllipticSolver>(owner->UseTool(name));
+	}
 }
 
 
@@ -333,7 +332,7 @@ void Electromagnetic::InitializeConductors()
 	{
 		conductorMask(cell) = 1.0;
 		shiftedCenter = owner->Pos(cell) - 0.5*owner->dPos(cell);
-		for (auto c : conductor)
+		for (auto c : conductors)
 			if (c->affectsA && c->theRgn->Inside(shiftedCenter,*owner))
 				conductorMask(cell) = 0.0;
 	}
@@ -486,10 +485,10 @@ CoulombSolver::CoulombSolver(const std::string& name,Simulation* sim):Electromag
 {
 	A4.Initialize(8,*this,owner);
 
-	L1.Initialize(sim,sim,&wave,tw::grid::z,tw::grid::low,1,5);
-	L2.Initialize(sim,sim,&wave,tw::grid::z,tw::grid::low,2,6);
-	R1.Initialize(sim,sim,&wave,tw::grid::z,tw::grid::high,1,5);
-	R2.Initialize(sim,sim,&wave,tw::grid::z,tw::grid::high,2,6);
+	L1.Initialize(sim,sim,tw::grid::z,tw::grid::low,1,5);
+	L2.Initialize(sim,sim,tw::grid::z,tw::grid::low,2,6);
+	R1.Initialize(sim,sim,tw::grid::z,tw::grid::high,1,5);
+	R2.Initialize(sim,sim,tw::grid::z,tw::grid::high,2,6);
 }
 
 void CoulombSolver::ExchangeResources()
@@ -605,16 +604,16 @@ void CoulombSolver::Update()
 
 	if (owner->n0[3]==MPI_PROC_NULL)
 	{
-		L1.Set(A4,owner->WindowPos(0)+dth,dt);
-		L2.Set(A4,owner->WindowPos(0)+dth,dt);
+		L1.Set(A4,&waves,owner->WindowPos(0)+dth,dt);
+		L2.Set(A4,&waves,owner->WindowPos(0)+dth,dt);
 		for (auto strip : StripRange(A4,3,0,1,strongbool::no))
 			A4(strip,0,3) = A4(strip,1,3) + dx(3)*(A4.dfwd(strip,0,1,1) + A4.dfwd(strip,0,2,2));
 	}
 
 	if (owner->n1[3]==MPI_PROC_NULL)
 	{
-		R1.Set(A4,owner->WindowPos(0)+dth,dt);
-		R2.Set(A4,owner->WindowPos(0)+dth,dt);
+		R1.Set(A4,&waves,owner->WindowPos(0)+dth,dt);
+		R2.Set(A4,&waves,owner->WindowPos(0)+dth,dt);
 		for (auto strip : StripRange(A4,3,0,1,strongbool::no))
 			A4(strip,dim[3]+1,3) = A4(strip,dim[3],3) - dx(3)*(A4.dfwd(strip,dim[3],1,1) + A4.dfwd(strip,dim[3],2,2));
 	}
@@ -698,7 +697,8 @@ void CoulombSolver::Report(Diagnostic& diagnostic)
 
 DirectSolver::DirectSolver(const std::string& name,Simulation* sim):Electromagnetic(name,sim)
 {
-	yeeTool = (YeePropagatorPML*)owner->CreateTool("yee",tw::tool_type::yeePropagatorPML);
+	auto yee_name = owner->CreateTool("yee",tw::tool_type::yeePropagatorPML);
+	yeeTool = std::dynamic_pointer_cast<YeePropagatorPML>(owner->UseTool(yee_name));
 	enforceChargeConservation = true;
 	for (tw::Int i=0;i<6;i++) layerThickness[i] = 0;
 	for (tw::Int i=0;i<6;i++) reflectionCoefficient[i] = 0.01;
@@ -721,11 +721,6 @@ DirectSolver::DirectSolver(const std::string& name,Simulation* sim):Electromagne
 	directives.Add("enforce charge conservation",new tw::input::Bool(&enforceChargeConservation),false);
 	directives.Add("layers",new tw::input::Numbers<tw::Int>(layerThickness,6),false);
 	directives.Add("reflection coefficient",new tw::input::Numbers<tw::Float>(reflectionCoefficient,6),false);
-}
-
-DirectSolver::~DirectSolver()
-{
-	owner->RemoveTool(yeeTool);
 }
 
 void DirectSolver::SetupPML(Field& pml,tw::Int g0,tw::Int gN,tw::Int L0,tw::Int L1,tw::Float R0,tw::Float R1,tw::Float ds)
@@ -962,12 +957,12 @@ void DirectSolver::Update()
 
 	// Add electric antenna currents
 
-	if (conductor.size())
+	if (conductors.size())
 	{
 		#ifdef USE_OPENCL
 		sources.ReceiveFromComputeBuffer();
 		#endif
-		for (auto c : conductor)
+		for (auto c : conductors)
 			if (c->currentType==EM::current::electric)
 				c->DepositSources(sources, owner->WindowPos(0), dx(0));
 		#ifdef USE_OPENCL
@@ -980,7 +975,7 @@ void DirectSolver::Update()
 	// Advance the electric field
 
 	yeeTool->AdvanceE(A,PMLx,PMLy,PMLz,sources);
-	if (conductor.size())
+	if (conductors.size())
 		yeeTool->UpdateInteriorBoundaryE(A,conductorMask);
 
 	// Save the old magnetic field so final fields can be centered
@@ -990,7 +985,7 @@ void DirectSolver::Update()
 	// Advance the magnetic field
 
 	yeeTool->AdvanceB(A,PMLx,PMLy,PMLz);
-	if (conductor.size())
+	if (conductors.size())
 		yeeTool->UpdateInteriorBoundaryB(A,conductorMask);
 
 	// Setup the final field for the particle push
@@ -1173,12 +1168,12 @@ void CurvilinearDirectSolver::Update()
 
 	// Add electric antenna currents
 
-	if (conductor.size())
+	if (conductors.size())
 	{
 		#ifdef USE_OPENCL
 		sources.ReceiveFromComputeBuffer();
 		#endif
-		for (auto c : conductor)
+		for (auto c : conductors)
 			if (c->currentType==EM::current::electric)
 				c->DepositSources(sources, owner->WindowPos(0), dt);
 		#ifdef USE_OPENCL

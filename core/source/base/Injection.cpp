@@ -279,6 +279,15 @@ export struct Conductor : ComputeTool
 	void DepositSources(Field& j4,tw::Float t,tw::Float dt);
 };
 
+export namespace tw {
+	/// convenience alias for explicitly typed shared waves
+	typedef std::vector<std::shared_ptr<Wave>> Waves;
+	/// convenience alias for explicitly typed shared conductors
+	typedef std::vector<std::shared_ptr<Conductor>> Conductors;
+	/// convenience alias for explicitly typed shared profiles
+	typedef std::vector<std::shared_ptr<Profile>> Profiles;
+}
+
 export struct LindmanBoundary
 {
 	MetricSpace *ms;
@@ -286,11 +295,10 @@ export struct LindmanBoundary
 	tw::grid::side side;
 	Field boundaryMemory;
 	tw::Int c0,c1;
-	std::vector<Wave*> *wave;
 
-	void Initialize(Task *task,MetricSpace *ms,std::vector<Wave*> *waves,const tw::grid::axis& axis,const tw::grid::side& side,tw::Int c0,tw::Int c1);
+	void Initialize(Task *task,MetricSpace *ms,const tw::grid::axis& axis,const tw::grid::side& side,tw::Int c0,tw::Int c1);
 	void UpdateBoundaryMemory(Field& A,tw::Float dt);
-	void Set(Field& A,tw::Float t0,tw::Float dt);
+	void Set(Field& A,tw::Waves *wave,tw::Float t0,tw::Float dt);
 	void ReadCheckpoint(std::ifstream& inFile);
 	void WriteCheckpoint(std::ofstream& outFile);
 };
@@ -321,6 +329,7 @@ export struct Warp : ComputeTool,warp_base
 	virtual void WriteCheckpoint(std::ofstream& outFile);
 	tw::Float AddedCellWidth(tw::Int globalCell);
 };
+
 
 ///////////////////
 //               //
@@ -1369,10 +1378,9 @@ void Conductor::DepositSources(Field& sources,tw::Float t,tw::Float dt)
 //////////////////////
 
 
-void LindmanBoundary::Initialize(Task *task,MetricSpace *ms,std::vector<Wave*> *wave,const tw::grid::axis& axis,const tw::grid::side& side,tw::Int c0,tw::Int c1)
+void LindmanBoundary::Initialize(Task *task,MetricSpace *ms,const tw::grid::axis& axis,const tw::grid::side& side,tw::Int c0,tw::Int c1)
 {
 	this->ms = ms;
-	this->wave = wave;
 	this->axis = axis;
 	this->side = side;
 	// Set() assumes that c0 is an ordered 4-vector index
@@ -1428,7 +1436,7 @@ void LindmanBoundary::UpdateBoundaryMemory(Field& A,tw::Float dt)
 	boundaryMemory.Swap(Rng04(1,2,3,6),Rng04(1,2,6,9));
 }
 
-void LindmanBoundary::Set(Field& A,tw::Float t0,tw::Float dt)
+void LindmanBoundary::Set(Field& A,tw::Waves *waves,tw::Float t0,tw::Float dt)
 {
 	tw::Int ax = tw::grid::naxis(axis);
 	tw::Float sgn,correction,ds[4] = {dt,A.dx(1),A.dx(2),A.dx(3)};
@@ -1452,12 +1460,11 @@ void LindmanBoundary::Set(Field& A,tw::Float t0,tw::Float dt)
 		correction = boundaryMemory(1,i,j,k,3) + boundaryMemory(1,i,j,k,4) + boundaryMemory(1,i,j,k,5);
 		pos = ms->Pos(i,j,k) + sgn*offset;
 		Ain = 0.0;
-		for (s=0;s<wave->size();s++)
-		{
-			if ( (((*wave)[s]->direction) ^ (sgn*direction)) > 0.0)
+		for (auto wave : *waves) {
+			if ( ((wave->direction) ^ (sgn*direction)) > 0.0)
 			{
-				Ain += 4.0*(*wave)[s]->VectorPotential(t0+dt,pos);
-				Ain -= 4.0*(*wave)[s]->VectorPotential(t0,pos);
+				Ain += 4.0*wave->VectorPotential(t0+dt,pos);
+				Ain -= 4.0*wave->VectorPotential(t0,pos);
 			}
 		}
 		A(strip,s0,c0) = A(strip,s1,c1) + propagator*(A(strip,s0,c1)-A(strip,s1,c0));

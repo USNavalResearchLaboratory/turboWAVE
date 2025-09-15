@@ -38,7 +38,9 @@ export struct Fluid:Module
 	// temporaries used in Update
 	Field vel; // gammaAvg,v1,v2,v3
 
-	Ionizer *ionizer;
+	std::shared_ptr<Ionizer> ionizer;
+	tw::Profiles profiles;
+	tw::Waves waves;
 
 	Field *EM,*J4;
 	Field *laser;
@@ -46,7 +48,6 @@ export struct Fluid:Module
 	tw::Float *carrierFrequency;
 
 	Fluid(const std::string& name,Simulation* sim);
-	~Fluid();
 	virtual bool InspectResource(void* resource,const std::string& description);
 	virtual void VerifyInput();
 	virtual void Initialize();
@@ -70,15 +71,16 @@ export struct EquilibriumGroup;
 
 export struct Chemical:Module
 {
+	tw::Profiles profiles;
+	std::shared_ptr<EOSComponent> eosData;
+	std::shared_ptr<Ionizer> ionizer;
+	std::shared_ptr<UniformProfile> background;
+
 	EquilibriumGroup *group; // explictly typed super
-	EOSComponent *eosData;
-	Ionizer *ionizer;
-	UniformProfile *background;
 	sparc::material mat;
 	tw::Int indexInState;
 
 	Chemical(const std::string& name,Simulation* sim);
-	virtual ~Chemical();
 	void SetupIndexing();
 	virtual void VerifyInput();
 
@@ -89,7 +91,7 @@ export struct Chemical:Module
 export struct EquilibriumGroup:Module
 {
 	std::vector<Chemical*> chemical; // explicitly typed submodule list
-	EOSMixture *eosMixData;
+	std::shared_ptr<EOSMixture> eosMixData;
 	bool mobile;
 
 	// The hydro set contains indices into the state vector for this group.
@@ -143,7 +145,6 @@ export struct EquilibriumGroup:Module
 	}
 
 	EquilibriumGroup(const std::string& name,Simulation* sim);
-	virtual ~EquilibriumGroup(); // ASHER_MOD
 	void SetupIndexing();
 	virtual void VerifyInput();
 	bool GenerateFluid(Field& hydro,Field& eos);
@@ -159,9 +160,11 @@ struct HydroManager:Module
 	std::vector<Collision*> collision;
 	Field state0,state1,creationRate,destructionRate,eos0,eos1;
 
-	ParabolicSolver *parabolicSolver;
-	EllipticSolver *ellipticSolver;
-	IsotropicPropagator *laserPropagator;
+	tw::Waves waves;
+	tw::Conductors conductors;
+	std::shared_ptr<ParabolicSolver> parabolicSolver;
+	std::shared_ptr<EllipticSolver> ellipticSolver;
+	std::shared_ptr<IsotropicPropagator> laserPropagator;
 	tw::vec3 dipoleCenter;
 	tw::Float laserFrequency; // derived from pulse list during initialization
 	tw::Float backgroundDensity,backgroundTemperature;
@@ -272,19 +275,12 @@ Fluid::Fluid(const std::string& name,Simulation* sim):Module(name,sim)
 	laser = NULL;
 	chi = NULL;
 	carrierFrequency = NULL;
-	ionizer = NULL;
 
 	directives.Add("charge",new tw::input::Float(&charge),false);
 	directives.Add("mass",new tw::input::Float(&mass),false);
 	directives.Add("neutral cross section",new tw::input::Float(&enCrossSection),false);
 	directives.Add("initial ionization fraction",new tw::input::Float(&initialIonizationFraction),false);
 	directives.Add("coulomb collisions",new tw::input::Bool(&coulombCollisions),false);
-}
-
-Fluid::~Fluid()
-{
-	if (ionizer!=NULL)
-		owner->RemoveTool(ionizer);
 }
 
 bool Fluid::InspectResource(void* resource,const std::string& description)
@@ -325,11 +321,14 @@ bool Fluid::InspectResource(void* resource,const std::string& description)
 void Fluid::VerifyInput()
 {
 	Module::VerifyInput();
-	for (auto tool : moduleTool)
-	{
-		ionizer = dynamic_cast<Ionizer*>(tool);
-		if (ionizer!=NULL)
-			break;
+	for (auto tool : tools) {
+		if (std::dynamic_pointer_cast<Ionizer>(tool)) {
+			ionizer = std::dynamic_pointer_cast<Ionizer>(tool);
+		} else if (std::dynamic_pointer_cast<Wave>(tool)) {
+			waves.push_back(std::dynamic_pointer_cast<Wave>(tool));
+		} else if (std::dynamic_pointer_cast<Profile>(tool)) {
+			profiles.push_back(std::dynamic_pointer_cast<Profile>(tool));
+		}
 	}
 }
 
@@ -395,10 +394,8 @@ void Fluid::Initialize()
 		{
 			pos = owner->Pos(cell);
 
-			for (auto prof : profile)
-			{
-				for (tw::Int c=1;c<=3;c++)
-				{
+			for (auto prof : profiles) {
+				for (tw::Int c=1;c<=3;c++) {
 					state0(cell,c) = prof->DriftMomentum(1.0)[c-1];
 					state1(cell,c) = prof->DriftMomentum(1.0)[c-1];
 				}
@@ -406,15 +403,14 @@ void Fluid::Initialize()
 				gas(cell) += (1.0 - initialIonizationFraction)*density;
 				state0(cell,0) += initialIonizationFraction*density; // ionization fraction should not be zero
 				state1(cell,0) += initialIonizationFraction*density;
-				if (owner->neutralize)
+				if (owner->neutralize) {
 					fixed(cell) += initialIonizationFraction*density;
+				}
 			}
 
-			if (carrierFrequency==NULL)
-			{
+			if (carrierFrequency==NULL) {
 				A0 = A1 = tw::vec3(0,0,0);
-				for (auto w : wave)
-				{
+				for (auto w : waves) {
 					A0 += w->VectorPotential(-dth,pos);
 					A1 += w->VectorPotential(0.0,pos);
 				}
@@ -424,11 +420,8 @@ void Fluid::Initialize()
 				state1(cell,1) += A1.x;
 				state1(cell,2) += A1.y;
 				state1(cell,3) += 0.5*(A1.x*A1.x + A1.y*A1.y);
-			}
-			else
-			{
-				for (auto w : wave)
-				{
+			} else {
+				for (auto w : waves) {
 					state0(cell,3) += 0.25*norm(w->VectorPotentialEnvelope(-dth,pos,*carrierFrequency));
 					state1(cell,3) += 0.25*norm(w->VectorPotentialEnvelope(0.0,pos,*carrierFrequency));
 				}
@@ -437,11 +430,11 @@ void Fluid::Initialize()
 	}
 
 	// temperature is set to last profile's temperature
-	if (profile.size()==0)
+	if (profiles.size()==0)
 		throw tw::FatalError("Fluid module needs a profile.");
-	thermalMomentum = profile.back()->thermalMomentum.x;
-	if (profile.back()->temperature!=0.0)
-		thermalMomentum = std::sqrt(profile.back()->temperature*mass); // appropriate for std::exp(-v^2/(2*vth^2)) convention
+	thermalMomentum = profiles.back()->thermalMomentum.x;
+	if (profiles.back()->temperature!=0.0)
+		thermalMomentum = std::sqrt(profiles.back()->temperature*mass); // appropriate for std::exp(-v^2/(2*vth^2)) convention
 	if (thermalMomentum==0.0)
 		throw tw::FatalError("Fluid module requires temperature specification.");
 	if (initialIonizationFraction<=0.0 || initialIonizationFraction>1.0)
@@ -468,14 +461,12 @@ void Fluid::MoveWindow()
 			tw::Float incomingGas,incomingPlasma[4];
 			pos = owner->Pos(s,k);
 			incomingGas = incomingPlasma[0] = incomingPlasma[1] = incomingPlasma[2] = incomingPlasma[3] = 0.0;
-			for (tw::Int p=0;p<profile.size();p++)
-			{
-				if (ionizer==NULL)
-					incomingPlasma[0] += profile[p]->GetValue(pos,*owner);
-				else
-				{
-					incomingGas += profile[p]->GetValue(pos,*owner);
-					incomingPlasma[0] += 1e-6*profile[p]->GetValue(pos,*owner); // add a little plasma
+			for (auto profile : profiles) {
+				if (ionizer==NULL) {
+					incomingPlasma[0] += profile->GetValue(pos,*owner);
+				} else {
+					incomingGas += profile->GetValue(pos,*owner);
+					incomingPlasma[0] += 1e-6*profile->GetValue(pos,*owner); // add a little plasma
 				}
 			}
 			state0.Shift(All(state0),s,-1,incomingPlasma);
@@ -486,10 +477,9 @@ void Fluid::MoveWindow()
 				fixed(s,k) += incomingPlasma[0];
 
 			A0 = A1 = tw::vec3(0,0,0);
-			for (tw::Int w=0;w<wave.size();w++)
-			{
-				A0 += wave[w]->VectorPotential(owner->WindowPos(0)-dth,pos);
-				A1 += wave[w]->VectorPotential(owner->WindowPos(0),pos);
+			for (auto wave : waves) {
+				A0 += wave->VectorPotential(owner->WindowPos(0)-dth,pos);
+				A1 += wave->VectorPotential(owner->WindowPos(0),pos);
 			}
 			state0(s,k,1) += A0.x;
 			state0(s,k,2) += A0.y;
@@ -811,55 +801,37 @@ Chemical::Chemical(const std::string& name,Simulation* sim):Module(name,sim)
 	mat.kinematicViscosity = 0.0;
 	mat.eps[0] = 1.0;
 	mat.eps[1] = 0.0;
-	eosData = NULL;
-	ionizer = NULL;
-	background = NULL;
 	mat.AddDirectives(directives);
-}
-
-// ASHER_MOD -- Chemical now needs a destructor because of the eosData
-Chemical::~Chemical()
-{
-	if (eosData!=NULL)
-		owner->RemoveTool(eosData);
-	if (ionizer!=NULL)
-		owner->RemoveTool(ionizer);
 }
 
 void Chemical::VerifyInput()
 {
 	Module::VerifyInput();
 	group = (EquilibriumGroup*)super;
-	// DFG - Find an EOS on the list of tools associated with this module.
-	// This list is populated automatically by the base Module class.
-	for (auto tool : moduleTool)
-	{
-		eosData = dynamic_cast<EOSComponent*>(tool);
-		if (eosData!=NULL)
-			break;
-	}
-	for (auto tool : moduleTool)
-	{
-		ionizer = dynamic_cast<Ionizer*>(tool);
-		if (ionizer!=NULL)
-			break;
+	// search tools for EOS and ionizer
+	for (auto tool : tools) {
+		if (std::dynamic_pointer_cast<EOSComponent>(tool)) {
+			eosData = std::dynamic_pointer_cast<EOSComponent>(tool);
+		} else if (std::dynamic_pointer_cast<Ionizer>(tool)) {
+			ionizer = std::dynamic_pointer_cast<Ionizer>(tool);
+		} else if (std::dynamic_pointer_cast<Profile>(tool)) {
+			profiles.push_back(std::dynamic_pointer_cast<Profile>(tool));
+		}
 	}
 	// If the EOS tool could not be found, create one automatically.
-	// Another approach would be to throw an error, if we want to force the user to be explicit (this would break old input files).
-	// Ionization tool is optional, so if one was not found do nothing.
-	if (eosData==NULL)
-	{
-		if (mat.mass==1.0)
-			eosData = (EOSComponent*)owner->CreateTool("default_hot_electrons",tw::tool_type::eosHotElectrons);
-		else
-			eosData = (EOSComponent*)owner->CreateTool("default_ideal_gas",tw::tool_type::eosIdealGas);
+	if (!eosData) {
+		auto new_name = mat.mass==1.0 ?
+			owner->CreateTool("default_hot_electrons",tw::tool_type::eosHotElectrons) :
+			owner->CreateTool("default_ideal_gas",tw::tool_type::eosIdealGas);
+		eosData = std::dynamic_pointer_cast<EOSComponent>(owner->UseTool(new_name));
 	}
 	// Add a uniform profile for the automatic background fluid.
 	sparc::HydroManager *hydro = dynamic_cast<sparc::HydroManager*>(super->super);
 	if (hydro->backgroundDensity > 0.0)
 	{
-		background = (UniformProfile*)owner->CreateTool("auto_background",tw::tool_type::uniformProfile);
-		profile.push_back(background);
+		auto new_name = owner->CreateTool("auto_background",tw::tool_type::uniformProfile);
+		auto background = std::dynamic_pointer_cast<Profile>(owner->UseTool(new_name));
+		profiles.push_back(background);
 	}
 }
 
@@ -910,7 +882,7 @@ bool Chemical::LoadFluid(Field& hydro)
 	const tw::Int U = group->hidx.u;
 	const tw::Int Xi = group->hidx.x;
 
-	for (auto prof : profile)
+	for (auto prof : profiles)
 	{
 		if ( prof->TimeGate(owner->WindowPos(0),&add) )
 		{
@@ -962,7 +934,7 @@ void Chemical::LoadInternalEnergy(Field& hydro,Field& eos)
 
 	sparc::HydroManager *master = (sparc::HydroManager*)(super->super);
 
-	for (auto prof : profile)
+	for (auto prof : profiles)
 	{
 		if (prof->whichQuantity==tw::profile::quantity::density)
 		{
@@ -1004,18 +976,7 @@ EquilibriumGroup::EquilibriumGroup(const std::string& name,Simulation* sim):Modu
 	mobile = true;
 	forceFilter = 1.0;
 
-	// DFG - Start with NULL tool.
-	// User can select one by name, or let it be created automatically in VerifyInput()
-	eosMixData = NULL;
-
 	directives.Add("mobile",new tw::input::Bool(&mobile));
-}
-
-// ASHER_MOD -- EquilibriumGroup now needs a destructor because of eosMixData
-EquilibriumGroup::~EquilibriumGroup()
-{
-	if (eosMixData!=NULL)
-		owner->RemoveTool(eosMixData);
 }
 
 void EquilibriumGroup::SetupIndexing()
@@ -1037,24 +998,22 @@ void EquilibriumGroup::VerifyInput()
 {
 	Module::VerifyInput();
 	// Extract Chemical modules from the submodule list
-	for (auto sub : submodule)
-	{
+	for (auto sub : submodule) {
 		Chemical *chem = dynamic_cast<Chemical*>(sub);
 		if (chem!=NULL)
 			chemical.push_back(chem);
 	}
-	// DFG - Find an EOS mixture on the list of tools associated with this module.
-	// This list is populated automatically by the base Module class.
-	for (auto tool : moduleTool)
-	{
-		eosMixData = dynamic_cast<EOSMixture*>(tool);
-		if (eosMixData!=NULL)
-			break;
+	// Find an EOSMixture
+	for (auto tool : tools) {
+		if (std::dynamic_pointer_cast<EOSMixture>(tool)) {
+			eosMixData = std::dynamic_pointer_cast<EOSMixture>(tool);
+		}
 	}
-	// If the tool could not be found, create one automatically.
-	// Another approach would be to throw an error, if we want to force the user to be explicit (this would break old input files).
-	if (eosMixData==NULL)
-		eosMixData = (EOSMixture *)owner->CreateTool("default_eos_mix",tw::tool_type::eosMixture);
+	// If no EOSMixture create one
+	if (!eosMixData) {
+		auto new_name = owner->CreateTool("default_eos_mix",tw::tool_type::eosMixture);
+		eosMixData = std::dynamic_pointer_cast<EOSMixture>(owner->UseTool(new_name));
+	}
 }
 
 bool EquilibriumGroup::GenerateFluid(Field& hydro,Field& eos)
@@ -1102,11 +1061,6 @@ sparc::HydroManager::HydroManager(const std::string& name,Simulation* sim):Modul
 	radiationIntensity.Initialize(*this,owner);
 	refractiveIndex.Initialize(*this,owner);
 
-	// DFG - start all tools with null pointers
-	parabolicSolver = NULL;
-	ellipticSolver = NULL;
-	laserPropagator = NULL;
-
 	radModel = sparc::noRadiation;
 	lasModel = sparc::vacuum;
 	plasModel = sparc::neutral;
@@ -1128,12 +1082,6 @@ sparc::HydroManager::HydroManager(const std::string& name,Simulation* sim):Modul
 
 sparc::HydroManager::~HydroManager()
 {
-	if (parabolicSolver!=NULL)
-		owner->RemoveTool(parabolicSolver);
-	if (ellipticSolver!=NULL)
-		owner->RemoveTool(ellipticSolver);
-	if (laserPropagator!=NULL)
-		owner->RemoveTool(laserPropagator);
 	for (auto quasitool : reaction)
 		delete quasitool;
 	for (auto quasitool : excitation)
@@ -1237,7 +1185,6 @@ void sparc::HydroManager::VerifyInput()
 	}
 
 	// Search submodule list for EquilibriumGroup modules
-
 	for (auto sub : submodule)
 	{
 		EquilibriumGroup *grp = dynamic_cast<EquilibriumGroup*>(sub);
@@ -1245,46 +1192,41 @@ void sparc::HydroManager::VerifyInput()
 			group.push_back(grp);
 	}
 
-	// DFG - here is an example of where we have more than 1 kind of tool to consider.
-	// Simple appoach is just repeat the structure for each one.
-
-	for (auto tool : moduleTool)
-	{
-		ellipticSolver = dynamic_cast<EllipticSolver*>(tool);
-		if (ellipticSolver!=NULL)
-			break;
-	}
-	for (auto tool : moduleTool)
-	{
-		parabolicSolver = dynamic_cast<ParabolicSolver*>(tool);
-		if (parabolicSolver!=NULL)
-			break;
-	}
-	for (auto tool : moduleTool)
-	{
-		laserPropagator = dynamic_cast<IsotropicPropagator*>(tool);
-		if (laserPropagator!=NULL)
-			break;
+	// Find existing tools
+	for (auto tool : tools) {
+		if (std::dynamic_pointer_cast<EllipticSolver>(tool)) {
+			ellipticSolver = std::dynamic_pointer_cast<EllipticSolver>(tool);
+		} else if (std::dynamic_pointer_cast<ParabolicSolver>(tool)) {
+			parabolicSolver = std::dynamic_pointer_cast<ParabolicSolver>(tool);
+		} else if (std::dynamic_pointer_cast<IsotropicPropagator>(tool)) {
+			laserPropagator = std::dynamic_pointer_cast<IsotropicPropagator>(tool);
+		} else if (std::dynamic_pointer_cast<Wave>(tool)) {
+			waves.push_back(std::dynamic_pointer_cast<Wave>(tool));
+		} else if (std::dynamic_pointer_cast<Conductor>(tool)) {
+			conductors.push_back(std::dynamic_pointer_cast<Conductor>(tool));
+		}
 	}
 
-	if (parabolicSolver==NULL)
-		parabolicSolver = (ParabolicSolver*)owner->CreateTool("default_parabolic_solver",tw::tool_type::generalParabolicPropagator);
-
-	if (ellipticSolver==NULL)
-	{
-		if (owner->SpatialDims()==1)
-			ellipticSolver = (EllipticSolver*)owner->CreateTool("default_elliptic_solver",tw::tool_type::ellipticSolver1D);
-		else
-			ellipticSolver = (EllipticSolver*)owner->CreateTool("default_elliptic_solver",tw::tool_type::iterativePoissonSolver);
+	// if tools are missing create a default tool
+	if (!parabolicSolver) {
+		auto name = owner->CreateTool("default_parabolic_solver",tw::tool_type::generalParabolicPropagator);
+		parabolicSolver = std::dynamic_pointer_cast<ParabolicSolver>(owner->UseTool(name));
+	}
+	if (!ellipticSolver) {
+		auto name = owner->SpatialDims()==1 ?
+			owner->CreateTool("default_elliptic_solver",tw::tool_type::ellipticSolver1D) :
+			owner->CreateTool("default_elliptic_solver",tw::tool_type::iterativePoissonSolver);
+		ellipticSolver = std::dynamic_pointer_cast<EllipticSolver>(owner->UseTool(name));		
 		// Default tool needs some default boundaries; if a tool was attached the user will have specified them.
 		tw::bc::fld x0 = owner->bc0[1]==par::axisymmetric ? fld::neumannWall : fld::dirichletCell;
 		tw::bc::fld z0 = fld::dirichletCell;
 		tw::bc::fld z1 = fld::neumannWall;
 		ellipticSolver->SetBoundaryConditions(x0,z0,z0,z0,z0,z1);
 	}
-
-	if (laserPropagator==NULL)
-		laserPropagator = (IsotropicPropagator*)owner->CreateTool("default_laser_propagator",tw::tool_type::isotropicPropagator);
+	if (!laserPropagator) {
+		auto name = owner->CreateTool("default_laser_propagator",tw::tool_type::isotropicPropagator);
+		laserPropagator = std::dynamic_pointer_cast<IsotropicPropagator>(owner->UseTool(name));
+	}
 }
 
 void sparc::HydroManager::Initialize()
@@ -1292,12 +1234,12 @@ void sparc::HydroManager::Initialize()
 	Module::Initialize();
 
 	// Initialize laser frequency and refractive index
-	if (wave.size())
+	if (waves.size())
 	{
 		laserFrequency = 0.0;
-		for (auto pulse : wave)
+		for (auto pulse : waves)
 			laserFrequency += pulse->w;
-		laserFrequency /= tw::Float(wave.size());
+		laserFrequency /= tw::Float(waves.size());
 	}
 	refractiveIndex = tw::Complex(1.0,0.0);
 
@@ -1335,7 +1277,7 @@ void sparc::HydroManager::Initialize()
 	// also used for reflecting boundary conditions at simulation walls
 	fluxMask = 1.0;
 	for (auto cell : EntireCellRange(*this,1))
-		for (auto c : conductor)
+		for (auto c : conductors)
 			if (c->theRgn->Inside(owner->Pos(cell),*owner))
 				fluxMask(cell) = 0.0;
 	for (tw::Int ax=1;ax<=3;ax++)
@@ -1969,7 +1911,7 @@ void sparc::HydroManager::LaserAdvance(tw::Float dt)
 		return std::exp(ii*k*z)*ii*std::fabs(k)*A;
 	};
 
-	if (wave.size() && lasModel==sparc::vacuum) // use a prescribed field
+	if (waves.size() && lasModel==sparc::vacuum) // use a prescribed field
 	{
 		#pragma omp parallel
 		{
@@ -1978,7 +1920,7 @@ void sparc::HydroManager::LaserAdvance(tw::Float dt)
 				tw::Complex fwd = 0.0;
 				tw::Complex bak = 0.0;
 				const tw::vec3 pos = owner->Pos(cell);
-				for (auto pulse : wave)
+				for (auto pulse : waves)
 				{
 					if (pulse->direction.z > 0.0)
 						fwd += pulse->VectorPotentialEnvelope(owner->WindowPos(0),pos,laserFrequency);
@@ -1991,7 +1933,7 @@ void sparc::HydroManager::LaserAdvance(tw::Float dt)
 		}
 	}
 
-	if (electrons && wave.size() && lasModel==sparc::isotropic && dim[3]>1)
+	if (electrons && waves.size() && lasModel==sparc::isotropic && dim[3]>1)
 	{
 		#pragma omp parallel
 		{
@@ -2004,7 +1946,7 @@ void sparc::HydroManager::LaserAdvance(tw::Float dt)
 				const tw::Float z1 = owner->Pos(strip,1).z;
 				const tw::Float zN = owner->Pos(strip,dim[3]).z;
 				const tw::Float zN1 = owner->Pos(strip,dim[3]+1).z;
-				for (auto pulse : wave)
+				for (auto pulse : waves)
 				{
 					if (pulse->direction.z > 0.0)
 					{
@@ -2129,7 +2071,7 @@ tw::Float sparc::HydroManager::EstimateTimeStep()
 
 	// Ensure that step size is sufficently small to resolve each laser pulse.
 	tw::Float dtMaxAllPulses = owner->MaxSpacing(0);
-	for (auto pulse : wave)
+	for (auto pulse : waves)
 	{
 		const PulseShape& shape = pulse->pulseShape;
 		const tw::Float pulseDuration = shape.t4 - shape.t1;
@@ -2168,7 +2110,7 @@ void sparc::HydroManager::DiffusionAdvance(tw::Float dt)
 	{
 		// HEAT CONDUCTION
 
-		for (auto c : conductor)
+		for (auto c : conductors)
 			parabolicSolver->FixTemperature(eos1,Rng(g->eidx.T),c->theRgn,c->Temperature(owner->WindowPos(0)));
 		g->LoadMassDensity(scratch,state1);
 		CopyFieldData(scratch2,Rng(0),eos1,Rng(g->eidx.T));
@@ -2244,7 +2186,7 @@ void sparc::HydroManager::FieldAdvance(tw::Float dt)
 
 	// Solve the elliptical equation --- div(scratch*grad(phi)) = -rho_eff
 	// Even if plasma model is neutral, still do this to allow for external fields
-	for (auto c : conductor)
+	for (auto c : conductors)
 		ellipticSolver->FixPotential(phi,c->theRgn,c->Voltage(owner->WindowPos(0)));
 	ellipticSolver->SetCoefficients(&scratch);
 	ellipticSolver->Solve(phi,rho,-1.0);

@@ -11,6 +11,7 @@
 ### Breaking Changes
 
 * Tool retrieval is done with `use` instead of `get`
+* Tools are referenced by `SharedTool` (alias for `std::shared_ptr<ComputeTool>`)
 
 ## [5.0.0-a] - 2025-08-20
 

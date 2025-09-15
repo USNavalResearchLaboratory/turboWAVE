@@ -71,9 +71,6 @@ Simulation::~Simulation()
 
 	for (auto m : module)
 		delete m;
-	// clean up after any modules that did not release tools
-	for (auto tool : computeTool)
-		delete tool;
 
 	if (uniformDeviate!=NULL)
 		delete uniformDeviate;
@@ -222,10 +219,9 @@ void Simulation::Test()
 	tw::Float failed = 0;
 	success_count = 0;
 	failure_count = 0;
-	ComputeTool *tool;
 	Module *module;
 	
-	logger::INFO("Test Compute Tools");
+	std::println(std::cout,"\nTest Compute Tools");
 
 	for (auto [tool_key,theType] : ComputeTool::Map())
 	{
@@ -236,7 +232,7 @@ void Simulation::Test()
 			while (ComputeTool::SetTestEnvironment(theType,enviro,this,this))
 			{
 				auto gridStr = std::format("    {}x{}x{} grid",this->GlobalDim(1),this->GlobalDim(2),this->GlobalDim(3));
-				tool = CreateTool("test_tool",theType);
+				auto tool = UseTool(CreateTool("test_tool",theType));
 				logger::TRACE("register tests using tool prototype...");
 				tool->RegisterTests();
 				auto test_names = tool->test_names;
@@ -246,7 +242,7 @@ void Simulation::Test()
 				for (auto id=0; id < test_cases.size(); id++) {
 					logger::DEBUG(std::format("begin test case {}",id));
 					try {
-						tool = CreateTool("test_tool",theType);
+						auto tool = UseTool(CreateTool("test_tool",theType));
 						failed = 0;
 						try {
 							test_cases[id](*tool);
@@ -280,7 +276,7 @@ void Simulation::Test()
 		}
 	}
 
-	logger::INFO("Test Modules");
+	std::println(std::cout,"\nTest Modules");
 
 	for (auto [mod_key,theType] : Module::Map())
 	{
@@ -294,17 +290,19 @@ void Simulation::Test()
 				module = factory::CreateModuleFromType("test_module",theType,this);
 				logger::TRACE("register tests using module prototype...");
 				module->RegisterTests();
-				auto test_names = tool->test_names;
-				auto test_cases = tool->tests;
+				auto test_names = module->test_names;
+				auto test_cases = module->tests;
 				logger::TRACE("remove prototype module...");
 				delete module;
 				for (auto id = 0; id < test_cases.size(); id++) {
 					logger::DEBUG(std::format("begin test case {}",id));
 					try {
 	 					module = factory::CreateModuleFromType("test_module",theType,this);
+						logger::TRACE(std::format("testing module {}",module->name));
 						failed = 0;
 						try {
 							test_cases[id](*module);
+							logger::TRACE("test succeeded");
 							success_count++;
 							std::println(test_out,"{}    {} {}{}{}",gridStr,term::ok,term::green,test_names[id],term::reset_all);
 						} catch(tw::FatalError& e) {
@@ -364,7 +362,7 @@ void Simulation::PrepareSimulation()
 	}
 
 	// Attach clipping regions to tools
-	for (auto tool : computeTool) {
+	for (auto tool : tools) {
 		if (tool->region_name=="tw::entire") {
 			tool->theRgn = clippingRegion[0];
 		} else {
@@ -384,19 +382,23 @@ void Simulation::PrepareSimulation()
 	}
 
 	// If a diagnostic tool is not attached to any module attach it to all modules
-	for (auto tool : computeTool)
-		if (dynamic_cast<Diagnostic*>(tool) && tool->refCount==0)
-			for (auto m : module)
-			{
-				m->moduleTool.push_back(tool);
-				tool->refCount++;
+	for (auto tool : tools) {
+		// n.b. loop variable increments use_count
+		logger::DEBUG(std::format("tool {} used by {}",tool->name,tool.use_count()-1));
+		if (std::dynamic_pointer_cast<Diagnostic>(tool)) {
+			if (tool.use_count()==2) {
+				for (auto m : module) {
+					m->tools.push_back(tool);
+				}
 			}
+		}
+	}
 
 	// Check for duplicate filenames
 	std::vector<std::string> fileName;
-	for (auto tool : computeTool)
+	for (auto tool : tools)
 	{
-		Diagnostic *d = dynamic_cast<Diagnostic*>(tool);
+		auto d = std::dynamic_pointer_cast<Diagnostic>(tool);
 		if (d)
 		{
 			if (std::find(fileName.begin(),fileName.end(),d->filename)==fileName.end())
@@ -427,13 +429,13 @@ void Simulation::PrepareSimulation()
 	std::println(std::cout,"\nInitializing Compute Tools...\n");
 	std::flush(std::cout);
 
-	for (auto tool : computeTool)
+	for (auto tool : tools)
 	{
 		std::println(std::cout,"Tool: {}",tool->name);
 		std::flush(std::cout);
 		tool->Initialize();
 	}
-	if (computeTool.size()==0)
+	if (tools.size()==0)
 		std::println(std::cout,"(no tools)");
 
 	// Initialize Modules
@@ -517,18 +519,27 @@ void Simulation::InteractiveCommand(const std::string& cmd,std::ostream *theStre
 		*theStream << "Current elapsed time: " << windowPosition[0] << std::endl;
 		for (auto m : module)
 			m->StatusMessage(theStream);
-		for (auto tool : computeTool)
+		for (auto tool : tools)
 			tool->StatusMessage(theStream);
 		*theStream << std::endl;
 	}
 	if (cmd=="list")
 	{
-		*theStream << "--- List of Modules ---" << std::endl;
-		for (tw::Int i=0;i<module.size();i++)
+		*theStream << "--- Module Tree ---" << std::endl;
+		for (auto i=0; i<module.size(); i++) {
 			*theStream << i << " = " << module[i]->name << std::endl;
-		*theStream << "--- List of Tools ---" << std::endl;
-		for (tw::Int i=0;i<computeTool.size();i++)
-			*theStream << i << " = " << computeTool[i]->name << std::endl;
+			*theStream << "  Submodules:" << std::endl;
+			for (auto j=0; j<module[i]->submodule.size(); j++) {
+				*theStream << "    " << j << " = " << module[i]->submodule[j]->name << std::endl;
+			}
+			*theStream << "  Tools:" << std::endl;
+			for (auto j=0; j<module[i]->tools.size(); j++) {
+				*theStream << "    " << j << " = " << module[i]->tools[j]->name << std::endl;
+			}
+		}
+		*theStream << "--- All Tools ---" << std::endl;
+		for (tw::Int i=0;i<tools.size();i++)
+			*theStream << i << " = " << tools[i]->name << std::endl;
 		*theStream << std::endl;
 	}
 	if (cmd=="metrics")
@@ -647,8 +658,8 @@ bool Simulation::MangleToolName(std::string& name)
 	do
 	{
 		trouble = false;
-		for (tw::Int i=0;i<computeTool.size();i++)
-			if (computeTool[i]->name==mangled)
+		for (auto tool : tools)
+			if (tool->name==mangled)
 				trouble = true;
 		if (trouble)
 			mangled = name + std::to_string(id);
@@ -659,46 +670,35 @@ bool Simulation::MangleToolName(std::string& name)
 	return did_mangle;
 }
 
-ComputeTool* Simulation::CreateTool(const std::string& basename,tw::tool_type theType)
+std::string Simulation::CreateTool(const std::string& basename,tw::tool_type theType)
 {
 	std::string name(basename);
 	MangleToolName(name);
 	logger::INFO(std::format("Creating Tool <{}>...",name));
-	computeTool.push_back(factory::CreateToolFromType(name,theType,this,this));
-	computeTool.back()->refCount++;
-	return computeTool.back();
+	auto new_tool = factory::CreateToolFromType(name,theType,this,this);
+	tools.push_back(new_tool);
+	return name;
 }
 
-ComputeTool* Simulation::GetTool(const std::string& name,bool attaching)
+SharedTool Simulation::UseTool(const std::string& name)
 {
-	for (auto i=0;i<computeTool.size();i++)
-	{
-		if (computeTool[i]->name==name)
-		{
-			if (attaching)
-				computeTool[i]->refCount++;
-			return computeTool[i];
+	for (auto tool : tools) {
+		if (tool->name==name) {
+			return tool;
 		}
 	}
 	throw tw::FatalError("Could not find tool: " + name);
-	return NULL;
 }
 
-bool Simulation::RemoveTool(ComputeTool *theTool)
+void Simulation::RemoveTool(const SharedTool& tool)
 {
-	auto iter = std::find(computeTool.begin(),computeTool.end(),theTool);
-	if (iter==computeTool.end())
-		throw tw::FatalError("Attempt to remove a non-existant tool.");
-	(*iter)->refCount--;
-	logger::TRACE(std::format("remove tool to refcount {}",(*iter)->refCount));
-	if ((*iter)->refCount==0)
-	{
-		logger::WARN("tool was not removed");
-		//delete *iter;
-		//computeTool.erase(iter);
-		//return true;
+	for (auto it=tools.begin(); it<tools.end(); it++) {
+		if (*it == tool) {
+			tools.erase(it);
+			return;
+		}
 	}
-	return false;
+	throw tw::FatalError("Could not remove tool: " + tool->name);
 }
 
 void Simulation::MoveWindow()
@@ -754,12 +754,12 @@ void Simulation::ReadCheckpoint(std::ifstream& inFile)
 
 	// Read ComputeTool objects
 
-	for (tw::Int i=0;i<computeTool.size();i++)
+	for (auto tool : tools)
 	{
 		inFile >> objectName;
 		inFile.ignore();
 		std::println(std::cout,"Read checkpoint data for tool <{}>...",objectName);
-		GetTool(objectName,false)->ReadCheckpoint(inFile);
+		UseTool(objectName)->ReadCheckpoint(inFile);
 	}
 
 	// Read Module objects
@@ -790,10 +790,10 @@ void Simulation::WriteCheckpoint(std::ofstream& outFile)
 		obj->WriteCheckpoint(outFile);
 	}
 
-	for (auto obj : computeTool)
+	for (auto tool : tools)
 	{
-		std::println(std::cout,"Checkpointing <{}>...",obj->name);
-		obj->WriteCheckpoint(outFile);
+		std::println(std::cout,"Checkpointing <{}>...",tool->name);
+		tool->WriteCheckpoint(outFile);
 	}
 
 	for (auto obj : module)
@@ -805,17 +805,17 @@ void Simulation::WriteCheckpoint(std::ofstream& outFile)
 
 void Simulation::Diagnose()
 {
-	std::vector<Diagnostic*> diagnostic;
-	for (auto tool : computeTool)
-		if (dynamic_cast<Diagnostic*>(tool))
-			diagnostic.push_back(dynamic_cast<Diagnostic*>(tool));
+	std::vector<std::shared_ptr<Diagnostic>> diagnostics;
+	for (auto tool : tools)
+		if (std::dynamic_pointer_cast<Diagnostic>(tool))
+			diagnostics.push_back(std::dynamic_pointer_cast<Diagnostic>(tool));
 
 	// DIAGNOSTIC PREP
 	// Main purpose of this step is to let modules transfer data from compute devices.
 	// This has a high cost, so only do if necessary.
 
 	bool doing_diagnostics=false;
-	for (auto d : diagnostic)
+	for (auto d : diagnostics)
 		doing_diagnostics = doing_diagnostics || d->WriteThisStep(windowPosition[0],spacing[0],stepNow);
 	if (doing_diagnostics)
 	{
@@ -830,15 +830,15 @@ void Simulation::Diagnose()
 
 	// MAIN DIAGNOSTIC LOOP
 
-	auto has_diagnostic = [&] (Module *m,Diagnostic *diagnostic)
+	auto has_diagnostic = [&] (Module *m,std::shared_ptr<Diagnostic> diagnostic)
 	{
-		for (auto d : m->moduleTool)
+		for (auto d : m->tools)
 			if (d==diagnostic)
 				return true;
 		return false;
 	};
 
-	for (auto d : diagnostic)
+	for (auto d : diagnostics)
 	{
 		logger::TRACE(std::format("diagnostic {}",d->name));
 		if (d->WriteThisStep(windowPosition[0],spacing[0],stepNow))

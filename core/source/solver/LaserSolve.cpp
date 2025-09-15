@@ -11,6 +11,7 @@ import parabolic;
 import fields;
 import diagnostics;
 import numerics;
+import injection;
 import logger;
 
 using namespace tw::bc;
@@ -27,14 +28,15 @@ export struct LaserSolver:Module
 	MetricSpace HRSpace;
 	ComplexField HRa0,HRa1;
 	ComplexField HRchi;
-	LaserPropagator *propagator;
-	BoxDiagnostic *HRBoxDiagnostic;
-	GlobalSpline<tw::Complex> *spliner;
+
+	tw::Waves waves;
+	std::shared_ptr<LaserPropagator> propagator;
+	std::shared_ptr<BoxDiagnostic> HRBoxDiagnostic;
+	std::unique_ptr<GlobalSpline<tw::Complex>> spliner;
 
 	bool debug; // usually used to suppress envelope evolution
 
 	LaserSolver(const std::string& name,Simulation* sim);
-	virtual ~LaserSolver();
 	virtual void ExchangeResources();
 	virtual void Initialize();
 	virtual void Reset();
@@ -85,8 +87,6 @@ LaserSolver::LaserSolver(const std::string& name,Simulation* sim):Module(name,si
 	updateSequencePriority = tw::priority::field;
 	laserFreq = 10.0;
 	polarizationType = linearPolarization;
-	propagator = NULL;
-	HRBoxDiagnostic = NULL;
 	debug = false;
 	resolution = 1;
 
@@ -94,22 +94,13 @@ LaserSolver::LaserSolver(const std::string& name,Simulation* sim):Module(name,si
 	a1.Initialize(*this,owner);
 	chi.Initialize(*this,owner);
 
-	spliner = new GlobalSpline<tw::Complex>(&sim->strip[3],Num(1)*Num(2),Dim(3));
+	spliner = std::make_unique<GlobalSpline<tw::Complex>>(&sim->strip[3],Num(1)*Num(2),Dim(3));
 
 	directives.Add("carrier frequency",new tw::input::Float(&laserFreq));
 	std::map<std::string,tw_polarization_type> pol = {{"linear",linearPolarization},{"circular",circularPolarization},{"radial",radialPolarization}};
 	directives.Add("polarization",new tw::input::Enums<tw_polarization_type>(pol,&polarizationType),false);
 	directives.Add("debug",new tw::input::Bool(&debug),false);
 	directives.Add("resolution",new tw::input::Int(&resolution),false);
-}
-
-LaserSolver::~LaserSolver()
-{
-	if (propagator!=NULL)
-		owner->RemoveTool(propagator);
-	if (HRBoxDiagnostic!=NULL)
-		owner->RemoveTool(HRBoxDiagnostic);
-	delete spliner;
 }
 
 void LaserSolver::ExchangeResources()
@@ -132,9 +123,9 @@ void LaserSolver::Initialize()
 
 	Module::Initialize();
 
-	for (auto tool : moduleTool) {
-		auto diag = dynamic_cast<BoxDiagnostic*>(tool);
-		if (diag!=NULL && diag!=HRBoxDiagnostic) {
+	for (auto tool : tools) {
+		auto diag = std::dynamic_pointer_cast<BoxDiagnostic>(tool);
+		if (diag && diag!=HRBoxDiagnostic) {
 			diag->no_reports.push_back("a_real");
 			diag->no_reports.push_back("a_imag");
 			diag->no_reports.push_back("j1_real");
@@ -158,7 +149,7 @@ void LaserSolver::Initialize()
 	}
 
 	for (auto cell : EntireCellRange(HRSpace,1)) {
-		for (auto pulse : wave) {
+		for (auto pulse : waves) {
 			pos = HRSpace.Pos(cell);
 			pos.z = HRSpace.ToLab(pos.z,-dth);
 			HRa0.Pack(cell, HRa0(cell) + polarizationFactor*pulse->VectorPotentialEnvelope(-dth,pos,laserFreq));
@@ -285,14 +276,16 @@ void LaserSolver::Reset()
 void LaserSolver::VerifyInput()
 {
 	Module::VerifyInput();
-	for (auto tool : moduleTool) {
-		propagator = dynamic_cast<LaserPropagator*>(tool);
-		if (propagator!=NULL)
-			break;
+	for (auto tool : tools) {
+		if (std::dynamic_pointer_cast<LaserPropagator>(tool)) {
+			propagator = std::dynamic_pointer_cast<LaserPropagator>(tool);
+		} else if (std::dynamic_pointer_cast<Wave>(tool)) {
+			waves.push_back(std::dynamic_pointer_cast<Wave>(tool));
+		}
 	}
-	if (propagator==NULL) {
-		propagator = (LaserPropagator*)owner->CreateTool("default_adi",tw::tool_type::adiPropagator);
-		moduleTool.push_back(propagator);
+	if (!propagator) {
+		auto name = owner->CreateTool("default_adi",tw::tool_type::adiPropagator);
+		propagator = std::dynamic_pointer_cast<LaserPropagator>(owner->UseTool(name));
 	}
 	tw::node5 HRGlobalCells {
 		owner->GlobalDim(0),
@@ -309,14 +302,15 @@ void LaserSolver::VerifyInput()
 	};
 	logger::DEBUG(std::format("creating high resolution space x{}",resolution));
 	HRSpace.Resize(owner,HRGlobalCells,owner->GlobalCorner(),owner->GlobalPhysicalSize(),std_packing,layers,owner->gridGeometry);
-	HRBoxDiagnostic = (BoxDiagnostic*)owner->CreateTool("hr_box",tw::tool_type::boxDiagnostic);
-	moduleTool.push_back(HRBoxDiagnostic);
+	auto name = owner->CreateTool("hr_box",tw::tool_type::boxDiagnostic);
+	HRBoxDiagnostic = std::dynamic_pointer_cast<BoxDiagnostic>(owner->UseTool(name));
 	HRBoxDiagnostic->filename = "refined";
 	HRBoxDiagnostic->space = &HRSpace;
 	HRBoxDiagnostic->reports.push_back("a_real");
 	HRBoxDiagnostic->reports.push_back("a_imag");
 	HRBoxDiagnostic->reports.push_back("j1_real");
 	HRBoxDiagnostic->reports.push_back("j1_imag");
+	tools.push_back(HRBoxDiagnostic);
 }
 
 void LaserSolver::ReadCheckpoint(std::ifstream& inFile)
@@ -434,7 +428,7 @@ void PGCSolver::AntiMoveWindow()
 		tw::Float polarizationFactor = polarizationType==circularPolarization ? 1.414 : 1.0;
 		tw::Complex incoming0(0,0);
 		tw::Complex incoming1(0,0);
-		for (auto pulse : wave)
+		for (auto pulse : waves)
 		{
 			tw::vec3 pos = owner->Pos(s,0);
 			pos.z = owner->ToLab(pos.z,-dth);

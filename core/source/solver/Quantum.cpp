@@ -14,6 +14,7 @@ import fields;
 import diagnostics;
 import hyperbolic;
 import parabolic;
+import injection;
 import logger;
 
 using namespace tw::bc;
@@ -22,8 +23,10 @@ struct AtomicPhysics:Module
 {
 	tw::Float alpha; // fine structure constant
 	HamiltonianParameters H;
-	LorentzPropagator *photonPropagator;
-	std::vector<QState*> waveFunction;
+
+	tw::Waves waves;
+	std::shared_ptr<LorentzPropagator> photonPropagator;
+	std::vector<std::shared_ptr<QState>> waveFunction;
 
 	// Solution method
 	bool keepA2Term,dipoleApproximation;
@@ -34,7 +37,6 @@ struct AtomicPhysics:Module
 	Field J4; // EM 4-current
 
 	AtomicPhysics(const std::string& name,Simulation* sim);
-	virtual ~AtomicPhysics();
 	virtual void Initialize();
 	virtual void ExchangeResources();
 	tw::Float GetSphericalPotential(tw::Float r) const;
@@ -76,7 +78,7 @@ export struct Schroedinger:AtomicPhysics
 	#ifdef USE_OPENCL
 	cl_kernel applyNumerator,applyDenominator,chargeKernel,currentKernel,stitchKernel;
 	#endif
-	SchroedingerPropagator *propagator;
+	std::shared_ptr<SchroedingerPropagator> propagator;
 
 	Schroedinger(const std::string& name,Simulation* sim);
 	virtual ~Schroedinger();
@@ -116,7 +118,7 @@ export struct Pauli:AtomicPhysics
 {
 	ComplexField psi0,psi1,chi0,chi1; // old and new wavefunction
 	ComplexField scratch,v,w; // for distributed parallelism
-	SchroedingerPropagator *propagator;
+	std::shared_ptr<SchroedingerPropagator> propagator;
 
 	Pauli(const std::string& name,Simulation* sim);
 	virtual ~Pauli();
@@ -265,7 +267,8 @@ export struct Dirac:AtomicPhysics
 
 export struct PopulationDiagnostic : Module
 {
-	std::vector<QState*> refState; // ComputeTool defining the wavefunction of the reference state
+	tw::Waves waves;
+	std::vector<std::shared_ptr<QState>> refState; // ComputeTool defining the wavefunction of the reference state
 	HamiltonianParameters *H;
 	ComplexField *psi;
 
@@ -301,8 +304,6 @@ AtomicPhysics::AtomicPhysics(const std::string& name,Simulation* sim):Module(nam
 	Ao4.Initialize(4,*this,owner);
 	J4.Initialize(4,*this,owner);
 
-	photonPropagator = NULL;
-
 	#ifdef USE_OPENCL
 	InitializeCLProgram("quantum.cl");
 	A4.InitializeComputeBuffer();
@@ -320,13 +321,6 @@ AtomicPhysics::AtomicPhysics(const std::string& name,Simulation* sim):Module(nam
 	directives.Add("soft core potential charge",new tw::input::Float(&H.qnuc),false);
 	directives.Add("radius",new tw::input::Float(&H.rnuc),false);
 	directives.Add("bachelet potential",new tw::input::Custom,false);
-}
-
-AtomicPhysics::~AtomicPhysics()
-{
-	if (photonPropagator!=NULL)
-		owner->RemoveTool(photonPropagator);
-	// release any base class OpenCL kernels here
 }
 
 tw::Float AtomicPhysics::GetSphericalPotential(tw::Float r) const
@@ -404,10 +398,9 @@ void AtomicPhysics::FormPotentials(tw::Float t)
 			r_cart = dipoleApproximation ? tw::vec3(0,0,0) : owner->Pos(cell);
 			owner->CurvilinearToCartesian(&r_cart);
 			A0 = A1 = tw::vec3(-0.5*r_cart.y*H.B0.z,0.5*r_cart.x*H.B0.z,0.0);
-			for (tw::Int s=0;s<wave.size();s++)
-			{
-				A0 += wave[s]->VectorPotential(t-dx(0),r_cart);
-				A1 += wave[s]->VectorPotential(t,r_cart);
+			for (auto wave : waves) {
+				A0 += wave->VectorPotential(t-dx(0),r_cart);
+				A1 += wave->VectorPotential(t,r_cart);
 			}
 			r_curv = owner->Pos(cell);
 			owner->TangentVectorToCurvilinear(&A0,r_curv);
@@ -442,8 +435,8 @@ void AtomicPhysics::FormGhostCellPotentials(tw::Float t)
 					{
 						tw::vec3 pos(owner->Pos(s,ghostCell));
 						tw::vec3 A3(-0.5*pos.y*H.B0.z,0.5*pos.x*H.B0.z,0.0);
-						for (tw::Int wv=0;wv<wave.size();wv++)
-							A3 += wave[wv]->VectorPotential(t,pos);
+						for (auto wave : waves)
+							A3 += wave->VectorPotential(t,pos);
 						if ((ghostCell==0 && owner->n0[ax]==MPI_PROC_NULL) || (ghostCell!=0 && owner->n1[ax]==MPI_PROC_NULL))
 						{
 							A4(s,ghostCell,1) = A3.x;
@@ -463,8 +456,8 @@ tw::vec4 AtomicPhysics::GetA4AtOrigin()
 	aNow = 0.0;
 	r_cart = tw::vec3(0,0,0);
 	A[0] = GetSphericalPotential(0.0);
-	for (s=0;s<wave.size();s++)
-		aNow += wave[s]->VectorPotential(owner->WindowPos(0),r_cart);
+	for (auto wave : waves)
+		aNow += wave->VectorPotential(owner->WindowPos(0),r_cart);
 	A[1] = aNow.x;
 	A[2] = aNow.y;
 	A[3] = aNow.z;
@@ -477,19 +470,17 @@ void AtomicPhysics::VerifyInput()
 	if (owner->gridGeometry!=tw::grid::cartesian)
 		if (Norm(H.B0)!=0.0)
 			throw tw::FatalError("Static B field assumes Cartesian geometry.");
-	for (auto tool : moduleTool)
-	{
-		QState *state = dynamic_cast<QState*>(tool);
-		if (state) waveFunction.push_back(state);
+	for (auto tool : tools) {
+		if (std::dynamic_pointer_cast<LorentzPropagator>(tool)) {
+			photonPropagator = std::dynamic_pointer_cast<LorentzPropagator>(tool);
+		} else if (std::dynamic_pointer_cast<QState>(tool)) {
+			waveFunction.push_back(std::dynamic_pointer_cast<QState>(tool));
+		}
 	}
-	for (auto tool : moduleTool)
-	{
-		photonPropagator = dynamic_cast<LorentzPropagator*>(tool);
-		if (photonPropagator!=NULL)
-			break;
+	if (!photonPropagator) {
+		auto name = owner->CreateTool("default_photons",tw::tool_type::lorentzPropagator);
+		photonPropagator = std::dynamic_pointer_cast<LorentzPropagator>(owner->UseTool(name));
 	}
-	if (photonPropagator==NULL)
-		photonPropagator = (LorentzPropagator*)owner->CreateTool("default_photons",tw::tool_type::lorentzPropagator);
 }
 
 bool AtomicPhysics::ReadInputFileDirective(const TSTreeCursor *curs0,const std::string& src)
@@ -525,7 +516,7 @@ void AtomicPhysics::Report(Diagnostic& diagnostic)
 	tw::vec3 ENow,ANow;
 	const tw::Float dt = dx(0);
 	const tw::Float dti = 1/dt;
-	for (auto w : wave)
+	for (auto w : waves)
 	{
 		ANow += w->VectorPotential(owner->WindowPos(0),tw::vec3(0,0,0));
 		ENow -= dti*w->VectorPotential(owner->WindowPos(0)+0.5*dt,tw::vec3(0,0,0));
@@ -573,9 +564,6 @@ Schroedinger::Schroedinger(const std::string& name,Simulation* sim):AtomicPhysic
 
 	// Should move OpenCL stuff into the propagator tool
 	H.form = qo::schroedinger;
-	#ifndef USE_OPENCL
-	propagator = NULL;
-	#endif
 	psi0.Initialize(*this,owner);
 	psi1.Initialize(*this,owner);
 	v.Initialize(*this,owner);
@@ -627,10 +615,6 @@ Schroedinger::Schroedinger(const std::string& name,Simulation* sim):AtomicPhysic
 
 Schroedinger::~Schroedinger()
 {
-	#ifndef USE_OPENCL
-	if (propagator!=NULL)
-		owner->RemoveTool(propagator);
-	#endif
 	#ifdef USE_OPENCL
 	clReleaseKernel(applyNumerator);
 	clReleaseKernel(applyDenominator);
@@ -650,8 +634,10 @@ void Schroedinger::VerifyInput()
 {
 	AtomicPhysics::VerifyInput();
 	#ifndef USE_OPENCL
-	if (propagator==NULL)
-		propagator = (SchroedingerPropagator*)owner->CreateTool("TDSE",tw::tool_type::schroedingerPropagator);
+	if (!propagator) {
+		auto name = owner->CreateTool("TDSE",tw::tool_type::schroedingerPropagator);
+		propagator = std::dynamic_pointer_cast<SchroedingerPropagator>(owner->UseTool(name));
+	}
 	#endif
 }
 
@@ -939,18 +925,16 @@ Pauli::Pauli(const std::string& name,Simulation* sim):AtomicPhysics(name,sim)
 
 Pauli::~Pauli()
 {
-	#ifndef USE_OPENCL
-	if (propagator!=NULL)
-		owner->RemoveTool(propagator);
-	#endif
 }
 
 void Pauli::VerifyInput()
 {
 	AtomicPhysics::VerifyInput();
 	#ifndef USE_OPENCL
-	if (propagator==NULL)
-		propagator = (SchroedingerPropagator*)owner->CreateTool("TDSE",tw::tool_type::schroedingerPropagator);
+	if (!propagator) {
+		auto name = owner->CreateTool("TDSE",tw::tool_type::schroedingerPropagator);
+		propagator = std::dynamic_pointer_cast<SchroedingerPropagator>(owner->UseTool(name));
+	}
 	#endif
 }
 
@@ -1758,16 +1742,15 @@ bool PopulationDiagnostic::InspectResource(void* resource,const std::string& des
 
 void PopulationDiagnostic::VerifyInput()
 {
-	// The reference states are encapsulated as QState tools.
-	// These are attached explicitly by the user in the input file.
-	for (auto tool : moduleTool)
+	// strongly typed wave and reference state lists
+	for (auto tool : tools)
 	{
-		QState *state = dynamic_cast<QState*>(tool);
-		if (state) refState.push_back(state);
+		if (std::dynamic_pointer_cast<Wave>(tool)) {
+			waves.push_back(std::dynamic_pointer_cast<Wave>(tool));
+		} else if (std::dynamic_pointer_cast<QState>(tool)) {
+			refState.push_back(std::dynamic_pointer_cast<QState>(tool));
+		}
 	}
-	// EM waves are also attached in the input file.
-	// Module base class already populates the wave list.
-	// However the user has to know to attach waves to all modules that need them.
 }
 
 void PopulationDiagnostic::Initialize()
@@ -1785,7 +1768,7 @@ void PopulationDiagnostic::Report(Diagnostic& diagnostic)
 	temp.Initialize(*this,owner);
 
 	tw::vec3 ANow(0.0);
-	for (auto w : wave)
+	for (auto w : waves)
 		ANow += w->VectorPotential(owner->WindowPos(0),tw::vec3(0,0,0));
 
 	for (auto ref : refState)

@@ -74,7 +74,7 @@ export struct Simulation: Task, MetricSpace, tw::input::Visitor
 	std::string src; // expanded input file
 
 	std::vector<Region*> clippingRegion;
-	std::vector<ComputeTool*> computeTool;
+	std::vector<SharedTool> tools;
 	std::vector<Module*> module;
 	// Map of the most recently created module of a given type
 	std::map<tw::module_type,Module*> module_map;
@@ -107,10 +107,13 @@ export struct Simulation: Task, MetricSpace, tw::input::Visitor
 	Module* GetModule(const std::string& name);
 
 	bool MangleToolName(std::string& name);
-	ComputeTool* CreateTool(const std::string& basename,tw::tool_type theType);
-	ComputeTool* GetTool(const std::string& name,bool attaching);
-	void ParseUse(std::vector<ComputeTool*>& tool,TSTreeCursor *curs,const std::string& src);
-	bool RemoveTool(ComputeTool *theTool);
+	/// Create a tool that can be shared, returns name in case it had to be mangled
+	std::string CreateTool(const std::string& basename,tw::tool_type theType);
+	/// Use a previously created tool, if the name was mangled, the mangled name must be passed in
+	SharedTool UseTool(const std::string& name);
+	/// Remove tool from the master list, only used to conserve memory during testing
+	void RemoveTool(const SharedTool& tool);
+	void ParseUse(std::vector<SharedTool>& tools,TSTreeCursor *curs,const std::string& src);
 
 	tw::input::navigation visit(TSTreeCursor *curs);
 	void InputFileFirstPass();
@@ -154,7 +157,7 @@ struct Module:StaticSpace,Testable
 	Simulation *owner;
 	Module* super;
 	std::vector<Module*> submodule;
-	std::vector<ComputeTool*> moduleTool;
+	std::vector<SharedTool> tools;
 	tw::input::DirectiveReader directives;
 	tw::UnitConverter native,natural,atomic,plasma,cgs,mks;
 
@@ -162,11 +165,6 @@ struct Module:StaticSpace,Testable
 	tw::Int subSequencePriority;
 	tw::Int smoothing[4],compensation[4];
 	bool suppressNextUpdate;
-
-	// Strongly typed ComputeTool lists that are provided for free
-	std::vector<Profile*> profile;
-	std::vector<Wave*> wave;
-	std::vector<Conductor*> conductor;
 
 	// OpenCL Support
 	private:
@@ -183,25 +181,27 @@ struct Module:StaticSpace,Testable
 	virtual void PublishResource(void* resource,const std::string& description);
 	virtual bool InspectResource(void* resource,const std::string& description);
 	virtual void ExchangeResources() {;}
-	virtual void Initialize();
+	virtual void Initialize() {;}
 	virtual void Reset() {;}
 	virtual void Update() {;}
-	virtual void MoveWindow();
+	virtual void MoveWindow() {;}
 	virtual void AntiMoveWindow() {;}
 	virtual void AdaptGrid() {;}
 	virtual tw::Float AdaptTimestep() { return 0.0;}
 
 	void InitializeCLProgram(const std::string& filename);
 
-	virtual void VerifyInput();
+	/// Carry out checks that are appropriate after the whole input file block has been read in.
+	/// This includes searching the SharedTool list for what we need.
+	virtual void VerifyInput() {;}
 	virtual void ReadInputFileBlock(TSTreeCursor *curs,const std::string& src);
 	virtual bool ReadInputFileDirective(const TSTreeCursor *curs,const std::string& src);
 	virtual bool ReadQuasitoolBlock(const TSTreeCursor *curs,const std::string& src);
 	virtual void ReadCheckpoint(std::ifstream& inFile);
 	virtual void WriteCheckpoint(std::ofstream& outFile);
 
-	virtual void StartDiagnostics();
-	virtual void Report(Diagnostic&);
+	virtual void StartDiagnostics() {;}
+	virtual void Report(Diagnostic&) {;}
 	virtual void StatusMessage(std::ostream *dest) {;}
 
 	static std::map<std::string,tw::module_type> Map();
@@ -293,14 +293,6 @@ bool Module::InspectResource(void* resource,const std::string& description)
 	return false;
 }
 
-void Module::Initialize()
-{
-}
-
-void Module::MoveWindow()
-{
-}
-
 void Module::ReadCheckpoint(std::ifstream& inFile)
 {
 	StaticSpace::ReadCheckpoint(inFile);
@@ -310,28 +302,6 @@ void Module::WriteCheckpoint(std::ofstream& outFile)
 {
 	outFile << name << " ";
 	StaticSpace::WriteCheckpoint(outFile);
-}
-
-void Module::VerifyInput()
-{
-	// Carry out checks that are appropriate after the whole input file block has been read in.
-	// This includes searching the list of ComputTool pointers for what we need.
-
-	// The following captures tools that are handled automatically.
-	// N.b. this does not mean they are automatically attached to all modules, only that
-	// we automatically populate a strongly typed list.
-
-	for (auto tool : moduleTool)
-	{
-		Profile *theProfile = dynamic_cast<Profile*>(tool);
-		if (theProfile) profile.push_back(theProfile);
-
-		Wave *theWave = dynamic_cast<Wave*>(tool);
-		if (theWave) wave.push_back(theWave);
-
-		Conductor *theConductor = dynamic_cast<Conductor*>(tool);
-		if (theConductor) conductor.push_back(theConductor);
-	}
 }
 
 /// @brief called if an assignment was not handled normally
@@ -344,7 +314,7 @@ bool Module::ReadInputFileDirective(const TSTreeCursor *curs0,const std::string&
 	// Get an existing tool by searching for a name -- ``use <name>``
 	if (command=="use") {
 		auto curs = tw::input::Cursor(curs0);
-		owner->ParseUse(moduleTool,curs.get(),src);
+		owner->ParseUse(tools,curs.get(),src);
 		return true;
 	}
 
@@ -386,14 +356,6 @@ void Module::ReadInputFileBlock(TSTreeCursor *curs,const std::string& src)
 bool Module::ReadQuasitoolBlock(const TSTreeCursor *curs,const std::string& src)
 {
 	return false;
-}
-
-void Module::StartDiagnostics()
-{
-}
-
-void Module::Report(Diagnostic& diagnostic)
-{
 }
 
 ////// STATIC MEMBERS FOLLOW

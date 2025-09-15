@@ -10,12 +10,12 @@ using namespace tw::bc;
 
 void Fluid::AdvectionTest()
 {
-    Profile *bkg = new UniformProfile("hello",owner,owner);
+    auto bkg = std::make_shared<UniformProfile>("hello",owner,owner);
     bkg->theRgn = owner->clippingRegion[0];
     bkg->temperature = .01;
-    ((UniformProfile*)bkg)->density = .01;
+    bkg->density = .01;
     bkg->Initialize();
-    profile.push_back(bkg);
+    profiles.push_back(bkg);
 	Initialize();
 
     // setup a step function and velocity profile
@@ -43,18 +43,16 @@ void Fluid::AdvectionTest()
         pos *= state0(cell,0)>0.0 ? 1.0 : 0.0;
 
     ASSERT_NEAR(pos,1.0,1e-6);
-
-	delete bkg;
 }
 
 void Fluid::ConservationTest()
 {
-    Profile *bkg = new UniformProfile("hello",owner,owner);
+    auto bkg = std::make_shared<UniformProfile>("hello",owner,owner);
     bkg->theRgn = owner->clippingRegion[0];
     bkg->temperature = .01;
-    ((UniformProfile*)bkg)->density = .01;
+    bkg->density = .01;
     bkg->Initialize();
-    profile.push_back(bkg);
+    profiles.push_back(bkg);
 	Initialize();
 
     // setup a step function and velocity profile
@@ -89,6 +87,4 @@ void Fluid::ConservationTest()
      owner->strip[0].AllSum(&finalMass,&finalMass,sizeof(tw::Float),0);
 
     ASSERT_NEAR(finalMass,initialMass,initialMass/1e6);
-
-	delete bkg;
 }

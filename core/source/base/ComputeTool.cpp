@@ -60,7 +60,6 @@ export struct ComputeTool : Testable
 	MetricSpace *space;
 	Task *task;
 	std::string name;
-	int refCount; // how many modules currently using
 	tw::input::DirectiveReader directives;
 	tw::UnitConverter native,natural,atomic,plasma,cgs,mks;
 
@@ -102,7 +101,6 @@ ComputeTool::ComputeTool(const std::string& name,MetricSpace *ms,Task *tsk)
 	this->name = name;
 	space = ms;
 	task = tsk;
-	refCount = 0;
 	region_name = "tw::entire";
 	theRgn = NULL;
 	programFilename = "";
@@ -313,3 +311,5 @@ bool ComputeTool::SetTestEnvironment(tw::tool_type theType,tw::Int enviro,Metric
 			}
 	}
 }
+
+export typedef std::shared_ptr<ComputeTool> SharedTool;

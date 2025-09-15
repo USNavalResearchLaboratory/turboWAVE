@@ -58,9 +58,10 @@ export struct Species:Module
 	std::vector<Particle> particle;
 	std::vector<TransferParticle> transfer;
 
-	Mover* mover;
-	Ionizer* ionizer;
-	QED* qed;
+	tw::Profiles profiles;
+	std::shared_ptr<Mover> mover;
+	std::shared_ptr<Ionizer> ionizer;
+	std::shared_ptr<QED> qed;
 
 	Field* EM; // Ex,Ey,Ez,Bx,By,Bz
 	Field* sources; // rho,Jx,Jy,Jz
@@ -73,7 +74,6 @@ export struct Species:Module
 	Field *qo_j4; // 4-current from quantum optics modules
 
 	Species(const std::string& name,Simulation *sim);
-	virtual ~Species();
 	virtual bool InspectResource(void* resource,const std::string& description);
 	virtual void VerifyInput();
 	virtual void Initialize();
@@ -374,9 +374,9 @@ void Kinetics::Ionize()
 
 	for (tw::Int s=0;s<species.size();s++)
 	{
-		Ionizer *ionizer = species[s]->ionizer;
+		auto ionizer = species[s]->ionizer;
 
-		if (ionizer!=NULL)
+		if (ionizer)
 		{
 			std::vector<Particle>& particle = species[s]->particle;
 			s1 = (Species*)owner->GetModule(ionizer->ion_name);
@@ -451,11 +451,11 @@ void Kinetics::ProcessQED()
 
 	for (tw::Int s=0;s<species.size();s++)
 	{
-		QED *qed = species[s]->qed;
+		auto qed = species[s]->qed;
 
 		// Photon generation
 
-		if (qed!=NULL && !qed->photon_name.empty())
+		if (qed && !qed->photon_name.empty())
 		{
 			std::vector<Particle>& fermion = species[s]->particle;
 			s1 = (Species*)owner->GetModule(qed->photon_name);
@@ -692,27 +692,20 @@ Species::Species(const std::string& name,Simulation* sim) : Module(name,sim)
 	directives.Add("when density",new tw::input::Custom);
 }
 
-Species::~Species()
-{
-	if (mover!=NULL)
-		owner->RemoveTool(mover);
-	if (ionizer!=NULL)
-		owner->RemoveTool(ionizer);
-	if (qed!=NULL)
-		owner->RemoveTool(qed);
-}
-
 void Species::VerifyInput()
 {
 	Module::VerifyInput();
-	for (auto tool : moduleTool)
+	for (auto tool : tools)
 	{
-		if (ionizer==NULL)
-			ionizer = dynamic_cast<Ionizer*>(tool);
-		if (mover==NULL)
-			mover = dynamic_cast<Mover*>(tool);
-		if (qed==NULL)
-			qed = dynamic_cast<QED*>(tool);
+		if (std::dynamic_pointer_cast<Ionizer>(tool)) {
+			ionizer = std::dynamic_pointer_cast<Ionizer>(tool);
+		} else if (std::dynamic_pointer_cast<Mover>(tool)) {
+			mover = std::dynamic_pointer_cast<Mover>(tool);
+		} else if (std::dynamic_pointer_cast<QED>(tool)) {
+			qed = std::dynamic_pointer_cast<QED>(tool);
+		} else if (std::dynamic_pointer_cast<Profile>(tool)) {
+			profiles.push_back(std::dynamic_pointer_cast<Profile>(tool));
+		}
 	}
 }
 
@@ -725,17 +718,22 @@ void Species::Initialize()
 		CopyFieldData(*sources,0,*rho00,0); // accepting redundant operations
 
 	// Choose a mover if none was specified
-	if (mover==NULL) {
-		if (EM!=NULL && sources!=NULL && laser==NULL && qo_j4==NULL && restMass!=0.0f)
-			mover = (Mover*)owner->CreateTool("Boris-mover",tw::tool_type::borisMover);
-		if (EM!=NULL && sources!=NULL && laser!=NULL && qo_j4==NULL)
-			mover = (Mover*)owner->CreateTool("PGC-mover",tw::tool_type::pgcMover);
-		if (qo_j4!=NULL)
-			mover = (Mover*)owner->CreateTool("Bohmian-mover",tw::tool_type::bohmianMover);
-		if (restMass==0.0f && charge==0.0f)
-			mover = (Mover*)owner->CreateTool("Photon-mover",tw::tool_type::photonMover);
+	if (!mover) {
+		if (EM!=NULL && sources!=NULL && laser==NULL && qo_j4==NULL && restMass!=0.0f) {
+			auto name = owner->CreateTool("Boris-mover",tw::tool_type::borisMover);
+			mover = std::dynamic_pointer_cast<Mover>(owner->UseTool(name));
+		} else if (EM!=NULL && sources!=NULL && laser!=NULL && qo_j4==NULL) {
+			auto name = owner->CreateTool("PGC-mover",tw::tool_type::pgcMover);
+			mover = std::dynamic_pointer_cast<Mover>(owner->UseTool(name));
+		} else if (qo_j4!=NULL) {
+			auto name = owner->CreateTool("Bohmian-mover",tw::tool_type::bohmianMover);
+			mover = std::dynamic_pointer_cast<Mover>(owner->UseTool(name));
+		} else if (restMass==0.0f && charge==0.0f) {
+			auto name = owner->CreateTool("Photon-mover",tw::tool_type::photonMover);
+			mover = std::dynamic_pointer_cast<Mover>(owner->UseTool(name));
+		}
 	}
-	if (mover==NULL) {
+	if (!mover) {
 		throw tw::FatalError(std::format("no mover was created for {}",name));
 	}
 	// Copy pointers to the mover tool
@@ -1025,7 +1023,7 @@ void Species::DepositInitialCharge(const tw::vec4& pos,tw::Float macroCharge)
 void Species::GenerateParticles(bool init)
 {
 	tw::Float add;
-	for (auto prof : profile)
+	for (auto prof : profiles)
 		if ( prof->TimeGate(owner->WindowPos(0),&add) )
 			for (auto cell : InteriorCellRange(*this,1))
 			{
@@ -1274,7 +1272,7 @@ void Species::BeginMoveWindow()
 void Species::FinishMoveWindow()
 {
 	if (owner->n1[3]==MPI_PROC_NULL)
-		for (auto prof : profile)
+		for (auto prof : profiles)
 			for (tw::Int j=1;j<=dim[2];j++)
 				for (tw::Int i=1;i<=dim[1];i++)
 				{

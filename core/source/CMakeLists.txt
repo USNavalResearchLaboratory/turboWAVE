@@ -1,22 +1,19 @@
 cmake_minimum_required(VERSION 4.0.3)
 
-# REMINDERS
+# Build Reminders
 #
 # For MSVC, we have to specify release at build time `cmake --build . --config Release`
 # For non-MSVC, we specify release at config time `cmake [options] -DCMAKE_BUILD_TYPE=Release ..`
 # For clangd support, add -DCMAKE_EXPORT_COMPILE_COMMANDS=1 during config
-# it may be necessary to build std by hand
-# 
-# To build module std for LLVM libc++:
-# git clone https://github.com/llvm/llvm-project.git
-# cd llvm-project
-# mkdir build
-# cmake -G Ninja -S runtimes -DLLVM_ENABLE_RUNTIMES="libcxx;libcxxabi;libunwind" -B build -DCMAKE_CXX_COMPILER=/home/linuxbrew/.linuxbrew/opt/llvm/bin/clang++ -DCMAKE_C_COMPILER=/home/linuxbrew/.linuxbrew/opt/llvm/bin/clang
-# ninja -C build
-# this puts std.cppm into llvm-project/build/modules/c++/v1
+#
+# Runtime Reminders
+#
+# For Mac/Linux the OpenMP shared library may not be found.
+# This is fixed using an environment variable, e.g.:
+# export LD_LIBRARY_PATH=$HOMEBREW_PREFIX/opt/llvm/lib/x86_64-unknown-linux-gnu
 
 if(WIN32)
-    # This requires installing some things with winget:
+    # Windows requires installing some things with winget:
     # winget install LLVM.LLVM
     # winget install Kitware.CMake
     # winget install Microsoft.msmpisdk
@@ -27,12 +24,12 @@ if(WIN32)
     set(CMAKE_SYSTEM_LIBRARY_PATH "$ENV{ProgramFiles}/LLVM/lib")
     set(CMAKE_SYSTEM_INCLUDE_PATH "$ENV{ProgramFiles}/LLVM/include")
 elseif(APPLE)
+    # Apple requires installing some things with homebrew:
     # brew install llvm
     # brew install cmake
     # brew install libomp (maybe packed with llvm)
     # brew install open-mpi (or substitute favorite MPI)
     # brew install ninja
-    # maybe necessary to set LD_LIBRARY_PATH to find libomp.so
 	set(CMAKE_CXX_COMPILER "$ENV{HOMEBREW_PREFIX}/opt/llvm/bin/clang++")
 	set(CMAKE_C_COMPILER "$ENV{HOMEBREW_PREFIX}/opt/llvm/bin/clang")
 	# set(CMAKE_SYSTEM_LIBRARY_PATH "$ENV{HOMEBREW_PREFIX}/opt/llvm/lib")
@@ -48,23 +45,24 @@ elseif(APPLE)
     # So if we are using libc++ we have to use our own wrappers.
     # add_definitions(-DUSE_TWSF)
 elseif(UNIX)
-    # Ubuntu
+    # Ubuntu requires the following installations:
     #   maybe `ln -s /var/lib/snapd/snap snap`
-    #   install snapd and linuxbrew
-    #   snap install cmake
+    #   install snapd and homebrew
+    #   snap install cmake --classic
     #   apt install ninja-build
     #   apt install gcc-14
     #   apt install libstdc++-14-dev
     #   apt install libopenmpi-dev
     #   brew install llvm
-    # Fedora
+    # Fedora requires the following installations:
     #   maybe `ln -s /var/lib/snapd/snap snap`
-    #   install snapd
+    #   install snapd and homebrew
     #   snap install cmake --classic
+    #   dnf install ninja-build
     #   dnf install gcc
     #   dnf install g++
-    #   dnf install ninja-build
     #   dnf install openmpi-devel
+    #   brew install llvm
     #   module load mpi
 	set(CMAKE_CXX_COMPILER "$ENV{HOMEBREW_PREFIX}/opt/llvm/bin/clang++")
 	set(CMAKE_C_COMPILER "$ENV{HOMEBREW_PREFIX}/opt/llvm/bin/clang")

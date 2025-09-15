@@ -119,7 +119,7 @@ export namespace tw
 		{
 			strip_stride = ss.Stride(strip_ax);
 			strip_lfg = ss.LFG(strip_ax);
-			comp_stride = ss.Stride(5);
+			comp_stride = ss.Stride(4);
 			off = 0;
 			for (auto i=0; i<4; i++) {
 				x[i] = coord[i];

@@ -89,7 +89,7 @@ void GridReader::UpdateSpace(MetricSpace& ms)
 /// @param tool tool list owned by a module
 /// @param curs should be on a `use` node
 /// @param src source document
-void Simulation::ParseUse(std::vector<ComputeTool*>& tool,TSTreeCursor *curs,const std::string& src)
+void Simulation::ParseUse(std::vector<SharedTool>& tools,TSTreeCursor *curs,const std::string& src)
 {
 	logger::DEBUG("use a named tool");
 	ts_tree_cursor_goto_first_child(curs);
@@ -97,7 +97,7 @@ void Simulation::ParseUse(std::vector<ComputeTool*>& tool,TSTreeCursor *curs,con
 	tw::input::StripQuotes(word);
 	if (CheckModule(word))
 		tw::input::ThrowParsingError(curs,src,"Tried to <use> module, but <use> can only be used for tools.");
-	tool.push_back(GetTool(word,true));
+	tools.push_back(UseTool(word));
 }
 
 /// @brief main visitor callback for AST walker
@@ -136,13 +136,12 @@ tw::input::navigation Simulation::visit(TSTreeCursor *curs) {
 			} else if (key == "warp") {
 				auto curs1 = tw::input::Cursor(curs);
 				tw::input::Preamble preamble = tw::input::GetPreamble(curs1.get(),src);
-				MangleToolName(preamble.obj_name);
 				logger::INFO(std::format("Creating Tool <{}>...",preamble.obj_name));
-				// Do not use CreateTool, do not want to increase refCount
-				computeTool.push_back(factory::CreateToolFromType(preamble.obj_name,tw::tool_type::warp,this,this));
-				computeTool.back()->ReadInputFileBlock(curs1.get(),src);
-				computeTool.back()->Initialize(); // OK and necessary to init here
-				AttachWarp(dynamic_cast<Warp*>(computeTool.back()));
+				auto name = CreateTool(preamble.obj_name, tw::tool_type::warp);
+				auto new_tool = UseTool(name);
+				new_tool->ReadInputFileBlock(curs1.get(),src);
+				new_tool->Initialize(); // OK and necessary to init here
+				AttachWarp(std::dynamic_pointer_cast<warp_base>(new_tool));
 				return tw::input::navigation::gotoSibling;
 			} else {
 				// not a grid or warp, so skip it
@@ -197,18 +196,17 @@ tw::input::navigation Simulation::visit(TSTreeCursor *curs) {
 			if (whichTool!=tw::tool_type::none) {
 				logger::DEBUG("parsing tool");
 				if (preamble.attaching) {
-					ComputeTool *tool = CreateTool(preamble.obj_name,whichTool);
-					std::println(std::cout,"Attaching <{}> to <{}>",tool->name,preamble.owner_name);
-					tool->ReadInputFileBlock(curs,src);
-					GetModule(preamble.owner_name)->moduleTool.push_back(tool);
+					std::println(std::cout,"Attaching <{}> to <{}>",preamble.obj_name,preamble.owner_name);
+					auto name = CreateTool(preamble.obj_name,whichTool);
+					auto new_tool = UseTool(name);
+					new_tool->ReadInputFileBlock(curs,src);
+					GetModule(preamble.owner_name)->tools.push_back(new_tool);
 				} else {
-					bool duplicate = MangleToolName(preamble.obj_name);
 					logger::INFO(std::format("Creating Tool <{}>...",preamble.obj_name));
-					if (duplicate && errorCheckingLevel>0)
+					auto name = CreateTool(preamble.obj_name,whichTool);
+					if (name != preamble.obj_name && errorCheckingLevel>0)
 						tw::input::ThrowParsingError(curs,src,"duplicate tool name.");
-					// Do not use CreateTool, do not want to increase refCount
-					computeTool.push_back(factory::CreateToolFromType(preamble.obj_name,whichTool,this,this));
-					computeTool.back()->ReadInputFileBlock(curs,src);
+					UseTool(name)->ReadInputFileBlock(curs,src);
 				}
 				return tw::input::navigation::gotoSibling;
 			}
@@ -298,10 +296,11 @@ void Simulation::ParseNestedDeclaration(TSTreeCursor *curs,const std::string& sr
 
 	if (whichTool!=tw::tool_type::none)
 	{
-		ComputeTool *tool = CreateTool(preamble.obj_name,whichTool);
-		std::println(std::cout,"   Attaching nested tool <{}>...",tool->name);
-		tool->ReadInputFileBlock(curs,src);
-		super->moduleTool.push_back(tool);
+		auto name = CreateTool(preamble.obj_name,whichTool);
+		std::println(std::cout,"   Attaching nested tool <{}>...",name);
+		auto new_tool = UseTool(name);
+		new_tool->ReadInputFileBlock(curs,src);
+		super->tools.push_back(new_tool);
 		return;
 	}
 

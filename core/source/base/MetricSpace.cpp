@@ -45,7 +45,7 @@ export struct MetricSpace:DynSpace
 	// External access of arcs is through dl and dlh, and uses spatial indexing 1,2,3
 
 	tw::UnitConverter units;
-	std::vector<warp_base*> warps;
+	std::vector<std::shared_ptr<warp_base>> warps;
 
 	#ifdef USE_OPENCL
 	cl_mem metricsBuffer;
@@ -80,7 +80,7 @@ public:
 	void ReadCheckpoint(std::ifstream& inFile);
 	void WriteCheckpoint(std::ofstream& outFile);
 	void AttachUnits(tw::units sys,tw::Float unitDensityCGS);
-	void AttachWarp(warp_base *w);
+	void AttachWarp(std::shared_ptr<warp_base> w);
 
 	#ifdef USE_OPENCL
 	void InitializeMetricsBuffer(cl_context ctx,tw::Float dt);
@@ -436,7 +436,7 @@ inline void MetricSpace::TangentVectorToCurvilinear(tw::vec3 *v,const tw::vec3& 
 /// Argument will typically point to a ComputeTool.
 /// Do not update refCount since ultimately the Simulation
 /// object, which is derived from this object, owns the tool.
-void MetricSpace::AttachWarp(warp_base *w)
+void MetricSpace::AttachWarp(std::shared_ptr<warp_base> w)
 {
 	warps.push_back(w);
 }
