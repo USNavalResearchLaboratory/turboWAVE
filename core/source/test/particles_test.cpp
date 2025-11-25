@@ -38,9 +38,9 @@ void Species::ReflectionTest()
 	EM = new Field;
 	sources = new Field;
 	rho00 = new ScalarField;
-	EM->Initialize(6,*this,owner);
-	sources->Initialize(4,*this,owner);
-	rho00->Initialize(*this,owner);
+	EM->Initialize(6,*space,task);
+	sources->Initialize(4,*space,task);
+	rho00->Initialize(*space,task);
 	Initialize();
 
 	// Reflecting boundary condition test
@@ -49,11 +49,11 @@ void Species::ReflectionTest()
 	const tw::Float tolerance = 1e-5;
 	Primitive q0;
 	tw::vec4 dr(0.5*this->dx(0),0,0,0.35*this->dx(3));
-	tw::vec4 r0 = owner->Corner() - dr;
-	tw::vec4 rexpect = owner->strip[3].Get_rank() == 0 ? owner->Corner() + dr : r0;
-	tw::vec4 p0(sqrt(2),0,0,-1);
+	tw::vec4 r0 = space->Corner() - dr;
+	tw::vec4 rexpect = task->strip[3].Get_rank() == 0 ? space->Corner() + dr : r0;
+	tw::vec4 p0(std::sqrt(2),0,0,-1);
 	tw::vec4 s0(1,0,0,0);
-	owner->SetPrimitiveWithPosition(q0,r0);
+	space->SetPrimitiveWithPosition(q0,r0);
 	ASSERT_NEAR(q0.x[0], 0.0, tolerance);
 	ASSERT_NEAR(q0.x[3], 0.15, tolerance);
 	AddParticle(1.0,q0,p0,s0,0.0);
@@ -61,7 +61,7 @@ void Species::ReflectionTest()
 	ASSERT_NEAR(transfer[0].x[0], q0.x[0], tolerance);
 	ASSERT_NEAR(transfer[0].x[3], q0.x[3], tolerance);
 	ApplyGlobalBoundaryConditions();
-	if (owner->strip[3].Get_rank()==0)
+	if (task->strip[3].Get_rank()==0)
 	{
 		ASSERT_EQ(transfer[0].ijk[3], 1);
 		ASSERT_NEAR(transfer[0].x[3], -q0.x[3], tolerance);
@@ -76,7 +76,7 @@ void Species::ReflectionTest()
 	// as an extra check, make sure we recover expected global coordinates
 	tw::Int cell = EncodeCell(transfer[0].ijk[0],transfer[0].ijk[1],transfer[0].ijk[2],transfer[0].ijk[3]);
 	Primitive qf(cell,transfer[0].x[0],transfer[0].x[1],transfer[0].x[2],transfer[0].x[3]);
-	tw::vec4 ractual = owner->PositionFromPrimitive(qf);
+	tw::vec4 ractual = space->PositionFromPrimitive(qf);
 	ASSERT_NEAR(ractual[3], rexpect[3], tolerance);
 	delete EM;
 	delete sources;
@@ -91,9 +91,9 @@ void Species::MoveWindowTest()
 	EM = new Field;
 	sources = new Field;
 	rho00 = new ScalarField;
-	EM->Initialize(6,*this,owner);
-	sources->Initialize(4,*this,owner);
-	rho00->Initialize(*this,owner);
+	EM->Initialize(6,*space,task);
+	sources->Initialize(4,*space,task);
+	rho00->Initialize(*space,task);
 	Initialize();
 
 	// Begin move window test
@@ -103,10 +103,10 @@ void Species::MoveWindowTest()
 	Primitive q0;
 	tw::vec4 r0;
 	tw::vec4 p0(1,0,0,0),s0(1,0,0,0);
-	if (owner->strip[3].Get_rank()==1)
+	if (task->strip[3].Get_rank()==1)
 	{
-		r0 = tw::vec4(-0.5*this->dx(0),0,0,owner->Corner()[3]);
-		owner->SetPrimitiveWithPosition(q0,r0);
+		r0 = tw::vec4(-0.5*this->dx(0),0,0,space->Corner()[3]);
+		space->SetPrimitiveWithPosition(q0,r0);
 		AddParticle(1.0,q0,p0,s0,0.0);
 		BeginMoveWindow();
 		ASSERT_EQ(particle.size(),0);

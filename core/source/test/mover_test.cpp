@@ -98,7 +98,7 @@ void Mover::TranslationTest()
 	// Now check the motion
 	Primitive q0;
 	tw::vec4 r0 = space->Corner() + tw::vec4(0.5*space->dx(0),0,.01*space->dx(2),0);
-	tw::vec4 p0(sqrt(2),0,0,-1);
+	tw::vec4 p0(std::sqrt(2),0,0,-1);
 	tw::vec4 s0(1,0,0,0);
 	tw::Float numDens=1.0;
 	space->SetPrimitiveWithPosition(q0,r0);

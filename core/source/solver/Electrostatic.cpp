@@ -3,7 +3,7 @@ module;
 #include "tw_includes.h"
 
 export module electrostatic;
-import twmodule;
+import driver;
 import fields;
 import elliptic;
 import field_solve;
@@ -16,7 +16,7 @@ export struct Electrostatic:FieldSolver
 	Field F,J4;
 	ScalarField phi,source;
 
-	Electrostatic(const std::string& name,Simulation* sim);
+	Electrostatic(const std::string& name,MetricSpace *ms,Task *tsk);
 	virtual void Initialize();
 	virtual void ExchangeResources();
 	virtual void Reset();
@@ -37,15 +37,15 @@ export struct Electrostatic:FieldSolver
 //                           //
 ///////////////////////////////
 
-Electrostatic::Electrostatic(const std::string& name,Simulation* sim):FieldSolver(name,sim)
+Electrostatic::Electrostatic(const std::string& name,MetricSpace *ms,Task *tsk):FieldSolver(name,ms,tsk)
 {
-	if (native.native!=tw::units::plasma)
+	if (native.unit_system!=tw::units::plasma)
 		throw tw::FatalError("Electrostatic module requires <native units = plasma>");
 
-	phi.Initialize(*this,owner);
-	source.Initialize(*this,owner);
-	F.Initialize(6,*this,owner); // only use elements 0,1,2; set 3,4,5 to zero.
-	J4.Initialize(4,*this,owner);
+	phi.Initialize(*space,task);
+	source.Initialize(*space,task);
+	F.Initialize(6,*space,task); // only use elements 0,1,2; set 3,4,5 to zero.
+	J4.Initialize(4,*space,task);
 
 	F.SetBoundaryConditions(All(F),tw::grid::x,fld::neumannWall,fld::neumannWall);
 	F.SetBoundaryConditions(Rng(0),tw::grid::x,fld::none,fld::normalFluxFixed);
@@ -72,7 +72,7 @@ void Electrostatic::Initialize()
 	FieldSolver::Initialize();
 	ellipticSolver->SetFieldsBoundaryConditions(phi,Rng(0));
 	for (auto c : conductors)
-		ellipticSolver->FixPotential(phi,c->theRgn,c->Voltage(owner->WindowPos(0)));
+		ellipticSolver->FixPotential(phi,c->theRgn,c->Voltage(space->WindowPos(0)));
 	SetupInitialPotential();
 
 	Update();
@@ -111,11 +111,11 @@ void Electrostatic::Update()
 {
 	J4.DepositFromNeighbors(All(J4));
 	J4.ApplyFoldingCondition(All(J4));
-	conserved_current_to_dens<0,1,2,3>(1,J4,*owner);
+	conserved_current_to_dens<0,1,2,3>(1,J4,*space);
 	J4.ApplyBoundaryCondition(All(J4));
 
 	for (auto c : conductors)
-		ellipticSolver->FixPotential(phi,c->theRgn,c->Voltage(owner->WindowPos(0)));
+		ellipticSolver->FixPotential(phi,c->theRgn,c->Voltage(space->WindowPos(0)));
 
 	CopyFieldData(source,Rng(0),J4,Rng(0));
 	ellipticSolver->Solve(phi,source,-1.0);
@@ -125,7 +125,7 @@ void Electrostatic::Update()
 
 void Electrostatic::ComputeFinalFields()
 {
-	assign_grad<0,0,1,2>(1,phi,F,*owner,-1.0);
+	assign_grad<0,0,1,2>(1,phi,F,*space,-1.0);
 
 	F.CopyFromNeighbors(All(F));
 	F.ApplyBoundaryCondition(All(F));
@@ -135,8 +135,8 @@ void Electrostatic::Report(Diagnostic& diagnostic)
 {
 	FieldSolver::Report(diagnostic);
 	ScalarField energyDensity;
-	energyDensity.Initialize(*this,owner);
-	for (auto cell : EntireCellRange(*this,1))
+	energyDensity.Initialize(*space,task);
+	for (auto cell : EntireCellRange(*space,1))
 		energyDensity(cell) = 0.5*Norm(F.Vec3(cell,0));
 	diagnostic.VolumeIntegral("FieldEnergy",energyDensity,1,0);
 	diagnostic.VolumeIntegral("TotalCharge",J4,1,0);

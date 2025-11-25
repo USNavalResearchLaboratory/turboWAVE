@@ -6,7 +6,6 @@ export import :base;
 export import :vector_ops;
 export import :transform;
 export import :aggregates;
-export import :tools;
 
 // re-export things we will usually want with fields
 

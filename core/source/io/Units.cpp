@@ -10,10 +10,13 @@ import navigate;
 export namespace mks
 {
 	constexpr tw::Float c=2.99792458e8,qe=1.6021766208e-19,me=9.10938356e-31,eps0=8.854187818e-12,kB=1.38064852e-23,hbar=1.0545718001e-34;
+	constexpr tw::Float alpha = qe*qe/(4*pi*eps0*hbar*c);
+
 }
 export namespace cgs
 {
 	constexpr tw::Float c=2.99792458e10,qe=4.8032047139e-10,me=9.10938356e-28,kB=1.38064852e-16,hbar=1.0545718001e-27;
+	constexpr tw::Float alpha = qe*qe/(hbar*c);
 }
 export namespace tw
 {
@@ -72,7 +75,6 @@ export namespace tw
 		specific_energy,
 		cross_section
 	};
-
 	struct dnum_units
 	{
 		// Units of a dimensional number.
@@ -84,73 +86,7 @@ export namespace tw
 		dnum_units() { unit_dimension=tw::dims::none; unit_system=tw::units::mks; prefix=1.0; }
 		dnum_units(tw::dims dim,tw::units sys,tw::Float pre) { unit_dimension=dim; unit_system=sys; prefix=pre; }
 	};
-
-	class dnum
-	{
-		// Dimensional number class.  This allows:
-		// 1. Reading of dimensional numbers from the input file
-		// 2. Creating dimensional numbers from a string
-		// 3. Conversion to ordinary floats in any supported system of units
-		tw::Float prefix,value;
-		tw::dims unit_dimension;
-		tw::units unit_system;
-	public:
-		dnum();
-		dnum(const std::string& src);
-		dnum(tw::Float v,const tw::dnum_units& d);
-		dnum(TSTreeCursor *curs,const std::string &src);
-		friend tw::Float operator >> (const tw::dnum& d,const tw::UnitConverter& uc);
-		friend class tw::UnitConverter;
-	};
-
-	struct dnum_abstract
-	{
-		// This is an intermediate product needed during operator-based conversions.
-		// It is a dimensional number prior to specifiying a particular system of units.
-		tw::Float value;
-		tw::dims unit_dimension;
-		dnum_abstract() { value=0.0; unit_dimension=tw::dims::none; }
-		dnum_abstract(tw::Float v,tw::dims dims) { value=v; unit_dimension=dims; }
-		friend dnum operator >> (const tw::dnum_abstract& a,const tw::UnitConverter& uc);
-		friend class tw::UnitConverter;
-	};
-
-	inline tw::dnum_abstract operator * (const tw::Float& v,const tw::dims& dims)
-	{
-		return dnum_abstract(v,dims);
-	}
-
-	class UnitConverter
-	{
-	public:
-		tw::units native;
-		tw::Float ne,wp;
-		tw::Float c,qe,me,eps0,kB,hbar,alpha;
-
-	public:
-		UnitConverter();
-		UnitConverter(tw::units sys,tw::Float unitDensityCGS);
-		UnitConverter(tw::units sys,const tw::UnitConverter& uc);
-		tw::Float FactorizedMKSValue(tw::dims dim,tw::Float m1,tw::Float w1,tw::Float l1,tw::Float u1,tw::Float q1,tw::Float a1,tw::Float T1) const;
-		tw::Float MKSValue(tw::dims dim,tw::units sys) const;
-
-		// The following two operators are typically cascaded, e.g., 1.0*tw::dims::length >> uc1 >> uc2;
-		friend tw::dnum operator >> (const tw::dnum_abstract& a,const tw::UnitConverter& uc)
-		{
-			// Assign the native system of uc to the abstract dimensional number to produce a concrete dimensional number.
-			// We do not use the assignment operator because it would (i) look strange and (ii) create issues of precedence.
-			// First argument is typically an rvalue, e.g. (1.0*tw::dims::length)
-			return tw::dnum(a.value,tw::dnum_units(a.unit_dimension,uc.native,1.0));
-		}
-		friend tw::Float operator >> (const tw::dnum& d,const tw::UnitConverter& uc)
-		{
-			// Convert the dimensional number d to an ordinary float in the native system of uc.
-			// First argument is typically an rvalue formed using the other >> operator.
-			return d.prefix*d.value*uc.MKSValue(d.unit_dimension,d.unit_system)/uc.MKSValue(d.unit_dimension,uc.native);
-		}
-	};
-
-	inline std::map<std::string,tw::dnum_units> umap()
+	std::map<std::string,tw::dnum_units> umap()
 	{
 		return
 		{
@@ -198,7 +134,7 @@ export namespace tw
 		};
 	}
 
-	inline std::string plasma_label(tw::dims dim)
+	std::string plasma_label(tw::dims dim)
 	{
 		// These labels are inverse dimensions, meant to be concatenated with a dimensional variable.
 		// E.g., the time label upon concatenation gives the label $\\omega t$.
@@ -247,7 +183,7 @@ export namespace tw
 		return ans[dim];
 	}
 
-	inline std::string mks_label(tw::dims dim)
+	std::string mks_label(tw::dims dim)
 	{
 		std::map<tw::dims,std::string> ans =
 		{
@@ -293,7 +229,7 @@ export namespace tw
 		return ans[dim];
 	}
 
-	inline std::string cgs_label(tw::dims dim)
+	std::string cgs_label(tw::dims dim)
 	{
 		std::map<tw::dims,std::string> ans =
 		{
@@ -339,7 +275,7 @@ export namespace tw
 		return ans[dim];
 	}
 
-	inline std::string atomic_label(tw::dims dim)
+	std::string atomic_label(tw::dims dim)
 	{
 		if (dim==dims::none)
 			return "None";
@@ -347,7 +283,7 @@ export namespace tw
 			return "a.u.";
 	}
 
-	inline std::string natural_label(tw::dims dim)
+	std::string natural_label(tw::dims dim)
 	{
 		if (dim==dims::none)
 			return "None";
@@ -356,121 +292,7 @@ export namespace tw
 	}
 }
 
-std::istream& operator >> (std::istream& is,tw::dnum& d);
-
-//////////////////////////
-//                      //
-//  Dimensional Number  //
-//                      //
-//////////////////////////
-
-tw::dnum::dnum()
-{
-	value = 0.0;
-	prefix = 1.0;
-	unit_dimension = tw::dims::none;
-	unit_system = tw::units::mks;
-}
-
-tw::dnum::dnum(tw::Float v,const tw::dnum_units& t)
-{
-	value = v;
-	prefix = t.prefix;
-	unit_dimension = t.unit_dimension;
-	unit_system = t.unit_system;
-}
-
-/// @brief parse dimensional number at cursor, also works on bare decimal node
-/// @param curs cursor, should be on either dimension node or decimal node
-/// @param src the text of the source document
-tw::dnum::dnum(TSTreeCursor *curs,const std::string& src) {
-	std::map<std::string,tw::dnum_units> umap = tw::umap();
-	if (tw::input::node_kind(curs) == "decimal") {
-		value = std::stod(input::node_text(curs,src));
-		prefix = 1.0;
-		unit_dimension = tw::dims::none;
-		unit_system = tw::units::mks;
-	} else if (tw::input::node_kind(curs) == "dimension") {
-		if (ts_tree_cursor_goto_first_child(curs)) {
-			value = std::stod(input::node_text(curs,src));
-			if (ts_tree_cursor_goto_next_sibling(curs)) {
-				tw::dnum_units units = umap[input::node_text(curs,src)];
-				prefix = units.prefix;
-				unit_dimension = units.unit_dimension;
-				unit_system = units.unit_system;
-			}
-			ts_tree_cursor_goto_parent(curs);
-		} else {
-			input::ThrowParsingError(curs,src,"something missing");
-		}
-	} else {
-		input::ThrowParsingError(curs,src,"expected number");
-	}
-}
-
-tw::dnum::dnum(const std::string& src) {
-	std::map<std::string,tw::dnum_units> umap = tw::umap();
-	auto s = src.find('[');
-	if (s==std::string::npos) {
-		value = std::stod(src);
-		prefix = 1.0;
-		unit_dimension = tw::dims::none;
-		unit_system = tw::units::mks;
-		return;
-	}
-	value = std::stod(src);
-	tw::dnum_units units = umap[src.substr(s)];
-	prefix = units.prefix;
-	unit_dimension = units.unit_dimension;
-	unit_system = units.unit_system;
-}
-
-/////////////////////////////
-//                         //
-//  Unit Conversion Tools  //
-//                         //
-/////////////////////////////
-
-tw::UnitConverter::UnitConverter()
-{
-	native = tw::units::plasma;
-	// set up mks constants
-	c = mks::c;
-	qe = mks::qe;
-	me = mks::me;
-	eps0 = mks::eps0;
-	kB = mks::kB;
-	hbar = mks::hbar;
-	alpha = qe*qe/(4*pi*eps0*hbar*c);
-	// Setup plasma normalization to fail, i.e.,
-	// we require an assignment from another constructor.
-	ne = 0.0;
-	wp = std::sqrt(ne*sqr(mks::qe)/(mks::eps0*mks::me));
-}
-
-tw::UnitConverter::UnitConverter(tw::units sys,tw::Float unitDensityCGS)
-{
-	native = sys;
-	// set up mks constants
-	c = mks::c;
-	qe = mks::qe;
-	me = mks::me;
-	eps0 = mks::eps0;
-	kB = mks::kB;
-	hbar = mks::hbar;
-	alpha = qe*qe/(4*pi*eps0*hbar*c);
-	// setup plasma normalization
-	ne = unitDensityCGS*1e6;
-	wp = std::sqrt(ne*sqr(mks::qe)/(mks::eps0*mks::me));
-}
-
-tw::UnitConverter::UnitConverter(tw::units sys,const tw::UnitConverter& uc)
-{
-	*this = uc;
-	native = sys;
-}
-
-tw::Float tw::UnitConverter::FactorizedMKSValue(tw::dims dim,tw::Float m1,tw::Float w1,tw::Float l1,tw::Float u1,tw::Float q1,tw::Float a1,tw::Float T1) const
+tw::Float FactorizedMKSValue(tw::dims dim,tw::Float m1,tw::Float w1,tw::Float l1,tw::Float u1,tw::Float q1,tw::Float a1,tw::Float T1)
 {
 	const tw::Float v1 = l1*w1;
 	switch (dim)
@@ -500,7 +322,7 @@ tw::Float tw::UnitConverter::FactorizedMKSValue(tw::dims dim,tw::Float m1,tw::Fl
 		case tw::dims::angular_momentum:
 			return m1*l1*v1;
 		case tw::dims::density:
-			return pow(l1,-3.0);
+			return std::pow(l1,-3.0);
 		case tw::dims::power:
 			return u1*w1;
 		case tw::dims::fluence:
@@ -508,17 +330,17 @@ tw::Float tw::UnitConverter::FactorizedMKSValue(tw::dims dim,tw::Float m1,tw::Fl
 		case tw::dims::intensity:
 			return u1*w1/(l1*l1);
 		case tw::dims::mass_density:
-			return m1*pow(l1,-3.0);
+			return m1*std::pow(l1,-3.0);
 		case tw::dims::energy_density:
-			return u1*pow(l1,-3.0);
+			return u1*std::pow(l1,-3.0);
 		case tw::dims::power_density:
-			return u1*w1*pow(l1,-3.0);
+			return u1*w1*std::pow(l1,-3.0);
 		case tw::dims::charge:
 			return q1;
 		case tw::dims::current:
 			return q1*w1;
 		case tw::dims::charge_density:
-			return q1*pow(l1,-3.0);
+			return q1*std::pow(l1,-3.0);
 		case tw::dims::current_density:
 			return q1*w1/(l1*l1);
 		case tw::dims::scalar_potential:
@@ -536,15 +358,15 @@ tw::Float tw::UnitConverter::FactorizedMKSValue(tw::dims dim,tw::Float m1,tw::Fl
 		case tw::dims::conductivity:
 			return (q1*w1/(l1*l1))/(u1/(q1*l1)); // j/E
 		case tw::dims::rate_coefficient_2:
-			return w1*pow(l1,3.0);
+			return w1*std::pow(l1,3.0);
 		case tw::dims::rate_coefficient_3:
-			return w1*pow(l1,6.0);
+			return w1*std::pow(l1,6.0);
 		case tw::dims::mobility:
 			return v1/(u1/(q1*l1)); // v/E
 		case tw::dims::temperature:
 			return T1;
 		case tw::dims::pressure:
-			return u1*pow(l1,-3.0);
+			return u1*std::pow(l1,-3.0);
 		case tw::dims::specific_energy:
 			return u1/m1;
 		case tw::dims::cross_section:
@@ -556,12 +378,19 @@ tw::Float tw::UnitConverter::FactorizedMKSValue(tw::dims dim,tw::Float m1,tw::Fl
 	return 1.0;
 }
 
-tw::Float tw::UnitConverter::MKSValue(tw::dims dim,tw::units sys) const
+/// This routine answers the question:
+/// What is the mks value of the unit of <dim> in the <sys> system of units?
+/// For example, if dim=length and sys=cgs, we get .01 meters.
+tw::Float MKSValue(tw::dims dim,tw::units sys,tw::Float wp,tw::Float ne)
 {
-	// This routine answers the question:
-	// What is the mks value of the unit of <dim> in the <sys> system of units?
-	// For example, if dim=length and sys=cgs, we get .01 meters.
 	tw::Float m1,u1,l1,q1,w1,a1,T1;
+	tw::Float c = mks::c;
+	tw::Float qe = mks::qe;
+	tw::Float me = mks::me;
+	tw::Float alpha = mks::alpha;
+	tw::Float kB = mks::kB;
+	tw::Float hbar = mks::hbar;
+	tw::Float eps0 = mks::eps0;
 	switch (sys)
 	{
 		case tw::units::mks:
@@ -677,4 +506,153 @@ tw::Float tw::UnitConverter::MKSValue(tw::dims dim,tw::units sys) const
 			return 1.0;
 	}
 	return 1.0;
+}
+
+export namespace tw {
+	/// Dimensional number class, often used in a `>>` operator pipeline.  This allows:
+	/// 1. Reading of dimensional numbers from the input file
+	/// 2. Creating dimensional numbers from a string
+	/// 3. Conversion to ordinary floats in any supported system of units
+	class dnum
+	{
+		tw::Float prefix,value;
+		tw::dims unit_dimension;
+		tw::units unit_system;
+	public:
+		dnum();
+		dnum(const std::string& src);
+		dnum(tw::Float v,const tw::dnum_units& d);
+		dnum(TSTreeCursor *curs,const std::string &src);
+		friend tw::Float operator >> (const tw::dnum& d,const tw::UnitConverter& uc);
+		friend class tw::UnitConverter;
+	};
+
+	/// This is an intermediate product needed during `>>`-operator conversions.
+	/// It is a number with a physical interpretation, but prior to attaching units.
+	struct dnum_abstract
+	{
+		tw::Float value;
+		tw::dims unit_dimension;
+		dnum_abstract() { value=0.0; unit_dimension=tw::dims::none; }
+		dnum_abstract(tw::Float v,tw::dims dims) { value=v; unit_dimension=dims; }
+		friend dnum operator >> (const tw::dnum_abstract& a,const tw::UnitConverter& uc);
+		friend class tw::UnitConverter;
+	};
+
+	inline tw::dnum_abstract operator * (const tw::Float& v,const tw::dims& dims)
+	{
+		return dnum_abstract(v,dims);
+	}
+
+	/// This class is mainly used as a node in a `>>`-operator pipeline.
+	/// Each UnitConverter object is associated with a specific system of units.
+	class UnitConverter
+	{
+	public:
+		tw::units unit_system;
+		tw::Float ne,wp;
+
+	public:
+		UnitConverter() {
+			unit_system = tw::units::plasma;
+			// Setup plasma normalization to fail, i.e.,
+			// we require an assignment from another constructor.
+			ne = 0.0;
+			wp = std::sqrt(ne*sqr(mks::qe)/(mks::eps0*mks::me));
+		}
+		UnitConverter(tw::units sys,tw::Float unitDensityCGS) {
+			unit_system = sys;
+			// setup plasma normalization
+			ne = unitDensityCGS*1e6;
+			wp = std::sqrt(ne*sqr(mks::qe)/(mks::eps0*mks::me));
+		}
+		tw::Float UnitDensityCGS() const {
+			return ne*1e-6;
+		}
+		/// This simply attaches units to a raw number and an abstract dimension, e.g.
+		/// `1.0*tw::dims::length >> uc` would give a `dnum` representing 1 cm, if uc were a cgs converter.
+		/// Here, the first product produces a `dnum_abstract` object.
+		friend tw::dnum operator >> (const tw::dnum_abstract& a,const tw::UnitConverter& uc)
+		{
+			return tw::dnum(a.value,tw::dnum_units(a.unit_dimension,uc.unit_system,1.0));
+		}
+		/// Convert dimensional number to ordinary float using the units associated with `uc`.
+		/// This is often cascaded with the other `>>` operator, i.e.,
+		/// `1.0*tw::dims::length >> cgs_converter >> native_converter` would give 1 cm in
+		/// whatever units are associated with `native_converter`.
+		friend tw::Float operator >> (const tw::dnum& d,const tw::UnitConverter& uc)
+		{
+			return d.prefix*d.value*MKSValue(d.unit_dimension,d.unit_system,uc.wp,uc.ne)/
+				MKSValue(d.unit_dimension,uc.unit_system,uc.wp,uc.ne);
+		}
+	};
+}
+
+std::istream& operator >> (std::istream& is,tw::dnum& d);
+
+//////////////////////////
+//                      //
+//  Dimensional Number  //
+//                      //
+//////////////////////////
+
+tw::dnum::dnum()
+{
+	value = 0.0;
+	prefix = 1.0;
+	unit_dimension = tw::dims::none;
+	unit_system = tw::units::mks;
+}
+
+tw::dnum::dnum(tw::Float v,const tw::dnum_units& t)
+{
+	value = v;
+	prefix = t.prefix;
+	unit_dimension = t.unit_dimension;
+	unit_system = t.unit_system;
+}
+
+/// @brief parse dimensional number at cursor, also works on bare decimal node
+/// @param curs cursor, should be on either dimension node or decimal node
+/// @param src the text of the source document
+tw::dnum::dnum(TSTreeCursor *curs,const std::string& src) {
+	std::map<std::string,tw::dnum_units> umap = tw::umap();
+	if (tw::input::node_kind(curs) == "decimal") {
+		value = std::stod(input::node_text(curs,src));
+		prefix = 1.0;
+		unit_dimension = tw::dims::none;
+		unit_system = tw::units::mks;
+	} else if (tw::input::node_kind(curs) == "dimension") {
+		if (ts_tree_cursor_goto_first_child(curs)) {
+			value = std::stod(input::node_text(curs,src));
+			if (ts_tree_cursor_goto_next_sibling(curs)) {
+				tw::dnum_units units = umap[input::node_text(curs,src)];
+				prefix = units.prefix;
+				unit_dimension = units.unit_dimension;
+				unit_system = units.unit_system;
+			}
+			ts_tree_cursor_goto_parent(curs);
+		} else {
+			input::ThrowParsingError(curs,src,"something missing");
+		}
+	} else {
+		input::ThrowParsingError(curs,src,"expected number");
+	}
+}
+
+tw::dnum::dnum(const std::string& src) {
+	std::map<std::string,tw::dnum_units> umap = tw::umap();
+	auto s = src.find('[');
+	if (s==std::string::npos) {
+		value = std::stod(src);
+		prefix = 1.0;
+		unit_dimension = tw::dims::none;
+		unit_system = tw::units::mks;
+		return;
+	}
+	value = std::stod(src);
+	tw::dnum_units units = umap[src.substr(s)];
+	prefix = units.prefix;
+	unit_dimension = units.unit_dimension;
+	unit_system = units.unit_system;
 }

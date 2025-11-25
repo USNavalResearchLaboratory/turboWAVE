@@ -13,12 +13,12 @@ import tw_iterator;
 import numerics;
 import logger;
 
-/// Field is a StaticSpace with data assigned to the cells, and operations on the data.
-/// The data is some fixed number of floating point values per cell.
-/// The storage pattern is variable, and can be specified by designating a packed axis.
-/// The topology (dimensions, ghost cells) is inherited from the StaticSpace passed to the constructor.
-/// It is possible to mix Fields with varying ghost cell layers, but it is MUCH SAFER
-/// to keep the ghost cell layers the same for all Field instances in a calculation.
+/// Field is a StaticSpace with a floating point value assigned to each cell, and operations on the data.
+/// Vector components are spread across the internal dimension of StaticSpace.
+/// The storage pattern and topology are inherited from the StaticSpace passed to the constructor.
+/// It is possible to mix Fields with differing topology or packing in a given calculation,
+/// but doing so successfully requires considerable care.  One important exception is that the internal
+/// dimension can be varied with relative impunity.
 ///
 /// Note the Field does not inherit from DynSpace or MetricSpace, because these are
 /// too variable and too heavyweight to carry around with every Field.
@@ -66,11 +66,15 @@ public:
 	// Conventional accessors using fortran style array indexing
 	tw::Float& operator () (const tw::Int& n, const tw::Int& i, const tw::Int& j, const tw::Int& k, const tw::Int& c)
 	{
-		return array[(n - lfg[0]) * encodingStride[0] + (i - lfg[1]) * encodingStride[1] + (j - lfg[2]) * encodingStride[2] + (k - lfg[3]) * encodingStride[3] + c * encodingStride[4]];
+		auto idx = (n - lfg[0]) * encodingStride[0] + (i - lfg[1]) * encodingStride[1] + (j - lfg[2]) * encodingStride[2] + (k - lfg[3]) * encodingStride[3] + c * encodingStride[4];
+		BOUNDS(idx);
+		return array[idx];
 	}
 	tw::Float operator () (const tw::Int& n, const tw::Int& i, const tw::Int& j, const tw::Int& k, const tw::Int& c) const
 	{
-		return array[(n - lfg[0]) * encodingStride[0] + (i - lfg[1]) * encodingStride[1] + (j - lfg[2]) * encodingStride[2] + (k - lfg[3]) * encodingStride[3] + c * encodingStride[4]];
+		auto idx = (n - lfg[0]) * encodingStride[0] + (i - lfg[1]) * encodingStride[1] + (j - lfg[2]) * encodingStride[2] + (k - lfg[3]) * encodingStride[3] + c * encodingStride[4];
+		BOUNDS(idx);
+		return array[idx];
 	}
 	// Accessors for stepping through spatial cells without concern for direction
 	tw::Float& operator () (const tw::cell& cell, const tw::Int& c)
@@ -475,7 +479,6 @@ void Field::Initialize(const StaticSpace& ss,Task *task) {
 
 void Field::ReadCheckpoint(std::ifstream& inFile)
 {
-	StaticSpace::ReadCheckpoint(inFile);
 	inFile.read((char*)&bc0(0,0),sizeof(BoundaryCondition)*num[0]*4);
 	inFile.read((char*)&bc1(0,0),sizeof(BoundaryCondition)*num[0]*4);
 	inFile.read((char *)&array[0],sizeof(tw::Float)*totalCells*num[0]);
@@ -483,7 +486,6 @@ void Field::ReadCheckpoint(std::ifstream& inFile)
 
 void Field::WriteCheckpoint(std::ofstream& outFile)
 {
-	StaticSpace::WriteCheckpoint(outFile);
 	outFile.write((char*)&bc0(0,0),sizeof(BoundaryCondition)*num[0]*4);
 	outFile.write((char*)&bc1(0,0),sizeof(BoundaryCondition)*num[0]*4);
 	outFile.write((char *)&array[0],sizeof(tw::Float)*totalCells*num[0]);

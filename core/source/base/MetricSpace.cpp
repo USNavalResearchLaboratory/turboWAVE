@@ -44,8 +44,11 @@ export struct MetricSpace:DynSpace
 	// Elements 3,4,5 are offset by 1/2 cell forward in arc direction, back in other 2
 	// External access of arcs is through dl and dlh, and uses spatial indexing 1,2,3
 
-	tw::UnitConverter units;
+	tw::UnitConverter unitConverter;
 	std::vector<std::shared_ptr<warp_base>> warps;
+
+	tw::bc::par bc0[4],bc1[4]; // universal boundary condition hints
+	bool neutralize; // universal plasma hints
 
 	#ifdef USE_OPENCL
 	cl_mem metricsBuffer;
@@ -81,6 +84,15 @@ public:
 	void WriteCheckpoint(std::ofstream& outFile);
 	void AttachUnits(tw::units sys,tw::Float unitDensityCGS);
 	void AttachWarp(std::shared_ptr<warp_base> w);
+	bool IsAxisAdaptive(tw::Int ax) {
+		if (ax==0) {
+			return adaptiveTimestep;
+		} else if (ax==3) {
+			return adaptiveGrid;
+		} else {
+			return false;
+		}
+	}
 
 	#ifdef USE_OPENCL
 	void InitializeMetricsBuffer(cl_context ctx,tw::Float dt);
@@ -275,6 +287,7 @@ MetricSpace::MetricSpace()
 	cyl = sph = 0.0;
 	adaptiveTimestep = false;
 	adaptiveGrid = false;
+	neutralize = true;
 	I3x3[0][0] = 1;
 	I3x3[0][1] = 0;
 	I3x3[0][2] = 0;
@@ -284,7 +297,13 @@ MetricSpace::MetricSpace()
 	I3x3[2][0] = 0;
 	I3x3[2][1] = 0;
 	I3x3[2][2] = 1;
-	units = tw::UnitConverter(tw::units::plasma,1e19);
+	unitConverter = tw::UnitConverter(tw::units::plasma,1e19);
+	bc0[1] = tw::bc::par::periodic;
+	bc1[1] = tw::bc::par::periodic;
+	bc0[2] = tw::bc::par::periodic;
+	bc1[2] = tw::bc::par::periodic;
+	bc0[3] = tw::bc::par::absorbing;
+	bc1[3] = tw::bc::par::absorbing;
 	#ifdef USE_OPENCL
 	metricsBuffer = NULL;
 	#endif
@@ -340,7 +359,7 @@ void MetricSpace::Resize(Task *task,
 
 void MetricSpace::AttachUnits(tw::units sys,tw::Float unitDensityCGS)
 {
-	units = tw::UnitConverter(sys,unitDensityCGS);
+	unitConverter = tw::UnitConverter(sys,unitDensityCGS);
 }
 
 inline tw::vec3 MetricSpace::ScaleFactor(const tw::vec3& r) const
@@ -377,8 +396,8 @@ inline void MetricSpace::CartesianToCurvilinear(tw::vec3 *r) const
 	tw::vec3 temp = *r;
 	const tw::Float rho = std::sqrt(sqr(temp.x) + sqr(temp.y));
 	const tw::Float R = std::sqrt(rho*rho + sqr(temp.z));
-	const tw::Float phi = atan2(temp.y,temp.x);
-	const tw::Float theta = atan2(rho,temp.z);
+	const tw::Float phi = std::atan2(temp.y,temp.x);
+	const tw::Float theta = std::atan2(rho,temp.z);
 	r->x = car*temp.x + cyl*rho + sph*R;
 	r->y = car*temp.y + cyl*phi + sph*phi;
 	r->z = car*temp.z + cyl*temp.z + sph*theta;
@@ -388,7 +407,7 @@ inline void MetricSpace::CurvilinearToCylindrical(tw::vec3 *r) const
 {
 	tw::vec3 temp = *r;
 	const tw::Float rho = std::sqrt(sqr(temp.x) + sqr(temp.y));
-	const tw::Float phi = atan2(temp.y,temp.x);
+	const tw::Float phi = std::atan2(temp.y,temp.x);
 	r->x = car*rho + cyl*temp.x + sph*temp.x*std::sin(temp.z);
 	r->y = car*phi + cyl*temp.y + sph*temp.y;
 	r->z = car*temp.z + cyl*temp.z + sph*temp.x*std::cos(temp.z);
@@ -400,8 +419,8 @@ inline void MetricSpace::CurvilinearToSpherical(tw::vec3 *r) const
 	const tw::Float rho = car*std::sqrt(sqr(temp.x) + sqr(temp.y)) + cyl*temp.x;
 	const tw::Float R = std::sqrt(rho*rho + temp.z*temp.z);
 	r->x = (car+cyl)*R + sph*temp.x;
-	r->y = car*atan2(temp.y,temp.x) + cyl*temp.y + sph*temp.y;
-	r->z = (car+cyl)*atan2(rho,temp.z) + sph*temp.z;
+	r->y = car*std::atan2(temp.y,temp.x) + cyl*temp.y + sph*temp.y;
+	r->z = (car+cyl)*std::atan2(rho,temp.z) + sph*temp.z;
 }
 
 inline void MetricSpace::GetTangentVectorBasis(tw::basis *b,const tw::vec3& r) const

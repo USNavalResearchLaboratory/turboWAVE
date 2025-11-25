@@ -8,8 +8,7 @@ export module quantum;
 import input;
 import numerics;
 import qstate;
-import compute_tool;
-import twmodule;
+import driver;
 import fields;
 import diagnostics;
 import hyperbolic;
@@ -36,7 +35,7 @@ struct AtomicPhysics:Module
 	Field A4,Ao4; // EM 4-potential and old 4-potential
 	Field J4; // EM 4-current
 
-	AtomicPhysics(const std::string& name,Simulation* sim);
+	AtomicPhysics(const std::string& name,MetricSpace *ms,Task *tsk);
 	virtual void Initialize();
 	virtual void ExchangeResources();
 	tw::Float GetSphericalPotential(tw::Float r) const;
@@ -80,7 +79,7 @@ export struct Schroedinger:AtomicPhysics
 	#endif
 	std::shared_ptr<SchroedingerPropagator> propagator;
 
-	Schroedinger(const std::string& name,Simulation* sim);
+	Schroedinger(const std::string& name,MetricSpace *ms,Task *tsk);
 	virtual ~Schroedinger();
 	virtual void Initialize();
 	virtual void ExchangeResources();
@@ -120,7 +119,7 @@ export struct Pauli:AtomicPhysics
 	ComplexField scratch,v,w; // for distributed parallelism
 	std::shared_ptr<SchroedingerPropagator> propagator;
 
-	Pauli(const std::string& name,Simulation* sim);
+	Pauli(const std::string& name,MetricSpace *ms,Task *tsk);
 	virtual ~Pauli();
 	virtual void Initialize();
 	virtual void Update();
@@ -168,7 +167,7 @@ export struct KleinGordon:AtomicPhysics
 	cl_kernel updateChi;
 	#endif
 
-	KleinGordon(const std::string& name,Simulation* sim);
+	KleinGordon(const std::string& name,MetricSpace *ms,Task *tsk);
 	virtual ~KleinGordon();
 	virtual void Initialize();
 	virtual void Update();
@@ -232,7 +231,7 @@ export struct Dirac:AtomicPhysics
 	cl_kernel leapFrog;
 	#endif
 
-	Dirac(const std::string& name,Simulation* sim);
+	Dirac(const std::string& name,MetricSpace *ms,Task *tsk);
 	virtual ~Dirac();
 	virtual void Initialize();
 	template <tw::Int OUT1,tw::Int OUT2,tw::Int IN1,tw::Int IN2>
@@ -272,7 +271,7 @@ export struct PopulationDiagnostic : Module
 	HamiltonianParameters *H;
 	ComplexField *psi;
 
-	PopulationDiagnostic(const std::string& name,Simulation* sim);
+	PopulationDiagnostic(const std::string& name,MetricSpace *ms,Task *tsk);
 	virtual bool InspectResource(void *resource,const std::string& description);
 	virtual void VerifyInput();
 	virtual void Initialize();
@@ -286,7 +285,7 @@ export struct PopulationDiagnostic : Module
 ////////////////////////////////
 
 
-AtomicPhysics::AtomicPhysics(const std::string& name,Simulation* sim):Module(name,sim)
+AtomicPhysics::AtomicPhysics(const std::string& name,MetricSpace *ms,Task *tsk):Module(name,ms,tsk)
 {
 	keepA2Term = true;
 	dipoleApproximation = true;
@@ -300,9 +299,9 @@ AtomicPhysics::AtomicPhysics(const std::string& name,Simulation* sim):Module(nam
 	H.rnuc = 0.01;
 	H.B0 = 0.0;
 
-	A4.Initialize(4,*this,owner);
-	Ao4.Initialize(4,*this,owner);
-	J4.Initialize(4,*this,owner);
+	A4.Initialize(4,*space,task);
+	Ao4.Initialize(4,*space,task);
+	J4.Initialize(4,*space,task);
 
 	#ifdef USE_OPENCL
 	InitializeCLProgram("quantum.cl");
@@ -347,7 +346,7 @@ void AtomicPhysics::Initialize()
 	J4.SetBoundaryConditions(All(J4),tw::grid::y,A4DefaultBC,A4DefaultBC);
 	J4.SetBoundaryConditions(All(J4),tw::grid::z,A4DefaultBC,A4DefaultBC);
 
-	switch (owner->gridGeometry)
+	switch (space->gridGeometry)
 	{
 		case tw::grid::cartesian:
 			break;
@@ -393,18 +392,18 @@ void AtomicPhysics::FormPotentials(tw::Float t)
 		tw::vec3 A0,A1,r_curv,r_cart;
 		for (auto cell : EntireCellRange(A4,1))
 		{
-			r = owner->SphericalRadius(owner->Pos(cell));
+			r = space->SphericalRadius(space->Pos(cell));
 			phiNow = GetSphericalPotential(r);
-			r_cart = dipoleApproximation ? tw::vec3(0,0,0) : owner->Pos(cell);
-			owner->CurvilinearToCartesian(&r_cart);
+			r_cart = dipoleApproximation ? tw::vec3(0,0,0) : space->Pos(cell);
+			space->CurvilinearToCartesian(&r_cart);
 			A0 = A1 = tw::vec3(-0.5*r_cart.y*H.B0.z,0.5*r_cart.x*H.B0.z,0.0);
 			for (auto wave : waves) {
 				A0 += wave->VectorPotential(t-dx(0),r_cart);
 				A1 += wave->VectorPotential(t,r_cart);
 			}
-			r_curv = owner->Pos(cell);
-			owner->TangentVectorToCurvilinear(&A0,r_curv);
-			owner->TangentVectorToCurvilinear(&A1,r_curv);
+			r_curv = space->Pos(cell);
+			space->TangentVectorToCurvilinear(&A0,r_curv);
+			space->TangentVectorToCurvilinear(&A1,r_curv);
 
 			Ao4(cell,0) = phiNow;
 			Ao4(cell,1) = A0.x;
@@ -433,11 +432,11 @@ void AtomicPhysics::FormGhostCellPotentials(tw::Float t)
 				for (auto s : StripRange(A4,ax,0,1,strongbool::no))
 					for (tw::Int ghostCell=0;ghostCell<=Dim(s.Axis())+1;ghostCell+=Dim(s.Axis())+1)
 					{
-						tw::vec3 pos(owner->Pos(s,ghostCell));
+						tw::vec3 pos(space->Pos(s,ghostCell));
 						tw::vec3 A3(-0.5*pos.y*H.B0.z,0.5*pos.x*H.B0.z,0.0);
 						for (auto wave : waves)
 							A3 += wave->VectorPotential(t,pos);
-						if ((ghostCell==0 && owner->n0[ax]==MPI_PROC_NULL) || (ghostCell!=0 && owner->n1[ax]==MPI_PROC_NULL))
+						if ((ghostCell==0 && task->n0[ax]==MPI_PROC_NULL) || (ghostCell!=0 && task->n1[ax]==MPI_PROC_NULL))
 						{
 							A4(s,ghostCell,1) = A3.x;
 							A4(s,ghostCell,2) = A3.y;
@@ -457,7 +456,7 @@ tw::vec4 AtomicPhysics::GetA4AtOrigin()
 	r_cart = tw::vec3(0,0,0);
 	A[0] = GetSphericalPotential(0.0);
 	for (auto wave : waves)
-		aNow += wave->VectorPotential(owner->WindowPos(0),r_cart);
+		aNow += wave->VectorPotential(space->WindowPos(0),r_cart);
 	A[1] = aNow.x;
 	A[2] = aNow.y;
 	A[3] = aNow.z;
@@ -467,7 +466,7 @@ tw::vec4 AtomicPhysics::GetA4AtOrigin()
 void AtomicPhysics::VerifyInput()
 {
 	Module::VerifyInput();
-	if (owner->gridGeometry!=tw::grid::cartesian)
+	if (space->gridGeometry!=tw::grid::cartesian)
 		if (Norm(H.B0)!=0.0)
 			throw tw::FatalError("Static B field assumes Cartesian geometry.");
 	for (auto tool : tools) {
@@ -478,8 +477,10 @@ void AtomicPhysics::VerifyInput()
 		}
 	}
 	if (!photonPropagator) {
-		auto name = owner->CreateTool("default_photons",tw::tool_type::lorentzPropagator);
-		photonPropagator = std::dynamic_pointer_cast<LorentzPropagator>(owner->UseTool(name));
+		auto new_tool = CreateTool("default_photons",tw::tool_type::lorentzPropagator);
+		AddTool(new_tool); // review all these, tools rarely need Initialize, so this maybe can be done away with
+		   // in particular, MPI is now OK in a constructor since we always use real MPI
+		photonPropagator = std::dynamic_pointer_cast<LorentzPropagator>(new_tool);
 	}
 }
 
@@ -518,9 +519,9 @@ void AtomicPhysics::Report(Diagnostic& diagnostic)
 	const tw::Float dti = 1/dt;
 	for (auto w : waves)
 	{
-		ANow += w->VectorPotential(owner->WindowPos(0),tw::vec3(0,0,0));
-		ENow -= dti*w->VectorPotential(owner->WindowPos(0)+0.5*dt,tw::vec3(0,0,0));
-		ENow += dti*w->VectorPotential(owner->WindowPos(0)-0.5*dt,tw::vec3(0,0,0));
+		ANow += w->VectorPotential(space->WindowPos(0),tw::vec3(0,0,0));
+		ENow -= dti*w->VectorPotential(space->WindowPos(0)+0.5*dt,tw::vec3(0,0,0));
+		ENow += dti*w->VectorPotential(space->WindowPos(0)-0.5*dt,tw::vec3(0,0,0));
 	}
 	diagnostic.ReportNumber("Ex",ENow.x,true);
 	diagnostic.ReportNumber("Ey",ENow.y,true);
@@ -540,7 +541,7 @@ void AtomicPhysics::Report(Diagnostic& diagnostic)
 	diagnostic.ReportField("Az",A4,1,3,tw::dims::vector_potential,"$A_z$");
 
 	// ScalarField temp;
-	// temp.Initialize(*this,owner);
+	// temp.Initialize(*space,task);
 	// for (tw::Int k=1;k<=dim[3];k++)
 	// 	for (tw::Int j=1;j<=dim[2];j++)
 	// 		for (tw::Int i=1;i<=dim[1];i++)
@@ -557,18 +558,18 @@ void AtomicPhysics::Report(Diagnostic& diagnostic)
 ///////////////////////////////////////
 
 
-Schroedinger::Schroedinger(const std::string& name,Simulation* sim):AtomicPhysics(name,sim)
+Schroedinger::Schroedinger(const std::string& name,MetricSpace *ms,Task *tsk):AtomicPhysics(name,ms,tsk)
 {
-	if (native.native!=tw::units::atomic)
+	if (native.unit_system!=tw::units::atomic)
 		throw tw::FatalError("Schroedinger module requires <native units = atomic>");
 
 	// Should move OpenCL stuff into the propagator tool
 	H.form = qo::schroedinger;
-	psi0.Initialize(*this,owner);
-	psi1.Initialize(*this,owner);
-	v.Initialize(*this,owner);
-	w.Initialize(*this,owner);
-	scratch.Initialize(*this,owner);
+	psi0.Initialize(*space,task);
+	psi1.Initialize(*space,task);
+	v.Initialize(*space,task);
+	w.Initialize(*space,task);
+	scratch.Initialize(*space,task);
 
 	#ifdef USE_OPENCL
 
@@ -588,11 +589,11 @@ Schroedinger::Schroedinger(const std::string& name,Simulation* sim):AtomicPhysic
 
 	clSetKernelArg(applyNumerator,0,sizeof(cl_mem),&psi1.computeBuffer);
 	clSetKernelArg(applyNumerator,1,sizeof(cl_mem),&A4.computeBuffer);
-	clSetKernelArg(applyNumerator,2,sizeof(cl_mem),&owner->metricsBuffer);
+	clSetKernelArg(applyNumerator,2,sizeof(cl_mem),&space->metricsBuffer);
 
 	clSetKernelArg(applyDenominator,0,sizeof(cl_mem),&psi1.computeBuffer);
 	clSetKernelArg(applyDenominator,1,sizeof(cl_mem),&A4.computeBuffer);
-	clSetKernelArg(applyDenominator,2,sizeof(cl_mem),&owner->metricsBuffer);
+	clSetKernelArg(applyDenominator,2,sizeof(cl_mem),&space->metricsBuffer);
 	clSetKernelArg(applyDenominator,6,sizeof(cl_mem),&scratch.computeBuffer);
 	clSetKernelArg(applyDenominator,7,sizeof(cl_mem),&v.computeBuffer);
 	clSetKernelArg(applyDenominator,8,sizeof(cl_mem),&w.computeBuffer);
@@ -604,7 +605,7 @@ Schroedinger::Schroedinger(const std::string& name,Simulation* sim):AtomicPhysic
 	clSetKernelArg(currentKernel,1,sizeof(cl_mem),&psi1.computeBuffer);
 	clSetKernelArg(currentKernel,2,sizeof(cl_mem),&A4.computeBuffer);
 	clSetKernelArg(currentKernel,3,sizeof(cl_mem),&J4.computeBuffer);
-	clSetKernelArg(currentKernel,4,sizeof(cl_mem),&owner->metricsBuffer);
+	clSetKernelArg(currentKernel,4,sizeof(cl_mem),&space->metricsBuffer);
 
 	clSetKernelArg(stitchKernel,0,sizeof(cl_mem),&psi1.computeBuffer);
 	clSetKernelArg(stitchKernel,2,sizeof(cl_mem),&v.computeBuffer);
@@ -635,8 +636,9 @@ void Schroedinger::VerifyInput()
 	AtomicPhysics::VerifyInput();
 	#ifndef USE_OPENCL
 	if (!propagator) {
-		auto name = owner->CreateTool("TDSE",tw::tool_type::schroedingerPropagator);
-		propagator = std::dynamic_pointer_cast<SchroedingerPropagator>(owner->UseTool(name));
+		auto new_tool = CreateTool("TDSE",tw::tool_type::schroedingerPropagator);
+		AddTool(new_tool);
+		propagator = std::dynamic_pointer_cast<SchroedingerPropagator>(new_tool);
 	}
 	#endif
 }
@@ -655,8 +657,8 @@ void Schroedinger::Initialize()
 
 	// Solve for the lowest energy s-state on a spherical grid.
 	// This is used only to print the numerical ground state energy level.
-	const tw::Float maxR = owner->SphericalRadius((owner->GlobalCorner()+owner->GlobalPhysicalSize()).spatial());
-	const tw::Float dr = dx(1) * owner->ScaleFactor(1,tw::vec3(tw::small_pos,0.0,0.0));
+	const tw::Float maxR = space->SphericalRadius((space->GlobalCorner()+space->GlobalPhysicalSize()).spatial());
+	const tw::Float dr = dx(1) * space->ScaleFactor(1,tw::vec3(tw::small_pos,0.0,0.0));
 	const tw::Float r = maxR>30.0 ? 30.0 : maxR;
 	const tw::Int dim = MyCeil(r/dr);
 	std::valarray<tw::Float> eigenvector(dim),phi_r(dim);
@@ -669,7 +671,7 @@ void Schroedinger::Initialize()
 	{
 		for (auto cell : EntireCellRange(psi1,1)) {
 			for (auto w : waveFunction) {
-				tw::Complex ampl(w->Amplitude(H,owner->Pos(cell),0.0,0));
+				tw::Complex ampl(w->Amplitude(H,space->Pos(cell),0.0,0));
 				psi1(cell,0) += ampl.real();
 				psi1(cell,1) += ampl.imag();
 			}
@@ -686,7 +688,7 @@ void Schroedinger::Initialize()
 	}
 
 	logger::DEBUG("initialize potentials");
-	FormPotentials(owner->WindowPos(0));
+	FormPotentials(space->WindowPos(0));
 
 	#ifdef USE_OPENCL
 	psi1.SendToComputeBuffer();
@@ -699,8 +701,8 @@ void Schroedinger::Update()
 {
 	Field mpi_packet;
 	tw::Float partitionFactor,relax,totalProbability;
-	partitionFactor = 1.0/tw::Float(owner->Dimensionality());
-	relax = owner->WindowPos(0) < timeRelaxingToGround ? 1.0 : 0.0;
+	partitionFactor = 1.0/tw::Float(space->Dimensionality());
+	relax = space->WindowPos(0) < timeRelaxingToGround ? 1.0 : 0.0;
 
 	// Clear source vector
 	J4.MADDComputeBuffer(0.0,0.0);
@@ -717,53 +719,53 @@ void Schroedinger::Update()
 	clSetKernelArg(applyDenominator,5,sizeof(tw::Float),&relax);
 
 	// Start Charge Deposition
-	owner->CellUpdateProtocol(chargeKernel);
+	space->CellUpdateProtocol(chargeKernel);
 
 	// Loop over Dimensions Updating Wavefunction and Currents
 	for (tw::Int i=1;i<=3;i++)
 	{
-		if (owner->localCells[i]>1)
+		if (space->localCells[i]>1)
 		{
 			CopyComputeBuffer(psi0,psi1);
 			tw::Int j = i > 2 ? i-2 : i+1; // 2 , 3 , 1
 			tw::Int k = i > 1 ? i-1 : i+2; // 3 , 1 , 2
 			DynSpace mpi_layout;
-			tw::Int dim[4] = { 1, owner->localCells[j], owner->localCells[k], 1 };
-			tw::Int gdim[4] = { 1, owner->globalCells[j], owner->globalCells[k], 1 };
-			tw::Int dom[4] = { 1, owner->domains[j], owner->domains[k], 1 };
+			tw::Int dim[4] = { 1, space->localCells[j], space->localCells[k], 1 };
+			tw::Int gdim[4] = { 1, space->globalCells[j], space->globalCells[k], 1 };
+			tw::Int dom[4] = { 1, space->domains[j], space->domains[k], 1 };
 			mpi_layout.Resize(dim,gdim,dom,globalCorner,globalSize);
 			mpi_packet.Initialize(16,mpi_layout,owner);
 			mpi_packet.InitializeComputeBuffer();
 			clSetKernelArg(applyDenominator,9,sizeof(cl_mem),&mpi_packet.computeBuffer);
-			owner->StripUpdateProtocol(applyNumerator,i,3);
-			owner->StripUpdateProtocol(applyDenominator,i,3);
+			space->StripUpdateProtocol(applyNumerator,i,3);
+			space->StripUpdateProtocol(applyDenominator,i,3);
 
 			// Global Integration
 			mpi_packet.ReceiveFromComputeBuffer();
-			ComputeAlphasAndBetas<tw::Complex>(&owner->strip[i],owner->localCells2[j]*owner->localCells2[k],(tw::Complex*)&mpi_packet(0,0,0,0));
+			ComputeAlphasAndBetas<tw::Complex>(&task->strip[i],space->localCells2[j]*space->localCells2[k],(tw::Complex*)&mpi_packet(0,0,0,0));
 			mpi_packet.SendToComputeBuffer();
-			clSetKernelArg(stitchKernel,1,sizeof(cl_mem),&owner->stripBuffer[i]);
+			clSetKernelArg(stitchKernel,1,sizeof(cl_mem),&space->stripBuffer[i]);
 			clSetKernelArg(stitchKernel,4,sizeof(cl_mem),&mpi_packet.computeBuffer);
-			owner->LocalUpdateProtocol(stitchKernel);
+			space->LocalUpdateProtocol(stitchKernel);
 			psi1.UpdateGhostCellsInComputeBuffer();
 
-			if (owner->WindowPos(0) > timeRelaxingToGround)
-				owner->StripUpdateProtocol(currentKernel,i,5);
+			if (space->WindowPos(0) > timeRelaxingToGround)
+				space->StripUpdateProtocol(currentKernel,i,5);
 		}
 	}
 
 	// Finish Charge Deposition
-	owner->CellUpdateProtocol(chargeKernel);
+	space->CellUpdateProtocol(chargeKernel);
 
 	// Normalize After Relaxation Step
-	if (owner->WindowPos(0) < timeRelaxingToGround)
+	if (space->WindowPos(0) < timeRelaxingToGround)
 	{
 		CopyComputeBuffer(scratch,psi1);
 		scratch.DestructiveComplexMod2ComputeBuffer();
 		scratch.ZeroGhostCellsInComputeBuffer();
 		scratch.WeightComputeBufferByVolume(*owner,0.0);
 		totalProbability = scratch.DestructiveSumComputeBuffer();
-		owner->strip[0].AllSum(&totalProbability,&totalProbability,sizeof(tw::Float),0);
+		task->strip[0].AllSum(&totalProbability,&totalProbability,sizeof(tw::Float),0);
 		psi1.MADDComputeBuffer(1.0/std::sqrt(totalProbability),0.0);
 	}
 
@@ -775,8 +777,8 @@ void Schroedinger::Update()
 void Schroedinger::Update()
 {
 	const tw::Float dt = dx(0);
-	tw::Complex dtc = owner->WindowPos(0) < timeRelaxingToGround ? -ii*dt : dt;
-	FormPotentials(owner->WindowPos(0));
+	tw::Complex dtc = space->WindowPos(0) < timeRelaxingToGround ? -ii*dt : dt;
+	FormPotentials(space->WindowPos(0));
 	J4 = 0.0;
 
 	propagator->DepositCurrent(tw::grid::t,psi0,psi1,A4,J4,dtc);
@@ -800,15 +802,15 @@ void Schroedinger::Update()
 
 	J4.CopyFromNeighbors(All(J4));
 	J4.ApplyBoundaryCondition(All(J4));
-	if (owner->WindowPos(0) < timeRelaxingToGround)
+	if (space->WindowPos(0) < timeRelaxingToGround)
 		Normalize();
 }
 // void Schroedinger::Update()
 // {
 // 	// This advances the wavefunction conservatively, but uses the naive
 // 	// centered differenced current deposition
-// 	tw::Complex dtc = owner->WindowPos(0) < timeRelaxingToGround ? -ii*dt : dt;
-// 	FormPotentials(owner->WindowPos(0));
+// 	tw::Complex dtc = space->WindowPos(0) < timeRelaxingToGround ? -ii*dt : dt;
+// 	FormPotentials(space->WindowPos(0));
 //
 // 	psi0 = psi1;
 // 	propagator->ApplyNumerator(tw::grid::x,psi1,A4,keepA2Term,dtc);
@@ -817,7 +819,7 @@ void Schroedinger::Update()
 // 	propagator->ApplyDenominator(tw::grid::y,psi1,A4,keepA2Term,dtc);
 // 	propagator->ApplyNumerator(tw::grid::z,psi1,A4,keepA2Term,dtc);
 // 	propagator->ApplyDenominator(tw::grid::z,psi1,A4,keepA2Term,dtc);
-// 	if (owner->WindowPos(0) < timeRelaxingToGround)
+// 	if (space->WindowPos(0) < timeRelaxingToGround)
 // 		Normalize();
 // 	else
 // 		UpdateJ4();
@@ -829,7 +831,7 @@ void Schroedinger::UpdateJ4()
 	// Here is the naive centered differencing to determine the non-relativistic probability current.
 	// The results are usually pathological.  The conservative scheme should be used instead.
 	tw::Complex psiNow,psi_x,psi_y,psi_z;
-	if (owner->WindowPos(0) < timeRelaxingToGround)
+	if (space->WindowPos(0) < timeRelaxingToGround)
 		return;
 
 	for (tw::Int k=1;k<=dim[3];k++)
@@ -837,9 +839,9 @@ void Schroedinger::UpdateJ4()
 			for (tw::Int i=1;i<=dim[1];i++)
 			{
 				psiNow = psi1(i,j,k);
-				psi_x = (psi1(i+1,j,k) - psi1(i-1,j,k))/owner->dL(i,j,k,1);
-				psi_y = (psi1(i,j+1,k) - psi1(i,j-1,k))/owner->dL(i,j,k,2);
-				psi_z = (psi1(i,j,k+1) - psi1(i,j,k-1))/owner->dL(i,j,k,3);
+				psi_x = (psi1(i+1,j,k) - psi1(i-1,j,k))/space->dL(i,j,k,1);
+				psi_y = (psi1(i,j+1,k) - psi1(i,j-1,k))/space->dL(i,j,k,2);
+				psi_z = (psi1(i,j,k+1) - psi1(i,j,k-1))/space->dL(i,j,k,3);
 
 				J4(1,i,j,k,0) = norm(psiNow);
 				J4(1,i,j,k,1) = -real((half*ii/H.morb) * (conj(psiNow)*psi_x - conj(psi_x)*psiNow)) - H.qorb*A4(1,i,j,k,1)*norm(psiNow)/H.morb;
@@ -854,8 +856,8 @@ void Schroedinger::Normalize()
 {
 	tw::Float totalProbability = 0.0;
 	for (auto cell : InteriorCellRange(*this,1))
-		totalProbability += norm(psi1(cell)) * owner->dS(cell,0);
-	owner->strip[0].AllSum(&totalProbability,&totalProbability,sizeof(tw::Float),0);
+		totalProbability += norm(psi1(cell)) * space->dS(cell,0);
+	task->strip[0].AllSum(&totalProbability,&totalProbability,sizeof(tw::Float),0);
 	psi1 *= 1.0/std::sqrt(totalProbability);
 	psi1.CopyFromNeighbors();
 	psi1.ApplyBoundaryCondition();
@@ -867,7 +869,7 @@ void Schroedinger::Report(Diagnostic& diagnostic)
 
 	const tw::vec3 r0 = 0.0;
 	ScalarField temp;
-	temp.Initialize(*this,owner);
+	temp.Initialize(*space,task);
 
 	for (auto cell : InteriorCellRange(*this,1))
 		temp(cell) = norm(psi1(cell));
@@ -895,22 +897,22 @@ void Schroedinger::StartDiagnostics()
 //                                     //
 /////////////////////////////////////////
 
-Pauli::Pauli(const std::string& name,Simulation* sim):AtomicPhysics(name,sim)
+Pauli::Pauli(const std::string& name,MetricSpace *ms,Task *tsk):AtomicPhysics(name,ms,tsk)
 {
 	throw tw::FatalError("Pauli module is not supported in this version of TW.");
-	if (native.native!=tw::units::plasma)
+	if (native.unit_system!=tw::units::plasma)
 		throw tw::FatalError("Pauli module requires <native units = atomic>");
 	H.form = qo::pauli;
 	#ifndef USE_OPENCL
 	propagator = NULL;
 	#endif
-	psi0.Initialize(*this,owner);
-	psi1.Initialize(*this,owner);
-	chi0.Initialize(*this,owner);
-	chi1.Initialize(*this,owner);
-	v.Initialize(*this,owner);
-	w.Initialize(*this,owner);
-	scratch.Initialize(*this,owner);
+	psi0.Initialize(*space,task);
+	psi1.Initialize(*space,task);
+	chi0.Initialize(*space,task);
+	chi1.Initialize(*space,task);
+	v.Initialize(*space,task);
+	w.Initialize(*space,task);
+	scratch.Initialize(*space,task);
 	#ifdef USE_OPENCL
 	scratch.InitializeComputeBuffer();
 	v.InitializeComputeBuffer();
@@ -932,8 +934,9 @@ void Pauli::VerifyInput()
 	AtomicPhysics::VerifyInput();
 	#ifndef USE_OPENCL
 	if (!propagator) {
-		auto name = owner->CreateTool("TDSE",tw::tool_type::schroedingerPropagator);
-		propagator = std::dynamic_pointer_cast<SchroedingerPropagator>(owner->UseTool(name));
+		auto new_tool = CreateTool("TDSE",tw::tool_type::schroedingerPropagator);
+		AddTool(new_tool);
+		propagator = std::dynamic_pointer_cast<SchroedingerPropagator>(new_tool);
 	}
 	#endif
 }
@@ -953,8 +956,8 @@ void Pauli::Update()
 	clSetKernelArg(spinKernel,0,sizeof(cl_mem),&psi1.computeBuffer);
 	clSetKernelArg(spinKernel,1,sizeof(cl_mem),&chi1.computeBuffer);
 	clSetKernelArg(spinKernel,2,sizeof(cl_mem),&A4.computeBuffer);
-	clSetKernelArg(spinKernel,3,sizeof(cl_mem),&owner->metricsBuffer);
-	owner->LocalUpdateProtocol(spinKernel);
+	clSetKernelArg(spinKernel,3,sizeof(cl_mem),&space->metricsBuffer);
+	space->LocalUpdateProtocol(spinKernel);
 
 	// ADD: something to handle normalization after a relaxation step
 
@@ -966,8 +969,8 @@ void Pauli::Update()
 	// KNOWN PROBLEM: we have to add spin term to current density
 
 	const tw::Float dt = dx(0);
-	tw::Complex dtc = owner->WindowPos(0) < timeRelaxingToGround ? -ii*dt : dt;
-	FormPotentials(owner->WindowPos(0));
+	tw::Complex dtc = space->WindowPos(0) < timeRelaxingToGround ? -ii*dt : dt;
+	FormPotentials(space->WindowPos(0));
 	J4 = 0.0;
 
 	propagator->DepositCurrent(tw::grid::t,psi0,psi1,A4,J4,dtc);
@@ -1005,7 +1008,7 @@ void Pauli::Update()
 
    	propagator->UpdateSpin(psi1,chi1,A4,alpha*dt);
 
-	if (owner->WindowPos(0) < timeRelaxingToGround)
+	if (space->WindowPos(0) < timeRelaxingToGround)
 		Normalize();
 }
 #endif
@@ -1014,8 +1017,8 @@ void Pauli::Normalize()
 {
 	tw::Float totalProbability = 0.0;
 	for (auto cell : InteriorCellRange(*this,1))
-		totalProbability += (norm(psi1(cell))+norm(chi1(cell))) * owner->dS(cell,0);
-	owner->strip[0].AllSum(&totalProbability,&totalProbability,sizeof(tw::Float),0);
+		totalProbability += (norm(psi1(cell))+norm(chi1(cell))) * space->dS(cell,0);
+	task->strip[0].AllSum(&totalProbability,&totalProbability,sizeof(tw::Float),0);
 	psi1 *= 1.0/std::sqrt(totalProbability);
 	chi1 *= 1.0/std::sqrt(totalProbability);
 	psi1.CopyFromNeighbors();
@@ -1030,7 +1033,7 @@ void Pauli::Report(Diagnostic& diagnostic)
 
 	const tw::vec3 r0 = 0.0;
 	ScalarField temp;
-	temp.Initialize(*this,owner);
+	temp.Initialize(*space,task);
 
 	for (auto cell : InteriorCellRange(*this,1))
 		temp(cell) = norm(psi1(cell)) + norm(chi1(cell));
@@ -1070,7 +1073,7 @@ void Pauli::StartDiagnostics()
 ///////////////////////////////////////
 
 
-KleinGordon::KleinGordon(const std::string& name,Simulation* sim) : AtomicPhysics(name,sim)
+KleinGordon::KleinGordon(const std::string& name,MetricSpace *ms,Task *tsk) : AtomicPhysics(name,ms,tsk)
 {
 	// Wavefunction is in Hamiltonian 2-component representation.
 	// This is the preliminary Hamiltonian form from Feshbach-Villars, Eq. 2.12.
@@ -1079,7 +1082,7 @@ KleinGordon::KleinGordon(const std::string& name,Simulation* sim) : AtomicPhysic
 	// Component 1 is psi1 = (id/dt - q*phi)*psi0/m
 	// The symmetric form is obtained from (psi0+psi1)/std::sqrt(2) , (psi0-psi1)/std::sqrt(2)
 
-	if (native.native!=tw::units::natural)
+	if (native.unit_system!=tw::units::natural)
 		throw tw::FatalError("KleinGordon module requires <native units = natural>");
 
 	H.form = qo::klein_gordon;
@@ -1088,12 +1091,12 @@ KleinGordon::KleinGordon(const std::string& name,Simulation* sim) : AtomicPhysic
 	H.qnuc = std::sqrt(alpha);
 	dipoleApproximation = false;
 
-	StaticSpace ss(this->dim,sim->PhysicalSize(),tw::node5 {4,0,2,3,1},this->layers);
-	psi_r.Initialize(2,ss,owner);
-	psi_i.Initialize(2,ss,owner);
-	J4.Initialize(4,ss,owner);
-	A4.Initialize(4,ss,owner);
-	Ao4.Initialize(4,ss,owner);
+	StaticSpace ss(tw::node5 {4,0,2,3,1},*space);
+	psi_r.Initialize(2,ss,task);
+	psi_i.Initialize(2,ss,task);
+	J4.Initialize(4,ss,task);
+	A4.Initialize(4,ss,task);
+	Ao4.Initialize(4,ss,task);
 	tw::bc::fld psiDefaultBC = fld::neumannWall;
 	psi_r.SetBoundaryConditions(All(psi_r),tw::grid::x,psiDefaultBC,psiDefaultBC);
 	psi_r.SetBoundaryConditions(All(psi_r),tw::grid::y,psiDefaultBC,psiDefaultBC);
@@ -1113,12 +1116,12 @@ KleinGordon::KleinGordon(const std::string& name,Simulation* sim) : AtomicPhysic
 	clSetKernelArg(updatePsi,0,sizeof(cl_mem),&psi_r.computeBuffer);
 	clSetKernelArg(updatePsi,1,sizeof(cl_mem),&psi_i.computeBuffer);
 	clSetKernelArg(updatePsi,2,sizeof(cl_mem),&A4.computeBuffer);
-	clSetKernelArg(updatePsi,3,sizeof(cl_mem),&owner->metricsBuffer);
+	clSetKernelArg(updatePsi,3,sizeof(cl_mem),&space->metricsBuffer);
 
 	clSetKernelArg(updateChi,0,sizeof(cl_mem),&psi_r.computeBuffer);
 	clSetKernelArg(updateChi,1,sizeof(cl_mem),&psi_i.computeBuffer);
 	clSetKernelArg(updateChi,2,sizeof(cl_mem),&A4.computeBuffer);
-	clSetKernelArg(updateChi,3,sizeof(cl_mem),&owner->metricsBuffer);
+	clSetKernelArg(updateChi,3,sizeof(cl_mem),&space->metricsBuffer);
 	#endif
 }
 
@@ -1136,7 +1139,7 @@ void KleinGordon::Initialize()
 
 	for (auto cell : InteriorCellRange(psi_r,1))
 	{
-		const tw::vec3 pos = owner->Pos(cell);
+		const tw::vec3 pos = space->Pos(cell);
 		const tw::Float dth = 0.5*dx(0);
 		for (auto w : waveFunction)
 		{
@@ -1149,7 +1152,7 @@ void KleinGordon::Initialize()
 
 	psi_r.CopyFromNeighbors(All(psi_r));
 	psi_i.CopyFromNeighbors(All(psi_i));
-	FormPotentials(owner->WindowPos(0));
+	FormPotentials(space->WindowPos(0));
 	Normalize();
 	UpdateJ4();
 
@@ -1195,9 +1198,9 @@ void KleinGordon::Normalize()
 {
 	tw::Float totalCharge = 0.0;
 	for (auto cell : InteriorCellRange(psi_r,1)) {
-		totalCharge += ComputeRho(cell) * owner->dS(cell,0);
+		totalCharge += ComputeRho(cell) * space->dS(cell,0);
 	}
-	owner->strip[0].AllSum(&totalCharge,&totalCharge,sizeof(tw::Float),0);
+	task->strip[0].AllSum(&totalCharge,&totalCharge,sizeof(tw::Float),0);
 	psi_r *= std::sqrt(std::fabs(H.qorb/totalCharge));
 	psi_i *= std::sqrt(std::fabs(H.qorb/totalCharge));
 	psi_r.CopyFromNeighbors(All(psi_r));
@@ -1210,18 +1213,18 @@ void KleinGordon::Normalize()
 void KleinGordon::Update()
 {
 	// Update wavefunction
-	owner->LocalUpdateProtocol(updatePsi);
+	space->LocalUpdateProtocol(updatePsi);
 	// Boundary conditions and communications
 	psi_r.UpdateGhostCellsInComputeBuffer(Element(0));
 	psi_i.UpdateGhostCellsInComputeBuffer(Element(0));
 
 	photonPropagator->Advance(A4,Ao4,J4,0.0,dt);
-	FormGhostCellPotentials(owner->WindowPos(0)+dt);
+	FormGhostCellPotentials(space->WindowPos(0)+dt);
 	A4.SendGhostCellsToComputeBuffer();
 	photonPropagator->MidstepEstimate(A4,Ao4);
 
 	// Update auxiliary wavefunction
-	owner->LocalUpdateProtocol(updateChi);
+	space->LocalUpdateProtocol(updateChi);
 	// Boundary conditions and communications
 	psi_r.UpdateGhostCellsInComputeBuffer(Element(1));
 	psi_i.UpdateGhostCellsInComputeBuffer(Element(1));
@@ -1289,7 +1292,7 @@ void KleinGordon::Update()
 	psi_i.ApplyBoundaryCondition(Rng(0));
 
 	photonPropagator->Advance(A4,Ao4,J4,0.0,dt);
-	FormGhostCellPotentials(owner->WindowPos(0)+dt);
+	FormGhostCellPotentials(space->WindowPos(0)+dt);
 	photonPropagator->MidstepEstimate(A4,Ao4);
 
 	#pragma omp parallel
@@ -1390,12 +1393,12 @@ void KleinGordon::StartDiagnostics()
 ///////////////////////////////////////
 
 
-Dirac::Dirac(const std::string& name,Simulation* sim) : AtomicPhysics(name,sim)
+Dirac::Dirac(const std::string& name,MetricSpace *ms,Task *tsk) : AtomicPhysics(name,ms,tsk)
 {
 	// Wavefunction is in standard representation
 	// i.e., gamma^0 = diag(1,1,-1,-1)
 
-	if (native.native!=tw::units::natural)
+	if (native.unit_system!=tw::units::natural)
 		throw tw::FatalError("Dirac module requires <native units = natural>");
 
 	H.form = qo::dirac;
@@ -1404,12 +1407,12 @@ Dirac::Dirac(const std::string& name,Simulation* sim) : AtomicPhysics(name,sim)
 	H.qnuc = std::sqrt(alpha);
 	dipoleApproximation = false;
 
-	StaticSpace ss(this->dim,sim->PhysicalSize(),tw::node5 {4,0,2,3,1},this->layers);
-	psi_r.Initialize(4,ss,owner);
-	psi_i.Initialize(4,ss,owner);
-	J4.Initialize(4,ss,owner);
-	A4.Initialize(4,ss,owner);
-	Ao4.Initialize(4,ss,owner);
+	StaticSpace ss(tw::node5 {4,0,2,3,1},*space);
+	psi_r.Initialize(4,ss,task);
+	psi_i.Initialize(4,ss,task);
+	J4.Initialize(4,ss,task);
+	A4.Initialize(4,ss,task);
+	Ao4.Initialize(4,ss,task);
 
 	#ifdef USE_OPENCL
 	cl_int err;
@@ -1446,7 +1449,7 @@ void Dirac::Initialize()
 		const tw::Float dth = 0.5*dx(0);
 		for (auto cell : InteriorCellRange(psi_r,1))
 		{
-			tw::vec3 pos = owner->Pos(cell);
+			tw::vec3 pos = space->Pos(cell);
 			for (auto w : waveFunction)
 			{
 				psi_r(cell,0) += real(w->Amplitude(H,pos,0.0,0));
@@ -1463,7 +1466,7 @@ void Dirac::Initialize()
 
 	psi_r.CopyFromNeighbors(All(psi_r));
 	psi_i.CopyFromNeighbors(All(psi_i));
-	FormPotentials(owner->WindowPos(0));
+	FormPotentials(space->WindowPos(0));
 	Normalize();
 	UpdateJ4();
 
@@ -1476,7 +1479,7 @@ void Dirac::Initialize()
 	clSetKernelArg(leapFrog,0,sizeof(cl_mem),&psi_r.computeBuffer);
 	clSetKernelArg(leapFrog,1,sizeof(cl_mem),&psi_i.computeBuffer);
 	clSetKernelArg(leapFrog,2,sizeof(cl_mem),&A4.computeBuffer);
-	clSetKernelArg(leapFrog,3,sizeof(cl_mem),&owner->metricsBuffer);
+	clSetKernelArg(leapFrog,3,sizeof(cl_mem),&space->metricsBuffer);
 	clSetKernelArg(leapFrog,4,sizeof(H.morb),&H.morb);
 	clSetKernelArg(leapFrog,5,sizeof(H.qorb),&H.qorb);
 
@@ -1516,8 +1519,8 @@ void Dirac::Normalize()
 {
 	tw::Float totalCharge = 0.0;
 	for (auto cell : InteriorCellRange(psi_r,1))
-		totalCharge += ComputeRho(cell) * owner->dS(cell,0);
-	owner->strip[0].AllSum(&totalCharge,&totalCharge,sizeof(tw::Float),0);
+		totalCharge += ComputeRho(cell) * space->dS(cell,0);
+	task->strip[0].AllSum(&totalCharge,&totalCharge,sizeof(tw::Float),0);
 	psi_r *= std::sqrt(std::fabs(H.qorb/totalCharge));
 	psi_i *= std::sqrt(std::fabs(H.qorb/totalCharge));
 	psi_r.CopyFromNeighbors(All(psi_r));
@@ -1628,13 +1631,13 @@ void Dirac::Update()
 	clSetKernelArg(leapFrog,7,sizeof(cl_int),&components[1]);
 	clSetKernelArg(leapFrog,8,sizeof(cl_int),&components[2]);
 	clSetKernelArg(leapFrog,9,sizeof(cl_int),&components[3]);
-	owner->LocalUpdateProtocol(leapFrog);
+	space->LocalUpdateProtocol(leapFrog);
 	// Boundary conditions and communications
 	psi_r.UpdateGhostCellsInComputeBuffer(Element(0,1));
 	psi_i.UpdateGhostCellsInComputeBuffer(Element(0,1));
 
 	photonPropagator->Advance(A4,Ao4,J4,0.0,dt);
-	FormGhostCellPotentials(owner->WindowPos(0)+dt);
+	FormGhostCellPotentials(space->WindowPos(0)+dt);
 	A4.SendGhostCellsToComputeBuffer();
 	photonPropagator->MidstepEstimate(A4,Ao4);
 
@@ -1644,7 +1647,7 @@ void Dirac::Update()
 	clSetKernelArg(leapFrog,7,sizeof(cl_int),&components[3]);
 	clSetKernelArg(leapFrog,8,sizeof(cl_int),&components[0]);
 	clSetKernelArg(leapFrog,9,sizeof(cl_int),&components[1]);
-	owner->LocalUpdateProtocol(leapFrog);
+	space->LocalUpdateProtocol(leapFrog);
 	// Boundary conditions and communications
 	psi_r.UpdateGhostCellsInComputeBuffer(Element(2,3));
 	psi_i.UpdateGhostCellsInComputeBuffer(Element(2,3));
@@ -1673,7 +1676,7 @@ void Dirac::Update()
 	psi_i.ApplyBoundaryCondition(Rng(0,2));
 
 	photonPropagator->Advance(A4,Ao4,J4,0.0,dt);
-	FormGhostCellPotentials(owner->WindowPos(0)+dt);
+	FormGhostCellPotentials(space->WindowPos(0)+dt);
 	photonPropagator->MidstepEstimate(A4,Ao4);
 
 	LeapFrog<2,3,0,1>(-1.0);
@@ -1716,7 +1719,7 @@ void Dirac::StartDiagnostics()
 	UpdateJ4();
 }
 
-PopulationDiagnostic::PopulationDiagnostic(const std::string& name,Simulation *sim) : Module(name,sim)
+PopulationDiagnostic::PopulationDiagnostic(const std::string& name,MetricSpace *ms,Task *tsk) : Module(name,ms,tsk)
 {
 	updateSequencePriority = tw::priority::diagnostic;
 	H = NULL;
@@ -1742,6 +1745,7 @@ bool PopulationDiagnostic::InspectResource(void* resource,const std::string& des
 
 void PopulationDiagnostic::VerifyInput()
 {
+	Module::VerifyInput();
 	// strongly typed wave and reference state lists
 	for (auto tool : tools)
 	{
@@ -1765,31 +1769,31 @@ void PopulationDiagnostic::Report(Diagnostic& diagnostic)
 	Module::Report(diagnostic);
 
 	ScalarField temp;
-	temp.Initialize(*this,owner);
+	temp.Initialize(*space,task);
 
 	tw::vec3 ANow(0.0);
 	for (auto w : waves)
-		ANow += w->VectorPotential(owner->WindowPos(0),tw::vec3(0,0,0));
+		ANow += w->VectorPotential(space->WindowPos(0),tw::vec3(0,0,0));
 
 	for (auto ref : refState)
 	{
 		// Real part
 		for (auto cell : InteriorCellRange(*this,1))
 		{
-			const tw::vec3 pos = owner->Pos(cell);
+			const tw::vec3 pos = space->Pos(cell);
 			// the following is a gauge transformation to "remove" the uniform A
 			const tw::Complex psiNow = (*psi)(cell)*std::exp(-ii*H->qorb*(ANow^pos));
-			temp(cell) = real(conj(ref->Amplitude(*H,pos,owner->WindowPos(0),0))*psiNow);
+			temp(cell) = real(conj(ref->Amplitude(*H,pos,space->WindowPos(0),0))*psiNow);
 		}
 		diagnostic.VolumeIntegral("real<"+ref->name+"|psi>",temp,1,0);
 
 		// Imaginary part
 		for (auto cell : InteriorCellRange(*this,1))
 		{
-			const tw::vec3 pos = owner->Pos(cell);
+			const tw::vec3 pos = space->Pos(cell);
 			// the following is a gauge transformation to "remove" the uniform A
 			const tw::Complex psiNow = (*psi)(cell)*std::exp(-ii*H->qorb*(ANow^pos));
-			temp(cell) = imag(conj(ref->Amplitude(*H,pos,owner->WindowPos(0),0))*psiNow);
+			temp(cell) = imag(conj(ref->Amplitude(*H,pos,space->WindowPos(0),0))*psiNow);
 		}
 		diagnostic.VolumeIntegral("imag<"+ref->name+"|psi>",temp,1,0);
 	}
@@ -1800,7 +1804,7 @@ void PopulationDiagnostic::Report(Diagnostic& diagnostic)
 	// {
 	// 	for (auto cell : InteriorCellRange(*this))
 	// 	{
-	// 		const tw::vec3 pos = owner->Pos(cell);
+	// 		const tw::vec3 pos = space->Pos(cell);
 	// 		// Feshbach-Villars decomposition, including gauge transformation
 	// 		const tw::Complex estate = FV(cell,1.0)*std::exp(-ii*H.qorb*(ANow^pos));
 	// 		const tw::Complex pstate = FV(cell,-1.0)*std::exp(-ii*H.qorb*(ANow^pos));
@@ -1812,7 +1816,7 @@ void PopulationDiagnostic::Report(Diagnostic& diagnostic)
 	//
 	// 	for (auto cell : InteriorCellRange(*this))
 	// 	{
-	// 		const tw::vec3 pos = owner->Pos(cell);
+	// 		const tw::vec3 pos = space->Pos(cell);
 	// 		// Feshbach-Villars decomposition, including gauge transformation
 	// 		const tw::Complex estate = FV(cell,1.0)*std::exp(-ii*H.qorb*(ANow^pos));
 	// 		const tw::Complex pstate = FV(cell,-1.0)*std::exp(-ii*H.qorb*(ANow^pos));

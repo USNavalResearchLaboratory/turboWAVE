@@ -5,8 +5,7 @@ module;
 
 export module laser_solve;
 import input;
-import twmodule;
-import compute_tool;
+import driver;
 import parabolic;
 import fields;
 import diagnostics;
@@ -36,7 +35,7 @@ export struct LaserSolver:Module
 
 	bool debug; // usually used to suppress envelope evolution
 
-	LaserSolver(const std::string& name,Simulation* sim);
+	LaserSolver(const std::string& name,MetricSpace *ms,Task *tsk);
 	virtual void ExchangeResources();
 	virtual void Initialize();
 	virtual void Reset();
@@ -53,14 +52,14 @@ export struct LaserSolver:Module
 
 export struct QSSolver:LaserSolver
 {
-	QSSolver(const std::string& name,Simulation* sim);
+	QSSolver(const std::string& name,MetricSpace *ms,Task *tsk);
 };
 
 export struct PGCSolver:LaserSolver
 {
 	Field F;
 
-	PGCSolver(const std::string& name,Simulation* sim);
+	PGCSolver(const std::string& name,MetricSpace *ms,Task *tsk);
 	virtual void ExchangeResources();
 	virtual void Initialize();
 
@@ -79,9 +78,9 @@ export struct PGCSolver:LaserSolver
 //                          //
 //////////////////////////////
 
-LaserSolver::LaserSolver(const std::string& name,Simulation* sim):Module(name,sim)
+LaserSolver::LaserSolver(const std::string& name,MetricSpace *ms,Task *tsk):Module(name,ms,tsk)
 {
-	if (native.native!=tw::units::plasma)
+	if (native.unit_system!=tw::units::plasma)
 		throw tw::FatalError("LaserSolver module requires <native units = plasma>");
 
 	updateSequencePriority = tw::priority::field;
@@ -90,11 +89,11 @@ LaserSolver::LaserSolver(const std::string& name,Simulation* sim):Module(name,si
 	debug = false;
 	resolution = 1;
 
-	a0.Initialize(*this,owner);
-	a1.Initialize(*this,owner);
-	chi.Initialize(*this,owner);
+	a0.Initialize(*space,task);
+	a1.Initialize(*space,task);
+	chi.Initialize(*space,task);
 
-	spliner = std::make_unique<GlobalSpline<tw::Complex>>(&sim->strip[3],Num(1)*Num(2),Dim(3));
+	spliner = std::make_unique<GlobalSpline<tw::Complex>>(&task->strip[3],Num(1)*Num(2),Dim(3));
 
 	directives.Add("carrier frequency",new tw::input::Float(&laserFreq));
 	std::map<std::string,tw_polarization_type> pol = {{"linear",linearPolarization},{"circular",circularPolarization},{"radial",radialPolarization}};
@@ -134,11 +133,11 @@ void LaserSolver::Initialize()
 		}
 	}
 
-	HRa0.Initialize(HRSpace,owner);
-	HRa1.Initialize(HRSpace,owner);
-	HRchi.Initialize(HRSpace,owner);
+	HRa0.Initialize(HRSpace,task);
+	HRa1.Initialize(HRSpace,task);
+	HRchi.Initialize(HRSpace,task);
 
-	propagator->SetData(laserFreq,dt,polarizationType,owner->movingWindow,&HRSpace);
+	propagator->SetData(laserFreq,dt,polarizationType,space->IsStdMovingWindow(),&HRSpace);
 	propagator->SetBoundaryConditions(HRa0,HRa1,HRchi);
 	propagator->SetBoundaryConditions(a0,a1,chi);
 
@@ -169,7 +168,7 @@ tw::vec3 LaserSolver::GetIonizationKick(const tw::Float& a2,const tw::Float& q0,
 	tw::vec3 ans;
 	if (polarizationType==circularPolarization)
 	{
-		phase = owner->uniformDeviate->Next()*2.0*pi;
+		phase = task->uniformDeviate->Next()*2.0*pi;
 		// remember "a" has been multiplied by std::sqrt(2) at the beginning
 		ans.x = q0*std::sqrt(0.5*a2)*std::cos(phase);
 		ans.y = q0*std::sqrt(0.5*a2)*std::sin(phase);
@@ -284,26 +283,28 @@ void LaserSolver::VerifyInput()
 		}
 	}
 	if (!propagator) {
-		auto name = owner->CreateTool("default_adi",tw::tool_type::adiPropagator);
-		propagator = std::dynamic_pointer_cast<LaserPropagator>(owner->UseTool(name));
+		auto new_tool = CreateTool("default_adi",tw::tool_type::adiPropagator);
+		AddTool(new_tool);
+		propagator = std::dynamic_pointer_cast<LaserPropagator>(new_tool);
 	}
 	tw::node5 HRGlobalCells {
-		owner->GlobalDim(0),
-		owner->GlobalDim(1),
-		owner->GlobalDim(2),
-		owner->GlobalDim(3)*resolution,
+		space->GlobalDim(0),
+		space->GlobalDim(1),
+		space->GlobalDim(2),
+		space->GlobalDim(3)*resolution,
 		1,
 	};
 	tw::node4 layers {
-		owner->Layers(0),
-		owner->Layers(1),
-		owner->Layers(2),
-		owner->Layers(3)
+		space->Layers(0),
+		space->Layers(1),
+		space->Layers(2),
+		space->Layers(3)
 	};
 	logger::DEBUG(std::format("creating high resolution space x{}",resolution));
-	HRSpace.Resize(owner,HRGlobalCells,owner->GlobalCorner(),owner->GlobalPhysicalSize(),std_packing,layers,owner->gridGeometry);
-	auto name = owner->CreateTool("hr_box",tw::tool_type::boxDiagnostic);
-	HRBoxDiagnostic = std::dynamic_pointer_cast<BoxDiagnostic>(owner->UseTool(name));
+	HRSpace.Resize(task,HRGlobalCells,space->GlobalCorner(),space->GlobalPhysicalSize(),std_packing,layers,space->gridGeometry);
+	auto new_tool = CreateTool("hr_box",tw::tool_type::boxDiagnostic);
+	AddTool(new_tool);
+	HRBoxDiagnostic = std::dynamic_pointer_cast<BoxDiagnostic>(new_tool);
 	HRBoxDiagnostic->filename = "refined";
 	HRBoxDiagnostic->space = &HRSpace;
 	HRBoxDiagnostic->reports.push_back("a_real");
@@ -339,7 +340,7 @@ void LaserSolver::WriteCheckpoint(std::ofstream& outFile)
 //////////////////////////////
 
 
-QSSolver::QSSolver(const std::string& name,Simulation* sim):LaserSolver(name,sim)
+QSSolver::QSSolver(const std::string& name,MetricSpace *ms,Task *tsk):LaserSolver(name,ms,tsk)
 {
 }
 
@@ -351,9 +352,9 @@ QSSolver::QSSolver(const std::string& name,Simulation* sim):LaserSolver(name,sim
 //////////////////////////////
 
 
-PGCSolver::PGCSolver(const std::string& name,Simulation* sim):LaserSolver(name,sim)
+PGCSolver::PGCSolver(const std::string& name,MetricSpace *ms,Task *tsk):LaserSolver(name,ms,tsk)
 {
-	F.Initialize(8,*this,sim);
+	F.Initialize(8,*space,task);
 }
 
 void PGCSolver::ExchangeResources()
@@ -371,7 +372,7 @@ void PGCSolver::Initialize()
 	// B.C.'s for laser amplitude and sources are dealt with in propagator objects
 
 	// longitudinal boundary conditions
-	if (owner->movingWindow)
+	if (space->IsStdMovingWindow())
 	{
 		F.SetBoundaryConditions(Rng(0,6),tw::grid::z,fld::neumannWall,fld::dirichletWall);
 	}
@@ -384,7 +385,7 @@ void PGCSolver::Initialize()
 	F.SetBoundaryConditions(Rng(6,8),tw::grid::z,fld::neumannWall,fld::neumannWall);
 
 	// transverse boundary conditions
-	if (owner->bc0[1]==par::axisymmetric || owner->bc0[1]==par::reflecting)
+	if (space->bc0[1]==par::axisymmetric || space->bc0[1]==par::reflecting)
 	{
 		F.SetBoundaryConditions(Rng(0,6),tw::grid::x, fld::neumannWall, fld::neumannWall);
 		F.SetBoundaryConditions(Rng(0),tw::grid::x,fld::dirichletWall,fld::neumannWall);
@@ -394,7 +395,7 @@ void PGCSolver::Initialize()
 	{
 		F.SetBoundaryConditions(Rng(0,6),tw::grid::x, fld::neumannWall, fld::neumannWall);
 	}
-	if (owner->bc0[2]==par::axisymmetric || owner->bc0[2]==par::reflecting)
+	if (space->bc0[2]==par::axisymmetric || space->bc0[2]==par::reflecting)
 	{
 		F.SetBoundaryConditions(Rng(0,6),tw::grid::y, fld::neumannWall, fld::neumannWall);
 		F.SetBoundaryConditions(Rng(1),tw::grid::y,fld::dirichletWall,fld::neumannWall);
@@ -430,12 +431,12 @@ void PGCSolver::AntiMoveWindow()
 		tw::Complex incoming1(0,0);
 		for (auto pulse : waves)
 		{
-			tw::vec3 pos = owner->Pos(s,0);
-			pos.z = owner->ToLab(pos.z,-dth);
-			incoming0 += polarizationFactor*pulse->VectorPotentialEnvelope(owner->WindowPos(0)-dth,pos,laserFreq);
-			pos = owner->Pos(s,0);
-			pos.z = owner->ToLab(pos.z,dth);
-			incoming1 += polarizationFactor*pulse->VectorPotentialEnvelope(owner->WindowPos(0)+dth,pos,laserFreq);
+			tw::vec3 pos = space->Pos(s,0);
+			pos.z = space->ToLab(pos.z,-dth);
+			incoming0 += polarizationFactor*pulse->VectorPotentialEnvelope(space->WindowPos(0)-dth,pos,laserFreq);
+			pos = space->Pos(s,0);
+			pos.z = space->ToLab(pos.z,dth);
+			incoming1 += polarizationFactor*pulse->VectorPotentialEnvelope(space->WindowPos(0)+dth,pos,laserFreq);
 		}
 		HRa0.Shift(Rng(0,2),s,1,(tw::Float*)&incoming0);
 		HRa1.Shift(Rng(0,2),s,1,(tw::Float*)&incoming1);
@@ -449,16 +450,16 @@ void PGCSolver::Update()
 	logger::TRACE("start PGC update");
 	chi.DepositFromNeighbors();
 	chi.ApplyFoldingCondition();
-	chi.DivideCellVolume(Rng(0,2),*owner);
+	chi.DivideCellVolume(Rng(0,2),*space);
 	chi.ApplyBoundaryCondition();
-	chi.Smooth(Rng(0,2),*owner,smoothing,compensation);
+	chi.Smooth(Rng(0,2),*space,smoothing,compensation);
 	#pragma omp parallel
 	{
 		const tw::Float dth = 0.5*dx(0);
 		for (auto s : StripRange(*this,3,0,1,strongbool::yes))
 		{
 			for (tw::Int k=1;k<=dim[3];k++)
-				chi.Pack(s,k, owner->ValueOnLightGrid<ComplexField,tw::Complex>(chi,s,k,dth));
+				chi.Pack(s,k, space->ValueOnLightGrid<ComplexField,tw::Complex>(chi,s,k,dth));
 		}
 	}
 	chi.DownwardCopy(tw::grid::z,1);
@@ -479,8 +480,8 @@ void PGCSolver::ComputeFinalFields()
 		{
 			for (tw::Int k=1;k<=dim[3];k++)
 			{
-				F(s,k,7) = norm(owner->ValueOnLabGrid<ComplexField,tw::Complex>(a1,s,k,dth));
-				F(s,k,6) = norm(owner->ValueOnLabGrid<ComplexField,tw::Complex>(a0,s,k,-dth));
+				F(s,k,7) = norm(space->ValueOnLabGrid<ComplexField,tw::Complex>(a1,s,k,dth));
+				F(s,k,6) = norm(space->ValueOnLabGrid<ComplexField,tw::Complex>(a0,s,k,-dth));
 				F(s,k,6) = 0.5*(F(s,k,6) + F(s,k,7));
 			}
 		}
@@ -521,7 +522,7 @@ void PGCSolver::Report(Diagnostic& diagnostic)
 	}
 
 	ScalarField temp;
-	temp.Initialize(*this,owner);
+	temp.Initialize(*space,task);
 
 	const tw::Float dti = dk(0);
 	const tw::Float dth = 0.5*dx(0);
@@ -551,8 +552,8 @@ void PGCSolver::Report(Diagnostic& diagnostic)
 	{
 		for (tw::Int k=1;k<=dim[3];k++)
 		{
-			tw::Complex dadt = dti*(owner->ValueOnLabGrid<ComplexField,tw::Complex>(a1,s,k,dth) - owner->ValueOnLabGrid<ComplexField,tw::Complex>(a0,s,k,-dth));
-			tw::Complex anow = tw::Float(0.5)*(owner->ValueOnLabGrid<ComplexField,tw::Complex>(a0,s,k,-dth) + owner->ValueOnLabGrid<ComplexField,tw::Complex>(a1,s,k,dth));
+			tw::Complex dadt = dti*(space->ValueOnLabGrid<ComplexField,tw::Complex>(a1,s,k,dth) - space->ValueOnLabGrid<ComplexField,tw::Complex>(a0,s,k,-dth));
+			tw::Complex anow = tw::Float(0.5)*(space->ValueOnLabGrid<ComplexField,tw::Complex>(a0,s,k,-dth) + space->ValueOnLabGrid<ComplexField,tw::Complex>(a1,s,k,dth));
 			temp(s,k) = -real(dadt - ii*laserFreq*anow);
 		}
 	}
@@ -562,8 +563,8 @@ void PGCSolver::Report(Diagnostic& diagnostic)
 	{
 		for (tw::Int k=1;k<=dim[3];k++)
 		{
-			tw::Complex dadt = dti*(owner->ValueOnLabGrid<ComplexField,tw::Complex>(a1,s,k,dth) - owner->ValueOnLabGrid<ComplexField,tw::Complex>(a0,s,k,-dth));
-			tw::Complex anow = tw::Float(0.5)*(owner->ValueOnLabGrid<ComplexField,tw::Complex>(a0,s,k,-dth) + owner->ValueOnLabGrid<ComplexField,tw::Complex>(a1,s,k,dth));
+			tw::Complex dadt = dti*(space->ValueOnLabGrid<ComplexField,tw::Complex>(a1,s,k,dth) - space->ValueOnLabGrid<ComplexField,tw::Complex>(a0,s,k,-dth));
+			tw::Complex anow = tw::Float(0.5)*(space->ValueOnLabGrid<ComplexField,tw::Complex>(a0,s,k,-dth) + space->ValueOnLabGrid<ComplexField,tw::Complex>(a1,s,k,dth));
 			temp(s,k) = -imag(dadt - ii*laserFreq*anow);
 		}
 	}

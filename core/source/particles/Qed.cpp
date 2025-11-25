@@ -4,7 +4,7 @@ module;
 
 export module qed;
 import input;
-import compute_tool;
+import driver;
 import fields;
 
 export struct QED:ComputeTool

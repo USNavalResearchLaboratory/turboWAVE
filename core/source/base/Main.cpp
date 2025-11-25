@@ -1,11 +1,16 @@
 #include "mpi.h"
 #include "tw_includes.h"
+#ifndef USE_STD_MODULE
 #include <thread>
+#endif
 #ifdef _WIN64
 #include <Windows.h>
 #endif
 import base;
-import twmodule;
+import driver;
+import tasks;
+import metric_space;
+import simulation;
 import logger;
 
 ////////////////////////////
@@ -244,7 +249,7 @@ void start_interactive(Simulation *tw)
 	std::flush(std::cout);
 	std::string cmd;
 	auto running = [&] {
-		return tw->StepNow() < tw->StepsToTake() && tw->WindowPos(0) < tw->MaxWindowPos(0);
+		return tw->space->StepNow() < tw->space->StepsToTake() && tw->space->WindowPos(0) < tw->space->MaxWindowPos(0);
 	};
 	do {
 		std::getline(std::cin,cmd);
@@ -287,7 +292,13 @@ int main(int argc,char *argv[])
 		exit(1);
 	}
 
-	Simulation *tw = new Simulation(interactive,unitTest,inputFileName,restartFileName,platform,device,outputLevel,errorCheckingLevel);
+	Task *universalTask = new Task();
+	MetricSpace *universalSpace = new MetricSpace();
+	Simulation *tw = new Simulation(interactive,unitTest,inputFileName,restartFileName,
+		platform,device,outputLevel,errorCheckingLevel,
+		universalSpace,
+		universalTask
+	);
 	omp_set_num_threads(numOMPThreads);
 	int rank;
 	MPI_Comm_rank(MPI_COMM_WORLD,&rank);
@@ -296,7 +307,7 @@ int main(int argc,char *argv[])
 	}
 
 	try {
-		if (tw->unitTest=="tw::none") {
+		if (universalTask->unitTest=="tw::none") {
 			tw->Run();
 		} else {
 			tw->Test();
@@ -311,7 +322,10 @@ int main(int argc,char *argv[])
 		ithread.join();
 	}
 	
-	delete tw; // since this might call MPI release functions, has to precede MPI_Finalize()
+	// release anything that might call MPI release functions, must precede MPI_Finalize()
+	delete tw;
+	delete universalTask;
+	delete universalSpace;
 
 	MPI_Finalize();
 

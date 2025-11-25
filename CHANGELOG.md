@@ -7,11 +7,23 @@
 * Input file accepts either string or identifier as reference
 * Fix potential bug in Field::Transpose
 * Fix potential bug in dual grid decomposition
+* Module std works on Apple - if we have the PCM
 
 ### Breaking Changes
 
 * Tool retrieval is done with `use` instead of `get`
 * Tools are referenced by `SharedTool` (alias for `std::shared_ptr<ComputeTool>`)
+
+### Code Structure
+
+* Module and ComputeTool are replaced with Driver tree
+    - Simple tree: (Driver (Engine (ComputeTool)))
+    - Leads to more predictable interfaces
+    - Everything non-trivial is one of these
+    - Engines can contain tools, most notably regions
+    - Drivers can contain other Drivers
+* Simulation is now just the root Driver
+    - Some jobs formerly done by Simulation are moved to base classes
 
 ## [5.0.0-a] - 2025-08-20
 

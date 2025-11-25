@@ -3,15 +3,17 @@
 #include <config.h>
 
 #ifdef USE_STD_MODULE
-	#include <assert.h>
+	#include <cassert>
 #else
 	#include <cassert>
 	#include <cmath>
 	#include <complex>
 	#include <iostream>
+	#include <fstream>
 	#include <vector>
 	#include <valarray>
 	#include <map>
+	#include <set>
 	#include <string>
 	#include <format>
 	#include <print>

@@ -1,6 +1,9 @@
 module;
 
 #include "tw_includes.h"
+#if defined(USE_STD_MODULE) && defined(USE_TWSF)
+#include "math.h"
+#endif
 
 export module functions;
 import base;
@@ -99,7 +102,7 @@ export namespace tw
 
 	inline tw::Float dawsoni(const tw::Float x)
 	{
-		return tw::Float(0.5) * exp(-x*x) * tw::erfi(x) * std::sqrt(pi);
+		return tw::Float(0.5) * std::exp(-x*x) * tw::erfi(x) * std::sqrt(pi);
 	}
 
 }
@@ -185,12 +188,12 @@ export {
     // rise between x=0 and x=1
     inline tw::Float QuinticRise(tw::Float x)
     {
-        return 10.0*pow(x,tw::Float(3.0)) - 15.0*pow(x,tw::Float(4.0)) + 6.0*pow(x,tw::Float(5.0));
+        return 10.0*std::pow(x,tw::Float(3.0)) - 15.0*std::pow(x,tw::Float(4.0)) + 6.0*std::pow(x,tw::Float(5.0));
     }
 
     inline tw::Float QuinticFall(tw::Float x)
     {
-        return 10.0*pow(1.0-x,tw::Float(3.0)) - 15.0*pow(1.0-x,tw::Float(4.0)) + 6.0*pow(1.0-x,tw::Float(5.0));
+        return 10.0*std::pow(1.0-x,tw::Float(3.0)) - 15.0*std::pow(1.0-x,tw::Float(4.0)) + 6.0*std::pow(1.0-x,tw::Float(5.0));
     }
 
     // base to base from x=0 to x=1
@@ -204,7 +207,7 @@ export {
 
     inline tw::Float D1QuinticRise(tw::Float x)
     {
-        return 30.0*pow(x,tw::Float(2.0)) - 60.0*pow(x,tw::Float(3.0)) + 30.0*pow(x,tw::Float(4.0));
+        return 30.0*std::pow(x,tw::Float(2.0)) - 60.0*std::pow(x,tw::Float(3.0)) + 30.0*std::pow(x,tw::Float(4.0));
     }
 
     inline tw::Float D1QuinticPulse(tw::Float x)

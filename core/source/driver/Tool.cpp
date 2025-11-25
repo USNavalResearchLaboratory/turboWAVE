@@ -3,20 +3,10 @@ module;
 #include <tree_sitter/api.h>
 #include "tw_includes.h"
 
-/// ComputeTool objects provide low level functionality that is accessible to all Modules.
-/// They retain pointers to MetricSpace (grid information) and Task (access to MPI communicators).
-/// A facility for interfacing with OpenCL kernels is provided.
-/// Each class of tool has a unique identifier of type tw::tool_type.
-/// Each instance of a tool has a unique name encoded as a string.
-/// To avoid duplicate names, there is an automatic name mangling mechanism.
-/// Automatic mangling relies on always creating a tool via Simulation::CreateTool
-/// Module and ComputeTool are somewhat similar.
-/// ComputeTool is intended to be heavy on computations, light on data ownership.
-/// Module is intended to own and manage data, while delegating heavy computations.
-export module compute_tool;
+export module driver:tool;
+
 import base;
 import input;
-import region;
 import static_space;
 import metric_space;
 
@@ -25,6 +15,9 @@ export namespace tw
 	enum class tool_type
 	{
 		none,warp,
+		// Regions
+		baseRegion , entireRegion , rectRegion , prismRegion , circRegion , cylinderRegion , cylindricalShellRegion ,
+		roundedCylinderRegion , ellipsoidRegion , trueSphereRegion , boxArrayRegion , torusRegion , coneRegion , tangentOgiveRegion,
 		// Profiles
 		uniformProfile,channelProfile,gaussianProfile,columnProfile,piecewiseProfile,corrugatedProfile,
 		// Wave launchers
@@ -51,10 +44,40 @@ export namespace tw
 		// Movers
 		borisMover,hcMover,pgcMover,unitaryMover,bohmianMover,photonMover,
 		// Testers
-		iteratorTest,metricSpaceTest,fftTest
+		iteratorTest,metricSpaceTest,fftTest,
+		// Drivers
+		electrostatic,
+		coulombSolver,directSolver,curvilinearDirectSolver,farFieldDiagnostic,
+		qsLaser,pgcLaser,
+		kinetics,species,fluidFields,equilibriumGroup,chemical,sparcHydroManager,
+		boundElectrons,schroedinger,pauli,kleinGordon,dirac,populationDiagnostic
 	};
+	bool IsDriver(tool_type typ) {
+		return typ==tool_type::electrostatic ||
+			typ==tool_type::coulombSolver ||
+			typ==tool_type::directSolver ||
+			typ==tool_type::curvilinearDirectSolver ||
+			typ==tool_type::farFieldDiagnostic ||
+			typ==tool_type::qsLaser ||
+			typ==tool_type::pgcLaser ||
+			typ==tool_type::kinetics ||
+			typ==tool_type::species ||
+			typ==tool_type::fluidFields ||
+			typ==tool_type::equilibriumGroup ||
+			typ==tool_type::chemical ||
+			typ==tool_type::sparcHydroManager ||
+			typ==tool_type::boundElectrons ||
+			typ==tool_type::schroedinger ||
+			typ==tool_type::pauli ||
+			typ==tool_type::kleinGordon ||
+			typ==tool_type::dirac ||
+			typ==tool_type::populationDiagnostic;
+	}
 }
 
+/// ComputeTool objects are the root of the simulation management hierarchy.
+/// They provide basic functions like testing, input file parsing, checkpointing, and
+/// offloading calculations to a device.
 export struct ComputeTool : Testable
 {
 	MetricSpace *space;
@@ -62,10 +85,6 @@ export struct ComputeTool : Testable
 	std::string name;
 	tw::input::DirectiveReader directives;
 	tw::UnitConverter native,natural,atomic,plasma,cgs,mks;
-
-	// Allow for a region
-	std::string region_name;
-	Region *theRgn;
 
 	// OpenCL Support
 	private:
@@ -88,31 +107,29 @@ export struct ComputeTool : Testable
 	void InitializeCLProgram(const std::string& filename);
 
 	static std::map<std::string,tw::tool_type> Map();
+	static std::map<tw::tool_type,std::string> InvMap();
 	static tw::tool_type CreateTypeFromInput(const tw::input::Preamble& preamble);
 	/// setup grid, native units, or other environmental factors affecting a test, returns
 	/// whether an environment was defined for the given enviro
-	static bool SetTestEnvironment(tw::tool_type theType,tw::Int enviro,MetricSpace *ms,Task *tsk);
+	static bool SetTestEnvironment(tw::tool_type theType,tw::Int enviro,MetricSpace *ms,Task *tsk,tw::Float unitDensityCGS);
 };
+
+export typedef std::shared_ptr<ComputeTool> SharedTool;
 
 ComputeTool::ComputeTool(const std::string& name,MetricSpace *ms,Task *tsk)
 {
-	// Do not create ComputeTools directly (unless you are Simulation).
-	// Instances are created through Simulation::CreateTool
 	this->name = name;
 	space = ms;
 	task = tsk;
-	region_name = "tw::entire";
-	theRgn = NULL;
 	programFilename = "";
 	buildLog = "";
-	native = ms->units;
-	natural = tw::UnitConverter(tw::units::natural,native);
-	atomic = tw::UnitConverter(tw::units::atomic,native);
-	plasma = tw::UnitConverter(tw::units::plasma,native);
-	cgs = tw::UnitConverter(tw::units::cgs,native);
-	mks = tw::UnitConverter(tw::units::mks,native);
-	directives.AttachUnits(native);
-	directives.Add("clipping region",new tw::input::String(&region_name),false);
+	native = ms->unitConverter;
+	natural = tw::UnitConverter(tw::units::natural,native.UnitDensityCGS());
+	atomic = tw::UnitConverter(tw::units::atomic,native.UnitDensityCGS());
+	plasma = tw::UnitConverter(tw::units::plasma,native.UnitDensityCGS());
+	cgs = tw::UnitConverter(tw::units::cgs,native.UnitDensityCGS());
+	mks = tw::UnitConverter(tw::units::mks,native.UnitDensityCGS());
+	directives.AttachUnits(native.unit_system,native.UnitDensityCGS());
 }
 
 ComputeTool::~ComputeTool()
@@ -242,13 +259,40 @@ std::map<std::string,tw::tool_type> ComputeTool::Map()
 		{"photon mover",tw::tool_type::photonMover},
 		{"iterator test",tw::tool_type::iteratorTest},
 		{"metric space test",tw::tool_type::metricSpaceTest},
-		{"fft test",tw::tool_type::fftTest}
+		{"fft test",tw::tool_type::fftTest},
+		{"maxwell solver",tw::tool_type::directSolver},
+		{"curvilinear maxwell solver",tw::tool_type::curvilinearDirectSolver},
+		{"coulomb gauge solver",tw::tool_type::coulombSolver},
+		{"far field diagnostic",tw::tool_type::farFieldDiagnostic},
+		{"electrostatic solver",tw::tool_type::electrostatic},
+		{"quasistatic solver",tw::tool_type::qsLaser},
+		{"pgc laser solver",tw::tool_type::pgcLaser},
+		{"bound solver",tw::tool_type::boundElectrons},
+		{"schroedinger solver",tw::tool_type::schroedinger},
+		{"pauli solver",tw::tool_type::pauli},
+		{"klein gordon solver",tw::tool_type::kleinGordon},
+		{"dirac solver",tw::tool_type::dirac},
+		{"fluid",tw::tool_type::fluidFields},
+		{"hydrodynamics",tw::tool_type::sparcHydroManager},
+		{"group",tw::tool_type::equilibriumGroup},
+		{"chemical",tw::tool_type::chemical},
+		{"species",tw::tool_type::species},
+		{"kinetics",tw::tool_type::kinetics},
+		{"population diagnostic",tw::tool_type::populationDiagnostic}
 	};
 }
 
-/// @brief weak matching of the input file key (legacy compatibility)
+std::map<tw::tool_type,std::string> ComputeTool::InvMap() {
+	auto ans = std::map<tw::tool_type,std::string>();
+	for (auto pair : Map()) {
+		ans[pair.second] = pair.first;
+	}
+	return ans;
+}
+
+/// @brief match input file key after normalizing white space
 /// @param preamble data extracted while parsing object
-/// @return the corresponding tool_type enumeration
+/// @return the corresponding module_type enumeration, may return tw::module_type::none
 tw::tool_type ComputeTool::CreateTypeFromInput(const tw::input::Preamble& preamble)
 {
 	std::map<std::string,tw::tool_type> tool_map = ComputeTool::Map();
@@ -268,7 +312,7 @@ tw::tool_type ComputeTool::CreateTypeFromInput(const tw::input::Preamble& preamb
 	}
 }
 
-bool ComputeTool::SetTestEnvironment(tw::tool_type theType,tw::Int enviro,MetricSpace *ms,Task *tsk)
+bool ComputeTool::SetTestEnvironment(tw::tool_type theType,tw::Int enviro,MetricSpace *ms,Task *tsk,tw::Float unitDensityCGS)
 {
 	const tw::node4 cyclic = {0,1,1,0};
 	const tw::node4 domains = {1,1,1,2};
@@ -302,8 +346,40 @@ bool ComputeTool::SetTestEnvironment(tw::tool_type theType,tw::Int enviro,Metric
 			} else {
 				return false;
 			}
+		case tw::tool_type::species:
+			if (enviro==1) {
+				ms->AttachUnits(tw::units::plasma,unitDensityCGS);
+				ms->Resize(tsk,gdim2d,gcorner,tw::vec4(0.1,0.8,0.2,0.8),std_packing,layers);
+				return true;
+			} else if (enviro==2) {
+				ms->AttachUnits(tw::units::plasma,unitDensityCGS);
+				ms->Resize(tsk,gdim3d,gcorner,tw::vec4(0.1,0.8,0.8,0.8),std_packing,layers);
+				return true;
+			} else {
+				return false;
+			}
+		case tw::tool_type::pauli:
+			return false;
+		case tw::tool_type::schroedinger:
+			if (enviro==1) {
+				ms->AttachUnits(tw::units::atomic,unitDensityCGS);
+				ms->Resize(tsk,gdim3d,gcorner,tw::vec4(0.1,0.8,0.8,0.8),std_packing,layers);
+				return true;
+			} else {
+				return false;
+			}
+		case tw::tool_type::dirac:
+		case tw::tool_type::kleinGordon:
+			if (enviro==1) {
+				ms->AttachUnits(tw::units::natural,unitDensityCGS);
+				ms->Resize(tsk,gdim3d,gcorner,tw::vec4(0.1,0.8,0.8,0.8),std_packing,layers);
+				return true;
+			} else {
+				return false;
+			}
 		default:
 			if (enviro==1) {
+				ms->AttachUnits(tw::units::plasma,unitDensityCGS);
 				ms->Resize(tsk,gdim3d,gcorner,tw::vec4(0.1,0.8,0.8,0.8),std_packing,layers);
 				return true;
 			} else {
@@ -311,5 +387,3 @@ bool ComputeTool::SetTestEnvironment(tw::tool_type theType,tw::Int enviro,Metric
 			}
 	}
 }
-
-export typedef std::shared_ptr<ComputeTool> SharedTool;

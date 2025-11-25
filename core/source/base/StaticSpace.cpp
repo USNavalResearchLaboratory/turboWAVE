@@ -77,6 +77,8 @@ export struct StaticSpace
 	StaticSpace(const tw::node5& dim,const tw::vec4& size,const tw::node5& packing,const tw::node4& ghostCellLayers);
 	/// Create a `StaticSpace` based on an existing one, but with new internal dimensions
 	StaticSpace(const tw::Int& components,const StaticSpace& base);
+	/// Create a `StaticSpace` based on an existing one, but with new packing
+	StaticSpace(const tw::node5& packing,const StaticSpace& base);
 	/// Resize a `StaticSpace` with the given global parameters
 	void Resize(const tw::node5& domains,const tw::node5& gdim,const tw::vec4& gsize,const tw::node5& packing,const tw::node4& ghostCellLayers);
 	/// Encode cell with topological indices `(n,i,j,k,0)`
@@ -153,13 +155,6 @@ export struct StaticSpace
 	void GetWeights(float w[3][3][tw::max_bundle_size],float x[4][tw::max_bundle_size]);
 	void GetWallWeights(float w[3][3][tw::max_bundle_size],float x[4][tw::max_bundle_size]);
 
-	void ReadCheckpoint(std::ifstream& inFile) {
-		inFile.read((char *)this,sizeof(*this));
-	}
-	void WriteCheckpoint(std::ofstream& outFile) {
-		outFile.write((char *)this,sizeof(*this));
-	}
-
 	#ifdef USE_OPENCL
 	void CellUpdateProtocol(cl_kernel k,cl_command_queue q);
 	void ElementUpdateProtocol(cl_kernel k,cl_command_queue q);
@@ -188,6 +183,12 @@ StaticSpace::StaticSpace(const tw::Int& components,const StaticSpace& base) {
 	tw::node5 dim {base.dim[0],base.dim[1],base.dim[2],base.dim[3],components};
 	tw::vec4 size(base.spacing[0]*dim[0],base.spacing[1]*dim[1],base.spacing[2]*dim[2],base.spacing[3]*dim[3]);
 	Resize(domains,dim,size,base.packing,base.layers);
+}
+
+StaticSpace::StaticSpace(const tw::node5& packing,const StaticSpace& base) {
+	tw::node5 domains {1,1,1,1,1};
+	tw::vec4 size(base.spacing[0]*dim[0],base.spacing[1]*dim[1],base.spacing[2]*dim[2],base.spacing[3]*dim[3]);
+	Resize(domains,base.dim,size,packing,base.layers);
 }
 
 void StaticSpace::Resize(const tw::node5& domains,const tw::node5& gdim,const tw::vec4& gsize,const tw::node5& packing,const tw::node4& ghostCellLayers)
@@ -277,7 +278,7 @@ inline void StaticSpace::MinimizePrimitive(tw::Int cell[tw::max_bundle_size],tw:
 		{
 			pos[par] = x[ax][par]>0.0f;
 			neg[par] = x[ax][par]<0.0f;
-			displ[par] = fabs(x[ax][par]) + 0.5f - neg[par]*eps;
+			displ[par] = std::fabs(x[ax][par]) + 0.5f - neg[par]*eps;
 			// max_displ will be 0 if axis is ignorable due to ufg=lfg=topo=1
 			max_displ[par] = pos[par]*(ufg[ax] - topo[ax][par]) + neg[par]*(topo[ax][par] - lfg[ax]);
 			displ[par] = (displ[par]>max_displ[par])*max_displ[par] + (displ[par]<=max_displ[par])*displ[par] + ignorable[ax]*displ[par];
@@ -304,7 +305,7 @@ inline void StaticSpace::MinimizePrimitive(Primitive& q) const
 		const float x = q.x[ax];
 		pos = x>0.0f;
 		neg = x<0.0f;
-		displ = fabs(x) + 0.5f - neg*eps;
+		displ = std::fabs(x) + 0.5f - neg*eps;
 		// max_displ will be 0 if axis is ignorable due to ufg=lfg=topo=1
 		max_displ = pos*(ufg[ax] - topo[ax]) + neg*(topo[ax] - lfg[ax]);
 		displ = (displ>max_displ)*max_displ + (displ<=max_displ)*displ + ignorable[ax]*displ;

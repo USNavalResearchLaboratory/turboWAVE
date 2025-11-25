@@ -5,8 +5,7 @@ module;
 
 export module elliptic;
 import input;
-import compute_tool;
-import region;
+import driver;
 import fields;
 import numerics;
 
@@ -32,7 +31,7 @@ export struct EllipticSolver:BoundedTool
 
 	EllipticSolver(const std::string& name,MetricSpace *m,Task *tsk);
 	virtual void SetCoefficients(ScalarField *coefficients);
-	virtual void FixPotential(ScalarField& phi,Region* theRegion,const tw::Float& thePotential);
+	virtual void FixPotential(ScalarField& phi,SharedRegion theRegion,const tw::Float& thePotential);
 	virtual void ZeroModeGhostCellValues(tw::Float *phi0,tw::Float *phiN1,ScalarField& rho,tw::Float mul);
 	virtual void Solve(ScalarField& phi,ScalarField& source,tw::Float mul) = 0;
 	void FormOperatorStencil(std::valarray<tw::Float>& D,tw::Int i,tw::Int j,tw::Int k);
@@ -47,7 +46,7 @@ export struct IterativePoissonSolver:EllipticSolver
 	tw::Float tolerance,overrelaxation,minimumNorm;
 
 	IterativePoissonSolver(const std::string& name,MetricSpace *m,Task *tsk);
-	virtual void FixPotential(ScalarField& phi,Region* theRegion,const tw::Float& thePotential);
+	virtual void FixPotential(ScalarField& phi,SharedRegion theRegion,const tw::Float& thePotential);
 	virtual void Solve(ScalarField& phi,ScalarField& source,tw::Float mul);
 	virtual void StatusMessage(std::ostream *dest);
 };
@@ -122,7 +121,7 @@ void EllipticSolver::FormOperatorStencil(std::valarray<tw::Float>& D,tw::Int i,t
 	D[0] = -(D[1] + D[2] + D[3] + D[4] + D[5] + D[6]);
 }
 
-void EllipticSolver::FixPotential(ScalarField& phi,Region* theRegion,const tw::Float& thePotential)
+void EllipticSolver::FixPotential(ScalarField& phi,SharedRegion theRegion,const tw::Float& thePotential)
 {
 	#pragma omp parallel
 	{
@@ -307,7 +306,7 @@ IterativePoissonSolver::IterativePoissonSolver(const std::string& name,MetricSpa
 	directives.Add("overrelaxation",new tw::input::Float(&overrelaxation),false);
 }
 
-void IterativePoissonSolver::FixPotential(ScalarField& phi,Region* theRegion,const tw::Float& thePotential)
+void IterativePoissonSolver::FixPotential(ScalarField& phi,SharedRegion theRegion,const tw::Float& thePotential)
 {
 	EllipticSolver::FixPotential(phi,theRegion,thePotential);
 	#pragma omp parallel

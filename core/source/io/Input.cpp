@@ -30,7 +30,7 @@ export namespace tw
 		public:
 			DirectiveReader();
 			~DirectiveReader();
-			void AttachUnits(const tw::UnitConverter& native);
+			void AttachUnits(tw::units sys,tw::Float unitDensityCGS);
 			void Reset();
 			void Add(const std::string& key,tw::input::Assignment *dir,bool required=true);
 			bool ReadNext(const TSTreeCursor *curs,const std::string& src);
@@ -47,6 +47,7 @@ export namespace tw
 		tw::Float GetUnitDensityCGS(TSTree *tree,const std::string& src);
 		tw::units GetNativeUnits(TSTree *tree,const std::string& src);
 		Preamble GetPreamble(TSTreeCursor *curs,const std::string& src);
+		bool MangleName(std::string& name,std::set<std::string>& all_names);
 		void BuildSimilar(std::string& messg,const std::string& wrong,const std::string& valid);
 		std::string PythonRange(TSTreeCursor *curs,const std::string& src,tw::Float *v0,tw::Float *v1);
 	}
@@ -70,9 +71,9 @@ tw::input::DirectiveReader::~DirectiveReader()
 		delete pair.second;
 }
 
-void tw::input::DirectiveReader::AttachUnits(const tw::UnitConverter& native)
+void tw::input::DirectiveReader::AttachUnits(tw::units sys,tw::Float unitDensityCGS)
 {
-	this->native = native;
+	this->native = tw::UnitConverter(sys,unitDensityCGS);
 }
 
 void tw::input::DirectiveReader::Reset()
@@ -314,4 +315,18 @@ void tw::input::BuildSimilar(std::string& messg,const std::string& wrong,const s
 		messg += ", ";
 		return;
 	}
+}
+
+/// check for name collision and mangle if necessary, then add the new name to the set
+bool tw::input::MangleName(std::string& name,std::set<std::string>& all_names) {
+	tw::Int id = 2;
+	std::string mangled(name);
+	while (all_names.find(mangled) != all_names.end()) {
+		mangled = name + std::to_string(id);
+		id++;
+	}
+	bool did_mangle = (name!=mangled);
+	name = mangled;
+	all_names.insert(mangled);
+	return did_mangle;
 }

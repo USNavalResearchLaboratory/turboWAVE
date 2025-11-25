@@ -6,7 +6,7 @@ module;
 
 export module chemistry;
 import input;
-import compute_tool;
+import driver;
 import physics;
 import logger;
 
@@ -35,7 +35,8 @@ struct PrimitiveReaction
 	tw::Float unit_T_eV,unit_rate_cgs; // normalization help for janev
 
 	tw::Float PrimitiveRate(tw::Float T);
-	void ReadRate(TSTreeCursor *curs,const std::string& src,tw::Int numBodies,const tw::UnitConverter& uc);
+	void ReadRate(TSTreeCursor *curs,const std::string& src,tw::Int numBodies,
+		const tw::UnitConverter& cgs,const tw::UnitConverter& native);
 };
 
 export struct Reaction : PrimitiveReaction
@@ -87,11 +88,11 @@ tw::Float PrimitiveReaction::PrimitiveRate(tw::Float T)
 		const tw::Float logT_eV = std::log(tw::small_pos + std::fabs(T)*unit_T_eV);
 		rate = 0.0;
 		for (tw::Int s=0;s<9;s++)
-			rate += b[s]*pow(logT_eV,tw::Float(s));
+			rate += b[s]*std::pow(logT_eV,tw::Float(s));
 		rate = std::exp(rate) / unit_rate_cgs;
 	}
 	else // use arrhenius form
-		rate = c1 * pow(T,c2) * std::exp(-c3/T);
+		rate = c1 * std::pow(T,c2) * std::exp(-c3/T);
 
 	return rate;
 }
@@ -101,9 +102,9 @@ tw::Float PrimitiveReaction::PrimitiveRate(tw::Float T)
 /// @param src source document
 /// @param numBodies number of reactants
 /// @param native units
-void PrimitiveReaction::ReadRate(TSTreeCursor *curs,const std::string& src,tw::Int numBodies,const tw::UnitConverter& native)
+void PrimitiveReaction::ReadRate(TSTreeCursor *curs,const std::string& src,tw::Int numBodies,
+	const tw::UnitConverter& cgs,const tw::UnitConverter& native)
 {
-	tw::UnitConverter cgs(tw::units::cgs,native);
 	unit_T_eV = 1.0*tw::dims::temperature >> native >> cgs;
 	unit_rate_cgs = std::pow(1.0*tw::dims::density>>native>>cgs,tw::Float(1-numBodies)) / (1.0*tw::dims::time>>native>>cgs);
 	std::string word;
@@ -116,7 +117,7 @@ void PrimitiveReaction::ReadRate(TSTreeCursor *curs,const std::string& src,tw::I
 		c1 = stod(tw::input::next_named_node_text(curs,src),NULL);
 		c2 = stod(tw::input::next_named_node_text(curs,src),NULL);
 		c3 = stod(tw::input::next_named_node_text(curs,src),NULL);
-		c1 *= pow(unit_T_eV,c2);
+		c1 *= std::pow(unit_T_eV,c2);
 		c1 /= unit_rate_cgs;
 		c3 = c3*tw::dims::temperature >> cgs >> native;
 		ts_tree_cursor_goto_parent(curs);
@@ -170,7 +171,7 @@ void Reaction::ReadInputFile(TSTreeCursor *curs,const std::string& src,const tw:
 {
 	std::string word;
 	numBodies = 0;
-	tw::UnitConverter cgs(tw::units::cgs,native);
+	tw::UnitConverter cgs(tw::units::cgs,native.UnitDensityCGS());
 
 	ts_tree_cursor_goto_first_child(curs);
 	tw::input::next_named_node(curs,false);
@@ -193,7 +194,7 @@ void Reaction::ReadInputFile(TSTreeCursor *curs,const std::string& src,const tw:
 
 	logger::TRACE("parse the rate");
 	tw::input::next_named_node(curs,false);
-	ReadRate(curs,src,numBodies,native);
+	ReadRate(curs,src,numBodies,cgs,native);
 
 	logger::TRACE("parse the catalyst");
 	tw::input::next_named_node(curs,false);
@@ -204,6 +205,7 @@ void Reaction::ReadInputFile(TSTreeCursor *curs,const std::string& src,const tw:
 
 void Excitation::ReadInputFile(TSTreeCursor *curs,const std::string& src,const tw::UnitConverter& native)
 {
+	tw::UnitConverter cgs(tw::units::cgs,native.UnitDensityCGS());
 	ts_tree_cursor_goto_first_child(curs);
 	name1 = tw::input::next_named_node_text(curs,src);
 	name2 = tw::input::next_named_node_text(curs,src);
@@ -212,7 +214,7 @@ void Excitation::ReadInputFile(TSTreeCursor *curs,const std::string& src,const t
 	T0 = 0.0;
 	T1 = tw::big_pos;
 	ts_tree_cursor_goto_next_sibling(curs);
-	ReadRate(curs,src,2,native);
+	ReadRate(curs,src,2,cgs,native);
 }
 
 void Collision::ReadInputFile(TSTreeCursor *curs,const std::string& src,const tw::UnitConverter& native)
@@ -231,7 +233,7 @@ void Collision::ReadInputFile(TSTreeCursor *curs,const std::string& src,const tw
 	name2 = tw::input::next_named_node_text(curs,src);
 
 	std::string word,species;
-	tw::UnitConverter cgs(tw::units::cgs,native);
+	tw::UnitConverter cgs(tw::units::cgs,native.UnitDensityCGS());
 
 	ts_tree_cursor_goto_next_sibling(curs);
 	if (tw::input::node_text(curs,src,true) == "coulomb") {

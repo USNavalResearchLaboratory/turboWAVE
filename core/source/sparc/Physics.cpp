@@ -6,7 +6,7 @@ module;
 export module physics;
 
 import input;
-import compute_tool;
+import driver;
 import fields;
 import functions;
 
@@ -279,7 +279,7 @@ export struct EOSMixture:ComputeTool
 	sparc::hydro_set hidx;
 	sparc::eos_set eidx;
 	sparc::material_set matset;
-	void SetupIndexing(const sparc::hydro_set& h,const sparc::eos_set& e,const sparc::material_set m)
+	void SetupIndexing(const sparc::hydro_set& h,const sparc::eos_set& e,const sparc::material_set& m)
 	{
 		hidx = h;
 		eidx = e;
@@ -361,7 +361,7 @@ tw::Float sparc::CoulombCrossSectionCGS(tw::Float q1,tw::Float q2,tw::Float m12,
 	rmin = (rmin*rmin_alt)/(rmin+rmin_alt); // efficiently estimate the smaller of the two
 	rmax = 1/std::sqrt(tw::small_pos + 4*pi*N1*q1*q1/T1 + 4*pi*N2*q2*q2/T2);
 	coulombLog = std::log((3*rmin+rmax)/rmin); // well behaved approximation of std::log(rmax/rmin)
-	return (32/pi)*pow(v12,-4)*sqr(q1*q2/m12)*coulombLog;
+	return (32/pi)*std::pow(v12,-4)*sqr(q1*q2/m12)*coulombLog;
 }
 
 tw::Float sparc::ElectronPhononFrequencyCGS(tw::Float Ti,tw::Float EFermi,tw::Float ks)
@@ -411,14 +411,14 @@ void Ionizer::Initialize()
 
 void Ionizer::DeduceStaticCoeff()
 {
-	I1 = A1 * pow(2*Uion,0.75) / std::sqrt(3/pi);
+	I1 = A1 * std::pow(2*Uion,0.75) / std::sqrt(3/pi);
 	I2 = A2 - 0.5;
 	I3 = A3;
 }
 
 void Ionizer::DeduceAveragedCoeff()
 {
-	A1 = I1 * std::sqrt(3/pi) / pow(2*Uion,0.75);
+	A1 = I1 * std::sqrt(3/pi) / std::pow(2*Uion,0.75);
 	A2 = I2 + 0.5;
 	A3 = I3;
 }
@@ -437,19 +437,19 @@ tw::Float Multiphoton::AverageRate(tw::Float w0,tw::Float E)
 {
 	const tw::Float wa = w0 * tw::dims::angular_frequency >> native >> atomic;
 	const tw::Float photons = MyFloor(Uion/wa + 1);
-	return A1*w0*pow(std::fabs(E)/E_MPI,two*photons) / Factorial(photons-1);
+	return A1*w0*std::pow(std::fabs(E)/E_MPI,two*photons) / Factorial(photons-1);
 }
 
 tw::Float Tunneling::InstantRate(tw::Float w0,tw::Float E)
 {
 	const tw::Float Ea = (std::fabs(E)*tw::dims::electric_field >> native >> atomic) + cutoff_field;
-	return I1*pow(Ea,I2)*std::exp(I3/Ea);
+	return I1*std::pow(Ea,I2)*std::exp(I3/Ea);
 }
 
 tw::Float Tunneling::AverageRate(tw::Float w0,tw::Float E)
 {
 	const tw::Float Ea = (std::fabs(E)*tw::dims::electric_field >> native >> atomic) + cutoff_field;
-	return A1*pow(Ea,A2)*std::exp(A3/Ea);
+	return A1*std::pow(Ea,A2)*std::exp(A3/Ea);
 }
 
 void KYH::Initialize()
@@ -457,8 +457,8 @@ void KYH::Initialize()
 	Ionizer::Initialize();
 	const tw::Float alpha = 0.0072973525693;
 	const tw::Float Ua2 = Uion*alpha*alpha;
-	const tw::Float Ea = pow(2*Uion,1.5);
-	A1 = multiplier * pow(2.0,3.0-4*Ua2) * std::sqrt(3/pi) * (1.0-7*Ua2/72) * std::exp(4*Ua2) * pow(2*Uion,1.75-3.0*Ua2);
+	const tw::Float Ea = std::pow(2*Uion,1.5);
+	A1 = multiplier * std::pow(2.0,3.0-4*Ua2) * std::sqrt(3/pi) * (1.0-7*Ua2/72) * std::exp(4*Ua2) * std::pow(2*Uion,1.75-3.0*Ua2);
 	A1 /= std::tgamma(3.0-2*Ua2);
 	A2 = 2.0*Ua2 - 0.5;
 	A3 = -(2.0/3.0)*Ea*(1.0-Ua2/12);
@@ -481,10 +481,10 @@ void ADK::Initialize()
 	const tw::Float e = std::exp(1.0);
 	const tw::Float sn2l2 = std::sqrt(nstar*nstar-lstar*lstar);
 	A1 = std::sqrt(3/cub(pi)) * (2*l+1) * std::tgamma(l+m+1) / std::tgamma(m+1) / std::tgamma(l-m+1);
-	A1 *= pow(e/sn2l2,m+1.5); // exponent is of poor print quality in JETP
-	A1 *= pow((nstar+lstar)/(nstar-lstar),lstar+0.5);
+	A1 *= std::pow(e/sn2l2,m+1.5); // exponent is of poor print quality in JETP
+	A1 *= std::pow((nstar+lstar)/(nstar-lstar),lstar+0.5);
 	A1 *= (Z*Z/cub(nstar));
-	A1 *= pow(4*e*cub(Z/nstar)/sn2l2,2*nstar-m-1.5);
+	A1 *= std::pow(4*e*cub(Z/nstar)/sn2l2,2*nstar-m-1.5);
 	A2 = m+1.5-2*nstar;
 	A3 = -2*cub(Z/nstar)/3; // ADK 1986 has nstar**4 in Eq. 21, must be a typo?
 	DeduceStaticCoeff();
@@ -499,14 +499,14 @@ void PPT_Tunneling::Initialize()
 	const tw::Float F0 = cub(Z/nstar);
 	// First without the Coulomb factor
 	A1 = Uion;
-	A1 *= pow(2,2*nstar) / (nstar*std::tgamma(nstar+lstar+1)*std::tgamma(nstar-lstar)); // |C|^2
+	A1 *= std::pow(2,2*nstar) / (nstar*std::tgamma(nstar+lstar+1)*std::tgamma(nstar-lstar)); // |C|^2
 	A1 *= std::sqrt(6/pi);
-	A1 *= (2*l+1) * std::tgamma(l+m+1) / pow(2,m) / std::tgamma(m+1) / std::tgamma(l-m+1);
-	A1 *= pow(0.5/F0,m+1.5);
+	A1 *= (2*l+1) * std::tgamma(l+m+1) / std::pow(2,m) / std::tgamma(m+1) / std::tgamma(l-m+1);
+	A1 *= std::pow(0.5/F0,m+1.5);
 	A2 = m+1.5;
 	A3 = -2*F0/3;
 	// Account for Coulomb correction
-	A1 *= pow(2*F0,2*nstar);
+	A1 *= std::pow(2*F0,2*nstar);
 	A2 -= 2*nstar;
 	DeduceStaticCoeff();
 	I1 = I1*tw::dims::angular_frequency >> atomic >> native;
@@ -526,10 +526,10 @@ void PPT::Initialize()
 {
 	Ionizer::Initialize();
 	// use A1 to hold C_nl^2
-	A1 = pow(2,2*nstar);
+	A1 = std::pow(2,2*nstar);
 	A1 /= nstar*std::tgamma(nstar+lstar+1)*std::tgamma(nstar-lstar);
 	// use A3 to hold F0
-	A3 = pow(2*Uion,tw::Float(1.5));
+	A3 = std::pow(2*Uion,tw::Float(1.5));
 }
 
 tw::Float PPT::FourierSum(tw::Float gam,tw::Float nu)
@@ -553,10 +553,10 @@ tw::Float PPT::AverageRate(tw::Float w0,tw::Float E)
 	const tw::Float g = (3/(2*gam))*((1 + 1/(2*gam*gam))*std::asinh(gam) - std::sqrt(1 + gam*gam)/(2*gam));
 	const tw::Float nu = (Uion/wa) * (1 + 1/(2*gam*gam));
 	ans = Uion*A1*std::sqrt(6/pi)*(2*l+1);
-	ans *= pow(F*std::sqrt(1 + gam*gam)/2,tw::Float(1.5));
+	ans *= std::pow(F*std::sqrt(1 + gam*gam)/2,tw::Float(1.5));
 	ans *= (4/std::sqrt(3*pi)) * (gam*gam/(1 + gam*gam)) * FourierSum(gam,nu);
 	ans *= std::exp(-2*g/(3*F));
-	ans *= pow(2/F,2*nstar); // coulomb correction
+	ans *= std::pow(2/F,2*nstar); // coulomb correction
 	return ans*tw::dims::angular_frequency >> atomic >> native;
 }
 
@@ -564,10 +564,10 @@ void PMPB::Initialize()
 {
 	Ionizer::Initialize();
 	// use A1 to hold C_nl^2, n.b. PMPB has a different convention from PPT (factor of 4)
-	A1 = pow(2,2*nstar-2);
+	A1 = std::pow(2,2*nstar-2);
 	A1 /= nstar*std::tgamma(nstar+lstar+1)*std::tgamma(nstar-lstar);
 	// use A3 to hold F0
-	A3 = pow(2*Uion,tw::Float(1.5));
+	A3 = std::pow(2*Uion,tw::Float(1.5));
 }
 
 tw::Float PMPB::AverageRate(tw::Float w0,tw::Float E)
@@ -583,11 +583,11 @@ tw::Float PMPB::AverageRate(tw::Float w0,tw::Float E)
 	const tw::Float g = (3/(2*gam))*((1 + 1/(2*gam*gam))*std::asinh(gam) - std::sqrt(1 + gam*gam)/(2*gam));
 	const tw::Float nu = (Uion/wa) * (1 + 1/(2*gam*gam));
 	ans = (2/pi)*Uion*A1*(2*l+1);
-	ans *= pow(Uion/wa,-1.5);
+	ans *= std::pow(Uion/wa,-1.5);
 	ans *= std::sqrt(2*gam/std::sqrt(1+gam*gam)) * FourierSum(gam,nu);
 	ans *= std::exp(-2*g/(3*F));
 	// Following is the improved Coulomb correction factor
-	ans *= pow(2/F,2*nstar) * pow(1+2*gam/std::exp(1),-2*nstar);
+	ans *= std::pow(2/F,2*nstar) * std::pow(1+2*gam/std::exp(1),-2*nstar);
 	return ans*tw::dims::angular_frequency >> atomic >> native;
 }
 

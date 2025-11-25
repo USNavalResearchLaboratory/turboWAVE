@@ -5,7 +5,7 @@ module;
 
 export module solid_state;
 import input;
-import twmodule;
+import driver;
 import fields;
 import diagnostics;
 import injection;
@@ -40,7 +40,7 @@ export struct BoundElectrons:Module
 	ScalarField* fixed;
 	Vec3Field* ESField;
 
-	BoundElectrons(const std::string& name,Simulation* sim);
+	BoundElectrons(const std::string& name,MetricSpace *ms,Task *task);
 	virtual ~BoundElectrons();
 	virtual void VerifyInput();
 	virtual void Initialize();
@@ -62,9 +62,9 @@ export struct BoundElectrons:Module
 //                        //
 ////////////////////////////
 
-BoundElectrons::BoundElectrons(const std::string& name,Simulation* sim) : Module(name,sim)
+BoundElectrons::BoundElectrons(const std::string& name,MetricSpace *ms,Task *tsk) : Module(name,ms,tsk)
 {
-	if (native.native!=tw::units::plasma)
+	if (native.unit_system!=tw::units::plasma)
 		throw tw::FatalError("BoundElectrons module requires <native units = plasma>");
 
 	updateSequencePriority = tw::priority::source;
@@ -84,9 +84,9 @@ BoundElectrons::BoundElectrons(const std::string& name,Simulation* sim) : Module
 	theta = 0.0;
 	phi = 0.0;
 
-	dens.Initialize(*this,owner);
-	R0.Initialize(3,*this,owner);
-	R1.Initialize(3,*this,owner);
+	dens.Initialize(*ms,tsk);
+	R0.Initialize(3,*ms,tsk);
+	R1.Initialize(3,*ms,tsk);
 	packet.resize(38);
 
 	#ifdef USE_OPENCL
@@ -157,10 +157,10 @@ void BoundElectrons::Initialize()
 			R0(cell,s) = 0.0;
 			R1(cell,s) = 0.0;
 		}
-		pos = owner->Pos(cell);
+		pos = space->Pos(cell);
 		dens(cell) = 0.0;
 		for (auto profile : profiles)
-			dens(cell) += profile->GetValue(pos,*owner);
+			dens(cell) += profile->GetValue(pos,*space);
 	}
 
 	dens.CopyFromNeighbors();
@@ -269,10 +269,10 @@ void BoundElectrons::MoveWindow()
 	// carry out shift
 	for (auto s : StripRange(*this,3,0,1,strongbool::yes))
 	{
-		tw::vec3 pos = owner->Pos(s,Dim(s.Axis())+1);
+		tw::vec3 pos = space->Pos(s,Dim(s.Axis())+1);
 		tw::Float incomingMaterial = 0.0;
 		for (auto profile : profiles)
-			incomingMaterial += profile->GetValue(pos,*owner);
+			incomingMaterial += profile->GetValue(pos,*space);
 		dens.Shift(Rng(0),s,-1,incomingMaterial);
 		R0.Shift(Rng(0,3),s,-1,0.0);
 		R1.Shift(Rng(0,3),s,-1,0.0);
@@ -282,7 +282,7 @@ void BoundElectrons::MoveWindow()
 #ifdef USE_OPENCL
 void BoundElectrons::Update()
 {
-	owner->LocalUpdateProtocol(k_update);
+	task->LocalUpdateProtocol(k_update);
 	// J4 boundary conditions and message passing treated in field solver
 }
 #else
@@ -292,7 +292,7 @@ void BoundElectrons::Update()
 	// FNL = -a*R*R + b*(R.R)*R (really F/m)
 	// At start, E is known at t = 0, R0 at t = -1, R1 at t = 0
 
-	const tw::Int zLast = owner->n1[3]==MPI_PROC_NULL ? ufg[3]-6 : dim[3];
+	const tw::Int zLast = task->n1[3]==MPI_PROC_NULL ? ufg[3]-6 : dim[3];
 
 	#pragma omp parallel
 	{
@@ -334,9 +334,9 @@ void BoundElectrons::Update()
 					crystalBasis.ExpressInStdBasis(&r1);
 
 					// charge in high-side adjacent cell last step
-					const tw::vec3 Q0 = 0.5*q0*dens(v,k)*owner->dS(v,k,0)*r0*freq.spatial();
+					const tw::vec3 Q0 = 0.5*q0*dens(v,k)*space->dS(v,k,0)*r0*freq.spatial();
 					// charge in high-side adjacent cell this step
-					const tw::vec3 Q1 = 0.5*q0*dens(v,k)*owner->dS(v,k,0)*r1*freq.spatial();
+					const tw::vec3 Q1 = 0.5*q0*dens(v,k)*space->dS(v,k,0)*r1*freq.spatial();
 					// current in either cell wall
 					const tw::vec3 I3 = (Q1 - Q0)/dt;
 
@@ -421,7 +421,7 @@ void BoundElectrons::Report(Diagnostic& diagnostic)
 	Module::Report(diagnostic);
 
 	ScalarField temp;
-	temp.Initialize(*this,owner);
+	temp.Initialize(*space,task);
 	tw::Float dt = dx(0);
 	
 	for (auto cell : InteriorCellRange(*this,1))

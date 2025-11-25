@@ -1,28 +1,17 @@
 module;
 
-#include <tree_sitter/api.h>
 #include "tw_includes.h"
 #include "tw_test.h"
 
 export module injection;
-import input;
-import compute_tool;
+import base;
+import driver;
 import fields;
-import functions;
 import fft;
+import functions;
+import input;
 
-using namespace tw::bc;
-
-export namespace tw
-{
-	namespace profile
-	{
-		enum class quantity { density,energy,px,py,pz };
-		enum class timing { triggered,maintained };
-		enum class loading { statistical,deterministic };
-		enum class shape { triangle,sin2,quartic,quintic,sech };
-	}
-}
+using tw::bc::fld;
 
 export namespace EM
 {
@@ -33,100 +22,6 @@ export namespace EM
 		tw::Float scale[2];
 	};
 }
-
-export struct Profile : ComputeTool
-{
-	tw::profile::shape segmentShape;
-	tw::grid::geometry symmetry;
-	tw::vec3 centerPt;
-	tw::vec3 modeNumber;
-	tw::Float modeAmplitude;
-	tw::basis orientation;
-	tw::Float gammaBoost;
-
-	// items needed for particle/fluid loading
-private:
-	tw::vec3 driftMomentum;
-public:
-	tw::profile::quantity whichQuantity;
-	tw::vec3 thermalMomentum;
-	tw::Float temperature;
-	bool neutralize,variableCharge;
-	tw::profile::loading loadingMethod;
-	tw::profile::timing timingMethod;
-	tw::Float t0,t1;
-	bool wasTriggered;
-
-	Profile(const std::string& name,MetricSpace *m,Task *tsk);
-	virtual void Initialize();
-	tw::vec3 DriftMomentum(const tw::Float& mass);
-	tw::Float Temperature(const tw::Float& mass);
-	tw::vec3 Boost(const tw::vec3& pos);
-	tw::vec3 Translate_Rotate(const tw::vec3& pos);
-	virtual tw::Float GetValue(const tw::vec3& pos,const MetricSpace& ds);
-	bool TimeGate(tw::Float t,tw::Float *add);
-	virtual bool ReadInputFileDirective(const TSTreeCursor *curs,const std::string& src);
-	virtual void ReadCheckpoint(std::ifstream& inFile);
-	virtual void WriteCheckpoint(std::ofstream& outFile);
-};
-
-export struct UniformProfile:Profile
-{
-	tw::Float density;
-
-	UniformProfile(const std::string& name,MetricSpace *m,Task *tsk);
-	virtual tw::Float GetValue(const tw::vec3& pos,const MetricSpace& ds);
-};
-
-export struct GaussianProfile:Profile
-{
-	tw::Float density;
-	tw::vec3 beamSize;
-
-	GaussianProfile(const std::string& name,MetricSpace *m,Task *tsk);
-	virtual tw::Float GetValue(const tw::vec3& pos,const MetricSpace& ds);
-};
-
-export struct ChannelProfile:Profile
-{
-	std::valarray<tw::Float> z,fz;
-	tw::Float coeff[4];
-
-	ChannelProfile(const std::string& name,MetricSpace *m,Task *tsk);
-	virtual tw::Float GetValue(const tw::vec3& pos,const MetricSpace& ds);
-	virtual void ReadCheckpoint(std::ifstream& inFile);
-	virtual void WriteCheckpoint(std::ofstream& outFile);
-};
-
-export struct ColumnProfile:Profile
-{
-	std::valarray<tw::Float> z,fz;
-	tw::vec3 beamSize;
-
-	ColumnProfile(const std::string& name,MetricSpace *m,Task *tsk);
-	virtual tw::Float GetValue(const tw::vec3& pos,const MetricSpace& ds);
-	virtual void ReadCheckpoint(std::ifstream& inFile);
-	virtual void WriteCheckpoint(std::ofstream& outFile);
-};
-
-export struct PiecewiseProfile:Profile
-{
-	std::valarray<tw::Float> x,fx,y,fy,z,fz;
-
-	PiecewiseProfile(const std::string& name,MetricSpace *m,Task *tsk);
-	virtual void Initialize();
-	virtual tw::Float GetValue(const tw::vec3& pos,const MetricSpace& ds);
-	virtual void ReadCheckpoint(std::ifstream& inFile);
-	virtual void WriteCheckpoint(std::ofstream& outFile);
-};
-
-export struct CorrugatedProfile:Profile
-{
-	tw::Float a0,gamma0,w0,wp0,km,delta,rchannel;
-
-	CorrugatedProfile(const std::string& name,MetricSpace *m,Task *tsk);
-	virtual tw::Float GetValue(const tw::vec3& pos,const MetricSpace& ds);
-};
 
 export struct PulseShape
 {
@@ -143,6 +38,24 @@ export struct PulseShape
 	tw::Float PrimitiveAmplitude(const tw::Float t) const;
 	tw::Complex Amplitude(const tw::Float t) const;
 	tw::Complex D1Amplitude(const tw::Float t) const;
+};
+
+export struct Conductor : Engine
+{
+	PulseShape pulseShape;
+	std::valarray<tw::Float> Px,Py,Pz,potential,angFreq,phase;
+	bool affectsPhi,affectsA;
+	EM::current currentType;
+	tw::vec3 gaussianRadius,ks;
+	tw::Float f,temperature;
+
+	Conductor(const std::string& name,MetricSpace *m,Task *tsk);
+	virtual void Initialize();
+	tw::Float Temperature(tw::Float t) { return temperature; }
+	tw::Float Voltage(tw::Float t);
+	tw::Float VoltageRate(tw::Float t);
+	tw::vec3 PolarizationDensity(const tw::vec3& pos,tw::Float t);
+	void DepositSources(Field& j4,tw::Float t,tw::Float dt);
 };
 
 export struct Wave : ComputeTool
@@ -261,24 +174,6 @@ export struct LaguerreGauss : Wave
 	virtual tw::Complex PrimitivePhasor(const tw::vec4& x4) const;
 };
 
-export struct Conductor : ComputeTool
-{
-	PulseShape pulseShape;
-	std::valarray<tw::Float> Px,Py,Pz,potential,angFreq,phase;
-	bool affectsPhi,affectsA;
-	EM::current currentType;
-	tw::vec3 gaussianRadius,ks;
-	tw::Float f,temperature;
-
-	Conductor(const std::string& name,MetricSpace *m,Task *tsk);
-	virtual void Initialize();
-	tw::Float Temperature(tw::Float t) { return temperature; }
-	tw::Float Voltage(tw::Float t);
-	tw::Float VoltageRate(tw::Float t);
-	tw::vec3 PolarizationDensity(const tw::vec3& pos,tw::Float t);
-	void DepositSources(Field& j4,tw::Float t,tw::Float dt);
-};
-
 export namespace tw {
 	/// convenience alias for explicitly typed shared waves
 	typedef std::vector<std::shared_ptr<Wave>> Waves;
@@ -317,533 +212,6 @@ export struct MABoundary
 	tw::Complex NormalDerivativeRight(tw::Int index,tw::Complex amplitude,tw::Float carrierFrequency);
 };
 
-export struct Warp : ComputeTool,warp_base
-{
-	bool increasing;
-	tw::Int rng[2];
-	tw::Float L,gridSum;
-
-	Warp(const std::string& name,MetricSpace *m,Task *tsk);
-	virtual void Initialize();
-	virtual void ReadCheckpoint(std::ifstream& inFile);
-	virtual void WriteCheckpoint(std::ofstream& outFile);
-	tw::Float AddedCellWidth(tw::Int globalCell);
-};
-
-
-///////////////////
-//               //
-// PROFILE CLASS //
-//               //
-///////////////////
-
-Profile::Profile(const std::string& name,MetricSpace *m,Task *tsk) : ComputeTool(name,m,tsk)
-{
-	symmetry = tw::grid::cartesian;
-	segmentShape = tw::profile::shape::triangle;
-	neutralize = true;
-	timingMethod = tw::profile::timing::triggered;
-	variableCharge = false;
-	loadingMethod = tw::profile::loading::deterministic;
-	whichQuantity = tw::profile::quantity::density;
-	modeAmplitude = 0.0;
-	modeNumber = 0.0;
-	temperature = 0.0;
-	wasTriggered = false;
-	t0 = 0.0;
-	t1 = tw::big_pos;
-	orientation.u = tw::vec3(1,0,0);
-	orientation.v = tw::vec3(0,1,0);
-	orientation.w = tw::vec3(0,0,1);
-	gammaBoost = 1.0;
-
-	// Lots of enumerated-type hash tables involved in Profile directives.
-	// Do them first, then setup directives.
-
-	std::map<std::string,tw::profile::quantity> qty = {
-		{ "density",tw::profile::quantity::density },
-		{ "energy",tw::profile::quantity::energy },
-		{ "px",tw::profile::quantity::px },
-		{ "py",tw::profile::quantity::py },
-		{ "pz",tw::profile::quantity::pz }};
-
-	std::map<std::string,tw::profile::shape> shp = {
-		{ "triangle",tw::profile::shape::triangle },
-		{ "quartic",tw::profile::shape::quartic },
-		{ "quintic",tw::profile::shape::quintic }};
-
-	std::map<std::string,tw::profile::timing> tm = {
-		{ "triggered",tw::profile::timing::triggered },
-		{ "maintained",tw::profile::timing::maintained }};
-
-	std::map<std::string,tw::profile::loading> ld = {
-		{ "deterministic",tw::profile::loading::deterministic },
-		{ "statistical",tw::profile::loading::statistical }};
-
-	std::map<std::string,tw::grid::geometry> geo = {{"cylindrical",tw::grid::cylindrical},{"spherical",tw::grid::spherical}};
-
-	directives.Add("neutralize",new tw::input::Bool(&neutralize),false); // not used
-	directives.Add("position",new tw::input::Vec3(&centerPt),false);
-	directives.Add("type",new tw::input::Enums<tw::profile::quantity>(qty,&whichQuantity),false);
-	directives.Add("drift momentum",new tw::input::Vec3(&driftMomentum),false);
-	directives.Add("thermal momentum",new tw::input::Vec3(&thermalMomentum),false);
-	directives.Add("temperature",new tw::input::Float(&temperature),false);
-	directives.Add("shape",new tw::input::Enums<tw::profile::shape>(shp,&segmentShape),false);
-	directives.Add("timing",new tw::input::Enums<tw::profile::timing>(tm,&timingMethod),false);
-	directives.Add("t0",new tw::input::Float(&t0),false);
-	directives.Add("t1",new tw::input::Float(&t1),false);
-	directives.Add("loading",new tw::input::Enums<tw::profile::loading>(ld,&loadingMethod),false);
-	directives.Add("symmetry",new tw::input::Enums<tw::grid::geometry>(geo,&symmetry),false);
-	directives.Add("mode amplitude",new tw::input::Float(&modeAmplitude),false);
-	directives.Add("mode number",new tw::input::Vec3(&modeNumber),false);
-	directives.Add("boosted frame gamma",new tw::input::Float(&gammaBoost),false);
-	directives.Add("particle weight",new tw::input::Custom,false);
-	directives.Add("euler angles",new tw::input::Custom,false);
-}
-
-void Profile::Initialize()
-{
-}
-
-bool Profile::ReadInputFileDirective(const TSTreeCursor *curs0,const std::string& src)
-{
-	// assume whoever calls this is passing over comments and anonymous
-	auto curs = tw::input::Cursor(curs0);
-	std::string outer = tw::input::node_kind(curs.get());
-	if (outer != "assignment")
-		throw tw::FatalError("Expected assignment, got " + outer + ", at " + tw::input::loc_str(curs0));
-	ts_tree_cursor_goto_first_child(curs.get());
-	std::string com = tw::input::node_text(curs.get(),src);
-	if (com=="particle weight") {
-		std::string weighting;
-		tw::input::String directive(&weighting,true);
-		directive.Read(curs.get(),src,"particle weight",native);
-		if (weighting!="variable" && weighting!="fixed")
-			throw tw::FatalError("Invalid type <"+weighting+"> while processing key <particle weight>.");
-		variableCharge = (weighting=="variable" ? true : false);
-		return true;
-	}
-	if (com=="euler angles") // eg, euler angles = ( 45[deg] 90[deg] 30[deg] )
-	{
-		tw::vec3 angles;
-		tw::input::Vec3 directive(&angles);
-		directive.Read(curs.get(),src,"euler angles",native);
-		orientation.SetWithEulerAngles( angles.x , angles.y , angles.z );
-		return true;
-	}
-	return false;
-}
-
-void Profile::ReadCheckpoint(std::ifstream& inFile)
-{
-	ComputeTool::ReadCheckpoint(inFile);
-	inFile.read((char *)&centerPt,sizeof(tw::vec3));
-	inFile.read((char *)&orientation,sizeof(orientation));
-	inFile.read((char *)&wasTriggered,sizeof(bool));
-	inFile.read((char *)&t0,sizeof(tw::Float));
-	inFile.read((char *)&t1,sizeof(tw::Float));
-}
-
-void Profile::WriteCheckpoint(std::ofstream& outFile)
-{
-	ComputeTool::WriteCheckpoint(outFile);
-	outFile.write((char *)&centerPt,sizeof(tw::vec3));
-	outFile.write((char *)&orientation,sizeof(orientation));
-	outFile.write((char *)&wasTriggered,sizeof(bool));
-	outFile.write((char *)&t0,sizeof(tw::Float));
-	outFile.write((char *)&t1,sizeof(tw::Float));
-}
-
-tw::vec3 Profile::DriftMomentum(const tw::Float& mass)
-{
-	tw::Float p2 = driftMomentum ^ driftMomentum;
-	tw::Float p0 = std::sqrt(mass*mass + p2);
-	tw::vec4 p4(p0,driftMomentum);
-	p4.zBoost(gammaBoost,-1.0);
-	return p4.spatial();
-	// tw::vec4 v4(0.0,driftMomentum/mass);
-	// tw::Float gb2 = v4 ^ v4;
-	// v4[0] = std::sqrt(1.0 + gb2);
-	// v4.zBoost(gammaBoost,-1.0);
-	// return mass*v4.spatial();
-}
-
-tw::Float Profile::Temperature(const tw::Float& mass)
-{
-	if (temperature!=0.0)
-		return temperature;
-	else
-	 	return sqr(thermalMomentum.x)/mass; // appropriate for exp(-v^2/(2*vth^2)) convention
-}
-
-tw::vec3 Profile::Boost(const tw::vec3& pos)
-{
-	// Here the boost only works if the profile is constant in time.
-	// The function's caller is giving us boosted frame coordinates.
-	// The user is giving us lab frame coordinates.
-	// Therefore first transform arguments to lab frame, then proceed as usual.
-	tw::vec4 x4(0.0,pos);
-	x4.zBoost(gammaBoost,1.0);
-	return x4.spatial();
-}
-
-tw::vec3 Profile::Translate_Rotate(const tw::vec3& pos)
-{
-	// The argument should already be boosted.
-	// N.b. the boost applies to both region and profile, while translate-rotate applies only to the profile.
-	tw::vec3 p = pos - centerPt;
-	orientation.ExpressInBasis(&p);
-	return p;
-}
-
-tw::Float Profile::GetValue(const tw::vec3& pos,const MetricSpace& ds)
-{
-	return theRgn->Inside(Boost(pos),ds) ? 1.0 : 0.0;
-}
-
-bool Profile::TimeGate(tw::Float t,tw::Float *add)
-{
-	bool gateOpen = false;
-	switch (timingMethod)
-	{
-		case tw::profile::timing::triggered:
-			*add = 1.0;
-			gateOpen = t>=t0 && !wasTriggered;
-			break;
-		case tw::profile::timing::maintained:
-			*add = 0.0;
-			gateOpen = t>=t0 && t<=t1;
-			break;
-	}
-	wasTriggered = wasTriggered || gateOpen;
-	return gateOpen;
-}
-
-UniformProfile::UniformProfile(const std::string& name,MetricSpace *m,Task *tsk):Profile(name,m,tsk)
-{
-	directives.Add("density",new tw::input::Float(&density));
-}
-
-tw::Float UniformProfile::GetValue(const tw::vec3& pos,const MetricSpace& ds)
-{
-	return theRgn->Inside(Boost(pos),ds) ? gammaBoost*density : 0.0;
-}
-
-GaussianProfile::GaussianProfile(const std::string& name,MetricSpace *m,Task *tsk):Profile(name,m,tsk)
-{
-	directives.Add("density",new tw::input::Float(&density));
-	directives.Add("size",new tw::input::Vec3(&beamSize));
-}
-
-tw::Float GaussianProfile::GetValue(const tw::vec3& pos,const MetricSpace& ds)
-{
-	tw::Float dens = density;
-	tw::vec3 b = Boost(pos);
-	tw::vec3 p = Translate_Rotate(b);
-	dens *= exp(-sqr(p.x/beamSize.x));
-	dens *= exp(-sqr(p.y/beamSize.y));
-	dens *= exp(-sqr(p.z/beamSize.z));
-	return theRgn->Inside(b,ds) ? gammaBoost*dens : 0.0;
-}
-
-ChannelProfile::ChannelProfile(const std::string& name,MetricSpace *m,Task *tsk):Profile(name,m,tsk)
-{
-	directives.Add("coefficients",new tw::input::Numbers<tw::Float>(&coeff[0],4));
-	directives.Add("zpoints",new tw::input::NumberList<std::valarray<tw::Float>>(&z));
-	directives.Add("zdensity",new tw::input::NumberList<std::valarray<tw::Float>>(&fz));
-}
-
-void ChannelProfile::ReadCheckpoint(std::ifstream& inFile)
-{
-	Profile::ReadCheckpoint(inFile);
-	inFile.read((char *)&z[0],sizeof(tw::Float)*z.size());
-	inFile.read((char *)&fz[0],sizeof(tw::Float)*fz.size());
-}
-
-void ChannelProfile::WriteCheckpoint(std::ofstream& outFile)
-{
-	Profile::WriteCheckpoint(outFile);
-	outFile.write((char *)&z[0],sizeof(tw::Float)*z.size());
-	outFile.write((char *)&fz[0],sizeof(tw::Float)*fz.size());
-}
-
-tw::Float ChannelProfile::GetValue(const tw::vec3& pos,const MetricSpace& ds)
-{
-	tw::Int i;
-	tw::Float r2,w,dens = 0.0;
-	tw::vec3 b = Boost(pos);
-	tw::vec3 p = Translate_Rotate(b);
-	for (i=0;i<z.size()-1;i++)
-	{
-		if (p.z>=z[i] && p.z<=z[i+1])
-		{
-			w = (z[i+1]-p.z)/(z[i+1]-z[i]);
-			if (segmentShape==tw::profile::shape::quartic)
-				w = QuarticPulse(0.5*w);
-			if (segmentShape==tw::profile::shape::quintic)
-				w = QuinticRise(w);
-			dens = fz[i]*w + fz[i+1]*(1.0-w);
-		}
-	}
-	r2 = sqr(p.x) + sqr(p.y);
-	dens *= coeff[0] + coeff[1]*r2 + coeff[2]*r2*r2 + coeff[3]*r2*r2*r2;
-	return theRgn->Inside(b,ds) ? gammaBoost*dens : 0.0;
-}
-
-ColumnProfile::ColumnProfile(const std::string& name,MetricSpace *m,Task *tsk):Profile(name,m,tsk)
-{
-	directives.Add("size",new tw::input::Vec3(&beamSize));
-	directives.Add("zpoints",new tw::input::NumberList<std::valarray<tw::Float>>(&z));
-	directives.Add("zdensity",new tw::input::NumberList<std::valarray<tw::Float>>(&fz));
-}
-
-void ColumnProfile::ReadCheckpoint(std::ifstream& inFile)
-{
-	Profile::ReadCheckpoint(inFile);
-	inFile.read((char *)&z[0],sizeof(tw::Float)*z.size());
-	inFile.read((char *)&fz[0],sizeof(tw::Float)*fz.size());
-}
-
-void ColumnProfile::WriteCheckpoint(std::ofstream& outFile)
-{
-	Profile::WriteCheckpoint(outFile);
-	outFile.write((char *)&z[0],sizeof(tw::Float)*z.size());
-	outFile.write((char *)&fz[0],sizeof(tw::Float)*fz.size());
-}
-
-tw::Float ColumnProfile::GetValue(const tw::vec3& pos,const MetricSpace& ds)
-{
-	tw::Int i;
-	tw::Float w,dens = 0.0;
-	tw::vec3 b = Boost(pos);
-	tw::vec3 p = Translate_Rotate(b);
-	for (i=0;i<z.size()-1;i++)
-	{
-		if (p.z>=z[i] && p.z<=z[i+1])
-		{
-			w = (z[i+1]-p.z)/(z[i+1]-z[i]);
-			if (segmentShape==tw::profile::shape::quartic)
-				w = QuarticPulse(0.5*w);
-			if (segmentShape==tw::profile::shape::quintic)
-				w = QuinticRise(w);
-			dens = fz[i]*w + fz[i+1]*(1.0-w);
-		}
-	}
-	dens *= exp(-sqr(p.x/beamSize.x));
-	dens *= exp(-sqr(p.y/beamSize.y));
-	return theRgn->Inside(b,ds) ? gammaBoost*dens : 0.0;
-}
-
-PiecewiseProfile::PiecewiseProfile(const std::string& name,MetricSpace *m,Task *tsk) : Profile(name,m,tsk)
-{
-	directives.Add("xpoints",new tw::input::NumberList<std::valarray<tw::Float>>(&x),false);
-	directives.Add("ypoints",new tw::input::NumberList<std::valarray<tw::Float>>(&y),false);
-	directives.Add("zpoints",new tw::input::NumberList<std::valarray<tw::Float>>(&z),false);
-	directives.Add("xdensity",new tw::input::NumberList<std::valarray<tw::Float>>(&fx),false);
-	directives.Add("ydensity",new tw::input::NumberList<std::valarray<tw::Float>>(&fy),false);
-	directives.Add("zdensity",new tw::input::NumberList<std::valarray<tw::Float>>(&fz),false);
-}
-
-void PiecewiseProfile::Initialize()
-{
-	Profile::Initialize();
-	if (x.size()<2)
-	{
-		x.resize(2);
-		fx.resize(2);
-		theRgn->GetBoxLim(&x[0],&x[1],1);
-		fx = 1.0;
-	}
-	if (y.size()<2)
-	{
-		y.resize(2);
-		fy.resize(2);
-		theRgn->GetBoxLim(&y[0],&y[1],2);
-		fy = 1.0;
-	}
-	if (z.size()<2)
-	{
-		z.resize(2);
-		fz.resize(2);
-		theRgn->GetBoxLim(&z[0],&z[1],3);
-		fz = 1.0;
-	}
-}
-
-void PiecewiseProfile::ReadCheckpoint(std::ifstream& inFile)
-{
-	Profile::ReadCheckpoint(inFile);
-	inFile.read((char *)&x[0],sizeof(tw::Float)*x.size());
-	inFile.read((char *)&fx[0],sizeof(tw::Float)*fx.size());
-	inFile.read((char *)&y[0],sizeof(tw::Float)*y.size());
-	inFile.read((char *)&fy[0],sizeof(tw::Float)*fy.size());
-	inFile.read((char *)&z[0],sizeof(tw::Float)*z.size());
-	inFile.read((char *)&fz[0],sizeof(tw::Float)*fz.size());
-}
-
-void PiecewiseProfile::WriteCheckpoint(std::ofstream& outFile)
-{
-	Profile::WriteCheckpoint(outFile);
-	outFile.write((char *)&x[0],sizeof(tw::Float)*x.size());
-	outFile.write((char *)&fx[0],sizeof(tw::Float)*fx.size());
-	outFile.write((char *)&y[0],sizeof(tw::Float)*y.size());
-	outFile.write((char *)&fy[0],sizeof(tw::Float)*fy.size());
-	outFile.write((char *)&z[0],sizeof(tw::Float)*z.size());
-	outFile.write((char *)&fz[0],sizeof(tw::Float)*fz.size());
-}
-
-tw::Float PiecewiseProfile::GetValue(const tw::vec3& pos,const MetricSpace& ds)
-{
-	tw::Float ansX,ansY,ansZ;
-	tw::Int i;
-	tw::Float r,w;
-
-	tw::vec3 b = Boost(pos);
-	tw::vec3 p = Translate_Rotate(b);
-
-	const tw::Float x0 = p.x;
-	const tw::Float y0 = p.y;
-	const tw::Float z0 = p.z;
-
-	tw::Int xDim = x.size();
-	tw::Int yDim = y.size();
-	tw::Int zDim = z.size();
-
-	ansX = ansY = ansZ = 1.0;
-
-	switch (symmetry)
-	{
-		case tw::grid::cartesian:
-			ansX = 0.0;
-			for (i=0;i<xDim-1;i++)
-			{
-				if (x0>=x[i] && x0<=x[i+1])
-				{
-					w = (x[i+1]-x0)/(x[i+1]-x[i]);
-					if (segmentShape==tw::profile::shape::quartic)
-						w = QuarticPulse(0.5*w);
-					if (segmentShape==tw::profile::shape::quintic)
-						w = QuinticRise(w);
-					ansX = fx[i]*w + fx[i+1]*(1.0-w);
-				}
-			}
-
-			ansY = 0.0;
-			for (i=0;i<yDim-1;i++)
-			{
-				if (y0>=y[i] && y0<=y[i+1])
-				{
-					w = (y[i+1]-y0)/(y[i+1]-y[i]);
-					if (segmentShape==tw::profile::shape::quartic)
-						w = QuarticPulse(0.5*w);
-					if (segmentShape==tw::profile::shape::quintic)
-						w = QuinticRise(w);
-					ansY = fy[i]*w + fy[i+1]*(1.0-w);
-				}
-			}
-
-			ansZ = 0.0;
-			for (i=0;i<zDim-1;i++)
-			{
-				if (z0>=z[i] && z0<=z[i+1])
-				{
-					w = (z[i+1]-z0)/(z[i+1]-z[i]);
-					if (segmentShape==tw::profile::shape::quartic)
-						w = QuarticPulse(0.5*w);
-					if (segmentShape==tw::profile::shape::quintic)
-						w = QuinticRise(w);
-					ansZ = fz[i]*w + fz[i+1]*(1.0-w);
-				}
-			}
-			break;
-		case tw::grid::cylindrical:
-			r = std::sqrt(sqr(x0 - x[0]) + sqr(y0 - 0.5*(y[0] + y[yDim-1])));
-			r += x[0];
-			ansX = 0.0;
-			for (i=0;i<xDim-1;i++)
-			{
-				if (r>=x[i] && r<=x[i+1])
-				{
-					w = (x[i+1]-r)/(x[i+1]-x[i]);
-					if (segmentShape==tw::profile::shape::quartic)
-						w = QuarticPulse(0.5*w);
-					if (segmentShape==tw::profile::shape::quintic)
-						w = QuinticRise(w);
-					ansX = fx[i]*w + fx[i+1]*(1.0-w);
-				}
-			}
-
-			ansZ = 0.0;
-			for (i=0;i<zDim-1;i++)
-			{
-				if (z0>=z[i] && z0<=z[i+1])
-				{
-					w = (z[i+1]-z0)/(z[i+1]-z[i]);
-					if (segmentShape==tw::profile::shape::quartic)
-						w = QuarticPulse(0.5*w);
-					if (segmentShape==tw::profile::shape::quintic)
-						w = QuinticRise(w);
-					ansZ = fz[i]*w + fz[i+1]*(1.0-w);
-				}
-			}
-
-			ansY = 1.0;
-			break;
-		case tw::grid::spherical:
-			r = std::sqrt(sqr(x0 - x[0]) + sqr(y0 - 0.5*(y[0] + y[yDim-1])) + sqr(z0 - 0.5*(z[0] + z[zDim-1])));
-			r += x[0];
-			ansX = 0.0;
-			for (i=0;i<xDim-1;i++)
-			{
-				if (r>=x[i] && r<=x[i+1])
-				{
-					w = (x[i+1]-r)/(x[i+1]-x[i]);
-					if (segmentShape==tw::profile::shape::quartic)
-						w = QuarticPulse(0.5*w);
-					if (segmentShape==tw::profile::shape::quintic)
-						w = QuinticRise(w);
-					ansX = fx[i]*w + fx[i+1]*(1.0-w);
-				}
-			}
-
-			ansY = 1.0;
-			ansZ = 1.0;
-			break;
-	}
-
-	tw::Float dens = ansX*ansY*ansZ*sqr(std::cos(0.5*modeNumber.x*p.x)*std::cos(0.5*modeNumber.y*p.y)*std::cos(0.5*modeNumber.z*p.z));
-	return theRgn->Inside(b,ds) ? gammaBoost*dens : 0.0;
-}
-
-CorrugatedProfile::CorrugatedProfile(const std::string& name,MetricSpace *m,Task *tsk) : Profile(name,m,tsk)
-{
-	directives.Add("a0",new tw::input::Float(&a0));
-	directives.Add("gamma0",new tw::input::Float(&gamma0));
-	directives.Add("w0",new tw::input::Float(&w0));
-	directives.Add("wp0",new tw::input::Float(&wp0));
-	directives.Add("km",new tw::input::Float(&km));
-	directives.Add("delta",new tw::input::Float(&delta));
-	directives.Add("rchannel",new tw::input::Float(&rchannel));
-}
-
-tw::Float CorrugatedProfile::GetValue(const tw::vec3& pos,const MetricSpace& ds)
-{
-	tw::Float dens,wp1s,r2,psi,a0Hat,kHat;
-	tw::vec3 b = Boost(pos);
-	tw::vec3 p = Translate_Rotate(b);
-	const tw::Float x = p.x;
-	const tw::Float y = p.y;
-	const tw::Float z = p.z; // z = 0 is initial injection point
-	r2 = x*x + y*y;
-	psi = delta*wp0*wp0/(2.0*w0*km);
-	a0Hat = 4.0*tw::cyl_bessel_j(1,psi)*a0/(w0*rchannel);
-	kHat = w0 + km - 0.5*w0*(sqr(wp0/w0) + 8.0/sqr(w0*rchannel));
-	wp1s = 2.0*w0*kHat - 2.0*std::sqrt(sqr(gamma0+a0Hat*w0*z)/(sqr(gamma0+a0Hat*w0*z)-1.0))*w0*w0;
-	dens = wp0*wp0*(1.0 + delta*std::sin(km*z)) + wp1s + 4.0*r2/pow(rchannel,tw::Float(4.0));
-	return theRgn->Inside(b,ds) ? gammaBoost*dens : 0.0;
-}
-
-
 
 ///////////////////////////
 //                       //
@@ -880,7 +248,7 @@ void PulseShape::Initialize(const tw::Float time_origin)
 	// Set up the time window (estimate analytically)
 	tw::Float time_window;
 	if (spectral_phase_coeff.size()>0)
-	 	time_window = 1.5*(t4-t1)*std::sqrt(1.0+4096.0*sqr(spectral_phase_coeff[0])/pow(t4-t1,4));
+	 	time_window = 1.5*(t4-t1)*std::sqrt(1.0+4096.0*sqr(spectral_phase_coeff[0])/std::pow(t4-t1,4));
 	else
 		time_window = t4-t1;
 	tw::Float tbeg = t1 + 0.5*(t4-t1) - 0.5*time_window;
@@ -916,7 +284,7 @@ void PulseShape::Initialize(const tw::Float time_origin)
 		{
 			tw::Float psi = 0.0;
 			for (tw::Int c=0;c<spectral_phase_coeff.size();c++)
-				psi += spectral_phase_coeff[c]*pow(wpts[i],c+2)/Factorial(c+2);
+				psi += spectral_phase_coeff[c]*std::pow(wpts[i],c+2)/Factorial(c+2);
 			amplitude[i] *= std::exp(ii*psi);
 		}
 		fft::ComplexFFT(re,im,N,2,-1.0);
@@ -1103,7 +471,7 @@ tw::Complex LaguerreGauss::PrimitivePhasor(const tw::vec4& x) const
 
 	// setup for Laguerre-Gaussian mode
 	rho = std::sqrt(x[1]*x[1] + x[2]*x[2]);
-	phi = atan2(x[2],x[1]);
+	phi = std::atan2(x[2],x[1]);
 	zR = 0.5*nrefr*w*r0*r0;
 	rm = r0*std::sqrt(one + x[3]*x[3]/(zR*zR));
 	guoy_shift = -(one + two*mu + mv)*std::atan(x[3]/zR);
@@ -1111,8 +479,8 @@ tw::Complex LaguerreGauss::PrimitivePhasor(const tw::vec4& x) const
 	// compute factors for r-phi profile
 	Ax *= r0/rm;
 	Ax *= tw::assoc_laguerre(mu,mv,two*sqr(rho/rm));
-	Ax *= nexp%2==0 ? exp(-pow(rho/rm,nexp)) : pow(std::cos(0.5*pi*rho/rm),nexp+1)*tw::Float(rho<rm);
-	Ax *= pow(std::sqrt(two)*rho/rm,tw::Float(mv)); // put appropriate hole on axis
+	Ax *= nexp%2==0 ? std::exp(-std::pow(rho/rm,nexp)) : std::pow(std::cos(0.5*pi*rho/rm),nexp+1)*tw::Float(rho<rm);
+	Ax *= std::pow(std::sqrt(two)*rho/rm,tw::Float(mv)); // put appropriate hole on axis
 	Ax *= std::sqrt(Factorial(mu)/Factorial(mu+mv)); // Laguerre normalization
 	tau += guoy_shift/w - 0.5*nrefr*rho*rho*x[3]/(x[3]*x[3] + zR*zR);
 	tw::Float psi = phase + 2.0*guoy_shift - mv*phi - w*tau - chirp*tau*tau;
@@ -1150,8 +518,8 @@ tw::Complex HermiteGauss::PrimitivePhasor(const tw::vec4& x) const
 		guoy_shift -= (0.5 + m)*std::atan(x[3]/zR);
 		Ax *= std::sqrt(r00/rm);
 		Ax *= tw::hermite(m,1.41421356*q/rm);
-		Ax *= nexp[ax-1]%2==0 ? exp(-pow(q/rm,nexp[ax-1])) : pow(std::cos(0.5*pi*q/rm),nexp[ax-1]+1)*tw::Float(q*q<rm*rm);
-		Ax /= std::sqrt(pow(two,tw::Float(m))*Factorial(m)); // Hermite normalization
+		Ax *= nexp[ax-1]%2==0 ? std::exp(-std::pow(q/rm,nexp[ax-1])) : std::pow(std::cos(0.5*pi*q/rm),nexp[ax-1]+1)*tw::Float(q*q<rm*rm);
+		Ax /= std::sqrt(std::pow(two,tw::Float(m))*Factorial(m)); // Hermite normalization
 		tau += guoy_shift/w - 0.5*nrefr*q*q*x[3]/(x[3]*x[3] + zR*zR);
 	};
 
@@ -1208,7 +576,7 @@ tw::vec3 Multipole::PrimitiveVector(const tw::vec4& x) const
 ////////////////////
 
 
-Conductor::Conductor(const std::string& name,MetricSpace *m,Task *tsk) : ComputeTool(name,m,tsk)
+Conductor::Conductor(const std::string& name,MetricSpace *m,Task *tsk) : Engine(name,m,tsk)
 {
 	affectsPhi = true;
 	affectsA = true;
@@ -1320,7 +688,7 @@ tw::vec3 Conductor::PolarizationDensity(const tw::vec3& pos,tw::Float t)
 {
 	tw::vec3 P0;
 	tw::vec3 ans(0.0,0.0,0.0);
-	tw::vec3 rc = pos - theRgn->center;
+	tw::vec3 rc = pos - theRgn->translation;
 	theRgn->orientation.ExpressInBasis(&rc);
 	for (tw::Int i=0;i<potential.size();i++)
 	{
@@ -1328,7 +696,7 @@ tw::vec3 Conductor::PolarizationDensity(const tw::vec3& pos,tw::Float t)
 		ans += P0*std::sin(angFreq[i]*t + phase[i] + (0.5*angFreq[i]/f)*(rc.x*rc.x + rc.y*rc.y) + (ks^rc));
 	}
 	ans *= std::real(pulseShape.Amplitude(t + (0.5/f)*(rc.x*rc.x + rc.y*rc.y)));
-	ans *= exp(-sqr(rc.x/gaussianRadius.x)-sqr(rc.y/gaussianRadius.y)-sqr(rc.z/gaussianRadius.z));
+	ans *= std::exp(-sqr(rc.x/gaussianRadius.x)-sqr(rc.y/gaussianRadius.y)-sqr(rc.z/gaussianRadius.z));
 	theRgn->orientation.ExpressInStdBasis(&ans);
 	return ans;
 }
@@ -1562,62 +930,4 @@ tw::Complex MABoundary::NormalDerivativeRight(tw::Int j,tw::Complex amplitude,tw
 	for (i=0;i<10;i++)
 		ans += g[i][j] - amplitude*sigma[i]/gamma[i];
 	return ans*std::sqrt(-two*ii*carrierFrequency*scaleFactor);
-}
-
-//////////////////
-//  GRID WARPS  //
-//////////////////
-
-Warp::Warp(const std::string& name,MetricSpace *m,Task *tsk) : ComputeTool(name,m,tsk)
-{
-	ax = tw::grid::z;
-	increasing = true;
-	directives.Add("axis",new tw::input::Enums<tw::grid::axis>(tw::grid::axis_map(),&ax));
-	directives.Add("increasing",new tw::input::Bool(&increasing));
-	directives.Add("index range",new tw::input::Numbers<tw::Int>(&rng[0],2));
-	directives.Add("length",new tw::input::Float(&L));
-}
-
-void Warp::Initialize()
-{
-	const tw::Int N = rng[1] - rng[0] + 1;
-	gridSum = 0.0;
-	for (tw::Int i=1;i<=N;i++)
-		gridSum += QuinticRise(tw::Float(i-1)/tw::Float(N-1));
-}
-
-tw::Float Warp::AddedCellWidth(tw::Int globalCell)
-{
-	const tw::Int N = rng[1] - rng[0] + 1;
-	const tw::Float h = space->dx(tw::grid::naxis(ax));
-	const tw::Float A = (1.0/gridSum)*(L/h - N);
-	if (globalCell>=rng[0] && globalCell<=rng[1])
-	{
-		if (increasing)
-			return h*A*QuinticRise(tw::Float(globalCell-rng[0])/tw::Float(N-1));
-		else
-			return h*A*QuinticFall(tw::Float(globalCell-rng[0])/tw::Float(N-1));
-	}
-	else
-		return 0.0;
-}
-
-void Warp::ReadCheckpoint(std::ifstream& inFile)
-{
-	ComputeTool::ReadCheckpoint(inFile);
-	inFile.read((char*)&ax,sizeof(ax));
-	inFile.read((char*)&increasing,sizeof(increasing));
-	inFile.read((char*)&rng[0],sizeof(rng));
-	inFile.read((char*)&L,sizeof(L));
-	inFile.read((char*)&gridSum,sizeof(gridSum));
-}
-
-void Warp::WriteCheckpoint(std::ofstream& outFile)
-{
-	ComputeTool::WriteCheckpoint(outFile);
-	outFile.write((char*)&ax,sizeof(ax));
-	outFile.write((char*)&increasing,sizeof(increasing));
-	outFile.write((char*)&rng[0],sizeof(rng));
-	outFile.write((char*)&L,sizeof(L));
-	outFile.write((char*)&gridSum,sizeof(gridSum));
 }

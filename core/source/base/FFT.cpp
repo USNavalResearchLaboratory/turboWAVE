@@ -258,7 +258,7 @@ export namespace fft {
 		theta = 3.141592653589793/tw::Float(num);
 		wr = 1.0;
 		wi = 0.0;
-		wpr = -2.0*pow(std::sin(0.5*theta),2.0);
+		wpr = -2.0*std::pow(std::sin(0.5*theta),2.0);
 		wpi = std::sin(theta);
 		y[0] = 0.0;
 		for (j=1;j<=num/2;j++)

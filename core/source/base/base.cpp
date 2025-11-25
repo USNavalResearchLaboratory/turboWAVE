@@ -9,7 +9,7 @@ module;
 
 export module base;
 #ifdef USE_STD_MODULE
-	export import module std;
+	export import std;
 #endif
 
 constexpr bool LittleEndian() {
@@ -25,11 +25,10 @@ export namespace tw
 	using node4 = std::array<tw::Int,4>;
 	using node5 = std::array<tw::Int,5>;
 
-	class FatalError : public std::exception
-	{
+	class BaseError : public std::exception {
 		char messg[256];
 		public:
-		FatalError(const std::string& s)
+		BaseError(const std::string& s)
 		{
 			s.copy(messg,sizeof(messg));
 			if (s.size()<sizeof(messg))
@@ -38,6 +37,18 @@ export namespace tw
 		virtual const char* what() const throw()
 		{
 			return messg;
+		}
+	};
+	class FatalError : public BaseError {
+		public:
+		FatalError(const std::string& s) : BaseError(s) {
+
+		}
+	};
+	class FactoryError : public BaseError {
+		public:
+		FactoryError(const std::string& s) : BaseError(s) {
+
 		}
 	};
 }
@@ -88,7 +99,7 @@ export namespace tw
 // Define a strongly typed boolean for better type checking in some situations
 export enum class strongbool { yes , no };
 
-export const tw::Float pi = 3.1415926535897932385;
+export constexpr tw::Float pi = 3.1415926535897932385;
 export const tw::Complex ii = tw::Complex(0,1);
 // Define some trivial constants useful as binary operands with complex numbers.
 // This comes about because std::complex<T> binary operators do not perform automatic conversions.
@@ -317,7 +328,7 @@ export tw::Float SafeDiv(const tw::Float& numerator,const tw::Float& denominator
 
 export tw::Float arcsinh(const tw::Float& a)
 {
-	return std::log(a + sqrt(a*a+1.0));
+	return std::log(a + std::sqrt(a*a+1.0));
 }
 
 export tw::Float pythag(tw::Float a,tw::Float b)
@@ -325,20 +336,20 @@ export tw::Float pythag(tw::Float a,tw::Float b)
 	tw::Float absa,absb;
 	absa = std::fabs(a);
 	absb = std::fabs(b);
-	if (absa > absb) return absa*sqrt(1.0 + sqr(absb/absa));
-	else return (absb==0.0 ? 0.0 : absb*sqrt(1.0 + sqr(absa/absb)));
+	if (absa > absb) return absa*std::sqrt(1.0 + sqr(absb/absa));
+	else return (absb==0.0 ? 0.0 : absb*std::sqrt(1.0 + sqr(absa/absb)));
 }
 
 export tw::Float QuadraticRoot1(const tw::Float& a,const tw::Float& b,const tw::Float& c)
 {
 	tw::Float sgn_b = b < 0.0 ? -1.0 : 1.0;
-	return (-0.5*(b + sgn_b*sqrt(b*b-4.0*a*c)))/a;
+	return (-0.5*(b + sgn_b*std::sqrt(b*b-4.0*a*c)))/a;
 }
 
 export tw::Float QuadraticRoot2(const tw::Float& a,const tw::Float& b,const tw::Float& c)
 {
 	tw::Float sgn_b = b < 0.0 ? -1.0 : 1.0;
-	return c/(-0.5*(b + sgn_b*sqrt(b*b-4.0*a*c)));
+	return c/(-0.5*(b + sgn_b*std::sqrt(b*b-4.0*a*c)));
 }
 
 export int NearestIdx(const std::vector<tw::Float>& vector, tw::Float value)
@@ -506,7 +517,7 @@ export struct GaussianDeviate
 	{
 		x1 = ud->Next();
 		x2 = ud->Next();
-		return sqrt(std::fabs(2.0*std::log(0.0001 + x1)))*std::cos(6.28*x2);
+		return std::sqrt(std::fabs(2.0*std::log(0.0001 + x1)))*std::cos(6.28*x2);
 	}
 	void WriteCheckpoint(std::ofstream& outFile)
 	{

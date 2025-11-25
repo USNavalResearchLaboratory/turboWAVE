@@ -4,8 +4,7 @@ module;
 
 export module factory;
 import base;
-import compute_tool;
-import twmodule;
+import driver;
 import fields;
 import injection;
 import parabolic;
@@ -38,7 +37,6 @@ export namespace factory {
 /// @throws error if there are multiple matches
 bool VerifyKey(const std::string& raw_key,std::string& similar_keys)
 {
-	std::map<std::string,tw::module_type> module_map = Module::Map();
 	std::map<std::string,tw::tool_type> tool_map = ComputeTool::Map();
 	
 	std::string normalized,word;
@@ -51,22 +49,12 @@ bool VerifyKey(const std::string& raw_key,std::string& similar_keys)
 		normalized += word;
 	} while (!raw_stream.eof());
 
-	bool is_module = module_map.find(normalized) != module_map.end();
-	bool is_tool = tool_map.find(normalized) != tool_map.end();
-	bool is_region = normalized == "region";
-	if (is_module && is_tool || is_module && is_region || is_tool && is_region) {
-		throw tw::FatalError(std::format("overlapping key {}, this is a bug",normalized));
-	}
-	if (is_module || is_tool || is_region) {
+	if (tool_map.find(normalized) != tool_map.end()) {
 		return true;
 	} else {
-		for (const auto& pair : module_map) {
-			tw::input::BuildSimilar(similar_keys,normalized,pair.first);
-		}
 		for (const auto& pair : tool_map) {
 			tw::input::BuildSimilar(similar_keys,normalized,pair.first);
 		}
-		tw::input::BuildSimilar(similar_keys,normalized,"region");
 		return false;
 	}
 }
@@ -79,6 +67,47 @@ SharedTool CreateToolFromType(const std::string& name,tw::tool_type theType,Metr
 		case tw::tool_type::warp:
 			ans = std::make_shared<Warp>(name,ms,tsk);
 			break;
+
+		case tw::tool_type::entireRegion:
+			ans = std::make_shared<EntireRegion>(name,ms,tsk);
+			break;
+		case tw::tool_type::rectRegion:
+			ans = std::make_shared<RectRegion>(name,ms,tsk);
+			break;
+		case tw::tool_type::prismRegion:
+			ans = std::make_shared<PrismRegion>(name,ms,tsk);
+			break;
+		case tw::tool_type::ellipsoidRegion:
+			ans = std::make_shared<EllipsoidRegion>(name,ms,tsk);
+			break;
+		case tw::tool_type::circRegion:
+			ans = std::make_shared<CircRegion>(name,ms,tsk);
+			break;
+		case tw::tool_type::cylinderRegion:
+			ans = std::make_shared<CylinderRegion>(name,ms,tsk);
+			break;
+		case tw::tool_type::roundedCylinderRegion:
+			ans = std::make_shared<RoundedCylinderRegion>(name,ms,tsk);
+			break;
+		case tw::tool_type::cylindricalShellRegion:
+			ans = std::make_shared<CylindricalShellRegion>(name,ms,tsk);
+			break;
+		case tw::tool_type::trueSphereRegion:
+			ans = std::make_shared<TrueSphere>(name,ms,tsk);
+			break;
+		case tw::tool_type::boxArrayRegion:
+			ans = std::make_shared<BoxArrayRegion>(name,ms,tsk);
+			break;
+		case tw::tool_type::torusRegion:
+			ans = std::make_shared<TorusRegion>(name,ms,tsk);
+			break;
+		case tw::tool_type::coneRegion:
+			ans = std::make_shared<ConeRegion>(name,ms,tsk);
+			break;
+		case tw::tool_type::tangentOgiveRegion:
+			ans = std::make_shared<TangentOgiveRegion>(name,ms,tsk);
+			break;
+
 		case tw::tool_type::conductor:
 			ans = std::make_shared<Conductor>(name,ms,tsk);
 			break;
@@ -254,76 +283,75 @@ SharedTool CreateToolFromType(const std::string& name,tw::tool_type theType,Metr
 			ans = std::make_shared<FFTTest>(name,ms,tsk);
 			break;
 		default:
-			throw tw::FatalError("factory cannot create unknown tool type");
+			throw tw::FactoryError("unknown tool type");
 	}
 	return ans;
 }
 
-Module* CreateModuleFromType(const std::string& name,tw::module_type theType,Simulation *sim)
+Module* CreateDriverFromType(const std::string& name,tw::tool_type theType,MetricSpace *ms,Task *tsk)
 {
 	Module *ans;
 	switch (theType)
 	{
-		case tw::module_type::none:
-			ans = NULL;
+		case tw::tool_type::curvilinearDirectSolver:
+			ans = new CurvilinearDirectSolver(name,ms,tsk);
 			break;
-		case tw::module_type::curvilinearDirectSolver:
-			ans = new CurvilinearDirectSolver(name,sim);
+		case tw::tool_type::electrostatic:
+			ans = new Electrostatic(name,ms,tsk);
 			break;
-		case tw::module_type::electrostatic:
-			ans = new Electrostatic(name,sim);
+		case tw::tool_type::coulombSolver:
+			ans = new CoulombSolver(name,ms,tsk);
 			break;
-		case tw::module_type::coulombSolver:
-			ans = new CoulombSolver(name,sim);
+		case tw::tool_type::directSolver:
+			ans = new DirectSolver(name,ms,tsk);
 			break;
-		case tw::module_type::directSolver:
-			ans = new DirectSolver(name,sim);
+		case tw::tool_type::farFieldDiagnostic:
+			ans = new FarFieldDiagnostic(name,ms,tsk);
 			break;
-		case tw::module_type::farFieldDiagnostic:
-			ans = new FarFieldDiagnostic(name,sim);
+		case tw::tool_type::qsLaser:
+			ans = new QSSolver(name,ms,tsk);
 			break;
-		case tw::module_type::qsLaser:
-			ans = new QSSolver(name,sim);
+		case tw::tool_type::pgcLaser:
+			ans = new PGCSolver(name,ms,tsk);
 			break;
-		case tw::module_type::pgcLaser:
-			ans = new PGCSolver(name,sim);
+		case tw::tool_type::boundElectrons:
+			ans = new BoundElectrons(name,ms,tsk);
 			break;
-		case tw::module_type::boundElectrons:
-			ans = new BoundElectrons(name,sim);
+		case tw::tool_type::fluidFields:
+			ans = new Fluid(name,ms,tsk);
 			break;
-		case tw::module_type::fluidFields:
-			ans = new Fluid(name,sim);
+		case tw::tool_type::equilibriumGroup:
+			ans = new EquilibriumGroup(name,ms,tsk);
 			break;
-		case tw::module_type::equilibriumGroup:
-			ans = new EquilibriumGroup(name,sim);
+		case tw::tool_type::chemical:
+			ans = new Chemical(name,ms,tsk);
 			break;
-		case tw::module_type::chemical:
-			ans = new Chemical(name,sim);
+		case tw::tool_type::sparcHydroManager:
+			ans = new sparc::HydroManager(name,ms,tsk);
 			break;
-		case tw::module_type::sparcHydroManager:
-			ans = new sparc::HydroManager(name,sim);
+		case tw::tool_type::species:
+			ans = new Species(name,ms,tsk);
 			break;
-		case tw::module_type::species:
-			ans = new Species(name,sim);
+		case tw::tool_type::kinetics:
+			ans = new Kinetics(name,ms,tsk);
 			break;
-		case tw::module_type::kinetics:
-			ans = new Kinetics(name,sim);
+		case tw::tool_type::schroedinger:
+			ans = new Schroedinger(name,ms,tsk);
 			break;
-		case tw::module_type::schroedinger:
-			ans = new Schroedinger(name,sim);
+		case tw::tool_type::pauli:
+			ans = new Pauli(name,ms,tsk);
 			break;
-		case tw::module_type::pauli:
-			ans = new Pauli(name,sim);
+		case tw::tool_type::kleinGordon:
+			ans = new KleinGordon(name,ms,tsk);
 			break;
-		case tw::module_type::kleinGordon:
-			ans = new KleinGordon(name,sim);
+		case tw::tool_type::dirac:
+			ans = new Dirac(name,ms,tsk);
 			break;
-		case tw::module_type::dirac:
-			ans = new Dirac(name,sim);
+		case tw::tool_type::populationDiagnostic:
+			ans = new PopulationDiagnostic(name,ms,tsk);
 			break;
-		case tw::module_type::populationDiagnostic:
-			ans = new PopulationDiagnostic(name,sim);
-			break;
+		default:
+			throw tw::FactoryError("unknown driver type");
 	}
 	return ans;
 }

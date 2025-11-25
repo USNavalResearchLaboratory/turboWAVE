@@ -8,7 +8,7 @@ module;
 export module fft_test;
 import base;
 import tw_iterator;
-import compute_tool;
+import driver;
 import fft;
 import fields;
 

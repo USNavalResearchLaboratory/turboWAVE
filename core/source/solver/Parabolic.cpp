@@ -5,8 +5,7 @@ module;
 
 export module parabolic;
 import input;
-import compute_tool;
-import region;
+import driver;
 import fields;
 import numerics;
 import logger;
@@ -77,7 +76,7 @@ export struct ParabolicSolver:BoundedTool
 
 	ParabolicSolver(const std::string& name,MetricSpace *m,Task *tsk);
 
-	void FixTemperature(Field& T,const Rng04& r,Region* theRegion,const tw::Float& T0);
+	void FixTemperature(Field& T,const Rng04& r,SharedRegion theRegion,const tw::Float& T0);
 	void FormOperatorStencil(tw::Float *D1,tw::Float *D2,const ScalarField& fluxMask,Field *coeff,tw::Int c,const tw::strip& s,tw::Int i);
 	virtual void Advance(const tw::grid::axis& axis,ScalarField& psi,ScalarField& fluxMask,tw::Float coeff,tw::Float dt);
 	virtual void Advance(ScalarField& psi,ScalarField& fluxMask,tw::Float coeff,tw::Float dt);
@@ -330,7 +329,7 @@ void EigenmodePropagator::Advance(ComplexField& a0,ComplexField& a1,ComplexField
 		first = space->LFG(1);
 	for (tw::Int i=first;i<=space->UFG(1);i++)
 		for (tw::Int k=0;k<=zDim+1;k++)
-			a1.Pack(i,1,k, a1(i,1,k) * exp(-(i-xstart_local+1)*dt/dampingTime/tw::Float(layers)));
+			a1.Pack(i,1,k, a1(i,1,k) * std::exp(-(i-xstart_local+1)*dt/dampingTime/tw::Float(layers)));
 
 	a1.ApplyBoundaryCondition();
 
@@ -711,7 +710,7 @@ ParabolicSolver::ParabolicSolver(const std::string& name,MetricSpace *m,Task *ts
 		globalIntegrator[3] = std::make_unique<GlobalIntegrator<tw::Float>>(&task->strip[3],space->Dim(1)*space->Dim(2),space->Dim(3));
 }
 
-void ParabolicSolver::FixTemperature(Field& T,const Rng04& r,Region* theRegion,const tw::Float& T0)
+void ParabolicSolver::FixTemperature(Field& T,const Rng04& r,SharedRegion theRegion,const tw::Float& T0)
 {
 	#pragma omp parallel
 	{

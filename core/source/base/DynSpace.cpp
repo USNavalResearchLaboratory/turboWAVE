@@ -50,15 +50,28 @@ export struct DynSpace : StaticSpace
 	/// memory at any one time, as distinct from the union of all windows that occur during the system evolution.
 	/// This makes MPI calls on `task` to get the domain information.
 	void Resize(Task *task,const tw::node5& gdim,const tw::vec4& gcorner,const tw::vec4& gsize,const tw::node5& packing,const tw::node4& ghostCellLayers);
-	void SetupTimeInfo(tw::Float dt0) { spacing[0] = dt0; freq[0] = 1.0/dt0; }
-	void UpdateWindow(const DynSpace& src) {
-		solutionPosition = src.solutionPosition;
-		solutionVelocity = src.solutionVelocity;
-		windowPosition = src.windowPosition;
-		altSolutionPosition = src.altSolutionPosition;
-		altWindowPosition = src.altWindowPosition;
-		maxWindowPosition = src.maxWindowPosition;
+	void SetupBoundaryEvolution(const tw::vec4& solutionVelocity,const tw::vec4& maxWindowPosition) {
+		this->solutionVelocity = solutionVelocity;
+		this->maxWindowPosition = maxWindowPosition;
 	}
+	void SetupInternalEvolution(tw::Int ax,tw::Float ds, tw::Int stepsToTake, tw::Int stepNow) {
+		spacing[ax] = ds;
+		freq[ax] = 1.0/ds;
+		this->stepsToTake = stepsToTake;
+		this->stepNow = stepNow;
+	}
+	void ChangeStepSize(tw::Int ax,tw::Float ds) {
+		spacing[0] = ds;
+		freq[0] = 1.0/ds;
+	}
+	void ChangeStepSizeControls(tw::Int ax,tw::Float min,tw::Float max,tw::Float crit) {
+		min_spacing[ax] = min;
+		max_spacing[ax] = max;
+		critical_spacing[ax] = crit;
+	}
+	/// move the grid in time, space, or both, return value of -1 means caller should shift grid left (anti-moving window),
+	/// 0 means do nothing, 1 means shift grid right (moving window).
+	tw::Int Advance(tw::Float ds);
 	void SetPrimitiveWithPosition(Primitive& q,const tw::vec4& pos) const;
 	tw::vec4 PositionFromPrimitive(const Primitive& q) const;
 	tw::Int GlobalDim(const tw::Int& ax) const { return globalCells[ax]; }
@@ -66,16 +79,21 @@ export struct DynSpace : StaticSpace
 	tw::Int LocalCellIndex(const tw::Int& idx,const tw::Int& ax) const { return idx - lowSideCells[ax]; }
 	tw::Int StepNow() const { return stepNow; }
 	tw::Int StepsToTake() const { return stepsToTake; }
-	tw::vec4 PhysicalSize() { return size; }
-	tw::vec4 GlobalPhysicalSize() { return globalSize; }
-	tw::vec4 Corner() { return corner; }
-	tw::vec4 GlobalCorner() { return globalCorner; }
+	tw::vec4 PhysicalSize() const { return size; }
+	tw::vec4 GlobalPhysicalSize() const { return globalSize; }
+	tw::vec4 Corner() const { return corner; }
+	tw::vec4 GlobalCorner() const { return globalCorner; }
 	tw::Float SolutionPos(const tw::Int& ax) const { return solutionPosition[ax]; }
 	tw::Float WindowPos(const tw::Int& ax) const { return windowPosition[ax]; }
 	tw::Float MaxWindowPos(const tw::Int& ax) const { return maxWindowPosition[ax]; }
 	tw::Float CriticalSpacing(const tw::Int& ax) const { return critical_spacing[ax]; }
 	tw::Float MinSpacing(const tw::Int& ax) const { return min_spacing[ax]; }
 	tw::Float MaxSpacing(const tw::Int& ax) const { return max_spacing[ax]; }
+	bool IsFirstStep() const { return stepNow==0; }
+	bool IsNotFinished() {
+		return stepNow <= stepsToTake && windowPosition[0] <= maxWindowPosition[0];
+	}
+	bool IsStdMovingWindow() const { return solutionVelocity[3]==1; }
 	bool IsPointWithinInterior(const tw::vec4& P);
 	void GetWeights(weights_3D* weights,const tw::vec4& P);
 
@@ -93,6 +111,7 @@ DynSpace::DynSpace()
 	max_spacing = tw::vec4(tw::big_pos);
 	critical_spacing = tw::vec4(tw::small_pos);
 	solutionVelocity = tw::vec4(1.0,0.0,0.0,0.0);
+	maxWindowPosition = tw::big_pos;
 }
 
 DynSpace::DynSpace(const tw::node5& dim,const tw::vec4& corner,const tw::vec4& size,const tw::node5& packing,const tw::node4& ghostCellLayers):
@@ -126,6 +145,35 @@ void DynSpace::Resize(Task *task,const tw::node5& gdim,const tw::vec4& gcorner,c
 		size[i] = dim[i]*spacing[i];
 		corner[i] = gcorner[i] + domainIndex[i]*size[i];
 	}
+}
+
+tw::Int DynSpace::Advance(tw::Float ds) {
+	solutionPosition += spacing[0]*solutionVelocity[3];
+	altSolutionPosition += spacing[0]*(solutionVelocity[3] - tw::vec4(0,0,0,1));
+	stepNow++;
+
+	corner[0] += spacing[0];
+	windowPosition[0] += spacing[0];
+	
+	if (solutionVelocity[3]>0 && solutionPosition[3]>=windowPosition[3] + spacing[3] && dim[3]>1) {
+		logger::TRACE(std::format("move lab at {:.5} triggered by {:.5}",windowPosition[3],solutionPosition[3]));
+		windowPosition[3] += spacing[3];
+		corner[3] += spacing[3];
+		globalCorner[3] += spacing[3];
+		// caller has to advance anything to do with MetricSpace - maybe move this function to MetricSpace?
+		return 1;
+	} else {
+		logger::TRACE(std::format("hold lab at {:.5} restrained by {:.5}",windowPosition[3],solutionPosition[3]));
+	}
+
+	if (solutionVelocity[3]==0 && altSolutionPosition[3]<=altWindowPosition[3] - spacing[3] && dim[3]>1) {
+		logger::TRACE(std::format("move alt at {:.5} triggered by {:.5}",altWindowPosition[3],altSolutionPosition[3]));
+		altWindowPosition[3] -= spacing[3];
+		return -1;
+	} else {
+		logger::TRACE(std::format("hold alt at {:.5} restrained by {:.5}",altWindowPosition[3],altSolutionPosition[3]));
+	}
+	return 0;
 }
 
 inline bool DynSpace::IsPointWithinInterior(const tw::vec4& P)
