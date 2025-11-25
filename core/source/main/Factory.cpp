@@ -288,9 +288,9 @@ SharedTool CreateToolFromType(const std::string& name,tw::tool_type theType,Metr
 	return ans;
 }
 
-Module* CreateDriverFromType(const std::string& name,tw::tool_type theType,MetricSpace *ms,Task *tsk)
+Driver* CreateDriverFromType(const std::string& name,tw::tool_type theType,MetricSpace *ms,Task *tsk)
 {
-	Module *ans;
+	Driver *ans;
 	switch (theType)
 	{
 		case tw::tool_type::curvilinearDirectSolver:

@@ -18,7 +18,7 @@ import logger;
 
 using namespace tw::bc;
 
-struct AtomicPhysics:Module
+struct AtomicPhysics:Driver
 {
 	tw::Float alpha; // fine structure constant
 	HamiltonianParameters H;
@@ -46,7 +46,7 @@ struct AtomicPhysics:Module
 	virtual void VerifyInput();
 	virtual bool ReadInputFileDirective(const TSTreeCursor *curs,const std::string& src);
 	virtual void ReadCheckpoint(std::ifstream& inFile) {
-		Module::ReadCheckpoint(inFile);
+		Driver::ReadCheckpoint(inFile);
 		J4.ReadCheckpoint(inFile);
 		Ao4.ReadCheckpoint(inFile);
 		A4.ReadCheckpoint(inFile);
@@ -57,7 +57,7 @@ struct AtomicPhysics:Module
 		#endif
 	}
 	virtual void WriteCheckpoint(std::ofstream& outFile) {
-		Module::WriteCheckpoint(outFile);
+		Driver::WriteCheckpoint(outFile);
 		#ifdef USE_OPENCL
 		J4.ReceiveFromComputeBuffer();
 		Ao4.ReceiveFromComputeBuffer();
@@ -264,7 +264,7 @@ export struct Dirac:AtomicPhysics
 	}
 };
 
-export struct PopulationDiagnostic : Module
+export struct PopulationDiagnostic : Driver
 {
 	tw::Waves waves;
 	std::vector<std::shared_ptr<QState>> refState; // ComputeTool defining the wavefunction of the reference state
@@ -285,7 +285,7 @@ export struct PopulationDiagnostic : Module
 ////////////////////////////////
 
 
-AtomicPhysics::AtomicPhysics(const std::string& name,MetricSpace *ms,Task *tsk):Module(name,ms,tsk)
+AtomicPhysics::AtomicPhysics(const std::string& name,MetricSpace *ms,Task *tsk):Driver(name,ms,tsk)
 {
 	keepA2Term = true;
 	dipoleApproximation = true;
@@ -330,7 +330,7 @@ tw::Float AtomicPhysics::GetSphericalPotential(tw::Float r) const
 
 void AtomicPhysics::Initialize()
 {
-	Module::Initialize();
+	Driver::Initialize();
 	#ifdef USE_OPENCL
 	photonPropagator->SetupComputeKernels(A4,Ao4,J4);
 	#endif
@@ -376,7 +376,7 @@ void AtomicPhysics::Initialize()
 
 void AtomicPhysics::ExchangeResources()
 {
-	Module::ExchangeResources();
+	Driver::ExchangeResources();
 	PublishResource(&J4,"qo:j4");
 	PublishResource(&H,"qo:H");
 }
@@ -465,7 +465,7 @@ tw::vec4 AtomicPhysics::GetA4AtOrigin()
 
 void AtomicPhysics::VerifyInput()
 {
-	Module::VerifyInput();
+	Driver::VerifyInput();
 	if (space->gridGeometry!=tw::grid::cartesian)
 		if (Norm(H.B0)!=0.0)
 			throw tw::FatalError("Static B field assumes Cartesian geometry.");
@@ -489,7 +489,7 @@ bool AtomicPhysics::ReadInputFileDirective(const TSTreeCursor *curs0,const std::
 	tw::dnum q,r;
 	std::string word;
 
-	if (Module::ReadInputFileDirective(curs0,src))
+	if (Driver::ReadInputFileDirective(curs0,src))
 		return true;
 
 	if (tw::input::node_kind(curs0)=="assignment") {
@@ -1719,7 +1719,7 @@ void Dirac::StartDiagnostics()
 	UpdateJ4();
 }
 
-PopulationDiagnostic::PopulationDiagnostic(const std::string& name,MetricSpace *ms,Task *tsk) : Module(name,ms,tsk)
+PopulationDiagnostic::PopulationDiagnostic(const std::string& name,MetricSpace *ms,Task *tsk) : Driver(name,ms,tsk)
 {
 	updateSequencePriority = tw::priority::diagnostic;
 	H = NULL;
@@ -1745,7 +1745,7 @@ bool PopulationDiagnostic::InspectResource(void* resource,const std::string& des
 
 void PopulationDiagnostic::VerifyInput()
 {
-	Module::VerifyInput();
+	Driver::VerifyInput();
 	// strongly typed wave and reference state lists
 	for (auto tool : tools)
 	{
@@ -1766,7 +1766,7 @@ void PopulationDiagnostic::Initialize()
 
 void PopulationDiagnostic::Report(Diagnostic& diagnostic)
 {
-	Module::Report(diagnostic);
+	Driver::Report(diagnostic);
 
 	ScalarField temp;
 	temp.Initialize(*space,task);

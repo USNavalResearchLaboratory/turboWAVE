@@ -10,6 +10,19 @@ module;
 export module base;
 #ifdef USE_STD_MODULE
 	export import std;
+	export namespace tw
+	{
+		int strcmp(const char *s1, const char *s2) {
+			return std::strcmp(s1,s2);
+		}
+	}
+#else
+	export namespace tw
+	{
+		int strcmp(const char *s1, const char *s2) {
+			return ::strcmp(s1,s2);
+		}
+	}
 #endif
 
 constexpr bool LittleEndian() {

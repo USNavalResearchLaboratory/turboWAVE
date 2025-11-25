@@ -41,7 +41,7 @@ struct LoadingData
 	}
 };
 
-export struct Species:Module
+export struct Species:Driver
 {
 	tw::Float restMass,charge;
 	tw::vec3 emissionTemp;
@@ -116,7 +116,7 @@ export struct Species:Module
 	void MoveWindowTest();
 };
 
-export struct Kinetics:Module
+export struct Kinetics:Driver
 {
 	std::vector<Species*> species; // explicitly typed submodules
 
@@ -149,7 +149,7 @@ export struct Kinetics:Module
 // This is the top of the particle containment hierarchy
 // Kinetics <- Species <- Particle
 
-Kinetics::Kinetics(const std::string& name,MetricSpace *ms,Task *tsk) : Module(name,ms,tsk)
+Kinetics::Kinetics(const std::string& name,MetricSpace *ms,Task *tsk) : Driver(name,ms,tsk)
 {
 	if (native.unit_system!=tw::units::plasma && native.unit_system!=tw::units::atomic)
 		throw tw::FatalError("Kinetics module requires <native units = plasma> or <native units = atomic>.");
@@ -160,7 +160,7 @@ Kinetics::Kinetics(const std::string& name,MetricSpace *ms,Task *tsk) : Module(n
 }
 
 void Kinetics::VerifyInput() {
-	Module::VerifyInput();
+	Driver::VerifyInput();
 	for (auto sub : sub_drivers)
 	{
 		Species *sp = dynamic_cast<Species*>(sub);
@@ -173,7 +173,7 @@ void Kinetics::VerifyInput() {
 
 void Kinetics::Initialize()
 {
-	Module::Initialize();
+	Driver::Initialize();
 	for (auto sp : species) {
 		sp->Initialize();
 	}
@@ -209,7 +209,7 @@ bool Kinetics::InspectResource(void* resource,const std::string& description)
 void Kinetics::MoveWindow()
 {
 	tw::Int i;
-	Module::MoveWindow();
+	Driver::MoveWindow();
 
 	// rho00 must be prepared to receive deposition from incoming particles
 	// rho00 array is always left in an unrefined post-deposition state
@@ -630,19 +630,19 @@ tw::Float Kinetics::KineticEnergy(const Region& theRgn)
 
 void Kinetics::Report(Diagnostic& diagnostic)
 {
-	Module::Report(diagnostic);
+	Driver::Report(diagnostic);
 	diagnostic.ReportNumber("Kinetic",KineticEnergy(*diagnostic.theRgn),false);
 }
 
 void Kinetics::ReadCheckpoint(std::ifstream& inFile)
 {
-	Module::ReadCheckpoint(inFile);
+	Driver::ReadCheckpoint(inFile);
 	rho00.ReadCheckpoint(inFile);
 }
 
 void Kinetics::WriteCheckpoint(std::ofstream& outFile)
 {
-	Module::WriteCheckpoint(outFile);
+	Driver::WriteCheckpoint(outFile);
 	rho00.WriteCheckpoint(outFile);
 }
 
@@ -652,7 +652,7 @@ void Kinetics::WriteCheckpoint(std::ofstream& outFile)
 ///////////////////
 
 
-Species::Species(const std::string& name,MetricSpace *ms,Task *tsk) : Module(name,ms,tsk)
+Species::Species(const std::string& name,MetricSpace *ms,Task *tsk) : Driver(name,ms,tsk)
 {
 	if (native.unit_system!=tw::units::plasma && native.unit_system!=tw::units::atomic)
 		throw tw::FatalError("Species module requires <native units = plasma> or <native units = atomic>.");
@@ -710,7 +710,7 @@ Species::Species(const std::string& name,MetricSpace *ms,Task *tsk) : Module(nam
 
 void Species::VerifyInput()
 {
-	Module::VerifyInput();
+	Driver::VerifyInput();
 	for (auto tool : tools)
 	{
 		if (std::dynamic_pointer_cast<Ionizer>(tool)) {
@@ -727,7 +727,7 @@ void Species::VerifyInput()
 
 void Species::Initialize()
 {
-	Module::Initialize();
+	Driver::Initialize();
 	GenerateParticles(true);
 	CleanParticleList();
 	if (!space->neutralize)
@@ -1322,7 +1322,7 @@ void Species::FinishMoveWindow()
 
 bool Species::ReadInputFileDirective(const TSTreeCursor *curs0,const std::string& src)
 {
-	if (Module::ReadInputFileDirective(curs0,src))
+	if (Driver::ReadInputFileDirective(curs0,src))
 		return true;
 
 	if (tw::input::node_kind(curs0)=="assignment") {
@@ -1342,7 +1342,7 @@ bool Species::ReadInputFileDirective(const TSTreeCursor *curs0,const std::string
 
 void Species::ReadCheckpoint(std::ifstream& inFile)
 {
-	Module::ReadCheckpoint(inFile);
+	Driver::ReadCheckpoint(inFile);
 	inFile.read((char *)&numberCreated,sizeof(tw::Float));
 	inFile.read((char *)&accelerationForceNow,sizeof(tw::Float));
 	inFile.read((char *)&count,sizeof(tw::Int));
@@ -1360,7 +1360,7 @@ void Species::ReadCheckpoint(std::ifstream& inFile)
 
 void Species::WriteCheckpoint(std::ofstream& outFile)
 {
-	Module::WriteCheckpoint(outFile);
+	Driver::WriteCheckpoint(outFile);
 	outFile.write((char *)&numberCreated,sizeof(tw::Float));
 	outFile.write((char *)&accelerationForceNow,sizeof(tw::Float));
 	outFile.write((char *)&count,sizeof(tw::Int));
@@ -1471,7 +1471,7 @@ tw::Float Species::ParticleNumber(const Region& theRgn)
 
 void Species::Report(Diagnostic& diagnostic)
 {
-	Module::Report(diagnostic);
+	Driver::Report(diagnostic);
 
 	ScalarField temp;
 

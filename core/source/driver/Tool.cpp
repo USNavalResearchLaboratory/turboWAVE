@@ -203,6 +203,20 @@ std::map<std::string,tw::tool_type> ComputeTool::Map()
 	return
 	{
 		{"warp",tw::tool_type::warp},
+
+		{"region box_array",tw::tool_type::boxArrayRegion},
+		{"region circ",tw::tool_type::circRegion},
+		{"region cone",tw::tool_type::coneRegion},
+		{"region cylinder",tw::tool_type::cylinderRegion},
+		{"region cylindrical_shell",tw::tool_type::cylindricalShellRegion},
+		{"region ellipsoid",tw::tool_type::ellipsoidRegion},
+		{"region prism",tw::tool_type::prismRegion},
+		{"region rect",tw::tool_type::rectRegion},
+		{"region rounded_cylinder",tw::tool_type::roundedCylinderRegion},
+		{"region tangent_ogive",tw::tool_type::tangentOgiveRegion},
+		{"region torus",tw::tool_type::torusRegion},
+		{"region true_sphere",tw::tool_type::trueSphereRegion},
+
 		{"conductor",tw::tool_type::conductor},
 		{"plane wave",tw::tool_type::planeWave},
 		{"hermite gauss pulse",tw::tool_type::hermiteGauss},

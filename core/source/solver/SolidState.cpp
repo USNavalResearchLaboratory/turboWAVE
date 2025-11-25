@@ -10,7 +10,7 @@ import fields;
 import diagnostics;
 import injection;
 
-export struct BoundElectrons:Module
+export struct BoundElectrons:Driver
 {
 	tw::Float q0,m0; // charge, rest mass
 	ScalarField dens;
@@ -62,7 +62,7 @@ export struct BoundElectrons:Module
 //                        //
 ////////////////////////////
 
-BoundElectrons::BoundElectrons(const std::string& name,MetricSpace *ms,Task *tsk) : Module(name,ms,tsk)
+BoundElectrons::BoundElectrons(const std::string& name,MetricSpace *ms,Task *tsk) : Driver(name,ms,tsk)
 {
 	if (native.unit_system!=tw::units::plasma)
 		throw tw::FatalError("BoundElectrons module requires <native units = plasma>");
@@ -126,7 +126,7 @@ BoundElectrons::~BoundElectrons()
 
 void BoundElectrons::VerifyInput()
 {
-	Module::VerifyInput();
+	Driver::VerifyInput();
 	// Populate strongly typed tools
 	for (auto tool : tools)
 	{
@@ -141,7 +141,7 @@ void BoundElectrons::Initialize()
 	tw::Int i,s;
 	tw::vec3 pos;
 
-	Module::Initialize();
+	Driver::Initialize();
 	Normalize(crystalBasis);
 	crystalBasis.u.RotateZ(phi);
 	crystalBasis.v.RotateZ(phi);
@@ -259,7 +259,7 @@ bool BoundElectrons::InspectResource(void* resource,const std::string& descripti
 
 void BoundElectrons::MoveWindow()
 {
-	Module::MoveWindow();
+	Driver::MoveWindow();
 	
 	// must prepare before shift
 	dens.DownwardCopy(tw::grid::z,1);
@@ -372,7 +372,7 @@ void BoundElectrons::Update()
 
 bool BoundElectrons::ReadInputFileDirective(const TSTreeCursor *curs0,const std::string& src)
 {
-	if (Module::ReadInputFileDirective(curs0,src))
+	if (Driver::ReadInputFileDirective(curs0,src))
 		return true;
 
 	if (tw::input::node_kind(curs0)=="assignment") {
@@ -394,7 +394,7 @@ bool BoundElectrons::ReadInputFileDirective(const TSTreeCursor *curs0,const std:
 
 void BoundElectrons::ReadCheckpoint(std::ifstream& inFile)
 {
-	Module::ReadCheckpoint(inFile);
+	Driver::ReadCheckpoint(inFile);
 	R0.ReadCheckpoint(inFile);
 	R1.ReadCheckpoint(inFile);
 	dens.ReadCheckpoint(inFile);
@@ -402,7 +402,7 @@ void BoundElectrons::ReadCheckpoint(std::ifstream& inFile)
 
 void BoundElectrons::WriteCheckpoint(std::ofstream& outFile)
 {
-	Module::WriteCheckpoint(outFile);
+	Driver::WriteCheckpoint(outFile);
 	R0.WriteCheckpoint(outFile);
 	R1.WriteCheckpoint(outFile);
 	dens.WriteCheckpoint(outFile);
@@ -418,7 +418,7 @@ void BoundElectrons::StartDiagnostics()
 
 void BoundElectrons::Report(Diagnostic& diagnostic)
 {
-	Module::Report(diagnostic);
+	Driver::Report(diagnostic);
 
 	ScalarField temp;
 	temp.Initialize(*space,task);

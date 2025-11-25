@@ -32,13 +32,13 @@ namespace tw
 	}
 }
 
-export struct Module:StaticSpace,Engine
+export struct Driver:StaticSpace,Engine
 {
-	Module* super;
-	std::vector<Module*> sub_drivers;
+	Driver* super;
+	std::vector<Driver*> sub_drivers;
 	std::vector<SharedTool> tools;
 	/// tool_type is mapped to the most recently created driver of that type
-	std::map<tw::tool_type,Module*> most_recent;
+	std::map<tw::tool_type,Driver*> most_recent;
 	/// names of all tools or drivers owned by this driver, used for name mangling
 	std::set<std::string> all_names;
 
@@ -47,7 +47,7 @@ export struct Module:StaticSpace,Engine
 	tw::Int smoothing[4],compensation[4];
 	bool suppressNextUpdate;
 
-	Module(const std::string& name,MetricSpace *ms,Task *tsk) : Engine(name,ms,tsk) {
+	Driver(const std::string& name,MetricSpace *ms,Task *tsk) : Engine(name,ms,tsk) {
 		StaticSpace::operator=(*ms);
 		super = NULL;
 		updateSequencePriority = tw::priority::source;
@@ -86,10 +86,10 @@ export struct Module:StaticSpace,Engine
 		return false;
 	}
 
-	Module* Root() {
+	Driver* Root() {
 		tw::Int depth = 0;
 		tw::Int max = 16;
-		Module *ans = this;
+		Driver *ans = this;
 		while (ans->super != NULL) {
 			logger::TRACE(std::format("go up to {}",ans->super->name));
 			ans = ans->super;
@@ -102,7 +102,7 @@ export struct Module:StaticSpace,Engine
 	}
 	/// @brief search for a named sub-driver on this driver's list, usually called on root
 	/// @returns pointer to the driver, or NULL if driver not found
-	Module* FindDriver(const std::string& name,bool recursive) {
+	Driver* FindDriver(const std::string& name,bool recursive) {
 		for (auto check : this->sub_drivers) {
 			if (name == check->name) {
 				return check;
@@ -155,10 +155,10 @@ export struct Module:StaticSpace,Engine
 	/// @param name suggested name of driver
 	/// @param whichTool type of driver
 	/// @returns pointer to new driver
-	Module* CreateDriver(const std::string& name,tw::tool_type whichDriver);
+	Driver* CreateDriver(const std::string& name,tw::tool_type whichDriver);
 	/// @brief add a tool to this driver and to the root driver
 	void AddTool(const SharedTool& tool) {
-		Module *root = Root();
+		Driver *root = Root();
 		this->tools.push_back(tool);
 		// always add shared tools to the root
 		if (this!=root) {
@@ -166,7 +166,7 @@ export struct Module:StaticSpace,Engine
 		}
 	}
 	/// @brief add sub-driver to this driver
-	void AddDriver(Module *driver) {
+	void AddDriver(Driver *driver) {
 		sub_drivers.push_back(driver);
 		driver->super = this;
 	}
@@ -241,7 +241,7 @@ export struct Module:StaticSpace,Engine
 
 export struct DriverComparator
 {
-	bool operator() (Module* const& m1,Module* const& m2)
+	bool operator() (Driver* const& m1,Driver* const& m2)
 	{
 		tw::Int idx1 = tw::priority_sort_map()[m1->updateSequencePriority] + m1->subSequencePriority;
 		tw::Int idx2 = tw::priority_sort_map()[m2->updateSequencePriority] + m2->subSequencePriority;

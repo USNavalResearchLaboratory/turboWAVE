@@ -16,7 +16,7 @@ import logger;
 
 using namespace tw::bc;
 
-export struct FieldSolver:Module
+export struct FieldSolver:Driver
 {
 	std::shared_ptr<EllipticSolver> ellipticSolver;
 	tw::Waves waves;
@@ -164,7 +164,7 @@ void Electromagnetic::CleanDivergence(Field& A,tw::Float charge_multiplier)
 	A.ApplyBoundaryCondition(Rng(X,Z+1));
 }
 
-export struct FarFieldDiagnostic : Module
+export struct FarFieldDiagnostic : Driver
 {
 	// In the far field space the index space goes like (t,theta,phi)
 	tw::Float radius,bounds[6];
@@ -190,7 +190,7 @@ export struct FarFieldDiagnostic : Module
 // The base class is essentially for managing the ellipticSolver tool.
 // This serves as a basic template for how to manage a ComputeTool.
 
-FieldSolver::FieldSolver(const std::string& name,MetricSpace *ms,Task *tsk):Module(name,ms,tsk)
+FieldSolver::FieldSolver(const std::string& name,MetricSpace *ms,Task *tsk):Driver(name,ms,tsk)
 {
 	if (native.unit_system!=tw::units::plasma)
 		throw tw::FatalError("FieldSolver module requires <native units = plasma>");
@@ -200,7 +200,7 @@ FieldSolver::FieldSolver(const std::string& name,MetricSpace *ms,Task *tsk):Modu
 
 void FieldSolver::VerifyInput()
 {
-	Module::VerifyInput();
+	Driver::VerifyInput();
 	// Populate strongly typed tools
 	for (auto tool : tools)
 	{
@@ -315,7 +315,7 @@ void Electromagnetic::Update()
 
 void Electromagnetic::MoveWindow()
 {
-	Module::MoveWindow();
+	Driver::MoveWindow();
 	for (auto s : StripRange(*this,3,0,1,strongbool::yes))
 		F.Shift(Rng(0,6),s,-1,0.0);
 	F.DownwardCopy(Rng(0,6),tw::grid::z,1);
@@ -1224,7 +1224,7 @@ void CurvilinearDirectSolver::Update()
 }
 
 
-FarFieldDiagnostic::FarFieldDiagnostic(const std::string& name,MetricSpace *ms,Task *tsk) : Module(name,ms,tsk)
+FarFieldDiagnostic::FarFieldDiagnostic(const std::string& name,MetricSpace *ms,Task *tsk) : Driver(name,ms,tsk)
 {
 	J4 = NULL;
 	directives.Add("radius",new tw::input::Float(&radius));
@@ -1253,13 +1253,13 @@ bool FarFieldDiagnostic::InspectResource(void *resource,const std::string& descr
 
 void FarFieldDiagnostic::ReadCheckpoint(std::ifstream& inFile)
 {
-	Module::ReadCheckpoint(inFile);
+	Driver::ReadCheckpoint(inFile);
 	A.ReadCheckpoint(inFile);
 }
 
 void FarFieldDiagnostic::WriteCheckpoint(std::ofstream& outFile)
 {
-	Module::WriteCheckpoint(outFile);
+	Driver::WriteCheckpoint(outFile);
 	A.WriteCheckpoint(outFile);
 }
 

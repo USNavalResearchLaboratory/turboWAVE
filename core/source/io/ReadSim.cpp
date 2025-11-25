@@ -27,7 +27,7 @@ tw::input::navigation Simulation::visit(TSTreeCursor *curs) {
 			try {
 				gridReader->ReadOuter(curs,src);
 			} catch (tw::FatalError& e) {
-				if (std::strcmp(e.what(),"unknown key")) {
+				if (tw::strcmp(e.what(),"unknown key")) {
 					outerDirectives.ReadNext(curs,src);
 				} else {
 					throw e;
@@ -81,7 +81,7 @@ tw::input::navigation Simulation::visit(TSTreeCursor *curs) {
 			try {
 				gridReader->ReadOuter(curs,src);
 			} catch (tw::FatalError& e) {
-				if (std::strcmp(e.what(),"unknown key")) {
+				if (tw::strcmp(e.what(),"unknown key")) {
 					outerDirectives.ReadNext(curs,src);
 				} else {
 					throw e;
@@ -132,17 +132,17 @@ tw::input::navigation Simulation::visit(TSTreeCursor *curs) {
 			// Driver Installation
 			if (whichTool!=tw::tool_type::none && tw::IsDriver(whichTool)) {
 				logger::DEBUG("parsing driver");
-				if (Module::SingularType(whichTool))
+				if (Driver::SingularType(whichTool))
 					if (most_recent.find(whichTool)!=most_recent.end())
 						tw::input::ThrowParsingError(curs,src,"singular driver type was created twice.  Check order of input file.");
 				std::println(std::cout,"Installing driver <{}>...",preamble.obj_name);
-				Module *super;
+				Driver *super;
 				if (preamble.attaching && preamble.owner_name.size() > 0) {
 					super = FindDriver(preamble.owner_name,true);
 					std::println(std::cout,"Attaching <{}> to <{}>",preamble.obj_name,preamble.owner_name);
 				} else if (!preamble.attaching && preamble.owner_name.size() == 0) {
 					// If not explicitly attaching, but supermodule is required, find or create one
-					tw::tool_type reqType = Module::RequiredSupermoduleType(whichTool);
+					tw::tool_type reqType = Driver::RequiredSupermoduleType(whichTool);
 					if (reqType!=tw::tool_type::none) {
 						super = AutoCreateSupers(reqType,preamble.obj_name);
 					} else {
@@ -151,7 +151,7 @@ tw::input::navigation Simulation::visit(TSTreeCursor *curs) {
 				} else {
 					tw::input::ThrowParsingError(curs,src,"supermodule mismatch");
 				}
-				Module *sub = super->CreateDriver(preamble.obj_name,whichTool);
+				Driver *sub = super->CreateDriver(preamble.obj_name,whichTool);
 				super->AddDriver(sub);
 				most_recent[whichTool] = sub;
 				// this can set off a chain of recursive calls that modify the tree
@@ -176,7 +176,7 @@ tw::input::navigation Simulation::visit(TSTreeCursor *curs) {
 	}
 }
 
-Module* Simulation::AutoCreateSupers(tw::tool_type reqType,const std::string& basename)
+Driver* Simulation::AutoCreateSupers(tw::tool_type reqType,const std::string& basename)
 {
 	logger::DEBUG("handling automatic super-driver");
 	auto inv = ComputeTool::InvMap();
@@ -187,20 +187,20 @@ Module* Simulation::AutoCreateSupers(tw::tool_type reqType,const std::string& ba
 	chain.push_back(reqType);
 	super_names.push_back(basename + "_sup");
 	while (chain.back()!=tw::tool_type::none) {
-		chain.push_back(Module::RequiredSupermoduleType(chain.back()));
+		chain.push_back(Driver::RequiredSupermoduleType(chain.back()));
 		super_names.push_back(super_names.back() + "_sup");
 	}
 	chain.pop_back();
 	super_names.pop_back();
 
 	// Build the real chain to the extent necessary
-	Module *curr = this;
-	Module *super;
+	Driver *curr = this;
+	Driver *super;
 	for (int i = chain.size()-1; i>=0; i--) {
 		logger::TRACE(std::format("handling super-driver {}: {}",i,inv[chain[i]]));
 		auto it = curr->most_recent.find(chain[i]);
 		if (it==curr->most_recent.end()) {
-			if (!Module::AutoModuleType(chain[i])) {
+			if (!Driver::AutoModuleType(chain[i])) {
 				throw tw::FatalError(std::format("<{}> requires super-driver <{}> which cannot be created automatically.",basename,inv[chain[i]]));
 			}
 			logger::TRACE("(create new one)");

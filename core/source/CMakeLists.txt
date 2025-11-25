@@ -107,7 +107,7 @@ find_package(MPI REQUIRED)
 
 # Regular sources or module implementations go here
 target_sources(tw3d PUBLIC
-    base/Main.cpp
+    main/Main.cpp
     io/parser.c
     io/tree-sitter/lib/src/lib.c
     io/ReadSim.cpp
@@ -129,14 +129,16 @@ target_sources(tw3d PUBLIC
 
 target_sources(tw3d PUBLIC
     FILE_SET HEADERS
-    BASE_DIRS base io particles fields solver sparc test
+    BASE_DIRS base io
 )
 
 # Module interfaces go here
 target_sources(tw3d PUBLIC
     FILE_SET CXX_MODULES
-    BASE_DIRS base driver io particles fields solver sparc test
+    BASE_DIRS main base driver io particles fields solver sparc test
     FILES
+        main/Simulation.cpp
+        main/Factory.cpp
         base/base.cpp
         base/logger.cpp
         base/pic_primitives.cpp
@@ -145,7 +147,6 @@ target_sources(tw3d PUBLIC
         base/DynSpace.cpp
         base/MetricSpace.cpp
         base/tw_iterator.cpp
-        base/Factory.cpp
         base/FFT.cpp
         base/Functions.cpp
         base/Tasks.cpp
@@ -157,7 +158,6 @@ target_sources(tw3d PUBLIC
         driver/Warp.cpp
         driver/Tool.cpp
         driver/Bounded.cpp
-        driver/Simulation.cpp
         fields/Fields.cpp
         fields/primitives.cpp
         fields/base.cpp

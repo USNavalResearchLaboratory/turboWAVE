@@ -16,7 +16,9 @@ import input;
 import read_grid;
 import factory;
 
-export struct Simulation: Module, tw::input::Visitor
+/// This class is the root of the driver tree.
+/// This basically orchestrates everything.
+export struct Simulation: Driver, tw::input::Visitor
 {
 	bool interactive;
 	tw::Int outputLevel,errorCheckingLevel,success_count,failure_count;
@@ -53,8 +55,8 @@ export struct Simulation: Module, tw::input::Visitor
 
 	tw::input::navigation visit(TSTreeCursor *curs);
 	void InputFileFirstPass();
-	void ParseNestedDeclaration(TSTreeCursor *curs,const std::string& src,Module *sup);
-	Module* AutoCreateSupers(tw::tool_type reqType,const std::string& basename);
+	void ParseNestedDeclaration(TSTreeCursor *curs,const std::string& src,Driver *sup);
+	Driver* AutoCreateSupers(tw::tool_type reqType,const std::string& basename);
 	void ReadInputFile();
 	void ReadCheckpoint(std::ifstream& inFile);
 	void WriteCheckpoint(std::ofstream& outFile);
@@ -96,7 +98,7 @@ Simulation::Simulation(const bool interactive,
 	const tw::Int& outputLevel,
 	const tw::Int& errorCheckingLevel,
 	MetricSpace *ms,
-	Task *tsk) : Module("simulation",ms,tsk)
+	Task *tsk) : Driver("simulation",ms,tsk)
 {
 	this->interactive = interactive;
 	task->unitTest = test_name;
@@ -321,7 +323,7 @@ void Simulation::Test()
 		{
 			std::println(std::cout,"\ntesting {}{}{}{}",term::bold,term::cyan,mod_key,term::reset_all);
 			tw::Int enviro = 1;
-			while (Module::SetTestEnvironment(theType,enviro,space,task,testUnitDensityCGS))
+			while (Driver::SetTestEnvironment(theType,enviro,space,task,testUnitDensityCGS))
 			{
 				auto gridStr = std::format("    {}x{}x{} grid",space->GlobalDim(1),space->GlobalDim(2),space->GlobalDim(3));
 				for (auto id = 0; ; id++) {
@@ -676,7 +678,7 @@ void Simulation::Diagnose()
 
 	// MAIN DIAGNOSTIC LOOP
 
-	auto has_diagnostic = [&] (Module *d,std::shared_ptr<Diagnostic> diagnostic)
+	auto has_diagnostic = [&] (Driver *d,std::shared_ptr<Diagnostic> diagnostic)
 	{
 		for (auto maybe_diag : d->tools)
 			if (maybe_diag==diagnostic)
@@ -693,9 +695,12 @@ void Simulation::Diagnose()
 			diag->ReportNumber("time",space->WindowPos(0),true);
 			diag->ReportNumber("dt",space->dx(0),true);
 			diag->ReportNumber("zwindow",space->WindowPos(3),true);
-			for (auto sd : sub_drivers)
-				if (has_diagnostic(sd,diag))
+			for (auto sd : sub_drivers) {
+				if (has_diagnostic(sd,diag)) {
+					logger::TRACE(std::format("{} is reporting",sd->name));
 					sd->Report(*diag);
+				}
+			}
 			diag->Finish();
 		}
 	}

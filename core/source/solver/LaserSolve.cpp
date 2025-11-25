@@ -15,7 +15,7 @@ import logger;
 
 using namespace tw::bc;
 
-export struct LaserSolver:Module
+export struct LaserSolver:Driver
 {
 	tw::Float laserFreq;
 	tw::Int resolution;
@@ -78,7 +78,7 @@ export struct PGCSolver:LaserSolver
 //                          //
 //////////////////////////////
 
-LaserSolver::LaserSolver(const std::string& name,MetricSpace *ms,Task *tsk):Module(name,ms,tsk)
+LaserSolver::LaserSolver(const std::string& name,MetricSpace *ms,Task *tsk):Driver(name,ms,tsk)
 {
 	if (native.unit_system!=tw::units::plasma)
 		throw tw::FatalError("LaserSolver module requires <native units = plasma>");
@@ -88,6 +88,11 @@ LaserSolver::LaserSolver(const std::string& name,MetricSpace *ms,Task *tsk):Modu
 	polarizationType = linearPolarization;
 	debug = false;
 	resolution = 1;
+
+	// auto-created Engines have to exist by the time input file parsing is finished
+	auto new_tool = CreateTool("hr_box",tw::tool_type::boxDiagnostic);
+	AddTool(new_tool);
+	HRBoxDiagnostic = std::dynamic_pointer_cast<BoxDiagnostic>(new_tool);
 
 	a0.Initialize(*space,task);
 	a1.Initialize(*space,task);
@@ -111,6 +116,44 @@ void LaserSolver::ExchangeResources()
 	PublishResource(&polarizationType,"laser:polarizationType");
 }
 
+void LaserSolver::VerifyInput()
+{
+	Driver::VerifyInput();
+	for (auto tool : tools) {
+		if (std::dynamic_pointer_cast<LaserPropagator>(tool)) {
+			propagator = std::dynamic_pointer_cast<LaserPropagator>(tool);
+		} else if (std::dynamic_pointer_cast<Wave>(tool)) {
+			waves.push_back(std::dynamic_pointer_cast<Wave>(tool));
+		}
+	}
+	if (!propagator) {
+		auto new_tool = CreateTool("default_adi",tw::tool_type::adiPropagator);
+		AddTool(new_tool);
+		propagator = std::dynamic_pointer_cast<LaserPropagator>(new_tool);
+	}
+	tw::node5 HRGlobalCells {
+		space->GlobalDim(0),
+		space->GlobalDim(1),
+		space->GlobalDim(2),
+		space->GlobalDim(3)*resolution,
+		1,
+	};
+	tw::node4 layers {
+		space->Layers(0),
+		space->Layers(1),
+		space->Layers(2),
+		space->Layers(3)
+	};
+	logger::DEBUG(std::format("creating high resolution space x{}",resolution));
+	HRSpace.Resize(task,HRGlobalCells,space->GlobalCorner(),space->GlobalPhysicalSize(),std_packing,layers,space->gridGeometry);
+	HRBoxDiagnostic->filename = "refined";
+	HRBoxDiagnostic->space = &HRSpace;
+	HRBoxDiagnostic->reports.push_back("a_real");
+	HRBoxDiagnostic->reports.push_back("a_imag");
+	HRBoxDiagnostic->reports.push_back("j1_real");
+	HRBoxDiagnostic->reports.push_back("j1_imag");
+}
+
 void LaserSolver::Initialize()
 {
 	logger::TRACE("initialize laser base");
@@ -120,7 +163,7 @@ void LaserSolver::Initialize()
 	const tw::Float dt = dx(0);
 	const tw::Float dth = 0.5*dt;
 
-	Module::Initialize();
+	Driver::Initialize();
 
 	for (auto tool : tools) {
 		auto diag = std::dynamic_pointer_cast<BoxDiagnostic>(tool);
@@ -272,51 +315,9 @@ void LaserSolver::Reset()
 	chi = tw::Complex(0,0);
 }
 
-void LaserSolver::VerifyInput()
-{
-	Module::VerifyInput();
-	for (auto tool : tools) {
-		if (std::dynamic_pointer_cast<LaserPropagator>(tool)) {
-			propagator = std::dynamic_pointer_cast<LaserPropagator>(tool);
-		} else if (std::dynamic_pointer_cast<Wave>(tool)) {
-			waves.push_back(std::dynamic_pointer_cast<Wave>(tool));
-		}
-	}
-	if (!propagator) {
-		auto new_tool = CreateTool("default_adi",tw::tool_type::adiPropagator);
-		AddTool(new_tool);
-		propagator = std::dynamic_pointer_cast<LaserPropagator>(new_tool);
-	}
-	tw::node5 HRGlobalCells {
-		space->GlobalDim(0),
-		space->GlobalDim(1),
-		space->GlobalDim(2),
-		space->GlobalDim(3)*resolution,
-		1,
-	};
-	tw::node4 layers {
-		space->Layers(0),
-		space->Layers(1),
-		space->Layers(2),
-		space->Layers(3)
-	};
-	logger::DEBUG(std::format("creating high resolution space x{}",resolution));
-	HRSpace.Resize(task,HRGlobalCells,space->GlobalCorner(),space->GlobalPhysicalSize(),std_packing,layers,space->gridGeometry);
-	auto new_tool = CreateTool("hr_box",tw::tool_type::boxDiagnostic);
-	AddTool(new_tool);
-	HRBoxDiagnostic = std::dynamic_pointer_cast<BoxDiagnostic>(new_tool);
-	HRBoxDiagnostic->filename = "refined";
-	HRBoxDiagnostic->space = &HRSpace;
-	HRBoxDiagnostic->reports.push_back("a_real");
-	HRBoxDiagnostic->reports.push_back("a_imag");
-	HRBoxDiagnostic->reports.push_back("j1_real");
-	HRBoxDiagnostic->reports.push_back("j1_imag");
-	tools.push_back(HRBoxDiagnostic);
-}
-
 void LaserSolver::ReadCheckpoint(std::ifstream& inFile)
 {
-	Module::ReadCheckpoint(inFile);
+	Driver::ReadCheckpoint(inFile);
 	a0.ReadCheckpoint(inFile);
 	a1.ReadCheckpoint(inFile);
 	HRa0.ReadCheckpoint(inFile);
@@ -325,7 +326,7 @@ void LaserSolver::ReadCheckpoint(std::ifstream& inFile)
 
 void LaserSolver::WriteCheckpoint(std::ofstream& outFile)
 {
-	Module::WriteCheckpoint(outFile);
+	Driver::WriteCheckpoint(outFile);
 	a0.WriteCheckpoint(outFile);
 	a1.WriteCheckpoint(outFile);
 	HRa0.WriteCheckpoint(outFile);
@@ -514,6 +515,7 @@ void PGCSolver::Report(Diagnostic& diagnostic)
 	LaserSolver::Report(diagnostic);
 
 	if (diagnostic.name == "hr_box") {
+		logger::TRACE("reporting high-res data");
 		diagnostic.ReportField("a_real",HRa1,1,0,tw::dims::vector_potential,"$\\Re A$");
 		diagnostic.ReportField("a_imag",HRa1,1,1,tw::dims::vector_potential,"$\\Im A$");
 		diagnostic.ReportField("j1_real",HRchi,1,0,tw::dims::current_density,"$\\Re j$");

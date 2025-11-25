@@ -11,9 +11,9 @@ import fields;
 import logger;
 
 // Diagnostics are implemented as ComputeTool objects.
-// The flow of control starts from Simulation, which calls Module::Report for every Module.
-// The Module::Report function recieves a pointer to a given Diagnostic object (one call for every Diagnostic instance).
-// The Module::Report function makes a call to a method of Diagnostic for each data set it would like to report.
+// The flow of control starts from Simulation, which calls Driver::Report for every Driver.
+// The Driver::Report function recieves a pointer to a given Diagnostic object (one call for every Diagnostic instance).
+// The Driver::Report function makes a call to a method of Diagnostic for each data set it would like to report.
 // The Diagnostic object is responsible for interpreting the data set, extracting relevant subsets, and writing to disk.
 
 class meta_writer
@@ -304,7 +304,7 @@ void npy_writer::add_frame(const std::string& name,const float *gData,tw::Int sh
 		any_data = any_data || gData[i] != 0.0;
 	}
 	if (!any_data) {
-		logger::DEBUG(std::format("{} is 0",name));
+		logger::DEBUG(std::format("{} is all 0's",name));
 	}
 	outFile.close();
 }
@@ -496,6 +496,7 @@ void BoxDiagnostic::GetLocalIndexing(const DynSpace& F,const tw::Int pts[4],cons
 
 void BoxDiagnostic::ReportField(const std::string& fieldName,const Field& F,const tw::Int n,const tw::Int c,tw::dims unit,const std::string& pretty)
 {
+	logger::TRACE("reporting field");
 	if (std::find(no_reports.begin(),no_reports.end(),fieldName)!=no_reports.end())
 		return;
 	if (reports.size()>0)

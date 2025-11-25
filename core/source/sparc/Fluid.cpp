@@ -27,7 +27,7 @@ namespace sparc
 	enum plasmaModel { neutral, quasineutral };
 }
 
-export struct Fluid:Module
+export struct Fluid:Driver
 {
 	tw::Float charge,mass,thermalMomentum,enCrossSection,initialIonizationFraction;
 	Field state0,state1; // density,p1,p2,p3 (unlike SPARC state, p is not a momentum density)
@@ -68,7 +68,7 @@ export struct Fluid:Module
 
 export struct EquilibriumGroup;
 
-export struct Chemical:Module
+export struct Chemical:Driver
 {
 	tw::Profiles profiles;
 	std::shared_ptr<EOSComponent> eosData;
@@ -87,7 +87,7 @@ export struct Chemical:Module
 	void LoadInternalEnergy(Field& hydro,Field& eos);
 };
 
-export struct EquilibriumGroup:Module
+export struct EquilibriumGroup:Driver
 {
 	std::vector<Chemical*> chemical; // explicitly typed submodule list
 	std::shared_ptr<EOSMixture> eosMixData;
@@ -151,7 +151,7 @@ export struct EquilibriumGroup:Module
 
 export namespace sparc
 {
-struct HydroManager:Module
+struct HydroManager:Driver
 {
 	std::vector<EquilibriumGroup*> group; // explicitly type submodule list
 	std::vector<Reaction*> reaction;
@@ -251,7 +251,7 @@ struct HydroManager:Module
 //                         //
 /////////////////////////////
 
-Fluid::Fluid(const std::string& name,MetricSpace *ms,Task *tsk):Module(name,ms,tsk)
+Fluid::Fluid(const std::string& name,MetricSpace *ms,Task *tsk):Driver(name,ms,tsk)
 {
 	if (native.unit_system!=tw::units::plasma)
 		throw tw::FatalError("Fluid module requires <native units = plasma>");
@@ -319,7 +319,7 @@ bool Fluid::InspectResource(void* resource,const std::string& description)
 
 void Fluid::VerifyInput()
 {
-	Module::VerifyInput();
+	Driver::VerifyInput();
 	for (auto tool : tools) {
 		if (std::dynamic_pointer_cast<Ionizer>(tool)) {
 			ionizer = std::dynamic_pointer_cast<Ionizer>(tool);
@@ -333,7 +333,7 @@ void Fluid::VerifyInput()
 
 void Fluid::Initialize()
 {
-	Module::Initialize();
+	Driver::Initialize();
 
 	tw::bc::fld xNormal,xParallel,other;
 	xNormal = space->bc0[1]==par::axisymmetric || space->bc0[1]==par::reflecting ? fld::dirichletWall : fld::neumannWall;
@@ -450,7 +450,7 @@ void Fluid::Initialize()
 void Fluid::MoveWindow()
 {
 	const tw::Float dth = 0.5*dx(0);
-	Module::MoveWindow();
+	Driver::MoveWindow();
 	#pragma omp parallel
 	{
 		for (auto s : StripRange(*this,3,0,1,strongbool::yes))
@@ -757,7 +757,7 @@ void Fluid::Update()
 
 void Fluid::ReadCheckpoint(std::ifstream& inFile)
 {
-	Module::ReadCheckpoint(inFile);
+	Driver::ReadCheckpoint(inFile);
 	state0.ReadCheckpoint(inFile);
 	state1.ReadCheckpoint(inFile);
 	gas.ReadCheckpoint(inFile);
@@ -766,7 +766,7 @@ void Fluid::ReadCheckpoint(std::ifstream& inFile)
 
 void Fluid::WriteCheckpoint(std::ofstream& outFile)
 {
-	Module::WriteCheckpoint(outFile);
+	Driver::WriteCheckpoint(outFile);
 	state0.WriteCheckpoint(outFile);
 	state1.WriteCheckpoint(outFile);
 	gas.WriteCheckpoint(outFile);
@@ -775,7 +775,7 @@ void Fluid::WriteCheckpoint(std::ofstream& outFile)
 
 void Fluid::Report(Diagnostic& diagnostic)
 {
-	Module::Report(diagnostic);
+	Driver::Report(diagnostic);
 	diagnostic.ReportField(name+"_e",state1,1,0,tw::dims::density,"$n_e$");
 	diagnostic.ReportField(name+"_n",gas,1,0,tw::dims::density,"$n_g$");
 }
@@ -787,7 +787,7 @@ void Fluid::Report(Diagnostic& diagnostic)
 /////////////////////
 
 
-Chemical::Chemical(const std::string& name,MetricSpace *ms, Task *tsk) : Module(name,ms,tsk)
+Chemical::Chemical(const std::string& name,MetricSpace *ms, Task *tsk) : Driver(name,ms,tsk)
 {
 	if (native.unit_system!=tw::units::plasma)
 		throw tw::FatalError("Chemical module requires <native units = plasma>");
@@ -805,7 +805,7 @@ Chemical::Chemical(const std::string& name,MetricSpace *ms, Task *tsk) : Module(
 
 void Chemical::VerifyInput()
 {
-	Module::VerifyInput();
+	Driver::VerifyInput();
 	group = (EquilibriumGroup*)super;
 	// search tools for EOS and ionizer
 	for (auto tool : tools) {
@@ -971,7 +971,7 @@ void Chemical::LoadInternalEnergy(Field& hydro,Field& eos)
 /////////////////////
 
 
-EquilibriumGroup::EquilibriumGroup(const std::string& name,MetricSpace *ms, Task *tsk) : Module(name,ms,tsk)
+EquilibriumGroup::EquilibriumGroup(const std::string& name,MetricSpace *ms, Task *tsk) : Driver(name,ms,tsk)
 {
 	if (native.unit_system!=tw::units::plasma)
 		throw tw::FatalError("EquilibriumGroup module requires <native units = plasma>");
@@ -1004,7 +1004,7 @@ void EquilibriumGroup::SetupIndexing()
 
 void EquilibriumGroup::VerifyInput()
 {
-	Module::VerifyInput();
+	Driver::VerifyInput();
 	// Extract Chemical modules from the submodule list
 	for (auto sub : sub_drivers) {
 		Chemical *chem = dynamic_cast<Chemical*>(sub);
@@ -1045,12 +1045,12 @@ bool EquilibriumGroup::GenerateFluid(Field& hydro,Field& eos)
 
 ///////////////////////////////////////
 //                                   //
-// SPARC Hydrodynamics Master Module //
+// SPARC Hydrodynamics Master Driver //
 //                                   //
 ///////////////////////////////////////
 
 
-sparc::HydroManager::HydroManager(const std::string& name,MetricSpace *ms, Task *tsk) : Module(name,ms,tsk)
+sparc::HydroManager::HydroManager(const std::string& name,MetricSpace *ms, Task *tsk) : Driver(name,ms,tsk)
 {
 	if (native.unit_system!=tw::units::plasma)
 		throw tw::FatalError("HydroManager module requires <native units = plasma>");
@@ -1198,7 +1198,7 @@ void sparc::HydroManager::SetupIndexing()
 
 void sparc::HydroManager::VerifyInput()
 {
-	Module::VerifyInput();
+	Driver::VerifyInput();
 
 	if (backgroundDensity!=0.0)
 	{
@@ -1260,7 +1260,7 @@ void sparc::HydroManager::VerifyInput()
 
 void sparc::HydroManager::Initialize()
 {
-	Module::Initialize();
+	Driver::Initialize();
 
 	logger::TRACE("initialize laser frequency and refractive index");
 	if (waves.size())
@@ -2444,7 +2444,7 @@ bool sparc::HydroManager::ReadQuasitoolBlock(const TSTreeCursor *curs0,const std
 
 void sparc::HydroManager::ReadCheckpoint(std::ifstream& inFile)
 {
-	Module::ReadCheckpoint(inFile);
+	Driver::ReadCheckpoint(inFile);
 	eos1.ReadCheckpoint(inFile);
 	state1.ReadCheckpoint(inFile);
 	rho.ReadCheckpoint(inFile);
@@ -2453,7 +2453,7 @@ void sparc::HydroManager::ReadCheckpoint(std::ifstream& inFile)
 
 void sparc::HydroManager::WriteCheckpoint(std::ofstream& outFile)
 {
-	Module::WriteCheckpoint(outFile);
+	Driver::WriteCheckpoint(outFile);
 	eos1.WriteCheckpoint(outFile);
 	state1.WriteCheckpoint(outFile);
 	rho.WriteCheckpoint(outFile);
@@ -2462,7 +2462,7 @@ void sparc::HydroManager::WriteCheckpoint(std::ofstream& outFile)
 
 void sparc::HydroManager::Report(Diagnostic& diagnostic)
 {
-	Module::Report(diagnostic);
+	Driver::Report(diagnostic);
 
 	std::map<tw::Int,std::string> xyz = {{1,"x"},{2,"y"},{3,"z"}};
 

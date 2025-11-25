@@ -11,19 +11,19 @@ import input;
 import factory;
 import logger;
 
-SharedTool Module::CreateTool(const std::string& name,tw::tool_type whichTool) {
+SharedTool Driver::CreateTool(const std::string& name,tw::tool_type whichTool) {
 	auto new_tool = factory::CreateToolFromType(name,whichTool,space,task);
 	tw::input::MangleName(new_tool->name,this->all_names);
     return new_tool;
 }
 
-Module* Module::CreateDriver(const std::string& name,tw::tool_type whichDriver) {
-	Module *sub = factory::CreateDriverFromType(name,whichDriver,space,task);
+Driver* Driver::CreateDriver(const std::string& name,tw::tool_type whichDriver) {
+	Driver *sub = factory::CreateDriverFromType(name,whichDriver,space,task);
 	tw::input::MangleName(sub->name,this->all_names);
 	return sub;
 }
 
-void Module::ParseNestedDeclaration(TSTreeCursor *curs,const std::string& src)
+void Driver::ParseNestedDeclaration(TSTreeCursor *curs,const std::string& src)
 {
 	logger::DEBUG("handling nested declaration");
 	tw::input::Preamble preamble = tw::input::GetPreamble(curs,src);
@@ -40,10 +40,10 @@ void Module::ParseNestedDeclaration(TSTreeCursor *curs,const std::string& src)
 
 	tw::tool_type whichTool = ComputeTool::CreateTypeFromInput(preamble);
 	try {
-		if (Module::SingularType(whichTool))
+		if (Driver::SingularType(whichTool))
 			if (most_recent.find(whichTool)!=most_recent.end())
 				tw::input::ThrowParsingError(curs,src,"Singular driver was created twice.  Check order of input file.");
-		Module *sub = CreateDriver(preamble.obj_name,whichTool);
+		Driver *sub = CreateDriver(preamble.obj_name,whichTool);
 		AddDriver(sub);
 		std::println(std::cout,"   Attaching nested module <{}>...",sub->name);
 		most_recent[whichTool] = sub;
