@@ -716,7 +716,7 @@ void ParabolicSolver::FixTemperature(Field& T,const Rng04& r,SharedRegion theReg
 	{
 		for (auto n=r.b0; n<r.e0; n++)
 		for (auto cell : EntireCellRange(*space,n))
-			if (theRegion->Inside(space->Pos(cell),*space))
+			if (theRegion->Inside(space->Pos(cell),0))
 				for (tw::Int c=r.b4; c<=r.e4; c++)
 					T(cell,c) = T0;
 	}

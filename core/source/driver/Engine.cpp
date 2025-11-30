@@ -41,7 +41,7 @@ export struct Engine : ComputeTool
 		} else {
 			logger::TRACE(std::format("create default entire"));
 			theRgn = std::make_shared<EntireRegion>("entire",space,task);
-			theRgn->Initialize(*space,task);
+			theRgn->Initialize();
 		}
 	}
 };

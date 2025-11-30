@@ -150,7 +150,7 @@ public:
 		return p;
 	}
 	virtual tw::Float GetValue(const tw::vec3& pos,const MetricSpace& ds) {
-		return theRgn->Inside(Boost(pos),ds) ? 1.0 : 0.0;
+		return theRgn->Inside(Boost(pos),0) ? 1.0 : 0.0;
 	}
 	bool TimeGate(tw::Float t,tw::Float *add) {
 		bool gateOpen = false;
@@ -298,7 +298,7 @@ UniformProfile::UniformProfile(const std::string& name,MetricSpace *m,Task *tsk)
 
 tw::Float UniformProfile::GetValue(const tw::vec3& pos,const MetricSpace& ds)
 {
-	return theRgn->Inside(Boost(pos),ds) ? gammaBoost*density : 0.0;
+	return theRgn->Inside(Boost(pos),0) ? gammaBoost*density : 0.0;
 }
 
 GaussianProfile::GaussianProfile(const std::string& name,MetricSpace *m,Task *tsk):Profile(name,m,tsk)
@@ -315,7 +315,7 @@ tw::Float GaussianProfile::GetValue(const tw::vec3& pos,const MetricSpace& ds)
 	dens *= std::exp(-sqr(p.x/beamSize.x));
 	dens *= std::exp(-sqr(p.y/beamSize.y));
 	dens *= std::exp(-sqr(p.z/beamSize.z));
-	return theRgn->Inside(b,ds) ? gammaBoost*dens : 0.0;
+	return theRgn->Inside(b,0) ? gammaBoost*dens : 0.0;
 }
 
 ChannelProfile::ChannelProfile(const std::string& name,MetricSpace *m,Task *tsk):Profile(name,m,tsk)
@@ -348,7 +348,7 @@ tw::Float ChannelProfile::GetValue(const tw::vec3& pos,const MetricSpace& ds)
 	dens = Interpolate(p.z,z,fz);
 	r2 = sqr(p.x) + sqr(p.y);
 	dens *= coeff[0] + coeff[1]*r2 + coeff[2]*r2*r2 + coeff[3]*r2*r2*r2;
-	return theRgn->Inside(b,ds) ? gammaBoost*dens : 0.0;
+	return theRgn->Inside(b,0) ? gammaBoost*dens : 0.0;
 }
 
 ColumnProfile::ColumnProfile(const std::string& name,MetricSpace *m,Task *tsk):Profile(name,m,tsk)
@@ -381,7 +381,7 @@ tw::Float ColumnProfile::GetValue(const tw::vec3& pos,const MetricSpace& ds)
 	dens = Interpolate(p.z,z,fz);
 	dens *= std::exp(-sqr(p.x/beamSize.x));
 	dens *= std::exp(-sqr(p.y/beamSize.y));
-	return theRgn->Inside(b,ds) ? gammaBoost*dens : 0.0;
+	return theRgn->Inside(b,0) ? gammaBoost*dens : 0.0;
 }
 
 PiecewiseProfile::PiecewiseProfile(const std::string& name,MetricSpace *m,Task *tsk) : Profile(name,m,tsk)
@@ -402,21 +402,21 @@ void PiecewiseProfile::Initialize()
 	{
 		x.resize(2);
 		fx.resize(2);
-		theRgn->GetBoxLim(&x[0],&x[1],1);
+		theRgn->GetInitialBounds(&x[0],&x[1],1);
 		fx.assign({1,1});
 	}
 	if (y.size()<2)
 	{
 		y.resize(2);
 		fy.resize(2);
-		theRgn->GetBoxLim(&y[0],&y[1],2);
+		theRgn->GetInitialBounds(&y[0],&y[1],2);
 		fy.assign({1,1});
 	}
 	if (z.size()<2)
 	{
 		z.resize(2);
 		fz.resize(2);
-		theRgn->GetBoxLim(&z[0],&z[1],3);
+		theRgn->GetInitialBounds(&z[0],&z[1],3);
 		fz.assign({1,1});
 	}
 }
@@ -486,7 +486,7 @@ tw::Float PiecewiseProfile::GetValue(const tw::vec3& pos,const MetricSpace& ds)
 	}
 
 	tw::Float dens = ansX*ansY*ansZ*sqr(std::cos(0.5*modeNumber.x*p.x)*std::cos(0.5*modeNumber.y*p.y)*std::cos(0.5*modeNumber.z*p.z));
-	return theRgn->Inside(b,ds) ? gammaBoost*dens : 0.0;
+	return theRgn->Inside(b,0) ? gammaBoost*dens : 0.0;
 }
 
 CorrugatedProfile::CorrugatedProfile(const std::string& name,MetricSpace *m,Task *tsk) : Profile(name,m,tsk)
@@ -514,6 +514,6 @@ tw::Float CorrugatedProfile::GetValue(const tw::vec3& pos,const MetricSpace& ds)
 	kHat = w0 + km - 0.5*w0*(sqr(wp0/w0) + 8.0/sqr(w0*rchannel));
 	wp1s = 2.0*w0*kHat - 2.0*std::sqrt(sqr(gamma0+a0Hat*w0*z)/(sqr(gamma0+a0Hat*w0*z)-1.0))*w0*w0;
 	dens = wp0*wp0*(1.0 + delta*std::sin(km*z)) + wp1s + 4.0*r2/std::pow(rchannel,tw::Float(4.0));
-	return theRgn->Inside(b,ds) ? gammaBoost*dens : 0.0;
+	return theRgn->Inside(b,0) ? gammaBoost*dens : 0.0;
 }
 

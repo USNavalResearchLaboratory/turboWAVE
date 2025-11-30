@@ -639,7 +639,7 @@ void Simulation::ReadCheckpoint(std::ifstream& inFile)
 	if (task->gaussianDeviate!=NULL)
 		task->gaussianDeviate->ReadCheckpoint(inFile);
 
-	// TODO: need to reed a more tree-like structure, whereas before we could rely on flat lists.
+	// TODO: need to read a more tree-like structure, whereas before we could rely on flat lists.
 	// We probably need to forbid checkpointing anything in a shared tool.
 }
 

@@ -296,6 +296,7 @@ void npy_writer::set_frame(const std::string& name,const float *gData,tw::Int sh
 void npy_writer::add_frame(const std::string& name,const float *gData,tw::Int shape[4])
 {
 	std::fstream outFile;
+	logger::DEBUG(std::format("{} += {}x{}x{} frame",name,shape[1],shape[2],shape[3]));
 	outFile.open(name.c_str(),std::ios::binary | std::ios::out | std::ios::app);
 	assert(sizeof(float)==sizeof(uint32_t));
 	WriteLittleEndian((uint32_t*)gData,shape[1]*shape[2]*shape[3],outFile);
@@ -452,7 +453,7 @@ BoxDiagnostic::BoxDiagnostic(const std::string& name,MetricSpace *ms,Task *tsk) 
 /// @param glb receives the index bounds of the global data
 void BoxDiagnostic::GetGlobalIndexing(const DynSpace& F,tw::Int pts[4],tw::Int glb[6])
 {
-	theRgn->GetGlobalCellBounds(glb,*space,task);
+	theRgn->GetGlobalCellBounds(glb);
 
 	for (tw::Int ax=1;ax<=3;ax++)
 	{
@@ -717,7 +718,7 @@ void ParticleOrbits::ReportParticle(const Particle& par,tw::Float m0)
 	tw::vec3 x3 = x.spatial();
 	uint64_t node = par.tag & 0xffffffff;
 	uint64_t id = par.tag >> 32;
-	if (!theRgn->Inside(x3,*space))
+	if (!theRgn->Inside(x3,0))
 		return;
 	if (p[0] < m0*minGamma)
 		return;
@@ -874,7 +875,7 @@ void PhaseSpaceDiagnostic::ReportParticle(const Particle& par,tw::Float m0)
 	v.zBoost(gammaBoost,1.0);
 	const tw::Float dV = (bounds[1]-bounds[0])*(bounds[3]-bounds[2])*(bounds[5]-bounds[4])/(dims[1]*dims[2]*dims[3]);
 	tw::vec3 x3 = x.spatial();
-	if (theRgn->Inside(x3,*space))
+	if (theRgn->Inside(x3,0))
 	{
 		space->CurvilinearToCartesian(&x3);
 		x3 -= vGalileo*x[0];

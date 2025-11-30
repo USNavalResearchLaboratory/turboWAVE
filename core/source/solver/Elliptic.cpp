@@ -126,7 +126,7 @@ void EllipticSolver::FixPotential(ScalarField& phi,SharedRegion theRegion,const 
 	#pragma omp parallel
 	{
 		for (auto cell : EntireCellRange(*space,1))
-			if (theRegion->Inside(space->Pos(cell),*space))
+			if (theRegion->Inside(space->Pos(cell),0))
 				phi(cell) = thePotential;
 	}
 }
@@ -316,7 +316,7 @@ void IterativePoissonSolver::FixPotential(ScalarField& phi,SharedRegion theRegio
 		{
 			cell.Decode(&i,&j,&k);
 			n = (i-1) + (j-1)*space->Dim(1) + (k-1)*space->Dim(1)*space->Dim(2);
-			if (theRegion->Inside(space->Pos(cell),*space))
+			if (theRegion->Inside(space->Pos(cell),0))
 			{
 				mask1[n] = 0;
 				mask2[n] = 0;

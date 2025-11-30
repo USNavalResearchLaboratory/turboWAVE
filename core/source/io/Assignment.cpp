@@ -13,7 +13,7 @@ export namespace tw
 {
 	namespace input
 	{
-		/// @brief Assignment is a key element in automatic parsing if modules and tools.
+		/// @brief Assignment is a key element in automatic parsing of modules and tools.
         /// By adding assignments to a `DirectiveReader` various data forms can be parsed and error checked for free.
         /// Internally this works via a hash table fo input file keys mapped to `Assignment` instances.
         struct Assignment

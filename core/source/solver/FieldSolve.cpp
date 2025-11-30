@@ -333,7 +333,7 @@ void Electromagnetic::InitializeConductors()
 		conductorMask(cell) = 1.0;
 		shiftedCenter = space->Pos(cell) - 0.5*space->dPos(cell);
 		for (auto c : conductors)
-			if (c->affectsA && c->theRgn->Inside(shiftedCenter,*space))
+			if (c->affectsA && c->theRgn->Inside(shiftedCenter,0))
 				conductorMask(cell) = 0.0;
 	}
 }

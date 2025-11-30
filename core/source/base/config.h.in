@@ -8,4 +8,4 @@
 
 //#define ENABLE_BOUNDS_CHECKING
 
-//#define USE_STD_MODULE
+#define USE_STD_MODULE

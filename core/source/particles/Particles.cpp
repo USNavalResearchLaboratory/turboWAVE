@@ -622,7 +622,7 @@ tw::Float Kinetics::KineticEnergy(const Region& theRgn)
 	{
 		const tw::Float m0 = sp->restMass;
 		for (auto par : sp->particle)
-			if (theRgn.Inside(space->PositionFromPrimitive(par.q).spatial(),*space))
+			if (theRgn.Inside(space->PositionFromPrimitive(par.q).spatial(),0))
 				ans += par.number * (par.p[0] - m0);
 	}
 	return ans;
@@ -1455,7 +1455,7 @@ tw::Float Species::KineticEnergy(const Region& theRgn)
 	tw::Float ans = 0.0;
 	const tw::Float m0 = restMass;
 	for (auto par : particle)
-		if (theRgn.Inside(space->PositionFromPrimitive(par.q).spatial(),*space))
+		if (theRgn.Inside(space->PositionFromPrimitive(par.q).spatial(),0))
 			ans += par.number * (par.p[0] - m0);
 	return ans;
 }
@@ -1464,7 +1464,7 @@ tw::Float Species::ParticleNumber(const Region& theRgn)
 {
 	tw::Float ans = 0.0;
 	for (auto par : particle)
-		if (theRgn.Inside(space->PositionFromPrimitive(par.q).spatial(),*space))
+		if (theRgn.Inside(space->PositionFromPrimitive(par.q).spatial(),0))
 			ans += par.number;
 	return ans;
 }

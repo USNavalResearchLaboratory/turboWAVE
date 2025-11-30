@@ -705,13 +705,13 @@ void Conductor::DepositSources(Field& sources,tw::Float t,tw::Float dt)
 {
 	tw::Int loc[6];
 	const MetricSpace& m = *space;
-	theRgn->GetLocalCellBounds(loc,m);
+	theRgn->GetLocalCellBounds(loc);
 	for (tw::Int i=loc[0];i<=loc[1];i++)
 		for (tw::Int j=loc[2];j<=loc[3];j++)
 			for (tw::Int k=loc[4];k<=loc[5];k++)
 			{
 				const tw::vec3 pos = m.Pos(i,j,k);
-				if (theRgn->Inside(pos,m))
+				if (theRgn->Inside(pos,0))
 				{
 					const tw::Float dV = m.dS(i,j,k,0);
 					// To conserve charge we have to center arc lengths in arc direction

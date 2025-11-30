@@ -12,7 +12,7 @@ void Fluid::AdvectionTest()
 {
     auto bkg = std::make_shared<UniformProfile>("hello",space,task);
     bkg->theRgn = std::make_shared<EntireRegion>("entire",space,task);
-    bkg->theRgn->Initialize(*space,task);
+    bkg->theRgn->Initialize();
     bkg->temperature = .01;
     bkg->density = .01;
     bkg->Initialize();
@@ -50,7 +50,7 @@ void Fluid::ConservationTest()
 {
     auto bkg = std::make_shared<UniformProfile>("hello",space,task);
     bkg->theRgn = std::make_shared<EntireRegion>("entire",space,task);
-    bkg->theRgn->Initialize(*space,task);
+    bkg->theRgn->Initialize();
     bkg->temperature = .01;
     bkg->density = .01;
     bkg->Initialize();
