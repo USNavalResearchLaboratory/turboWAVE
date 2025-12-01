@@ -12,20 +12,17 @@ cmake_minimum_required(VERSION 4.0.3)
 # This is fixed using an environment variable, e.g.:
 # export LD_LIBRARY_PATH=$HOMEBREW_PREFIX/opt/llvm/lib/x86_64-unknown-linux-gnu
 #
-# About `import std`
+# Standard Library
 #
-# To tell TW to use the `std` module instead of includes, define USE_STD_MODULE in base/config.h.in.
-# As of this writing CMake is not very much help in finding/generating the PCM.
-# To get it working manually:
-# Compile the CPPM, for Apple/Homebrew it is at $HOMEBREW_PREFIX/opt/llvm/share/libc++/v1/.
-# The compile option must be consistent with the rest of the project.
-#    example: clang++ -std=gnu++23 -stdlib=libc++ -arch arm64 -fopenmp=libomp -Wno-reserved-module-identifier --precompile -o std.pcm std.cppm
-# Once we have the PCM we point to it by adding to CMakeLists the line:
-#    target_compile_options(tw3d PRIVATE -fmodule-file=std=/full/path/to/std.pcm)
-# It is hoped someday CMake will take care of all that.  As part of this hope, compilers
-# provide libc++.modules.json to help the build system automate things.
-# But it can happen that this file itself cannot be located.  So Kitware provided
-# CMAKE_CXX_STDLIB_MODULES_JSON as a way for users to point to this explicitly.
+# We are compiling the standard library as a user module as a workaround for the fact
+# that the build system is not yet able to handle `import std`.  This leads to warnings
+# since the compiler thinks we are doing unusual things with a user module.
+# It is possible to revert to includes by editing `config.h.in` and a few lines here.
+
+# Uncomment exactly one of the following
+set(TW_COMPILER clang)
+# set(TW_COMPILER gcc)
+# set(TW_COMPILER msvc)
 
 if(WIN32)
     # Windows requires installing some things with winget:
@@ -34,11 +31,14 @@ if(WIN32)
     # winget install Microsoft.msmpisdk
     # winget install Microsoft.msmpi
     # winget install Ninja-build.Ninja
-    # set(CMAKE_CXX_STDLIB_MODULES_JSON "$ENV{ProgramFiles}/Microsoft Visual Studio/18/Community/VC/Tools/MSVC/14.50/35717/modules/modules.json")
-    set(CMAKE_CXX_COMPILER "$ENV{ProgramFiles}/llvm/bin/clang++.exe")
-    set(CMAKE_C_COMPILER "$ENV{ProgramFiles}/llvm/bin/clang.exe")
-    set(CMAKE_SYSTEM_LIBRARY_PATH "$ENV{ProgramFiles}/LLVM/lib")
-    set(CMAKE_SYSTEM_INCLUDE_PATH "$ENV{ProgramFiles}/LLVM/include")
+    if(TW_COMPILER STREQUAL clang)
+        set(CMAKE_CXX_COMPILER "$ENV{ProgramFiles}/llvm/bin/clang++.exe")
+        set(CMAKE_C_COMPILER "$ENV{ProgramFiles}/llvm/bin/clang.exe")
+        set(CMAKE_SYSTEM_LIBRARY_PATH "$ENV{ProgramFiles}/LLVM/lib")
+        set(CMAKE_SYSTEM_INCLUDE_PATH "$ENV{ProgramFiles}/LLVM/include")
+    endif()
+    set(TW_STD_MODULE_PATH "C:/Program Files/Microsoft Visual Studio/18/Community/VC/Tools/MSVC/14.50.35717/modules")
+    set(TW_STD_MODULE_FILE "std.ixx")
 elseif(APPLE)
     # Apple requires installing some things with homebrew:
     # brew install llvm
@@ -46,45 +46,58 @@ elseif(APPLE)
     # brew install libomp (maybe packed with llvm)
     # brew install open-mpi (or substitute favorite MPI)
     # brew install ninja
-    # set(CMAKE_CXX_STDLIB_MODULES_JSON "$ENV{HOMEBREW_PREFIX}/Cellar/llvm/21.1.6/lib/c++/libc++.modules.json")
-	set(CMAKE_CXX_COMPILER "$ENV{HOMEBREW_PREFIX}/opt/llvm/bin/clang++")
-	set(CMAKE_C_COMPILER "$ENV{HOMEBREW_PREFIX}/opt/llvm/bin/clang")
-	# set(CMAKE_SYSTEM_LIBRARY_PATH "$ENV{HOMEBREW_PREFIX}/opt/llvm/lib")
-	# set(CMAKE_SYSTEM_INCLUDE_PATH "$ENV{HOMEBREW_PREFIX}/opt/llvm/include")
-	# set(CMAKE_CXX_COMPILER "$ENV{HOMEBREW_PREFIX}/opt/gcc/bin/g++-15")
-	# set(CMAKE_C_COMPILER "$ENV{HOMEBREW_PREFIX}/opt/gcc/bin/gcc-15")
-	# set(CMAKE_SYSTEM_LIBRARY_PATH "$ENV{HOMEBREW_PREFIX}/opt/gcc/lib")
-	# set(CMAKE_SYSTEM_INCLUDE_PATH "$ENV{HOMEBREW_PREFIX}/opt/gcc/include")
-    # For Apple we may be forced to use libc++
-    # set(CMAKE_CXX_FLAGS "-stdlib=libstdc++")
-    set(CMAKE_CXX_FLAGS "-stdlib=libc++")
-    # It seems that libstdc++ handles c++17 special functions correctly and libc++ does not.
-    # So if we are using libc++ we have to use our own wrappers.
-    add_definitions(-DUSE_TWSF)
+    if(TW_COMPILER STREQUAL clang)
+    	set(CMAKE_CXX_COMPILER "$ENV{HOMEBREW_PREFIX}/opt/llvm/bin/clang++")
+	    set(CMAKE_C_COMPILER "$ENV{HOMEBREW_PREFIX}/opt/llvm/bin/clang")
+        set(CMAKE_CXX_FLAGS "-stdlib=libc++")
+        # It seems that libstdc++ handles c++17 special functions correctly and libc++ does not.
+        # So if we are using libc++ we have to use our own wrappers, and incur some limitations.
+        add_definitions(-DUSE_TWSF)
+        set(TW_STD_MODULE_PATH "$ENV{HOMEBREW_PREFIX}/opt/llvm/share/libc++/v1")
+        set(TW_STD_MODULE_FILE "std.cppm")
+    endif()
+    if(TW_COMPILER STREQUAL gcc)
+	    set(CMAKE_CXX_COMPILER "$ENV{HOMEBREW_PREFIX}/opt/gcc/bin/g++-15")
+	    set(CMAKE_C_COMPILER "$ENV{HOMEBREW_PREFIX}/opt/gcc/bin/gcc-15")
+        set(TW_STD_MODULE_PATH "$ENV{HOMEBREW_PREFIX}/include/c++/15/bits")
+        set(TW_STD_MODULE_FILE "std.cc")
+    endif()
 elseif(UNIX)
     # Ubuntu requires the following installations:
     #   maybe `ln -s /var/lib/snapd/snap snap`
     #   install snapd and homebrew
     #   snap install cmake --classic
     #   apt install ninja-build
-    #   apt install gcc-14
-    #   apt install libstdc++-14-dev
     #   apt install libopenmpi-dev
-    #   brew install llvm
-    # Fedora requires the following installations:
+    #   apt install libc++-20-dev
+    #   brew install llvm (>=21)
+    #   brew install gcc (>=15)
+    # Fedora 43 requires the following installations:
     #   maybe `ln -s /var/lib/snapd/snap snap`
     #   install snapd and homebrew
     #   snap install cmake --classic
     #   dnf install ninja-build
-    #   dnf install gcc
-    #   dnf install g++
     #   dnf install openmpi-devel
-    #   brew install llvm
-    #   module load mpi
-	set(CMAKE_CXX_COMPILER "$ENV{HOMEBREW_PREFIX}/opt/llvm/bin/clang++")
-	set(CMAKE_C_COMPILER "$ENV{HOMEBREW_PREFIX}/opt/llvm/bin/clang")
-	# set(CMAKE_SYSTEM_LIBRARY_PATH "$ENV{HOMEBREW_PREFIX}/opt/llvm/lib")
-	# set(CMAKE_SYSTEM_INCLUDE_PATH "$ENV{HOMEBREW_PREFIX}/opt/llvm/include")
+    #   dnf install libcxx-devel
+    #   brew install llvm (>=21)
+    #   brew install gcc (>=15)
+    #   module load mpi (issue with every new shell!)
+    if(TW_COMPILER STREQUAL clang)
+   	    set(CMAKE_CXX_COMPILER "$ENV{HOMEBREW_PREFIX}/opt/llvm/bin/clang++")
+	    set(CMAKE_C_COMPILER "$ENV{HOMEBREW_PREFIX}/opt/llvm/bin/clang")
+        set(CMAKE_CXX_FLAGS "-stdlib=libc++")
+        # It seems that libstdc++ handles c++17 special functions correctly and libc++ does not.
+        # So if we are using libc++ we have to use our own wrappers, and incur some limitations.
+        add_definitions(-DUSE_TWSF)
+        set(TW_STD_MODULE_PATH "$ENV{HOMEBREW_PREFIX}/opt/llvm/share/libc++/v1")
+        set(TW_STD_MODULE_FILE "std.cppm")
+    endif()
+    if(TW_COMPILER STREQUAL gcc)
+	    set(CMAKE_CXX_COMPILER "$ENV{HOMEBREW_PREFIX}/opt/gcc/bin/g++-15")
+	    set(CMAKE_C_COMPILER "$ENV{HOMEBREW_PREFIX}/opt/gcc/bin/gcc-15")
+        set(TW_STD_MODULE_PATH "$ENV{HOMEBREW_PREFIX}/include/c++/15/bits")
+        set(TW_STD_MODULE_FILE "std.cc")
+    endif()
 endif()
 
 set(CMAKE_CXX_STANDARD 23)
@@ -135,8 +148,9 @@ target_sources(tw3d PUBLIC
 # Module interfaces go here
 target_sources(tw3d PUBLIC
     FILE_SET CXX_MODULES
-    BASE_DIRS main base driver io particles fields solver sparc test
+    BASE_DIRS main base driver io particles fields solver sparc test ${TW_STD_MODULE_PATH}
     FILES
+        ${TW_STD_MODULE_PATH}/${TW_STD_MODULE_FILE}
         main/Simulation.cpp
         main/Factory.cpp
         base/base.cpp
@@ -201,10 +215,6 @@ target_sources(tw3d PUBLIC
 
 if (MSVC)
     target_compile_options(tw3d PUBLIC -openmp:experimental -openmp:llvm)
-endif()
-
-if (APPLE)
-    target_compile_options(tw3d PRIVATE -fmodule-file=std=/opt/homebrew/opt/llvm/share/libc++/v1/std.pcm)
 endif()
 
 target_include_directories(tw3d PUBLIC

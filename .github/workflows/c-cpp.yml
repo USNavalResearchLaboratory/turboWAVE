@@ -15,10 +15,9 @@ jobs:
     - uses: actions/checkout@v4
     - name: Set up CMake
       uses: lukka/get-cmake@latest
-    - name: Install GCC 14
+    - name: Install libc++
       run: |
-        sudo apt install gcc-14
-        sudo apt install libstdc++-14-dev
+        sudo apt install libc++-20-dev
     - name: Install OpenMPI
       run: sudo apt install libopenmpi-dev
     - name: Install Homebrew LLVM
