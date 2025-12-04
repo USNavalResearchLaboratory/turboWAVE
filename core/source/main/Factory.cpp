@@ -1,6 +1,7 @@
 module;
 
 #include "tw_includes.h"
+#include "tw_logger.h"
 
 export module factory;
 import base;
@@ -27,6 +28,7 @@ import input;
 import metric_space_test;
 import iterator_test;
 import fft_test;
+import logger;
 
 export namespace factory {
 
@@ -59,15 +61,13 @@ bool VerifyKey(const std::string& raw_key,std::string& similar_keys)
 	}
 }
 
-SharedTool CreateToolFromType(const std::string& name,tw::tool_type theType,MetricSpace *ms,Task *tsk)
-{
+SharedTool SharedBaseToolFromType(const std::string& name,tw::tool_type theType,MetricSpace *ms,Task *tsk) {
 	SharedTool ans;
 	switch (theType)
 	{
 		case tw::tool_type::warp:
 			ans = std::make_shared<Warp>(name,ms,tsk);
 			break;
-
 		case tw::tool_type::entireRegion:
 			ans = std::make_shared<EntireRegion>(name,ms,tsk);
 			break;
@@ -107,10 +107,6 @@ SharedTool CreateToolFromType(const std::string& name,tw::tool_type theType,Metr
 		case tw::tool_type::tangentOgiveRegion:
 			ans = std::make_shared<TangentOgiveRegion>(name,ms,tsk);
 			break;
-
-		case tw::tool_type::conductor:
-			ans = std::make_shared<Conductor>(name,ms,tsk);
-			break;
 		case tw::tool_type::planeWave:
 			ans = std::make_shared<PlaneWave>(name,ms,tsk);
 			break;
@@ -128,24 +124,6 @@ SharedTool CreateToolFromType(const std::string& name,tw::tool_type theType,Metr
 			break;
 		case tw::tool_type::multipole:
 			ans = std::make_shared<Multipole>(name,ms,tsk);
-			break;
-		case tw::tool_type::uniformProfile:
-			ans = std::make_shared<UniformProfile>(name,ms,tsk);
-			break;
-		case tw::tool_type::piecewiseProfile:
-			ans = std::make_shared<PiecewiseProfile>(name,ms,tsk);
-			break;
-		case tw::tool_type::channelProfile:
-			ans = std::make_shared<ChannelProfile>(name,ms,tsk);
-			break;
-		case tw::tool_type::columnProfile:
-			ans = std::make_shared<ColumnProfile>(name,ms,tsk);
-			break;
-		case tw::tool_type::gaussianProfile:
-			ans = std::make_shared<GaussianProfile>(name,ms,tsk);
-			break;
-		case tw::tool_type::corrugatedProfile:
-			ans = std::make_shared<CorrugatedProfile>(name,ms,tsk);
 			break;
 		case tw::tool_type::eigenmodePropagator:
 			ans = std::make_shared<EigenmodePropagator>(name,ms,tsk);
@@ -222,21 +200,6 @@ SharedTool CreateToolFromType(const std::string& name,tw::tool_type theType,Metr
 		case tw::tool_type::pmpb:
 			ans = std::make_shared<PMPB>(name,ms,tsk);
 			break;
-		case tw::tool_type::boxDiagnostic:
-			ans = std::make_shared<BoxDiagnostic>(name,ms,tsk);
-			break;
-		case tw::tool_type::pointDiagnostic:
-			ans = std::make_shared<PointDiagnostic>(name,ms,tsk);
-			break;
-		case tw::tool_type::volumeDiagnostic:
-			ans = std::make_shared<VolumeDiagnostic>(name,ms,tsk);
-			break;
-		case tw::tool_type::particleOrbits:
-			ans = std::make_shared<ParticleOrbits>(name,ms,tsk);
-			break;
-		case tw::tool_type::phaseSpaceDiagnostic:
-			ans = std::make_shared<PhaseSpaceDiagnostic>(name,ms,tsk);
-			break;
 		case tw::tool_type::boundState:
 			ans = std::make_shared<BoundState>(name,ms,tsk);
 			break;
@@ -288,6 +251,159 @@ SharedTool CreateToolFromType(const std::string& name,tw::tool_type theType,Metr
 	return ans;
 }
 
+SharedTool SharedEngineFromType(const std::string& name,tw::tool_type theType,MetricSpace *ms,Task *tsk) {
+	SharedTool ans;
+	switch (theType)
+	{
+		case tw::tool_type::conductor:
+			ans = std::make_shared<Conductor>(name,ms,tsk);
+			break;
+		case tw::tool_type::uniformProfile:
+			ans = std::make_shared<UniformProfile>(name,ms,tsk);
+			break;
+		case tw::tool_type::piecewiseProfile:
+			ans = std::make_shared<PiecewiseProfile>(name,ms,tsk);
+			break;
+		case tw::tool_type::channelProfile:
+			ans = std::make_shared<ChannelProfile>(name,ms,tsk);
+			break;
+		case tw::tool_type::columnProfile:
+			ans = std::make_shared<ColumnProfile>(name,ms,tsk);
+			break;
+		case tw::tool_type::gaussianProfile:
+			ans = std::make_shared<GaussianProfile>(name,ms,tsk);
+			break;
+		case tw::tool_type::corrugatedProfile:
+			ans = std::make_shared<CorrugatedProfile>(name,ms,tsk);
+			break;
+		case tw::tool_type::boxDiagnostic:
+			ans = std::make_shared<BoxDiagnostic>(name,ms,tsk);
+			break;
+		case tw::tool_type::pointDiagnostic:
+			ans = std::make_shared<PointDiagnostic>(name,ms,tsk);
+			break;
+		case tw::tool_type::volumeDiagnostic:
+			ans = std::make_shared<VolumeDiagnostic>(name,ms,tsk);
+			break;
+		case tw::tool_type::particleOrbits:
+			ans = std::make_shared<ParticleOrbits>(name,ms,tsk);
+			break;
+		case tw::tool_type::phaseSpaceDiagnostic:
+			ans = std::make_shared<PhaseSpaceDiagnostic>(name,ms,tsk);
+			break;
+		default:
+			throw tw::FactoryError("unknown engine type");
+	}
+	return ans;
+}
+
+/// Create a driver as a SharedTool, only used for testing.
+SharedTool SharedDriverFromType(const std::string& name,tw::tool_type theType,MetricSpace *ms,Task *tsk)
+{
+	SharedTool ans;
+	switch (theType)
+	{
+		case tw::tool_type::curvilinearDirectSolver:
+			ans = std::make_shared<CurvilinearDirectSolver>(name,ms,tsk);
+			break;
+		case tw::tool_type::electrostatic:
+			ans = std::make_shared<Electrostatic>(name,ms,tsk);
+			break;
+		case tw::tool_type::coulombSolver:
+			ans = std::make_shared<CoulombSolver>(name,ms,tsk);
+			break;
+		case tw::tool_type::directSolver:
+			ans = std::make_shared<DirectSolver>(name,ms,tsk);
+			break;
+		case tw::tool_type::farFieldDiagnostic:
+			ans = std::make_shared<FarFieldDiagnostic>(name,ms,tsk);
+			break;
+		case tw::tool_type::qsLaser:
+			ans = std::make_shared<QSSolver>(name,ms,tsk);
+			break;
+		case tw::tool_type::pgcLaser:
+			ans = std::make_shared<PGCSolver>(name,ms,tsk);
+			break;
+		case tw::tool_type::boundElectrons:
+			ans = std::make_shared<BoundElectrons>(name,ms,tsk);
+			break;
+		case tw::tool_type::fluidFields:
+			ans = std::make_shared<Fluid>(name,ms,tsk);
+			break;
+		case tw::tool_type::equilibriumGroup:
+			ans = std::make_shared<EquilibriumGroup>(name,ms,tsk);
+			break;
+		case tw::tool_type::chemical:
+			ans = std::make_shared<Chemical>(name,ms,tsk);
+			break;
+		case tw::tool_type::sparcHydroManager:
+			ans = std::make_shared<sparc::HydroManager>(name,ms,tsk);
+			break;
+		case tw::tool_type::species:
+			ans = std::make_shared<Species>(name,ms,tsk);
+			break;
+		case tw::tool_type::kinetics:
+			ans = std::make_shared<Kinetics>(name,ms,tsk);
+			break;
+		case tw::tool_type::schroedinger:
+			ans = std::make_shared<Schroedinger>(name,ms,tsk);
+			break;
+		case tw::tool_type::pauli:
+			ans = std::make_shared<Pauli>(name,ms,tsk);
+			break;
+		case tw::tool_type::kleinGordon:
+			ans = std::make_shared<KleinGordon>(name,ms,tsk);
+			break;
+		case tw::tool_type::dirac:
+			ans = std::make_shared<Dirac>(name,ms,tsk);
+			break;
+		case tw::tool_type::populationDiagnostic:
+			ans = std::make_shared<PopulationDiagnostic>(name,ms,tsk);
+			break;
+		default:
+			throw tw::FactoryError("unknown driver type");
+	}
+	return ans;
+}
+
+SharedTool SharedToolOrEngineFromType(const std::string& name,tw::tool_type theType,MetricSpace *ms,Task *tsk)
+{
+	try {
+		return SharedBaseToolFromType(name,theType,ms,tsk);
+	} catch (tw::FactoryError) {
+		logger::TRACE("base tool not found, trying engines...");
+	}
+	try {
+		return SharedEngineFromType(name,theType,ms,tsk);
+	} catch (tw::FactoryError) {
+		logger::TRACE("engine not found.");
+	}
+	throw tw::FactoryError("unknown type");
+}
+
+/// Create any descendant of ComputeTool as a SharedTool.
+/// Normally not used on Drivers, testing is an exception.
+SharedTool SharedAnyFromType(const std::string& name,tw::tool_type theType,MetricSpace *ms,Task *tsk)
+{
+	try {
+		return SharedBaseToolFromType(name,theType,ms,tsk);
+	} catch (tw::FactoryError) {
+		logger::TRACE("base tool not found, trying engines...");
+	}
+	try {
+		return SharedEngineFromType(name,theType,ms,tsk);
+	} catch (tw::FactoryError) {
+		logger::TRACE("engine not found, trying drivers...");
+	}
+	try {
+		return SharedDriverFromType(name,theType,ms,tsk);
+	} catch (tw::FactoryError) {
+		logger::TRACE("driver not found.");
+	}
+	throw tw::FactoryError("unknown type");
+}
+
+/// Create driver as an ordinary pointer, this is the normal pattern.
 Driver* CreateDriverFromType(const std::string& name,tw::tool_type theType,MetricSpace *ms,Task *tsk)
 {
 	Driver *ans;

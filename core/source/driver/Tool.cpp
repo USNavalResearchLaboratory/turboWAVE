@@ -114,7 +114,7 @@ export struct ComputeTool : Testable
 	static bool SetTestEnvironment(tw::tool_type theType,tw::Int enviro,MetricSpace *ms,Task *tsk,tw::Float unitDensityCGS);
 };
 
-export typedef std::shared_ptr<ComputeTool> SharedTool;
+export using SharedTool = std::shared_ptr<ComputeTool>;
 
 ComputeTool::ComputeTool(const std::string& name,MetricSpace *ms,Task *tsk)
 {

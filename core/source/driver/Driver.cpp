@@ -1,8 +1,5 @@
 module;
 
-#ifndef USE_STD_MODULE
-#include <ranges>
-#endif
 #include <tree_sitter/api.h>
 #include "tw_includes.h"
 #include "tw_logger.h"
@@ -165,6 +162,25 @@ export struct Driver:StaticSpace,Engine
 			root->tools.push_back(tool);
 		}
 	}
+	/// @brief recursively add a tool to this driver and all sub-drivers
+	void RecursivelyAddTool(const SharedTool& tool) {
+		this->tools.push_back(tool);
+		for (auto sub : sub_drivers) {
+			sub->RecursivelyAddTool(tool);
+		}
+	}
+	/// @brief recursively report to diagnostic
+	void RecursivelyReport(const std::shared_ptr<Diagnostic>& diagnostic) {
+		for (auto maybe_diag : tools) {
+			if (maybe_diag==diagnostic) {
+				logger::TRACE(std::format("{} is reporting",name));
+				Report(*diagnostic);
+			}
+		}
+		for (auto sd : sub_drivers) {
+			sd->RecursivelyReport(diagnostic);
+		}
+	}
 	/// @brief add sub-driver to this driver
 	void AddDriver(Driver *driver) {
 		sub_drivers.push_back(driver);
@@ -202,22 +218,22 @@ export struct Driver:StaticSpace,Engine
 		for (auto i=0; i< currLevel*2; i++) {
 			indentation += " ";
 		}
-		*theStream << indentation << "Tools:" << std::endl;
+		if (currLevel==0) {
+			*theStream << "Root Simulation" << std::endl;
+		}
+		if (tools.size() > 0) {
+			*theStream << indentation << "  ---Tools---" << std::endl;
+		}
 		for (auto i=0; i<tools.size(); i++) {
 			*theStream << indentation << "  " << i+1 << ". " << tools[i]->name << std::endl;			
 		}
-		// for (auto const& [i,t] : std::views::enumerate(tools)) {
-		// 	*theStream << indentation << "  " << i+1 << ". " << t->name << std::endl;
-		// }
-		*theStream << indentation << "Drivers:" << std::endl;
+		if (sub_drivers.size() > 0) {
+			*theStream << indentation << "  ---Drivers---" << std::endl;
+		}
 		for (auto i=0; i<sub_drivers.size(); i++) {
 			*theStream << indentation << "  " << i+1 << ". " << sub_drivers[i]->name << std::endl;
 			sub_drivers[i]->RecursiveTreeDisplay(theStream,currLevel+1,maxLevel);
 		}
-		// for (auto const& [i,d] : std::views::enumerate(sub_drivers)) {
-		// 	*theStream << indentation << "  " << i+1 << ". " << d->name << std::endl;
-		// 	d->RecursiveTreeDisplay(theStream,currLevel+1,maxLevel);
-		// }
 	}
 	static bool SingularType(tw::tool_type theType) {
 		return theType==tw::tool_type::kinetics || theType==tw::tool_type::sparcHydroManager;

@@ -258,13 +258,8 @@ void Simulation::Test()
 	success_count = 0;
 	failure_count = 0;
 	
-	std::println(std::cout,"\nTest Compute Tools");
-
 	for (auto [tool_key,theType] : ComputeTool::Map())
 	{
-		if (tw::IsDriver(theType)) {
-			continue;
-		}
 		if (task->unitTest==tool_key || task->unitTest=="--all")
 		{
 			std::println(std::cout,"\ntesting {}{}{}{}",term::bold,term::cyan,tool_key,term::reset_all);
@@ -274,7 +269,7 @@ void Simulation::Test()
 				auto gridStr = std::format("    {}x{}x{} grid",space->GlobalDim(1),space->GlobalDim(2),space->GlobalDim(3));
 				for (auto id=0; ; id++) {
 					try {
-						auto tool = CreateTool("test_tool",theType);
+						auto tool = factory::SharedAnyFromType("test_tool",theType,space,task);
 						tool->RegisterTests();
 						if (id >= tool->tests.size() || id > 100) {
 							break;
@@ -309,63 +304,6 @@ void Simulation::Test()
 			}
 		} else {
 			logger::INFO(std::format("skip test of tool {}",tool_key));
-		}
-	}
-
-	std::println(std::cout,"\nTest Modules");
-
-	for (auto [mod_key,theType] : ComputeTool::Map())
-	{
-		if (!tw::IsDriver(theType)) {
-			continue;
-		}
-		if (task->unitTest==mod_key || task->unitTest=="--all")
-		{
-			std::println(std::cout,"\ntesting {}{}{}{}",term::bold,term::cyan,mod_key,term::reset_all);
-			tw::Int enviro = 1;
-			while (Driver::SetTestEnvironment(theType,enviro,space,task,testUnitDensityCGS))
-			{
-				auto gridStr = std::format("    {}x{}x{} grid",space->GlobalDim(1),space->GlobalDim(2),space->GlobalDim(3));
-				for (auto id = 0; ; id++) {
-					try {
-	 					auto driver = factory::CreateDriverFromType("test_module",theType,space,task);
-						driver->RegisterTests();
-						if (id >= driver->tests.size() || id > 100) {
-							delete driver;
-							break;
-						}
-						logger::DEBUG(std::format("begin test case {}",id));
-						failed = 0;
-						try {
-							driver->tests[id](*driver);
-							logger::TRACE("test succeeded");
-							success_count++;
-							std::println(test_out,"{}    {} {}{}{}",gridStr,term::ok,term::green,driver->test_names[id],term::reset_all);
-						} catch(tw::FatalError& e) {
-							failed = 1;
-							std::println(test_out,"{}    {} {}{}{}",gridStr,term::err,term::red,driver->test_names[id],term::reset_all);
-							std::println(test_report,"{}. {}: environment {}",++failure_count,mod_key,enviro);
-							std::println(test_report,"{}",e.what());
-						}
-						logger::TRACE("begin MPI sum of failures");
-						task->strip[0].AllSum(&failed,&failed,sizeof(tw::Float),0);
-						logger::TRACE("end MPI sum of failures");
-						delete driver;
-					} catch (tw::FatalError& e) {
-						std::println(test_out,"    {}driver rejected the environment{}",term::yellow,term::reset_all);
-					}
-					logger::DEBUG(std::format("finish test case {}",id));
-				}
-				logger::TRACE("wait at MPI barrier");
-				MPI_Barrier(MPI_COMM_WORLD);
-				logger::TRACE("continue from MPI barrier");
-				std::print(std::cout,"{}",test_out.str());
-				test_out.str("");
-				test_out.clear();
-				enviro++;
-			}
-		} else {
-			logger::INFO(std::format("skip test of module {}",mod_key));
 		}
 	}
 
@@ -422,8 +360,8 @@ void Simulation::PrepareSimulation()
 		logger::DEBUG(std::format("tool {} used by {}",tool->name,tool.use_count()-1));
 		if (std::dynamic_pointer_cast<Diagnostic>(tool)) {
 			if (tool.use_count()==2) {
-				for (auto d : sub_drivers) {
-					d->tools.push_back(tool);
+				for (auto sub: sub_drivers) {
+					sub->RecursivelyAddTool(tool);
 				}
 			}
 		}
@@ -480,6 +418,8 @@ void Simulation::PrepareSimulation()
 		d->Initialize();
 	}
 
+	std::println(std::cout,"\nShow the Driver Tree...\n");
+	std::flush(std::cout);
 	RecursiveTreeDisplay(&std::cout,0,16);
 
 	// Read checkpoint data
@@ -678,14 +618,6 @@ void Simulation::Diagnose()
 
 	// MAIN DIAGNOSTIC LOOP
 
-	auto has_diagnostic = [&] (Driver *d,std::shared_ptr<Diagnostic> diagnostic)
-	{
-		for (auto maybe_diag : d->tools)
-			if (maybe_diag==diagnostic)
-				return true;
-		return false;
-	};
-
 	for (auto diag : diagnostics)
 	{
 		logger::TRACE(std::format("diagnostic {}",diag->name));
@@ -696,10 +628,7 @@ void Simulation::Diagnose()
 			diag->ReportNumber("dt",space->dx(0),true);
 			diag->ReportNumber("zwindow",space->WindowPos(3),true);
 			for (auto sd : sub_drivers) {
-				if (has_diagnostic(sd,diag)) {
-					logger::TRACE(std::format("{} is reporting",sd->name));
-					sd->Report(*diag);
-				}
+				sd->RecursivelyReport(diag);
 			}
 			diag->Finish();
 		}

@@ -54,7 +54,7 @@ Example
 
 Suppose we have a ``ComputeTool`` that adds two numbers::
 
-    tw::Float AddTool::Add(tw::Float x,tw::Float y)
+    tw::Float SummationTool::Add(tw::Float x,tw::Float y)
     {
         return x + y;
     }
@@ -62,18 +62,18 @@ Suppose we have a ``ComputeTool`` that adds two numbers::
 We want to test commutativity and associativity of addition.  The registration is::
 
     virtual void RegisterTests() {
-        REGISTER(AddTool,CommutativityTest);
-        REGISTER(AddTool,AssociativityTest);
+        REGISTER(SummationTool,CommutativityTest);
+        REGISTER(SummationTool,AssociativityTest);
     }
 
 And the test cases are::
 
-    void AddTool::CommutativityTest()
+    void SummationTool::CommutativityTest()
     {
         tw::Float x=1.0,y=2.0;
         ASSERT_NEAR(Add(x,y),Add(y,x),1e-6);
     }
-    void AddTool::AssociativityTest()
+    void SummationTool::AssociativityTest()
     {
         tw::Float x=1.0,y=2.0,z=3.0;
         ASSERT_NEAR(Add(Add(x,y),z),Add(x,Add(y,z)),1e-6);

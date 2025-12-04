@@ -12,7 +12,7 @@ import factory;
 import logger;
 
 SharedTool Driver::CreateTool(const std::string& name,tw::tool_type whichTool) {
-	auto new_tool = factory::CreateToolFromType(name,whichTool,space,task);
+	auto new_tool = factory::SharedToolOrEngineFromType(name,whichTool,space,task);
 	tw::input::MangleName(new_tool->name,this->all_names);
     return new_tool;
 }
@@ -23,8 +23,7 @@ Driver* Driver::CreateDriver(const std::string& name,tw::tool_type whichDriver) 
 	return sub;
 }
 
-void Driver::ParseNestedDeclaration(TSTreeCursor *curs,const std::string& src)
-{
+void Driver::ParseNestedDeclaration(TSTreeCursor *curs,const std::string& src) {
 	logger::DEBUG("handling nested declaration");
 	tw::input::Preamble preamble = tw::input::GetPreamble(curs,src);
 	// TODO: always allow `for`, it will apply to anything else on the same level

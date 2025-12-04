@@ -7,7 +7,7 @@
 * Input file accepts either string or identifier as reference
 * Fix potential bug in Field::Transpose
 * Fix potential bug in dual grid decomposition
-* Module std works on Apple - if we have the PCM
+* Build usually works for any of MSVC, clang, gcc
 
 ### Breaking Changes
 
@@ -16,6 +16,7 @@
 
 ### Code Structure
 
+* Default handling of `std` is a temporary hack where we compile it as a user module
 * Module and ComputeTool are replaced with Driver tree
     - Simple tree: (Driver (Engine (ComputeTool)))
     - Leads to more predictable interfaces
