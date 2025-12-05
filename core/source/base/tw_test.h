@@ -5,6 +5,8 @@
     #include <functional>
 #endif
 
+#define ASSERT_TRUE(actual) assertTrue(actual,__FILE__,__LINE__,__func__,curr_test_name)
+#define ASSERT_FALSE(actual) assertTrue(!actual,__FILE__,__LINE__,__func__,curr_test_name)
 #define ASSERT_EQ(actual,expected) assertEqualInt(actual,expected,__FILE__,__LINE__,__func__,curr_test_name)
 #define ASSERT_NEAR(actual,expected,tol) assertClose(actual,expected,tol,__FILE__,__LINE__,__func__,curr_test_name)
 #define ASSERT_GTREQ(actual,expected) assertGtrEq(actual,expected,__FILE__,__LINE__,__func__,curr_test_name)

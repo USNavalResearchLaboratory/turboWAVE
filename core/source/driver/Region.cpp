@@ -10,7 +10,7 @@ import input;
 import metric_space;
 import tensor;
 
-enum class bool_op { Union, Intersection, Difference };
+export enum class bool_op { Union, Intersection, Difference };
 
 export struct Region : ComputeTool
 {
@@ -22,6 +22,8 @@ export struct Region : ComputeTool
 	/// The operations go before the corresponding parts.
 	/// The operation before the first part follows an implicit entire region (so probably not a union).
 	std::vector<bool_op> ops;
+	/// This is a case where we have a tree without a clear ownership pattern, so shared_ptr is used.
+	/// We are helped somewhat by the fact that there is no need to point back to the parent.
 	std::vector<std::shared_ptr<Region>> composite;
 
 	Region(const std::string& name,MetricSpace *ms,Task *tsk) : ComputeTool(name,ms,tsk) {
@@ -170,7 +172,7 @@ export struct Region : ComputeTool
 
 export typedef std::shared_ptr<Region> SharedRegion;
 
-export struct EntireRegion:Region
+export struct EntireRegion : Region
 {
 	EntireRegion(const std::string& name,MetricSpace *ms,Task *tsk) : Region(name,ms,tsk) {}
 	virtual void Initialize() {
@@ -188,9 +190,9 @@ export struct EntireRegion:Region
 	}
 };
 
-export struct RectRegion:Region
+export struct RectRegion : Region
 {
-	tw::Float bounds[6];
+	std::array<tw::Float,6> bounds;
 	RectRegion(const std::string& name,MetricSpace *ms,Task *tsk) : Region(name,ms,tsk) {
 		directives.Add("bounds",new tw::input::Numbers<tw::Float>(&bounds[0],6),true);
 	}
@@ -199,6 +201,9 @@ export struct RectRegion:Region
 		rbox.x = std::fabs(bounds[1]-bounds[0])/2;
 		rbox.y = std::fabs(bounds[3]-bounds[2])/2;
 		rbox.z = std::fabs(bounds[5]-bounds[4])/2;
+		translation.x += 0.5*(bounds[0]+bounds[1]);
+		translation.y += 0.5*(bounds[2]+bounds[3]);
+		translation.z += 0.5*(bounds[4]+bounds[5]);
 	}
 	virtual bool Inside(const tw::vec3& pos,int depth) const
 	{
@@ -207,7 +212,7 @@ export struct RectRegion:Region
 	}
 };
 
-export struct PrismRegion:RectRegion
+export struct PrismRegion : RectRegion
 {
 	PrismRegion(const std::string& name,MetricSpace *ms,Task *tsk) : RectRegion(name,ms,tsk) {}
 	virtual bool Inside(const tw::vec3& pos,int depth) const
@@ -217,7 +222,7 @@ export struct PrismRegion:RectRegion
 	}
 };
 
-export struct CircRegion:Region
+export struct CircRegion : Region
 {
 	tw::Float radius;
 	CircRegion(const std::string& name,MetricSpace *ms,Task *tsk) : Region(name,ms,tsk) {
@@ -234,7 +239,7 @@ export struct CircRegion:Region
 	}
 };
 
-export struct CylinderRegion:Region
+export struct CylinderRegion : Region
 {
 	tw::Float radius,length;
 	CylinderRegion(const std::string& name,MetricSpace *ms,Task *tsk) : Region(name,ms,tsk) {
@@ -253,7 +258,7 @@ export struct CylinderRegion:Region
 	}
 };
 
-export struct CylindricalShellRegion:Region
+export struct CylindricalShellRegion : Region
 {
 	tw::Float innerRadius,outerRadius,length;
 	CylindricalShellRegion(const std::string& name,MetricSpace *ms,Task *tsk) : Region(name,ms,tsk) {
@@ -275,7 +280,7 @@ export struct CylindricalShellRegion:Region
 	}
 };
 
-export struct RoundedCylinderRegion:CylinderRegion
+export struct RoundedCylinderRegion : CylinderRegion
 {
 	RoundedCylinderRegion(const std::string& name,MetricSpace *ms,Task *tsk) : CylinderRegion(name,ms,tsk) {}
 	// TODO: the rbox in this case does not enclose everything
@@ -290,7 +295,7 @@ export struct RoundedCylinderRegion:CylinderRegion
 	}
 };
 
-export struct EllipsoidRegion:RectRegion
+export struct EllipsoidRegion : RectRegion
 {
 	EllipsoidRegion(const std::string& name,MetricSpace *ms,Task *tsk) : RectRegion(name,ms,tsk) {}
 	virtual bool Inside(const tw::vec3& pos,int depth) const
@@ -300,7 +305,7 @@ export struct EllipsoidRegion:RectRegion
 	}
 };
 
-export struct TrueSphere:CircRegion
+export struct TrueSphere : CircRegion
 {
 	TrueSphere(const std::string& name,MetricSpace *ms,Task *tsk) : CircRegion(name,ms,tsk) {}
 	virtual bool Inside(const tw::vec3& pos,int depth) const
@@ -316,7 +321,7 @@ export struct TrueSphere:CircRegion
 	}
 };
 
-export struct BoxArrayRegion:Region
+export struct BoxArrayRegion : Region
 {
 	tw::vec3 size,spacing;
 
@@ -342,7 +347,7 @@ export struct BoxArrayRegion:Region
 	}
 };
 
-export struct TorusRegion:Region
+export struct TorusRegion : Region
 {
 	tw::Float majorRadius,minorRadius,length;
 	TorusRegion(const std::string& name,MetricSpace *ms,Task *tsk) : Region(name,ms,tsk) {
@@ -366,7 +371,7 @@ export struct TorusRegion:Region
 	}
 };
 
-export struct ConeRegion:Region
+export struct ConeRegion : Region
 {
 	tw::Float tipRadius,baseRadius,length;
 	ConeRegion(const std::string& name,MetricSpace *ms,Task *tsk) : Region(name,ms,tsk) {
@@ -392,7 +397,7 @@ export struct ConeRegion:Region
 	}
 };
 
-export struct TangentOgiveRegion:Region
+export struct TangentOgiveRegion : Region
 {
 	tw::Float tipRadius,bodyRadius,length;
 	TangentOgiveRegion(const std::string& name,MetricSpace *ms,Task *tsk) : Region(name,ms,tsk) {

@@ -148,6 +148,18 @@ export void assertFailed(tw::Float actual,tw::Float expected,const std::string& 
 	throw tw::FatalError(mess.str());
 }
 
+export void assertTrue(bool actual,const std::string& file,int line,const std::string& func,std::string& testName)
+{
+	testName = func;
+	if (!actual) {
+		std::ostringstream mess;
+		mess << std::endl << term::err << " function " << term::red << func << term::reset_color << std::endl;
+		mess << "  Assertion failed." << std::endl;
+		mess << "  File: " << file <<  " , Line: " << line << std::endl;
+		throw tw::FatalError(mess.str());
+	}
+}
+
 export void assertClose(tw::Float actual,tw::Float expected,tw::Float tol,const std::string& file,int line,const std::string& func,std::string& testName)
 {
 	testName = func;

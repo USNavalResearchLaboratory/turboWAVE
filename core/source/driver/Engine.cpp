@@ -45,3 +45,56 @@ export struct Engine : ComputeTool
 		}
 	}
 };
+
+export struct CompositeRegion : Engine
+{
+	bool_op defaultBooleanOperation;
+	std::vector<std::string> region_names;
+	CompositeRegion(const std::string& name,MetricSpace *ms,Task *tsk) : Engine(name,ms,tsk) {
+		defaultBooleanOperation = bool_op::Union;
+		theRgn = std::make_shared<Region>(name + "_sub",ms,tsk);
+		directives.Add("elements",new tw::input::StringList<std::vector<std::string>>(&region_names),true);
+	}
+	virtual void AttachTools(const std::vector<SharedTool>& tools) {
+		if (region_names.size()==0) {
+			throw tw::FatalError(std::format("composite <{}> has no elements",name));
+		}
+		for (auto region_name : region_names) {
+			logger::TRACE(std::format("looking for {}",region_name));
+			for (auto tool : tools) {
+				if (tool->name == region_name) {
+					auto element = std::dynamic_pointer_cast<Region>(tool);
+					if (element) {
+						theRgn->ops.push_back(defaultBooleanOperation);
+						theRgn->composite.push_back(element);
+					} else {
+						throw tw::FatalError(std::format("named region <{}> is not a region",region_name));
+					}
+				}
+			}
+			theRgn->ops[0] = bool_op::Intersection;
+		}
+	}
+	virtual void Initialize() {
+		Engine::Initialize();
+		theRgn->Initialize();
+	}
+};
+
+export struct UnionRegion : CompositeRegion {
+	UnionRegion(const std::string& name,MetricSpace *ms,Task *tsk) : CompositeRegion(name,ms,tsk) {
+		defaultBooleanOperation = bool_op::Union;
+	}
+};
+
+export struct IntersectionRegion : CompositeRegion {
+	IntersectionRegion(const std::string& name,MetricSpace *ms,Task *tsk) : CompositeRegion(name,ms,tsk) {
+		defaultBooleanOperation = bool_op::Intersection;
+	}
+};
+
+export struct DifferenceRegion : CompositeRegion {
+	DifferenceRegion(const std::string& name,MetricSpace *ms,Task *tsk) : CompositeRegion(name,ms,tsk) {
+		defaultBooleanOperation = bool_op::Difference;
+	}
+};

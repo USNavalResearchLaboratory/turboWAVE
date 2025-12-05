@@ -211,6 +211,7 @@ target_sources(tw3d PUBLIC
         test/iterator_test.cpp
         test/metric_space_test.cpp
         test/fft_test.cpp
+        test/regions_test.cpp
 )
 
 if (MSVC)
