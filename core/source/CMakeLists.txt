@@ -151,6 +151,7 @@ target_sources(tw3d PUBLIC
     BASE_DIRS main base driver io particles fields solver sparc test ${TW_STD_MODULE_PATH}
     FILES
         ${TW_STD_MODULE_PATH}/${TW_STD_MODULE_FILE}
+        main/Commands.cpp
         main/Simulation.cpp
         main/Factory.cpp
         base/base.cpp
@@ -168,6 +169,7 @@ target_sources(tw3d PUBLIC
         driver/Diagnostic.cpp
         driver/Engine.cpp
         driver/Profile.cpp
+        driver/PrimitiveRegion.cpp
         driver/Region.cpp
         driver/Warp.cpp
         driver/Tool.cpp

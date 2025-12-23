@@ -1,5 +1,6 @@
 // Keep the following line for generating twtest reports
 // TWTEST matplotlib zxyt=64,0 air.npy
+// MayaVI viz: python twmaya.py xyzt=0 air.npy type=1
 
 dump period = 0
 moving window = no
@@ -27,10 +28,7 @@ new grid
 // an imaginary pyramid, with their tips pointed at the sphere.
 // Embed this object in ambient air.
 
-// Note how translation and rotation directives are sequenced.
-// These directives should be thought of as operations.
-
-new region true_sphere 's1'
+new region circ 's1'
 {
 	radius = 5
 	// leave in the default position, at the origin
@@ -42,40 +40,43 @@ new region cone 'c1'
 	base radius = 5
 	length = 15
 
-	rotation about x = 180[deg]
+	euler angles = ( 0, 180[deg], 0 )
 	translation = (0 0 20)
 }
 
+// first vertex of the base
 new region cone 'c2'
 {
 	tip radius = 0
 	base radius = 5
 	length = 15
 
-	rotation about y = -45[deg]
+	euler angles = (0, 45[deg], -90[deg])
 	translation = (14 0 -14)
 }
 
+// next vertex is obtained by adding 120 degrees
+// rotations always go first, so the translation has to be rotated by hand
 new region cone 'c3'
 {
 	tip radius = 0
 	base radius = 5
 	length = 15
 
-	rotation about y = -45[deg]
-	translation = (14 0 -14)
-	rotation about z = 120[deg]
+	euler angles = (0, 45[deg], 30[deg])
+	translation = (-9.9 9.9 -14)
 }
 
+// next vertex is obtained by adding another 120 degrees
+// rotations always go first, so the translation has to be rotated by hand
 new region cone 'c4'
 {
 	tip radius = 0
 	base radius = 5
 	length = 15
 
-	rotation about y = -45[deg]
-	translation = (14 0 -14)
-	rotation about z = -120[deg]
+	euler angles = (0, 45[deg], 150[deg])
+	translation = (-9.9 -9.9 -14)
 }
 
 new region union 'u1'

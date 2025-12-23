@@ -69,45 +69,6 @@ SharedTool SharedBaseToolFromType(const std::string& name,tw::tool_type theType,
 		case tw::tool_type::warp:
 			ans = std::make_shared<Warp>(name,ms,tsk);
 			break;
-		case tw::tool_type::entireRegion:
-			ans = std::make_shared<EntireRegion>(name,ms,tsk);
-			break;
-		case tw::tool_type::rectRegion:
-			ans = std::make_shared<RectRegion>(name,ms,tsk);
-			break;
-		case tw::tool_type::prismRegion:
-			ans = std::make_shared<PrismRegion>(name,ms,tsk);
-			break;
-		case tw::tool_type::ellipsoidRegion:
-			ans = std::make_shared<EllipsoidRegion>(name,ms,tsk);
-			break;
-		case tw::tool_type::circRegion:
-			ans = std::make_shared<CircRegion>(name,ms,tsk);
-			break;
-		case tw::tool_type::cylinderRegion:
-			ans = std::make_shared<CylinderRegion>(name,ms,tsk);
-			break;
-		case tw::tool_type::roundedCylinderRegion:
-			ans = std::make_shared<RoundedCylinderRegion>(name,ms,tsk);
-			break;
-		case tw::tool_type::cylindricalShellRegion:
-			ans = std::make_shared<CylindricalShellRegion>(name,ms,tsk);
-			break;
-		case tw::tool_type::trueSphereRegion:
-			ans = std::make_shared<TrueSphere>(name,ms,tsk);
-			break;
-		case tw::tool_type::boxArrayRegion:
-			ans = std::make_shared<BoxArrayRegion>(name,ms,tsk);
-			break;
-		case tw::tool_type::torusRegion:
-			ans = std::make_shared<TorusRegion>(name,ms,tsk);
-			break;
-		case tw::tool_type::coneRegion:
-			ans = std::make_shared<ConeRegion>(name,ms,tsk);
-			break;
-		case tw::tool_type::tangentOgiveRegion:
-			ans = std::make_shared<TangentOgiveRegion>(name,ms,tsk);
-			break;
 		case tw::tool_type::planeWave:
 			ans = std::make_shared<PlaneWave>(name,ms,tsk);
 			break;
@@ -259,6 +220,51 @@ SharedTool SharedEngineFromType(const std::string& name,tw::tool_type theType,Me
 	SharedTool ans;
 	switch (theType)
 	{
+		case tw::tool_type::entireRegion:
+			ans = std::make_shared<SimpleRegion>(name,ms,tsk,std::make_unique<EntireRegion>(name,ms,tsk));
+			break;
+		case tw::tool_type::rectRegion:
+			ans = std::make_shared<SimpleRegion>(name,ms,tsk,std::make_unique<RectRegion>(name,ms,tsk));
+			break;
+		case tw::tool_type::prismRegion:
+			ans = std::make_shared<SimpleRegion>(name,ms,tsk,std::make_unique<PrismRegion>(name,ms,tsk));
+			break;
+		case tw::tool_type::ellipsoidRegion:
+			ans = std::make_shared<SimpleRegion>(name,ms,tsk,std::make_unique<EllipsoidRegion>(name,ms,tsk));
+			break;
+		case tw::tool_type::circRegion:
+			ans = std::make_shared<SimpleRegion>(name,ms,tsk,std::make_unique<CircRegion>(name,ms,tsk));
+			break;
+		case tw::tool_type::cylinderRegion:
+			ans = std::make_shared<SimpleRegion>(name,ms,tsk,std::make_unique<CylinderRegion>(name,ms,tsk));
+			break;
+		case tw::tool_type::roundedCylinderRegion:
+			ans = std::make_shared<SimpleRegion>(name,ms,tsk,std::make_unique<RoundedCylinderRegion>(name,ms,tsk));
+			break;
+		case tw::tool_type::cylindricalShellRegion:
+			ans = std::make_shared<SimpleRegion>(name,ms,tsk,std::make_unique<CylindricalShellRegion>(name,ms,tsk));
+			break;
+		case tw::tool_type::boxArrayRegion:
+			ans = std::make_shared<SimpleRegion>(name,ms,tsk,std::make_unique<BoxArrayRegion>(name,ms,tsk));
+			break;
+		case tw::tool_type::torusRegion:
+			ans = std::make_shared<SimpleRegion>(name,ms,tsk,std::make_unique<TorusRegion>(name,ms,tsk));
+			break;
+		case tw::tool_type::coneRegion:
+			ans = std::make_shared<SimpleRegion>(name,ms,tsk,std::make_unique<ConeRegion>(name,ms,tsk));
+			break;
+		case tw::tool_type::tangentOgiveRegion:
+			ans = std::make_shared<SimpleRegion>(name,ms,tsk,std::make_unique<TangentOgiveRegion>(name,ms,tsk));
+			break;
+		case tw::tool_type::unionRegion:
+			ans = std::make_shared<UnionRegion>(name,ms,tsk);
+			break;
+		case tw::tool_type::intersectionRegion:
+			ans = std::make_shared<IntersectionRegion>(name,ms,tsk);
+			break;
+		case tw::tool_type::differenceRegion:
+			ans = std::make_shared<DifferenceRegion>(name,ms,tsk);
+			break;
 		case tw::tool_type::conductor:
 			ans = std::make_shared<Conductor>(name,ms,tsk);
 			break;

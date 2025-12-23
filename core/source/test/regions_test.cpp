@@ -18,26 +18,25 @@ export struct RegionsTest: ComputeTool {
         REGISTER(RegionsTest,DifferenceTest);
     }
 	void SingleContainerTest() {
-        auto rgn = new RectRegion("r1",space,task);
-        rgn->bounds = {1,2,-1,1,-1,1};
+        auto prim = std::make_unique<RectRegion>("r1",space,task);
+        prim->size = tw::vec3(1,2,2);
+        auto rgn = std::make_unique<SimpleRegion>("r1",space,task,std::move(prim));
+        rgn->translation = tw::vec3(1.5,0,0);
         rgn->Initialize();
         ASSERT_FALSE(rgn->Inside(tw::vec3(0,0,0),0));
         ASSERT_TRUE(rgn->Inside(tw::vec3(1.5,0,0),0));
-        delete rgn;
     }
     void UnionTest() {
-        auto r1 = std::make_shared<CircRegion>("c1",space,task);
-        auto r2 = std::make_shared<CircRegion>("c2",space,task);
-        auto u = new Region("union",space,task);
+        auto r1 = std::make_shared<SimpleRegion>("c1",space,task,
+            std::make_unique<CircRegion>("c1",space,task));
+        auto r2 = std::make_shared<SimpleRegion>("c2",space,task,
+            std::make_unique<CircRegion>("c2",space,task));
+        auto u = std::make_unique<UnionRegion>("union",space,task);
+        u->elements.push_back(r1);
+        u->elements.push_back(r2);
         tw::Float dz = 0.9;
-        r1->radius = 1.0;
-        r2->radius = 1.0;
         r1->translation = tw::vec3(0,0,-dz);
         r2->translation = tw::vec3(0,0,dz);
-        u->ops.push_back(bool_op::Intersection); // first is with the implicit EntireRegion
-        u->composite.push_back(r1);
-        u->ops.push_back(bool_op::Union);
-        u->composite.push_back(r2);
         r1->Initialize();
         r2->Initialize();
         u->Initialize();
@@ -48,18 +47,16 @@ export struct RegionsTest: ComputeTool {
         ASSERT_FALSE(u->Inside(tw::vec3(crossingPt + .001,0,0),0));
     }
 	void IntersectionTest() {
-        auto r1 = std::make_shared<CircRegion>("c1",space,task);
-        auto r2 = std::make_shared<CircRegion>("c2",space,task);
-        auto u = new Region("intersection",space,task);
+        auto r1 = std::make_shared<SimpleRegion>("c1",space,task,
+            std::make_unique<CircRegion>("c1",space,task));
+        auto r2 = std::make_shared<SimpleRegion>("c2",space,task,
+            std::make_unique<CircRegion>("c2",space,task));
+        auto u = std::make_unique<IntersectionRegion>("inter",space,task);
+        u->elements.push_back(r1);
+        u->elements.push_back(r2);
         tw::Float dz = 0.9;
-        r1->radius = 1.0;
-        r2->radius = 1.0;
         r1->translation = tw::vec3(0,0,-dz);
         r2->translation = tw::vec3(0,0,dz);
-        u->ops.push_back(bool_op::Intersection); // first is with the implicit EntireRegion
-        u->composite.push_back(r1);
-        u->ops.push_back(bool_op::Intersection);
-        u->composite.push_back(r2);
         r1->Initialize();
         r2->Initialize();
         u->Initialize();
@@ -70,18 +67,16 @@ export struct RegionsTest: ComputeTool {
         ASSERT_FALSE(u->Inside(tw::vec3(crossingPt + .001,0,0),0));
     }
 	void DifferenceTest() {
-        auto r1 = std::make_shared<CircRegion>("c1",space,task);
-        auto r2 = std::make_shared<CircRegion>("c2",space,task);
-        auto u = new Region("diff",space,task);
+        auto r1 = std::make_shared<SimpleRegion>("c1",space,task,
+            std::make_unique<CircRegion>("c1",space,task));
+        auto r2 = std::make_shared<SimpleRegion>("c2",space,task,
+            std::make_unique<CircRegion>("c2",space,task));
+        auto u = std::make_unique<DifferenceRegion>("diff",space,task);
+        u->elements.push_back(r1);
+        u->elements.push_back(r2);
         tw::Float dz = 0.9;
-        r1->radius = 1.0;
-        r2->radius = 1.0;
         r1->translation = tw::vec3(0,0,-dz);
         r2->translation = tw::vec3(0,0,dz);
-        u->ops.push_back(bool_op::Intersection); // first is with the implicit EntireRegion
-        u->composite.push_back(r1);
-        u->ops.push_back(bool_op::Difference);
-        u->composite.push_back(r2);
         r1->Initialize();
         r2->Initialize();
         u->Initialize();

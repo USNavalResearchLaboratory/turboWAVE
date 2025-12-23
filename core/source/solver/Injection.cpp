@@ -42,6 +42,7 @@ export struct PulseShape
 
 export struct Conductor : Engine
 {
+	std::shared_ptr<Region> theRgn;
 	PulseShape pulseShape;
 	std::valarray<tw::Float> Px,Py,Pz,potential,angFreq,phase;
 	bool affectsPhi,affectsA;
@@ -51,6 +52,9 @@ export struct Conductor : Engine
 
 	Conductor(const std::string& name,MetricSpace *m,Task *tsk);
 	virtual void Initialize();
+	bool Inside(const tw::vec3& pos) {
+		return theRgn->Inside(pos,0);
+	}
 	tw::Float Temperature(tw::Float t) { return temperature; }
 	tw::Float Voltage(tw::Float t);
 	tw::Float VoltageRate(tw::Float t);
@@ -613,6 +617,11 @@ Conductor::Conductor(const std::string& name,MetricSpace *m,Task *tsk) : Engine(
 
 void Conductor::Initialize()
 {
+	theRgn = std::dynamic_pointer_cast<Region>(region);
+	if (!theRgn) {
+		throw tw::FatalError("dynamic cast to Region failed");
+	}
+	
 	if (currentType!=EM::current::electric)
 		throw tw::FatalError("Current type must be electric in this version.");
 	if (pulseShape.risetime<=0.0)

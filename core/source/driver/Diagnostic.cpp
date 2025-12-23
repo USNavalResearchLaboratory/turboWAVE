@@ -13,6 +13,7 @@ import fields;
 
 export struct Diagnostic : Engine
 {
+	std::shared_ptr<Region> theRgn;
 	std::string filename;
 	tw::Int skip[4];
 	tw::Float t,tRef,t0,t1,timePeriod,gammaBoost;
@@ -40,6 +41,16 @@ export struct Diagnostic : Engine
 		directives.Add("t1",new tw::input::Float(&t1),false);
 		directives.Add("galilean velocity",new tw::input::Vec3(&vGalileo),false);
 		directives.Add("boosted frame gamma",new tw::input::Float(&gammaBoost),false);
+	}
+	virtual void Initialize() {
+		if (region.use_count()==0) {
+			theRgn = std::make_shared<SimpleRegion>("default_entire",space,task,std::make_unique<EntireRegion>("entire",space,task));
+		} else {
+			theRgn = std::dynamic_pointer_cast<Region>(region);
+			if (!theRgn) {
+				throw tw::FatalError("dynamic cast to Region failed");
+			}
+		}
 	}
 	/// @brief copy base class parameters except for MetricSpace and filename
 	void CopyParams(const Diagnostic& src) {

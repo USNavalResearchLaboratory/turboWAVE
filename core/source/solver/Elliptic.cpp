@@ -24,6 +24,8 @@ import numerics;
 
 // N.b. the BC handling assumes at least 2 ghost cell layers in the field
 
+using SharedRegion = std::shared_ptr<Region>;
+
 export struct EllipticSolver:BoundedTool
 {
 	ScalarField *coeff;

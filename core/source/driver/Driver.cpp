@@ -6,10 +6,11 @@ module;
 
 export module driver;
 export import :tool;
+export import :primitive_region;
 export import :bounded;
-export import :region;
 export import :warp;
 export import :engine;
+export import :region;
 export import :profile;
 export import :diagnostic;
 

@@ -11,6 +11,7 @@ import numerics;
 import logger;
 
 using namespace tw::bc;
+using SharedRegion = std::shared_ptr<Region>;
 
 export enum tw_polarization_type {linearPolarization,circularPolarization,radialPolarization};
 

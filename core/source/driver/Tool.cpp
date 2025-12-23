@@ -15,9 +15,11 @@ export namespace tw
 	enum class tool_type
 	{
 		none,warp,
+		// Primitive regions
+		entireRegion , rectRegion , prismRegion , circRegion , cylinderRegion , cylindricalShellRegion ,
+		roundedCylinderRegion , ellipsoidRegion , boxArrayRegion , torusRegion , coneRegion , tangentOgiveRegion,
 		// Regions
-		baseRegion , entireRegion , rectRegion , prismRegion , circRegion , cylinderRegion , cylindricalShellRegion ,
-		roundedCylinderRegion , ellipsoidRegion , trueSphereRegion , boxArrayRegion , torusRegion , coneRegion , tangentOgiveRegion,
+		unionRegion, intersectionRegion, differenceRegion,
 		// Profiles
 		uniformProfile,channelProfile,gaussianProfile,columnProfile,piecewiseProfile,corrugatedProfile,
 		// Wave launchers
@@ -215,7 +217,10 @@ std::map<std::string,tw::tool_type> ComputeTool::Map()
 		{"region rounded_cylinder",tw::tool_type::roundedCylinderRegion},
 		{"region tangent_ogive",tw::tool_type::tangentOgiveRegion},
 		{"region torus",tw::tool_type::torusRegion},
-		{"region true_sphere",tw::tool_type::trueSphereRegion},
+
+		{"region union",tw::tool_type::unionRegion},
+		{"region intersection",tw::tool_type::intersectionRegion},
+		{"region difference",tw::tool_type::differenceRegion},
 
 		{"conductor",tw::tool_type::conductor},
 		{"plane wave",tw::tool_type::planeWave},

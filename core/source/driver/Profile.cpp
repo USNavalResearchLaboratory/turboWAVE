@@ -9,6 +9,7 @@ module;
 
 export module driver:profile;
 import :engine;
+import :region;
 
 import input;
 import functions;
@@ -40,6 +41,8 @@ export struct Profile : Engine
 	// items needed for particle/fluid loading
 private:
 	tw::vec3 driftMomentum;
+protected:
+	std::shared_ptr<Region> theRgn;
 public:
 	tw::profile::quantity whichQuantity;
 	tw::vec3 thermalMomentum;
@@ -112,7 +115,15 @@ public:
 		directives.Add("particle weight",new tw::input::Custom,false);
 		directives.Add("euler angles",new tw::input::Custom,false);
 	}
-	virtual void Initialize() {;}
+	virtual void Initialize() {
+		theRgn = std::dynamic_pointer_cast<Region>(region);
+		if (!theRgn) {
+			logger::DEBUG(std::format("<{}> using default entire region",name));
+			auto temp = std::make_shared<SimpleRegion>("default_entire",space,task,
+				std::make_unique<EntireRegion>("entire",space,task));
+			theRgn = temp;
+		}
+	}
 	tw::vec3 DriftMomentum(const tw::Float& mass) {
 		tw::Float p2 = driftMomentum ^ driftMomentum;
 		tw::Float p0 = std::sqrt(mass*mass + p2);
@@ -397,26 +408,27 @@ PiecewiseProfile::PiecewiseProfile(const std::string& name,MetricSpace *m,Task *
 void PiecewiseProfile::Initialize()
 {
 	Profile::Initialize();
+	auto bounds = theRgn->Bounds(0);
 
 	if (x.size()<2)
 	{
 		x.resize(2);
 		fx.resize(2);
-		theRgn->GetInitialBounds(&x[0],&x[1],1);
+		x.assign({bounds[0],bounds[1]});
 		fx.assign({1,1});
 	}
 	if (y.size()<2)
 	{
 		y.resize(2);
 		fy.resize(2);
-		theRgn->GetInitialBounds(&y[0],&y[1],2);
+		y.assign({bounds[2],bounds[3]});
 		fy.assign({1,1});
 	}
 	if (z.size()<2)
 	{
 		z.resize(2);
 		fz.resize(2);
-		theRgn->GetInitialBounds(&z[0],&z[1],3);
+		z.assign({bounds[4],bounds[5]});
 		fz.assign({1,1});
 	}
 }
