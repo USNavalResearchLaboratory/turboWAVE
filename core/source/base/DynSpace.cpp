@@ -60,10 +60,6 @@ export struct DynSpace : StaticSpace
 		this->stepsToTake = stepsToTake;
 		this->stepNow = stepNow;
 	}
-	void ChangeStepSize(tw::Int ax,tw::Float ds) {
-		spacing[0] = ds;
-		freq[0] = 1.0/ds;
-	}
 	void ChangeStepSizeControls(tw::Int ax,tw::Float min,tw::Float max,tw::Float crit) {
 		min_spacing[ax] = min;
 		max_spacing[ax] = max;
@@ -74,9 +70,9 @@ export struct DynSpace : StaticSpace
 	tw::Int Advance(tw::Float ds);
 	/// take vector known in the current window and translate it to the starting window
 	void ToStartingWindow(tw::vec3 *v) const {
-		v[0] -= windowPosition[1];
-		v[1] -= windowPosition[2];
-		v[2] -= windowPosition[3];
+		(*v)[0] -= windowPosition[1];
+		(*v)[1] -= windowPosition[2];
+		(*v)[2] -= windowPosition[3];
 	}
 	void SetPrimitiveWithPosition(Primitive& q,const tw::vec4& pos) const;
 	tw::vec4 PositionFromPrimitive(const Primitive& q) const;
@@ -154,12 +150,12 @@ void DynSpace::Resize(Task *task,const tw::node5& gdim,const tw::vec4& gcorner,c
 }
 
 tw::Int DynSpace::Advance(tw::Float ds) {
-	solutionPosition += spacing[0]*solutionVelocity[3];
-	altSolutionPosition += spacing[0]*(solutionVelocity[3] - tw::vec4(0,0,0,1));
+	solutionPosition += ds*solutionVelocity[3];
+	altSolutionPosition += ds*(solutionVelocity[3] - tw::vec4(0,0,0,1));
 	stepNow++;
 
-	corner[0] += spacing[0];
-	windowPosition[0] += spacing[0];
+	corner[0] += ds;
+	windowPosition[0] += ds;
 	
 	if (solutionVelocity[3]>0 && solutionPosition[3]>=windowPosition[3] + spacing[3] && dim[3]>1) {
 		logger::TRACE(std::format("move lab at {:.5} triggered by {:.5}",windowPosition[3],solutionPosition[3]));

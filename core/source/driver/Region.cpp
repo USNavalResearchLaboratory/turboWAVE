@@ -17,9 +17,14 @@ export enum class bool_op { Union, Intersection, Difference };
 
 export struct Region : Engine
 {
+	/// displace the body before the rotation
+	tw::vec3 origin;
+	/// rotate the body
 	tw::basis orientation;
+	/// displace the body after the rotation
 	tw::vec3 translation;
-	/// ZXZ ordered such that euler[0] is applied first
+	/// in the active view this gets applied as new_vec = Rz(alpha)*Rx(beta)*Rz(gamma)*old_vec,
+	/// i.e. the "last angle" gets applied first.
 	tw::vec3 euler;
 	bool complement,moveWithWindow;
 	/// The operations go before the corresponding elements.
@@ -34,6 +39,7 @@ export struct Region : Engine
 		orientation.u = tw::vec3(1,0,0);
 		orientation.v = tw::vec3(0,1,0);
 		orientation.w = tw::vec3(0,0,1);
+		directives.Add("origin",new tw::input::Vec3(&origin),false);
 		directives.Add("translation",new tw::input::Vec3(&translation),false);
 		directives.Add("euler angles",new tw::input::Vec3(&euler),false);
 		directives.Add("move with window",new tw::input::Bool(&moveWithWindow),false);
@@ -41,23 +47,23 @@ export struct Region : Engine
 	}
 	virtual void Initialize() {
 		Engine::Initialize();
-		orientation.SetWithEulerAngles(euler.z, euler.y, euler.x);
-		logger::TRACE(std::format("{},{},{}",orientation.u.x,orientation.u.y,orientation.u.z));
-		logger::TRACE(std::format("{},{},{}",orientation.v.x,orientation.v.y,orientation.v.z));
-		logger::TRACE(std::format("{},{},{}",orientation.w.x,orientation.w.y,orientation.w.z));
+		orientation.SetWithEulerAngles(euler.x, euler.y, euler.z);
+		logger::DEBUG(std::format("{}:\n{},{},{}\n{},{},{}\n{},{},{}",name,orientation.u.x,orientation.u.y,orientation.u.z,
+			orientation.v.x,orientation.v.y,orientation.v.z,
+			orientation.w.x,orientation.w.y,orientation.w.z));
 	}
-	tw::vec3 TransformPoint(const tw::vec3& pos, int depth) const {
-		auto p = pos;
+	void TransformPoint(tw::vec3 *pos, int depth) const {
 		if (moveWithWindow && depth==0) {
-			space->ToStartingWindow(&p);
+			space->ToStartingWindow(pos);
 		}
-		p -= translation;
-		orientation.ExpressInBasis(&p);
-		return p;
+		*pos -= translation;
+		orientation.ExpressInBasis(pos);
+		*pos -= origin;
 	}
 	bool Inside(const tw::vec3& pos,int depth) const
 	{
-		auto p = TransformPoint(pos,depth);
+		auto p = pos;
+		TransformPoint(&p,depth);
 		if (primitive) {
 			return complement ^ primitive->Inside(p);
 		}
@@ -113,7 +119,7 @@ export struct Region : Engine
 		if (primitive) {
 			auto v = BoundingVertices(primitive->Bounds());
 			for (auto i=0;i<8;i++) {
-				v[i] = TransformPoint(v[i],depth);
+				TransformPoint(&v[i],depth);
 			}
 			return AlignedHull(v);
 		}

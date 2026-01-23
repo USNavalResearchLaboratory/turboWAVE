@@ -20,12 +20,14 @@ export namespace tw
 		MPI_Status status;
 		MPI_Datatype tw_float_type;
 		MPI_Datatype tw_int_type;
-		void *sendToSelfData;
+		void *sendToSelfSource;
+		void *sendToSelfDestination;
 
 		comm()
 		{
 			comm_cart = MPI_COMM_WORLD;
-			sendToSelfData = NULL;
+			sendToSelfSource = NULL;
+			sendToSelfDestination = NULL;
 			if (sizeof(tw::Float)==sizeof(float))
 				tw_float_type = MPI_FLOAT;
 			if (sizeof(tw::Float)==sizeof(double))
@@ -114,39 +116,53 @@ export namespace tw
 		}
 		void Send(void *buff,tw::Int buffSize,tw::Int dst)
 		{
-			if (dst==Get_rank())
-				if (sendToSelfData!=NULL)
-				{
-					if (buff==sendToSelfData) {
-						logger::WARN("copy in place during send to self");
+			if (dst==Get_rank()) {
+				if (sendToSelfDestination!=NULL && sendToSelfSource!=NULL) {
+					throw tw::FatalError("there was an unmatched send/recv to self");
+				}
+				if (sendToSelfDestination!=NULL) {
+					// this means the Recv has already happened and prepared the destination, so now we do the actual receive
+					if (buff==sendToSelfDestination) {
+						throw tw::FatalError("in-place copy during send-recv-to-self is not allowed");
 					}
-					std::copy((char*)buff,(char*)buff+buffSize,(char*)sendToSelfData);
-					sendToSelfData = NULL;
+					logger::TRACE("receiving from self");
+					std::copy((char*)buff,(char*)buff+buffSize,(char*)sendToSelfDestination);
+					sendToSelfSource = NULL;
+					sendToSelfDestination = NULL;
+				} else {
+					// ths means Send came first and the meanings are as expected
+					logger::TRACE("Send setting send to self pointer");
+					sendToSelfSource = buff;
 				}
-				else
-				{
-					sendToSelfData = buff;
-				}
-			else
+			} else {
+				logger::TRACE("MPI Send");
 				MPI_Send(buff,buffSize,MPI_BYTE,dst,0,comm_cart);
+			}
 		}
 		void Recv(void *buff,tw::Int buffSize,tw::Int src)
 		{
-			if (src==Get_rank())
-				if (sendToSelfData!=NULL)
-				{
-					if (buff==sendToSelfData) {
-						logger::WARN("copy in place during recv from self");
+			if (src==Get_rank()) {
+				if (sendToSelfDestination!=NULL && sendToSelfSource!=NULL) {
+					throw tw::FatalError("there was an unmatched send/recv to self");
+				}
+				if (sendToSelfSource!=NULL) {
+					// this means the Send has already happened and we can proceed with copy to self
+					if (buff==sendToSelfSource) {
+						throw tw::FatalError("in-place copy during send-recv-to-self is not allowed");
 					}
-					std::copy((char*)sendToSelfData,(char*)sendToSelfData+buffSize,(char*)buff);
-					sendToSelfData = NULL;
+					logger::TRACE("receiving from self");
+					std::copy((char*)sendToSelfSource,(char*)sendToSelfSource+buffSize,(char*)buff);
+					sendToSelfSource = NULL;
+					sendToSelfDestination = NULL;
+				} else {
+					// this means Recv came first and we allow it by flipping the meanings
+					logger::TRACE("Recv setting send to self pointer");
+					sendToSelfDestination = buff;
 				}
-				else
-				{
-					sendToSelfData = buff;
-				}
-			else
+			} else {
+				logger::TRACE("MPI Recv");
 				MPI_Recv(buff,buffSize,MPI_BYTE,src,0,comm_cart,&status);
+			}
 		}
 		void Sum(void *sb,void *rb,tw::Int count,tw::Int root)
 		{

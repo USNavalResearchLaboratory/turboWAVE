@@ -68,7 +68,7 @@ generate gaussian 'beam'
 {
 	density = 1e-6
 	drift momentum = (0 0 10)
-	position = (0 0 -6)
+	origin = (0 0 -6)
 	size = (2 2 2)
 	particle weight = fixed
 }

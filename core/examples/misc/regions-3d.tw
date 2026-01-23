@@ -51,32 +51,33 @@ new region cone 'c2'
 	base radius = 5
 	length = 15
 
-	euler angles = (0, 45[deg], -90[deg])
-	translation = (14 0 -14)
+	// `origin` and `translation` are both displacements, only the former is applied *before* the
+	// rotation, and the latter is applied *after*, in the active picture.
+	origin = (0 0 -20)
+	// in the active picture the "third" (rightmost) rotation goes first
+	euler angles = (-90[deg], 45[deg], 0)
 }
 
 // next vertex is obtained by adding 120 degrees
-// rotations always go first, so the translation has to be rotated by hand
 new region cone 'c3'
 {
 	tip radius = 0
 	base radius = 5
 	length = 15
 
-	euler angles = (0, 45[deg], 30[deg])
-	translation = (-9.9 9.9 -14)
+	origin = (0 0 -20)
+	euler angles = (30[deg], 45[deg], 0)
 }
 
 // next vertex is obtained by adding another 120 degrees
-// rotations always go first, so the translation has to be rotated by hand
 new region cone 'c4'
 {
 	tip radius = 0
 	base radius = 5
 	length = 15
 
-	euler angles = (0, 45[deg], 150[deg])
-	translation = (-9.9 -9.9 -14)
+	origin = (0 0 -20)
+	euler angles = (150[deg], 45[deg], 0)
 }
 
 new region union 'u1'

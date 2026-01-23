@@ -120,17 +120,28 @@ def gen_viz(primitive_file,fig_dict):
 		gen_plot(primitive_file+'.png',plotter,slicing_spec,tuple(map(int,slices)),dyn_range,val_range,my_color_map)
 		return primitive_file+'.png'
 
-def check_data(ci_dict):
+def check_data(ci_dict: dict):
 	'''Read the data file and compare to expectations'''
 	file_to_check = ci_dict['data']
 	val_range = ci_dict['range']
-	tolerance = ci_dict['tol']
 	dat = np.load(file_to_check)
-	if np.abs(np.max(dat[-1,...]) - val_range[1]) > tolerance:
-		return 1
-	if np.abs(np.min(dat[-1,...]) - val_range[0]) > tolerance:
-		return 1
-	return 0
+	if 'point' in ci_dict.keys() and 'tolerance' not in ci_dict.keys():
+		val = dat[ci_dict['point']]
+		if val >= val_range[0] and val <= val_range[1]:
+			return ''
+		else:
+			return file_to_check + ' value at ' + str(ci_dict['point']) + 'is out of range'
+	elif 'tolerance' in ci_dict.keys():
+		tolerance = ci_dict['tol']
+		minmax = (np.min(dat[-1,...]), np.max(dat[-1,...]))
+		if np.abs(minmax[1] - val_range[1]) > tolerance:
+			return file_to_check + 'max value ' + str(minmax[1]) + ' out of range'
+		elif np.abs(minmax[0] - val_range[0]) > tolerance:
+			return file_to_check + 'min value ' + str(minmax[0]) + ' out of range'
+		else:
+			return ''
+	else:
+		raise ValueError('unexpected CI test dictionary')
 
 def comment_remover(text):
 	'''Function to strip comments from TW input file
@@ -155,17 +166,17 @@ def parse_input_file(ex_path):
 			c = line.find('CITEST')
 			if c>=0:
 				args = line[c:].split()
-				if len(args)!=4:
-					raise ValueError('Example file with badly formed CITEST specification')
 				input_dict['ci'] += [{}]
 				input_dict['ci'][-1]['data'] = args[1]
 				for s in args[2:]:
 					if s.split('=')[0]=='range':
 						input_dict['ci'][-1]['range'] = tuple(map(float,s.split('=')[1].split(',')))
-					if s.split('=')[0]=='tolerance':
+					elif s.split('=')[0]=='tolerance':
 						input_dict['ci'][-1]['tol'] = float(s.split('=')[1])
-				if len(input_dict['ci'][-1])!=3:
-					raise ValueError('Example file with badly formed CITEST specification')
+					elif s.split('=')[0]=='point':
+						input_dict['ci'][-1]['point'] = tuple(map(float,s.split('=')[1].split(',')))
+					else:
+						raise ValueError('CITEST bad argument: ' + s)
 			c = line.find('TWTEST')
 			if c>=0:
 				args = line[c:].split()
@@ -495,11 +506,12 @@ def CITest(args):
 					# Check the results
 					if compl.returncode==0:
 						try:
-							if check_data(input_dict['ci'][-1])==1:
+							messg = check_data(input_dict['ci'][-1])
+							if len(messg) > 0:
 								print('    ' + term.err + ' ' + term.red + ex_list[i] + term.reset_all)
 								err_report[ex_list[i]] = {}
 								err_report[ex_list[i]]['stdout'] = ''
-								err_report[ex_list[i]]['stderr'] = input_dict['ci'][-1]['data'] + ' extremum delta exceeds tolerance'
+								err_report[ex_list[i]]['stderr'] = messg
 							else:
 								print('    ' + term.ok+ ' ' + term.green + ex_list[i] + term.reset_all)
 						except OSError as err:

@@ -481,7 +481,7 @@ void Simulation::InteractiveCommand(const std::string& cmd,std::ostream *theStre
 		*theStream << std::endl;
 	} else if (cmd=="status" || cmd=="/") {
 		*theStream << "Current step: " << space->StepNow() << std::endl;
-		*theStream << "Current step size: " << space->dx(0) << std::endl;
+		*theStream << "Current step size: " << space->dX(1,0) << std::endl;
 		*theStream << "Current elapsed time: " << space->WindowPos(0) << std::endl;
 		for (auto d : sub_drivers)
 			d->StatusMessage(theStream);
@@ -526,7 +526,7 @@ void Simulation::FundamentalCycle()
 		for (auto d : sub_drivers)
 			d->AdaptGrid();
 
-	auto shift = space->Advance(1);
+	auto shift = space->Advance(space->dX(1,0));
 	if (shift==-1) {
 		AntiMoveWindow();
 	} else if (shift==1) {
@@ -557,14 +557,18 @@ void Simulation::MoveWindow()
 	// TODO: clipping regions formerly advanced their coordinates here, now we will instead
 	// apply a transformation to unwind moving window the same as rotations etc.
 	// Also, there was a call to Initialize here, why?
-	for (auto d : sub_drivers)
+	for (auto d : sub_drivers) {
+		logger::DEBUG(std::format("driver <{}> is shifting its window",d->name));
 		d->MoveWindow();
+	}
 }
 
 void Simulation::AntiMoveWindow()
 {
-	for (auto d : sub_drivers)
+	for (auto d : sub_drivers) {
+		logger::DEBUG(std::format("driver <{}> is un-shifting its window",d->name));
 		d->AntiMoveWindow();
+	}
 }
 
 void Simulation::ReadCheckpoint(std::ifstream& inFile)
@@ -612,7 +616,8 @@ void Simulation::Diagnose()
 		return;
 	}
 
-	logger::TRACE(std::format("prepare diagnostics"));
+	logger::INFO(std::format("writing diagnostics, step {}, time {}",space->StepNow(),space->Corner()[0]));
+
 	for (auto d : sub_drivers)
 		d->StartDiagnostics();
 
@@ -625,7 +630,7 @@ void Simulation::Diagnose()
 		{
 			diag->Start();
 			diag->ReportNumber("time",space->WindowPos(0),true);
-			diag->ReportNumber("dt",space->dx(0),true);
+			diag->ReportNumber("dt",space->dX(1,0),true);
 			diag->ReportNumber("zwindow",space->WindowPos(3),true);
 			for (auto sd : sub_drivers) {
 				sd->RecursivelyReport(diag);

@@ -909,26 +909,22 @@ void Field::StripCopyProtocol(tw::Int axis,tw::Int shift,Slice<tw::Float> *plane
 	task->strip[axis].Shift(1,shift,&src,&dst);
 	odd = task->strip[axis].Get_rank() % 2;
 
-	if (dst!=MPI_PROC_NULL)
+	if (dst!=MPI_PROC_NULL) {
 		LoadDataIntoSlice<tw::Float>(planeOut);
-
-	if (odd)
-	{
+	}
+	if (odd) {
 		task->strip[axis].Recv(planeIn->Buffer(),planeIn->BufferSize(),src);
 		task->strip[axis].Send(planeOut->Buffer(),planeOut->BufferSize(),dst);
-	}
-	else
-	{
+	} else {
 		task->strip[axis].Send(planeOut->Buffer(),planeOut->BufferSize(),dst);
 		task->strip[axis].Recv(planeIn->Buffer(),planeIn->BufferSize(),src);
 	}
-
-	if (src!=MPI_PROC_NULL)
-	{
-		if (add)
+	if (src!=MPI_PROC_NULL) {
+		if (add) {
 			AddDataFromSlice<tw::Float>(planeIn);
-		else
+		} else {
 			SaveDataFromSlice<tw::Float>(planeIn);
+		}
 	}
 }
 
@@ -941,7 +937,7 @@ void Field::DownwardCopy(const Rng04& r,const tw::grid::axis& axis,tw::Int cells
 	if (dim[ax]==1) return;
 	beg[0] = r.b0; end[0] = r.e0;
 	beg[4] = r.b4; end[4] = r.e4;
-	for (tw::Int i=1;i<=3;i++) {
+	for (auto i=1; i<=3; i++) {
 		beg[i] = ax==i ? ung[i] : lfg[i];
 		end[i] = ax==i ? ung[i] + cells : ufg[i] + 1;
 	}

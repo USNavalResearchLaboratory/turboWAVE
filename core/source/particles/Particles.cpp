@@ -208,7 +208,6 @@ bool Kinetics::InspectResource(void* resource,const std::string& description)
 
 void Kinetics::MoveWindow()
 {
-	tw::Int i;
 	Driver::MoveWindow();
 
 	// rho00 must be prepared to receive deposition from incoming particles
@@ -223,11 +222,16 @@ void Kinetics::MoveWindow()
 		rho00.Shift(All(rho00),s,-1,0.0);
 	}
 
-	for (i=0;i<species.size();i++)
-		species[i]->BeginMoveWindow();
+	for (auto s : species) {
+		logger::TRACE(std::format("species <{}> preparing shift",s->name));
+		s->BeginMoveWindow();
+	}
 	TransferParticles();
-	for (i=0;i<species.size();i++)
-		species[i]->FinishMoveWindow();
+	for (auto s : species) {
+		logger::TRACE(std::format("species <{}> finishing shift",s->name));
+		s->FinishMoveWindow();
+	}
+	logger::DEBUG(std::format("driver <{}> finished shifting its window",name));
 }
 
 void Kinetics::Update()
@@ -1275,20 +1279,19 @@ tw::Float Species::AddDensityRandom(const LoadingData& theData)
 	return particleDensity*tw::Float(numToAdd);
 }
 
+/// @brief throw out and transfer particles leaving on the left
 void Species::BeginMoveWindow()
 {
-	// Throw out and transfer particles leaving on the left
-
 	for (tw::Int i=0;i<particle.size();i++)
 	{
 		tw::Int ijk[4];
 		DecodeCell(particle[i].q,ijk);
 		ijk[3]--;
 		particle[i].q.cell = EncodeCell(ijk[0],ijk[1],ijk[2],ijk[3]);
-		if (!RefCellInSpatialDomain(particle[i].q))
-		{
-			if (task->n0[3]!=MPI_PROC_NULL) // need to transfer particle
+		if (!RefCellInSpatialDomain(particle[i].q)) {
+			if (task->n0[3]!=MPI_PROC_NULL) { // need to transfer particle
 				mover->AddTransferParticle(particle[i]);
+			}
 			particle[i] = particle.back();
 			particle.pop_back();
 			i--;
@@ -1299,25 +1302,30 @@ void Species::BeginMoveWindow()
 /// @brief create new particles on the right
 void Species::FinishMoveWindow()
 {
-	if (task->n1[3]==MPI_PROC_NULL)
-		for (auto prof : profiles)
-			for (tw::Int j=1;j<=dim[2];j++)
-				for (tw::Int i=1;i<=dim[1];i++)
-				{
+	if (task->n1[3]==MPI_PROC_NULL) {
+		for (auto prof : profiles) {
+			logger::TRACE(std::format("load from {}",prof->name));
+			for (auto j=1;j<=dim[2];j++) {
+				for (auto i=1;i<=dim[1];i++) {
 					LoadingData loadingData(*space,*task,distributionInCell,tw::cell(*this,1,i,j,dim[3]));
 					loadingData.densToAdd = prof->GetValue(space->Pos(i,j,dim[3]),*space);
 					loadingData.neutralize = space->neutralize;
 					loadingData.thermalMomentum = prof->thermalMomentum;
 					loadingData.driftMomentum = prof->DriftMomentum(restMass);
-					if (prof->variableCharge)
+					if (prof->variableCharge) {
 						loadingData.particleDensity = loadingData.densToAdd/(distributionInCell.x*distributionInCell.y*distributionInCell.z);
-					else
+					} else {
 						loadingData.particleDensity = targetDensity*prof->gammaBoost;
-					if (prof->loadingMethod==tw::profile::loading::deterministic)
+					}
+					if (prof->loadingMethod==tw::profile::loading::deterministic) {
 						AddDensity(loadingData);
-					else
+					} else {
 						AddDensityRandom(loadingData);
+					}
 				}
+			}
+		}
+	}
 }
 
 bool Species::ReadInputFileDirective(const TSTreeCursor *curs0,const std::string& src)

@@ -93,7 +93,7 @@ generate gaussian 'e'
 {
     density = 1.0
     loading = statistical
-    position = ( -0.23 , 0.0 , 0.0 )
+    origin = ( -0.23 , 0.0 , 0.0 )
     size = ( 1e-2 , 1.0 , 1e-2 )
     drift momentum = ( 0.0 , 0.0 , 1e+3 )
 }

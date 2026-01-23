@@ -1432,7 +1432,7 @@ void sparc::HydroManager::Reset()
 			didGenerate |= grp->GenerateFluid(state1,eos1);
 		if (didGenerate)
 		{
-			EOSAdvance(dx(0)); // gets eos0 using state0 and state1
+			EOSAdvance(space->dX(1,0)); // gets eos0 using state0 and state1
 			eos1 = eos0;
 			state0 = state1;
 		}
@@ -2396,25 +2396,22 @@ void sparc::HydroManager::FirstOrderAdvance(tw::Float dt,bool computeSources)
 void sparc::HydroManager::Update()
 {
 	logger::DEBUG("main update");
-	const tw::Float dt = dx(0);
-	tw::Float dts;
 
 	if (!space->adaptiveTimestep)
 	{
-		FirstOrderAdvance(0.5*dt,true);
-		FirstOrderAdvance(dt,true);
+		FirstOrderAdvance(0.5*dx(0),true);
+		FirstOrderAdvance(dx(0),true);
 	}
 	else
 	{
 		ComputeElectronCollisionFrequency();
 		ComputeSources();
-		dts = EstimateTimeStep();
-		space->ChangeStepSize(0,dts);
-		FirstOrderAdvance(0.5*dt,false);
-		FirstOrderAdvance(dt,true);
+		space->ChangeStepSize(EstimateTimeStep());
+		FirstOrderAdvance(0.5*space->dX(1,0),false);
+		FirstOrderAdvance(space->dX(1,0),true);
 	}
 
-	LaserAdvance(dt);
+	LaserAdvance(space->dX(1,0));
 }
 
 bool sparc::HydroManager::ReadQuasitoolBlock(const TSTreeCursor *curs0,const std::string& src)

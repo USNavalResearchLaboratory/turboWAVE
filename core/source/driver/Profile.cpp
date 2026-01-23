@@ -32,11 +32,19 @@ export struct Profile : Engine
 {
 	tw::profile::shape segmentShape;
 	tw::grid::geometry symmetry;
-	tw::vec3 centerPt;
 	tw::vec3 modeNumber;
 	tw::Float modeAmplitude;
-	tw::basis orientation;
 	tw::Float gammaBoost;
+
+	/// displace the body before the rotation
+	tw::vec3 origin;
+	/// rotate the body
+	tw::basis orientation;
+	/// displace the body after the rotation
+	tw::vec3 translation;
+	/// in the active view this gets applied as new_vec = Rz(alpha)*Rx(beta)*Rz(gamma)*old_vec,
+	/// i.e. the "last angle" gets applied first.
+	tw::vec3 euler;
 
 	// items needed for particle/fluid loading
 private:
@@ -98,7 +106,9 @@ public:
 		std::map<std::string,tw::grid::geometry> geo = {{"cylindrical",tw::grid::cylindrical},{"spherical",tw::grid::spherical}};
 
 		directives.Add("neutralize",new tw::input::Bool(&neutralize),false); // not used
-		directives.Add("position",new tw::input::Vec3(&centerPt),false);
+		directives.Add("origin",new tw::input::Vec3(&origin),false);
+		directives.Add("euler angles",new tw::input::Vec3(&euler),false);
+		directives.Add("translation",new tw::input::Vec3(&translation),false);
 		directives.Add("type",new tw::input::Enums<tw::profile::quantity>(qty,&whichQuantity),false);
 		directives.Add("drift momentum",new tw::input::Vec3(&driftMomentum),false);
 		directives.Add("thermal momentum",new tw::input::Vec3(&thermalMomentum),false);
@@ -113,9 +123,10 @@ public:
 		directives.Add("mode number",new tw::input::Vec3(&modeNumber),false);
 		directives.Add("boosted frame gamma",new tw::input::Float(&gammaBoost),false);
 		directives.Add("particle weight",new tw::input::Custom,false);
-		directives.Add("euler angles",new tw::input::Custom,false);
 	}
 	virtual void Initialize() {
+		Engine::Initialize();
+		orientation.SetWithEulerAngles(euler.x, euler.y, euler.z);
 		theRgn = std::dynamic_pointer_cast<Region>(region);
 		if (!theRgn) {
 			logger::DEBUG(std::format("<{}> using default entire region",name));
@@ -152,13 +163,14 @@ public:
 		x4.zBoost(gammaBoost,1.0);
 		return x4.spatial();
 	}
-	tw::vec3 Translate_Rotate(const tw::vec3& pos)
-	{
+	tw::vec3 TransformPoint(const tw::vec3& pos) const {
 		// The argument should already be boosted.
 		// N.b. the boost applies to both region and profile, while translate-rotate applies only to the profile.
-		tw::vec3 p = pos - centerPt;
-		orientation.ExpressInBasis(&p);
-		return p;
+		auto ans(pos);
+		ans -= translation;
+		orientation.ExpressInBasis(&ans);
+		ans -= origin;
+		return ans;
 	}
 	virtual tw::Float GetValue(const tw::vec3& pos,const MetricSpace& ds) {
 		return theRgn->Inside(Boost(pos),0) ? 1.0 : 0.0;
@@ -215,20 +227,13 @@ public:
 			variableCharge = (weighting=="variable" ? true : false);
 			return true;
 		}
-		if (com=="euler angles") // eg, euler angles = ( 45[deg] 90[deg] 30[deg] )
-		{
-			tw::vec3 angles;
-			tw::input::Vec3 directive(&angles);
-			directive.Read(curs.get(),src,"euler angles",native);
-			orientation.SetWithEulerAngles( angles.x , angles.y , angles.z );
-			return true;
-		}
 		return false;
 	}
 	virtual void ReadCheckpoint(std::ifstream& inFile)	{
 		ComputeTool::ReadCheckpoint(inFile);
-		inFile.read((char *)&centerPt,sizeof(tw::vec3));
+		inFile.read((char *)&origin,sizeof(tw::vec3));
 		inFile.read((char *)&orientation,sizeof(orientation));
+		inFile.read((char *)&translation,sizeof(tw::vec3));
 		inFile.read((char *)&wasTriggered,sizeof(bool));
 		inFile.read((char *)&t0,sizeof(tw::Float));
 		inFile.read((char *)&t1,sizeof(tw::Float));
@@ -236,8 +241,9 @@ public:
 
 	virtual void WriteCheckpoint(std::ofstream& outFile) {
 		ComputeTool::WriteCheckpoint(outFile);
-		outFile.write((char *)&centerPt,sizeof(tw::vec3));
+		outFile.write((char *)&origin,sizeof(tw::vec3));
 		outFile.write((char *)&orientation,sizeof(orientation));
+		outFile.write((char *)&translation,sizeof(tw::vec3));
 		outFile.write((char *)&wasTriggered,sizeof(bool));
 		outFile.write((char *)&t0,sizeof(tw::Float));
 		outFile.write((char *)&t1,sizeof(tw::Float));
@@ -322,7 +328,7 @@ tw::Float GaussianProfile::GetValue(const tw::vec3& pos,const MetricSpace& ds)
 {
 	tw::Float dens = density;
 	tw::vec3 b = Boost(pos);
-	tw::vec3 p = Translate_Rotate(b);
+	tw::vec3 p = TransformPoint(b);
 	dens *= std::exp(-sqr(p.x/beamSize.x));
 	dens *= std::exp(-sqr(p.y/beamSize.y));
 	dens *= std::exp(-sqr(p.z/beamSize.z));
@@ -355,7 +361,7 @@ tw::Float ChannelProfile::GetValue(const tw::vec3& pos,const MetricSpace& ds)
 	tw::Int i;
 	tw::Float r2,w,dens = 0.0;
 	tw::vec3 b = Boost(pos);
-	tw::vec3 p = Translate_Rotate(b);
+	tw::vec3 p = TransformPoint(b);
 	dens = Interpolate(p.z,z,fz);
 	r2 = sqr(p.x) + sqr(p.y);
 	dens *= coeff[0] + coeff[1]*r2 + coeff[2]*r2*r2 + coeff[3]*r2*r2*r2;
@@ -388,7 +394,7 @@ tw::Float ColumnProfile::GetValue(const tw::vec3& pos,const MetricSpace& ds)
 	tw::Int i;
 	tw::Float w,dens = 0.0;
 	tw::vec3 b = Boost(pos);
-	tw::vec3 p = Translate_Rotate(b);
+	tw::vec3 p = TransformPoint(b);
 	dens = Interpolate(p.z,z,fz);
 	dens *= std::exp(-sqr(p.x/beamSize.x));
 	dens *= std::exp(-sqr(p.y/beamSize.y));
@@ -462,7 +468,7 @@ tw::Float PiecewiseProfile::GetValue(const tw::vec3& pos,const MetricSpace& ds)
 	tw::Float r,w;
 
 	tw::vec3 b = Boost(pos);
-	tw::vec3 p = Translate_Rotate(b);
+	tw::vec3 p = TransformPoint(b);
 
 	const tw::Float x0 = p.x;
 	const tw::Float y0 = p.y;
@@ -516,7 +522,7 @@ tw::Float CorrugatedProfile::GetValue(const tw::vec3& pos,const MetricSpace& ds)
 {
 	tw::Float dens,wp1s,r2,psi,a0Hat,kHat;
 	tw::vec3 b = Boost(pos);
-	tw::vec3 p = Translate_Rotate(b);
+	tw::vec3 p = TransformPoint(b);
 	const tw::Float x = p.x;
 	const tw::Float y = p.y;
 	const tw::Float z = p.z; // z = 0 is initial injection point

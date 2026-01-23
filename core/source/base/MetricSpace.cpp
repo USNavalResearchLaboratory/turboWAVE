@@ -24,25 +24,29 @@ export struct MetricSpace:DynSpace
 {
 	tw::grid::geometry gridGeometry;
 	tw::Float car,cyl,sph; // set variable corresponding to coordinate system to 1.0, all others to 0.0
-	tw::Int mnum[4]; // num for metric arrays (see DynSpace)
-	tw::Int mlb[4],mub[4]; // lfg and ufg for metric arrays (see DynSpace)
+	tw::Int N00; // padded size of each axis's data
+	std::array<tw::Int,4> mnum; // num for metric arrays (see StaticSpace)
+	tw::Int mlb[4],mub[4]; // lfg and ufg for metric arrays (see StaticSpace)
 	tw::Int I3x3[3][3];
 	bool adaptiveTimestep,adaptiveGrid;
 	
+	// position and width are packed such that the first element for axis ax is at N00*ax
 	std::valarray<tw::Float> gpos; // global positions in parameter space
 	std::valarray<tw::Float> width; // cell sizes in parameter space
 	// Cell metrics are packed assuming separable functional forms
 	// It is assumed there is no dependence of metrics on y (true for the typical 3 systems)
-	std::valarray<tw::Float> cell_area_x;
-	std::valarray<tw::Float> cell_area_z;
+	// areas:
 	// Elements 0,1,2,3 are the volume and lower wall areas of the cell respectively
 	// Elements 4,5,6,7 are the volume and upper wall areas of a cell shifted back by 1/2
 	// External access of areas is through dS and dSh
-	std::valarray<tw::Float> cell_arc_x;
-	std::valarray<tw::Float> cell_arc_z;
+	// arc lengths:
 	// Elements 0,1,2 are from cell center to cell center
 	// Elements 3,4,5 are offset by 1/2 cell forward in arc direction, back in other 2
 	// External access of arcs is through dl and dlh, and uses spatial indexing 1,2,3
+	std::valarray<tw::Float> cell_area_x; /// x-dependent factor for any wall
+	std::valarray<tw::Float> cell_area_z; /// z-dependent factor for any wall
+	std::valarray<tw::Float> cell_arc_x; /// x-dependent factor for any arc
+	std::valarray<tw::Float> cell_arc_z; /// z-dependent factor for any arc
 
 	tw::UnitConverter unitConverter;
 	std::vector<std::shared_ptr<warp_base>> warps;
@@ -93,16 +97,25 @@ public:
 			return false;
 		}
 	}
+	void ChangeStepSize(tw::Float ds) {
+		// we have the future on the left, past on the right
+		for (auto i=mlb[0];i<=1;i++) {
+			dX(i,0) = ds;
+		}
+		for (auto i=1;i>=mlb[0];i--) {
+			X(i,0) = X(i+1,0) + 0.5*dX(i+1,0) + 0.5*dX(i,0);
+		}
+	}
 
 	#ifdef USE_OPENCL
 	void InitializeMetricsBuffer(cl_context ctx,tw::Float dt);
 	void StripUpdateProtocol(cl_kernel k,cl_command_queue q,tw::Int axis,tw::Int stripArgument);
 	#endif
 
-	tw::vec3 ScaleFactor(const tw::vec3& r) const;
-	tw::Float ScaleFactor(const tw::Int& a,const tw::vec3& r) const
+	tw::vec4 ScaleFactor(const tw::vec3& r) const;
+	tw::Float ScaleFactor(const tw::Int& ax,const tw::vec3& r) const
 	{
-		return ScaleFactor(r)[a-1];
+		return ScaleFactor(r)[ax];
 	}
 	tw::Float CylindricalRadius(const tw::vec3& r) const;
 	tw::Float SphericalRadius(const tw::vec3& r) const;
@@ -115,26 +128,26 @@ public:
 	/// position in parameter space
 	tw::Float X(const tw::Int& i,const tw::Int& ax) const
 	{
-		return gpos[mnum[0]*ax-mlb[ax]+i];
+		return gpos[N00*ax-mlb[ax]+i];
 	}
 	/// cell size in parameter space (not an arc length)
 	tw::Float dX(const tw::Int& i,const tw::Int& ax) const
 	{
-		return width[mnum[0]*ax-mlb[ax]+i];
+		return width[N00*ax-mlb[ax]+i];
 	}
 	/// position in parameter space
 	tw::Float& X(const tw::Int& i,const tw::Int& ax)
 	{
-		return gpos[mnum[0]*ax-mlb[ax]+i];
+		return gpos[N00*ax-mlb[ax]+i];
 	}
 	/// cell size in parameter space (not an arc length)
 	tw::Float& dX(const tw::Int& i,const tw::Int& ax)
 	{
-		return width[mnum[0]*ax-mlb[ax]+i];
+		return width[N00*ax-mlb[ax]+i];
 	}
 	tw::vec3 Pos(const tw::Int& i,const tw::Int& j,const tw::Int& k) const
 	{
-		return tw::vec3(gpos[mnum[0]*1-mlb[1]+i],gpos[mnum[0]*2-mlb[2]+j],gpos[mnum[0]*3-mlb[3]+k]);
+		return tw::vec3(gpos[N00*1-mlb[1]+i],gpos[N00*2-mlb[2]+j],gpos[N00*3-mlb[3]+k]);
 	}
 	tw::vec3 Pos(const tw::cell& cell) const
 	{
@@ -152,7 +165,7 @@ public:
 	}
 	tw::vec3 dPos(const tw::Int& i,const tw::Int& j,const tw::Int& k) const
 	{
-		return tw::vec3(width[mnum[0]*1-mlb[1]+i],width[mnum[0]*2-mlb[2]+j],width[mnum[0]*3-mlb[3]+k]);
+		return tw::vec3(width[N00*1-mlb[1]+i],width[N00*2-mlb[2]+j],width[N00*3-mlb[3]+k]);
 	}
 	tw::vec3 dPos(const tw::cell& cell) const
 	{
@@ -362,9 +375,10 @@ void MetricSpace::AttachUnits(tw::units sys,tw::Float unitDensityCGS)
 	unitConverter = tw::UnitConverter(sys,unitDensityCGS);
 }
 
-inline tw::vec3 MetricSpace::ScaleFactor(const tw::vec3& r) const
+inline tw::vec4 MetricSpace::ScaleFactor(const tw::vec3& r) const
 {
-	return tw::vec3(
+	return tw::vec4(
+				1.0,
 				1.0,
 				car + cyl*r.x + sph*r.x*std::sin(r.z),
 				car + cyl + sph*r.x
@@ -505,35 +519,32 @@ void MetricSpace::SetTopology(Task *task,
 	// Metric arrays have ghost cell layers even when dim=1.
 	// Hence the topology of the metric data differs from that of other data
 
-	tw::Int maxLayers = 0;
-	for (auto i=0;i<4;i++)
-		maxLayers = layers[i] > maxLayers ? layers[i] : maxLayers;
+	tw::Int maxLayers = *std::max_element(layers.begin(),layers.end());
 
+	mlb[0] = 1 - maxLayers;
 	mlb[1] = 1 - maxLayers;
 	mlb[2] = 1 - maxLayers;
 	mlb[3] = 1 - maxLayers;
 
+	mub[0] = dim[0] + maxLayers;
 	mub[1] = dim[1] + maxLayers;
 	mub[2] = dim[2] + maxLayers;
 	mub[3] = dim[3] + maxLayers;
 
+	mnum[0] = dim[0]+2*maxLayers;
 	mnum[1] = dim[1]+2*maxLayers;
 	mnum[2] = dim[2]+2*maxLayers;
 	mnum[3] = dim[3]+2*maxLayers;
 
-	mnum[0] = mnum[1];
-	if (mnum[2]>mnum[0])
-		mnum[0] = mnum[2];
-	if (mnum[3]>mnum[0])
-		mnum[0] = mnum[3];
+	N00 = *std::max_element(mnum.begin(),mnum.end());
 }
 
 /// Allocate space for the metric data (step 2).
 /// When checkpointing this has to be called during the read.
 void MetricSpace::Allocate()
 {
-	gpos.resize(4*mnum[0]); // node coordinates
-	width.resize(4*mnum[0]); // parametric cell size (not an arc length in general)
+	gpos.resize(4*N00); // node coordinates
+	width.resize(4*N00); // parametric cell size (not an arc length in general)
 
 	cell_area_x.resize(mnum[1]*8);
 	cell_arc_x.resize(mnum[1]*6);
@@ -545,13 +556,13 @@ void MetricSpace::Allocate()
 /// N.b. spacings are coordinates, not arc lengths.
 void MetricSpace::SetSpacings()
 {
-	for (tw::Int ax=1;ax<=3;ax++)
-		for (tw::Int i=mlb[ax];i<=mub[ax];i++)
+	for (auto ax=0;ax<4;ax++)
+		for (auto i=mlb[ax];i<=mub[ax];i++)
 			dX(i,ax) = spacing[ax];
 	for (auto warp : warps)
 	{
 		tw::Int ax = tw::grid::naxis(warp->ax);
-		for (tw::Int i=lfg[ax];i<=ufg[ax];i++)
+		for (auto i=lfg[ax];i<=ufg[ax];i++)
 			dX(i,ax) += warp->AddedCellWidth(lowSideCells[ax]+i);
 	}
 }
@@ -632,12 +643,12 @@ void MetricSpace::SetCartesianGeometry()
 	gridGeometry = tw::grid::cartesian;
 	car = 1.0; cyl = 0.0; sph = 0.0;
 	tw::Int i,sx=mnum[1],sz=mnum[3];
-	tw::Float *xpos = &gpos[mnum[0]*1];
-	//tw::Float *ypos = &gpos[mnum[0]*2];
-	tw::Float *zpos = &gpos[mnum[0]*3];
-	tw::Float *xwidth = &width[mnum[0]*1];
-	tw::Float *ywidth = &width[mnum[0]*2];
-	tw::Float *zwidth = &width[mnum[0]*3];
+	tw::Float *xpos = &gpos[N00*1];
+	//tw::Float *ypos = &gpos[N00*2];
+	tw::Float *zpos = &gpos[N00*3];
+	tw::Float *xwidth = &width[N00*1];
+	tw::Float *ywidth = &width[N00*2];
+	tw::Float *zwidth = &width[N00*3];
 	for (i=0;i<sx;i++)
 	{
 		cell_area_x[i + 0*sx] = xwidth[i]*ywidth[2];
@@ -699,12 +710,12 @@ void MetricSpace::SetCylindricalGeometry()
 	gridGeometry = tw::grid::cylindrical;
 	car = 0.0; cyl = 1.0; sph = 0.0;
 	tw::Int i,sx=mnum[1],sz=mnum[3];
-	tw::Float *xpos = &gpos[mnum[0]*1];
-	//tw::Float *ypos = &gpos[mnum[0]*2];
-	tw::Float *zpos = &gpos[mnum[0]*3];
-	tw::Float *xwidth = &width[mnum[0]*1];
-	tw::Float *ywidth = &width[mnum[0]*2];
-	tw::Float *zwidth = &width[mnum[0]*3];
+	tw::Float *xpos = &gpos[N00*1];
+	//tw::Float *ypos = &gpos[N00*2];
+	tw::Float *zpos = &gpos[N00*3];
+	tw::Float *xwidth = &width[N00*1];
+	tw::Float *ywidth = &width[N00*2];
+	tw::Float *zwidth = &width[N00*3];
 	for (i=0;i<sx;i++)
 	{
 		const tw::Float x0 = xpos[i]; const tw::Float x1 = xpos[i] - 0.5*xwidth[i];
@@ -775,12 +786,12 @@ void MetricSpace::SetSphericalGeometry()
 	gridGeometry = tw::grid::spherical;
 	car = 0.0; cyl = 0.0; sph = 1.0;
 	tw::Int i,sx=mnum[1],sz=mnum[3];
-	tw::Float *xpos = &gpos[mnum[0]*1];
-	//tw::Float *ypos = &gpos[mnum[0]*2];
-	tw::Float *zpos = &gpos[mnum[0]*3];
-	tw::Float *xwidth = &width[mnum[0]*1];
-	tw::Float *ywidth = &width[mnum[0]*2];
-	tw::Float *zwidth = &width[mnum[0]*3];
+	tw::Float *xpos = &gpos[N00*1];
+	//tw::Float *ypos = &gpos[N00*2];
+	tw::Float *zpos = &gpos[N00*3];
+	tw::Float *xwidth = &width[N00*1];
+	tw::Float *ywidth = &width[N00*2];
+	tw::Float *zwidth = &width[N00*3];
 	for (i=0;i<sx;i++)
 	{
 		const tw::Float x0 = xpos[i];
@@ -900,7 +911,7 @@ U MetricSpace::ValueOnLightGrid(T& A,tw::strip s,tw::Int k,tw::Float relativeTim
 void MetricSpace::ReadCheckpoint(std::ifstream& inFile)
 {
 	DynSpace::ReadCheckpoint(inFile);
-	inFile.read((char *)mnum,sizeof(mnum));
+	inFile.read((char *)&mnum[0],sizeof(mnum));
 	inFile.read((char *)mlb,sizeof(mlb));
 	inFile.read((char *)mub,sizeof(mub));
 	inFile.read((char *)&car,sizeof(tw::Float));
@@ -918,7 +929,7 @@ void MetricSpace::ReadCheckpoint(std::ifstream& inFile)
 void MetricSpace::WriteCheckpoint(std::ofstream& outFile)
 {
 	DynSpace::WriteCheckpoint(outFile);
-	outFile.write((char *)mnum,sizeof(mnum));
+	outFile.write((char *)&mnum[0],sizeof(mnum));
 	outFile.write((char *)mlb,sizeof(mlb));
 	outFile.write((char *)mub,sizeof(mub));
 	outFile.write((char *)&car,sizeof(tw::Float));
