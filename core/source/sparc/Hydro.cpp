@@ -5,7 +5,7 @@ module;
 #include "tw_test.h"
 #include "tw_logger.h"
 
-export module fluid;
+export module hydro;
 import input;
 import driver;
 import fct;
@@ -18,136 +18,11 @@ import parabolic;
 import elliptic;
 import logger;
 
+export import hydro_primitives;
+export import :chemical;
+export import :group;
+
 using namespace tw::bc;
-
-namespace sparc
-{
-	enum laserModel { vacuum, isotropic };
-	enum radiationModel { noRadiation, thin, thick };
-	enum plasmaModel { neutral, quasineutral };
-}
-
-export struct Fluid:Driver
-{
-	tw::Float charge,mass,thermalMomentum,enCrossSection,initialIonizationFraction;
-	Field state0,state1; // density,p1,p2,p3 (unlike SPARC state, p is not a momentum density)
-	ScalarField fixed,gas;
-	bool coulombCollisions;
-
-	// temporaries used in Update
-	Field vel; // gammaAvg,v1,v2,v3
-
-	std::shared_ptr<Ionizer> ionizer;
-	tw::Profiles profiles;
-	tw::Waves waves;
-
-	Field *EM,*J4;
-	Field *laser;
-	ComplexField *chi;
-	tw::Float *carrierFrequency;
-
-	Fluid(const std::string& name,MetricSpace *ms,Task *tsk);
-	virtual bool InspectResource(void* resource,const std::string& description);
-	virtual void VerifyInput();
-	virtual void Initialize();
-	virtual void Update();
-	virtual void MoveWindow();
-	virtual void AddDensity(tw::Float densityToAdd,tw::Int i,tw::Int j,tw::Int k);
-
-	virtual void ReadCheckpoint(std::ifstream& inFile);
-	virtual void WriteCheckpoint(std::ofstream& outFile);
-
-	virtual void Report(Diagnostic&);
-	virtual void RegisterTests() {
-		REGISTER(Fluid,AdvectionTest);
-		REGISTER(Fluid,ConservationTest);
-	}
-	void AdvectionTest();
-	void ConservationTest();
-};
-
-export struct EquilibriumGroup;
-
-export struct Chemical:Driver
-{
-	tw::Profiles profiles;
-	std::shared_ptr<EOSComponent> eosData;
-	std::shared_ptr<Ionizer> ionizer;
-	std::shared_ptr<UniformProfile> background;
-
-	EquilibriumGroup *group; // explictly typed super
-	sparc::material mat;
-	tw::Int indexInState;
-
-	Chemical(const std::string& name,MetricSpace *ms,Task *tsk);
-	void SetupIndexing();
-	virtual void VerifyInput();
-
-	bool LoadFluid(Field& hydro);
-	void LoadInternalEnergy(Field& hydro,Field& eos);
-};
-
-export struct EquilibriumGroup:Driver
-{
-	std::vector<Chemical*> chemical; // explicitly typed submodule list
-	std::shared_ptr<EOSMixture> eosMixData;
-	bool mobile;
-
-	// The hydro set contains indices into the state vector for this group.
-	// The mass density index corresponds to the first chemical in the group.
-	sparc::hydro_set hidx;
-	// The eos set contains indices into the eos vector for this group.
-	sparc::eos_set eidx;
-	// The material data is packed and processed for optimization
-	sparc::material_set matset;
-	// Following is used to limit motion by zeroing forces on this group
-	tw::Float forceFilter;
-
-	tw::Float DensitySum(const Field& f,const tw::cell& cell)
-	{
-		tw::Float ans = 0.0;
-		for (tw::Int s=hidx.first;s<hidx.first+hidx.num;s++)
-			ans += f(cell,s);
-		return ans;
-	}
-	tw::Float DensityWeightedSum(const Field& f,std::valarray<tw::Float>& qty,const tw::cell& cell)
-	{
-		tw::Float ans = 0.0;
-		for (tw::Int s=hidx.first;s<hidx.first+hidx.num;s++)
-			ans += f(cell,s)*qty[s-hidx.first];
-		return ans;
-	}
-	void LoadMassDensity(ScalarField& nm,const Field& f)
-	{
-		for (auto cell : EntireCellRange(*this,1))
-			nm(cell) = DensityWeightedSum(f,matset.mass,cell);
-	}
-	void LoadMassDensityCv(ScalarField& nmcv,const Field& f)
-	{
-		for (auto cell : EntireCellRange(*this,1))
-			nmcv(cell) = DensityWeightedSum(f,matset.cvm,cell);
-	}
-	tw::vec3 Velocity(const Field& f,const tw::cell& cell)
-	{
-		tw::Float nm = DensityWeightedSum(f,matset.mass,cell);
-		return tw::vec3(f(cell,hidx.npx),f(cell,hidx.npy),f(cell,hidx.npz))/(tw::small_pos + nm);
-	}
-	void LoadVelocity(ScalarField& vel,const Field& f,tw::Int ax)
-	{
-		// assumes velocity components appear in order in state vector
-		tw::Float nm;
-		for (auto cell : EntireCellRange(*this,1))
-		{
-			nm = DensityWeightedSum(f,matset.mass,cell);
-			vel(cell) = f(cell,hidx.npx+ax-1)/(tw::small_pos + nm);
-		}
-	}
-
-	EquilibriumGroup(const std::string& name,MetricSpace *ms,Task *tsk);
-	void SetupIndexing();
-	virtual void VerifyInput();
-	bool GenerateFluid(Field& hydro,Field& eos);
-};
 
 export namespace sparc
 {
@@ -245,811 +120,6 @@ struct HydroManager:Driver
 };
 }
 
-/////////////////////////////
-//                         //
-// RELATIVISTIC COLD FLUID //
-//                         //
-/////////////////////////////
-
-Fluid::Fluid(const std::string& name,MetricSpace *ms,Task *tsk):Driver(name,ms,tsk)
-{
-	if (native.unit_system!=tw::units::plasma)
-		throw tw::FatalError("Fluid module requires <native units = plasma>");
-
-	charge = -1.0;
-	mass = 1.0;
-	thermalMomentum = 0.0;
-	enCrossSection = 0.0;
-	initialIonizationFraction = 1.0;
-	coulombCollisions = false;
-
-	state0.Initialize(4,*space,task);
-	state1.Initialize(4,*space,task);
-	fixed.Initialize(*space,task);
-	gas.Initialize(*space,task);
-
-	vel.Initialize(4,*space,task);
-
-	EM = J4 = NULL;
-	laser = NULL;
-	chi = NULL;
-	carrierFrequency = NULL;
-
-	directives.Add("charge",new tw::input::Float(&charge),false);
-	directives.Add("mass",new tw::input::Float(&mass),false);
-	directives.Add("neutral cross section",new tw::input::Float(&enCrossSection),false);
-	directives.Add("initial ionization fraction",new tw::input::Float(&initialIonizationFraction),false);
-	directives.Add("coulomb collisions",new tw::input::Bool(&coulombCollisions),false);
-}
-
-bool Fluid::InspectResource(void* resource,const std::string& description)
-{
-	if (description=="electromagnetic:F")
-	{
-		EM = (Field*)resource;
-		return true;
-	}
-
-	if (description=="electromagnetic:sources")
-	{
-		J4 = (Field*)resource;
-		return true;
-	}
-
-	if (description=="laser:F")
-	{
-		laser = (Field*)resource;
-		return true;
-	}
-
-	if (description=="laser:chi")
-	{
-		chi = (ComplexField*)resource;
-		return true;
-	}
-
-	if (description=="laser:carrierFrequency")
-	{
-		carrierFrequency = (tw::Float*)resource;
-		return true;
-	}
-
-	return false;
-}
-
-void Fluid::VerifyInput()
-{
-	Driver::VerifyInput();
-	for (auto tool : tools) {
-		if (std::dynamic_pointer_cast<Ionizer>(tool)) {
-			ionizer = std::dynamic_pointer_cast<Ionizer>(tool);
-		} else if (std::dynamic_pointer_cast<Wave>(tool)) {
-			waves.push_back(std::dynamic_pointer_cast<Wave>(tool));
-		} else if (std::dynamic_pointer_cast<Profile>(tool)) {
-			profiles.push_back(std::dynamic_pointer_cast<Profile>(tool));
-		}
-	}
-}
-
-void Fluid::Initialize()
-{
-	Driver::Initialize();
-
-	tw::bc::fld xNormal,xParallel,other;
-	xNormal = space->bc0[1]==par::axisymmetric || space->bc0[1]==par::reflecting ? fld::dirichletWall : fld::neumannWall;
-	xParallel = fld::neumannWall;
-	other = fld::neumannWall;
-
-	if (space->IsStdMovingWindow())
-	{
-		state0.SetBoundaryConditions(All(state0),tw::grid::x,xParallel,other);
-		state0.SetBoundaryConditions(All(state0),tw::grid::y,other,other);
-		state0.SetBoundaryConditions(All(state0),tw::grid::z,other,fld::none);
-		state0.SetBoundaryConditions(Rng(1),tw::grid::x,xNormal,other);
-
-		state1.SetBoundaryConditions(All(state1),tw::grid::x,xParallel,other);
-		state1.SetBoundaryConditions(All(state1),tw::grid::y,other,other);
-		state1.SetBoundaryConditions(All(state1),tw::grid::z,other,fld::none);
-		state1.SetBoundaryConditions(Rng(1),tw::grid::x,xNormal,other);
-
-		gas.SetBoundaryConditions(tw::grid::x,xParallel,other);
-		gas.SetBoundaryConditions(tw::grid::y,other,other);
-		gas.SetBoundaryConditions(tw::grid::z,other,fld::none);
-
-		vel.SetBoundaryConditions(All(vel),tw::grid::x,xParallel,other);
-		vel.SetBoundaryConditions(All(vel),tw::grid::y,other,other);
-		vel.SetBoundaryConditions(All(vel),tw::grid::z,other,other);
-	}
-	else
-	{
-		state0.SetBoundaryConditions(All(state0),tw::grid::x,fld::neumannWall,fld::neumannWall);
-		state0.SetBoundaryConditions(All(state0),tw::grid::y,fld::neumannWall,fld::neumannWall);
-		state0.SetBoundaryConditions(All(state0),tw::grid::z,fld::neumannWall,fld::neumannWall);
-		state0.SetBoundaryConditions(Rng(1),tw::grid::x,xNormal,fld::neumannWall);
-		state0.SetBoundaryConditions(Rng(3),tw::grid::z,fld::dirichletWall,fld::dirichletWall);
-
-		state1.SetBoundaryConditions(All(state1),tw::grid::x,fld::neumannWall,fld::neumannWall);
-		state1.SetBoundaryConditions(All(state1),tw::grid::y,fld::neumannWall,fld::neumannWall);
-		state1.SetBoundaryConditions(All(state1),tw::grid::z,fld::neumannWall,fld::neumannWall);
-		state1.SetBoundaryConditions(Rng(1),tw::grid::x,xNormal,fld::neumannWall);
-		state1.SetBoundaryConditions(Rng(3),tw::grid::z,fld::dirichletWall,fld::dirichletWall);
-
-		gas.SetBoundaryConditions(tw::grid::x,fld::neumannWall,fld::neumannWall);
-		gas.SetBoundaryConditions(tw::grid::y,fld::neumannWall,fld::neumannWall);
-		gas.SetBoundaryConditions(tw::grid::z,fld::neumannWall,fld::neumannWall);
-
-		vel.SetBoundaryConditions(All(vel),tw::grid::x,fld::neumannWall,fld::neumannWall);
-		vel.SetBoundaryConditions(All(vel),tw::grid::y,fld::neumannWall,fld::neumannWall);
-		vel.SetBoundaryConditions(All(vel),tw::grid::z,fld::neumannWall,fld::neumannWall);
-	}
-
-	#pragma omp parallel
-	{
-		tw::vec3 pos,A0,A1;
-		tw::Float density;
-		const tw::Float dth = 0.5*dx(0);
-
-		for (auto cell : EntireCellRange(*this,1))
-		{
-			pos = space->Pos(cell);
-
-			for (auto prof : profiles) {
-				for (tw::Int c=1;c<=3;c++) {
-					state0(cell,c) = prof->DriftMomentum(1.0)[c-1];
-					state1(cell,c) = prof->DriftMomentum(1.0)[c-1];
-				}
-				density = prof->GetValue(pos,*space);
-				gas(cell) += (1.0 - initialIonizationFraction)*density;
-				state0(cell,0) += initialIonizationFraction*density; // ionization fraction should not be zero
-				state1(cell,0) += initialIonizationFraction*density;
-				if (space->neutralize) {
-					fixed(cell) += initialIonizationFraction*density;
-				}
-			}
-
-			if (carrierFrequency==NULL) {
-				A0 = A1 = tw::vec3(0,0,0);
-				for (auto w : waves) {
-					A0 += w->VectorPotential(-dth,pos);
-					A1 += w->VectorPotential(0.0,pos);
-				}
-				state0(cell,1) += A0.x;
-				state0(cell,2) += A0.y;
-				state0(cell,3) += 0.5*(A0.x*A0.x + A0.y*A0.y);
-				state1(cell,1) += A1.x;
-				state1(cell,2) += A1.y;
-				state1(cell,3) += 0.5*(A1.x*A1.x + A1.y*A1.y);
-			} else {
-				for (auto w : waves) {
-					state0(cell,3) += 0.25*norm(w->VectorPotentialEnvelope(-dth,pos,*carrierFrequency));
-					state1(cell,3) += 0.25*norm(w->VectorPotentialEnvelope(0.0,pos,*carrierFrequency));
-				}
-			}
-		}
-	}
-
-	// temperature is set to last profile's temperature
-	if (profiles.size()==0)
-		throw tw::FatalError("Fluid module needs a profile.");
-	thermalMomentum = profiles.back()->thermalMomentum.x;
-	if (profiles.back()->temperature!=0.0)
-		thermalMomentum = std::sqrt(profiles.back()->temperature*mass); // appropriate for std::exp(-v^2/(2*vth^2)) convention
-	if (thermalMomentum==0.0)
-		throw tw::FatalError("Fluid module requires temperature specification.");
-	if (initialIonizationFraction<=0.0 || initialIonizationFraction>1.0)
-		throw tw::FatalError("Fluid module reports initial ionization fraction out of range.");
-
-	state0.CopyFromNeighbors(All(state0));
-	state0.ApplyBoundaryCondition(All(state0));
-	state1.CopyFromNeighbors(All(state1));
-	state1.ApplyBoundaryCondition(All(state1));
-	gas.CopyFromNeighbors();
-	gas.ApplyBoundaryCondition();
-}
-
-void Fluid::MoveWindow()
-{
-	const tw::Float dth = 0.5*dx(0);
-	Driver::MoveWindow();
-	#pragma omp parallel
-	{
-		for (auto s : StripRange(*this,3,0,1,strongbool::yes))
-		{
-			tw::Int k = Dim(s.Axis())+1;
-			tw::vec3 pos,A0,A1;
-			tw::Float incomingGas,incomingPlasma[4];
-			pos = space->Pos(s,k);
-			incomingGas = incomingPlasma[0] = incomingPlasma[1] = incomingPlasma[2] = incomingPlasma[3] = 0.0;
-			for (auto profile : profiles) {
-				if (ionizer==NULL) {
-					incomingPlasma[0] += profile->GetValue(pos,*space);
-				} else {
-					incomingGas += profile->GetValue(pos,*space);
-					incomingPlasma[0] += 1e-6*profile->GetValue(pos,*space); // add a little plasma
-				}
-			}
-			state0.Shift(All(state0),s,-1,incomingPlasma);
-			state1.Shift(All(state1),s,-1,incomingPlasma);
-			fixed.Shift(All(fixed),s,-1,0.0);
-			gas.Shift(All(gas),s,-1,incomingGas);
-			if (space->neutralize)
-				fixed(s,k) += incomingPlasma[0];
-
-			A0 = A1 = tw::vec3(0,0,0);
-			for (auto wave : waves) {
-				A0 += wave->VectorPotential(space->WindowPos(0)-dth,pos);
-				A1 += wave->VectorPotential(space->WindowPos(0),pos);
-			}
-			state0(s,k,1) += A0.x;
-			state0(s,k,2) += A0.y;
-			state0(s,k,3) += 0.5*(A0.x*A0.x + A0.y*A0.y);
-			state1(s,k,1) += A1.x;
-			state1(s,k,2) += A1.y;
-			state1(s,k,3) += 0.5*(A1.x*A1.x + A1.y*A1.y);
-		}
-	}
-
-	state0.DownwardCopy(All(state0),tw::grid::z,1);
-	state1.DownwardCopy(All(state1),tw::grid::z,1);
-	fixed.DownwardCopy(tw::grid::z,1);
-	gas.DownwardCopy(tw::grid::z,1);
-}
-
-void Fluid::AddDensity(tw::Float densToAdd,tw::Int i,tw::Int j,tw::Int k)
-{
-	if (densToAdd>0.0)
-	{
-		tw::Float scaleFactor = state1(1,i,j,k,0) / (state1(1,i,j,k,0) + densToAdd);
-		state1(1,i,j,k,0) += densToAdd;
-		state1(1,i,j,k,1) *= scaleFactor;
-		state1(1,i,j,k,2) *= scaleFactor;
-		state1(1,i,j,k,3) *= scaleFactor;
-		if (space->neutralize)
-			fixed(i,j,k) += densToAdd;
-	}
-}
-
-void Fluid::Update()
-{
-	logger::TRACE("cold fluid update");
-
-	tw::bc::fld bc;
-	tw::Float field,ionizedDensity;
-
-	const tw::Float dt = dx(0);
-	const tw::Float dti = dk(0);
-	const tw::Float dth = 0.5*dx(0);
-	const tw::Float q0 = charge;
-	const tw::Float m0 = mass;
-	const tw::Float m0i = 1.0/m0;
-	const tw::Float kT = sqr(thermalMomentum)/m0; // appropriate for std::exp(-v^2/(2*vth^2)) convention
-	const tw::Float coulomb = coulombCollisions ? 1.0 : 0.0;
-
-	// Time centering information upon entry:
-	// qty		time		qty		time
-	// ---		----		---		----
-	// n0		-1/2		n1		0
-	// 						p1		-1/2
-	// a0		-1/2		a1		1/2
-	// aa0		0			aa1		1/2
-	// E		0			B		1/2
-
-	// Time centering information on output:
-	// qty		time		qty					time
-	// ---		----		---					----
-	// rho		1			chi					1/2
-	// J		1/2
-
-	// Advance the momentum to t=1/2
-
-	#pragma omp parallel
-	{
-		// Apply half of E-field impulse and put relativistic mass into vel(cell,0)
-		for (auto v : VectorStripRange<3>(*this,0,1,false))
-		{
-			#pragma omp simd
-			for (tw::Int k=1;k<=dim[3];k++)
-			{
-				state1(v,k,1) += dth*q0*(*EM).sfwd(v,k,0,1);
-				state1(v,k,2) += dth*q0*(*EM).sfwd(v,k,1,2);
-				state1(v,k,3) += dth*q0*(*EM).sfwd(v,k,2,3);
-				vel(v,k,0) = m0*m0 + sqr(state1(v,k,1)) + sqr(state1(v,k,2)) + sqr(state1(v,k,3));
-			}
-			if (laser)
-			{
-				#pragma omp simd
-				for (tw::Int k=1;k<=dim[3];k++)
-					vel(v,k,0) += 0.5*q0*q0*(*laser)(v,k,6);
-			}
-			#pragma omp simd
-			for (tw::Int k=1;k<=dim[3];k++)
-				vel(v,k,0) = std::sqrt(vel(v,k,0));
-		}
-	}
-
-	vel.CopyFromNeighbors(Rng(0));
-	vel.ApplyBoundaryCondition(Rng(0));
-	#pragma omp parallel
-	{
-		tw::Float kT_eff,temp;
-		std::valarray<tw::Float> nuColl(dim[3]+1);
-		const tw::Float nconv = 1.0*tw::dims::density >> native >> cgs;
-		const tw::Float Tconv = 1.0*tw::dims::temperature >> native >> cgs;
-		const tw::Float fconv = 1.0*tw::dims::frequency >> cgs >> native;
-		for (auto v : VectorStripRange<3>(*this,0,1,false))
-		{
-			#pragma omp simd
-			for (tw::Int k=1;k<=dim[3];k++)
-			{
-				kT_eff = kT + (vel(v,k,0) - m0);
-				nuColl[k] = gas(v,k) * enCrossSection * std::sqrt(kT_eff*m0i);
-				temp = coulomb * 1e-5 * fixed(v,k) * nconv;
-				temp *= std::pow(kT_eff*Tconv,-1.5);
-				nuColl[k] += temp*fconv;
-			}
-			#pragma omp simd
-			for (tw::Int k=1;k<=dim[3];k++)
-			{
-				state1(v,k,1) -= dt*vel.d1(v,k,0,1);
-				state1(v,k,2) -= dt*vel.d1(v,k,0,2);
-				state1(v,k,3) -= dt*vel.d1(v,k,0,3);
-				state1(v,k,1) += dth*q0*(*EM).sfwd(v,k,0,1);
-				state1(v,k,2) += dth*q0*(*EM).sfwd(v,k,1,2);
-				state1(v,k,3) += dth*q0*(*EM).sfwd(v,k,2,3);
-				state1(v,k,1) /= 1.0 + nuColl[k]*dt;
-				state1(v,k,2) /= 1.0 + nuColl[k]*dt;
-				state1(v,k,3) /= 1.0 + nuColl[k]*dt;
-			}
-		}
-	}
-	state1.CopyFromNeighbors(All(state1));
-	state1.ApplyBoundaryCondition(All(state1));
-
-	// Compute 1/mass and velocity at t = 1/2
-
-	#pragma omp parallel
-	{
-		for (auto v : VectorStripRange<3>(*this,0,1,true))
-		{
-			#pragma omp simd
-			for (tw::Int k=lfg[3];k<=ufg[3];k++)
-				vel(v,k,0) = m0*m0 + sqr(state1(v,k,1)) + sqr(state1(v,k,2)) + sqr(state1(v,k,3));
-			if (laser)
-			{
-				#pragma omp simd
-				for (tw::Int k=lfg[3];k<=ufg[3];k++)
-					vel(v,k,0) += 0.5*q0*q0*(*laser)(v,k,7);
-			}
-			#pragma omp simd
-			for (tw::Int k=lfg[3];k<=ufg[3];k++)
-			{
-				vel(v,k,0) = 1.0/std::sqrt(vel(v,k,0));
-				vel(v,k,1) = state1(v,k,1)*vel(v,k,0);
-				vel(v,k,2) = state1(v,k,2)*vel(v,k,0);
-				vel(v,k,3) = state1(v,k,3)*vel(v,k,0);
-			}
-		}
-	}
-
-	// FCT Update of density - trial step
-
-	state0 = state1; // dens0(t=0) , dens1(t=0)
-	FCT_Driver convector(&state0,&state1,&vel,NULL,space);
-	convector.SetDensityElements(Rng(0));
-	if (dim[1]>1)
-	{
-		convector.SetVelocityElement(1);
-		convector.Convect(tw::grid::x, tw::bc::fld::dirichletCell, tw::bc::fld::dirichletCell, dth);
-	}
-	if (dim[2]>1)
-	{
-		convector.SetVelocityElement(2);
-		convector.Convect(tw::grid::y, tw::bc::fld::dirichletCell, tw::bc::fld::dirichletCell, dth);
-	}
-	if (dim[3]>1)
-	{
-		bc = space->IsStdMovingWindow() ? tw::bc::fld::neumannWall : tw::bc::fld::dirichletCell;
-		convector.SetVelocityElement(3);
-		convector.Convect(tw::grid::z,bc,bc,dth);
-	}
-
-	// FCT Update of density - full step
-
-	Swap(state0,state1); // dens0(t=0) , dens1(t=1/2)
-	if (dim[1]>1)
-	{
-		convector.SetVelocityElement(1);
-		convector.Convect(tw::grid::x, tw::bc::fld::dirichletCell, tw::bc::fld::dirichletCell, dt);
-		convector.GetTrueFlux(vel,Rng(1),Rng(0));
-	}
-	if (dim[2]>1)
-	{
-		convector.SetVelocityElement(2);
-		convector.Convect(tw::grid::y, tw::bc::fld::dirichletCell, tw::bc::fld::dirichletCell, dt);
-		convector.GetTrueFlux(vel,Rng(2),Rng(0));
-	}
-	if (dim[3]>1)
-	{
-		bc = space->IsStdMovingWindow() ? tw::bc::fld::neumannWall : tw::bc::fld::dirichletCell;
-		convector.SetVelocityElement(3);
-		convector.Convect(tw::grid::z,bc,bc,dt);
-		convector.GetTrueFlux(vel,Rng(3),Rng(0));
-	}
-	Swap(state0,state1); // dens0(t=1/2) , dens1(t=1)
-
-	// Ionization
-
-	if (ionizer!=NULL)
-	{
-		for (tw::Int i=lfg[1];i<=ufg[1];i++)
-			for (tw::Int j=lfg[2];j<=ufg[2];j++)
-				for (tw::Int k=lfg[3];k<=ufg[3];k++)
-				{
-					field = std::sqrt(sqr((*EM)(1,i,j,k,0))+sqr((*EM)(1,i,j,k,1))+sqr((*EM)(1,i,j,k,2)));
-					ionizedDensity = gas(i,j,k)*dt*ionizer->InstantRate(1e-6,field);
-					if (ionizedDensity > gas(i,j,k))
-						ionizedDensity = gas(i,j,k);
-					gas(i,j,k) = std::fabs(gas(i,j,k) - ionizedDensity);
-					AddDensity(ionizedDensity,i,j,k);
-				}
-	}
-
-	// Deposit current at t = 1/2 and charge at t = 1
-	// Get conservative current based on actual FCT fluxes which are stored
-	// in vel(cell,i) ; these are currents integrated over a cell wall.
-
-	if (J4)
-	{
-		// This is a deposition routine.
-		// Writing to ghost cells would double count the sources.
-		#pragma omp parallel
-		{
-			// Need special treatment for current in ignorable directions.
-			// Here cell walls and centers need not be distinguished (dim=1).
-			if (dim[1]==1)
-			{
-				for (auto v : VectorStripRange<3>(*this,0,1,false))
-					#pragma omp simd
-					for (tw::Int k=1;k<=dim[3];k++)
-						vel(v,k,1) *= space->dS(v,k,1) * dt * state0(v,k,0);
-			}
-			if (dim[2]==1)
-			{
-				for (auto v : VectorStripRange<3>(*this,0,1,false))
-					#pragma omp simd
-					for (tw::Int k=1;k<=dim[3];k++)
-						vel(v,k,2) *= space->dS(v,k,2) * dt * state0(v,k,0);
-			}
-			if (dim[3]==1)
-			{
-				for (auto v : VectorStripRange<3>(*this,0,1,false))
-					#pragma omp simd
-					for (tw::Int k=1;k<=dim[3];k++)
-						vel(v,k,3) *= space->dS(v,k,3) * dt * state0(v,k,0);
-			}
-		}
-		#pragma omp parallel
-		{
-			for (auto v : VectorStripRange<3>(*this,0,1,false))
-			{
-				#pragma omp simd
-				for (tw::Int k=1;k<=dim[3];k++)
-				{
-					(*J4)(v,k,0) += space->dS(v,k,0) * q0 * (state1(v,k,0) - fixed(v,k));
-					(*J4)(v,k,1) += q0 * vel(v,k,1) * dti;
-					(*J4)(v,k,2) += q0 * vel(v,k,2) * dti;
-					(*J4)(v,k,3) += q0 * vel(v,k,3) * dti;
-				}
-			}
-		}
-	}
-
-	if (chi)
-	{
-		#pragma omp parallel
-		{
-			for (auto cell : InteriorCellRange(*this,1)) {
-				(*chi)(cell,0) -= space->dS(cell,0)*q0*q0*state0(cell,0)/(m0*vel(cell,0));
-			}
-		}
-	}
-}
-
-void Fluid::ReadCheckpoint(std::ifstream& inFile)
-{
-	Driver::ReadCheckpoint(inFile);
-	state0.ReadCheckpoint(inFile);
-	state1.ReadCheckpoint(inFile);
-	gas.ReadCheckpoint(inFile);
-	fixed.ReadCheckpoint(inFile);
-}
-
-void Fluid::WriteCheckpoint(std::ofstream& outFile)
-{
-	Driver::WriteCheckpoint(outFile);
-	state0.WriteCheckpoint(outFile);
-	state1.WriteCheckpoint(outFile);
-	gas.WriteCheckpoint(outFile);
-	fixed.WriteCheckpoint(outFile);
-}
-
-void Fluid::Report(Diagnostic& diagnostic)
-{
-	Driver::Report(diagnostic);
-	diagnostic.ReportField(name+"_e",state1,1,0,tw::dims::density,"$n_e$");
-	diagnostic.ReportField(name+"_n",gas,1,0,tw::dims::density,"$n_g$");
-}
-
-/////////////////////
-//                 //
-// CHEMICAL MODULE //
-//                 //
-/////////////////////
-
-
-Chemical::Chemical(const std::string& name,MetricSpace *ms, Task *tsk) : Driver(name,ms,tsk)
-{
-	if (native.unit_system!=tw::units::plasma)
-		throw tw::FatalError("Chemical module requires <native units = plasma>");
-
-	mat.charge = -1.0;
-	mat.mass = 1.0;
-	mat.cvm = 1.5;
-	mat.excitationEnergy = 0.0;
-	mat.thermometricConductivity = 0.0;
-	mat.kinematicViscosity = 0.0;
-	mat.eps[0] = 1.0;
-	mat.eps[1] = 0.0;
-	mat.AddDirectives(directives);
-}
-
-void Chemical::VerifyInput()
-{
-	Driver::VerifyInput();
-	group = (EquilibriumGroup*)super;
-	// search tools for EOS and ionizer
-	for (auto tool : tools) {
-		if (std::dynamic_pointer_cast<EOSComponent>(tool)) {
-			eosData = std::dynamic_pointer_cast<EOSComponent>(tool);
-		} else if (std::dynamic_pointer_cast<Ionizer>(tool)) {
-			ionizer = std::dynamic_pointer_cast<Ionizer>(tool);
-		} else if (std::dynamic_pointer_cast<Profile>(tool)) {
-			profiles.push_back(std::dynamic_pointer_cast<Profile>(tool));
-		}
-	}
-	// If the EOS tool could not be found, create one automatically.
-	if (!eosData) {
-		auto new_tool = mat.mass==1.0 ?
-			CreateTool("default_hot_electrons",tw::tool_type::eosHotElectrons) :
-			CreateTool("default_ideal_gas",tw::tool_type::eosIdealGas);
-		AddTool(new_tool);
-		eosData = std::dynamic_pointer_cast<EOSComponent>(new_tool);
-	}
-	// Add a uniform profile for the automatic background fluid.
-	sparc::HydroManager *hydro = dynamic_cast<sparc::HydroManager*>(super->super);
-	if (hydro->backgroundDensity > 0.0)
-	{
-		auto new_tool = CreateTool("auto_background",tw::tool_type::uniformProfile);
-		AddTool(new_tool);
-		auto background = std::dynamic_pointer_cast<Profile>(new_tool);
-		profiles.push_back(background);
-	}
-}
-
-void Chemical::SetupIndexing()
-{
-	logger::TRACE(std::format("indexing for {}",name));
-	// Called by EquilibriumGroup::SetupIndexing()
-	// DFG - the ionization object is now a ComputeTool
-	if (ionizer!=NULL)
-	{
-		// Setup the indexing for photoionization here (ionization tool cannot do it)
-		// Since Hydromanager starts this chain, we can count on all EquilibriumGroup indexing to be in place.
-		Chemical *echem = (Chemical*)this->Root()->FindDriver(ionizer->electron_name,true);
-		Chemical *ichem = (Chemical*)this->Root()->FindDriver(ionizer->ion_name,true);
-		ionizer->hgas = group->hidx;
-		ionizer->hgas.ni = indexInState;
-		ionizer->he = ((EquilibriumGroup*)echem->super)->hidx;
-		ionizer->he.ni = echem->indexInState;
-		ionizer->hi = ((EquilibriumGroup*)ichem->super)->hidx;
-		ionizer->hi.ni = ichem->indexInState;
-	}
-	// Have to send indexing data to EOS
-	eosData->SetupIndexing(indexInState,group->hidx,group->eidx,mat);
-	if (mat.mass==1.0)
-	{
-		sparc::HydroManager *master = (sparc::HydroManager*)(super->super);
-		master->ie = indexInState;
-		master->electrons = this;
-		group->forceFilter = 0.0;
-	}
-}
-
-bool Chemical::LoadFluid(Field& hydro)
-{
-	// Load the mass, momentum, kinetic energy, and explicitly loaded internal energy.
-	// Implicit internal energy is handled in a subsequent sweep.
-	// Explicitly tracked vibrational energy is added here.
-
-	bool massLoaded = false;
-	tw::Float add = 0.0;
-
-	// DFG - indices into the state vector are encapsulated in hidx
-	// the type of hidx is sparc::hydro_set defined in physics.h
-	// (similarly, EOS state indices are in eidx)
-	const tw::Int ns = indexInState;
-	const tw::Int npx = group->hidx.npx;
-	const tw::Int npy = group->hidx.npy;
-	const tw::Int npz = group->hidx.npz;
-	const tw::Int U = group->hidx.u;
-	const tw::Int Xi = group->hidx.x;
-
-	for (auto prof : profiles)
-	{
-		logger::TRACE(std::format("loading profile <{}>",prof->name));
-		if ( prof->TimeGate(space->WindowPos(0),&add) )
-		{
-			const tw::vec3 p0 = prof->DriftMomentum(mat.mass);
-			for (auto cell : EntireCellRange(*this,1))
-			{
-				const tw::Float dens = prof->GetValue(space->Pos(cell),*space);
-				if (prof->whichQuantity==tw::profile::quantity::density && dens>0.0)
-				{
-					massLoaded = true;
-					const tw::Float kT = prof->Temperature(mat.mass);
-					const tw::Float kinetic = 0.5*Norm(dens*p0)/(tw::small_pos + mat.mass*dens);
-					const tw::Float vibrational = dens*mat.excitationEnergy/(std::fabs(std::exp(mat.excitationEnergy/kT) - 1.0) + tw::small_pos);
-					hydro(cell,ns) = add*hydro(cell,ns) + dens;
-					hydro(cell,npx) = add*hydro(cell,npx) + dens*p0.x;
-					hydro(cell,npy) = add*hydro(cell,npy) + dens*p0.y;
-					hydro(cell,npz) = add*hydro(cell,npz) + dens*p0.z;
-					hydro(cell,U) = add*hydro(cell,U) + kinetic + vibrational; // internal energy added in subsequent sweep
-					hydro(cell,Xi) = add*hydro(cell,Xi) + vibrational;
-				}
-				if (prof->whichQuantity==tw::profile::quantity::energy)
-				{
-					hydro(cell,U) = add*hydro(cell,U) + dens;
-				}
-				if (prof->whichQuantity==tw::profile::quantity::px)
-				{
-					hydro(cell,npx) = add*hydro(cell,npx) + dens;
-				}
-				if (prof->whichQuantity==tw::profile::quantity::py)
-				{
-					hydro(cell,npy) = add*hydro(cell,npy) + dens;
-				}
-				if (prof->whichQuantity==tw::profile::quantity::pz)
-				{
-					hydro(cell,npz) = add*hydro(cell,npz) + dens;
-				}
-			}
-		}
-	}
-	hydro.ApplyBoundaryCondition(Rng(ns,Xi+1));
-	return massLoaded;
-}
-
-void Chemical::LoadInternalEnergy(Field& hydro,Field& eos)
-{
-	// Load internal energy, attempting to respect profile targets.
-	// In this process the eos array is overwritten with temporary data.
-	// Therefore eos has to be rebuilt after calling this routine.
-
-	sparc::HydroManager *master = (sparc::HydroManager*)(super->super);
-
-	for (auto prof : profiles)
-	{
-		if (prof->whichQuantity==tw::profile::quantity::density)
-		{
-			// Get the target temperature for this profile
-			const tw::Float kT = prof->Temperature(mat.mass);
-			for (auto cell : EntireCellRange(*this,1))
-			{
-				// Put the target mass density in the scratch array
-				master->scratch(cell) = mat.mass * prof->GetValue(space->Pos(cell),*space);
-				// Put the target temperature into the eos array
-				eos(cell,group->eidx.T) = kT;
-				// Use scratch2 to store the reference temperature, currently hard coded to zero
-				master->scratch2(cell) = 0.0;
-			}
-			// Set heat capacity based on the target mass density and the target temperature
-			eosData->SetHeatCapacity(master->scratch,eos);
-			// Add internal energy based on target mass density, reference temperature, heat capacity, and target temperature
-			// The hydro array is already loaded with the totals for the mass and momentum densities.
-			// The tool can access everything via its own indexing data.
-			group->eosMixData->UpdateEnergy(master->scratch,master->scratch2,hydro,eos);
-		}
-	}
-	hydro.ApplyBoundaryCondition(Rng(group->hidx.u));
-}
-
-
-/////////////////////
-//                 //
-//   GROUP MODULE  //
-//                 //
-/////////////////////
-
-
-EquilibriumGroup::EquilibriumGroup(const std::string& name,MetricSpace *ms, Task *tsk) : Driver(name,ms,tsk)
-{
-	if (native.unit_system!=tw::units::plasma)
-		throw tw::FatalError("EquilibriumGroup module requires <native units = plasma>");
-
-	mobile = true;
-	forceFilter = 1.0;
-
-	directives.Add("mobile",new tw::input::Bool(&mobile));
-}
-
-void EquilibriumGroup::SetupIndexing()
-{
-	logger::TRACE(std::format("indexing for {}",name));
-	// Called by HydroManager::SetupIndexing()
-	matset.Allocate(chemical.size());
-	logger::TRACE(std::format("add materials for {}",name));
-	for (tw::Int i=0;i<chemical.size();i++)
-		matset.AddMaterial(chemical[i]->mat,i);
-	logger::TRACE(std::format("EOS indexing for {}",name));
-	eosMixData->SetupIndexing(hidx,eidx,matset);
-	// First need to set indexInState for all chemicals
-	logger::TRACE(std::format("start index of chems in {}",name));
-	for (tw::Int i=0;i<chemical.size();i++)
-		chemical[i]->indexInState = hidx.first + i;
-	// Now we can setup indexing for all Chemical modules
-	logger::TRACE(std::format("finish index of chems in {}",name));
-	for (auto chem : chemical)
-		chem->SetupIndexing();
-}
-
-void EquilibriumGroup::VerifyInput()
-{
-	Driver::VerifyInput();
-	// Extract Chemical modules from the submodule list
-	for (auto sub : sub_drivers) {
-		Chemical *chem = dynamic_cast<Chemical*>(sub);
-		if (chem!=NULL)
-			chemical.push_back(chem);
-		chem->VerifyInput();
-	}
-	// Find an EOSMixture
-	for (auto tool : tools) {
-		if (std::dynamic_pointer_cast<EOSMixture>(tool)) {
-			eosMixData = std::dynamic_pointer_cast<EOSMixture>(tool);
-		}
-	}
-	// If no EOSMixture create one
-	if (!eosMixData) {
-		auto new_tool = CreateTool("default_eos_mix",tw::tool_type::eosMixture);
-		AddTool(new_tool);
-		eosMixData = std::dynamic_pointer_cast<EOSMixture>(new_tool);
-	}
-}
-
-bool EquilibriumGroup::GenerateFluid(Field& hydro,Field& eos)
-{
-	bool didGenerate = false;
-	std::vector<bool> massLoaded(chemical.size());
-	logger::TRACE("load totals");
-	for (tw::Int i=0;i<chemical.size();i++)
-		massLoaded[i] = chemical[i]->LoadFluid(hydro);
-	logger::TRACE("load internal");
-	for (tw::Int i=0;i<chemical.size();i++)
-		if (massLoaded[i])
-			chemical[i]->LoadInternalEnergy(hydro,eos);
-	for (auto loaded : massLoaded)
-		didGenerate |= loaded;
-	return didGenerate;
-}
-
-
-///////////////////////////////////////
-//                                   //
-// SPARC Hydrodynamics Master Driver //
-//                                   //
-///////////////////////////////////////
-
-
 sparc::HydroManager::HydroManager(const std::string& name,MetricSpace *ms, Task *tsk) : Driver(name,ms,tsk)
 {
 	if (native.unit_system!=tw::units::plasma)
@@ -1107,7 +177,6 @@ void sparc::HydroManager::SetupIndexing()
 	tw::Int r;
 
 	// EOS indexing
-	// DFG - note how setting up the indexing has simplified.
 	r = 0; // running index
 	for (auto grp : group)
 		r = grp->eidx.Load(r);
@@ -1117,12 +186,23 @@ void sparc::HydroManager::SetupIndexing()
 	for (auto grp : group)
 		r = grp->hidx.Load(r,grp->chemical.size());
 
+	// Constituent indexing, and find electrons
+	for (auto grp : group) {
+		for (auto i=0; i<grp->chemical.size(); i++) {
+			grp->chemical[i]->indexInState = grp->hidx.first + i;
+			if (grp->chemical[i]->mat.mass == 1.0) {
+				ie = grp->hidx.first + i;
+				electrons = grp->chemical[i];
+				grp->forceFilter = 0.0;
+			}
+		}
+	}
+
 	// Pass indexing down to lower level objects.
 	for (auto grp : group)
 		grp->SetupIndexing();
 
-	// Under new system, collisions and reactions also have to be indexed.
-	// First define some lambdas to help, then index.
+	// Setup lambdas to help index microscopics (photoionization is handled by groups)
 
 	auto GetHydroSet = [&] (const std::string& name)
 	{
@@ -1131,7 +211,7 @@ void sparc::HydroManager::SetupIndexing()
 		if (chem==NULL) {
 			throw tw::FatalError(std::format("could not find {}",name));
 		}
-		ans = chem->group->hidx;
+		ans = ((EquilibriumGroup*)chem->super)->hidx;
 		ans.ni = chem->indexInState;
 		return ans;
 	};
@@ -1142,7 +222,7 @@ void sparc::HydroManager::SetupIndexing()
 		if (chem==NULL) {
 			throw tw::FatalError(std::format("could not find {}",name));
 		}
-		return chem->group->eidx;
+		return ((EquilibriumGroup*)chem->super)->eidx;
 	};
 
 	auto GetMaterial = [&] (const std::string& name)
@@ -1153,6 +233,7 @@ void sparc::HydroManager::SetupIndexing()
 		}
 		return chem->mat;
 	};
+
 	logger::TRACE("reaction indexing");
 
 	for (auto rxn : reaction)
@@ -1405,7 +486,7 @@ void sparc::HydroManager::Initialize()
 	for (auto grp : group)
 	{
 		grp->forceFilter = grp->mobile ? 1.0 : 0.0;
-		grp->GenerateFluid(state1,eos1);
+		grp->GenerateFluid(state1,eos1,scratch,scratch2);
 	}
 
 	me_eff = 1.0; // effective mass reserved for future use
@@ -1428,8 +509,9 @@ void sparc::HydroManager::Reset()
 		// Generate new fluid due to sources
 		// N.b. EquilibriumGroup::GenerateFluid is destructive to the eos field that is passed in.
 		bool didGenerate = false;
-		for (auto grp : group)
-			didGenerate |= grp->GenerateFluid(state1,eos1);
+		for (auto grp : group) {
+			didGenerate |= grp->GenerateFluid(state1,eos1,scratch,scratch2);
+		}
 		if (didGenerate)
 		{
 			EOSAdvance(space->dX(1,0)); // gets eos0 using state0 and state1
@@ -1677,6 +759,7 @@ void sparc::HydroManager::ComputeRadiativeSources()
 		// Ohmic heating due to static and laser fields
 		if (electrons)
 		{
+			auto hidx = ((EquilibriumGroup*)electrons->super)->hidx;
 			for (auto cell : InteriorCellRange(*this,1))
 			{
 				const tw::Float sig_AC = nu_e(cell)*state1(cell,ie)/(sqr(laserFrequency) + sqr(nu_e(cell)));
@@ -1685,9 +768,9 @@ void sparc::HydroManager::ComputeRadiativeSources()
 				const tw::Float E2_DC = sqr((phi.fwd(cell,0,1) - phi.bak(cell,0,1))/space->dL(cell,1)) +
 					sqr((phi.fwd(cell,0,2) - phi.bak(cell,0,2))/space->dL(cell,2)) +
 					sqr((phi.fwd(cell,0,3) - phi.bak(cell,0,3))/space->dL(cell,3));
-				CreateTotalEnergy(cell,sig_AC*E2_AC,electrons->group->hidx);
+				CreateTotalEnergy(cell,sig_AC*E2_AC,hidx);
 				if (electrostaticHeating)
-					CreateTotalEnergy(cell,sig_DC*E2_DC,electrons->group->hidx);
+					CreateTotalEnergy(cell,sig_DC*E2_DC,hidx);
 			}
 		}
 
@@ -1804,6 +887,9 @@ void sparc::HydroManager::ComputeHydroSources()
 	{
 		for (auto g : group)
 		{
+			for (auto chem : g->chemical) {
+				chem->PumpFluid(creationRate,destructionRate,g->hidx);
+			}
 			if (g->chemical[0]==electrons || g->forceFilter==0.0)
 			{
 				// electrons are not advanced using hydro
@@ -1824,7 +910,7 @@ void sparc::HydroManager::ComputeHydroSources()
 				}
 			}
 			else
-			{
+			{	
 				for (tw::Int ax=1;ax<=3;ax++)
 				{
 					#pragma omp barrier
@@ -1889,9 +975,8 @@ void sparc::HydroManager::ComputeHydroSources()
 
 				// Undifferentiated tensor divergence terms
 				//#pragma omp barrier
-				if (space->gridGeometry==tw::grid::cylindrical)
-					for (auto cell : InteriorCellRange(*this,1))
-					{
+				if (space->gridGeometry==tw::grid::cylindrical) {
+					for (auto cell : InteriorCellRange(*this,1)) {
 						const tw::Float nm = g->DensityWeightedSum(state1,g->matset.mass,cell);
 						const tw::Float Pc = eos1(cell,g->eidx.P);
 						const tw::vec3 vc = g->Velocity(state1,cell);
@@ -1899,9 +984,9 @@ void sparc::HydroManager::ComputeHydroSources()
 						CreateMomentum(cell,1,fluxMask(cell)*(nm*sqr(vc.y) + Pc)/pos.x,g->hidx);
 						DestroyMomentum(cell,2,fluxMask(cell)*nm*vc.x*vc.y/pos.x,g->hidx);
 					}
-				if (space->gridGeometry==tw::grid::spherical)
-					for (auto cell : InteriorCellRange(*this,1))
-					{
+				}
+				if (space->gridGeometry==tw::grid::spherical) {
+					for (auto cell : InteriorCellRange(*this,1)) {
 						const tw::Float nm = g->DensityWeightedSum(state1,g->matset.mass,cell);
 						const tw::Float Pc = eos1(cell,g->eidx.P);
 						const tw::vec3 vc = g->Velocity(state1,cell);
@@ -1911,6 +996,7 @@ void sparc::HydroManager::ComputeHydroSources()
 						DestroyMomentum(cell,2,fluxMask(cell)*(nm*(vc.x*vc.z - vc.y*vc.y/tanz) - Pc/tanz)/pos.x,g->hidx);
 						DestroyMomentum(cell,3,fluxMask(cell)*nm*(vc.x*vc.y + vc.y*vc.z/tanz)/pos.x,g->hidx);
 					}
+				}
 
 			} // end else
 		} // end loop over groups
@@ -2181,7 +1267,7 @@ void sparc::HydroManager::FieldAdvance(tw::Float dt)
 
 	const tw::Float q0 = electrons->mat.charge;
 	const tw::Float m0 = electrons->mat.mass;
-	const tw::Int Pe = electrons->group->eidx.P;
+	const tw::Int Pe = ((EquilibriumGroup*)electrons->super)->eidx.P;
 
 	// set up source and coefficient
 	if (plasModel==sparc::quasineutral)
@@ -2323,6 +1409,10 @@ void sparc::HydroManager::EOSAdvance(tw::Float dt)
 	{
 		tw::Float ionChargeDensity;
 		tw::vec3 ionVelocity;
+		sparc::hydro_set hidx;
+		if (electrons) {
+			hidx = ((EquilibriumGroup*)electrons->super)->hidx;
+		}
 
 		for (auto cell : EntireCellRange(*this,1))
 		{
@@ -2341,9 +1431,9 @@ void sparc::HydroManager::EOSAdvance(tw::Float dt)
 				// Impose quasineutrality and assume electron velocity = average heavy particle velocity
 				const tw::Float ne = -ionChargeDensity/electrons->mat.charge;
 				state1(cell,ie) = ne;
-				state1(cell,electrons->group->hidx.npx) = ne*electrons->mat.mass*ionVelocity.x/tw::Float(group.size()-1);
-				state1(cell,electrons->group->hidx.npy) = ne*electrons->mat.mass*ionVelocity.y/tw::Float(group.size()-1);
-				state1(cell,electrons->group->hidx.npz) = ne*electrons->mat.mass*ionVelocity.z/tw::Float(group.size()-1);
+				state1(cell,hidx.npx) = ne*electrons->mat.mass*ionVelocity.x/tw::Float(group.size()-1);
+				state1(cell,hidx.npy) = ne*electrons->mat.mass*ionVelocity.y/tw::Float(group.size()-1);
+				state1(cell,hidx.npz) = ne*electrons->mat.mass*ionVelocity.z/tw::Float(group.size()-1);
 			}
 		}
 	}

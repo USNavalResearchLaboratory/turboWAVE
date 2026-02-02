@@ -27,7 +27,7 @@ tw::input::navigation Simulation::visit(TSTreeCursor *curs) {
 			try {
 				gridReader->ReadOuter(curs,src);
 			} catch (tw::FatalError& e) {
-				if (tw::strcmp(e.what(),"unknown key")) {
+				if (std::string(e.what()).starts_with("unknown key")) {
 					outerDirectives.ReadNext(curs,src);
 				} else {
 					throw e;
@@ -81,7 +81,7 @@ tw::input::navigation Simulation::visit(TSTreeCursor *curs) {
 			try {
 				gridReader->ReadOuter(curs,src);
 			} catch (tw::FatalError& e) {
-				if (tw::strcmp(e.what(),"unknown key")) {
+				if (std::string(e.what()).starts_with("unknown key")) {
 					outerDirectives.ReadNext(curs,src);
 				} else {
 					throw e;

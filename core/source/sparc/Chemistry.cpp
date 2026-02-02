@@ -7,6 +7,7 @@ module;
 export module chemistry;
 import input;
 import driver;
+import hydro_primitives;
 import physics;
 import logger;
 

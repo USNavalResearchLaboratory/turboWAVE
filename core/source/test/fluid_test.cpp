@@ -3,7 +3,7 @@ module;
 #include "tw_includes.h"
 #include <tw_test.h>
 
-module fluid;
+module rel_cold_fluid;
 import driver;
 
 using namespace tw::bc;

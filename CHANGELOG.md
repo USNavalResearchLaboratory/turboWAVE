@@ -8,6 +8,7 @@
 * Fix potential bug in Field::Transpose
 * Fix potential bug in dual grid decomposition
 * Build usually works for any of MSVC, clang, gcc
+* Fix/restore the SPARC adaptive time step
 
 ### Breaking Changes
 
@@ -27,6 +28,7 @@
     - Drivers can contain other Drivers
 * Simulation is now just the root Driver
     - Some jobs formerly done by Simulation are moved to base classes
+* Factoring of SPARC
 
 ## [5.0.0-a] - 2025-08-20
 

@@ -21,7 +21,7 @@ export namespace tw
 {
 	namespace profile
 	{
-		enum class quantity { density,energy,px,py,pz };
+		enum class quantity { density,energy,power,px,py,pz };
 		enum class timing { triggered,maintained };
 		enum class loading { statistical,deterministic };
 		enum class shape { triangle,sin2,quartic,quintic,sech };
@@ -86,6 +86,7 @@ public:
 		std::map<std::string,tw::profile::quantity> qty = {
 			{ "density",tw::profile::quantity::density },
 			{ "energy",tw::profile::quantity::energy },
+			{ "power",tw::profile::quantity::power },
 			{ "px",tw::profile::quantity::px },
 			{ "py",tw::profile::quantity::py },
 			{ "pz",tw::profile::quantity::pz }};
@@ -184,7 +185,7 @@ public:
 				gateOpen = t>=t0 && !wasTriggered;
 				break;
 			case tw::profile::timing::maintained:
-				*add = 0.0;
+				*add = whichQuantity == tw::profile::quantity::power ? 1.0: 0.0;
 				gateOpen = t>=t0 && t<=t1;
 				break;
 		}
@@ -310,6 +311,7 @@ export struct CorrugatedProfile:Profile
 
 UniformProfile::UniformProfile(const std::string& name,MetricSpace *m,Task *tsk):Profile(name,m,tsk)
 {
+	density = 0.0; // hydro is allowed to create this profile automatically
 	directives.Add("density",new tw::input::Float(&density));
 }
 

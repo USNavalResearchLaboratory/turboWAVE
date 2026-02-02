@@ -111,6 +111,8 @@ export namespace tw
 			{"[g/cm3]",tw::dnum_units(tw::dims::mass_density,tw::units::cgs,1.0)},
 			{"[J/m3]",tw::dnum_units(tw::dims::energy_density,tw::units::mks,1.0)},
 			{"[J/cm3]",tw::dnum_units(tw::dims::energy_density,tw::units::mks,1e6)},
+			{"[W/m3]",tw::dnum_units(tw::dims::power_density,tw::units::mks,1.0)},
+			{"[W/cm3]",tw::dnum_units(tw::dims::power_density,tw::units::mks,1e6)},
 			{"[eV]",tw::dnum_units(tw::dims::temperature,tw::units::cgs,1.0)},
 			{"[K]",tw::dnum_units(tw::dims::temperature,tw::units::mks,1.0)},
 			{"[Pa]",tw::dnum_units(tw::dims::pressure,tw::units::mks,1.0)},

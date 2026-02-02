@@ -156,6 +156,7 @@ target_sources(tw3d PUBLIC
         main/Factory.cpp
         base/base.cpp
         base/logger.cpp
+        base/hydro_primitives.cpp
         base/pic_primitives.cpp
         base/tensor.cpp
         base/StaticSpace.cpp
@@ -194,9 +195,11 @@ target_sources(tw3d PUBLIC
         particles/Particles.cpp
         particles/Qed.cpp
         sparc/Physics.cpp
-        sparc/fct.cpp
         sparc/Chemistry.cpp
-        sparc/Fluid.cpp
+        sparc/fct.cpp
+        sparc/Chemical.cpp
+        sparc/Group.cpp
+        sparc/Hydro.cpp
         solver/numerics_serial.cpp
         solver/numerics_parallel.cpp
         solver/Numerics.cpp
@@ -210,6 +213,7 @@ target_sources(tw3d PUBLIC
         solver/LaserSolve.cpp
         solver/Electrostatic.cpp
         solver/Elliptic.cpp
+        solver/RelColdFluid.cpp
         test/iterator_test.cpp
         test/metric_space_test.cpp
         test/fft_test.cpp
