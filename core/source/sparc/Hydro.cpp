@@ -392,7 +392,7 @@ void sparc::HydroManager::Initialize()
 	fluxMask = 1.0;
 	for (auto cell : EntireCellRange(*space,1))
 		for (auto c : conductors)
-			if (c->Inside(space->Pos(cell)))
+			if (c->Inside(space->Pos4(cell)))
 				fluxMask(cell) = 0.0;
 	logger::TRACE("setup global boundaries");
 	for (tw::Int ax=1;ax<=3;ax++)

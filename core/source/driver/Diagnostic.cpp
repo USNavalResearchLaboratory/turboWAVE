@@ -121,7 +121,7 @@ export struct Diagnostic : Engine
 		for (tw::Int k=loc[4];k<=loc[5];k++)
 			for (tw::Int j=loc[2];j<=loc[3];j++)
 				for (tw::Int i=loc[0];i<=loc[1];i++)
-					if (theRgn->Inside(space->Pos(i,j,k),0))
+					if (theRgn->Inside(space->Pos4(1,i,j,k),0))
 						ans += F(n,i,j,k,c) * space->dS(i,j,k,0);
 		return ans;
 	}
@@ -135,11 +135,11 @@ export struct Diagnostic : Engine
 			for (tw::Int j=loc[2];j<=loc[3];j++)
 				for (tw::Int i=loc[0];i<=loc[1];i++)
 				{
-					const tw::vec3 pos = space->Pos(i,j,k);
+					const auto pos = space->Pos4(1,i,j,k);
 					if (theRgn->Inside(pos,0))
 					{
 						tw::vec3 r1 = r0;
-						tw::vec3 r2 = pos;
+						tw::vec3 r2 = pos.spatial();
 						space->CurvilinearToCartesian(&r1);
 						space->CurvilinearToCartesian(&r2);
 						ans += F(n,i,j,k,c) * (r2[ax-1]-r1[ax-1]) * space->dS(i,j,k,0);

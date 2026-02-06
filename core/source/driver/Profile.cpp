@@ -32,8 +32,9 @@ export struct Profile : Engine
 {
 	tw::profile::shape segmentShape;
 	tw::grid::geometry symmetry;
-	tw::vec3 modeNumber;
+	tw::vec4 modeNumber;
 	tw::Float modeAmplitude;
+	/// This is the user's request to boost the profile's parameters
 	tw::Float gammaBoost;
 
 	/// displace the body before the rotation
@@ -73,7 +74,7 @@ public:
 		modeNumber = 0.0;
 		temperature = 0.0;
 		wasTriggered = false;
-		t0 = 0.0;
+		t0 = tw::big_neg;
 		t1 = tw::big_pos;
 		orientation.u = tw::vec3(1,0,0);
 		orientation.v = tw::vec3(0,1,0);
@@ -121,7 +122,7 @@ public:
 		directives.Add("loading",new tw::input::Enums<tw::profile::loading>(ld,&loadingMethod),false);
 		directives.Add("symmetry",new tw::input::Enums<tw::grid::geometry>(geo,&symmetry),false);
 		directives.Add("mode amplitude",new tw::input::Float(&modeAmplitude),false);
-		directives.Add("mode number",new tw::input::Vec3(&modeNumber),false);
+		directives.Add("mode number",new tw::input::Vec4(&modeNumber),false);
 		directives.Add("boosted frame gamma",new tw::input::Float(&gammaBoost),false);
 		directives.Add("particle weight",new tw::input::Custom,false);
 	}
@@ -154,27 +155,22 @@ public:
 		else
 			return sqr(thermalMomentum.x)/mass; // appropriate for exp(-v^2/(2*vth^2)) convention
 	}
-	tw::vec3 Boost(const tw::vec3& pos)
-	{
-		// Here the boost only works if the profile is constant in time.
-		// The function's caller is giving us boosted frame coordinates.
-		// The user is giving us lab frame coordinates.
-		// Therefore first transform arguments to lab frame, then proceed as usual.
-		tw::vec4 x4(0.0,pos);
-		x4.zBoost(gammaBoost,1.0);
-		return x4.spatial();
-	}
-	tw::vec3 TransformPoint(const tw::vec3& pos) const {
-		// The argument should already be boosted.
-		// N.b. the boost applies to both region and profile, while translate-rotate applies only to the profile.
+	/// Boost, translate, and rotate from the simulation frame to the profile's frame
+	/// The user specifies a boosted frame for each profile.
+	/// If gammaBoost=1 then the profile is in the simulation's frame, which may be considered boosted, or not.
+	/// If gammaBoost>1 then the profile is in a different frame, perhaps a lab frame, in this case the
+	/// profile will be boosted into the simulation's frame.
+	/// The argument is in the simulation's frame, the return value is in the profile's frame.
+	tw::vec4 TransformPoint(const tw::vec4& pos) const {
 		auto ans(pos);
-		ans -= translation;
+		ans.zBoost(gammaBoost,1.0);
+		ans.Sub3(translation);
 		orientation.ExpressInBasis(&ans);
-		ans -= origin;
+		ans.Sub3(origin);
 		return ans;
 	}
-	virtual tw::Float GetValue(const tw::vec3& pos,const MetricSpace& ds) {
-		return theRgn->Inside(Boost(pos),0) ? 1.0 : 0.0;
+	virtual tw::Float GetValue(const tw::vec4& pos,const MetricSpace& ds) {
+		return theRgn->Inside(TransformPoint(pos),0) ? 1.0 : 0.0;
 	}
 	bool TimeGate(tw::Float t,tw::Float *add) {
 		bool gateOpen = false;
@@ -255,285 +251,188 @@ export struct UniformProfile:Profile
 {
 	tw::Float density;
 
-	UniformProfile(const std::string& name,MetricSpace *m,Task *tsk);
-	virtual tw::Float GetValue(const tw::vec3& pos,const MetricSpace& ds);
+	UniformProfile(const std::string& name,MetricSpace *m,Task *tsk):Profile(name,m,tsk) {
+		density = 0.0; // hydro is allowed to create this profile automatically
+		directives.Add("density",new tw::input::Float(&density));
+	}
+	virtual tw::Float GetValue(const tw::vec4& pos,const MetricSpace& ds) {
+		return theRgn->Inside(TransformPoint(pos),0) ? gammaBoost*density : 0.0;
+	}
 };
 
 export struct GaussianProfile:Profile
 {
 	tw::Float density;
-	tw::vec3 beamSize;
-
-	GaussianProfile(const std::string& name,MetricSpace *m,Task *tsk);
-	virtual tw::Float GetValue(const tw::vec3& pos,const MetricSpace& ds);
+	tw::vec4 beamSize;
+	GaussianProfile(const std::string& name,MetricSpace *m,Task *tsk):Profile(name,m,tsk) {
+		directives.Add("density",new tw::input::Float(&density));
+		directives.Add("size",new tw::input::Vec4(&beamSize));
+	}
+	virtual tw::Float GetValue(const tw::vec4& pos,const MetricSpace& ds) {
+		tw::Float dens = gammaBoost*density;
+		auto p = TransformPoint(pos);
+		for (auto i=0; i<4; i++) {
+			dens *= std::exp(-sqr(p[i]/beamSize[i]));
+		}
+		return theRgn->Inside(p,0) ? dens : 0.0;
+	}
 };
 
 export struct ChannelProfile:Profile
 {
 	std::vector<tw::Float> z,fz;
 	tw::Float coeff[4];
+	ChannelProfile(const std::string& name,MetricSpace *m,Task *tsk):Profile(name,m,tsk) {
+		directives.Add("coefficients",new tw::input::Numbers<tw::Float>(&coeff[0],4));
+		directives.Add("zpoints",new tw::input::NumberList<std::vector<tw::Float>>(&z));
+		directives.Add("zdensity",new tw::input::NumberList<std::vector<tw::Float>>(&fz));
+	}
 
-	ChannelProfile(const std::string& name,MetricSpace *m,Task *tsk);
-	virtual tw::Float GetValue(const tw::vec3& pos,const MetricSpace& ds);
-	virtual void ReadCheckpoint(std::ifstream& inFile);
-	virtual void WriteCheckpoint(std::ofstream& outFile);
+	virtual tw::Float GetValue(const tw::vec4& pos,const MetricSpace& ds) {
+		tw::Int i;
+		tw::Float r2,w,dens = 0.0;
+		auto p = TransformPoint(pos);
+		dens = Interpolate(p[3],z,fz);
+		r2 = sqr(p[1]) + sqr(p[2]);
+		dens *= coeff[0] + coeff[1]*r2 + coeff[2]*r2*r2 + coeff[3]*r2*r2*r2;
+		return theRgn->Inside(p,0) ? gammaBoost*dens : 0.0;
+	}
 };
 
 export struct ColumnProfile:Profile
 {
 	std::vector<tw::Float> z,fz;
-	tw::vec3 beamSize;
-
-	ColumnProfile(const std::string& name,MetricSpace *m,Task *tsk);
-	virtual tw::Float GetValue(const tw::vec3& pos,const MetricSpace& ds);
-	virtual void ReadCheckpoint(std::ifstream& inFile);
-	virtual void WriteCheckpoint(std::ofstream& outFile);
+	tw::vec4 beamSize;
+	ColumnProfile(const std::string& name,MetricSpace *m,Task *tsk):Profile(name,m,tsk) {
+		directives.Add("size",new tw::input::Vec4(&beamSize));
+		directives.Add("zpoints",new tw::input::NumberList<std::vector<tw::Float>>(&z));
+		directives.Add("zdensity",new tw::input::NumberList<std::vector<tw::Float>>(&fz));
+	}
+	virtual tw::Float GetValue(const tw::vec4& pos,const MetricSpace& ds) {
+		tw::Int i;
+		tw::Float w,dens = 0.0;
+		auto p = TransformPoint(pos);
+		dens = Interpolate(p[3],z,fz);
+		dens *= std::exp(-sqr(p[0]/beamSize[0]));
+		dens *= std::exp(-sqr(p[1]/beamSize[1]));
+		dens *= std::exp(-sqr(p[2]/beamSize[2]));
+		return theRgn->Inside(p,0) ? gammaBoost*dens : 0.0;
+	}
 };
 
 export struct PiecewiseProfile:Profile
 {
-	std::vector<tw::Float> x,fx,y,fy,z,fz;
+	std::vector<tw::Float> t,ft,x,fx,y,fy,z,fz;
+	PiecewiseProfile(const std::string& name,MetricSpace *m,Task *tsk) : Profile(name,m,tsk) {
+		directives.Add("tpoints",new tw::input::NumberList<std::vector<tw::Float>>(&t),false);
+		directives.Add("xpoints",new tw::input::NumberList<std::vector<tw::Float>>(&x),false);
+		directives.Add("ypoints",new tw::input::NumberList<std::vector<tw::Float>>(&y),false);
+		directives.Add("zpoints",new tw::input::NumberList<std::vector<tw::Float>>(&z),false);
+		directives.Add("tdensity",new tw::input::NumberList<std::vector<tw::Float>>(&ft),false);
+		directives.Add("xdensity",new tw::input::NumberList<std::vector<tw::Float>>(&fx),false);
+		directives.Add("ydensity",new tw::input::NumberList<std::vector<tw::Float>>(&fy),false);
+		directives.Add("zdensity",new tw::input::NumberList<std::vector<tw::Float>>(&fz),false);
+	}
+	void Initialize() {
+		Profile::Initialize();
+		auto bounds = theRgn->Bounds(0);
 
-	PiecewiseProfile(const std::string& name,MetricSpace *m,Task *tsk);
-	virtual void Initialize();
-	virtual tw::Float GetValue(const tw::vec3& pos,const MetricSpace& ds);
-	virtual void ReadCheckpoint(std::ifstream& inFile);
-	virtual void WriteCheckpoint(std::ofstream& outFile);
+		if (t.size()<2)
+		{
+			t.resize(2);
+			ft.resize(2);
+			t.assign({tw::big_neg,tw::big_pos});
+			ft.assign({1,1});
+		}
+		if (x.size()<2)
+		{
+			x.resize(2);
+			fx.resize(2);
+			x.assign({bounds[0],bounds[1]});
+			fx.assign({1,1});
+		}
+		if (y.size()<2)
+		{
+			y.resize(2);
+			fy.resize(2);
+			y.assign({bounds[2],bounds[3]});
+			fy.assign({1,1});
+		}
+		if (z.size()<2)
+		{
+			z.resize(2);
+			fz.resize(2);
+			z.assign({bounds[4],bounds[5]});
+			fz.assign({1,1});
+		}
+	}
+	virtual tw::Float GetValue(const tw::vec4& pos,const MetricSpace& ds) {
+		tw::Float r;
+		tw::vec4 ans(1,1,1,1);
+
+		auto p = TransformPoint(pos);
+
+		const tw::Int yDim = y.size();
+		const tw::Int zDim = z.size();
+
+		ans[0] = Interpolate(p[0],t,ft);
+		switch (symmetry)
+		{
+			case tw::grid::cartesian:
+				ans[1] = Interpolate(p[1],x,fx);
+				ans[2] = Interpolate(p[2],y,fy);
+				ans[3] = Interpolate(p[3],z,fz);
+				break;
+			case tw::grid::cylindrical:
+				r = std::sqrt(sqr(p[1] - x[0]) + sqr(p[2] - 0.5*(y[0] + y[yDim-1])));
+				r += x[0];
+				ans[1] = Interpolate(r,x,fx);
+				ans[3] = Interpolate(p[3],z,fz);
+				break;
+			case tw::grid::spherical:
+				r = std::sqrt(sqr(p[1] - x[0]) + sqr(p[2] - 0.5*(y[0] + y[yDim-1])) + sqr(p[3] - 0.5*(z[0] + z[zDim-1])));
+				r += x[0];
+				ans[1] = Interpolate(r,x,fx);
+				break;
+		}
+
+		tw::Float dens = gammaBoost * ans[0]*ans[1]*ans[2]*ans[3];
+		for (auto i=0; i<4 ; i++) {
+			dens *= sqr(std::cos(0.5*modeNumber[i]*p[i]));
+		}
+		return theRgn->Inside(p,0) ? dens : 0.0;
+	}
 };
 
 export struct CorrugatedProfile:Profile
 {
 	tw::Float a0,gamma0,w0,wp0,km,delta,rchannel;
-
-	CorrugatedProfile(const std::string& name,MetricSpace *m,Task *tsk);
-	virtual tw::Float GetValue(const tw::vec3& pos,const MetricSpace& ds);
+	CorrugatedProfile(const std::string& name,MetricSpace *m,Task *tsk) : Profile(name,m,tsk) {
+		directives.Add("a0",new tw::input::Float(&a0));
+		directives.Add("gamma0",new tw::input::Float(&gamma0));
+		directives.Add("w0",new tw::input::Float(&w0));
+		directives.Add("wp0",new tw::input::Float(&wp0));
+		directives.Add("km",new tw::input::Float(&km));
+		directives.Add("delta",new tw::input::Float(&delta));
+		directives.Add("rchannel",new tw::input::Float(&rchannel));
+	}
+	virtual tw::Float GetValue(const tw::vec4& pos,const MetricSpace& ds) {
+		tw::Float dens,wp1s,r2,psi,a0Hat,kHat;
+		auto p = TransformPoint(pos);
+		const tw::Float x = p[1];
+		const tw::Float y = p[2];
+		const tw::Float z = p[3]; // z = 0 is initial injection point
+		r2 = x*x + y*y;
+		psi = delta*wp0*wp0/(2.0*w0*km);
+		a0Hat = 4.0*tw::cyl_bessel_j(1,psi)*a0/(w0*rchannel);
+		kHat = w0 + km - 0.5*w0*(sqr(wp0/w0) + 8.0/sqr(w0*rchannel));
+		wp1s = 2.0*w0*kHat - 2.0*std::sqrt(sqr(gamma0+a0Hat*w0*z)/(sqr(gamma0+a0Hat*w0*z)-1.0))*w0*w0;
+		dens = wp0*wp0*(1.0 + delta*std::sin(km*z)) + wp1s + 4.0*r2/std::pow(rchannel,tw::Float(4.0));
+		return theRgn->Inside(p,0) ? gammaBoost*dens : 0.0;
+	}
 };
 
-UniformProfile::UniformProfile(const std::string& name,MetricSpace *m,Task *tsk):Profile(name,m,tsk)
-{
-	density = 0.0; // hydro is allowed to create this profile automatically
-	directives.Add("density",new tw::input::Float(&density));
-}
 
-tw::Float UniformProfile::GetValue(const tw::vec3& pos,const MetricSpace& ds)
-{
-	return theRgn->Inside(Boost(pos),0) ? gammaBoost*density : 0.0;
-}
 
-GaussianProfile::GaussianProfile(const std::string& name,MetricSpace *m,Task *tsk):Profile(name,m,tsk)
-{
-	directives.Add("density",new tw::input::Float(&density));
-	directives.Add("size",new tw::input::Vec3(&beamSize));
-}
 
-tw::Float GaussianProfile::GetValue(const tw::vec3& pos,const MetricSpace& ds)
-{
-	tw::Float dens = density;
-	tw::vec3 b = Boost(pos);
-	tw::vec3 p = TransformPoint(b);
-	dens *= std::exp(-sqr(p.x/beamSize.x));
-	dens *= std::exp(-sqr(p.y/beamSize.y));
-	dens *= std::exp(-sqr(p.z/beamSize.z));
-	return theRgn->Inside(b,0) ? gammaBoost*dens : 0.0;
-}
-
-ChannelProfile::ChannelProfile(const std::string& name,MetricSpace *m,Task *tsk):Profile(name,m,tsk)
-{
-	directives.Add("coefficients",new tw::input::Numbers<tw::Float>(&coeff[0],4));
-	directives.Add("zpoints",new tw::input::NumberList<std::vector<tw::Float>>(&z));
-	directives.Add("zdensity",new tw::input::NumberList<std::vector<tw::Float>>(&fz));
-}
-
-void ChannelProfile::ReadCheckpoint(std::ifstream& inFile)
-{
-	Profile::ReadCheckpoint(inFile);
-	inFile.read((char *)&z[0],sizeof(tw::Float)*z.size());
-	inFile.read((char *)&fz[0],sizeof(tw::Float)*fz.size());
-}
-
-void ChannelProfile::WriteCheckpoint(std::ofstream& outFile)
-{
-	Profile::WriteCheckpoint(outFile);
-	outFile.write((char *)&z[0],sizeof(tw::Float)*z.size());
-	outFile.write((char *)&fz[0],sizeof(tw::Float)*fz.size());
-}
-
-tw::Float ChannelProfile::GetValue(const tw::vec3& pos,const MetricSpace& ds)
-{
-	tw::Int i;
-	tw::Float r2,w,dens = 0.0;
-	tw::vec3 b = Boost(pos);
-	tw::vec3 p = TransformPoint(b);
-	dens = Interpolate(p.z,z,fz);
-	r2 = sqr(p.x) + sqr(p.y);
-	dens *= coeff[0] + coeff[1]*r2 + coeff[2]*r2*r2 + coeff[3]*r2*r2*r2;
-	return theRgn->Inside(b,0) ? gammaBoost*dens : 0.0;
-}
-
-ColumnProfile::ColumnProfile(const std::string& name,MetricSpace *m,Task *tsk):Profile(name,m,tsk)
-{
-	directives.Add("size",new tw::input::Vec3(&beamSize));
-	directives.Add("zpoints",new tw::input::NumberList<std::vector<tw::Float>>(&z));
-	directives.Add("zdensity",new tw::input::NumberList<std::vector<tw::Float>>(&fz));
-}
-
-void ColumnProfile::ReadCheckpoint(std::ifstream& inFile)
-{
-	Profile::ReadCheckpoint(inFile);
-	inFile.read((char *)&z[0],sizeof(tw::Float)*z.size());
-	inFile.read((char *)&fz[0],sizeof(tw::Float)*fz.size());
-}
-
-void ColumnProfile::WriteCheckpoint(std::ofstream& outFile)
-{
-	Profile::WriteCheckpoint(outFile);
-	outFile.write((char *)&z[0],sizeof(tw::Float)*z.size());
-	outFile.write((char *)&fz[0],sizeof(tw::Float)*fz.size());
-}
-
-tw::Float ColumnProfile::GetValue(const tw::vec3& pos,const MetricSpace& ds)
-{
-	tw::Int i;
-	tw::Float w,dens = 0.0;
-	tw::vec3 b = Boost(pos);
-	tw::vec3 p = TransformPoint(b);
-	dens = Interpolate(p.z,z,fz);
-	dens *= std::exp(-sqr(p.x/beamSize.x));
-	dens *= std::exp(-sqr(p.y/beamSize.y));
-	return theRgn->Inside(b,0) ? gammaBoost*dens : 0.0;
-}
-
-PiecewiseProfile::PiecewiseProfile(const std::string& name,MetricSpace *m,Task *tsk) : Profile(name,m,tsk)
-{
-	directives.Add("xpoints",new tw::input::NumberList<std::vector<tw::Float>>(&x),false);
-	directives.Add("ypoints",new tw::input::NumberList<std::vector<tw::Float>>(&y),false);
-	directives.Add("zpoints",new tw::input::NumberList<std::vector<tw::Float>>(&z),false);
-	directives.Add("xdensity",new tw::input::NumberList<std::vector<tw::Float>>(&fx),false);
-	directives.Add("ydensity",new tw::input::NumberList<std::vector<tw::Float>>(&fy),false);
-	directives.Add("zdensity",new tw::input::NumberList<std::vector<tw::Float>>(&fz),false);
-}
-
-void PiecewiseProfile::Initialize()
-{
-	Profile::Initialize();
-	auto bounds = theRgn->Bounds(0);
-
-	if (x.size()<2)
-	{
-		x.resize(2);
-		fx.resize(2);
-		x.assign({bounds[0],bounds[1]});
-		fx.assign({1,1});
-	}
-	if (y.size()<2)
-	{
-		y.resize(2);
-		fy.resize(2);
-		y.assign({bounds[2],bounds[3]});
-		fy.assign({1,1});
-	}
-	if (z.size()<2)
-	{
-		z.resize(2);
-		fz.resize(2);
-		z.assign({bounds[4],bounds[5]});
-		fz.assign({1,1});
-	}
-}
-
-void PiecewiseProfile::ReadCheckpoint(std::ifstream& inFile)
-{
-	Profile::ReadCheckpoint(inFile);
-	inFile.read((char *)&x[0],sizeof(tw::Float)*x.size());
-	inFile.read((char *)&fx[0],sizeof(tw::Float)*fx.size());
-	inFile.read((char *)&y[0],sizeof(tw::Float)*y.size());
-	inFile.read((char *)&fy[0],sizeof(tw::Float)*fy.size());
-	inFile.read((char *)&z[0],sizeof(tw::Float)*z.size());
-	inFile.read((char *)&fz[0],sizeof(tw::Float)*fz.size());
-}
-
-void PiecewiseProfile::WriteCheckpoint(std::ofstream& outFile)
-{
-	Profile::WriteCheckpoint(outFile);
-	outFile.write((char *)&x[0],sizeof(tw::Float)*x.size());
-	outFile.write((char *)&fx[0],sizeof(tw::Float)*fx.size());
-	outFile.write((char *)&y[0],sizeof(tw::Float)*y.size());
-	outFile.write((char *)&fy[0],sizeof(tw::Float)*fy.size());
-	outFile.write((char *)&z[0],sizeof(tw::Float)*z.size());
-	outFile.write((char *)&fz[0],sizeof(tw::Float)*fz.size());
-}
-
-tw::Float PiecewiseProfile::GetValue(const tw::vec3& pos,const MetricSpace& ds)
-{
-	tw::Float ansX,ansY,ansZ;
-	tw::Int i;
-	tw::Float r,w;
-
-	tw::vec3 b = Boost(pos);
-	tw::vec3 p = TransformPoint(b);
-
-	const tw::Float x0 = p.x;
-	const tw::Float y0 = p.y;
-	const tw::Float z0 = p.z;
-
-	tw::Int xDim = x.size();
-	tw::Int yDim = y.size();
-	tw::Int zDim = z.size();
-
-	ansX = ansY = ansZ = 1.0;
-
-	switch (symmetry)
-	{
-		case tw::grid::cartesian:
-			ansX = Interpolate(x0,x,fx);
-			ansY = Interpolate(y0,y,fy);
-			ansZ = Interpolate(z0,z,fz);
-			break;
-		case tw::grid::cylindrical:
-			r = std::sqrt(sqr(x0 - x[0]) + sqr(y0 - 0.5*(y[0] + y[yDim-1])));
-			r += x[0];
-			ansX = Interpolate(r,x,fx);
-			ansY = 1.0;
-			ansZ = Interpolate(z0,z,fz);
-			break;
-		case tw::grid::spherical:
-			r = std::sqrt(sqr(x0 - x[0]) + sqr(y0 - 0.5*(y[0] + y[yDim-1])) + sqr(z0 - 0.5*(z[0] + z[zDim-1])));
-			r += x[0];
-			ansX = Interpolate(r,x,fx);
-			ansY = 1.0;
-			ansZ = 1.0;
-			break;
-	}
-
-	tw::Float dens = ansX*ansY*ansZ*sqr(std::cos(0.5*modeNumber.x*p.x)*std::cos(0.5*modeNumber.y*p.y)*std::cos(0.5*modeNumber.z*p.z));
-	return theRgn->Inside(b,0) ? gammaBoost*dens : 0.0;
-}
-
-CorrugatedProfile::CorrugatedProfile(const std::string& name,MetricSpace *m,Task *tsk) : Profile(name,m,tsk)
-{
-	directives.Add("a0",new tw::input::Float(&a0));
-	directives.Add("gamma0",new tw::input::Float(&gamma0));
-	directives.Add("w0",new tw::input::Float(&w0));
-	directives.Add("wp0",new tw::input::Float(&wp0));
-	directives.Add("km",new tw::input::Float(&km));
-	directives.Add("delta",new tw::input::Float(&delta));
-	directives.Add("rchannel",new tw::input::Float(&rchannel));
-}
-
-tw::Float CorrugatedProfile::GetValue(const tw::vec3& pos,const MetricSpace& ds)
-{
-	tw::Float dens,wp1s,r2,psi,a0Hat,kHat;
-	tw::vec3 b = Boost(pos);
-	tw::vec3 p = TransformPoint(b);
-	const tw::Float x = p.x;
-	const tw::Float y = p.y;
-	const tw::Float z = p.z; // z = 0 is initial injection point
-	r2 = x*x + y*y;
-	psi = delta*wp0*wp0/(2.0*w0*km);
-	a0Hat = 4.0*tw::cyl_bessel_j(1,psi)*a0/(w0*rchannel);
-	kHat = w0 + km - 0.5*w0*(sqr(wp0/w0) + 8.0/sqr(w0*rchannel));
-	wp1s = 2.0*w0*kHat - 2.0*std::sqrt(sqr(gamma0+a0Hat*w0*z)/(sqr(gamma0+a0Hat*w0*z)-1.0))*w0*w0;
-	dens = wp0*wp0*(1.0 + delta*std::sin(km*z)) + wp1s + 4.0*r2/std::pow(rchannel,tw::Float(4.0));
-	return theRgn->Inside(b,0) ? gammaBoost*dens : 0.0;
-}
 

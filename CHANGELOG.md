@@ -16,6 +16,8 @@
 * Tools are referenced by `SharedTool` (alias for `std::shared_ptr<ComputeTool>`)
 * Regions and profiles are subject to a translate-rotate-translate operation
     - set by `origin`, `euler angles`, and `translation`
+* Profile's region participates in *all* the profile's transformations
+* Profile's handle and may require the time axis
 
 ### Code Structure
 

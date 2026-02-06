@@ -23,8 +23,8 @@ export struct RegionsTest: ComputeTool {
         auto rgn = std::make_unique<SimpleRegion>("r1",space,task,std::move(prim));
         rgn->translation = tw::vec3(1.5,0,0);
         rgn->Initialize();
-        ASSERT_FALSE(rgn->Inside(tw::vec3(0,0,0),0));
-        ASSERT_TRUE(rgn->Inside(tw::vec3(1.5,0,0),0));
+        ASSERT_FALSE(rgn->Inside(tw::vec4(0,0,0,0),0));
+        ASSERT_TRUE(rgn->Inside(tw::vec4(0,1.5,0,0),0));
     }
     void UnionTest() {
         auto r1 = std::make_shared<SimpleRegion>("c1",space,task,
@@ -41,10 +41,10 @@ export struct RegionsTest: ComputeTool {
         r2->Initialize();
         u->Initialize();
         tw::Float crossingPt = std::sqrt(1 - dz*dz);
-        ASSERT_TRUE(u->Inside(tw::vec3(0,0,-dz),0));
-        ASSERT_TRUE(u->Inside(tw::vec3(0,0,dz),0));
-        ASSERT_TRUE(u->Inside(tw::vec3(crossingPt - .001,0,0),0));
-        ASSERT_FALSE(u->Inside(tw::vec3(crossingPt + .001,0,0),0));
+        ASSERT_TRUE(u->Inside(tw::vec4(0,0,0,-dz),0));
+        ASSERT_TRUE(u->Inside(tw::vec4(0,0,0,dz),0));
+        ASSERT_TRUE(u->Inside(tw::vec4(0,crossingPt - .001,0,0),0));
+        ASSERT_FALSE(u->Inside(tw::vec4(0,crossingPt + .001,0,0),0));
     }
 	void IntersectionTest() {
         auto r1 = std::make_shared<SimpleRegion>("c1",space,task,
@@ -61,10 +61,10 @@ export struct RegionsTest: ComputeTool {
         r2->Initialize();
         u->Initialize();
         tw::Float crossingPt = std::sqrt(1 - dz*dz);
-        ASSERT_FALSE(u->Inside(tw::vec3(0,0,-dz),0));
-        ASSERT_FALSE(u->Inside(tw::vec3(0,0,dz),0));
-        ASSERT_TRUE(u->Inside(tw::vec3(crossingPt - .001,0,0),0));
-        ASSERT_FALSE(u->Inside(tw::vec3(crossingPt + .001,0,0),0));
+        ASSERT_FALSE(u->Inside(tw::vec4(0,0,0,-dz),0));
+        ASSERT_FALSE(u->Inside(tw::vec4(0,0,0,dz),0));
+        ASSERT_TRUE(u->Inside(tw::vec4(0,crossingPt - .001,0,0),0));
+        ASSERT_FALSE(u->Inside(tw::vec4(0,crossingPt + .001,0,0),0));
     }
 	void DifferenceTest() {
         auto r1 = std::make_shared<SimpleRegion>("c1",space,task,
@@ -81,9 +81,9 @@ export struct RegionsTest: ComputeTool {
         r2->Initialize();
         u->Initialize();
         tw::Float crossingPt = std::sqrt(1 - dz*dz);
-        ASSERT_TRUE(u->Inside(tw::vec3(0,0,-dz),0));
-        ASSERT_FALSE(u->Inside(tw::vec3(0,0,dz),0));
-        ASSERT_FALSE(u->Inside(tw::vec3(crossingPt - .001,0,0),0));
-        ASSERT_FALSE(u->Inside(tw::vec3(crossingPt + .001,0,0),0));
+        ASSERT_TRUE(u->Inside(tw::vec4(0,0,0,-dz),0));
+        ASSERT_FALSE(u->Inside(tw::vec4(0,0,0,dz),0));
+        ASSERT_FALSE(u->Inside(tw::vec4(0,crossingPt - .001,0,0),0));
+        ASSERT_FALSE(u->Inside(tw::vec4(0,crossingPt + .001,0,0),0));
     }
 };

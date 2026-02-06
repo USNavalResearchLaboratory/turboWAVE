@@ -79,6 +79,7 @@ export namespace tw
 			return std::sqrt(v.x*v.x + v.y*v.y + v.z*v.z);
 		}
 
+		/// Returns x^2 + y^2 + z^2
 		friend tw::Float Norm(const vec3& v)
 		{
 			return v.x*v.x + v.y*v.y + v.z*v.z;
@@ -311,6 +312,7 @@ export namespace tw
 			return std::sqrt(norm(v.x) + norm(v.y) + norm(v.z));
 		}
 
+		/// Returns |x|^2 + |y|^2 + |z|^2
 		friend tw::Float Norm(const cvec3& v)
 		{
 			return norm(v.x) + norm(v.y) + norm(v.z);
@@ -536,11 +538,16 @@ export namespace tw
 			return tw::vec3(array[1],array[2],array[3]);
 		}
 
+		/// Euclidean inner product: Minkowski product is formed by raising one of the two arguments before calling.
 		friend tw::Float Inner(const vec4& v1,const vec4& v2)
 		{
-			// Be sure to raise one of the two vectors to form the Minkowski product.
-			// Otherwise we have the Euclidean inner product.
 			return v1.array[0]*v2.array[0] + v1.array[1]*v2.array[1] + v1.array[2]*v2.array[2] + v1.array[3]*v2.array[3];
+		}
+
+		/// Returns x^2 + y^2 + z^2
+		friend tw::Float Norm(const vec4& v)
+		{
+			return v.array[1]*v.array[1] + v.array[2]*v.array[2] + v.array[3]*v.array[3];
 		}
 
 		tw::vec4 raise_pmmm()
@@ -551,6 +558,21 @@ export namespace tw
 		tw::vec4 raise_mppp()
 		{
 			return tw::vec4(-array[0],array[1],array[2],array[3]);
+		}
+
+		void Add3(const tw::vec3& r)
+		{
+			array[1] += r[0];
+			array[2] += r[1];
+			array[3] += r[2];
+		}
+
+		void Sub3(const tw::vec3& r)
+		{
+			array[1] -= r[0];
+			array[2] -= r[1];
+			array[3] -= r[2];
+
 		}
 
 		void zBoost(const tw::Float& g,const tw::Float& sgn)

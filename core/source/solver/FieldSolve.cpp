@@ -326,15 +326,18 @@ void Electromagnetic::InitializeConductors()
 	// Conductor resides in cells shifted back by 1/2
 	// These have E known along upper edges and B normal to upper walls
 	// The conductor fills the whole cell or none of the cell
-	tw::vec3 shiftedCenter;
-	//#pragma omp parallel for private(i,j,k,s,shiftedCenter) collapse(3) schedule(static)
-	for (auto cell : EntireCellRange(*this,1))
+	#pragma omp parallel
 	{
-		conductorMask(cell) = 1.0;
-		shiftedCenter = space->Pos(cell) - 0.5*space->dPos(cell);
-		for (auto c : conductors)
-			if (c->affectsA && c->Inside(shiftedCenter))
-				conductorMask(cell) = 0.0;
+		tw::vec4 shiftedCenter;
+		for (auto cell : EntireCellRange(*this,1))
+		{
+			conductorMask(cell) = 1.0;
+			shiftedCenter = space->Pos4(cell);
+			shiftedCenter.Sub3(0.5*space->dPos(cell));
+			for (auto c : conductors)
+				if (c->affectsA && c->Inside(shiftedCenter))
+					conductorMask(cell) = 0.0;
+		}
 	}
 }
 

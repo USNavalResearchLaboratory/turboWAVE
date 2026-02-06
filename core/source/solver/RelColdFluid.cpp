@@ -193,20 +193,21 @@ void Fluid::Initialize()
 
 	#pragma omp parallel
 	{
-		tw::vec3 pos,A0,A1;
+		tw::vec3 A0,A1;
 		tw::Float density;
 		const tw::Float dth = 0.5*dx(0);
 
 		for (auto cell : EntireCellRange(*this,1))
 		{
-			pos = space->Pos(cell);
+			auto pos4 = space->Pos4(cell);
+			auto pos = pos4.spatial();
 
 			for (auto prof : profiles) {
 				for (tw::Int c=1;c<=3;c++) {
 					state0(cell,c) = prof->DriftMomentum(1.0)[c-1];
 					state1(cell,c) = prof->DriftMomentum(1.0)[c-1];
 				}
-				density = prof->GetValue(pos,*space);
+				density = prof->GetValue(pos4,*space);
 				gas(cell) += (1.0 - initialIonizationFraction)*density;
 				state0(cell,0) += initialIonizationFraction*density; // ionization fraction should not be zero
 				state1(cell,0) += initialIonizationFraction*density;
@@ -264,16 +265,17 @@ void Fluid::MoveWindow()
 		for (auto s : StripRange(*this,3,0,1,strongbool::yes))
 		{
 			tw::Int k = Dim(s.Axis())+1;
-			tw::vec3 pos,A0,A1;
+			tw::vec3 A0,A1;
 			tw::Float incomingGas,incomingPlasma[4];
-			pos = space->Pos(s,k);
+			auto pos4 = space->Pos4(s,k);
+			auto pos = pos4.spatial();
 			incomingGas = incomingPlasma[0] = incomingPlasma[1] = incomingPlasma[2] = incomingPlasma[3] = 0.0;
 			for (auto profile : profiles) {
 				if (ionizer==NULL) {
-					incomingPlasma[0] += profile->GetValue(pos,*space);
+					incomingPlasma[0] += profile->GetValue(pos4,*space);
 				} else {
-					incomingGas += profile->GetValue(pos,*space);
-					incomingPlasma[0] += 1e-6*profile->GetValue(pos,*space); // add a little plasma
+					incomingGas += profile->GetValue(pos4,*space);
+					incomingPlasma[0] += 1e-6*profile->GetValue(pos4,*space); // add a little plasma
 				}
 			}
 			state0.Shift(All(state0),s,-1,incomingPlasma);

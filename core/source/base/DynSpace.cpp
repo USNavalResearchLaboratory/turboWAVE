@@ -69,10 +69,8 @@ export struct DynSpace : StaticSpace
 	/// 0 means do nothing, 1 means shift grid right (moving window).
 	tw::Int Advance(tw::Float ds);
 	/// take vector known in the current window and translate it to the starting window
-	void ToStartingWindow(tw::vec3 *v) const {
-		(*v)[0] -= windowPosition[1];
-		(*v)[1] -= windowPosition[2];
-		(*v)[2] -= windowPosition[3];
+	void ToStartingWindow(tw::vec4 *v) const {
+		*v -= windowPosition;
 	}
 	void SetPrimitiveWithPosition(Primitive& q,const tw::vec4& pos) const;
 	tw::vec4 PositionFromPrimitive(const Primitive& q) const;

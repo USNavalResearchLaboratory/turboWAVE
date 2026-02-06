@@ -89,7 +89,7 @@ export struct Chemical:Driver
 		for (auto prof : profiles) {
 			if ( prof->whichQuantity==tw::profile::quantity::power && prof->TimeGate(space->WindowPos(0),&add) ) {
 				for (auto cell : EntireCellRange(*this,1)) {
-					create(cell,U) += prof->GetValue(space->Pos(cell),*space);
+					create(cell,U) += prof->GetValue(space->Pos4(cell),*space);
 				}
 			}
 		}
@@ -117,7 +117,7 @@ export struct Chemical:Driver
 				const tw::vec3 p0 = prof->DriftMomentum(mat.mass);
 				for (auto cell : EntireCellRange(*this,1))
 				{
-					const tw::Float dens = prof->GetValue(space->Pos(cell),*space);
+					const tw::Float dens = prof->GetValue(space->Pos4(cell),*space);
 					if (prof->whichQuantity==tw::profile::quantity::density && dens>0.0)
 					{
 						massLoaded = true;
@@ -170,7 +170,7 @@ export struct Chemical:Driver
 				for (auto cell : EntireCellRange(*this,1))
 				{
 					// Put the target mass density in the scratch array
-					scratch(cell) = mat.mass * prof->GetValue(space->Pos(cell),*space);
+					scratch(cell) = mat.mass * prof->GetValue(space->Pos4(cell),*space);
 					// Put the target temperature into the eos array
 					eos(cell,eidx.T) = kT;
 					// Use scratch2 to store the reference temperature, currently hard coded to zero

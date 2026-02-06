@@ -52,7 +52,7 @@ export struct Conductor : Engine
 
 	Conductor(const std::string& name,MetricSpace *m,Task *tsk);
 	virtual void Initialize();
-	bool Inside(const tw::vec3& pos) {
+	bool Inside(const tw::vec4& pos) {
 		return theRgn->Inside(pos,0);
 	}
 	tw::Float Temperature(tw::Float t) { return temperature; }
@@ -719,14 +719,14 @@ void Conductor::DepositSources(Field& sources,tw::Float t,tw::Float dt)
 		for (tw::Int j=loc[2];j<=loc[3];j++)
 			for (tw::Int k=loc[4];k<=loc[5];k++)
 			{
-				const tw::vec3 pos = m.Pos(i,j,k);
+				const auto pos = m.Pos4(1,i,j,k);
 				if (theRgn->Inside(pos,0))
 				{
 					const tw::Float dV = m.dS(i,j,k,0);
 					// To conserve charge we have to center arc lengths in arc direction
 					const tw::vec3 dl = 0.5 * tw::vec3(m.dL(i,j,k,1),m.dL(i,j,k,2),m.dL(i,j,k,3));
-					const tw::vec3 Q0 = 0.5 * dV * PolarizationDensity(pos,t-dt) / dl;
-					const tw::vec3 Q1 = 0.5 * dV * PolarizationDensity(pos,t) / dl;
+					const tw::vec3 Q0 = 0.5 * dV * PolarizationDensity(pos.spatial(),t-dt) / dl;
+					const tw::vec3 Q1 = 0.5 * dV * PolarizationDensity(pos.spatial(),t) / dl;
 					const tw::vec3 I3 = (Q1 - Q0)/dt;
 
 					// Deposit cell charge using small displacement model

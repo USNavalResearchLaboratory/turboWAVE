@@ -139,7 +139,7 @@ void BoundElectrons::VerifyInput()
 void BoundElectrons::Initialize()
 {
 	tw::Int i,s;
-	tw::vec3 pos;
+	tw::vec4 pos;
 
 	Driver::Initialize();
 	Normalize(crystalBasis);
@@ -157,7 +157,7 @@ void BoundElectrons::Initialize()
 			R0(cell,s) = 0.0;
 			R1(cell,s) = 0.0;
 		}
-		pos = space->Pos(cell);
+		pos = space->Pos4(cell);
 		dens(cell) = 0.0;
 		for (auto profile : profiles)
 			dens(cell) += profile->GetValue(pos,*space);
@@ -269,10 +269,10 @@ void BoundElectrons::MoveWindow()
 	// carry out shift
 	for (auto s : StripRange(*this,3,0,1,strongbool::yes))
 	{
-		tw::vec3 pos = space->Pos(s,Dim(s.Axis())+1);
+		auto pos4 = space->Pos4(s,Dim(s.Axis())+1);
 		tw::Float incomingMaterial = 0.0;
 		for (auto profile : profiles)
-			incomingMaterial += profile->GetValue(pos,*space);
+			incomingMaterial += profile->GetValue(pos4,*space);
 		dens.Shift(Rng(0),s,-1,incomingMaterial);
 		R0.Shift(Rng(0,3),s,-1,0.0);
 		R1.Shift(Rng(0,3),s,-1,0.0);

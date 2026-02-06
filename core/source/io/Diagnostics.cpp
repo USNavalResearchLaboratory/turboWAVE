@@ -718,7 +718,7 @@ void ParticleOrbits::ReportParticle(const Particle& par,tw::Float m0)
 	tw::vec3 x3 = x.spatial();
 	uint64_t node = par.tag & 0xffffffff;
 	uint64_t id = par.tag >> 32;
-	if (!theRgn->Inside(x3,0))
+	if (!theRgn->Inside(x,0))
 		return;
 	if (p[0] < m0*minGamma)
 		return;
@@ -875,7 +875,7 @@ void PhaseSpaceDiagnostic::ReportParticle(const Particle& par,tw::Float m0)
 	v.zBoost(gammaBoost,1.0);
 	const tw::Float dV = (bounds[1]-bounds[0])*(bounds[3]-bounds[2])*(bounds[5]-bounds[4])/(dims[1]*dims[2]*dims[3]);
 	tw::vec3 x3 = x.spatial();
-	if (theRgn->Inside(x3,0))
+	if (theRgn->Inside(x,0))
 	{
 		space->CurvilinearToCartesian(&x3);
 		x3 -= vGalileo*x[0];

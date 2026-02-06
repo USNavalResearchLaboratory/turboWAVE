@@ -626,7 +626,7 @@ tw::Float Kinetics::KineticEnergy(const Region& theRgn)
 	{
 		const tw::Float m0 = sp->restMass;
 		for (auto par : sp->particle)
-			if (theRgn.Inside(space->PositionFromPrimitive(par.q).spatial(),0))
+			if (theRgn.Inside(space->PositionFromPrimitive(par.q),0))
 				ans += par.number * (par.p[0] - m0);
 	}
 	return ans;
@@ -1060,7 +1060,7 @@ void Species::GenerateParticles(bool init)
 			for (auto cell : InteriorCellRange(*this,1))
 			{
 				LoadingData loadingData(*space,*task,distributionInCell,cell);
-				loadingData.densToAdd = prof->GetValue(space->Pos(cell),*space);
+				loadingData.densToAdd = prof->GetValue(space->Pos4(cell),*space);
 				loadingData.driftMomentum = prof->DriftMomentum(restMass);
 				loadingData.neutralize = space->neutralize;
 				loadingData.thermalMomentum = prof->thermalMomentum;
@@ -1308,7 +1308,7 @@ void Species::FinishMoveWindow()
 			for (auto j=1;j<=dim[2];j++) {
 				for (auto i=1;i<=dim[1];i++) {
 					LoadingData loadingData(*space,*task,distributionInCell,tw::cell(*this,1,i,j,dim[3]));
-					loadingData.densToAdd = prof->GetValue(space->Pos(i,j,dim[3]),*space);
+					loadingData.densToAdd = prof->GetValue(space->Pos4(1,i,j,dim[3]),*space);
 					loadingData.neutralize = space->neutralize;
 					loadingData.thermalMomentum = prof->thermalMomentum;
 					loadingData.driftMomentum = prof->DriftMomentum(restMass);
@@ -1463,7 +1463,7 @@ tw::Float Species::KineticEnergy(const Region& theRgn)
 	tw::Float ans = 0.0;
 	const tw::Float m0 = restMass;
 	for (auto par : particle)
-		if (theRgn.Inside(space->PositionFromPrimitive(par.q).spatial(),0))
+		if (theRgn.Inside(space->PositionFromPrimitive(par.q),0))
 			ans += par.number * (par.p[0] - m0);
 	return ans;
 }
@@ -1472,7 +1472,7 @@ tw::Float Species::ParticleNumber(const Region& theRgn)
 {
 	tw::Float ans = 0.0;
 	for (auto par : particle)
-		if (theRgn.Inside(space->PositionFromPrimitive(par.q).spatial(),0))
+		if (theRgn.Inside(space->PositionFromPrimitive(par.q),0))
 			ans += par.number;
 	return ans;
 }

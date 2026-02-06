@@ -52,15 +52,15 @@ export struct Region : Engine
 			orientation.v.x,orientation.v.y,orientation.v.z,
 			orientation.w.x,orientation.w.y,orientation.w.z));
 	}
-	void TransformPoint(tw::vec3 *pos, int depth) const {
+	void TransformPoint(tw::vec4 *pos, int depth) const {
 		if (moveWithWindow && depth==0) {
 			space->ToStartingWindow(pos);
 		}
-		*pos -= translation;
+		pos->Sub3(translation);
 		orientation.ExpressInBasis(pos);
-		*pos -= origin;
+		pos->Sub3(origin);
 	}
-	bool Inside(const tw::vec3& pos,int depth) const
+	bool Inside(const tw::vec4& pos,int depth) const
 	{
 		auto p = pos;
 		TransformPoint(&p,depth);
@@ -83,29 +83,29 @@ export struct Region : Engine
 		return complement ^ ans;
 	}
 	/// take boundaries of an aligned hull and form its 8 vertices for further transformation
-	std::vector<tw::vec3> BoundingVertices(std::array<tw::Float,6> hull) const {
-		std::vector<tw::vec3> ans;
-		ans.push_back(tw::vec3(hull[0],hull[2],hull[4]));
-		ans.push_back(tw::vec3(hull[0],hull[2],hull[5]));
-		ans.push_back(tw::vec3(hull[0],hull[3],hull[4]));
-		ans.push_back(tw::vec3(hull[0],hull[3],hull[5]));
-		ans.push_back(tw::vec3(hull[1],hull[2],hull[4]));
-		ans.push_back(tw::vec3(hull[1],hull[2],hull[5]));
-		ans.push_back(tw::vec3(hull[1],hull[3],hull[4]));
-		ans.push_back(tw::vec3(hull[1],hull[3],hull[5]));
+	std::vector<tw::vec4> BoundingVertices(std::array<tw::Float,6> hull) const {
+		std::vector<tw::vec4> ans;
+		ans.push_back(tw::vec4(0,hull[0],hull[2],hull[4]));
+		ans.push_back(tw::vec4(0,hull[0],hull[2],hull[5]));
+		ans.push_back(tw::vec4(0,hull[0],hull[3],hull[4]));
+		ans.push_back(tw::vec4(0,hull[0],hull[3],hull[5]));
+		ans.push_back(tw::vec4(0,hull[1],hull[2],hull[4]));
+		ans.push_back(tw::vec4(0,hull[1],hull[2],hull[5]));
+		ans.push_back(tw::vec4(0,hull[1],hull[3],hull[4]));
+		ans.push_back(tw::vec4(0,hull[1],hull[3],hull[5]));
 		return ans;
 	}
 	/// take any 8 vertices and return an aligned hull, i.e., take a box that may have been rotated
 	/// and form a box around it that is aligned to the coordinate system
-	std::array<tw::Float,6> AlignedHull(const std::vector<tw::vec3>& vertices) const {
+	std::array<tw::Float,6> AlignedHull(const std::vector<tw::vec4>& vertices) const {
 		std::array<tw::Float,6> ans {tw::big_pos,tw::big_neg,tw::big_pos,tw::big_neg,tw::big_pos,tw::big_neg};
 		for (auto i=0;i<8;i++) {
-			ans[0] = std::min(ans[0],vertices[i].x);
-			ans[1] = std::max(ans[1],vertices[i].x);
-			ans[2] = std::min(ans[2],vertices[i].y);
-			ans[3] = std::max(ans[3],vertices[i].y);
-			ans[4] = std::min(ans[4],vertices[i].z);
-			ans[5] = std::max(ans[5],vertices[i].z);
+			ans[0] = std::min(ans[0],vertices[i][1]);
+			ans[1] = std::max(ans[1],vertices[i][1]);
+			ans[2] = std::min(ans[2],vertices[i][2]);
+			ans[3] = std::max(ans[3],vertices[i][2]);
+			ans[4] = std::min(ans[4],vertices[i][3]);
+			ans[5] = std::max(ans[5],vertices[i][3]);
 		}
 		return ans;
 	}

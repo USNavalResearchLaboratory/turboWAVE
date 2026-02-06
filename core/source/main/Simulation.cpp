@@ -550,13 +550,7 @@ void Simulation::FundamentalCycle()
 
 void Simulation::MoveWindow()
 {
-	// DynSpace did not advance this
-	for (auto i=space->LFG(3); i<=space->UFG(3); i++) {
-		space->X(i,3) += space->dx(3);
-	}
-	// TODO: clipping regions formerly advanced their coordinates here, now we will instead
-	// apply a transformation to unwind moving window the same as rotations etc.
-	// Also, there was a call to Initialize here, why?
+	// MetricSpace::Advance has taken care of mesh nodes
 	for (auto d : sub_drivers) {
 		logger::DEBUG(std::format("driver <{}> is shifting its window",d->name));
 		d->MoveWindow();
@@ -617,6 +611,8 @@ void Simulation::Diagnose()
 	}
 
 	logger::INFO(std::format("writing diagnostics, step {}, time {}",space->StepNow(),space->Corner()[0]));
+	logger::DEBUG(std::format("Time from window position {}",space->WindowPos(0)));
+	logger::DEBUG(std::format("Time from mesh node {}",space->X(1,0)));
 
 	for (auto d : sub_drivers)
 		d->StartDiagnostics();

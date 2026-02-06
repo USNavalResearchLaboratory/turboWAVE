@@ -99,6 +99,7 @@ export namespace tw
 			*y = j;
 			*z = k;
 		}
+		tw::Int dcd0() const { return n; }
 		tw::Int dcd1() const { return i; }
 		tw::Int dcd2() const { return j; }
 		tw::Int dcd3() const { return k; }
@@ -145,6 +146,8 @@ export namespace tw
 				coord[i] = x[i] * iter_ax[i] + x[i] * fixed_ax[i] + s * strip_ax[i];
 			}
 		}
+		/// decode the standard cell index for axis 0
+		tw::Int dcd0(tw::Int s) const { return x[0]*iter_ax[0] + x[0]*fixed_ax[0] + s*strip_ax[0]; }
 		/// decode the standard cell index for axis 1
 		tw::Int dcd1(tw::Int s) const { return x[1]*iter_ax[1] + x[1]*fixed_ax[1] + s*strip_ax[1]; }
 		/// decode the standard cell index for axis 2

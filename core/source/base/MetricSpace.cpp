@@ -22,13 +22,15 @@ export struct warp_base
 
 export struct MetricSpace:DynSpace
 {
+public:
 	tw::grid::geometry gridGeometry;
 	tw::Float car,cyl,sph; // set variable corresponding to coordinate system to 1.0, all others to 0.0
+	bool adaptiveTimestep,adaptiveGrid;
+private:
 	tw::Int N00; // padded size of each axis's data
 	std::array<tw::Int,4> mnum; // num for metric arrays (see StaticSpace)
 	tw::Int mlb[4],mub[4]; // lfg and ufg for metric arrays (see StaticSpace)
 	tw::Int I3x3[3][3];
-	bool adaptiveTimestep,adaptiveGrid;
 	
 	// position and width are packed such that the first element for axis ax is at N00*ax
 	std::valarray<tw::Float> gpos; // global positions in parameter space
@@ -47,7 +49,7 @@ export struct MetricSpace:DynSpace
 	std::valarray<tw::Float> cell_area_z; /// z-dependent factor for any wall
 	std::valarray<tw::Float> cell_arc_x; /// x-dependent factor for any arc
 	std::valarray<tw::Float> cell_arc_z; /// z-dependent factor for any arc
-
+public:
 	tw::UnitConverter unitConverter;
 	std::vector<std::shared_ptr<warp_base>> warps;
 
@@ -84,6 +86,7 @@ public:
 		const tw::node5& packing,
 		const tw::node4& ghostCellLayers,
 		tw::grid::geometry geo=tw::grid::cartesian);
+	tw::Int Advance(tw::Float ds);
 	void ReadCheckpoint(std::ifstream& inFile);
 	void WriteCheckpoint(std::ofstream& outFile);
 	void AttachUnits(tw::units sys,tw::Float unitDensityCGS);
@@ -98,12 +101,13 @@ public:
 		}
 	}
 	void ChangeStepSize(tw::Float ds) {
-		// we have the future on the left, past on the right
+		// i<1 is the future, i>1 is the past
 		for (auto i=mlb[0];i<=1;i++) {
 			dX(i,0) = ds;
 		}
-		for (auto i=1;i>=mlb[0];i--) {
-			X(i,0) = X(i+1,0) + 0.5*dX(i+1,0) + 0.5*dX(i,0);
+		// only adjust time nodes that are in the future
+		for (auto i=0;i>=mlb[0];i--) {
+			X(i,0) = X(i+1,0) + dX(i,0);
 		}
 	}
 
@@ -125,7 +129,7 @@ public:
 	{
 		return I3x3[ax1-1][ax2-1];
 	}
-	/// position in parameter space
+	/// position at cell center in parameter space, except time nodes that are at cell walls
 	tw::Float X(const tw::Int& i,const tw::Int& ax) const
 	{
 		return gpos[N00*ax-mlb[ax]+i];
@@ -135,7 +139,7 @@ public:
 	{
 		return width[N00*ax-mlb[ax]+i];
 	}
-	/// position in parameter space
+	/// position at cell center in parameter space, except time nodes that are at cell walls
 	tw::Float& X(const tw::Int& i,const tw::Int& ax)
 	{
 		return gpos[N00*ax-mlb[ax]+i];
@@ -144,6 +148,18 @@ public:
 	tw::Float& dX(const tw::Int& i,const tw::Int& ax)
 	{
 		return width[N00*ax-mlb[ax]+i];
+	}
+	/// space nodes are at cell centers, time node is at cell wall
+	tw::vec4 Pos4(const tw::Int& n,const tw::Int& i,const tw::Int& j,const tw::Int& k) const {
+		return tw::vec4(gpos[n-mlb[0]],gpos[N00*1+i-mlb[1]],gpos[N00*2+j-mlb[2]],gpos[N00*3+k-mlb[3]]);
+	}
+	tw::vec4 Pos4(const tw::cell& cell) const {
+		return Pos4(cell.dcd0(),cell.dcd1(),cell.dcd2(),cell.dcd3());
+	}
+	tw::vec4 Pos4(const tw::strip& s,const tw::Int& i) const {
+		tw::Int coord[4];
+		s.Decode(i,coord);
+		return Pos4(coord[0],coord[1],coord[2],coord[3]);
 	}
 	tw::vec3 Pos(const tw::Int& i,const tw::Int& j,const tw::Int& k) const
 	{
@@ -906,6 +922,22 @@ U MetricSpace::ValueOnLightGrid(T& A,tw::strip s,tw::Int k,tw::Float relativeTim
 	klab = MyFloor(z*freq[3] + 0.4999);
 	w = 0.5 - z*freq[3] + tw::Float(klab);
 	return w*A(s,klab) + (one - w)*A(s,klab+1);
+}
+
+tw::Int MetricSpace::Advance(tw::Float ds) {
+	tw::Int ans = DynSpace::Advance(ds);
+	// bring the future into the present, i-1 is later than i
+	for (auto i=mub[0]; i>mlb[0]; i--) {
+		X(i,0) = X(i-1,0);
+	}
+	X(mlb[0],0) += ds;
+	// spatial move if needed
+	if (ans==1) {
+		for (auto i=mlb[3]; i<=mub[3]; i++) {
+			X(i,3) += dx(3);
+		}
+	}
+	return ans;
 }
 
 void MetricSpace::ReadCheckpoint(std::ifstream& inFile)
