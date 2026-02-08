@@ -28,9 +28,8 @@ The first step to getting the components is to clone the repository.  This copie
 
 		* Anaconda --- :samp:`conda install git`
 		* MacOS with Homebrew --- :samp:`brew install git`
-		* MacOS with MacPorts --- :samp:`sudo port install git`
 		* Ubuntu --- :samp:`sudo apt install git`
-		* Windows PowerShell with Chocolatey --- :samp:`choco install git` (run as administrator)
+		* Windows --- :samp:`winget install Git.Git` (run as administrator)
 
 	#. Navigate to the directory where you want to install turboWAVE (you don't need to make an enclosing directory).
 	#. :samp:`git clone https://github.com/USNavalResearchLaboratory/turboWAVE.git`
@@ -43,9 +42,9 @@ When you clone the repository the active files (the version you have checked out
 	#. Open a terminal and navigate to :samp:`{turboWAVE}`.
 	#. :samp:`git tag --list`
 	#. Choose the latest tag without a letter suffix, :samp:`{latest_stable_tag}`.
-	#. :samp:`git checkout {latest_stable_tag}`.
+	#. :samp:`git switch --detach {latest_stable_tag}`.
 
-		* You may be in a detached state.  If you want to restore the state later you can run ``git checkout master``, or, to automatically throw out any changes, add the ``-f`` flag.
+		* To go back from the detached state use ``git switch master``, or, to automatically throw out any changes, add the ``-f`` flag.
 
 .. Note::
 

@@ -697,7 +697,7 @@ tw::vec3 Conductor::PolarizationDensity(const tw::vec3& pos,tw::Float t)
 {
 	tw::vec3 P0;
 	tw::vec3 ans(0.0,0.0,0.0);
-	tw::vec3 rc = pos - theRgn->translation;
+	tw::vec3 rc = pos - theRgn->translation.spatial();
 	theRgn->orientation.ExpressInBasis(&rc);
 	for (tw::Int i=0;i<potential.size();i++)
 	{

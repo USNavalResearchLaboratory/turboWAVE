@@ -21,7 +21,7 @@ export struct RegionsTest: ComputeTool {
         auto prim = std::make_unique<RectRegion>("r1",space,task);
         prim->size = tw::vec3(1,2,2);
         auto rgn = std::make_unique<SimpleRegion>("r1",space,task,std::move(prim));
-        rgn->translation = tw::vec3(1.5,0,0);
+        rgn->translation = tw::vec4(0,1.5,0,0);
         rgn->Initialize();
         ASSERT_FALSE(rgn->Inside(tw::vec4(0,0,0,0),0));
         ASSERT_TRUE(rgn->Inside(tw::vec4(0,1.5,0,0),0));
@@ -35,8 +35,8 @@ export struct RegionsTest: ComputeTool {
         u->elements.push_back(r1);
         u->elements.push_back(r2);
         tw::Float dz = 0.9;
-        r1->translation = tw::vec3(0,0,-dz);
-        r2->translation = tw::vec3(0,0,dz);
+        r1->translation = tw::vec4(0,0,0,-dz);
+        r2->translation = tw::vec4(0,0,0,dz);
         r1->Initialize();
         r2->Initialize();
         u->Initialize();
@@ -55,8 +55,8 @@ export struct RegionsTest: ComputeTool {
         u->elements.push_back(r1);
         u->elements.push_back(r2);
         tw::Float dz = 0.9;
-        r1->translation = tw::vec3(0,0,-dz);
-        r2->translation = tw::vec3(0,0,dz);
+        r1->translation = tw::vec4(0,0,0,-dz);
+        r2->translation = tw::vec4(0,0,0,dz);
         r1->Initialize();
         r2->Initialize();
         u->Initialize();
@@ -75,8 +75,8 @@ export struct RegionsTest: ComputeTool {
         u->elements.push_back(r1);
         u->elements.push_back(r2);
         tw::Float dz = 0.9;
-        r1->translation = tw::vec3(0,0,-dz);
-        r2->translation = tw::vec3(0,0,dz);
+        r1->translation = tw::vec4(0,0,0,-dz);
+        r2->translation = tw::vec4(0,0,0,dz);
         r1->Initialize();
         r2->Initialize();
         u->Initialize();

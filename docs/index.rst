@@ -61,10 +61,11 @@ Developer Reference
 	:maxdepth: 1
 
 	dev-base
-	dev-module
+	dev-driver
 	dev-tool
 	dev-field
 	dev-space
+	dev-dyn-space
 	dev-metric-space
 	dev-testing
 

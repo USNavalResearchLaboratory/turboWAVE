@@ -17,15 +17,23 @@ export enum class bool_op { Union, Intersection, Difference };
 
 export struct Region : Engine
 {
-	/// displace the body before the rotation
-	tw::vec3 origin;
+	// Transformation parameters:
+	// boost,origin,orientation,translation are all used during updates.
+	// boost3 and euler are only used to capture user inputs.
+
+	/// displace the body before the boost-rotation
+	tw::vec4 origin;
+	/// boost the body
+	tw::vec4 boost;
 	/// rotate the body
 	tw::basis orientation;
-	/// displace the body after the rotation
-	tw::vec3 translation;
-	/// in the active view this gets applied as new_vec = Rz(alpha)*Rx(beta)*Rz(gamma)*old_vec,
+	/// displace the body after the boost-rotation
+	tw::vec4 translation;
+
+	/// in the active view euler components get applied as new_vec = Rz(alpha)*Rx(beta)*Rz(gamma)*old_vec,
 	/// i.e. the "last angle" gets applied first.
-	tw::vec3 euler;
+	tw::vec3 euler,boost3;
+
 	bool complement,moveWithWindow;
 	/// The operations go before the corresponding elements.
 	/// The operation before the first part follows an implicit entire region (so probably not a union).
@@ -39,26 +47,33 @@ export struct Region : Engine
 		orientation.u = tw::vec3(1,0,0);
 		orientation.v = tw::vec3(0,1,0);
 		orientation.w = tw::vec3(0,0,1);
-		directives.Add("origin",new tw::input::Vec3(&origin),false);
-		directives.Add("translation",new tw::input::Vec3(&translation),false);
+		directives.Add("origin",new tw::input::Vec4(&origin),false);
+		directives.Add("boost",new tw::input::Vec3(&boost3),false);
 		directives.Add("euler angles",new tw::input::Vec3(&euler),false);
+		directives.Add("translation",new tw::input::Vec4(&translation),false);
 		directives.Add("move with window",new tw::input::Bool(&moveWithWindow),false);
 		directives.Add("complement",new tw::input::Bool(&complement),false);
 	}
 	virtual void Initialize() {
 		Engine::Initialize();
 		orientation.SetWithEulerAngles(euler.x, euler.y, euler.z);
+		boost = tw::vec4(std::sqrt(1+Norm(boost3)),boost3);
 		logger::DEBUG(std::format("{}:\n{},{},{}\n{},{},{}\n{},{},{}",name,orientation.u.x,orientation.u.y,orientation.u.z,
 			orientation.v.x,orientation.v.y,orientation.v.z,
 			orientation.w.x,orientation.w.y,orientation.w.z));
 	}
+	/// Start with conditional Galilean translation to moving window, then
+	/// translate-rotate-boost-translate from the simulation frame to the profile's frame.
+	/// This is in the reverse order compared to the active view.
+	/// If there is a boost it will often be an "unboost."
 	void TransformPoint(tw::vec4 *pos, int depth) const {
 		if (moveWithWindow && depth==0) {
 			space->ToStartingWindow(pos);
 		}
-		pos->Sub3(translation);
+		*pos -= translation;
 		orientation.ExpressInBasis(pos);
-		pos->Sub3(origin);
+		pos->Boost(boost);
+		*pos -= origin;
 	}
 	bool Inside(const tw::vec4& pos,int depth) const
 	{
@@ -153,10 +168,6 @@ export struct Region : Engine
 			}
 		}
 		return ans;
-	}
-	void Translate(const tw::vec3& dr)
-	{
-		translation += dr;
 	}
 	/// Compute [xl,xh,yl,yh,zl,zh] such that this region just fills the box defined by [xl,xh] * [yl,yh] * [zl,zh] (inclusive).
 	/// This returns dirty results if the region is partly or fully out of the domain, clean with `GetLocalCellBounds`.

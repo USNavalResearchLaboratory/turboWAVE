@@ -1133,10 +1133,13 @@ export namespace tw
 
 		void ExpressInBasis(vec4* x4) const
 		{
-			Float t = (*x4)[0];
-			vec3 r = x4->spatial();
-			ExpressInBasis(&r);
-			*x4 = tw::vec4(t,r);
+			// we assume it's orthogonal
+			vec4 ans;
+			ans[0] = (*x4)[0];
+			ans[1] = u.x*(*x4)[1] + u.y*(*x4)[2] + u.z*(*x4)[3];
+			ans[2] = v.x*(*x4)[1] + v.y*(*x4)[2] + v.z*(*x4)[3];
+			ans[3] = w.x*(*x4)[1] + w.y*(*x4)[2] + w.z*(*x4)[3];
+			*x4 = ans;
 		}
 
 		void ExpressInStdBasis(vec3* r) const
@@ -1159,10 +1162,12 @@ export namespace tw
 
 		void ExpressInStdBasis(vec4* x4) const
 		{
-			Float t = (*x4)[0];
-			vec3 r = x4->spatial();
-			ExpressInStdBasis(&r);
-			*x4 = tw::vec4(t,r);
+			vec4 ans;
+			ans[0] = (*x4)[0];
+			ans[1] = u.x*(*x4)[1] + v.x*(*x4)[2] + w.x*(*x4)[3];
+			ans[2] = u.y*(*x4)[1] + v.y*(*x4)[2] + w.y*(*x4)[3];
+			ans[3] = u.z*(*x4)[1] + v.z*(*x4)[2] + w.z*(*x4)[3];
+			*x4 = ans;
 		}
 
 		friend void Normalize(basis& b)

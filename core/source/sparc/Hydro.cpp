@@ -97,7 +97,7 @@ struct HydroManager:Driver
 	void ComputeCollisionalSources();
 	void ComputeRadiativeSources();
 	void ComputeHydroSources();
-	tw::vec3 ComputeForceOnBody(tw::Int i,tw::Int j,tw::Int k);
+	tw::vec3 ComputeForceOnBody(const Region& theRgn);
 	void ComputeSources();
 	tw::Float EstimateTimeStep();
 
@@ -842,41 +842,48 @@ void sparc::HydroManager::ComputeRadiativeSources()
 	}
 }
 
-tw::vec3 sparc::HydroManager::ComputeForceOnBody(tw::Int i,tw::Int j,tw::Int k)
+tw::vec3 sparc::HydroManager::ComputeForceOnBody(const Region& theRgn)
 {
 	tw::vec3 ans;
-	tw::Int s;
-	EquilibriumGroup* g;
 
-	for (s=0;s<group.size();s++)
+	for (auto s=0;s<group.size();s++)
 	{
-		g = group[s];
-		const tw::Float Ax0 = space->dS(i,j,k,1);
-		const tw::Float Ax1 = space->dS(i+1,j,k,1);
-		const tw::Float Ay0 = space->dS(i,j,k,2);
-		const tw::Float Ay1 = space->dS(i,j+1,k,2);
-		const tw::Float Az0 = space->dS(i,j,k,3);
-		const tw::Float Az1 = space->dS(i,j,k+1,3);
+		auto g = group[s];
+		for (auto k=1;k<=Dim(3);k++) {
+			for (auto j=1;j<=Dim(2);j++) {
+				for (auto i=1;i<=Dim(1);i++) {
+					if (!theRgn.Inside(space->Pos4(1,i,j,k),0)) {
+						continue;
+					}
+					const tw::Float Ax0 = space->dS(i,j,k,1);
+					const tw::Float Ax1 = space->dS(i+1,j,k,1);
+					const tw::Float Ay0 = space->dS(i,j,k,2);
+					const tw::Float Ay1 = space->dS(i,j+1,k,2);
+					const tw::Float Az0 = space->dS(i,j,k,3);
+					const tw::Float Az1 = space->dS(i,j,k+1,3);
 
-		const tw::Float Pc = eos1(1,i,j,k,g->eidx.P);
+					const tw::Float Pc = eos1(1,i,j,k,g->eidx.P);
 
-		if (fluxMask(i-1,j,k)==0.0 && fluxMask(i,j,k)==1.0)
-			ans.x -= Pc*Ax0;
+					if (fluxMask(i-1,j,k)==0.0 && fluxMask(i,j,k)==1.0)
+						ans.x -= Pc*Ax0;
 
-		if (fluxMask(i,j,k)==1.0 && fluxMask(i+1,j,k)==0.0)
-			ans.x += Pc*Ax1;
+					if (fluxMask(i,j,k)==1.0 && fluxMask(i+1,j,k)==0.0)
+						ans.x += Pc*Ax1;
 
-		if (fluxMask(i,j-1,k)==0.0 && fluxMask(i,j,k)==1.0)
-			ans.y -= Pc*Ay0;
+					if (fluxMask(i,j-1,k)==0.0 && fluxMask(i,j,k)==1.0)
+						ans.y -= Pc*Ay0;
 
-		if (fluxMask(i,j,k)==1.0 && fluxMask(i,j+1,k)==0.0)
-			ans.y += Pc*Ay1;
+					if (fluxMask(i,j,k)==1.0 && fluxMask(i,j+1,k)==0.0)
+						ans.y += Pc*Ay1;
 
-		if (fluxMask(i,j,k-1)==0.0 && fluxMask(i,j,k)==1.0)
-			ans.z -= Pc*Az0;
+					if (fluxMask(i,j,k-1)==0.0 && fluxMask(i,j,k)==1.0)
+						ans.z -= Pc*Az0;
 
-		if (fluxMask(i,j,k)==1.0 && fluxMask(i,j,k+1)==0.0)
-			ans.z += Pc*Az1;
+					if (fluxMask(i,j,k)==1.0 && fluxMask(i,j,k+1)==0.0)
+						ans.z += Pc*Az1;
+				}
+			}
+		}
 	}
 	return ans;
 }
@@ -1600,6 +1607,13 @@ void sparc::HydroManager::Report(Diagnostic& diagnostic)
 	// Impermeable Region
 
 	diagnostic.ReportField("impermeable",fluxMask,1,0);
+
+	// Force on all bodies within a selected region
+
+	auto force = ComputeForceOnBody(*diagnostic.theRgn);
+	diagnostic.ReportNumber("Fx",force.x,false);
+	diagnostic.ReportNumber("Fy",force.y,false);
+	diagnostic.ReportNumber("Fz",force.z,false);
 
 	// Collision Diagnostic
 

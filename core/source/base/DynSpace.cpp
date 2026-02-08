@@ -68,9 +68,12 @@ export struct DynSpace : StaticSpace
 	/// move the grid in time, space, or both, return value of -1 means caller should shift grid left (anti-moving window),
 	/// 0 means do nothing, 1 means shift grid right (moving window).
 	tw::Int Advance(tw::Float ds);
-	/// take vector known in the current window and translate it to the starting window
+	/// take vector known in the current window and translate the spatial part to the starting window, i.e.,
+	/// this applies a Galilean transformation that aligns to the relative mesh nodes
 	void ToStartingWindow(tw::vec4 *v) const {
-		*v -= windowPosition;
+		(*v)[1] -= windowPosition[1];
+		(*v)[2] -= windowPosition[2];
+		(*v)[3] -= windowPosition[3];
 	}
 	void SetPrimitiveWithPosition(Primitive& q,const tw::vec4& pos) const;
 	tw::vec4 PositionFromPrimitive(const Primitive& q) const;

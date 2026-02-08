@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [5.0.0-a2] - 2026-02-08
 
 ### Fixes
 
@@ -9,15 +9,16 @@
 * Fix potential bug in dual grid decomposition
 * Build usually works for any of MSVC, clang, gcc
 * Fix/restore the SPARC adaptive time step
+* Restore SPARC force on body diagnostic
 
 ### Breaking Changes
 
 * Tool retrieval is done with `use` instead of `get`
 * Tools are referenced by `SharedTool` (alias for `std::shared_ptr<ComputeTool>`)
-* Regions and profiles are subject to a translate-rotate-translate operation
-    - set by `origin`, `euler angles`, and `translation`
+* Regions and profiles are subject to a translate-boost-rotate-translate operation
+    - set by `origin`, `boost`, `euler angles`, and `translation`
 * Profile's region participates in *all* the profile's transformations
-* Profile's handle and may require the time axis
+* Profile's handle, and may require, the time axis
 
 ### Code Structure
 

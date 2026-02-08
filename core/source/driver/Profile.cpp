@@ -34,18 +34,23 @@ export struct Profile : Engine
 	tw::grid::geometry symmetry;
 	tw::vec4 modeNumber;
 	tw::Float modeAmplitude;
-	/// This is the user's request to boost the profile's parameters
-	tw::Float gammaBoost;
 
-	/// displace the body before the rotation
-	tw::vec3 origin;
+	// Transformation parameters:
+	// boost,origin,orientation,translation are all used during updates.
+	// boost3 and euler are only used to capture user inputs.
+
+	/// displace the body before the boost-rotation
+	tw::vec4 origin;
+	/// boost the body
+	tw::vec4 boost;
 	/// rotate the body
 	tw::basis orientation;
-	/// displace the body after the rotation
-	tw::vec3 translation;
-	/// in the active view this gets applied as new_vec = Rz(alpha)*Rx(beta)*Rz(gamma)*old_vec,
+	/// displace the body after the boost-rotation
+	tw::vec4 translation;
+
+	/// in the active view euler components get applied as new_vec = Rz(alpha)*Rx(beta)*Rz(gamma)*old_vec,
 	/// i.e. the "last angle" gets applied first.
-	tw::vec3 euler;
+	tw::vec3 euler,boost3;
 
 	// items needed for particle/fluid loading
 private:
@@ -79,7 +84,8 @@ public:
 		orientation.u = tw::vec3(1,0,0);
 		orientation.v = tw::vec3(0,1,0);
 		orientation.w = tw::vec3(0,0,1);
-		gammaBoost = 1.0;
+		boost3 = tw::vec3(0,0,0);
+		boost = tw::vec4(1,0,0,0);
 
 		// Lots of enumerated-type hash tables involved in Profile directives.
 		// Do them first, then setup directives.
@@ -108,9 +114,10 @@ public:
 		std::map<std::string,tw::grid::geometry> geo = {{"cylindrical",tw::grid::cylindrical},{"spherical",tw::grid::spherical}};
 
 		directives.Add("neutralize",new tw::input::Bool(&neutralize),false); // not used
-		directives.Add("origin",new tw::input::Vec3(&origin),false);
+		directives.Add("origin",new tw::input::Vec4(&origin),false);
+		directives.Add("boost",new tw::input::Vec3(&boost3),false);
 		directives.Add("euler angles",new tw::input::Vec3(&euler),false);
-		directives.Add("translation",new tw::input::Vec3(&translation),false);
+		directives.Add("translation",new tw::input::Vec4(&translation),false);
 		directives.Add("type",new tw::input::Enums<tw::profile::quantity>(qty,&whichQuantity),false);
 		directives.Add("drift momentum",new tw::input::Vec3(&driftMomentum),false);
 		directives.Add("thermal momentum",new tw::input::Vec3(&thermalMomentum),false);
@@ -123,12 +130,12 @@ public:
 		directives.Add("symmetry",new tw::input::Enums<tw::grid::geometry>(geo,&symmetry),false);
 		directives.Add("mode amplitude",new tw::input::Float(&modeAmplitude),false);
 		directives.Add("mode number",new tw::input::Vec4(&modeNumber),false);
-		directives.Add("boosted frame gamma",new tw::input::Float(&gammaBoost),false);
 		directives.Add("particle weight",new tw::input::Custom,false);
 	}
 	virtual void Initialize() {
 		Engine::Initialize();
 		orientation.SetWithEulerAngles(euler.x, euler.y, euler.z);
+		boost = tw::vec4(std::sqrt(1+Norm(boost3)),boost3);
 		theRgn = std::dynamic_pointer_cast<Region>(region);
 		if (!theRgn) {
 			logger::DEBUG(std::format("<{}> using default entire region",name));
@@ -141,13 +148,8 @@ public:
 		tw::Float p2 = driftMomentum ^ driftMomentum;
 		tw::Float p0 = std::sqrt(mass*mass + p2);
 		tw::vec4 p4(p0,driftMomentum);
-		p4.zBoost(gammaBoost,-1.0);
+		p4.Boost(boost.raise_pmmm());
 		return p4.spatial();
-		// tw::vec4 v4(0.0,driftMomentum/mass);
-		// tw::Float gb2 = v4 ^ v4;
-		// v4[0] = std::sqrt(1.0 + gb2);
-		// v4.zBoost(gammaBoost,-1.0);
-		// return mass*v4.spatial();
 	}
 	tw::Float Temperature(const tw::Float& mass) {
 		if (temperature!=0.0)
@@ -155,18 +157,15 @@ public:
 		else
 			return sqr(thermalMomentum.x)/mass; // appropriate for exp(-v^2/(2*vth^2)) convention
 	}
-	/// Boost, translate, and rotate from the simulation frame to the profile's frame
-	/// The user specifies a boosted frame for each profile.
-	/// If gammaBoost=1 then the profile is in the simulation's frame, which may be considered boosted, or not.
-	/// If gammaBoost>1 then the profile is in a different frame, perhaps a lab frame, in this case the
-	/// profile will be boosted into the simulation's frame.
-	/// The argument is in the simulation's frame, the return value is in the profile's frame.
+	/// Translate-rotate-boost-translate from the simulation frame to the profile's frame.
+	/// This is in the reverse order compared to the active view.
+	/// If there is a boost it will often be an "unboost."
 	tw::vec4 TransformPoint(const tw::vec4& pos) const {
 		auto ans(pos);
-		ans.zBoost(gammaBoost,1.0);
-		ans.Sub3(translation);
+		ans -= translation;
 		orientation.ExpressInBasis(&ans);
-		ans.Sub3(origin);
+		ans.Boost(boost);
+		ans -= origin;
 		return ans;
 	}
 	virtual tw::Float GetValue(const tw::vec4& pos,const MetricSpace& ds) {
@@ -256,7 +255,7 @@ export struct UniformProfile:Profile
 		directives.Add("density",new tw::input::Float(&density));
 	}
 	virtual tw::Float GetValue(const tw::vec4& pos,const MetricSpace& ds) {
-		return theRgn->Inside(TransformPoint(pos),0) ? gammaBoost*density : 0.0;
+		return theRgn->Inside(TransformPoint(pos),0) ? boost[0]*density : 0.0;
 	}
 };
 
@@ -269,7 +268,7 @@ export struct GaussianProfile:Profile
 		directives.Add("size",new tw::input::Vec4(&beamSize));
 	}
 	virtual tw::Float GetValue(const tw::vec4& pos,const MetricSpace& ds) {
-		tw::Float dens = gammaBoost*density;
+		tw::Float dens = boost[0]*density;
 		auto p = TransformPoint(pos);
 		for (auto i=0; i<4; i++) {
 			dens *= std::exp(-sqr(p[i]/beamSize[i]));
@@ -295,7 +294,7 @@ export struct ChannelProfile:Profile
 		dens = Interpolate(p[3],z,fz);
 		r2 = sqr(p[1]) + sqr(p[2]);
 		dens *= coeff[0] + coeff[1]*r2 + coeff[2]*r2*r2 + coeff[3]*r2*r2*r2;
-		return theRgn->Inside(p,0) ? gammaBoost*dens : 0.0;
+		return theRgn->Inside(p,0) ? boost[0]*dens : 0.0;
 	}
 };
 
@@ -316,7 +315,7 @@ export struct ColumnProfile:Profile
 		dens *= std::exp(-sqr(p[0]/beamSize[0]));
 		dens *= std::exp(-sqr(p[1]/beamSize[1]));
 		dens *= std::exp(-sqr(p[2]/beamSize[2]));
-		return theRgn->Inside(p,0) ? gammaBoost*dens : 0.0;
+		return theRgn->Inside(p,0) ? boost[0]*dens : 0.0;
 	}
 };
 
@@ -396,7 +395,7 @@ export struct PiecewiseProfile:Profile
 				break;
 		}
 
-		tw::Float dens = gammaBoost * ans[0]*ans[1]*ans[2]*ans[3];
+		tw::Float dens = boost[0] * ans[0]*ans[1]*ans[2]*ans[3];
 		for (auto i=0; i<4 ; i++) {
 			dens *= sqr(std::cos(0.5*modeNumber[i]*p[i]));
 		}
@@ -428,7 +427,7 @@ export struct CorrugatedProfile:Profile
 		kHat = w0 + km - 0.5*w0*(sqr(wp0/w0) + 8.0/sqr(w0*rchannel));
 		wp1s = 2.0*w0*kHat - 2.0*std::sqrt(sqr(gamma0+a0Hat*w0*z)/(sqr(gamma0+a0Hat*w0*z)-1.0))*w0*w0;
 		dens = wp0*wp0*(1.0 + delta*std::sin(km*z)) + wp1s + 4.0*r2/std::pow(rchannel,tw::Float(4.0));
-		return theRgn->Inside(p,0) ? gammaBoost*dens : 0.0;
+		return theRgn->Inside(p,0) ? boost[0]*dens : 0.0;
 	}
 };
 
