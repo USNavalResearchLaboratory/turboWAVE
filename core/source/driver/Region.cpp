@@ -3,6 +3,7 @@ module;
 #include <tree_sitter/api.h>
 #include "tw_includes.h"
 #include "tw_logger.h"
+#include "tw_test.h"
 
 export module driver:region;
 import :primitive_region;
@@ -259,6 +260,10 @@ export struct SimpleRegion : Region {
 		}
 		directives.ThrowErrorIfMissingKeys(name);
 	}
+	virtual void RegisterTests() {
+		REGISTER(SimpleRegion,SpotCheckInsideTest);
+	}
+	void SpotCheckInsideTest();
 };
 
 export struct UnionRegion : Region {
@@ -271,6 +276,10 @@ export struct UnionRegion : Region {
 			ops.push_back(bool_op::Union);
 		}
 	}
+	virtual void RegisterTests() {
+		REGISTER(UnionRegion,SpotCheckInsideTest);
+	}
+	void SpotCheckInsideTest();
 };
 
 export struct IntersectionRegion : Region {
@@ -283,6 +292,10 @@ export struct IntersectionRegion : Region {
 			ops.push_back(bool_op::Intersection);
 		}
 	}
+	virtual void RegisterTests() {
+		REGISTER(IntersectionRegion,SpotCheckInsideTest);
+	}
+	void SpotCheckInsideTest();
 };
 
 export struct DifferenceRegion : Region {
@@ -295,4 +308,8 @@ export struct DifferenceRegion : Region {
 			ops.push_back(bool_op::Difference);
 		}
 	}
+	virtual void RegisterTests() {
+		REGISTER(DifferenceRegion,SpotCheckInsideTest);
+	}
+	void SpotCheckInsideTest();
 };

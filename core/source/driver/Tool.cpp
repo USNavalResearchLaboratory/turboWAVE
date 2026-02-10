@@ -46,7 +46,7 @@ export namespace tw
 		// Movers
 		borisMover,hcMover,pgcMover,unitaryMover,bohmianMover,photonMover,
 		// Testers
-		iteratorTest,metricSpaceTest,fftTest,regionsTest,
+		iteratorTest,metricSpaceTest,fftTest,
 		// Drivers
 		electrostatic,
 		coulombSolver,directSolver,curvilinearDirectSolver,farFieldDiagnostic,
@@ -280,7 +280,6 @@ std::map<std::string,tw::tool_type> ComputeTool::Map()
 		{"iterator test",tw::tool_type::iteratorTest},
 		{"metric space test",tw::tool_type::metricSpaceTest},
 		{"fft test",tw::tool_type::fftTest},
-		{"regions test",tw::tool_type::regionsTest},
 
 		{"maxwell solver",tw::tool_type::directSolver},
 		{"curvilinear maxwell solver",tw::tool_type::curvilinearDirectSolver},

@@ -1,6 +1,7 @@
 module;
 
 #include "tw_includes.h"
+#include "tw_test.h"
 
 export module driver:primitive_region;
 import :tool;
@@ -13,6 +14,9 @@ export struct PrimitiveRegion : ComputeTool
 	PrimitiveRegion(const std::string& name,MetricSpace *ms,Task *tsk) : ComputeTool(name,ms,tsk) {}
 	virtual bool Inside(const tw::vec4& pos) const = 0;
     virtual std::array<tw::Float,6> Bounds() const = 0;
+	// This gets invoked by the owning SimpleRegion's test, because the factory is unaware of primitive regions.
+	// We have to *require* these tests, or else the runner will report an empty test as success.
+	virtual void SpotCheckInsideTest() = 0;
 };
 
 export struct EntireRegion : PrimitiveRegion
@@ -24,6 +28,7 @@ export struct EntireRegion : PrimitiveRegion
     virtual std::array<tw::Float,6> Bounds() const {
 		return std::array<tw::Float,6> {-tw::big_pos,tw::big_pos,-tw::big_pos,tw::big_pos,-tw::big_pos,tw::big_pos};
 	}
+	virtual void SpotCheckInsideTest();
 };
 
 export struct RectRegion : PrimitiveRegion
@@ -38,6 +43,7 @@ export struct RectRegion : PrimitiveRegion
     virtual std::array<tw::Float,6> Bounds() const {
 		return std::array<tw::Float,6> {-size.x/2,size.x/2,-size.y/2,size.y/2,-size.z/2,size.z/2};
 	}
+	virtual void SpotCheckInsideTest();
 };
 
 export struct PrismRegion : RectRegion
@@ -46,6 +52,7 @@ export struct PrismRegion : RectRegion
 	virtual bool Inside(const tw::vec4& p) const {
 		return std::fabs(2*p[1])<size.x && std::fabs(2*p[2])<size.y && std::fabs(2*p[3])<size.z*0.5*(size.x-2*p[1])/size.x;
 	}
+	virtual void SpotCheckInsideTest();
 };
 
 export struct CircRegion : PrimitiveRegion
@@ -61,6 +68,7 @@ export struct CircRegion : PrimitiveRegion
     virtual std::array<tw::Float,6> Bounds() const {
 		return std::array<tw::Float,6> {-radius,radius,-radius,radius,-radius,radius};
 	}
+	virtual void SpotCheckInsideTest();
 };
 
 export struct CylinderRegion : PrimitiveRegion
@@ -76,6 +84,7 @@ export struct CylinderRegion : PrimitiveRegion
     virtual std::array<tw::Float,6> Bounds() const {
 		return std::array<tw::Float,6> {-radius,radius,-radius,radius,-length/2,length/2};
 	}
+	virtual void SpotCheckInsideTest();
 };
 
 export struct CylindricalShellRegion : PrimitiveRegion
@@ -94,6 +103,7 @@ export struct CylindricalShellRegion : PrimitiveRegion
     virtual std::array<tw::Float,6> Bounds() const {
 		return std::array<tw::Float,6> {-outerRadius,outerRadius,-outerRadius,outerRadius,-length/2,length/2};
 	}
+	virtual void SpotCheckInsideTest();
 };
 
 export struct RoundedCylinderRegion : CylinderRegion
@@ -107,6 +117,7 @@ export struct RoundedCylinderRegion : CylinderRegion
 		ans = ans || Norm(p + tw::vec4(0,0,0,length/2)) < sqr(radius);
 		return ans;
 	}
+	virtual void SpotCheckInsideTest();
 };
 
 export struct EllipsoidRegion : RectRegion
@@ -115,6 +126,7 @@ export struct EllipsoidRegion : RectRegion
 	virtual bool Inside(const tw::vec4& p) const {
 		return sqr(2*p[1]/size.x) + sqr(2*p[2]/size.y) + sqr(2*p[3]/size.z) < 1.0;
 	}
+	virtual void SpotCheckInsideTest();
 };
 
 // export struct TrueSphere : CircRegion
@@ -152,6 +164,7 @@ export struct BoxArrayRegion : PrimitiveRegion
     virtual std::array<tw::Float,6> Bounds() const {
 		return std::array<tw::Float,6> {-size.x/2,size.x/2,-size.y/2,size.y/2,-size.z/2,size.z/2};
 	}
+	virtual void SpotCheckInsideTest();
 };
 
 export struct TorusRegion : PrimitiveRegion
@@ -174,6 +187,7 @@ export struct TorusRegion : PrimitiveRegion
 		auto r = tw::vec3(majorRadius+minorRadius,majorRadius+minorRadius,minorRadius);
 		return std::array<tw::Float,6> {-r.x,r.x,-r.y,r.y,-r.z,r.z};
 	}
+	virtual void SpotCheckInsideTest();
 };
 
 export struct ConeRegion : PrimitiveRegion
@@ -197,6 +211,7 @@ export struct ConeRegion : PrimitiveRegion
 		auto r = tw::vec3(baseRadius,baseRadius,length/2);
 		return std::array<tw::Float,6> {-r.x,r.x,-r.y,r.y,-r.z,r.z};
 	}
+	virtual void SpotCheckInsideTest();
 };
 
 export struct TangentOgiveRegion : PrimitiveRegion
@@ -228,4 +243,5 @@ export struct TangentOgiveRegion : PrimitiveRegion
 		auto r = tw::vec3(bodyRadius,bodyRadius,length/2);
 		return std::array<tw::Float,6> {-r.x,r.x,-r.y,r.y,-r.z,r.z};
 	}
+	virtual void SpotCheckInsideTest();
 };

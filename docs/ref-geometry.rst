@@ -17,7 +17,7 @@ An important distinction in creating geometries is whether an object is defined 
 
 At present most objects are created in parameter space.  This distinction is only important on a curvilinear grid.
 
-When defining geometry using the input file, 3-tuples are often used to specify spatial coordinates.  The meaning of the tuple components depends on the coordinate system, as shown in Table I.
+When defining geometry using the input file, 3-tuples are often used to specify spatial coordinates.  The meaning of the tuple components depends on the coordinate system, as shown in Table I.  If a 4-tuple is used, it is the same except the *first* component is time.
 
 .. csv-table:: Table I. Input File Tuple Coordinate Mappings.
 	:header: "System", "Tuple Order", "Comment"
@@ -35,33 +35,58 @@ There is a Python program for viewing turboWAVE geometries in :file:`{turboWAVE}
 
 .. _shared-geometry:
 
-Geometry Shared Directives
+Geometry Transformations
 --------------------------
 
-The following directives may be used with any type of region.
+Every region has a native position and orientation that is only modified by applying a transformation of the form
 
-.. py:function:: translation = ( x , y , z )
+:math:`T({\rm origin})K({\rm boost})R({\rm euler angles})T({\rm translation})T({\rm window})`
 
-	Displace region from the current position.  Each type of region has a standard initial position, generally corresponding to being centered at the origin.  This directive can be repeated to create a sequence of operations.
+Note that in the active view the order would be read from left to right.  Here :math:`T` is a space-time translation, :math:`K` is a Lorentz boost, and :math:`R` is a rotation.  The way the factors are specified is as follows.
 
+.. py:function:: origin = ( t , x , y , z )
+
+	This specifies the translation operator :math:`T({\rm origin})`.  In the active view this is applied *before* the boost-rotation.
+
+	:param float t: translation in time
 	:param float x: translation in the x direction
 	:param float y: translation in the y direction
 	:param float z: translation in the z direction
 
-.. py:function:: rotation about axis = angle
+.. py:function:: boost = ( gbx , gby , gbz )
 
-	Rotate about the given global axis. This directive can be repeated to create a sequence of operations. Rotations about a shifted axis can be carried out by performing the sequence :math:`TRT^{-1}` with :math:`T` a translation and :math:`R` a rotation.
+	This specifies the spatial part of the 4-velocity of the new reference frame
 
-	:param enum axis: can be ``x``, ``y``, or ``z``
-	:param float angle: the rotation angle in radians.  You can use degrees by adding a dimension, e.g., ``rotation about axis = 45 [deg]``.
+	:param float gbx: :math:`\gamma\beta_x`
+	:param float gby: :math:`\gamma\beta_y`
+	:param float gbz: :math:`\gamma\beta_z`
+
+.. py:function:: euler angles = ( a , b , c )
+
+	This specifies the rotation operation :math:`R(a,b,c)`.  The tuple elements are in radians unless the ``[deg]`` dimension is given.
+
+	:param a: rotation about the z-axis that is applied last in the active view
+	:param b: rotation about the x-axis that is applied second
+	:param c: rotation about the z-axis that is applied first in the active view
+
+.. py:function:: translation = ( t , x , y , z )
+
+	This specifies the translation operator :math:`T({\rm translation})`.  In the active view this is applied *after* the boost-rotation.
+
+	:param float t: translation in time
+	:param float x: translation in the x direction
+	:param float y: translation in the y direction
+	:param float z: translation in the z direction
+
+.. py:function:: move with window = tst
+
+	This specifies the translation operator :math:`T({\rm window})`. If ``tst`` is true it evaluates to a *Galilean* transformation that aligns the region with the current grid position.  If ``tst`` is false it evaluates to the identity.
+ 
+	:param bool tst: if true, the region moves with the window
 
 .. py:function:: complement = tst
 
 	:param bool tst: if true, transforms the region into its complement
-
-.. py:function:: move with window = tst
-
-	:param bool tst: if true, the region moves with the window
 
 
 Basic Region Types
@@ -76,13 +101,13 @@ Basic Region Types
 
 		Shared directives: see :ref:`shared-geometry`
 
-		.. py:function:: bounds = ( x0 , x1 , y0 , y1 , z0 , z1 )
+		.. py:function:: size = ( x, y, z )
 
-			Defines the limits of the rectangular box. This implies a translation transformation, so **ordering with respect to other transformations matters**.
+			Gives the length of the box in the three spatial dimensions, the box exists for all time.
 
 .. py:function:: new region circ <name> { <directives> }
 
-	Creates a circle or sphere in parameter space.
+	Creates a disc or sphere.
 
 	:param str name: assigns a name to the region
 	:param block directives: The following directives are supported:
@@ -93,31 +118,18 @@ Basic Region Types
 
 			:param float R: defines the radius of the circle
 
-.. py:function:: new region true_sphere <name> { <directives> }
-
-	Creates a sphere in real space.
-
-	:param str name: assigns a name to the region
-	:param block directives: The following directives are supported:
-
-		Shared directives: see :ref:`shared-geometry`
-
-		.. py:function:: radius = R
-
-			:param float R: defines the radius of the sphere
-
 .. py:function:: new region prism <name> { <directives> }
 
-	Creates a prism in parameter space.
+	Creates a prism.
 
 	:param str name: assigns a name to the region
 	:param block directives: The following directives are supported:
 
 		Shared directives: see :ref:`shared-geometry`
 
-		.. py:function:: bounds = ( x0 , x1 , y0 , y1 , z0 , z1 )
+		.. py:function:: size = ( x, y, z )
 
-			Defines the limits of the bounding rectangular box. This implies a translation transformation, so **ordering with respect to other transformations matters**.
+			Defines a box in which the prism is bounded.
 			The tip points in the +x direction.
 
 .. py:function:: new region ellipsoid <name> { <directives> }
@@ -129,9 +141,9 @@ Basic Region Types
 
 		Shared directives: see :ref:`shared-geometry`
 
-		.. py:function:: bounds = ( x0 , x1 , y0 , y1 , z0 , z1 )
+		.. py:function:: size = ( x, y, z )
 
-			Defines the limits of the bounding rectangular box. This implies a translation transformation, so **ordering with respect to other transformations matters**.
+			Defines a box in which the ellipsoid is bounded.
 
 .. py:function:: new region cylinder <name> { <directives> }
 
@@ -299,9 +311,18 @@ Compound Regions
 
 			variable length list of names of regions forming the intersection
 
-.. tip::
+.. py:function:: new region difference <name> { <directives> }
 
-	You can create what most CAD software calls a difference using intersections.  The difference of A and B is the intersection of A and the complement of B.
+	Create the difference of one region with several other regions.  This is an intersection except that the complement of every region but the first one is automatically taken, i.e., if the difference has elements A, B, and C, then a point in the difference must be in A and not in B and not in C.
+
+	:param str name: assigns a name to the region
+	:param block directives: The following directives are supported:
+
+		Shared directives: see :ref:`shared-geometry`
+
+		.. py:function:: elements = { R1 , R2 , R3 , ... }
+
+			variable length list of names of regions forming the difference
 
 Specific Example in 2D
 ----------------------
@@ -309,35 +330,35 @@ Specific Example in 2D
 In this example we make a square with a rounded top in the x-z plane, with a hole in it.
 First define the elements of the compound region::
 
-	new region rect r1
+	new region rect 'r1'
 	{
-		bounds =  -1.0 1.0 -1.0 1.0 -1.0 1.0
+		size = ( 2, 2, 2 )
 	}
 
-	new region circ c1
+	new region circ 'c1'
 	{
-		translation = 0.0 0.0 1.0
+		translation = ( 0, 0, 1 )
 		radius = 1.0
 	}
 
-	new region circ !c2 // exclamation point just reminds us this is the complement of a circle
+	new region circ 'c2'
 	{
 		radius = 0.5
-		complement = true
 	}
 
 Now make the square with rounded top::
 
-	new region union u1
+	new region union 'u1'
 	{
 		elements = { r1 , c1 }
 	}
 
-Now put a hole in it by using the union in an intersection::
+Now put a hole in it and rotate the whole thing::
 
-	new region intersection i1
+	new region difference 'thing'
 	{
-		elements = { u1 , !c2 }
+		elements = { u1 , c2 }
+		euler angles = ( 90[deg], 20[deg], -90[deg] ) // amounts to a rotation about y
 	}
 
-The named region "i1" can now be used as the clipping region in :ref:`matter-loading`, in certain diagnostics, or in :ref:`conductor`.
+The named region "thing" can now be used as the clipping region in :ref:`matter-loading`, in certain diagnostics, or in :ref:`conductor`.

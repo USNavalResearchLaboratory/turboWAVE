@@ -138,6 +138,7 @@ target_sources(tw3d PUBLIC
     test/fluid_test.cpp
     test/physics_test.cpp
     test/injection_test.cpp
+    test/regions_test.cpp
 )
 
 target_sources(tw3d PUBLIC
@@ -217,7 +218,6 @@ target_sources(tw3d PUBLIC
         test/iterator_test.cpp
         test/metric_space_test.cpp
         test/fft_test.cpp
-        test/regions_test.cpp
 )
 
 if (MSVC)

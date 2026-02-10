@@ -29,7 +29,6 @@ import input;
 import metric_space_test;
 import iterator_test;
 import fft_test;
-import regions_test;
 import logger;
 
 export namespace factory {
@@ -207,9 +206,6 @@ SharedTool SharedBaseToolFromType(const std::string& name,tw::tool_type theType,
 			break;
 		case tw::tool_type::fftTest:
 			ans = std::make_shared<FFTTest>(name,ms,tsk);
-			break;
-		case tw::tool_type::regionsTest:
-			ans = std::make_shared<RegionsTest>(name,ms,tsk);
 			break;
 		default:
 			throw tw::FactoryError("unknown tool type");

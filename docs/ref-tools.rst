@@ -139,32 +139,23 @@ The loading of matter into the simulation box is done using ``generate`` blocks.
 .. note::
 	For isotropic distributions we have :math:`kT = mv_{th}^2`, :math:`v_i^{rms} = v_{th}`, and :math:`v_{tot}^{rms} = \sqrt{3}v_{th}`.
 
+Matter Loading Transformations
+,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+
+The way profiles are defined, positioned, and oriented, is analogous to the way regions are.  In particular, there is a native position and orientation that is modified by applying a set of transformations.  See :doc:`ref-geometry` for an explanation of the transformations that can be applied.
+
 .. _matter-loading-shared:
 
 Matter Loading Shared Directives
 ,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
 
-The following directives may be used with any profile type
+In addition to the geometry transformations, the following directives may be used with any profile type
 
 .. py:function:: clipping region = name
 
  	Load the matter only within the specified geometric region.  See :doc:`ref-geometry` for documentation on creating complex geometric regions.
 
 	:param str name: the name of the geometric region to use
-
-.. py:function:: position = ( x , y , z )
-
- 	Specify where to put profile’s reference point, typically extremum of profile.  For piecewise profiles this is interpreted as a translation.
-
-	.. tip::
-		This does not affect the position of the clipping region, only the profile.
-
-.. py:function:: euler angles = ( qx , qy , qz )
-
-	Rotation of the profile about the profile position.
-
-	.. tip::
-		This does not affect the rotation of the clipping region, only the profile.
 
 .. py:function:: temperature = T
 
@@ -200,10 +191,6 @@ The following directives may be used with any profile type
 
 	:param float stop_time: time at which matter loading ends.  If timing is ``triggered`` this is ignored.
 
-.. py:function:: boosted frame gamma = g
-
-	:param float g: relativistic Lorentz factor of the boosted frame (default=1).  If g>1, turboWAVE will transform the profile and clipping region into the boosted frame.  The parameters describing the profile and region should all be given in lab frame coordinates.  The grid coordinates are taken as the boosted frame.  When using a boosted frame the ``neutralize`` top level directive must be ``false``.
-
 Specific Matter Loading Profiles
 ,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
 
@@ -223,14 +210,18 @@ Specific Matter Loading Profiles
 
 .. py:function:: generate piecewise <name> { <directives> }
 
-	Generate piecewise varying density within the clipping region.  The total density is the product of 3 piecewise functions:
+	Generate piecewise varying density within the clipping region.  The total density is the product of 4 piecewise functions:
 
-		:math:`n(x,y,z) = X(x)Y(y)Z(z)`
+		:math:`n(t,x,y,z) = T(t)X(x)Y(y)Z(z)`
 
 	:param str name: name of module defining type of matter to load.
 	:param block directives: The following directives are supported:
 
 		Shared directives: see :ref:`matter-loading-shared`
+
+		.. py:function:: tpoints = t_list
+
+			:param list x_list: Variable length list of floating point numbers giving the points at which :math:`T(t)` is known, e.g., ``{ 0 , 1.5 , 3.4 , 5.1 }``.
 
 		.. py:function:: xpoints = x_list
 
@@ -243,6 +234,10 @@ Specific Matter Loading Profiles
 		.. py:function:: zpoints = z_list
 
 			:param list z_list: Variable length list of floating point numbers giving the points at which :math:`X(x)` is known, e.g., ``{ 0 , 1.5 , 3.4 , 5.1 }``.
+
+		.. py:function:: tdensity = td_list
+
+			:param list td_list: Variable length list of floating point numbers giving the values of :math:`T(t)` at the points listed with ``tpoints``.
 
 		.. py:function:: xdensity = xd_list
 
@@ -310,7 +305,7 @@ Specific Matter Loading Profiles
 
 	Generate density column within the clipping region.
 
-		:math:`n(x,y,z) = Z(z)\exp(-x^2/\sigma_x^2 - y^2/\sigma_y^2)`
+		:math:`n(t,x,y,z) = Z(z)\exp(-t^2/\sigma_t^2 - x^2/\sigma_x^2 - y^2/\sigma_y^2)`
 
 	:param str name: name of module defining type of matter to load.
 	:param block directives: The following directives are supported:
@@ -324,6 +319,7 @@ Specific Matter Loading Profiles
 
 		.. py:function:: size = ( sx , sy , sz )
 
+			:param float st: :math:`\sigma_t` in defining formula.
 			:param float sx: radius of column, per :math:`\sigma_x` in defining formula.
 			:param float sy: radius of column, per :math:`\sigma_y` in defining formula.
 			:param float sz: ignored.
@@ -332,7 +328,7 @@ Specific Matter Loading Profiles
 
 	Generate a Gaussian ellipsoid within the clipping region.
 
-		:math:`n(x,y,z) = n_0 \exp(-x^2/\sigma_x^2 - y^2/\sigma_y^2 - z^2/\sigma_z^2)`
+		:math:`n(t,x,y,z) = n_0 \exp(-t^2/\sigma_t^2 - x^2/\sigma_x^2 - y^2/\sigma_y^2 - z^2/\sigma_z^2)`
 
 	:param str name: name of module defining type of matter to load.
 	:param block directives: The following directives are supported:
@@ -343,8 +339,9 @@ Specific Matter Loading Profiles
 
 			:param float n0: peak density, per defining formula.
 
-		.. py:function:: size = ( sx , sy , sz )
+		.. py:function:: size = ( st, sx , sy , sz )
 
+			:param float st: :math:`\sigma_t` in defining formula.
 			:param float sx: :math:`\sigma_x` in defining formula.
 			:param float sy: :math:`\sigma_y` in defining formula.
 			:param float sz: :math:`\sigma_x` in defining formula.
