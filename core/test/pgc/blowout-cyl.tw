@@ -36,7 +36,7 @@ new maxwell solver 'em'
 new pgc laser solver 'pgc'
 {
 	carrier frequency = 80
-	new eigenmode propagator 'eig-propagator'
+	new forward propagator 'propagator'
 	{
 		damping time = 1.0
 		absorbing layers = 8

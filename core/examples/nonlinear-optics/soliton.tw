@@ -29,7 +29,8 @@ new grid
 
 new region rect 'r1'
 {
-	bounds = (-1e10 1e10 -1e10 1e10 0 1e10)
+	origin = (0, 0, 0, 5e4)
+	size = (0,0,1e5)
 	move with window = false
 }
 

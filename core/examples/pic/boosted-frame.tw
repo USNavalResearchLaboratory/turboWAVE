@@ -8,6 +8,8 @@
 #define $steps 3000
 #define $dt 0.0981 // magic timestep is crucial for stability
 #define $dx 0.4
+#define $dxd 0.8
+#define $dxh 0.2
 #define $dz 0.1422
 #define $nx 256
 #define $nz 3000
@@ -18,7 +20,7 @@
 #define $r0 12.0[um]
 #define $t0 38.90041493775934[fs] // in lab frame
 #define $zones 7
-#define $gamma 20.993030326857994
+#define $gbz 20.969199372
 
 native units = plasma
 unit density = $cgs_density
@@ -64,7 +66,7 @@ new facr elliptic solver for 'em'
 
 new hermite gauss pulse for 'em'
 {
-	// we choose to give lab frame pulse parameters, and use the <boosted frame gamma>
+	// we choose to give lab frame pulse parameters, and use the <boost>
 	// parameter to automatically transform to the boosted frame.
 	a = ( $a0 0.0 0.0 )
 	w = $w0
@@ -73,7 +75,7 @@ new hermite gauss pulse for 'em'
 	risetime = $t0
 	holdtime = 0
 	falltime = $t0
-	boosted frame gamma = $gamma
+	boost = (0,0,$gbz)
 	focus position = (0 0 0)
 	// The following "zones" parameter is crucial in a boosted frame.
 	// This sets up the periodic array of pulses (see comments above).
@@ -98,19 +100,19 @@ new species 'e'
 generate piecewise 'background'
 {
 	// The profile is created in the lab frame and automatically transformed
-	// by specifying the <boosted frame gamma> parameter.
+	// by specifying the <boost> parameter.
 	zdensity = { 1 , 1 }
 	zpoints = { 0.0 , $L }
-	boosted frame gamma = $gamma
+	boost = (0,0,$gbz)
 }
 
 generate piecewise 'e'
 {
 	// The profile is created in the lab frame and automatically transformed
-	// by specifying the <boosted frame gamma> parameter.
+	// by specifying the <boost> parameter.
 	zdensity = { 1 , 1 }
 	zpoints = { 0.0 , $L }
-	boosted frame gamma = $gamma
+	boost = (0,0,$gbz)
 }
 
 new energy diagnostic
@@ -121,12 +123,13 @@ new energy diagnostic
 
 new region rect 'l1'
 {
-	bounds = ( 0 $dx -$dx $dx -1e5 1e5 )
+	origin = (0, $dxh, 0, 0)
+	size = ( $dx, $dxd, 1e5)
 }
 
 new region rect 'r1'
 {
-	bounds = ( -1e5 1e5 -$dx $dx -1e5 1e5 )
+	size = ( 1e5, $dxd, 1e5)
 }
 
 new box diagnostic
@@ -164,5 +167,5 @@ new phase space diagnostic for 'e'
 	axes = ( t , y , g )
 	dimensions = ( 100 , 1 , 400 )
 	bounds = ( 0.0 1400.0 , -0.5 , 0.5 , 0 , 2000 )
-	boosted frame gamma = $gamma
+	boost = (0,0,$gbz)
 }

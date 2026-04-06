@@ -174,7 +174,7 @@ export struct Driver:StaticSpace,Engine
 	void RecursivelyReport(const std::shared_ptr<Diagnostic>& diagnostic) {
 		for (auto maybe_diag : tools) {
 			if (maybe_diag==diagnostic) {
-				logger::TRACE(std::format("{} is reporting",name));
+				logger::DEBUG(std::format("{} is reporting",name));
 				Report(*diagnostic);
 			}
 		}

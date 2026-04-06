@@ -54,9 +54,9 @@ generate uniform 'air'
 generate gaussian 'air'
 {
 	type = energy
-	origin = (100 -100 0)
+	origin = (0, 100, -100, 0)
 	density = 11500 [J/cm3]
-	size = (20 20 20)
+	size = (1, 20, 20, 20)
 }
 
 new box diagnostic

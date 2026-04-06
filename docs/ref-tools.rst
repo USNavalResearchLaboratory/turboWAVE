@@ -106,9 +106,13 @@ To inject radiation, you specify a type of electromagnetic mode, directives defi
 
 			:param enum pulse_shape: determines the shape of the pulse envelope, can be ``quintic`` (default), ``sin2``, ``sech``
 
-		.. py:function:: boosted frame gamma = g
+		.. py:function:: boost = (gbx,gby,gbz)
 
-			:param float g: relativistic Lorentz factor of the boosted frame (default=1).  If g>1, turboWAVE will transform the wave into the boosted frame.  The parameters describing the wave should all be given in lab frame coordinates.  The grid coordinates are taken as the boosted frame.  At present this feature should only be used for paraxial modes propagating along the z-axis.
+			Ask turboWAVE to transform the wave into the boosted frame.  The parameters describing the wave should all be given in lab frame coordinates.  The grid coordinates are taken as the boosted frame.  At present this feature should only be used for paraxial modes propagating along the z-axis.
+
+			:param float gbx: component of 4-velocity in x-direction
+			:param float gby: component of 4-velocity in y-direction
+			:param float gbz: component of 4-velocity in z-direction
 
 		.. py:function:: zones = z
 
@@ -554,31 +558,12 @@ Eigenmode Solver
 Laser Propagator
 ----------------
 
-Eigenmode Propagator
+Forward Propagator
 ,,,,,,,,,,,,,,,,,,,,
 
-.. py:function:: new eigenmode propagator [<name>] [for <module_name>] { <directives> }
+.. py:function:: new forward propagator [<name>] [for <module_name>] { <directives> }
 
-	Uses generalized spectral resolution of the transverse coordinates.  This propagator works in arbitrary coordinates, and is fast as long as the transverse modes are truncated.  It has superior fidelity for highly dispersive systems.  The following directives are supported:
-
-	.. py:function:: modes = <n>
-
-		:param int n: maximum number of radial modes to keep (eigenmode propagator only)
-
-	.. py:function:: damping time = <t>
-
-		:param float t: e-folding time in the absorbing layers
-
-	.. py:function:: absorbing layers = <l>
-
-		:param int l: number of absorbing layers
-
-ADI Propagator
-,,,,,,,,,,,,,,,,,,,,
-
-.. py:function:: new adi propagator [<name>] [for <module_name>] { <directives> }
-
-	Uses alternating direction implicit method.  This is a fast propagator that works in arbitrary coordinates.  It has poor fidelity for highly dispersive systems.  There are no directives.
+	This is an accurate propagator, but the axial integration is serial.
 
 .. _ionization:
 
@@ -917,9 +902,13 @@ The following directives may be used with any diagnostic
 	:param float vy: y-component of the galilean transformation velocity
 	:param float vz: z-component of the galilean transformation velocity
 
-.. py:function:: boosted frame gamma = g
+.. py:function:: boost = (gbx,gby,gbz)
 
-	:param float g: Lorentz factor associated with a boosted frame (default=1).  This is a request to unboost data generated in a boosted frame. As of this writing it is only implemented for orbit and phase space diagnostics, and there are some limitations (see below).
+	This is a request to unboost data generated in a boosted frame. As of this writing it is only implemented for orbit and phase space diagnostics, and there are some limitations (see below).
+
+	:param float gbx: component of 4-velocity in x-direction
+	:param float gby: component of 4-velocity in y-direction
+	:param float gbz: component of 4-velocity in z-direction
 
 .. _specific-diagnostics:
 
@@ -979,7 +968,7 @@ Specific Diagnostics
 
 .. py:function:: new phase space diagnostic [<name>] [for <module_name>] { <directives> }
 
-	Diagnostic to write out up to 3D phase space projections.  Setting a dimension to 1 produces a lower dimensional projection.  The ``boosted frame gamma`` parameter can be used to put the data in the lab frame.  It is important to note that if this is done, the frame write-out index still slices time in the boosted frame.  On the other hand, explicit time axes are properly transformed.
+	Diagnostic to write out up to 3D phase space projections.  Setting a dimension to 1 produces a lower dimensional projection.  The ``boost`` parameter can be used to put the data in the lab frame.  It is important to note that if this is done, the frame write-out index still slices time in the boosted frame.  On the other hand, explicit time axes are properly transformed.
 
 	:param str species_name: the name of the species to diagnose
 	:param block directives: The following directives are supported:
@@ -1002,7 +991,7 @@ Specific Diagnostics
 
 		.. py:function:: bounds = (x0,x1,y0,y1,z0,z1)
 
-			Boundaries of the interrogation region.  In boosted frame simulations, these can be specified in the lab frame by setting ``boosted frame gamma``.
+			Boundaries of the interrogation region.  In boosted frame simulations, these can be specified in the lab frame by setting ``boost``.
 
 			:param float x0: lower bound for axis 1
 			:param float x1: upper bound for axis 1
@@ -1018,7 +1007,7 @@ Specific Diagnostics
 
 .. py:function:: new orbit diagnostic [<name>] [for <module_name>]
 
-	Diagnostic to write out full phase space data of the particles.  In boosted frame simulations, data can be put in the lab frame by setting ``boosted frame gamma``.  Note however that the time separators in the data file lose their meaning in this case.
+	Diagnostic to write out full phase space data of the particles.  In boosted frame simulations, data can be put in the lab frame by setting ``boost``.  Note however that the time separators in the data file lose their meaning in this case.
 
 	.. caution::
 		Orbit diagnostics can create excessively large files if not used carefully.  To avoid this, define a species with a small number of test particles and use this on them.
@@ -1030,4 +1019,4 @@ Specific Diagnostics
 
 		.. py:function:: minimum gamma = gmin
 
-			:param float gmin: only save data for particles with gamma greater than this.  In boosted frame simulations, this can be specified in the lab frame by setting ``boosted frame gamma``.
+			:param float gmin: only save data for particles with gamma greater than this.  In boosted frame simulations, this can be specified in the lab frame by setting ``boost``.

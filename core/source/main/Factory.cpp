@@ -87,11 +87,8 @@ SharedTool SharedBaseToolFromType(const std::string& name,tw::tool_type theType,
 		case tw::tool_type::multipole:
 			ans = std::make_shared<Multipole>(name,ms,tsk);
 			break;
-		case tw::tool_type::eigenmodePropagator:
-			ans = std::make_shared<EigenmodePropagator>(name,ms,tsk);
-			break;
-		case tw::tool_type::adiPropagator:
-			ans = std::make_shared<ADIPropagator>(name,ms,tsk);
+		case tw::tool_type::forwardPropagator:
+			ans = std::make_shared<ForwardPropagator>(name,ms,tsk);
 			break;
 		case tw::tool_type::isotropicPropagator:
 			ans = std::make_shared<IsotropicPropagator>(name,ms,tsk);

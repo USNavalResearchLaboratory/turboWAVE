@@ -33,6 +33,7 @@ export namespace tw
 			void AttachUnits(tw::units sys,tw::Float unitDensityCGS);
 			void Reset();
 			void Add(const std::string& key,tw::input::Assignment *dir,bool required=true);
+			bool TestNext(const TSTreeCursor *curs,const std::string& src);
 			bool ReadNext(const TSTreeCursor *curs,const std::string& src);
 			void ReadAll(TSTreeCursor *curs,const std::string& src);
 			bool TestKey(const std::string& test);
@@ -107,10 +108,25 @@ void tw::input::DirectiveReader::Add(const std::string& key,tw::input::Assignmen
 		requiredKeys.push_back(key);
 }
 
+/// @brief see if the cursor is on an assignment to a known key
+/// @param curs cursor on a directive
+/// @return true if curs is on an assignment and key is known
+bool tw::input::DirectiveReader::TestNext(const TSTreeCursor *curs0,const std::string& src)
+{
+	auto curs = tw::input::Cursor(curs0);
+	if (tw::input::node_kind(curs.get()) == "assignment") {
+		ts_tree_cursor_goto_first_child(curs.get());
+		std::string key = input::node_text(curs.get(),src);
+		logger::TRACE(std::format("testing key {}",key));
+		return dmap.find(key) != dmap.end();
+	}
+	return false;
+}
+
 /// @brief process an assignment
 /// @param curs cursor on a directive
 /// @param src text of the source document
-/// @return false if directive not an assignment, or custom assignment
+/// @return true if an assignment was handled normally
 bool tw::input::DirectiveReader::ReadNext(const TSTreeCursor *curs0,const std::string& src)
 {
 	auto curs = tw::input::Cursor(curs0);
@@ -126,7 +142,7 @@ bool tw::input::DirectiveReader::ReadNext(const TSTreeCursor *curs0,const std::s
 			auto is_normal = dmap[key]->Read(curs.get(),src,key,native);
 			return is_normal;
 		} else {
-			tw::input::ThrowParsingError(curs0,src,"unknown key");
+			tw::input::ThrowParsingError(curs0,src,std::format("unknown key <{}>",key));
 		}
 	}
 	return false;
@@ -148,6 +164,7 @@ void tw::input::DirectiveReader::ReadAll(TSTreeCursor *curs,const std::string& s
 	} while (ts_tree_cursor_goto_next_sibling(curs));
 }
 
+/// @brief test to see if this key was previously found
 bool tw::input::DirectiveReader::TestKey(const std::string& test)
 {
 	return (keysFound.find(test)!=keysFound.end());

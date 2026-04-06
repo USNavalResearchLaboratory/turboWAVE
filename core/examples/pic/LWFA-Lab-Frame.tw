@@ -26,12 +26,14 @@ new grid
 
 new region rect 'r1'
 {
-	bounds = (-1e5 , 1e5 , -1e5 , 1e5 , 10 , 40)
+	origin = (0,0,0,25)
+	size = (1e5,1e5,30)
 }
 
 new region rect 'antenna_rect'
 {
-	bounds = (-40 , 40 , -1e5 , 1e5 , 5.01 , 5.04)
+	origin = (0,0,0,5.025)
+	size = (80,1e5,.03)
 }
 
 new maxwell solver 'em'

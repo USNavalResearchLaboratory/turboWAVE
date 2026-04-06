@@ -41,7 +41,7 @@ new region cone 'c1'
 	length = 15
 
 	euler angles = ( 0, 180[deg], 0 )
-	translation = (0 0 20)
+	translation = (0, 0, 0, 20)
 }
 
 // first vertex of the base
@@ -53,7 +53,7 @@ new region cone 'c2'
 
 	// `origin` and `translation` are both displacements, only the former is applied *before* the
 	// rotation, and the latter is applied *after*, in the active picture.
-	origin = (0 0 -20)
+	origin = (0, 0, 0, -20)
 	// in the active picture the "third" (rightmost) rotation goes first
 	euler angles = (-90[deg], 45[deg], 0)
 }
@@ -65,7 +65,7 @@ new region cone 'c3'
 	base radius = 5
 	length = 15
 
-	origin = (0 0 -20)
+	origin = (0, 0, 0, -20)
 	euler angles = (30[deg], 45[deg], 0)
 }
 
@@ -76,7 +76,7 @@ new region cone 'c4'
 	base radius = 5
 	length = 15
 
-	origin = (0 0 -20)
+	origin = (0, 0, 0, -20)
 	euler angles = (150[deg], 45[deg], 0)
 }
 

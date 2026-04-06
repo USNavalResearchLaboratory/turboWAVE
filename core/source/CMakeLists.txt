@@ -155,6 +155,7 @@ target_sources(tw3d PUBLIC
         main/Commands.cpp
         main/Simulation.cpp
         main/Factory.cpp
+
         base/base.cpp
         base/logger.cpp
         base/hydro_primitives.cpp
@@ -167,6 +168,7 @@ target_sources(tw3d PUBLIC
         base/FFT.cpp
         base/Functions.cpp
         base/Tasks.cpp
+
         driver/Driver.cpp
         driver/Diagnostic.cpp
         driver/Engine.cpp
@@ -176,12 +178,14 @@ target_sources(tw3d PUBLIC
         driver/Warp.cpp
         driver/Tool.cpp
         driver/Bounded.cpp
+
         fields/Fields.cpp
         fields/primitives.cpp
         fields/base.cpp
         fields/vector_ops.cpp
         fields/transform.cpp
         fields/aggregates.cpp
+
         io/Navigate.cpp
         io/Preprocess.cpp
         io/Assignment.cpp
@@ -189,24 +193,30 @@ target_sources(tw3d PUBLIC
         io/Diagnostics.cpp
         io/Units.cpp
         io/ReadGrid.cpp
+
         particles/Bundle.cpp
         particles/Tiler.cpp
         particles/Pusher.cpp
         particles/Mover.cpp
         particles/Particles.cpp
         particles/Qed.cpp
+
         sparc/Physics.cpp
         sparc/Chemistry.cpp
         sparc/fct.cpp
         sparc/Chemical.cpp
         sparc/Group.cpp
         sparc/Hydro.cpp
+
         solver/numerics_serial.cpp
         solver/numerics_parallel.cpp
         solver/Numerics.cpp
         solver/Injection.cpp
         solver/SolidState.cpp
         solver/Parabolic.cpp
+        solver/parabolic_diffusion.cpp
+        solver/parabolic_laser.cpp
+        solver/parabolic_quantum.cpp
         solver/Qstate.cpp
         solver/Quantum.cpp
         solver/FieldSolve.cpp
@@ -215,6 +225,7 @@ target_sources(tw3d PUBLIC
         solver/Electrostatic.cpp
         solver/Elliptic.cpp
         solver/RelColdFluid.cpp
+        
         test/iterator_test.cpp
         test/metric_space_test.cpp
         test/fft_test.cpp

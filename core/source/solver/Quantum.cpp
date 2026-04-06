@@ -430,7 +430,7 @@ void AtomicPhysics::FormGhostCellPotentials(tw::Float t)
 			#pragma omp parallel firstprivate(t,ax)
 			{
 				for (auto s : StripRange(A4,ax,0,1,strongbool::no))
-					for (tw::Int ghostCell=0;ghostCell<=Dim(s.Axis())+1;ghostCell+=Dim(s.Axis())+1)
+					for (tw::Int ghostCell=0;ghostCell<=Dim(s.StripAxis())+1;ghostCell+=Dim(s.StripAxis())+1)
 					{
 						tw::vec3 pos(space->Pos(s,ghostCell));
 						tw::vec3 A3(-0.5*pos.y*H.B0.z,0.5*pos.x*H.B0.z,0.0);
@@ -1091,7 +1091,7 @@ KleinGordon::KleinGordon(const std::string& name,MetricSpace *ms,Task *tsk) : At
 	H.qnuc = std::sqrt(alpha);
 	dipoleApproximation = false;
 
-	StaticSpace ss(tw::node5 {4,0,2,3,1},*space);
+	auto ss = space->Repack(tw::node5 {4,0,2,3,1});
 	psi_r.Initialize(2,ss,task);
 	psi_i.Initialize(2,ss,task);
 	J4.Initialize(4,ss,task);
@@ -1407,7 +1407,7 @@ Dirac::Dirac(const std::string& name,MetricSpace *ms,Task *tsk) : AtomicPhysics(
 	H.qnuc = std::sqrt(alpha);
 	dipoleApproximation = false;
 
-	StaticSpace ss(tw::node5 {4,0,2,3,1},*space);
+	auto ss = space->Repack(tw::node5 {4,0,2,3,1});
 	psi_r.Initialize(4,ss,task);
 	psi_i.Initialize(4,ss,task);
 	J4.Initialize(4,ss,task);

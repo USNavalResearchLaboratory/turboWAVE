@@ -32,7 +32,7 @@ new grid
 {
 	steps = 20000
 	origin = ( 0 , 0.5 , 0.5 , 0 )
-	dimensions = ( 1 1 1 1000 )
+	dimensions = ( 1 1 1 1024 )
 	cell size = ( 1 [ps] 1000.0 1000.0 1.0 )
 	decomposition = ( 1  1  1  1 )
 	geometry = cartesian
@@ -69,14 +69,16 @@ new region rect 'left'
 {
 	// N.b. we only want to fill only the far ghost cell for fixing the potential.
 	// Otherwise this would act as an impermeable wall as well.
-	bounds = ( -1 , 1 , -1 , 1 , -2 , -1 )
+	origin = (0, 0, 0, -1.5)
+	size = (2, 2, 1)
 }
 
 new region rect 'right'
 {
 	// N.b. we only want to fill only the far ghost cell for fixing the potential.
 	// Otherwise this would act as an impermeable wall as well.
-	bounds = ( -1 , 1 , -1 , 1 , 1001 , 1002 )
+	origin = (0, 0, 0, 1001.5)
+	size = (2, 2, 1)
 }
 
 new conductor 'cathode' for 'hydro'

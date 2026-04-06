@@ -63,7 +63,7 @@ FCT_Engine::FCT_Engine(tw::Int ax,const MetricSpace& m)
 
 void FCT_Engine::Reset(const tw::strip& s,const MetricSpace& m,ScalarField *fluxMask)
 {
-	tw::Int i,ax=s.Axis();
+	tw::Int i,ax=s.StripAxis();
 	cells = m.Dim(ax);
 	// The engine uses V[0] in the clipping stage
 	// The engine never uses A[0]

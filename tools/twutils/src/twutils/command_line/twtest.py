@@ -341,7 +341,7 @@ def SeaTrials(args):
 			print('=====================================')
 			print('Category',cat)
 			html_doc += '\n\n<h2 style="background-color:rgb(0,20,100);color:white;">"' + cat + '" Subdirectory</h2>\n\n'
-			ex_path_list = glob.glob(args['--root']+'/core/examples/'+cat+'/*')
+			ex_path_list = glob.glob(args['--root']+'/core/examples/'+cat+'/*.tw')
 			ex_path_list = sorted(ex_path_list,key=lambda s: ntpath.basename(s)[0])
 			ex_list = []
 			for s in ex_path_list:

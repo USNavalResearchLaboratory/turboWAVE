@@ -219,6 +219,10 @@ bool tw::input::Numbers<T>::Read(TSTreeCursor *curs,const std::string& src,const
     next_named_node(curs,false);
     if (num>1) {
         if (tw::input::node_kind(curs) == "tuple") {
+            auto n = ts_tree_cursor_current_node(curs);
+            if (ts_node_named_child_count(n) != num) {
+                tw::input::ThrowParsingError(curs,src,std::format("expected {}-tuple",num));
+            }
             ts_tree_cursor_goto_first_child(curs);
         } else {
             tw::input::ThrowParsingError(curs,src,"expected tuple");
@@ -228,7 +232,7 @@ bool tw::input::Numbers<T>::Read(TSTreeCursor *curs,const std::string& src,const
         if (next_named_node(curs,true)) {
             dat[i] = tw::dnum(curs,src) >> native;
         } else {
-            tw::input::ThrowParsingError(curs,src,"something missing");
+            tw::input::ThrowParsingError(curs,src,"unreachable was reached");
         }
         ts_tree_cursor_goto_next_sibling(curs);
     }

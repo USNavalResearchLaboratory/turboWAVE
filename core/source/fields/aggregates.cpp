@@ -22,7 +22,7 @@ import logger;
 export struct ScalarField: Field
 {
 	private:
-	// hide the internal dimension initializer
+	// hide the internal dimension initializers
 	void Initialize(const tw::Int& components,const StaticSpace& ss,Task *task) {}
 
 	public:
@@ -228,7 +228,7 @@ export struct ScalarField: Field
 export struct ComplexField: Field
 {
 	private:
-	// hide the internal dimension initializer
+	// hide the internal dimension initializers
 	void Initialize(const tw::Int& components,const StaticSpace& ss,Task *task) {}
 
 	public:
@@ -400,7 +400,7 @@ export struct ComplexField: Field
 export struct Vec3Field: Field
 {
 	private:
-	// hide the internal dimension initializer
+	// hide the internal dimension initializers
 	void Initialize(const tw::Int& components,const StaticSpace& ss,Task *task) {}
 
 	public:

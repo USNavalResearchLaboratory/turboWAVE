@@ -32,7 +32,7 @@ new pgc laser solver 'pgc'
 	carrier frequency = 50
 }
 
-new eigenmode propagator for 'pgc'
+new forward propagator for 'pgc'
 {
 }
 

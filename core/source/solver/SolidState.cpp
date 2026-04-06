@@ -269,7 +269,7 @@ void BoundElectrons::MoveWindow()
 	// carry out shift
 	for (auto s : StripRange(*this,3,0,1,strongbool::yes))
 	{
-		auto pos4 = space->Pos4(s,Dim(s.Axis())+1);
+		auto pos4 = space->Pos4(s,Dim(s.StripAxis())+1);
 		tw::Float incomingMaterial = 0.0;
 		for (auto profile : profiles)
 			incomingMaterial += profile->GetValue(pos4,*space);

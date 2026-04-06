@@ -50,13 +50,14 @@ new species 'e'
 
 new region rect 'r1'
 {
-	bounds = (0 50 -1e5 1e5 40 1e5)
+	origin = (0, 25, 0, 140)
+	size = (50, 1e5, 200)
 	move with window = false
 }
 
 generate corrugated 'e'
 {
-	origin = (0 0 40)
+	origin = (0, 0, 0, 40)
 	clipping region = 'r1'
 
 	// parameters defining the tapered corrugated channel

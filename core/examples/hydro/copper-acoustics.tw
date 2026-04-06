@@ -64,8 +64,7 @@ generate gaussian 'Cu'
 {
 	type = energy
 	density = 0.0001 // ping material to produce broadband sound waves
-	size = (10 10 10)
-	origin = (0 0 0)
+	size = (1, 10, 10, 10)
 }
 
 new box diagnostic

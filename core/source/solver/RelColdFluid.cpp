@@ -264,7 +264,7 @@ void Fluid::MoveWindow()
 	{
 		for (auto s : StripRange(*this,3,0,1,strongbool::yes))
 		{
-			tw::Int k = Dim(s.Axis())+1;
+			tw::Int k = Dim(s.StripAxis())+1;
 			tw::vec3 A0,A1;
 			tw::Float incomingGas,incomingPlasma[4];
 			auto pos4 = space->Pos4(s,k);

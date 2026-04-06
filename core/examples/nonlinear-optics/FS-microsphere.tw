@@ -27,7 +27,7 @@ new grid
 new region circ 'c1'
 {
 	radius = 3
-	translation = (0 0 10)
+	translation = (0, 0, 0, 10)
 }
 
 new maxwell solver 'em'

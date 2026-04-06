@@ -67,7 +67,9 @@ export struct Wave : ComputeTool
 	tw::vec3 direction;
 	tw::vec3 focusPosition;
 	tw::vec3 a;
-	tw::Float a0,w,nrefr,phase,vg,chirp,randomPhase,gammaBoost;
+	tw::vec3 boost3;
+	tw::vec4 boost;
+	tw::Float a0,w,nrefr,phase,vg,chirp,randomPhase;
 	PulseShape pulseShape;
 	EM::mode_data modeData;
 	tw::basis laserFrame;
@@ -95,7 +97,7 @@ export struct Wave : ComputeTool
 		// The function's caller is giving us boosted frame coordinates.
 		// The user is describing the laser in the lab frame.
 		// To get to laser's frame: boost, then translate, then rotate.
-		x4->zBoost(gammaBoost,1.0);
+		x4->Boost(boost);
 		tw::vec4 displ(pulseShape.delay+pulseShape.risetime,focusPosition);
 		*x4 -= displ;
 		laserFrame.ExpressInBasis(x4);
@@ -103,7 +105,7 @@ export struct Wave : ComputeTool
 	void ToBoostedFrame(tw::vec4 *A4) const
 	{
 		laserFrame.ExpressInStdBasis(A4);
-		A4->zBoost(gammaBoost,-1.0);
+		A4->Boost(boost);
 	}
 	tw::Complex VectorPotentialEnvelope(tw::Float time,const tw::vec3& pos,tw::Float w0) const
 	{
@@ -357,7 +359,8 @@ Wave::Wave(const std::string& name,MetricSpace *m,Task *tsk) : ComputeTool(name,
 	chirp = 0.0;
 	phase = 0.0;
 	randomPhase = 0.0;
-	gammaBoost = 1.0;
+	boost3 = tw::vec3(0,0,0);
+	boost = tw::vec4(1,0,0,0);
 	zones = 1;
 	modeData.order[0] = 0;
 	modeData.order[1] = 0;
@@ -377,7 +380,7 @@ Wave::Wave(const std::string& name,MetricSpace *m,Task *tsk) : ComputeTool(name,
 	directives.Add("risetime",new tw::input::Float(&pulseShape.risetime));
 	directives.Add("holdtime",new tw::input::Float(&pulseShape.holdtime));
 	directives.Add("falltime",new tw::input::Float(&pulseShape.falltime));
-	directives.Add("boosted frame gamma",new tw::input::Float(&gammaBoost),false);
+	directives.Add("boost",new tw::input::Vec3(&boost3),false);
 	directives.Add("exponent",new tw::input::Numbers<tw::Int>(&modeData.exponent[0],2),false);
 	directives.Add("mode",new tw::input::Numbers<tw::Int>(&modeData.order[0],2),false);
 	std::map<std::string,tw::profile::shape> shape = {{"quintic",tw::profile::shape::quintic},{"sech",tw::profile::shape::sech},{"sin2",tw::profile::shape::sin2}};
@@ -389,6 +392,7 @@ Wave::Wave(const std::string& name,MetricSpace *m,Task *tsk) : ComputeTool(name,
 
 void Wave::Initialize()
 {
+	boost = tw::vec4(std::sqrt(1+Norm(boost3)),boost3);
 	if (pulseShape.risetime<=0.0)
 		throw tw::FatalError("Pulse rise time must be positive and non-zero.");
 	if (pulseShape.holdtime<0.0)

@@ -1,5 +1,29 @@
 # Changelog
 
+## [Unreleased]
+
+### Fixes
+
+* error message for tuple size mismatches
+* correct a bug in the macro gather step
+
+### New Features
+
+* diagnostics can have metric space variants
+* iterators can be zipped
+* deriving a new space by perturbing the topology of an old one
+* additional functions for time axis manipulations
+
+### Code Structure
+
+* laser solver makes use of time axis storage
+
+### Breaking Changes
+
+* boost parameters given as spatial part of 4-velocity
+* laser propagators are changed to `forwardPropagator` and `isotropicPropagator`
+* parabolic module is factored into submodules
+
 ## [5.0.0-a2] - 2026-02-08
 
 ### Fixes

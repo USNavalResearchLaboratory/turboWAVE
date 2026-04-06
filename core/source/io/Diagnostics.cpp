@@ -22,7 +22,7 @@ class meta_writer
 public:
 	meta_writer(const tw::UnitConverter& units);
 	std::string s(const std::string& raw);
-	void start_entry(const std::string& name,const std::string& diagnostic_name);
+	void start_entry(const std::string& name,const std::string& diagnostic_name,tw::Int grid_variant);
 	void define_axis(const std::string& name,tw::Int ax,const std::string& label,tw::dims units,bool last=false);
 	std::string refine_label(const std::string& name,const tw::vec3& vGalileo,const tw::grid::geometry& geo);
 	void finish_entry();
@@ -48,7 +48,7 @@ struct TextTableBase : Diagnostic
 	std::vector<bool> avg;
 
 	TextTableBase(const std::string& name,MetricSpace *ms,Task *tsk);
-	virtual void Start(const MetricSpace *alt = NULL);
+	virtual void Start();
 	virtual void Finish();
 	virtual void ReportNumber(const std::string& label,tw::Float val,bool avg);
 };
@@ -93,7 +93,7 @@ export struct PhaseSpaceDiagnostic : Diagnostic
 	DynSpace fxp_spc;
 
 	PhaseSpaceDiagnostic(const std::string& name,MetricSpace *ms,Task *tsk);
-	virtual void Start(const MetricSpace *alt = NULL);
+	virtual void Start();
 	virtual void Finish();
 	virtual void ReportParticle(const Particle& par,tw::Float m0);
 };
@@ -105,7 +105,7 @@ export struct ParticleOrbits : Diagnostic
 	std::vector<float> parData;
 
 	ParticleOrbits(const std::string& name,MetricSpace *ms,Task *tsk);
-	virtual void Start(const MetricSpace *alt = NULL);
+	virtual void Start();
 	virtual void Finish();
 	virtual void ReportParticle(const Particle& par,tw::Float m0);
 	virtual void ReadCheckpoint(std::ifstream& inFile);
@@ -139,7 +139,7 @@ std::string meta_writer::s(const std::string& raw)
 	return ans.str();
 }
 
-void meta_writer::start_entry(const std::string& name,const std::string& diagnostic_name)
+void meta_writer::start_entry(const std::string& name,const std::string& diagnostic_name,tw::Int grid_variant)
 {
 	std::fstream outFile("tw_metadata.json",std::ios::out | std::ios::in); // we have to use input and output mode to avoid default truncation
 	std::map<tw::units,std::string> m = tw::get_unit_map_r();
@@ -148,10 +148,7 @@ void meta_writer::start_entry(const std::string& name,const std::string& diagnos
 	outFile << "," << std::endl;
 	outFile << s(name) << ": {" << std::endl;
 	outFile << "\t\"native units\": " << s(m[native.unit_system]) << "," << std::endl;
-	if (diagnostic_name=="tw::none")
-		outFile << "\t\"grid\": " << "\"grid_warp.txt\"," << std::endl;
-	else
-		outFile << "\t\"grid\": " << s(diagnostic_name + "_grid_warp.txt") << "," << std::endl;
+	outFile << "\t\"grid\": " << "\"" << grid_file_name(diagnostic_name,grid_variant) << "\"," << std::endl;
 	outFile << "\t\"axes\": " << "{" << std::endl;
 	outFile.close();
 }
@@ -321,9 +318,9 @@ TextTableBase::TextTableBase(const std::string& name,MetricSpace *ms,Task *tsk) 
 	directives.Add("precision",new tw::input::Int(&numSigFigs),false);
 }
 
-void TextTableBase::Start(const MetricSpace *alt)
+void TextTableBase::Start()
 {
-	Diagnostic::Start(alt);
+	Diagnostic::Start();
 	labels.clear();
 	values.clear();
 	avg.clear();
@@ -515,25 +512,22 @@ void BoxDiagnostic::ReportField(const std::string& fieldName,const Field& F,cons
 	thisNode = task->strip[0].Get_rank();
 	master = 0;
 
-	if (filename=="tw::none")
-		xname = fieldName + ".npy";
-	else
-		xname = filename + "_" + fieldName + ".npy";
-
 	pts[0] = 0;
-	GetGlobalIndexing(*ms,pts,glb);
+	GetGlobalIndexing(*space,pts,glb);
+	logger::TRACE(std::format("allocate {}x{}x{}",pts[1],pts[2],pts[3]));
 	for (tw::Int i=1;i<=3;i++) dim[i] = F.Dim(i);
 	for (tw::Int i=1;i<=3;i++) s[i] = skip[i];
 	if (thisNode==master)
 		gData.resize(pts[1]*pts[2]*pts[3]);
 
+	logger::TRACE("main gather loop");
 	for (tw::Int kdom=(glb[4]-1)/dim[3];kdom<=(glb[5]-1)/dim[3];kdom++)
 		for (tw::Int jdom=(glb[2]-1)/dim[2];jdom<=(glb[3]-1)/dim[2];jdom++)
 			for (tw::Int idom=(glb[0]-1)/dim[1];idom<=(glb[1]-1)/dim[1];idom++)
 			{
 				curr = task->strip[0].Cart_rank(idom,jdom,kdom); // domain being written out
 				coords[1] = idom; coords[2] = jdom; coords[3] = kdom;
-				GetLocalIndexing(*ms,pts,glb,loc,coords);
+				GetLocalIndexing(*space,pts,glb,loc,coords);
 
 				if (loc[0]<=dim[1] && loc[1]>=1 && loc[2]<=dim[2] && loc[3]>=1 && loc[4]<=dim[3] && loc[5]>=1)
 				{
@@ -545,9 +539,9 @@ void BoxDiagnostic::ReportField(const std::string& fieldName,const Field& F,cons
 								for (tw::Int j=loc[2];j<=loc[3];j+=s[2])
 									for (tw::Int i=loc[0];i<=loc[1];i+=s[1])
 									{
-										i0 = pts[2]*pts[3]*(ms->GlobalCellIndex(i,1) - glb[0])/s[1];
-										i0 += pts[3]*(ms->GlobalCellIndex(j,2) - glb[2])/s[2];
-										i0 += (ms->GlobalCellIndex(k,3) - glb[4])/s[3];
+										i0 = pts[2]*pts[3]*(space->GlobalCellIndex(i,1) - glb[0])/s[1];
+										i0 += pts[3]*(space->GlobalCellIndex(j,2) - glb[2])/s[2];
+										i0 += (space->GlobalCellIndex(k,3) - glb[4])/s[3];
 										gData[i0] = F(n,i,j,k,c);
 									}
 						}
@@ -592,15 +586,20 @@ void BoxDiagnostic::ReportField(const std::string& fieldName,const Field& F,cons
 
 	if (thisNode==master)
 	{
+		if (filename=="tw::none")
+			xname = fieldName + ".npy";
+		else
+			xname = filename + "_" + fieldName + ".npy";
+		logger::TRACE("master write-out");
 		if (!headerWritten)
 		{
 			pts[0] = 0;
 			writer.write_header(xname,pts);
-			meta.start_entry(xname,filename);
+			meta.start_entry(xname,filename,variant);
 			meta.define_axis(xname,0,"$t$",tw::dims::time);
-			meta.define_axis(xname,1,meta.refine_label("$x$",vGalileo,ms->gridGeometry),tw::dims::length);
-			meta.define_axis(xname,2,meta.refine_label("$y$",vGalileo,ms->gridGeometry),tw::dims::length);
-			meta.define_axis(xname,3,meta.refine_label("$z$",vGalileo,ms->gridGeometry),tw::dims::length);
+			meta.define_axis(xname,1,meta.refine_label("$x$",vGalileo,space->gridGeometry),tw::dims::length);
+			meta.define_axis(xname,2,meta.refine_label("$y$",vGalileo,space->gridGeometry),tw::dims::length);
+			meta.define_axis(xname,3,meta.refine_label("$z$",vGalileo,space->gridGeometry),tw::dims::length);
 			if (pretty=="tw::none")
 				meta.define_axis(xname,4,fieldName,unit,true);
 			else
@@ -616,36 +615,40 @@ void BoxDiagnostic::Finish()
 {
 	// Write out the grid data
 
-	std::ofstream gridFile;
 	const tw::Int master = 0;
 	const tw::Int curr_global = task->strip[0].Get_rank();
 	tw::Int pts[4],glb[6];
-	GetGlobalIndexing(*ms,pts,glb);
-	if (curr_global==master)
-		StartGridFile(gridFile);
-	if (!headerWritten) // assuming static grid no need to keep writing spatial points
-	{
-		for (tw::Int ax=1;ax<=3;ax++)
+	for (auto v=0;v<variants.size();v++) {
+		SwitchVariant(v);
+		GetGlobalIndexing(*space,pts,glb);
+		std::ofstream gridFile;
+		if (curr_global==master)
+			StartGridFile(gridFile,v);
+		if (!headerWritten) // assuming static grid no need to keep writing spatial points
 		{
-			// Message passing is needed to get the spatial points
-			std::valarray<tw::Float> X(ms->GlobalDim(ax));
-			const tw::Int offset = ms->Dim(ax)*task->strip[ax].Get_rank();
-			for (tw::Int i=1;i<=ms->Dim(ax);i++)
-				X[i-1+offset] = ms->X(i,ax);
-			task->strip[ax].Gather(&X[offset],&X[offset],ms->Dim(ax)*sizeof(tw::Float),master);
-			if (curr_global==master)
+			for (tw::Int ax=1;ax<=3;ax++)
 			{
-				const tw::Int lb = glb[2*ax-2];
-				const tw::Int ub = glb[2*ax-1];
-				gridFile << "axis" << ax << " = ";
-				for (tw::Int i=lb;i<ub;i+=skip[ax])
-					gridFile << X[i-1] << " ";
-				gridFile << X[ub-1] << std::endl;
+				// Message passing is needed to get the spatial points
+				std::valarray<tw::Float> X(space->GlobalDim(ax));
+				const tw::Int offset = space->Dim(ax)*task->strip[ax].Get_rank();
+				for (tw::Int i=1;i<=space->Dim(ax);i++)
+					X[i-1+offset] = space->X(i,ax);
+				task->strip[ax].Gather(&X[offset],&X[offset],space->Dim(ax)*sizeof(tw::Float),master);
+				if (curr_global==master)
+				{
+					const tw::Int lb = glb[2*ax-2];
+					const tw::Int ub = glb[2*ax-1];
+					gridFile << "axis" << ax << " = ";
+					for (tw::Int i=lb;i<ub;i+=skip[ax])
+						gridFile << X[i-1] << " ";
+					gridFile << X[ub-1] << std::endl;
+				}
 			}
 		}
+		if (curr_global==master)
+			gridFile.close();
 	}
-	if (curr_global==master)
-		gridFile.close();
+	SwitchVariant(0);
 	headerWritten = true;
 }
 
@@ -658,9 +661,9 @@ ParticleOrbits::ParticleOrbits(const std::string& name,MetricSpace *ms,Task *tsk
 	directives.Add("ids",new tw::input::NumberList<std::vector<tw::Int>>(&ids));
 }
 
-void ParticleOrbits::Start(const MetricSpace *alt)
+void ParticleOrbits::Start()
 {
-	Diagnostic::Start(alt);
+	Diagnostic::Start();
 	parData.clear();
 }
 
@@ -713,8 +716,8 @@ void ParticleOrbits::ReportParticle(const Particle& par,tw::Float m0)
 	tw::vec4 x(space->PositionFromPrimitive(par.q));
 	tw::vec4 p(par.p);
 	// Boosts will work in Cartesian or cylindrical, but not spherical.
-	x.zBoost(gammaBoost,1.0);
-	p.zBoost(gammaBoost,1.0);
+	x.Boost(boost);
+	p.Boost(boost);
 	tw::vec3 x3 = x.spatial();
 	uint64_t node = par.tag & 0xffffffff;
 	uint64_t id = par.tag >> 32;
@@ -780,9 +783,9 @@ PhaseSpaceDiagnostic::PhaseSpaceDiagnostic(const std::string& name,MetricSpace *
 	directives.Add("accumulate",new tw::input::Bool(&accumulate),false);
 }
 
-void PhaseSpaceDiagnostic::Start(const MetricSpace *alt)
+void PhaseSpaceDiagnostic::Start()
 {
-	Diagnostic::Start(alt);
+	Diagnostic::Start();
 
 	if (!headerWritten && task->strip[0].Get_rank()==0)
 	{
@@ -793,7 +796,7 @@ void PhaseSpaceDiagnostic::Start(const MetricSpace *alt)
 		std::string xname = filename + ".npy";
 		writer.write_header(xname,dims);
 		meta_writer meta(native);
-		meta.start_entry(xname,filename);
+		meta.start_entry(xname,filename,0);
 		meta.define_axis(xname,0,meta.refine_label(tw::grid::pretty_axis_label(ax[0]),vGalileo,space->gridGeometry),m[ax[0]]);
 		meta.define_axis(xname,1,meta.refine_label(tw::grid::pretty_axis_label(ax[1]),vGalileo,space->gridGeometry),m[ax[1]]);
 		meta.define_axis(xname,2,meta.refine_label(tw::grid::pretty_axis_label(ax[2]),vGalileo,space->gridGeometry),m[ax[2]]);
@@ -845,7 +848,7 @@ void PhaseSpaceDiagnostic::Finish()
 	if (task->strip[0].Get_rank()==0)
 	{
 		if (!accumulate || !headerWritten)
-			StartGridFile(gridFile);
+			StartGridFile(gridFile,0);
 		if (!headerWritten) // assuming static grid no need to keep writing spatial points
 		{
 			for (tw::Int ax=1;ax<=3;ax++)
@@ -871,8 +874,8 @@ void PhaseSpaceDiagnostic::ReportParticle(const Particle& par,tw::Float m0)
 	weights_3D weights;
 	tw::vec4 x(space->PositionFromPrimitive(par.q));
 	tw::vec4 v(par.p/m0);
-	x.zBoost(gammaBoost,1.0);
-	v.zBoost(gammaBoost,1.0);
+	x.Boost(boost);
+	v.Boost(boost);
 	const tw::Float dV = (bounds[1]-bounds[0])*(bounds[3]-bounds[2])*(bounds[5]-bounds[4])/(dims[1]*dims[2]*dims[3]);
 	tw::vec3 x3 = x.spatial();
 	if (theRgn->Inside(x,0))

@@ -101,22 +101,22 @@ export struct IteratorTest: ComputeTool {
     void TestCellRange() {
         auto ss = get_space(2);
         auto rng = InteriorCellRange(*ss,0);
-        ASSERT_EQ(rng.GetReference(0).Index(0),tw::cell(*ss,1,1,1,1).Index(0));
-        ASSERT_EQ(rng.GetReference(8).Index(0),tw::cell(*ss,1,1,3,1).Index(0));
-        ASSERT_EQ(rng.GetReference(17).Index(0),tw::cell(*ss,1,2,1,2).Index(0));
+        ASSERT_EQ(rng.GetValue(0).Index(0),tw::cell(*ss,1,1,1,1).Index(0));
+        ASSERT_EQ(rng.GetValue(8).Index(0),tw::cell(*ss,1,1,3,1).Index(0));
+        ASSERT_EQ(rng.GetValue(17).Index(0),tw::cell(*ss,1,2,1,2).Index(0));
     }
     void TestStripRange() {
         // For these tests we need to recall the access order of strips is not guaranteed to be stable
         // from one version to the next; as of this writing for z-strips x is the fast varying axis.
         auto ss = get_space(2);
         auto rng = StripRange(*ss,3,0,1,strongbool::no);
-        ASSERT_EQ(rng.GetReference(0).Index(3,0),
+        ASSERT_EQ(rng.GetValue(0).Index(3,0),
             tw::strip(*ss,3,0,tw::node4{1,1,1,1})
             .Index(3,0));
-        ASSERT_EQ(rng.GetReference(8).Index(3,0),
+        ASSERT_EQ(rng.GetValue(8).Index(3,0),
             tw::strip(*ss,3,0,tw::node4{1,1,2,1})
             .Index(3,0));
-        ASSERT_EQ(rng.GetReference(17).Index(3,0),
+        ASSERT_EQ(rng.GetValue(17).Index(3,0),
             tw::strip(*ss,3,0,tw::node4{1,2,3,1})
             .Index(3,0));
     }

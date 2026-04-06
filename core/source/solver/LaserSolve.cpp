@@ -19,18 +19,18 @@ export struct LaserSolver:Driver
 {
 	tw::Float laserFreq;
 	tw::Int resolution;
+	tw::Int N0; // time levels stored
 	tw_polarization_type polarizationType;
-	ComplexField a0,a1; // vector potential
+	ComplexField a; // vector potential
 	ComplexField chi; // defined by j = chi*a
 
 	// fields that are tracked at higher resolution than the baseline grid
 	MetricSpace HRSpace;
-	ComplexField HRa0,HRa1;
+	ComplexField HRa;
 	ComplexField HRchi;
 
 	tw::Waves waves;
-	std::shared_ptr<LaserPropagator> propagator;
-	std::shared_ptr<BoxDiagnostic> HRBoxDiagnostic;
+	std::shared_ptr<ForwardPropagator> propagator;
 	std::unique_ptr<GlobalSpline<tw::Complex>> spliner;
 
 	bool debug; // usually used to suppress envelope evolution
@@ -44,8 +44,8 @@ export struct LaserSolver:Driver
 	virtual void ReadCheckpoint(std::ifstream& inFile);
 	virtual void WriteCheckpoint(std::ofstream& outFile);
 
-	void Downsample(const ComplexField& hiRes,ComplexField& loRes);
-	void Upsample(ComplexField& hiRes,ComplexField& loRes);
+	void Downsample(const ComplexField& hiRes,ComplexField& loRes,tw::Int n);
+	void Upsample(ComplexField& hiRes,ComplexField& loRes,tw::Int n);
 	virtual void Update();
 	tw::vec3 GetIonizationKick(const tw::Float& a2,const tw::Float& q0,const tw::Float& m0);
 };
@@ -88,15 +88,10 @@ LaserSolver::LaserSolver(const std::string& name,MetricSpace *ms,Task *tsk):Driv
 	polarizationType = linearPolarization;
 	debug = false;
 	resolution = 1;
+	N0 = 3;
 
-	// auto-created Engines have to exist by the time input file parsing is finished
-	auto new_tool = CreateTool("hr_box",tw::tool_type::boxDiagnostic);
-	AddTool(new_tool);
-	HRBoxDiagnostic = std::dynamic_pointer_cast<BoxDiagnostic>(new_tool);
-
-	a0.Initialize(*space,task);
-	a1.Initialize(*space,task);
-	chi.Initialize(*space,task);
+	a.Initialize(space->ax0(N0),task);
+	chi.Initialize(space->ax0(N0),task);
 
 	spliner = std::make_unique<GlobalSpline<tw::Complex>>(&task->strip[3],Num(1)*Num(2),Dim(3));
 
@@ -109,8 +104,6 @@ LaserSolver::LaserSolver(const std::string& name,MetricSpace *ms,Task *tsk):Driv
 
 void LaserSolver::ExchangeResources()
 {
-	PublishResource(&a0,"laser:a0");
-	PublishResource(&a1,"laser:a1");
 	PublishResource(&chi,"laser:chi");
 	PublishResource(&laserFreq,"laser:carrierFrequency");
 	PublishResource(&polarizationType,"laser:polarizationType");
@@ -120,16 +113,16 @@ void LaserSolver::VerifyInput()
 {
 	Driver::VerifyInput();
 	for (auto tool : tools) {
-		if (std::dynamic_pointer_cast<LaserPropagator>(tool)) {
-			propagator = std::dynamic_pointer_cast<LaserPropagator>(tool);
+		if (std::dynamic_pointer_cast<ForwardPropagator>(tool)) {
+			propagator = std::dynamic_pointer_cast<ForwardPropagator>(tool);
 		} else if (std::dynamic_pointer_cast<Wave>(tool)) {
 			waves.push_back(std::dynamic_pointer_cast<Wave>(tool));
 		}
 	}
 	if (!propagator) {
-		auto new_tool = CreateTool("default_adi",tw::tool_type::adiPropagator);
+		auto new_tool = CreateTool("default_fwd",tw::tool_type::forwardPropagator);
 		AddTool(new_tool);
-		propagator = std::dynamic_pointer_cast<LaserPropagator>(new_tool);
+		propagator = std::dynamic_pointer_cast<ForwardPropagator>(new_tool);
 	}
 	tw::node5 HRGlobalCells {
 		space->GlobalDim(0),
@@ -146,17 +139,17 @@ void LaserSolver::VerifyInput()
 	};
 	logger::DEBUG(std::format("creating high resolution space x{}",resolution));
 	HRSpace.Resize(task,HRGlobalCells,space->GlobalCorner(),space->GlobalPhysicalSize(),std_packing,layers,space->gridGeometry);
-	HRBoxDiagnostic->filename = "refined";
-	HRBoxDiagnostic->space = &HRSpace;
-	HRBoxDiagnostic->reports.push_back("a_real");
-	HRBoxDiagnostic->reports.push_back("a_imag");
-	HRBoxDiagnostic->reports.push_back("j1_real");
-	HRBoxDiagnostic->reports.push_back("j1_imag");
 }
 
 void LaserSolver::Initialize()
 {
-	logger::TRACE("initialize laser base");
+	logger::DEBUG("initialize laser base");
+	for (auto tool : tools) {
+		if (std::dynamic_pointer_cast<BoxDiagnostic>(tool)) {
+			logger::DEBUG(std::format("Add grid variant to {}",tool->name));
+			std::dynamic_pointer_cast<BoxDiagnostic>(tool)->AddVariant(&HRSpace);
+		}
+	}
 
 	tw::vec3 pos;
 	tw::Float polarizationFactor;
@@ -165,24 +158,12 @@ void LaserSolver::Initialize()
 
 	Driver::Initialize();
 
-	for (auto tool : tools) {
-		auto diag = std::dynamic_pointer_cast<BoxDiagnostic>(tool);
-		if (diag && diag!=HRBoxDiagnostic) {
-			diag->no_reports.push_back("a_real");
-			diag->no_reports.push_back("a_imag");
-			diag->no_reports.push_back("j1_real");
-			diag->no_reports.push_back("j1_imag");
-			HRBoxDiagnostic->CopyParams(*diag);
-		}
-	}
-
-	HRa0.Initialize(HRSpace,task);
-	HRa1.Initialize(HRSpace,task);
-	HRchi.Initialize(HRSpace,task);
+	HRa.Initialize(HRSpace.ax0(N0),task);
+	HRchi.Initialize(HRSpace.ax0(N0),task);
 
 	propagator->SetData(laserFreq,dt,polarizationType,space->IsStdMovingWindow(),&HRSpace);
-	propagator->SetBoundaryConditions(HRa0,HRa1,HRchi);
-	propagator->SetBoundaryConditions(a0,a1,chi);
+	propagator->SetBoundaryConditions(HRa,HRchi);
+	propagator->SetBoundaryConditions(a,chi);
 
 	if (polarizationType==circularPolarization) {
 		polarizationFactor = 1.414;
@@ -190,19 +171,16 @@ void LaserSolver::Initialize()
 		polarizationFactor = 1.0;
 	}
 
-	for (auto cell : EntireCellRange(HRSpace,1)) {
-		for (auto pulse : waves) {
-			pos = HRSpace.Pos(cell);
-			pos.z = HRSpace.ToLab(pos.z,-dth);
-			HRa0.Pack(cell, HRa0(cell) + polarizationFactor*pulse->VectorPotentialEnvelope(-dth,pos,laserFreq));
-			pos = HRSpace.Pos(cell);
-			pos.z = HRSpace.ToLab(pos.z,dth);
-			HRa1.Pack(cell, HRa1(cell) + polarizationFactor*pulse->VectorPotentialEnvelope(dth,pos,laserFreq));
+	for (auto n=1; n<=2; n++) {
+		for (auto cell : EntireCellRange(HRa,n)) {
+			for (auto pulse : waves) {
+				pos = HRSpace.Pos(cell);
+				pos.z = HRSpace.ToLab(pos.z,(1.5-n)*dt);
+				HRa.Pack(cell, HRa(cell) + polarizationFactor*pulse->VectorPotentialEnvelope((1.5-n)*dt,pos,laserFreq));
+			}
 		}
+		Downsample(HRa,a,n);
 	}
-
-	Downsample(HRa0,a0);
-	Downsample(HRa1,a1);
 }
 
 tw::vec3 LaserSolver::GetIonizationKick(const tw::Float& a2,const tw::Float& q0,const tw::Float& m0)
@@ -229,11 +207,11 @@ tw::vec3 LaserSolver::GetIonizationKick(const tw::Float& a2,const tw::Float& q0,
 	return ans;
 }
 
-void LaserSolver::Downsample(const ComplexField& hiRes,ComplexField& loRes) {
+void LaserSolver::Downsample(const ComplexField& hiRes,ComplexField& loRes,tw::Int n) {
 	if (resolution==1) {
 		#pragma omp parallel
 		{
-			for (auto cell : EntireCellRange(loRes,1)) {
+			for (auto cell : EntireCellRange(loRes,n)) {
 				loRes(cell,0) = hiRes(cell,0);
 				loRes(cell,1) = hiRes(cell,1);
 			}
@@ -242,11 +220,9 @@ void LaserSolver::Downsample(const ComplexField& hiRes,ComplexField& loRes) {
 	}
 	#pragma omp parallel
 	{
-		StripRange loRange(loRes,3,0,1,strongbool::yes);
-		StripRange hiRange(hiRes,3,0,1,strongbool::yes);
-		auto loStrip = loRange.begin();
-		auto hiStrip = hiRange.begin();
-		do {
+		StripRange loRange(loRes,3,0,n,strongbool::yes);
+		StripRange hiRange(hiRes,3,0,n,strongbool::yes);
+		for (auto loStrip=loRange.begin(),hiStrip=hiRange.begin(); loStrip!=loRange.end() && hiStrip!=hiRange.end(); ++loStrip,++hiStrip) {
 			for (auto s=1;s<=loRes.Dim(3);s++) {
 				// |       x       |
 				// |   x   |   x   |
@@ -261,19 +237,18 @@ void LaserSolver::Downsample(const ComplexField& hiRes,ComplexField& loRes) {
 				loRes(*loStrip,s,0) /= resolution;
 				loRes(*loStrip,s,1) /= resolution;
 			}
-			++loStrip;
-			++hiStrip;
-		} while (loStrip!=loRange.end() && hiStrip!=hiRange.end());
+		}
 	}
-	loRes.DownwardCopy(tw::grid::z,1);
-	loRes.UpwardCopy(tw::grid::z,1);
-	loRes.ApplyBoundaryCondition();
+	auto r = Rng04(n,n+1,0,2);
+	loRes.Field::DownwardCopy(r,tw::grid::z,1);
+	loRes.Field::UpwardCopy(r,tw::grid::z,1);
+	loRes.Field::ApplyBoundaryCondition(r);
 }
 
-void LaserSolver::Upsample(ComplexField& hiRes,ComplexField& loRes) {
+void LaserSolver::Upsample(ComplexField& hiRes,ComplexField& loRes,tw::Int n) {
 	#pragma omp parallel
 	{
-		StripRange rng(loRes,3,0,1,strongbool::yes);
+		StripRange rng(loRes,3,0,n,strongbool::yes);
 		for (auto it=rng.begin(); it!=rng.end(); ++it) {
 			spliner->SetStrip(it.global_count(),&loRes(*it,0,0),loRes.Stride(3),loRes.Stride(4));
 		}
@@ -281,32 +256,29 @@ void LaserSolver::Upsample(ComplexField& hiRes,ComplexField& loRes) {
 	spliner->Solve();
 	#pragma omp parallel
 	{
-		StripRange loRange(loRes,3,0,1,strongbool::yes);
-		StripRange hiRange(hiRes,3,0,1,strongbool::yes);
-		auto loStrip = loRange.begin();
-		auto hiStrip = hiRange.begin();
-		do {
+		StripRange loRange(loRes,3,0,n,strongbool::yes);
+		StripRange hiRange(hiRes,3,0,n,strongbool::yes);
+		for (auto loStrip=loRange.begin(),hiStrip=hiRange.begin(); loStrip!=loRange.end() && hiStrip!=hiRange.end(); ++loStrip,++hiStrip) {
 			for (auto i=1;i<=hiRes.Dim(3);i++) {
 				tw::Float x = 0.5 + tw::Float(i-0.5)/resolution;
 				hiRes.Pack(*hiStrip,i, spliner->Interpolate(x,loStrip.global_count()));
 			}
-			++loStrip;
-			++hiStrip;
-		} while (loStrip!=loRange.end() && hiStrip!=hiRange.end());
+		}
 	}
-	hiRes.DownwardCopy(tw::grid::z,1);
-	hiRes.UpwardCopy(tw::grid::z,1);
-	hiRes.ApplyBoundaryCondition();
+	auto r = Rng04(n,n+1,0,2);
+	hiRes.Field::DownwardCopy(r,tw::grid::z,1);
+	hiRes.Field::UpwardCopy(r,tw::grid::z,1);
+	hiRes.Field::ApplyBoundaryCondition(r);
 }
 
 void LaserSolver::Update()
 {
 	logger::TRACE("start laser update");
 	if (!debug) {
-		Upsample(HRchi,chi);
-		propagator->Advance(HRa0,HRa1,HRchi);
-		Downsample(HRa0,a0);
-		Downsample(HRa1,a1);
+		Upsample(HRchi,chi,1);
+		propagator->Advance(HRa,HRchi);
+		Downsample(HRa,a,1);
+		Downsample(HRa,a,2);
 	}
 }
 
@@ -318,19 +290,15 @@ void LaserSolver::Reset()
 void LaserSolver::ReadCheckpoint(std::ifstream& inFile)
 {
 	Driver::ReadCheckpoint(inFile);
-	a0.ReadCheckpoint(inFile);
-	a1.ReadCheckpoint(inFile);
-	HRa0.ReadCheckpoint(inFile);
-	HRa1.ReadCheckpoint(inFile);
+	a.ReadCheckpoint(inFile);
+	HRa.ReadCheckpoint(inFile);
 }
 
 void LaserSolver::WriteCheckpoint(std::ofstream& outFile)
 {
 	Driver::WriteCheckpoint(outFile);
-	a0.WriteCheckpoint(outFile);
-	a1.WriteCheckpoint(outFile);
-	HRa0.WriteCheckpoint(outFile);
-	HRa1.WriteCheckpoint(outFile);
+	a.WriteCheckpoint(outFile);
+	HRa.WriteCheckpoint(outFile);
 }
 
 
@@ -425,25 +393,29 @@ void PGCSolver::AntiMoveWindow()
 {
 	// assumes resolution = 1
 	const tw::Float dth = 0.5*dx(0);
-	for (auto s : StripRange(*this,3,0,1,strongbool::yes))
+	auto rng1 = StripRange(HRa,3,0,1,strongbool::yes);
+	auto rng2 = StripRange(HRa,3,0,2,strongbool::yes);
+	for (auto nxt=rng1.begin(),prv=rng2.begin(); nxt!=rng1.end() && prv!=rng1.end(); ++nxt,++prv)
+	// for (auto [nxt,prv] : std::views::zip(
+	// 	StripRange(HRa,3,0,1,strongbool::yes),
+	// 	StripRange(HRa,3,0,2,strongbool::yes)))
 	{
 		tw::Float polarizationFactor = polarizationType==circularPolarization ? 1.414 : 1.0;
-		tw::Complex incoming0(0,0);
-		tw::Complex incoming1(0,0);
+		tw::Complex older(0,0);
+		tw::Complex newer(0,0);
 		for (auto pulse : waves)
 		{
-			tw::vec3 pos = space->Pos(s,0);
+			tw::vec3 pos = space->Pos(*nxt,0);
 			pos.z = space->ToLab(pos.z,-dth);
-			incoming0 += polarizationFactor*pulse->VectorPotentialEnvelope(space->WindowPos(0)-dth,pos,laserFreq);
-			pos = space->Pos(s,0);
+			older += polarizationFactor*pulse->VectorPotentialEnvelope(space->WindowPos(0)-dth,pos,laserFreq);
+			pos = space->Pos(*nxt,0);
 			pos.z = space->ToLab(pos.z,dth);
-			incoming1 += polarizationFactor*pulse->VectorPotentialEnvelope(space->WindowPos(0)+dth,pos,laserFreq);
+			newer += polarizationFactor*pulse->VectorPotentialEnvelope(space->WindowPos(0)+dth,pos,laserFreq);
 		}
-		HRa0.Shift(Rng(0,2),s,1,(tw::Float*)&incoming0);
-		HRa1.Shift(Rng(0,2),s,1,(tw::Float*)&incoming1);
+		HRa.Shift(Rng(0,2),*nxt,1,(tw::Float*)&newer);
+		HRa.Shift(Rng(0,2),*prv,1,(tw::Float*)&older);
 	}
-	HRa0.UpwardCopy(tw::grid::z,1);
-	HRa1.UpwardCopy(tw::grid::z,1);
+	HRa.Field::UpwardCopy(Rng04(1,3,0,2),tw::grid::z,1);
 }
 
 void PGCSolver::Update()
@@ -477,13 +449,14 @@ void PGCSolver::ComputeFinalFields()
 	#pragma omp parallel
 	{
 		const tw::Float dth = 0.5*dx(0);
-		for (auto s : StripRange(*this,3,0,1,strongbool::yes))
+		for (auto nxt : StripRange(*this,3,0,1,strongbool::yes))
 		{
+			auto prv = tw::strip(nxt,2);
 			for (tw::Int k=1;k<=dim[3];k++)
 			{
-				F(s,k,7) = norm(space->ValueOnLabGrid<ComplexField,tw::Complex>(a1,s,k,dth));
-				F(s,k,6) = norm(space->ValueOnLabGrid<ComplexField,tw::Complex>(a0,s,k,-dth));
-				F(s,k,6) = 0.5*(F(s,k,6) + F(s,k,7));
+				F(nxt,k,7) = norm(space->ValueOnLabGrid<ComplexField,tw::Complex>(a,nxt,k,dth));
+				F(nxt,k,6) = norm(space->ValueOnLabGrid<ComplexField,tw::Complex>(a,prv,k,-dth));
+				F(nxt,k,6) = 0.5*(F(nxt,k,6) + F(nxt,k,7));
 			}
 		}
 	}
@@ -514,63 +487,48 @@ void PGCSolver::Report(Diagnostic& diagnostic)
 {
 	LaserSolver::Report(diagnostic);
 
-	if (diagnostic.name == "hr_box") {
-		logger::TRACE("reporting high-res data");
-		diagnostic.ReportField("a_real",HRa1,1,0,tw::dims::vector_potential,"$\\Re A$");
-		diagnostic.ReportField("a_imag",HRa1,1,1,tw::dims::vector_potential,"$\\Im A$");
-		diagnostic.ReportField("j1_real",HRchi,1,0,tw::dims::current_density,"$\\Re j$");
-		diagnostic.ReportField("j1_imag",HRchi,1,1,tw::dims::current_density,"$\\Im j$");
-		return;
-	}
+	diagnostic.SwitchVariant(1);
+	diagnostic.ReportField("a_real",HRa,1,0,tw::dims::vector_potential,"$\\Re A$");
+	diagnostic.ReportField("a_imag",HRa,1,1,tw::dims::vector_potential,"$\\Im A$");
+	diagnostic.ReportField("j1_real",HRchi,1,0,tw::dims::current_density,"$\\Re j$");
+	diagnostic.ReportField("j1_imag",HRchi,1,1,tw::dims::current_density,"$\\Im j$");
+	diagnostic.SwitchVariant(0);
 
-	ScalarField temp;
+	ComplexField temp;
 	temp.Initialize(*space,task);
 
 	const tw::Float dti = dk(0);
 	const tw::Float dth = 0.5*dx(0);
-	for (auto cell : InteriorCellRange(*this,1))
+	for (auto [d,nxt,prv] : std::views::zip(
+		InteriorCellRange(temp,1),
+		InteriorCellRange(a,1),
+		InteriorCellRange(a,2)))
 	{
-		const tw::Complex aNow = half*(a0(cell)+a1(cell));
-		const tw::Complex dtau = dti*(a1(cell)-a0(cell));
-		const tw::Complex dzeta = half*(a0.d1(cell,0,3) + a1.d1(cell,0,3)) + ii*half*(a0.d1(cell,1,3) + a1.d1(cell,1,3));
+		const tw::Complex aNow = half*(a(prv)+a(nxt));
+		const tw::Complex dtau = dti*(a(nxt)-a(prv));
+		const tw::Complex dzeta = half*(a.d1(prv,0,3) + a.d1(nxt,0,3)) + ii*half*(a.d1(prv,1,3) + a.d1(nxt,1,3));
 		const tw::Complex eNow = ii*laserFreq*aNow - (dtau-dzeta);
 		const tw::Complex bNow = ii*laserFreq*aNow + dzeta;
-		temp(cell) = 0.25*(norm(eNow) + norm(bNow));
+		temp(d,0) = 0.25*(norm(eNow) + norm(bNow));
+		temp(d,1) = imag( conj(aNow)*bNow - aNow*conj(bNow) );
 	}
 	diagnostic.VolumeIntegral("LaserEnergy",temp,1,0);
+	diagnostic.VolumeIntegral("WaveAction",temp,1,1);
 
-	for (auto cell : InteriorCellRange(*this,1))
-	{
-		const tw::Complex aNow = half*(a0(cell)+a1(cell));
-		//const tw::Complex dtau = dti*(a1(cell)-a0(cell));
-		const tw::Complex dzeta = half*(a0.d1(cell,0,3) + a1.d1(cell,0,3)) + ii*half*(a0.d1(cell,1,3) + a1.d1(cell,1,3));
-		//const tw::Complex eNow = ii*laserFreq*aNow - (dtau-dzeta);
-		const tw::Complex bNow = ii*laserFreq*aNow + dzeta;
-		temp(cell) = imag( conj(aNow)*bNow - aNow*conj(bNow) );
-	}
-	diagnostic.VolumeIntegral("WaveAction",temp,1,0);
-
-	for (auto s : StripRange(*this,3,0,1,strongbool::no))
+	for (auto [d,nxt,prv] : std::views::zip(
+		StripRange(temp,3,0,1,strongbool::no),
+		StripRange(a,3,0,1,strongbool::no),
+		StripRange(a,3,0,2,strongbool::no)))
 	{
 		for (tw::Int k=1;k<=dim[3];k++)
 		{
-			tw::Complex dadt = dti*(space->ValueOnLabGrid<ComplexField,tw::Complex>(a1,s,k,dth) - space->ValueOnLabGrid<ComplexField,tw::Complex>(a0,s,k,-dth));
-			tw::Complex anow = tw::Float(0.5)*(space->ValueOnLabGrid<ComplexField,tw::Complex>(a0,s,k,-dth) + space->ValueOnLabGrid<ComplexField,tw::Complex>(a1,s,k,dth));
-			temp(s,k) = -real(dadt - ii*laserFreq*anow);
+			tw::Complex dadt = dti*(space->ValueOnLabGrid<ComplexField,tw::Complex>(a,nxt,k,dth) - space->ValueOnLabGrid<ComplexField,tw::Complex>(a,prv,k,-dth));
+			tw::Complex anow = tw::Float(0.5)*(space->ValueOnLabGrid<ComplexField,tw::Complex>(a,prv,k,-dth) + space->ValueOnLabGrid<ComplexField,tw::Complex>(a,nxt,k,dth));
+			temp.Pack(d, k, ii*laserFreq*anow - dadt);
 		}
 	}
 	diagnostic.ReportField("e_real",temp,1,0,tw::dims::electric_field,"$\\Re E$");
-
-	for (auto s : StripRange(*this,3,0,1,strongbool::no))
-	{
-		for (tw::Int k=1;k<=dim[3];k++)
-		{
-			tw::Complex dadt = dti*(space->ValueOnLabGrid<ComplexField,tw::Complex>(a1,s,k,dth) - space->ValueOnLabGrid<ComplexField,tw::Complex>(a0,s,k,-dth));
-			tw::Complex anow = tw::Float(0.5)*(space->ValueOnLabGrid<ComplexField,tw::Complex>(a0,s,k,-dth) + space->ValueOnLabGrid<ComplexField,tw::Complex>(a1,s,k,dth));
-			temp(s,k) = -imag(dadt - ii*laserFreq*anow);
-		}
-	}
-	diagnostic.ReportField("e_imag",temp,1,0,tw::dims::electric_field,"$\\Im E$");
+	diagnostic.ReportField("e_imag",temp,1,1,tw::dims::electric_field,"$\\Im E$");
 
 	diagnostic.ReportField("a2",F,1,7,tw::dims::none,"$a^2$");
 	diagnostic.ReportField("chi_real",chi,1,0,tw::dims::none,"$\\Re \\chi$");

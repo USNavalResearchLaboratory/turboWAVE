@@ -24,7 +24,7 @@ new grid
 
 new region rect 'antenna_rect'
 {
-	bounds = ( -1.0 , 1.0 , -1e5 , 1e5 , -1.0 , 1.0 )
+	size = ( 2 , 1e5 , 2 )
 }
 
 new maxwell solver 'em'
@@ -62,7 +62,8 @@ new region circ 'cavity'
 }
 new region rect 'tunnel'
 {
-	bounds = ( 85 , 105 , -5 , 5 , -8 , 8 )
+	origin = (0, 95, 0, 0 )
+	size = ( 20, 10, 16 )
 	complement = true
 }
 new region intersection 'full_structure'

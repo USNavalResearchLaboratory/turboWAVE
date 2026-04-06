@@ -29,7 +29,7 @@ new maxwell solver 'em'
 	reflection coefficient = (1e-4 1e-4 1e-4 1e-4 1e-4 1e-4)
 }
 
-new pgc laser module 'pgc'
+new pgc laser solver 'pgc'
 {
 	carrier frequency = 50
 }

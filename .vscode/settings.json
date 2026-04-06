@@ -86,5 +86,7 @@
         "xtree": "cpp",
         "xutility": "cpp"
     },
-    "cmake.sourceDirectory": "C:/Users/Daniel Gordon/codes/turbowave/core/source"
+    "cmake.sourceDirectory": "C:/Users/Daniel Gordon/codes/turbowave/core/source",
+    "python-envs.defaultEnvManager": "ms-python.python:conda",
+    "python-envs.defaultPackageManager": "ms-python.python:conda"
 }

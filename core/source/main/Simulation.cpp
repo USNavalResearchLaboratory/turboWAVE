@@ -501,7 +501,7 @@ void Simulation::InteractiveCommand(const std::string& cmd,std::ostream *theStre
 	} else if (cmd.find("peek")!=std::string::npos) {
 		*theStream << "Not implemented yet.";
 		*theStream << std::endl;
-	} else {
+	} else if (cmd.size() > 0) {
 		*theStream << "Unknown command.";
 		*theStream << std::endl;
 	}
@@ -621,7 +621,7 @@ void Simulation::Diagnose()
 
 	for (auto diag : diagnostics)
 	{
-		logger::TRACE(std::format("diagnostic {}",diag->name));
+		logger::DEBUG(std::format("diagnostic {}",diag->name));
 		if (diag->WriteThisStep())
 		{
 			diag->Start();

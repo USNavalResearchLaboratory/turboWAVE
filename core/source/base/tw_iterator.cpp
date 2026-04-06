@@ -1,41 +1,45 @@
 module;
 
 #include "tw_includes.h"
+#ifndef USE_STD_MODULE
+	#include <ranges>
+#endif
 
+/// # Module handling turboWAVE iterators
+///
+/// ## Classes
+///
+/// TurboWAVE iterators are specifically intended to be used with the Field class.
+/// There are 3 types of classes involved:
+/// 1. Range classes : Representation of cells or strips to iterate over
+/// 2. tw::iterator : used under the hood to move through the range
+/// 3. Value classes : the thing you get by derefencing the iterator
+///
+/// ## Usage
+///
+/// The value type does not directly produce a field value upon dereferencing.  Instead
+/// the dereferenced value gets passed into a Field class accessor, which in turn
+/// produces the field value.
+/// One iterator can be used to access multiple Field classes as long as every Field
+/// has the same topology of space and time nodes.
+///
+/// ## Optimization
+///
+/// Range classes are aware of OpenMP state and automatically split the work accross threads.
+/// There are special iterators designed to promote vectorization.
 export module tw_iterator;
 import base;
 import static_space;
 
-// TurboWAVE iterators serve the specific purpose of accessing the Field class.
-// They are not intended for generalized use.  They imitate the standard library, but there are differences.
-// They allow for range based loops, automatic parallelism, and compact strip processing.
-
-// There are 3 types of classes involved:
-// 1. Range classes : Representation of cells or strips to iterate over
-// 2. tw::iterator : used under the hood to move through the range, and support range based loops
-// 3. Reference classes : used as arguments in Field accessors, much like an array index
-
-// If you are used to standard containers, compare as follows:
-// 1. Range classes behave like a container class, e.g., have begin() and end() methods.  However,
-// they have no storage of their own, they are a proxy for Field instances.
-// 2. tw::iterator plays essentially the same role as std::iterator, except that dereferencing it
-// does not give an element of Field, but rather a reference that can be passed to any Field object.
-// 3. Reference classes essentially point to some part of the data represented by Field objects.  They are
-// what results from dereferencing tw::iterator.
-
-// Range classes are aware of OpenMP state and automatically split the work accross threads.
-// Range classes are created from a StaticSpace, and therefore may only be used in Field objects created from
-// the same StaticSpace.
-
 export namespace tw
 {
-	template <class RNG,class REF>
+	template <class RNG,class VAL>
 	class iterator
 	{
 		RNG *range;
 		// The RNG class is responsible for decoding the count.
 		// The decoding produces a tuple that Field can use to retrieve floating point data.
-		// The decoded indices are encapsulated in the REF class.
+		// The decoded indices are encapsulated in the VAL class.
 		tw::Int curr,first,last;
 		// curr is the encoded index of the current object, called the count.
 		// The global encoding is such that count ranges from (0...N-1), where N is the number of objects.
@@ -44,6 +48,13 @@ export namespace tw
 		// first and last are defined such that first <= curr <= last.
 
 	public:
+		// Type aliases required by std::random_access_iterator and std::ranges concepts
+		using difference_type = tw::Int;
+		using value_type = VAL;
+		using iterator_category = std::random_access_iterator_tag;
+
+		// Default constructor required by std::semiregular (needed for sentinel and forward_iterator)
+		iterator() : range(nullptr), curr(0), first(0), last(0) {}
 		iterator(RNG *r,tw::Int c,tw::Int f,tw::Int l)
 		{
 			range = r;
@@ -53,23 +64,53 @@ export namespace tw
 		}
 		tw::Int global_count() const { return curr; }
 		tw::Int count() const { return curr-first; }
-		REF operator * ()
+		VAL operator*() const
 		{
-			return range->GetReference(curr);
+			return range->GetValue(curr);
 		}
-		iterator& operator ++ ()
+		VAL operator[](tw::Int n) const
+		{
+			return range->GetValue(curr + n);
+		}
+		iterator& operator++()
 		{
 			curr++;
 			return *this;
 		}
-		friend bool operator < (const iterator& i1,const iterator& i2)
+		iterator operator++(int)
 		{
-			return i1.curr < i2.curr;
+			iterator tmp = *this;
+			++(*this);
+			return tmp;
 		}
-		friend bool operator != (const iterator& i1,const iterator& i2)
+		iterator& operator--()
 		{
-			return i1.curr != i2.curr;
+			curr--;
+			return *this;
 		}
+		iterator operator--(int)
+		{
+			iterator tmp = *this;
+			--(*this);
+			return tmp;
+		}
+		iterator& operator+=(tw::Int n)
+		{
+			curr += n;
+			return *this;
+		}
+		iterator& operator-=(tw::Int n)
+		{
+			curr -= n;
+			return *this;
+		}
+		friend iterator operator+(iterator i, tw::Int n) { i += n; return i; }
+		friend iterator operator+(tw::Int n, iterator i) { i += n; return i; }
+		friend iterator operator-(iterator i, tw::Int n) { i -= n; return i; }
+		friend tw::Int operator-(const iterator& i1, const iterator& i2) { return i1.curr - i2.curr; }
+		friend bool operator==(const iterator& i1,const iterator& i2) { return i1.curr == i2.curr; }
+		friend bool operator!=(const iterator& i1,const iterator& i2) {	return i1.curr != i2.curr; }
+		friend std::strong_ordering operator<=>(const iterator& i1, const iterator& i2) { return i1.curr <=> i2.curr; }
 	};
 
 	class cell
@@ -111,7 +152,7 @@ export namespace tw
 
 	class strip
 	{
-		tw::Int strip_stride,comp_stride;
+		tw::Int strip_stride,comp_stride,fixed_stride;
 		tw::Int strip_lfg,off;
 		tw::Int lfg[4],x[4],iter_ax[4],strip_ax[4],fixed_ax[4];
 
@@ -121,23 +162,48 @@ export namespace tw
 			strip_stride = ss.Stride(strip_ax);
 			strip_lfg = ss.LFG(strip_ax);
 			comp_stride = ss.Stride(4);
+			fixed_stride = ss.Stride(fixed_ax);
 			off = 0;
 			for (auto i=0; i<4; i++) {
 				x[i] = coord[i];
 				this->strip_ax[i] = i==strip_ax;
 				this->fixed_ax[i] = i==fixed_ax;
 				this->iter_ax[i] = i!=strip_ax && i!=fixed_ax;
-				off += (i!=strip_ax) * (coord[i] - ss.LFG(i)) * ss.Stride(i);
+				off += (i!=strip_ax) * (x[i] - ss.LFG(i)) * ss.Stride(i);
 			}
 		}
-		tw::Int Axis() const
+		/// Promote a baseline strip to work with a given field at the given fixed axis coordinate.
+		/// Helpful for loops handling multiple time levels.
+		strip(const strip& baseline,const StaticSpace& ss,tw::Int t)
 		{
+			auto const strip_ax = baseline.StripAxis();
+			auto const fixed_ax = baseline.FixedAxis();
+			strip_stride = ss.Stride(strip_ax);
+			strip_lfg = ss.LFG(strip_ax);
+			comp_stride = ss.Stride(4);
+			fixed_stride = ss.Stride(fixed_ax);
+			off = 0;
 			for (auto i=0; i<4; i++) {
-				if (strip_ax[i]) {
-					return i;
-				}
+				x[i] = i==fixed_ax ? t : baseline.x[i];
+				this->strip_ax[i] = i==strip_ax;
+				this->fixed_ax[i] = i==fixed_ax;
+				this->iter_ax[i] = i!=strip_ax && i!=fixed_ax;
+				off += (i!=strip_ax) * (x[i] - ss.LFG(i)) * ss.Stride(i);
 			}
-			return 0;
+		}
+		/// create a copy of the given strip but with a new position on the fixed axis (often time)
+		strip(const strip& baseline,tw::Int t)
+		{
+			*this = baseline;
+			const auto ax = fixed_ax[1] + fixed_ax[2]*2 + fixed_ax[3]*3;
+			this->x[ax] = t;
+			off += (t - baseline.x[ax]) * fixed_stride;
+		}
+		tw::Int StripAxis() const {
+			return strip_ax[1] + 2*strip_ax[2] + 3*strip_ax[3];
+		}
+		tw::Int FixedAxis() const {
+			return fixed_ax[1] + 2*fixed_ax[2] + 3*fixed_ax[3];
 		}
 		/// get standard cell indices
 		void Decode(tw::Int s, tw::Int coord[4]) const
@@ -216,7 +282,7 @@ public:
 
 /// Steps through spatial cells without concern for order or geometry.
 /// The time position is fixed upon construction.
-export class CellRange:public TWRange
+export class CellRange:public TWRange, public std::ranges::view_interface<CellRange>
 {
 	// io,jo,ko,is,js,ks are decoding offsets.
 	// iCells,jCells,kCells measure offsets in index space as the count increases.
@@ -225,8 +291,8 @@ export class CellRange:public TWRange
 	tw::Int io,jo,ko,is,js,ks,iCells,jCells,kCells;
 
 public:
-	CellRange(const StaticSpace& space,const tw::Int& n,strongbool include_ghost_cells)
-	{
+	using TWRange::size; // resolve ambiguity with view_interface::size()
+	CellRange(const StaticSpace& space,const tw::Int& n,strongbool include_ghost_cells) {
 		ss = &space;
 		this->n = n;
 		io = include_ghost_cells==strongbool::yes ? 0 : space.Layers(1);
@@ -242,8 +308,7 @@ public:
 	}
 	tw::iterator<CellRange,tw::cell> begin() { return tw::iterator<CellRange,tw::cell>(this,first,first,last); }
 	tw::iterator<CellRange,tw::cell> end() { return tw::iterator<CellRange,tw::cell>(this,last+1,first,last); }
-	tw::cell GetReference(tw::Int global_count)
-	{
+	tw::cell GetValue(tw::Int global_count) const {
 		// the access order is considered unimportant
 		const tw::Int i0 = io + global_count/(jCells*kCells);
 		const tw::Int j0 = jo + (global_count%(jCells*kCells)) / kCells;
@@ -272,12 +337,13 @@ public:
 /// Strips of ghost cells are included if includeGhostCells=true in constructor.
 /// Ordinary integer loop is intended to be nested within for stepping through cells along the strip.
 /// A cell is indexed by counting cells along the strip in the usual way (interior cells start at 1).
-export class StripRange:public TWRange
+export class StripRange:public TWRange, public std::ranges::view_interface<StripRange>
 {
 protected:
 	tw::Int strip_ax,fixed_ax;
 	tw::Int ref[4],D[4],M[4];
 public:
+	using TWRange::size; // resolve ambiguity with view_interface::size()
 	StripRange(const StaticSpace& space,tw::Int strip_ax,tw::Int fixed_ax,tw::Int fixed_pos,strongbool include_ghost_cells)
 	{
 		tw::Int N[4];
@@ -309,7 +375,7 @@ public:
 	}
 	tw::iterator<StripRange,tw::strip> begin() { return tw::iterator<StripRange,tw::strip>(this,first,first,last); }
 	tw::iterator<StripRange,tw::strip> end() { return tw::iterator<StripRange,tw::strip>(this,last+1,first,last); }
-	tw::strip GetReference(tw::Int global_count)
+	tw::strip GetValue(tw::Int global_count) const
 	{
 		// The access order across strips is considered unimportant.
 		// We only care about access order along strips, which the caller will control.
@@ -324,9 +390,10 @@ public:
 };
 
 export template <tw::Int AX>
-class VectorStripRange:public StripRange
+class VectorStripRange:public StripRange, public std::ranges::view_interface<VectorStripRange<AX>>
 {
 public:
+	using StripRange::size; // resolve ambiguity with view_interface<VectorStripRange<AX>>::size()
 	VectorStripRange(const StaticSpace& space,tw::Int fixed_ax,tw::Int fixed_pos,bool include_ghost_cells):
 		StripRange(space,AX,fixed_ax,fixed_pos,include_ghost_cells==true ? strongbool::yes : strongbool::no)
 	{
@@ -340,7 +407,7 @@ public:
 	{
 		return tw::iterator<VectorStripRange,tw::xstrip<AX>>(this,last+1,first,last);
 	}
-	tw::xstrip<AX> GetReference(tw::Int global_count)
+	tw::xstrip<AX> GetValue(tw::Int global_count) const
 	{
 		// The access order across strips is considered unimportant.
 		// We only care about access order along strips, which the caller will control.

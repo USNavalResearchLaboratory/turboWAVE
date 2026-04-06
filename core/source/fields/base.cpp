@@ -56,8 +56,19 @@ public:
 
 	Field();
 	virtual ~Field();
+	/// @brief initialize the field with a StaticSpace
+	/// @param ss static space to use for this Field, data is copied
+	/// @param task pointer to the concurrent task with this Field's domain
 	void Initialize(const StaticSpace& ss, Task* task);
-	void Initialize(const tw::Int& components,const StaticSpace& ss, Task* task);
+	/// @brief initialize the field with a StaticSpace, but with a new internal dimension.
+	/// This is an alternative to using a modifier on the StaticSpace.
+	/// This should be hidden by aggregate classes.
+	/// @param components update the internal dimension relative to `ss`
+	/// @param ss static space to use for this Field, data is copied
+	/// @param task pointer to the concurrent task with this Field's domain
+	void Initialize(const tw::Int& components,const StaticSpace& ss,Task *task) {
+		Initialize(ss.ax4(components),task);
+	}
 	void SetBoundaryConditions(const Rng& rng, const tw::grid::axis& axis, tw::bc::fld low, tw::bc::fld high);
 	friend void CopyBoundaryConditions(Field& dst, const Rng& r_dst, Field& src, const Rng& r_src);
 
@@ -242,6 +253,21 @@ public:
 	void Smooth(const Rng04& r, const MetricSpace& ms, tw::Int smoothPasses[4], tw::Int compPasses[4]);
 	void Shift(const Rng& r, const tw::strip& s, tw::Int cells, const tw::Float* incoming);
 	void Shift(const Rng& r, const tw::strip& s, tw::Int cells, const tw::Float& incoming);
+	/// shift everything back in time, the latest data is left as is
+	void ShiftTimeLevels() {
+		for (auto c=0; c<Dim(4); c++) {
+			for (auto n=Dim(0); n>1; n--) {
+				#pragma omp parallel
+				{
+					for (auto [prv,nxt] : std::views::zip(
+						EntireCellRange(*this,n),
+						EntireCellRange(*this,n-1))) {
+						(*this)(prv,c) = (*this)(nxt,c);
+					}
+				}
+			}
+		}
+	}
 
 	tw::Float RealAxialEigenvalue(tw::Int z,const DynSpace& ds);
 	tw::Float RealEigenvalue(tw::Int x, tw::Int y,const DynSpace& ds);
@@ -270,12 +296,12 @@ public:
 
 	void GetStrip(std::valarray<tw::Float>& cpy, const tw::strip& s, const tw::Int& c)
 	{
-		for (tw::Int i = 0; i <= UNG(s.Axis()); i++)
+		for (auto i = 0; i <= UNG(s.StripAxis()); i++)
 			cpy[i] = (*this)(s, i, c);
 	}
 	void SetStrip(std::valarray<tw::Float>& cpy, const tw::strip& s, const tw::Int& c)
 	{
-		for (tw::Int i = 0; i <= UNG(s.Axis()); i++)
+		for (auto i = 0; i <= UNG(s.StripAxis()); i++)
 			(*this)(s, i, c) = cpy[i];
 	}
 	const tw::vec3 Vec3(const tw::Int& n, const tw::Int& i, const tw::Int& j, const tw::Int& k, const tw::Int& c) const
@@ -407,15 +433,6 @@ Field::~Field()
 	#endif
 }
 
-/// @brief initialize the field with a StaticSpace, but with a new internal dimension
-/// @param components update the internal dimension relative to `ss`
-/// @param ss static space to use for this Field, data is copied
-/// @param task pointer to the concurrent task with this Field's domain
-void Field::Initialize(const tw::Int& components,const StaticSpace& ss,Task *task) {
-	auto new_ss = StaticSpace(components,ss);
-	Initialize(new_ss,task);
-}
-
 /// @brief initialize the field with a StaticSpace
 /// @param ss static space to use for this Field, data is copied
 /// @param task pointer to the concurrent task with this Field's domain
@@ -507,56 +524,58 @@ void Field::DivideCellVolume(const Rng04& r, const MetricSpace& m)
 				(*this)(cell,c) /= m.dS(cell,0);
 }
 
+/// @brief Shift field pattern along a given axis
+/// @param r range of components to shift
+/// @param s strip along which to operate
+/// @param cells how many cells to shift, positive shifts up, negative shifts down
+/// @param incoming array of components to inject
 void Field::Shift(const Rng& r,const tw::strip& s,tw::Int cells,const tw::Float* incoming)
 {
-	// Propagate field pattern to the right if <cells> positive, to the left if negative
-	// argument <incoming> is value to inject into left or right ghost cell
-
-	tw::Int i,c,ax=s.Axis();
-
+	auto ax=s.StripAxis();
 	if (cells>0)
 	{
-		for (i=UFG(ax);i>=LFG(ax)+cells;i--)
-			for (c=r.beg; c<r.end; c++)
+		for (auto i=UFG(ax);i>=LFG(ax)+cells;i--)
+			for (auto c=r.beg; c<r.end; c++)
 				(*this)(s,i,c) = (*this)(s,i-cells,c);
-		for (i=LFG(ax);i<LFG(ax)+cells;i++)
-			for (c=r.beg; c<r.end; c++)
+		for (auto i=LFG(ax);i<LFG(ax)+cells;i++)
+			for (auto c=r.beg; c<r.end; c++)
 				(*this)(s,i,c) = incoming[c-r.beg];
 	}
 	if (cells<0)
 	{
-		for (i=LFG(ax);i<=UFG(ax)+cells;i++)
-			for (c=r.beg; c<r.end; c++)
+		for (auto i=LFG(ax);i<=UFG(ax)+cells;i++)
+			for (auto c=r.beg; c<r.end; c++)
 				(*this)(s,i,c) = (*this)(s,i-cells,c);
-		for (i=UFG(ax)+1+cells;i<=UFG(ax);i++)
-			for (c=r.beg; c<r.end; c++)
+		for (auto i=UFG(ax)+1+cells;i<=UFG(ax);i++)
+			for (auto c=r.beg; c<r.end; c++)
 				(*this)(s,i,c) = incoming[c-r.beg];
 	}
 }
 
+/// @brief Shift field pattern along a given axis
+/// @param r range of components to shift
+/// @param s strip along which to operate
+/// @param cells how many cells to shift, positive shifts up, negative shifts down
+/// @param incoming value to inject for all components
 void Field::Shift(const Rng& r,const tw::strip& s,tw::Int cells,const tw::Float& incoming)
 {
-	// Propagate field pattern to the right if <cells> positive, to the left if negative
-	// argument <incoming> is value to inject into left or right ghost cell
-
-	tw::Int i,c,ax=s.Axis();
-
+	auto ax=s.StripAxis();
 	if (cells>0)
 	{
-		for (i=UFG(ax);i>=LFG(ax)+cells;i--)
-			for (c=r.beg; c<r.end; c++)
+		for (auto i=UFG(ax);i>=LFG(ax)+cells;i--)
+			for (auto c=r.beg; c<r.end; c++)
 				(*this)(s,i,c) = (*this)(s,i-cells,c);
-		for (i=LFG(ax);i<LFG(ax)+cells;i++)
-			for (c=r.beg; c<r.end; c++)
+		for (auto i=LFG(ax);i<LFG(ax)+cells;i++)
+			for (auto c=r.beg; c<r.end; c++)
 				(*this)(s,i,c) = incoming;
 	}
 	if (cells<0)
 	{
-		for (i=LFG(ax);i<=UFG(ax)+cells;i++)
-			for (c=r.beg; c<r.end; c++)
+		for (auto i=LFG(ax);i<=UFG(ax)+cells;i++)
+			for (auto c=r.beg; c<r.end; c++)
 				(*this)(s,i,c) = (*this)(s,i-cells,c);
-		for (i=UFG(ax)+1+cells;i<=UFG(ax);i++)
-			for (c=r.beg; c<r.end; c++)
+		for (auto i=UFG(ax)+1+cells;i<=UFG(ax);i++)
+			for (auto c=r.beg; c<r.end; c++)
 				(*this)(s,i,c) = incoming;
 	}
 }
@@ -1079,7 +1098,7 @@ void Field::SmoothingPass(const Rng04& r,tw::Int ax,const MetricSpace& ms,const 
 	tw::grid::axis axs[4] = { tw::grid::t, tw::grid::x, tw::grid::y, tw::grid::z };
 
 	for (auto n=r.b0; n<r.e0; n++)
-		for (auto c=r.b4; c<=r.e4; c++)
+		for (auto c=r.b4; c<r.e4; c++)
 			if (dim[ax]>1)
 				for (auto s : StripRange(*this,ax,0,n,strongbool::yes))
 				{

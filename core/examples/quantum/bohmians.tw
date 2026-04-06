@@ -87,7 +87,7 @@ new species 'test'
 generate gaussian 'test'
 {
 	density = 1.0
-	size = (1.0 1.0 1.0)
+	size = (1, 1, 1, 1)
 	// following loading conditions cause density to be commensurate with |psi|^2
 	t0 = 20.01
 	loading = statistical

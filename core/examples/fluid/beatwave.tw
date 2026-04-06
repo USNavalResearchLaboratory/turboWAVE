@@ -37,7 +37,7 @@ new facr elliptic solver for 'coul'
 	zboundary = ( open , open )
 }
 
-new pgc laser module 'pgc'
+new pgc laser solver 'pgc'
 {
 	carrier frequency = 31.0
 }

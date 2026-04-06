@@ -25,7 +25,7 @@ export namespace tw
 		// Wave launchers
 		conductor, planeWave, besselBeam, airyDisc, hermiteGauss, laguerreGauss, multipole,
 		// Laser propagators
-		eigenmodePropagator, adiPropagator, isotropicPropagator, schroedingerPropagator,
+		forwardPropagator, isotropicPropagator, schroedingerPropagator,
 		// Elliptic solvers
 		iterativePoissonSolver, facrPoissonSolver, eigenmodePoissonSolver, ellipticSolver1D,
 		// Diffusion
@@ -235,8 +235,7 @@ std::map<std::string,tw::tool_type> ComputeTool::Map()
 		{"column",tw::tool_type::columnProfile},
 		{"gaussian",tw::tool_type::gaussianProfile},
 		{"corrugated",tw::tool_type::corrugatedProfile},
-		{"eigenmode propagator",tw::tool_type::eigenmodePropagator},
-		{"adi propagator",tw::tool_type::adiPropagator},
+		{"forward propagator",tw::tool_type::forwardPropagator},
 		{"isotropic propagator",tw::tool_type::isotropicPropagator},
 		{"parabolic propagator",tw::tool_type::generalParabolicPropagator},
 		{"schroedinger propagator",tw::tool_type::schroedingerPropagator},

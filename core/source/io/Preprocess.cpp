@@ -97,9 +97,22 @@ void tw::input::MacroGather(const TSTreeCursor& curs,tw::input::Subs& map,const 
         if (ts_node_is_null(val_node)) {
             map[key] = std::string("");
         } else {
-            // the value in this model is just the text from start of first value node to end of parent
+            // the value in this model is just the text from start of first value node to either
+            // (i) the start of the first comment node, or (ii) the end of the last value node
             const int s = ts_node_start_byte(val_node);
-            const int e = ts_node_end_byte(node);
+            int e = ts_node_end_byte(val_node);
+            int i = 3;
+            do {
+                val_node = ts_node_next_sibling(val_node);
+                if (ts_node_is_null(val_node)) {
+                    break;
+                }
+                if (std::string(ts_node_type(val_node))=="comment") {
+                    e = ts_node_start_byte(val_node);
+                    break;
+                }
+                e = ts_node_end_byte(val_node);
+            } while (!ts_node_is_null(val_node));
             std::string val = trim(src.substr(s,e-s));
             if (key==val)
                 throw tw::FatalError("Macro cannot refer to itself ("+key+")");

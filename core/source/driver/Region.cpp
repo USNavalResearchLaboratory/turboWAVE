@@ -245,11 +245,11 @@ export struct SimpleRegion : Region {
 						if (tw::input::node_kind(curs)=="comment") {
 							continue;
 						}
-						try {
+						if (directives.TestNext(curs,src)) {
 							if (!directives.ReadNext(curs,src)) {
 								tw::input::ThrowParsingError(curs,src,"unknown directive");
 							}
-						} catch (tw::FatalError) {
+						} else {
 							if (!primitive->directives.ReadNext(curs,src)) {
 								tw::input::ThrowParsingError(curs,src,"unknown directive");
 							}

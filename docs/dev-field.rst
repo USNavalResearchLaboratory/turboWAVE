@@ -122,6 +122,29 @@ A frequent pattern is operating on strips of cells.  Often one would like to rep
 
 The ``StripRange`` takes a new argument, an integer giving the axis parallel to the strips.  To avoid errors in the order of arguments, we require the strongly typed ``strongbool`` to indicate ghost cell inclusion.
 
+Handling Multiple Topologies
+--------------------------------
+
+The same iterator can be passed into any number of field objects provided the topologies differ only in the number of internal dimensions.  If the topologies differ in any other way you need an iterator for each such topology.
+
+The case that is most likely to occur is operating on fields with different time dimensions.  The standard library's ``zip`` function can be very helpful in such cases:
+
+.. code-block:: c++
+
+	for (int ax=1;ax<=2;ax++)
+	{
+		#pragma omp parallel
+		{
+			for (auto [fs,gs] : std::views::zip(
+				StripRange(f,ax,0,1,strongbool::no), // strips at time level 1, perhaps this field only has 1 time level
+				StripRange(g,ax,0,2,strongbool::no)) // strips at time level 2, perhaps this field has many time levels
+			{
+				for (int s=1;s<=Dim(ax);s++)
+					f(fs,s,0) *= g(gs,s,0);
+			}
+		}
+	}
+
 Vectorization
 -------------
 

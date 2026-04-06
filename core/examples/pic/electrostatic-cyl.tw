@@ -47,12 +47,14 @@ new region circ 'c1'
 
 new region rect 'electrode1'
 {
-	bounds = ( -1e5,1e5 , -1e5,1e5 , -1e5 -12.8 )
+	origin = (0, 0, 0, -25.6)
+	size = ( 1e5 , 1e5 , 25.6 )
 }
 
 new region rect 'electrode2'
 {
-	bounds = ( -1e5,1e5, -1e5,1e5, 12.8,1e5 )
+	origin = (0, 0, 0, 25.6)
+	size = ( 1e5 , 1e5 , 25.6 )
 }
 
 new conductor for 'es'

@@ -72,13 +72,44 @@ export struct StaticSpace
 	public:
 
 	/// Create an empty `StaticSpace`
-	StaticSpace();
+	StaticSpace() {
+		ignorable[0] = 0;
+		ignorable[1] = 0;
+		ignorable[2] = 0;
+		ignorable[3] = 0;
+		ignorable[4] = 0;
+	}
 	/// Create a `StaticSpace` with purely *local* coordinates
-	StaticSpace(const tw::node5& dim,const tw::vec4& size,const tw::node5& packing,const tw::node4& ghostCellLayers);
-	/// Create a `StaticSpace` based on an existing one, but with new internal dimensions
-	StaticSpace(const tw::Int& components,const StaticSpace& base);
-	/// Create a `StaticSpace` based on an existing one, but with new packing
-	StaticSpace(const tw::node5& packing,const StaticSpace& base);
+	StaticSpace(const tw::node5& dim,const tw::vec4& size,const tw::node5& packing,const tw::node4& ghostCellLayers) {
+		const tw::node5 domains { 1, 1, 1, 1, 1 };
+		Resize(domains,dim,size,packing,ghostCellLayers);
+	}
+	/// Make a copy of this `StaticSpace` and change the number of time levels
+	StaticSpace ax0(const tw::Int& n) const {
+		auto ans = StaticSpace();
+		tw::node5 domains {1,1,1,1,1}; // this is just a factorization choice
+		tw::node5 new_dim {n,dim[1],dim[2],dim[3],dim[4]};
+		tw::vec4 size(spacing[0]*n,spacing[1]*dim[1],spacing[2]*dim[2],spacing[3]*dim[3]);
+		ans.Resize(domains,new_dim,size,packing,layers);
+		return ans;
+	}
+	/// Make a copy of this `StaticSpace` and change the number of components
+	StaticSpace ax4(const tw::Int& c) const {
+		auto ans = StaticSpace();
+		tw::node5 domains {1,1,1,1,1}; // this is just a factorization choice
+		tw::node5 new_dim {dim[0],dim[1],dim[2],dim[3],c};
+		tw::vec4 size(spacing[0]*dim[0],spacing[1]*dim[1],spacing[2]*dim[2],spacing[3]*dim[3]);
+		ans.Resize(domains,new_dim,size,packing,layers);
+		return ans;
+	}
+	/// Make a copy of this `StaticSpace` and change the packing
+	StaticSpace Repack(const tw::node5& packing) const {
+		auto ans = StaticSpace();
+		tw::node5 domains {1,1,1,1,1};
+		tw::vec4 size(spacing[0]*dim[0],spacing[1]*dim[1],spacing[2]*dim[2],spacing[3]*dim[3]);
+		ans.Resize(domains,dim,size,packing,layers);
+		return ans;
+	}
 	/// Resize a `StaticSpace` with the given global parameters
 	void Resize(const tw::node5& domains,const tw::node5& gdim,const tw::vec4& gsize,const tw::node5& packing,const tw::node4& ghostCellLayers);
 	/// Encode cell with topological indices `(n,i,j,k,0)`
@@ -162,34 +193,6 @@ export struct StaticSpace
 	void PointUpdateProtocol(cl_kernel k,cl_command_queue q);
 	#endif
 };
-
-StaticSpace::StaticSpace()
-{
-	ignorable[0] = 0;
-	ignorable[1] = 0;
-	ignorable[2] = 0;
-	ignorable[3] = 0;
-	ignorable[4] = 0;
-}
-
-StaticSpace::StaticSpace(const tw::node5& dim,const tw::vec4& size,const tw::node5& packing,const tw::node4& ghostCellLayers)
-{
-	const tw::node5 domains { 1, 1, 1, 1, 1 };
-	Resize(domains,dim,size,packing,ghostCellLayers);
-}
-
-StaticSpace::StaticSpace(const tw::Int& components,const StaticSpace& base) {
-	tw::node5 domains {1,1,1,1,1};
-	tw::node5 dim {base.dim[0],base.dim[1],base.dim[2],base.dim[3],components};
-	tw::vec4 size(base.spacing[0]*dim[0],base.spacing[1]*dim[1],base.spacing[2]*dim[2],base.spacing[3]*dim[3]);
-	Resize(domains,dim,size,base.packing,base.layers);
-}
-
-StaticSpace::StaticSpace(const tw::node5& packing,const StaticSpace& base) {
-	tw::node5 domains {1,1,1,1,1};
-	tw::vec4 size(base.spacing[0]*dim[0],base.spacing[1]*dim[1],base.spacing[2]*dim[2],base.spacing[3]*dim[3]);
-	Resize(domains,base.dim,size,packing,base.layers);
-}
 
 void StaticSpace::Resize(const tw::node5& domains,const tw::node5& gdim,const tw::vec4& gsize,const tw::node5& packing,const tw::node4& ghostCellLayers)
 {

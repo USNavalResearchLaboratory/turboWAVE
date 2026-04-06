@@ -11,17 +11,34 @@ export import :engine;
 import input;
 import fields;
 
+export std::string grid_file_name(const std::string& diag_name,tw::Int variant) {
+	std::string xname("");
+	if (diag_name!="tw::none") {
+		xname = diag_name + "_";
+	}
+	xname += "grid_";
+	if (variant > 0) {
+		xname += std::to_string(variant) + "_";
+	}
+	xname += "warp.txt";
+	return xname;
+}
+
 export struct Diagnostic : Engine
 {
 	std::shared_ptr<Region> theRgn;
 	std::string filename;
 	tw::Int skip[4];
-	tw::Float t,tRef,t0,t1,timePeriod,gammaBoost;
-	tw::vec3 vGalileo;
+	tw::Float t,tRef,t0,t1,timePeriod;
+	tw::vec3 vGalileo,boost3;
+	tw::vec4 boost;
 	bool headerWritten;
-	const MetricSpace *ms; // may point at usual `space` or to an alternate
+	std::vector<MetricSpace*> variants;
+	tw::Int variant;
 
 	Diagnostic(const std::string& name,MetricSpace *ms,Task *tsk) : Engine(name,ms,tsk) {
+		variants.push_back(ms);
+		variant = 0;
 		skip[0] = 0;
 		skip[1] = skip[2] = skip[3] = 1;
 		t = 0.0;
@@ -31,7 +48,8 @@ export struct Diagnostic : Engine
 		timePeriod = 0.0;
 		filename = "diagnostic";
 		vGalileo = 0.0;
-		gammaBoost = 1.0;
+		boost3 = tw::vec3(0,0,0);
+		boost = tw::vec4(1,0,0,0);
 		headerWritten = false;
 		directives.Add("period",new tw::input::Int(&skip[0]),false);
 		directives.Add("time period",new tw::input::Float(&timePeriod),false);
@@ -40,9 +58,10 @@ export struct Diagnostic : Engine
 		directives.Add("t0",new tw::input::Float(&t0),false);
 		directives.Add("t1",new tw::input::Float(&t1),false);
 		directives.Add("galilean velocity",new tw::input::Vec3(&vGalileo),false);
-		directives.Add("boosted frame gamma",new tw::input::Float(&gammaBoost),false);
+		directives.Add("boost",new tw::input::Vec3(&boost3),false);
 	}
 	virtual void Initialize() {
+		boost = tw::vec4(std::sqrt(1+Norm(boost3)),boost3);
 		if (region.use_count()==0) {
 			theRgn = std::make_shared<SimpleRegion>("default_entire",space,task,std::make_unique<EntireRegion>("entire",space,task));
 		} else {
@@ -51,18 +70,6 @@ export struct Diagnostic : Engine
 				throw tw::FatalError("dynamic cast to Region failed");
 			}
 		}
-	}
-	/// @brief copy base class parameters except for MetricSpace and filename
-	void CopyParams(const Diagnostic& src) {
-		for (auto i=0;i<4;i++)
-			this->skip[i] = src.skip[i];
-		this->t = src.t;
-		this->tRef = src.tRef;
-		this->t0 = src.t0;
-		this->t1 = src.t1;
-		this->timePeriod = src.timePeriod;
-		this->gammaBoost = src.gammaBoost;
-		this->vGalileo = src.vGalileo;
 	}
 	bool WriteThisStep() {
 		tw::Float elapsedTime = space->WindowPos(0);
@@ -94,21 +101,27 @@ export struct Diagnostic : Engine
 
 		return false;
 	}
-	void StartGridFile(std::ofstream& grid) {
-		std::string xname;
-		if (filename=="tw::none")
-			xname = "grid_warp.txt";
-		else
-			xname = filename + "_grid_warp.txt";
+	void StartGridFile(std::ofstream& grid,tw::Int variant) {
+		auto xname = grid_file_name(filename,variant);
 		if (headerWritten)
 			grid.open(xname.c_str(),std::ios::app);
 		else
 			grid.open(xname.c_str());
 		grid << "t = " << t << std::endl;
 	}
-	virtual void Start(const MetricSpace *alt = NULL) {
-		this->ms = alt == NULL ? space : alt;
+	/// Add a variant on the simulation's metric space to be used with this diagnostic.
+	/// Returns the id number of this variant.
+	/// Variant id = 0 will always be the simulation's primary metric space.
+	tw::Int AddVariant(MetricSpace *ms) {
+		variants.push_back(ms);
+		return variants.size() - 1;
 	}
+	void SwitchVariant(tw::Int id) {
+		this->variant = id;
+		this->space = variants[id];
+		this->theRgn->space = variants[id];
+	}
+	virtual void Start() {;}
 	virtual void Finish() {;}
 	virtual void ReportNumber(const std::string& label,tw::Float val,bool avg) {;}
 	virtual void ReportField(const std::string& fieldName,const Field& F,const tw::Int n,const tw::Int c,

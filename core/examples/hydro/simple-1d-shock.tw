@@ -57,7 +57,7 @@ generate gaussian 'air'
 {
 	type = energy
 	density = 1.15e10[J/m3]
-	size = (20, 20, 20)
+	size = (1, 20, 20, 20)
 	// Integration over region gives 14.4 J/m
 }
 
