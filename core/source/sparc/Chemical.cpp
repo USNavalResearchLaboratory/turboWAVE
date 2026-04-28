@@ -62,7 +62,7 @@ export struct Chemical:Driver
 		// Add a uniform profile for the automatic background fluid.
 		auto new_tool = CreateTool("auto_background",tw::tool_type::uniformProfile);
 		AddTool(new_tool);
-		auto background = std::dynamic_pointer_cast<Profile>(new_tool);
+		background = std::dynamic_pointer_cast<UniformProfile>(new_tool);
 		profiles.push_back(background);
 	}
 

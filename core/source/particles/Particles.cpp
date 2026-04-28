@@ -732,13 +732,17 @@ void Species::VerifyInput()
 void Species::Initialize()
 {
 	Driver::Initialize();
+	logger::DEBUG(std::format("initializing {}",name));
 	GenerateParticles(true);
+	logger::DEBUG("clean particles");
 	CleanParticleList();
-	if (!space->neutralize)
+	logger::DEBUG("copy background");
+	if (!space->neutralize && sources)
 		CopyFieldData(*sources,0,*rho00,0); // accepting redundant operations
 
 	// Choose a mover if none was specified
 	if (!mover) {
+		logger::INFO("auto-selecting a mover");
 		if (EM!=NULL && sources!=NULL && laser==NULL && qo_j4==NULL && restMass!=0.0f) {
 			auto new_tool = CreateTool("Boris-mover",tw::tool_type::borisMover);
 			AddTool(new_tool);
@@ -760,7 +764,7 @@ void Species::Initialize()
 	if (!mover) {
 		throw tw::FatalError(std::format("no mover was created for {}",name));
 	}
-	// Copy pointers to the mover tool
+	logger::DEBUG("copying data to the mover tool");
 	mover->q0 = charge;
 	mover->m0 = restMass;
 	mover->particle = &particle;

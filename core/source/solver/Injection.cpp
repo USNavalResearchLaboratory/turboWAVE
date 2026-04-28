@@ -2,6 +2,7 @@ module;
 
 #include "tw_includes.h"
 #include "tw_test.h"
+#include "tw_logger.h"
 
 export module injection;
 import base;
@@ -10,6 +11,7 @@ import fields;
 import fft;
 import functions;
 import input;
+import logger;
 
 using tw::bc::fld;
 
@@ -719,6 +721,7 @@ void Conductor::DepositSources(Field& sources,tw::Float t,tw::Float dt)
 	tw::Int loc[6];
 	const MetricSpace& m = *space;
 	theRgn->GetLocalCellBounds(loc);
+	logger::DEBUG(std::format("{} depo to {} {} {} {} {} {}",name,loc[0],loc[1],loc[2],loc[3],loc[4],loc[5]));
 	for (tw::Int i=loc[0];i<=loc[1];i++)
 		for (tw::Int j=loc[2];j<=loc[3];j++)
 			for (tw::Int k=loc[4];k<=loc[5];k++)

@@ -23,7 +23,9 @@ new grid
 
 new region rect 'r1'
 {
-	bounds = ( -100 100 -1 1 100 900 )
+	origin = (0, 0, 0, 500)
+	size = (1,1,800)
+	move with window = false
 }
 
 new coulomb gauge solver 'em'

@@ -75,6 +75,13 @@ export struct DynSpace : StaticSpace
 		(*v)[2] -= windowPosition[2];
 		(*v)[3] -= windowPosition[3];
 	}
+	/// take vector known in the starting window and translate the spatial part to the current window, i.e.,
+	/// this applies a Galilean transformation that aligns to the absolute mesh nodes
+	void FromStartingWindow(tw::vec4 *v) const {
+		(*v)[1] += windowPosition[1];
+		(*v)[2] += windowPosition[2];
+		(*v)[3] += windowPosition[3];
+	}
 	void SetPrimitiveWithPosition(Primitive& q,const tw::vec4& pos) const;
 	tw::vec4 PositionFromPrimitive(const Primitive& q) const;
 	tw::Int GlobalDim(const tw::Int& ax) const { return globalCells[ax]; }

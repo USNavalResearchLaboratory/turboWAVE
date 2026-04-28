@@ -425,25 +425,28 @@ void AtomicPhysics::FormPotentials(tw::Float t)
 
 void AtomicPhysics::FormGhostCellPotentials(tw::Float t)
 {
-	for (tw::Int ax=1;ax<=3;ax++)
-		if (A4.Dim(ax)>1)
+	logger::DEBUG(std::format("injecting EM fields at t = {}",t));
+	for (tw::Int ax=1;ax<=3;ax++) {
+		if (A4.Dim(ax)>1) {
 			#pragma omp parallel firstprivate(t,ax)
 			{
-				for (auto s : StripRange(A4,ax,0,1,strongbool::no))
-					for (tw::Int ghostCell=0;ghostCell<=Dim(s.StripAxis())+1;ghostCell+=Dim(s.StripAxis())+1)
-					{
+				for (auto s : StripRange(A4,ax,0,1,strongbool::no)) {
+					for (tw::Int ghostCell=0;ghostCell<=Dim(ax)+1;ghostCell+=Dim(ax)+1) {
 						tw::vec3 pos(space->Pos(s,ghostCell));
 						tw::vec3 A3(-0.5*pos.y*H.B0.z,0.5*pos.x*H.B0.z,0.0);
-						for (auto wave : waves)
+						for (auto wave : waves) {
 							A3 += wave->VectorPotential(t,pos);
-						if ((ghostCell==0 && task->n0[ax]==MPI_PROC_NULL) || (ghostCell!=0 && task->n1[ax]==MPI_PROC_NULL))
-						{
+						}
+						if ((ghostCell==0 && task->n0[ax]==MPI_PROC_NULL) || (ghostCell!=0 && task->n1[ax]==MPI_PROC_NULL)) {
 							A4(s,ghostCell,1) = A3.x;
 							A4(s,ghostCell,2) = A3.y;
 							A4(s,ghostCell,3) = A3.z;
 						}
 					}
+				}
 			}
+		}
+	}
 }
 
 tw::vec4 AtomicPhysics::GetA4AtOrigin()
@@ -474,6 +477,8 @@ void AtomicPhysics::VerifyInput()
 			photonPropagator = std::dynamic_pointer_cast<LorentzPropagator>(tool);
 		} else if (std::dynamic_pointer_cast<QState>(tool)) {
 			waveFunction.push_back(std::dynamic_pointer_cast<QState>(tool));
+		} else if (std::dynamic_pointer_cast<Wave>(tool)) {
+			waves.push_back(std::dynamic_pointer_cast<Wave>(tool));
 		}
 	}
 	if (!photonPropagator) {

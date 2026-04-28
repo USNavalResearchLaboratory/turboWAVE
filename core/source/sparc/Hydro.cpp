@@ -614,12 +614,15 @@ void sparc::HydroManager::ComputeCollisionalSources()
 		// REACTIONS
 
 		for (auto rx : reaction)
+		{
 			for (auto cell : InteriorCellRange(*this,1))
 			{
 				rateNow = rx->PrimitiveRate(eos1(cell,rx->catalyst.T));
-				for (auto s : rx->sub)
-					for (auto r : s->reactants)
+				for (auto s : rx->sub) {
+					for (auto r : s->reactants) {
 						rateNow *= state1(cell,r.ni);
+					}
+				}
 
 				// Update creation and destruction arrays
 				if (rateNow>0.0)
@@ -669,17 +672,20 @@ void sparc::HydroManager::ComputeCollisionalSources()
 						// Formerly it was all partitioned into product groups as a signed creation term
 						powerDensity = rateNow*(s->heat + s->vheat);
 						vibrationalPowerDensity = rateNow*(s->vheat);
-						if (powerDensity<0.0)
+						if (powerDensity<0.0) {
 							DestroyTotalEnergy(cell,-powerDensity,s->reactants.back());
-						else
+						} else {
 							CreateTotalEnergy(cell,powerDensity,s->products.back());
-						if (vibrationalPowerDensity<0.0)
+						}
+						if (vibrationalPowerDensity<0.0) {
 							DestroyVibrations(cell,-vibrationalPowerDensity,s->reactants.back());
-						else
+						} else {
 							CreateVibrations(cell,vibrationalPowerDensity,s->products.back());
+						}
 					}
 				}
 			}
+		}
 
 		// COLLISIONS (MOMENTUM TRANSFER, THERMAL ENERGY TRANSFER)
 

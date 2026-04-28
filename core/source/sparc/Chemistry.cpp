@@ -140,27 +140,26 @@ void PrimitiveReaction::ReadRate(TSTreeCursor *curs,const std::string& src,tw::I
 /// @param curs on chems node
 /// @param src source document
 /// @param names vector to hold the names
-/// @return the heat of reaction
+/// @return the heat of reaction in eV
 tw::Float ReadChemList(TSTreeCursor *curs,const std::string& src,std::vector<std::string>& names) {
 	tw::Float sign = 1.0;
 	tw::Float heat = 0.0;
 	ts_tree_cursor_goto_first_child(curs); // go in chems
 	do {
-		if (tw::input::trim(tw::input::node_text(curs,src)) == "+")
-			sign = 1.0;
-		else if (tw::input::trim(tw::input::node_text(curs,src)) == "-")
-			sign = -1.0;
-		else if (tw::input::node_kind(curs) == "identifier") {
+		if (tw::input::node_kind(curs) == "identifier") {
 			std::string word = tw::input::node_text(curs,src);
 			names.push_back(word);
-		} else if (tw::input::node_kind(curs) == "decimal") {
-			heat = sign*std::stod(tw::input::node_text(curs,src));
+		} else if (tw::input::node_kind(curs) == "heat") {
+			ts_tree_cursor_goto_first_child(curs);
+			auto sign = tw::input::node_text(curs,src).starts_with("-") ? -1.0 : 1.0;
+			ts_tree_cursor_goto_next_sibling(curs);
+			heat = sign * std::stod(tw::input::node_text(curs,src));
+			ts_tree_cursor_goto_parent(curs);
 		}
 	} while (ts_tree_cursor_goto_next_sibling(curs));
 	ts_tree_cursor_goto_parent(curs);
 	return heat;
 }
-
 
 Reaction::~Reaction()
 {
@@ -184,11 +183,12 @@ void Reaction::ReadInputFile(TSTreeCursor *curs,const std::string& src,const tw:
 		logger::TRACE(std::format("parse sub-formula {}",tw::input::node_text(curs,src)));
 		ts_tree_cursor_goto_first_child(curs); // go in subformula
 		sub.push_back(new SubReaction);
-		sub.back()->heat = ReadChemList(curs,src,sub.back()->reactant_names);
+		sub.back()->heat = ReadChemList(curs,src,sub.back()->reactant_names) * tw::dims::temperature >> cgs >> native;
 		numBodies += sub.back()->reactant_names.size();
 		tw::input::next_named_node(curs,false);
-		sub.back()->heat += ReadChemList(curs,src,sub.back()->product_names);
+		sub.back()->heat += ReadChemList(curs,src,sub.back()->product_names) * tw::dims::temperature >> cgs >> native;
 		sub.back()->vheat = 0.0;
+		logger::TRACE(std::format("  heat = {}",sub.back()->heat));
 		ts_tree_cursor_goto_parent(curs);
 	}
 	ts_tree_cursor_goto_parent(curs);
@@ -196,12 +196,14 @@ void Reaction::ReadInputFile(TSTreeCursor *curs,const std::string& src,const tw:
 	logger::TRACE("parse the rate");
 	tw::input::next_named_node(curs,false);
 	ReadRate(curs,src,numBodies,cgs,native);
+	logger::TRACE(std::format("  rate = {} {} {}",c1,c2,c3));
 
 	logger::TRACE("parse the catalyst");
 	tw::input::next_named_node(curs,false);
 	catalyst_name = tw::input::PythonRange(curs,src,&T0,&T1);
 	T0 = T0*tw::dims::temperature >> cgs >> native;
 	T1 = T1*tw::dims::temperature >> cgs >> native;
+	logger::TRACE(std::format("  catalyst = {} {} {}",catalyst_name,T0,T1));
 }
 
 void Excitation::ReadInputFile(TSTreeCursor *curs,const std::string& src,const tw::UnitConverter& native)

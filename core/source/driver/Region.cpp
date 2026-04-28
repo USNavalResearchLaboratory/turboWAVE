@@ -63,10 +63,10 @@ export struct Region : Engine
 			orientation.v.x,orientation.v.y,orientation.v.z,
 			orientation.w.x,orientation.w.y,orientation.w.z));
 	}
-	/// Start with conditional Galilean translation to moving window, then
+	/// Start with conditional Galilean translation to starting window, then
 	/// translate-rotate-boost-translate from the simulation frame to the profile's frame.
 	/// This is in the reverse order compared to the active view.
-	/// If there is a boost it will often be an "unboost."
+	/// If there is a boost it will often be from simulation to lab.
 	void TransformPoint(tw::vec4 *pos, int depth) const {
 		if (moveWithWindow && depth==0) {
 			space->ToStartingWindow(pos);
@@ -75,6 +75,19 @@ export struct Region : Engine
 		orientation.ExpressInBasis(pos);
 		pos->Boost(boost);
 		*pos -= origin;
+	}
+	/// Start with translate-boost-rotate-translate from profile's frame to simulation frame,
+	/// then do conditional Galilean translation from starting window.
+	/// This is in the order of the active view.
+	/// If there is a boost it will often be from lab to the simulation.
+	void UntransformPoint(tw::vec4 *pos, int depth) const {
+		*pos += origin;
+		pos->Boost(boost*-1);
+		orientation.ExpressInStdBasis(pos);
+		*pos += translation;
+		if (moveWithWindow && depth==0) {
+			space->FromStartingWindow(pos);
+		}
 	}
 	bool Inside(const tw::vec4& pos,int depth) const
 	{
@@ -135,7 +148,7 @@ export struct Region : Engine
 		if (primitive) {
 			auto v = BoundingVertices(primitive->Bounds());
 			for (auto i=0;i<8;i++) {
-				TransformPoint(&v[i],depth);
+				UntransformPoint(&v[i],depth);
 			}
 			return AlignedHull(v);
 		}
