@@ -8,7 +8,8 @@ export module chemistry;
 import input;
 import driver;
 import hydro_primitives;
-import physics;
+import eos;
+import photoionization;
 import logger;
 
 export namespace sparc

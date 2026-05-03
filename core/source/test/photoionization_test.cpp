@@ -3,7 +3,7 @@ module;
 #include "tw_includes.h"
 #include "tw_test.h"
 
-module physics;
+module photoionization;
 
 void ADK::HeTest()
 {

@@ -136,7 +136,7 @@ target_sources(tw3d PUBLIC
     test/pusher_test.cpp
     test/elliptic_test.cpp
     test/fluid_test.cpp
-    test/physics_test.cpp
+    test/photoionization_test.cpp
     test/injection_test.cpp
     test/regions_test.cpp
 )
@@ -201,7 +201,8 @@ target_sources(tw3d PUBLIC
         particles/Particles.cpp
         particles/Qed.cpp
 
-        sparc/Physics.cpp
+        sparc/Eos.cpp
+        sparc/Photoionization.cpp
         sparc/Chemistry.cpp
         sparc/fct.cpp
         sparc/Chemical.cpp

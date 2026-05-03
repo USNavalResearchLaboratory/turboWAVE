@@ -11,7 +11,8 @@ import driver;
 import fct;
 import fields;
 import diagnostics;
-import physics;
+import eos;
+import photoionization;
 import injection;
 import chemistry;
 import parabolic;
@@ -1460,9 +1461,9 @@ void sparc::HydroManager::EOSAdvance(tw::Float dt)
 		// The following loads T into eos, IE into scratch, and nm into scratch2
 		// N.b. eos0 is sought at the time of state1, eos1 is known at the time of state0.
 		if (dt==0.0)
-			g->eosMixData->ComputeTemperature(scratch,scratch2,state1,eos0);
+			g->eosMixData->InitTemperature(scratch,scratch2,state1,eos0);
 		else
-			g->eosMixData->ComputeTemperature(scratch,scratch2,state0,state1,eos1,eos0);
+			g->eosMixData->UpdateTemperature(scratch,scratch2,state0,state1,eos1,eos0);
 		for (auto chem : g->chemical)
 			chem->eosData->AddPKV(scratch,scratch2,nu_e,state1,eos0);
 	}

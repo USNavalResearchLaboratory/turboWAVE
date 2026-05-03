@@ -11,7 +11,7 @@ import driver;
 import fct;
 import fields;
 import diagnostics;
-import physics;
+import photoionization;
 import injection;
 import chemistry;
 import parabolic;

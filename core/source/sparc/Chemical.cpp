@@ -8,7 +8,8 @@ import input;
 import driver;
 import fields;
 import hydro_primitives;
-import physics;
+import eos;
+import photoionization;
 import injection;
 import logger;
 
