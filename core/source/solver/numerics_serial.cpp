@@ -6,6 +6,51 @@ export module numerics:serial;
 import dyn_space;
 import metric_space;
 
+/**
+ * @brief RK4 step integrator for ODEs (from CODEX)
+ * @tparam T state type (scalar/vector)
+ * @param y initial value
+ * @param t initial time
+ * @param dt step size
+ * @param f function f(t, y)
+ * @return integrated value at t+dt
+ */
+export template<typename T>
+T RK4Step(T y, double t, double dt, std::function<T(double, T)> f) {
+    T k1 = f(t, y);
+    T k2 = f(t + dt/2, y + dt*k1/2);
+    T k3 = f(t + dt/2, y + dt*k2/2);
+    T k4 = f(t + dt, y + dt*k3);
+    return y + dt * (k1 + 2*k2 + 2*k3 + k4) / 6;
+}
+
+/**
+ * @brief Find root by Secant method (from CODEX)
+ * 
+ * @param f function whose root we seek
+ * @param x0 first guess
+ * @param x1 second guess
+ * @param tol tolerance
+ * @param max_iter stop after iterations
+ * @return estimate of the root
+ */
+export tw::Float SecantMethod(std::function<tw::Float(tw::Float)> f, tw::Float x0, tw::Float x1, tw::Float tol = 1e-8, tw::Int max_iter = 100) {
+	for (auto i = 0; i < max_iter; i++) {
+		tw::Float f0 = f(x0);
+		tw::Float f1 = f(x1);
+		if (std::abs(f1 - f0) < 1e-12) {
+			break;
+		}
+		tw::Float x2 = x1 - f1* (x1 - x0) / (f1 - f0);
+		if (std::abs(x2 - x1) < tol) {
+			return x2;
+		}
+		x0 = x1;
+		x1 = x2;
+	}
+	return x1;
+}
+
 /// @brief invert A * phi = rho, rows of A are (b,c,0,...)(a,b,c,0,...)(0,a,b,c,0,...)...(0,...,a,b,c)(0,...,a,b)
 /// @tparam T type of the elements of the source and solution vectors
 /// @tparam U type of the coefficients

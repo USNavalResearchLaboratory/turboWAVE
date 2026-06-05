@@ -46,7 +46,7 @@ export namespace tw
 		// Movers
 		borisMover,hcMover,pgcMover,unitaryMover,bohmianMover,photonMover,
 		// Testers
-		iteratorTest,metricSpaceTest,fftTest,
+		iteratorTest,metricSpaceTest,fftTest,rootFinderTest,
 		// Drivers
 		electrostatic,
 		coulombSolver,directSolver,curvilinearDirectSolver,farFieldDiagnostic,
@@ -157,18 +157,24 @@ void ComputeTool::InitializeCLProgram(const std::string& filename)
 	#endif
 }
 
-/// @brief called if an assignment was not handled normally
-/// @param curs on a directive, probably a custom assignment
-/// @param src source document
-/// @returns whether any directive was handled
+/**
+ * @brief called if an assignment was not handled normally
+ * 
+ * @param curs on a directive, probably a custom assignment
+ * @param src source document
+ * @return whether any directive was handled 
+ */
 bool ComputeTool::ReadInputFileDirective(const TSTreeCursor *curs,const std::string& src)
 {
 	return false;
 }
 
-/// @brief read all directives in the block
-/// @param curs can be on block or on first child of block
-/// @param src source document
+/**
+ * @brief read all directives in the block
+ * 
+ * @param curs can be on block or on first child of block
+ * @param src source document
+ */
 void ComputeTool::ReadInputFileBlock(TSTreeCursor *curs,const std::string& src)
 {
 	if (tw::input::node_kind(curs)=="block") {
@@ -245,7 +251,7 @@ std::map<std::string,tw::tool_type> ComputeTool::Map()
 		{"eigenmode elliptic solver",tw::tool_type::eigenmodePoissonSolver},
 		{"yee propagator",tw::tool_type::yeePropagatorPML},
 		{"lorentz propagator",tw::tool_type::lorentzPropagator},
-		{"eos ideal gas tool",tw::tool_type::eosIdealGas},
+		{"eos ideal gas",tw::tool_type::eosIdealGas},
 		{"eos hot",tw::tool_type::eosHotElectrons},
 		{"eos mix",tw::tool_type::eosMixture},
 		{"eos ideal gas mix",tw::tool_type::eosIdealGasMix},
@@ -279,6 +285,7 @@ std::map<std::string,tw::tool_type> ComputeTool::Map()
 		{"iterator test",tw::tool_type::iteratorTest},
 		{"metric space test",tw::tool_type::metricSpaceTest},
 		{"fft test",tw::tool_type::fftTest},
+		{"numerics test",tw::tool_type::rootFinderTest},
 
 		{"maxwell solver",tw::tool_type::directSolver},
 		{"curvilinear maxwell solver",tw::tool_type::curvilinearDirectSolver},

@@ -137,6 +137,7 @@ target_sources(tw3d PUBLIC
     test/elliptic_test.cpp
     test/fluid_test.cpp
     test/photoionization_test.cpp
+    test/eos_test.cpp
     test/injection_test.cpp
     test/regions_test.cpp
 )
@@ -202,6 +203,8 @@ target_sources(tw3d PUBLIC
         particles/Qed.cpp
 
         sparc/Eos.cpp
+        sparc/eos_component.cpp
+        sparc/eos_mix.cpp
         sparc/Photoionization.cpp
         sparc/Chemistry.cpp
         sparc/fct.cpp
@@ -230,6 +233,7 @@ target_sources(tw3d PUBLIC
         test/iterator_test.cpp
         test/metric_space_test.cpp
         test/fft_test.cpp
+        test/root_finder_test.cpp
 )
 
 if (MSVC)

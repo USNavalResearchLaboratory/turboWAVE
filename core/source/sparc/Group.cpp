@@ -145,12 +145,18 @@ export struct EquilibriumGroup:Driver
 		bool didGenerate = false;
 		std::vector<bool> massLoaded(chemical.size());
 		logger::TRACE("load totals");
-		for (tw::Int i=0;i<chemical.size();i++)
+		for (tw::Int i=0;i<chemical.size();i++) {
 			massLoaded[i] = chemical[i]->LoadFluid(hydro,hidx);
+		}
 		logger::TRACE("load internal");
-		for (tw::Int i=0;i<chemical.size();i++)
-			if (massLoaded[i])
-				chemical[i]->LoadInternalEnergy(hydro,eos,scratch,scratch2,eosMixData,hidx,eidx);
+		std::vector<EOSComponent*> elements;
+		for (tw::Int i=0;i<chemical.size();i++) {
+			if (massLoaded[i]) {
+				elements.push_back(chemical[i]->eosData.get());
+				chemical[i]->LoadTargetParameters(eos,eidx);
+			}
+		}
+		eosMixData->InitEnergyWithIntrinsics(elements,hydro,eos);
 		for (auto loaded : massLoaded)
 			didGenerate |= loaded;
 		return didGenerate;

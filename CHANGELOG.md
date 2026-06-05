@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+### New Features
+
+* hydro allows either temperature or pressure as initial condition
+* better handling of the cold curve (TODO)
+
+## [5.0.0-a3]
+
 ### Fixes
 
 * error message for tuple size mismatches

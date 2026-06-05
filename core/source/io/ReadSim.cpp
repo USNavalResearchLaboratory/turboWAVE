@@ -253,7 +253,7 @@ void Simulation::InputFileFirstPass()
 	tw::node5 gdim { 1, gdim_idx4.array[1], gdim_idx4.array[2], gdim_idx4.array[3], 1 };
 
 	// Check integer viability
-	int64_t totalCellsPerRank = int64_t(gdim[1])*int64_t(gdim[2])*int64_t(gdim[3])/int64_t(numRanksProvided);
+	std::int64_t totalCellsPerRank = std::int64_t(gdim[1])*std::int64_t(gdim[2])*std::int64_t(gdim[3])/std::int64_t(numRanksProvided);
 	if (totalCellsPerRank>=std::pow(2,31) && sizeof(tw::Int)==4)
 		throw tw::FatalError("You must recompile turboWAVE with 64 bit integers to handle this many grid cells.");
 

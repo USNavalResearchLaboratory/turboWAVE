@@ -724,7 +724,7 @@ Equation of State Tools
 
 :doc:`Equation of State <bak-eos>` (EOS) models are needed for hydrodynamics simulation.  EOS models are encapsulated in tool objects that can be attached to appropriate modules in the usual way.
 
-.. py:function:: new eos ideal gas tool [<name>] [for <module_name>] { <directives> }
+.. py:function:: new eos ideal gas [<name>] [for <module_name>] { <directives> }
 
 	Directs a module to use the ideal gas equation of state.  No directives.
 

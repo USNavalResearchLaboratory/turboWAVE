@@ -42,11 +42,11 @@ export struct Particle
 	Primitive q; ///< abstraction for the spatial coordinate
 	tw::vec4 p; ///< momentum , always known in Cartesian coordinates
 	tw::vec4 s; ///< polarization, always known in Cartesian coordinates
-	uint64_t tag; ///< unique identifier, low 32 bits is the node of origin
+	std::uint64_t tag; ///< unique identifier, low 32 bits is the node of origin
 	tw::Float Qparam; //< quantum parameter
 
 	/// Constructor, parameters shadow the member variables
-	Particle(const float number,const Primitive& q,const tw::vec4& p,const tw::vec4& s,const uint64_t tag,const tw::Float& Qparam) noexcept {
+	Particle(const float number,const Primitive& q,const tw::vec4& p,const tw::vec4& s,const std::uint64_t tag,const tw::Float& Qparam) noexcept {
         this->number = number;
         this->q = q;
         this->p = p;
@@ -81,7 +81,7 @@ export struct TransferParticle
 	float x[4]; ///< for transfers, the relative cell position can be kept without change
 	tw::vec4 p; ///< for tansfers, momentum can be kept unchanged
 	tw::vec4 s; ///< for transfers, polarization can be kept unchanged
-	uint64_t tag; ///< for transfers, tag can be kept unchanged
+	std::uint64_t tag; ///< for transfers, tag can be kept unchanged
 	tw::Float Qparam; //< for transfers, quantum parameter can be kept unchanged
 };
 

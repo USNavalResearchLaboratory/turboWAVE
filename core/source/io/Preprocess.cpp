@@ -17,7 +17,7 @@ export namespace tw
 			Subs subs;
 			bool didChange;
             std::vector<bool> active; // stack for conditionals
-            uint32_t last_byte_pos;
+            std::uint32_t last_byte_pos;
 			public:
             /// @brief call once before first pass
             /// @param initial_src starting source string
@@ -50,7 +50,7 @@ export namespace tw
         class IncludeVisitor: public Visitor {
 			std::string src, expansion;
             tw::input::FileEnv *env;
-            uint32_t last_byte_pos;
+            std::uint32_t last_byte_pos;
 			public:
             /// @brief call once before first pass
             /// @param initial_src starting source string

@@ -97,7 +97,7 @@ export struct Chemical:Driver
 	}
 
 	/// Initial loading of mass, momentum, and energy.
-	/// Internal energy associated with a temperature specification is *not* handled herein.
+	/// Internal energy associated with a temperature or pressure specification is *not* handled herein.
 	bool LoadFluid(Field& hydro,const sparc::hydro_set& hidx)
 	{
 		bool massLoaded = false;
@@ -149,42 +149,30 @@ export struct Chemical:Driver
 		return massLoaded;
 	}
 
-	/// For each attached profile, try to bring the owning group to the specified temperature.
-	/// The group is identified by the hydro and eos arguments that are passed in.
-	/// N.b. this may involve the dubious notion of "partial temperature" in cases where mass
-	/// profiles overlap spatially.  As a result final temperatures may not be what a user expects.
-	/// After calling, the EOS array has to be initialized by the caller.
-	void LoadInternalEnergy(
-		Field& hydro,
-		Field& eos,
-		ScalarField& scratch,
-		ScalarField& scratch2,
-		std::shared_ptr<EOSMixture>& mix,
-		const sparc::hydro_set& hidx,const sparc::eos_set& eidx)
+	/**
+	 * @brief Set the target for temperature or pressure for the owning group based on attached profiles.
+	 *        Only one or the other of T or P should be nonzero, and overlapping profiles should be consistent.
+	 * 
+	 * @param[out] eos 
+	 * @param[in] eidx 
+	 */
+	void LoadTargetParameters(Field& eos,const sparc::eos_set& eidx)
 	{
-		for (auto prof : profiles)
-		{
-			if (prof->whichQuantity==tw::profile::quantity::density)
-			{
-				// Get the target temperature for this profile
-				const tw::Float kT = prof->Temperature(mat.mass);
-				for (auto cell : EntireCellRange(*this,1))
-				{
-					// Put the target mass density in the scratch array
-					scratch(cell) = mat.mass * prof->GetValue(space->Pos4(cell),*space);
-					// Put the target temperature into the eos array
-					eos(cell,eidx.T) = kT;
-					// Use scratch2 to store the reference temperature, currently hard coded to zero
-					scratch2(cell) = 0.0;
+		for (auto prof : profiles) {
+			if (prof->whichQuantity==tw::profile::quantity::density) {
+				// Get the target parameters for this profile
+				const tw::Float kT = prof->temperature; // want direct access so 0 is detected
+				const tw::Float P = prof->pressure; // want direct access so 0 is detected
+				for (auto cell : EntireCellRange(*this,1)) {
+					if (prof->GetValue(space->Pos4(cell),*space) > 0) {
+						if (kT > 0) {
+							eos(cell,eidx.T) = kT;
+						} else if (P > 0) {
+							eos(cell,eidx.P) = P;
+						}
+					}
 				}
-				// Set heat capacity based on the target mass density and the target temperature
-				eosData->SetHeatCapacity(scratch,eos);
-				// Add internal energy based on target mass density, reference temperature, heat capacity, and target temperature
-				// The hydro array is already loaded with the totals for the mass and momentum densities.
-				// The tool can access everything via its own indexing data.
-				mix->UpdateEnergy(scratch,scratch2,hydro,eos);
 			}
 		}
-		hydro.ApplyBoundaryCondition(Rng(hidx.u));
 	}
 };

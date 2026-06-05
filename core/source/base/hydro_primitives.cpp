@@ -22,16 +22,23 @@ export namespace sparc
 		// u = index to energy density
 		// x = index to vibrational density
 		tw::Int num,first,last,ni,npx,npy,npz,u,x;
-		tw::Int Load(tw::Int i,tw::Int N)
+		/**
+		 * @brief Load the indexing data for a specific group
+		 * 
+		 * @param offset the offset into the field components where this group begins, start with 0
+		 * @param N the number of chemicals in this group
+		 * @return the offset into the field where the next group should begin
+		 */
+		tw::Int Load(tw::Int offset,tw::Int N)
 		{
 			num = N;
-			ni = i;
-			first = i;
-			npx = i+N;
-			npy = i+N+1;
-			npz = i+N+2;
-			u = i+N+3;
-			x = i+N+4;
+			ni = offset;
+			first = offset;
+			npx = offset+N;
+			npy = offset+N+1;
+			npz = offset+N+2;
+			u = offset+N+3;
+			x = offset+N+4;
 			last = x;
 			return last+1;
 		}
@@ -54,7 +61,22 @@ export namespace sparc
 		// visc = dynamic viscosity
 		// nmcv = mass density weighted heat capacity at constant volume
 		tw::Int T,Tv,P,K,visc,nmcv;
-		tw::Int Load(tw::Int i) { T=i;Tv=i+1;P=i+2;K=i+3;visc=i+4;nmcv=i+5;return i+6; }
+		/**
+		 * @brief Load the indexing data for a specific group
+		 * 
+		 * @param offset the offset into the field components where this group begins, start with 0
+		 * @return the offset into the field where the next group should begin
+		 */
+		tw::Int Load(tw::Int offset)
+		{
+			T=offset;
+			Tv=offset+1;
+			P=offset+2;
+			K=offset+3;
+			visc=offset+4;
+			nmcv=offset+5;
+			return offset+6;
+		}
 		static const tw::Int count = 6;
 	};
 

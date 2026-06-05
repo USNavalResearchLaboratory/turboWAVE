@@ -19,8 +19,8 @@ constexpr bool LittleEndian() {
 export namespace tw
 {
 	typedef double Float;
-	typedef int64_t Int;
-	typedef uint64_t Uint;
+	typedef std::int64_t Int;
+	typedef std::uint64_t Uint;
 	using Complex = std::complex<tw::Float>;
 	using node4 = std::array<tw::Int,4>;
 	using node5 = std::array<tw::Int,5>;
@@ -92,7 +92,7 @@ export namespace tw
 		return (tw::Float*)std::aligned_alloc(alignment,count*sizeof(tw::Float));
 	}
 	void free_aligned_floats(tw::Float *ptr) {
-		free(ptr);
+		std::free(ptr);
 	}
 	#endif
 }
@@ -129,6 +129,7 @@ export struct Testable {
 export void assertFailed(tw::Float actual,tw::Float expected,const std::string& expr,const std::string& file,int line,const std::string& func)
 {
 	std::ostringstream mess;
+	mess.precision(15);
 	mess << std::endl << term::err << " function " << term::red << func << term::reset_color << std::endl;
 	mess << "  Assertion " << actual << " (actual) " << expr << " " << expected << " (expected) failed." << std::endl;
 	mess << "  File: " << file <<  " , Line: " << line << std::endl;

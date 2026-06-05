@@ -210,7 +210,7 @@ std::string npy_writer::form_header(tw::Int shape[4])
 {
 	// Form a string containing the header for a standard .npy file.
 	// Shape elements are padded so we get the same length header every time.
-	uint32_t HEADER_LEN;
+	std::uint32_t HEADER_LEN;
 	const size_t type_size = sizeof(HEADER_LEN);
 	std::string vers("\x93NUMPY\x02");
 	vers += '\0'; // null character cannot be put in the C-string above
@@ -273,8 +273,8 @@ void npy_writer::get_frame(const std::string& name,float *gData,tw::Int shape[4]
 	size_t frameSize = sizeof(float)*shape[1]*shape[2]*shape[3];
 	inFile.open(name.c_str(),std::ios::binary);
 	inFile.seekg(header.size()+frame*frameSize,std::ios::beg);
-	assert(sizeof(float)==sizeof(uint32_t));
-	ReadLittleEndian((uint32_t*)gData,frameSize/sizeof(float),inFile);
+	assert(sizeof(float)==sizeof(std::uint32_t));
+	ReadLittleEndian((std::uint32_t*)gData,frameSize/sizeof(float),inFile);
 	inFile.close();
 }
 
@@ -285,8 +285,8 @@ void npy_writer::set_frame(const std::string& name,const float *gData,tw::Int sh
 	size_t frameSize = sizeof(float)*shape[1]*shape[2]*shape[3];
 	outFile.open(name.c_str(),std::ios::binary | std::ios::out | std::ios::in);
 	outFile.seekp(header.size()+frame*frameSize,std::ios::beg);
-	assert(sizeof(float)==sizeof(uint32_t));
-	WriteLittleEndian((uint32_t*)gData,frameSize/sizeof(float),outFile);
+	assert(sizeof(float)==sizeof(std::uint32_t));
+	WriteLittleEndian((std::uint32_t*)gData,frameSize/sizeof(float),outFile);
 	outFile.close();
 }
 
@@ -295,8 +295,8 @@ void npy_writer::add_frame(const std::string& name,const float *gData,tw::Int sh
 	std::fstream outFile;
 	logger::DEBUG(std::format("{} += {}x{}x{} frame",name,shape[1],shape[2],shape[3]));
 	outFile.open(name.c_str(),std::ios::binary | std::ios::out | std::ios::app);
-	assert(sizeof(float)==sizeof(uint32_t));
-	WriteLittleEndian((uint32_t*)gData,shape[1]*shape[2]*shape[3],outFile);
+	assert(sizeof(float)==sizeof(std::uint32_t));
+	WriteLittleEndian((std::uint32_t*)gData,shape[1]*shape[2]*shape[3],outFile);
 	bool any_data = false;
 	for (auto i=0; i< shape[1]*shape[2]*shape[3]; i++) {
 		any_data = any_data || gData[i] != 0.0;
@@ -719,8 +719,8 @@ void ParticleOrbits::ReportParticle(const Particle& par,tw::Float m0)
 	x.Boost(boost);
 	p.Boost(boost);
 	tw::vec3 x3 = x.spatial();
-	uint64_t node = par.tag & 0xffffffff;
-	uint64_t id = par.tag >> 32;
+	std::uint64_t node = par.tag & 0xffffffff;
+	std::uint64_t id = par.tag >> 32;
 	if (!theRgn->Inside(x,0))
 		return;
 	if (p[0] < m0*minGamma)

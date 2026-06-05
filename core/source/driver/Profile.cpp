@@ -60,7 +60,7 @@ protected:
 public:
 	tw::profile::quantity whichQuantity;
 	tw::vec3 thermalMomentum;
-	tw::Float temperature;
+	tw::Float temperature,pressure;
 	bool neutralize,variableCharge;
 	tw::profile::loading loadingMethod;
 	tw::profile::timing timingMethod;
@@ -78,6 +78,7 @@ public:
 		modeAmplitude = 0.0;
 		modeNumber = 0.0;
 		temperature = 0.0;
+		pressure = 0.0;
 		wasTriggered = false;
 		t0 = tw::big_neg;
 		t1 = tw::big_pos;
@@ -122,6 +123,7 @@ public:
 		directives.Add("drift momentum",new tw::input::Vec3(&driftMomentum),false);
 		directives.Add("thermal momentum",new tw::input::Vec3(&thermalMomentum),false);
 		directives.Add("temperature",new tw::input::Float(&temperature),false);
+		directives.Add("pressure",new tw::input::Float(&pressure),false);
 		directives.Add("shape",new tw::input::Enums<tw::profile::shape>(shp,&segmentShape),false);
 		directives.Add("timing",new tw::input::Enums<tw::profile::timing>(tm,&timingMethod),false);
 		directives.Add("t0",new tw::input::Float(&t0),false);
@@ -156,6 +158,12 @@ public:
 			return temperature;
 		else
 			return sqr(thermalMomentum.x)/mass; // appropriate for exp(-v^2/(2*vth^2)) convention
+	}
+	tw::Float Pressure(const tw::Float& mass) {
+		if (pressure!=0.0)
+			return pressure;
+		else
+			return 0.666667*sqr(thermalMomentum.x)/mass; // appropriate for exp(-v^2/(2*vth^2)) convention
 	}
 	/// Translate-rotate-boost-translate from the simulation frame to the profile's frame.
 	/// This is in the reverse order compared to the active view.
