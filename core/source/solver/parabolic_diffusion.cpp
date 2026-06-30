@@ -63,7 +63,7 @@ export struct ParabolicSolver:BoundedTool
         {
             StripRange range(*space,ax,0,1,strongbool::no);
             tw::Float D1,D2;
-            std::valarray<tw::Float> src,ans,T1,T2,T3;
+            tw::vec<tw::Float> src,ans,T1,T2,T3;
 
             ans.resize(sDim);
             src.resize(sDim);
@@ -133,7 +133,7 @@ export struct ParabolicSolver:BoundedTool
         {
             StripRange range(*space,ax,0,1,strongbool::no);
             tw::Float D1,D2;
-            std::valarray<tw::Float> src,ans,T1,T2,T3;
+            tw::vec<tw::Float> src,ans,T1,T2,T3;
 
             ans.resize(sDim);
             src.resize(sDim);

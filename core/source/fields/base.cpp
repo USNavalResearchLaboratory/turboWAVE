@@ -38,11 +38,11 @@ protected:
 
 public:
 
-	std::valarray<tw::Float> array;
-	std::valarray<tw::Float> boundaryData;
-	std::valarray<tw::Int> boundaryDataIndexMap;
-	std::valarray<tw::Float> ghostData;
-	std::valarray<tw::Int> ghostDataIndexMap;
+	tw::vec<tw::Float> array;
+	tw::vec<tw::Float> boundaryData;
+	tw::vec<tw::Int> boundaryDataIndexMap;
+	tw::vec<tw::Float> ghostData;
+	tw::vec<tw::Int> ghostDataIndexMap;
 	Task* task;
 #ifdef USE_OPENCL
 	cl_mem computeBuffer;
@@ -289,17 +289,17 @@ public:
 	void ComplexTransverseFFT(const Rng04& r,const DynSpace& ds);
 	void ComplexInverseTransverseFFT(const Rng04& r,const DynSpace& ds);
 
-	void Hankel(const Rng04& r, tw::Int modes, std::valarray<tw::Float>& matrix);
-	void InverseHankel(const Rng04& r, tw::Int modes, std::valarray<tw::Float>& matrix);
+	void Hankel(const Rng04& r, tw::Int modes, tw::vec<tw::Float>& matrix);
+	void InverseHankel(const Rng04& r, tw::Int modes, tw::vec<tw::Float>& matrix);
 
 	// Subsets and Slices
 
-	void GetStrip(std::valarray<tw::Float>& cpy, const tw::strip& s, const tw::Int& c)
+	void GetStrip(tw::vec<tw::Float>& cpy, const tw::strip& s, const tw::Int& c)
 	{
 		for (auto i = 0; i <= UNG(s.StripAxis()); i++)
 			cpy[i] = (*this)(s, i, c);
 	}
-	void SetStrip(std::valarray<tw::Float>& cpy, const tw::strip& s, const tw::Int& c)
+	void SetStrip(tw::vec<tw::Float>& cpy, const tw::strip& s, const tw::Int& c)
 	{
 		for (auto i = 0; i <= UNG(s.StripAxis()); i++)
 			(*this)(s, i, c) = cpy[i];
@@ -332,7 +332,7 @@ public:
 	void ApplyFoldingCondition(const Rng04& r);
 	void ApplyBoundaryCondition(const Rng04& r, bool homogeneous = true);
 	template <class T>
-	void AdjustTridiagonalForBoundaries(const Rng& r, const tw::grid::axis& axis, const tw::grid::side& side, std::valarray<T>& T1, std::valarray<T>& T2, std::valarray<T>& T3, std::valarray<T>& source, T val);
+	void AdjustTridiagonalForBoundaries(const Rng& r, const tw::grid::axis& axis, const tw::grid::side& side, tw::vec<T>& T1, tw::vec<T>& T2, tw::vec<T>& T3, tw::vec<T>& source, T val);
 	void ZeroGhostCells(const Rng04& r);
 
 	void StripCopyProtocol(tw::Int axis, tw::Int shift, Slice<tw::Float>* planeIn, Slice<tw::Float>* planeOut, bool add);
@@ -407,8 +407,8 @@ public:
 
 	// Grid Interpolation
 
-	void Interpolate(const Rng04& r, std::valarray<tw::Float>& val, const weights_3D& weights) const;
-	void InterpolateOnto(const Rng04& r, std::valarray<tw::Float>& val, const weights_3D& weights);
+	void Interpolate(const Rng04& r, tw::vec<tw::Float>& val, const weights_3D& weights) const;
+	void InterpolateOnto(const Rng04& r, tw::vec<tw::Float>& val, const weights_3D& weights);
 };
 
 Field::Field()
@@ -587,7 +587,7 @@ void Field::Shift(const Rng& r,const tw::strip& s,tw::Int cells,const tw::Float&
 //////////////////////////////////
 
 template<class T>
-void Field::AdjustTridiagonalForBoundaries(const Rng& r, const tw::grid::axis& axis, const tw::grid::side& side, std::valarray<T>& T1, std::valarray<T>& T2, std::valarray<T>& T3, std::valarray<T>& source, T val)
+void Field::AdjustTridiagonalForBoundaries(const Rng& r, const tw::grid::axis& axis, const tw::grid::side& side, tw::vec<T>& T1, tw::vec<T>& T2, tw::vec<T>& T3, tw::vec<T>& source, T val)
 {
 	// Modify the tridiagonal matrix to respect the boundary condition cell_1 = force_1j * cell_j + coeff_1 * val
 	// force_ij and coeff_i are defined by the boundary condition object.
@@ -1214,7 +1214,7 @@ export void AddMulFieldData(Field& dst,const Rng04& r_dst,Field& src,const Rng04
 ////////////////////////
 
 
-inline void Field::Interpolate(const Rng04& r, std::valarray<tw::Float>& val, const weights_3D& weights) const
+inline void Field::Interpolate(const Rng04& r, tw::vec<tw::Float>& val, const weights_3D& weights) const
 {
 	tw::Int n = r.b0;
 	tw::Int topo[4];
@@ -1232,7 +1232,7 @@ inline void Field::Interpolate(const Rng04& r, std::valarray<tw::Float>& val, co
 				}
 }
 
-inline void Field::InterpolateOnto(const Rng04& r, std::valarray<tw::Float>& val, const weights_3D& weights)
+inline void Field::InterpolateOnto(const Rng04& r, tw::vec<tw::Float>& val, const weights_3D& weights)
 {
 	tw::Int n = r.b0;
 	tw::Int topo[4];

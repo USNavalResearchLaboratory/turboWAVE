@@ -11,6 +11,7 @@ export module base;
 #ifdef USE_STD_MODULE
 	export import std;
 #endif
+export import tw_vec;
 
 constexpr bool LittleEndian() {
 	return std::endian::native == std::endian::little;

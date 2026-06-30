@@ -88,7 +88,7 @@ export struct SchroedingerPropagator:ComputeTool
         {
             #pragma omp parallel firstprivate(dt)
             {
-                std::valarray<tw::Complex> src(space->Dim(ax));
+                tw::vec<tw::Complex> src(space->Dim(ax));
                 for (auto s : StripRange(*space,ax,0,1,strongbool::no))
                 {
                     for (tw::Int i=1;i<=space->Dim(ax);i++)
@@ -131,7 +131,7 @@ export struct SchroedingerPropagator:ComputeTool
             #pragma omp parallel firstprivate(dt)
             {
                 StripRange range(*space,ax,0,1,strongbool::no);
-                std::valarray<tw::Complex> src(sDim),ans(sDim),T1(sDim),T2(sDim),T3(sDim);
+                tw::vec<tw::Complex> src(sDim),ans(sDim),T1(sDim),T2(sDim),T3(sDim);
                 for (auto it=range.begin();it!=range.end();++it)
                 {
                     tw::strip s = *it;

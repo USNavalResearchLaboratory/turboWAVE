@@ -78,7 +78,7 @@ export struct ForwardPropagator:ComputeTool
 		const tw::Int vDim = space->Dim(va);
 		const tw::Int wDim = space->Dim(3);
 		const tw::Float radialPolarizationFactor = space->cyl==1.0 && polarization==radialPolarization ? 1.0 : 0.0;
-		std::valarray<tw::Complex> src(uDim),ans(uDim),T1(uDim),T2(uDim),T3(uDim);
+		tw::vec<tw::Complex> src(uDim),ans(uDim),T1(uDim),T2(uDim),T3(uDim);
 		for (auto k=wDim;k>=-1;k--) {
 			for (auto j=1;j<=vDim;j++) {
 				// we have to setup a next (n=1), current (n=2), and previous (n=3) strip
@@ -197,7 +197,7 @@ export struct ForwardPropagator:ComputeTool
 export struct IsotropicPropagator:ComputeTool
 {
 	std::unique_ptr<GlobalIntegrator<tw::Complex>> zGlobalIntegrator;
-	std::valarray<tw::Complex> Z1,Z2,Z3;
+	tw::vec<tw::Complex> Z1,Z2,Z3;
 
 	IsotropicPropagator(const std::string& name,MetricSpace *m,Task *tsk): ComputeTool(name,m,tsk) {
         zGlobalIntegrator = NULL;
@@ -237,7 +237,7 @@ export struct IsotropicPropagator:ComputeTool
         tw::Float S1,S2,Vol,D1,D2;
         tw::Complex H1,H2,H3; // related to hamiltonian
         tw::Complex nw,eta_p,eta_m;
-        std::valarray<tw::Complex> src,ans;
+        tw::vec<tw::Complex> src,ans;
 
         const tw::Float dz = space->dl(1,1,1,3); // assume uniform grid
 

@@ -166,7 +166,7 @@ export namespace fft {
 		tw::Int i;
 		tw::Float sum,sum1,y1,y2,ytemp;
 		tw::Float theta,wi,wi1,wpi,wpr,wr,wr1,wtemp;
-		std::valarray<tw::Float> y(num);
+		tw::vec<tw::Float> y(num);
 
 		// Copy data into a valarray of stride one
 
@@ -248,7 +248,7 @@ export namespace fft {
 		tw::Int j;
 		tw::Float sum,y1,y2;
 		tw::Float theta,wi,wpi,wpr,wr,wtemp;
-		std::valarray<tw::Float> y(num);
+		tw::vec<tw::Float> y(num);
 
 		// Copy data into valarray of stride one
 

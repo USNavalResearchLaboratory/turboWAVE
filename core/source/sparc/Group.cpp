@@ -42,7 +42,7 @@ export struct EquilibriumGroup:Driver
 			ans += f(cell,s);
 		return ans;
 	}
-	tw::Float DensityWeightedSum(const Field& f,std::valarray<tw::Float>& qty,const tw::cell& cell)
+	tw::Float DensityWeightedSum(const Field& f,tw::vec<tw::Float>& qty,const tw::cell& cell)
 	{
 		tw::Float ans = 0.0;
 		for (tw::Int s=hidx.first;s<hidx.first+hidx.num;s++)
@@ -134,7 +134,7 @@ export struct EquilibriumGroup:Driver
 		}
 		// If no EOSMixture create one
 		if (!eosMixData) {
-			auto new_tool = CreateTool("default_eos_mix",tw::tool_type::eosMixture);
+			auto new_tool = CreateTool("default_eos_mix",tw::tool_type::eosIdealGasMix);
 			AddTool(new_tool);
 			eosMixData = std::dynamic_pointer_cast<EOSMixture>(new_tool);
 		}
@@ -156,7 +156,9 @@ export struct EquilibriumGroup:Driver
 				chemical[i]->LoadTargetParameters(eos,eidx);
 			}
 		}
-		eosMixData->InitEnergyWithIntrinsics(elements,hydro,eos);
+		if (elements.size() > 0) {
+			eosMixData->InitEnergyWithIntrinsics(elements,hydro,eos);
+		}
 		for (auto loaded : massLoaded)
 			didGenerate |= loaded;
 		return didGenerate;

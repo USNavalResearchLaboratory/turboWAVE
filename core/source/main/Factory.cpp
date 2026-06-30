@@ -31,6 +31,7 @@ import metric_space_test;
 import iterator_test;
 import fft_test;
 import root_finder_test;
+import ode_test;
 import logger;
 
 export namespace factory {
@@ -128,8 +129,8 @@ SharedTool SharedBaseToolFromType(const std::string& name,tw::tool_type theType,
 		case tw::tool_type::eosHotElectrons:
 			ans = std::make_shared<EOSHotElectrons>(name,ms,tsk);
 			break;
-		case tw::tool_type::eosMixture:
-			ans = std::make_shared<EOSMixture>(name,ms,tsk);
+		case tw::tool_type::eosGenericMix:
+			ans = std::make_shared<EOSGenericMix>(name,ms,tsk);
 			break;
 		case tw::tool_type::eosIdealGasMix:
 			ans = std::make_shared<EOSIdealGasMix>(name,ms,tsk);
@@ -208,6 +209,9 @@ SharedTool SharedBaseToolFromType(const std::string& name,tw::tool_type theType,
 			break;
 		case tw::tool_type::rootFinderTest:
 			ans = std::make_shared<RootFinderTest>(name,ms,tsk);
+			break;
+		case tw::tool_type::odeTest:
+			ans = std::make_shared<ODETest>(name,ms,tsk);
 			break;
 		default:
 			throw tw::FactoryError("unknown tool type");

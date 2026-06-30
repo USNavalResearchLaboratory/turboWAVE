@@ -37,7 +37,7 @@ export struct ParticleBundle {
 	alignas(AB) float w1[3][3][N];
 	alignas(AB) float l0[3][3][N];
 
-	std::valarray<Particle*> refs;
+	tw::vec<Particle*> refs;
 
 	ParticleBundle(const MoverParams& mov);
 	void PadBundle();

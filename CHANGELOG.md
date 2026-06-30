@@ -6,6 +6,7 @@
 
 * hydro allows either temperature or pressure as initial condition
 * better handling of the cold curve (TODO)
+* valarray is replaced by tw::vec which wraps std::vector
 
 ## [5.0.0-a3]
 

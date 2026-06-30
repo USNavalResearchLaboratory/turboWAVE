@@ -79,7 +79,7 @@ export class TabulatedState : public QState
 	tw::Float energy,nr,Lam,Jam,jzam;
 	tw::Int components;
 	std::string filename;
-	std::valarray<tw::Complex> radialFunction;
+	tw::vec<tw::Complex> radialFunction;
 	tw::vec3 cell_size; // cell size used in lookup table
 public:
 	TabulatedState(const std::string& name,MetricSpace *ms,Task *tsk);

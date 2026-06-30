@@ -15,9 +15,9 @@ class GlobalIntegrator
 {
 	tw::comm* strip;
 	tw::Int N, systems, components;
-	std::valarray<T> v, w;
-	std::valarray<tw::Float*> theData;
-	std::valarray<tw::Int> posStride,compStride;
+	tw::vec<T> v, w;
+	tw::vec<tw::Float*> theData;
+	tw::vec<tw::Int> posStride,compStride;
 
 public:
 	/// @brief create an object that inverts tridiagonals no matter the decomposition
@@ -62,49 +62,55 @@ public:
 		return ans;
 	}
 	void SetMatrix(tw::Int system, T a, T b, T c, T theta, T eta) {
-		std::valarray<T> u(N), basisVector(N);
+		tw::vec<T> u(N), basisVector(N);
+		std::span<T> vview(v.data() + system * (N + 2) + 1, N);
+		std::span<T> wview(w.data() + system * (N + 2) + 1, N);
 
 		// Set up the inversion vectors for one system
 
 		basisVector = T(0.0);
 		basisVector[0] = theta;
 		TriDiagonal<T, T>(u, basisVector, a, b, c);
-		v[std::slice(system * (N + 2) + 1, N, 1)] = u;
+		std::copy(u.data(),u.data() + u.size(),vview.begin());
 
 		basisVector[0] = 0.0;
 		basisVector[N - 1] = eta;
 		TriDiagonal<T, T>(u, basisVector, a, b, c);
-		w[std::slice(system * (N + 2) + 1, N, 1)] = u;
+		std::copy(u.data(),u.data() + u.size(),wview.begin());
 	}
-	void SetMatrix(tw::Int system, T a, std::valarray<T>& b, T c, T theta, T eta) {
-		std::valarray<T> u(N), basisVector(N);
+	void SetMatrix(tw::Int system, T a, tw::vec<T>& b, T c, T theta, T eta) {
+		tw::vec<T> u(N), basisVector(N);
+		std::span<T> vview(v.data() + system * (N + 2) + 1, N);
+		std::span<T> wview(w.data() + system * (N + 2) + 1, N);
 
 		// Set up the inversion vectors for one system
 
 		basisVector = T(0.0);
 		basisVector[0] = theta;
 		TriDiagonal<T, T>(u, basisVector, a, b, c);
-		v[std::slice(system * (N + 2) + 1, N, 1)] = u;
+		std::copy(u.data(),u.data() + u.size(),vview.begin());
 
 		basisVector[0] = 0.0;
 		basisVector[N - 1] = eta;
 		TriDiagonal<T, T>(u, basisVector, a, b, c);
-		w[std::slice(system * (N + 2) + 1, N, 1)] = u;
+		std::copy(u.data(),u.data() + u.size(),wview.begin());
 	}
-	void SetMatrix(tw::Int system, std::valarray<T>& a, std::valarray<T>& b, std::valarray<T>& c) {
-		std::valarray<T> u(N), basisVector(N);
+	void SetMatrix(tw::Int system, tw::vec<T>& a, tw::vec<T>& b, tw::vec<T>& c) {
+		tw::vec<T> u(N), basisVector(N);
+		std::span<T> vview(v.data() + system * (N + 2) + 1, N);
+		std::span<T> wview(w.data() + system * (N + 2) + 1, N);
 
 		// Set up the inversion vectors for one system
 
 		basisVector = T(0.0);
 		basisVector[0] = a[0];
 		TriDiagonal<T, T>(u, basisVector, a, b, c);
-		v[std::slice(system * (N + 2) + 1, N, 1)] = u;
+		std::copy(u.data(),u.data() + u.size(),vview.begin());
 
 		basisVector[0] = 0.0;
 		basisVector[N - 1] = c[N - 1];
 		TriDiagonal<T, T>(u, basisVector, a, b, c);
-		w[std::slice(system * (N + 2) + 1, N, 1)] = u;
+		std::copy(u.data(),u.data() + u.size(),wview.begin());
 	}
 	void ComputeAlphasAndBetas(tw::comm* strip, tw::Int systems, T* mpi_packet) {
 		tw::Int i, j, index, ds = 8 * systems, ss = 8;
@@ -112,8 +118,8 @@ public:
 		tw::Int L = strip->Get_size() - 1;
 		tw::Int currDomain = strip->Get_rank();
 		tw::Int unknowns = L;
-		std::valarray<T> source(unknowns), ans(unknowns), a(unknowns), b(unknowns), c(unknowns);
-		std::valarray<T> k(ds * domains);
+		tw::vec<T> source(unknowns), ans(unknowns), a(unknowns), b(unknowns), c(unknowns);
+		tw::vec<T> k(ds * domains);
 
 		strip->Gather(mpi_packet, &k[0], sizeof(T) * ds, 0);
 
@@ -168,7 +174,7 @@ public:
 		// packet layout : ss=system stride ; domain stride = ss*systems
 		// layout must match assumptions in ComputeAlphasAndBetas
 		tw::Int ss = 8;
-		std::valarray<T> mpi_packet(ss * systems);
+		tw::vec<T> mpi_packet(ss * systems);
 
 		for (auto j = 0; j < systems; j++)
 		{
@@ -206,9 +212,9 @@ export template <class T>
 class GlobalSpline {
 	tw::Int dim,components;
 	tw::comm *strip_comm;
-	std::valarray<tw::Int> posStride,compStride;
-	std::valarray<tw::Float*> theData;
-	std::valarray<T> moments;
+	tw::vec<tw::Int> posStride,compStride;
+	tw::vec<tw::Float*> theData;
+	tw::vec<T> moments;
 	std::unique_ptr<GlobalIntegrator<T>> gintegrator;
 public:
 	GlobalSpline(tw::comm* strip_comm, tw::Int strips, tw::Int cells) {
@@ -242,11 +248,11 @@ public:
 	/// @param posStride stride of the strip's positions
 	/// @param compStride stride of the strip's components
 	void SetStrip(tw::Int strip, tw::Float* theData, tw::Int posStride, tw::Int compStride) {
-		std::valarray<T> phi(dim);
-		std::valarray<T> rho(dim);
-		std::valarray<T> a(dim);
-		std::valarray<T> b(dim);
-		std::valarray<T> c(dim);
+		tw::vec<T> phi(dim);
+		tw::vec<T> rho(dim);
+		tw::vec<T> a(dim);
+		tw::vec<T> b(dim);
+		tw::vec<T> c(dim);
 
 		this->theData[strip] = theData;
 		this->posStride[strip] = posStride;

@@ -680,7 +680,7 @@ void Field::ComplexInverseFFT(const Rng04& r,const DynSpace& ds)
 	}
 }
 
-void Field::Hankel(const Rng04& r,tw::Int modes,std::valarray<tw::Float>& matrix)
+void Field::Hankel(const Rng04& r,tw::Int modes,tw::vec<tw::Float>& matrix)
 {
 	Field T;
 	Transpose(r,tw::grid::x,tw::grid::z,&T,1);
@@ -695,7 +695,7 @@ void Field::Hankel(const Rng04& r,tw::Int modes,std::valarray<tw::Float>& matrix
 	Transpose(r,tw::grid::x,tw::grid::z,&T,-1);
 }
 
-void Field::InverseHankel(const Rng04& r,tw::Int modes,std::valarray<tw::Float>& matrix)
+void Field::InverseHankel(const Rng04& r,tw::Int modes,tw::vec<tw::Float>& matrix)
 {
 	Field T;
 	Transpose(r,tw::grid::x,tw::grid::z,&T,1);

@@ -10,15 +10,15 @@ export struct FCT_Engine
 	// cells is the number of grid cells, not counting the 2 ghost cells
 	// The V and A arrays have to be set up to contain cell volumes and low-side cell wall areas
 	tw::Int cells;
-	std::valarray<tw::Float> V, A, scratch;
+	tw::vec<tw::Float> V, A, scratch;
 
 	FCT_Engine(tw::Int ax, const MetricSpace& m);
 	void Reset(const tw::strip& s, const MetricSpace& m, ScalarField* fluxMask);
-	void Transport(std::valarray<tw::Float>& vel, std::valarray<tw::Float>& rho, std::valarray<tw::Float>& rho1, std::valarray<tw::Float>& diff, std::valarray<tw::Float>& flux, tw::Float dt);
-	void Diffuse(std::valarray<tw::Float>& vel, std::valarray<tw::Float>& rho, std::valarray<tw::Float>& diff, tw::Float dt);
+	void Transport(tw::vec<tw::Float>& vel, tw::vec<tw::Float>& rho, tw::vec<tw::Float>& rho1, tw::vec<tw::Float>& diff, tw::vec<tw::Float>& flux, tw::Float dt);
+	void Diffuse(tw::vec<tw::Float>& vel, tw::vec<tw::Float>& rho, tw::vec<tw::Float>& diff, tw::Float dt);
 	void Limiter(tw::Float& adiff, const tw::Float& maxLow, const tw::Float& maxHigh);
-	void Clip(std::valarray<tw::Float>& rho, std::valarray<tw::Float>& adiff, tw::Float rho00);
-	void AntiDiffuse(std::valarray<tw::Float>& rho, std::valarray<tw::Float>& adiff, std::valarray<tw::Float>& flux);
+	void Clip(tw::vec<tw::Float>& rho, tw::vec<tw::Float>& adiff, tw::Float rho00);
+	void AntiDiffuse(tw::vec<tw::Float>& rho, tw::vec<tw::Float>& adiff, tw::vec<tw::Float>& flux);
 };
 
 export struct FCT_Driver
@@ -76,11 +76,11 @@ void FCT_Engine::Reset(const tw::strip& s,const MetricSpace& m,ScalarField *flux
 			A[i] *= 1.0 - tw::Float( (*fluxMask)(s,i-1) + (*fluxMask)(s,i) == 1.0 );
 }
 
-void FCT_Engine::Transport(std::valarray<tw::Float>& vel,
-	std::valarray<tw::Float>& rho,
-	std::valarray<tw::Float>& rho1,
-	std::valarray<tw::Float>& diff,
-	std::valarray<tw::Float>& flux,
+void FCT_Engine::Transport(tw::vec<tw::Float>& vel,
+	tw::vec<tw::Float>& rho,
+	tw::vec<tw::Float>& rho1,
+	tw::vec<tw::Float>& diff,
+	tw::vec<tw::Float>& flux,
 	tw::Float dt)
 {
 	// First step in FCT algorithm
@@ -117,9 +117,9 @@ void FCT_Engine::Transport(std::valarray<tw::Float>& vel,
 		flux[i] += diff[i];
 }
 
-void FCT_Engine::Diffuse(std::valarray<tw::Float>& vel,
-	std::valarray<tw::Float>& rho,
-	std::valarray<tw::Float>& diff,
+void FCT_Engine::Diffuse(tw::vec<tw::Float>& vel,
+	tw::vec<tw::Float>& rho,
+	tw::vec<tw::Float>& diff,
 	tw::Float dt)
 {
 	// vel is the same as for FCT_Engine::Transport
@@ -163,7 +163,7 @@ void FCT_Engine::Limiter(tw::Float& adiff,const tw::Float& maxLow,const tw::Floa
 	adiff = pos_channel*tw::Float(adiff>0.0) + neg_channel*tw::Float(adiff<=0.0);
 }
 
-void FCT_Engine::Clip(std::valarray<tw::Float>& rho,std::valarray<tw::Float>& adiff,tw::Float rho00)
+void FCT_Engine::Clip(tw::vec<tw::Float>& rho,tw::vec<tw::Float>& adiff,tw::Float rho00)
 {
 	// Limit the antidiffusive fluxes given in adiff to ensure stability, positivity, etc.
 	// rho00 gives the value in the cell below the low-side ghost cell
@@ -185,7 +185,7 @@ void FCT_Engine::Clip(std::valarray<tw::Float>& rho,std::valarray<tw::Float>& ad
 	}
 }
 
-void FCT_Engine::AntiDiffuse(std::valarray<tw::Float>& rho,std::valarray<tw::Float>& adiff,std::valarray<tw::Float>& flux)
+void FCT_Engine::AntiDiffuse(tw::vec<tw::Float>& rho,tw::vec<tw::Float>& adiff,tw::vec<tw::Float>& flux)
 {
 	// adiff are the clipped fluxes from FCT_Engine::Clip
 	// after calling, low and high ghost cells for rho must be supplied
@@ -251,7 +251,7 @@ void FCT_Driver::Convect(const tw::grid::axis& axis,tw::bc::fld low,tw::bc::fld 
 	#pragma omp parallel
 	{
 		tw::Int c;
-		std::valarray<tw::Float> va_rho(N+2),va_rho1(N+2),va_vel(N+2),va_diff(N+2),va_flux(N+2);
+		tw::vec<tw::Float> va_rho(N+2),va_rho1(N+2),va_vel(N+2),va_diff(N+2),va_flux(N+2);
 		tw::Float va_rho00;
 		FCT_Engine engine(ax,*ms);
 

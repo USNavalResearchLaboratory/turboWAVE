@@ -502,7 +502,7 @@ bool AtomicPhysics::ReadInputFileDirective(const TSTreeCursor *curs0,const std::
 		ts_tree_cursor_goto_first_child(curs.get());
 		if (tw::input::node_text(curs.get(),src) == "bachelet potential") {
 			// eg, bachelet potential = 1.0 1.0 1.0 0.1 0.5
-			std::valarray<tw::Float> components(5);
+			tw::vec<tw::Float> components(5);
 			tw::input::Numbers<tw::Float> directive(&components[0],5);
 			directive.Read(curs.get(),src,"bachelet potential",native);
 			H.qnuc = components[0];
@@ -666,7 +666,7 @@ void Schroedinger::Initialize()
 	const tw::Float dr = dx(1) * space->ScaleFactor(1,tw::vec3(tw::small_pos,0.0,0.0));
 	const tw::Float r = maxR>30.0 ? 30.0 : maxR;
 	const tw::Int dim = MyCeil(r/dr);
-	std::valarray<tw::Float> eigenvector(dim),phi_r(dim);
+	tw::vec<tw::Float> eigenvector(dim),phi_r(dim);
 	for (tw::Int i=0;i<dim;i++)
 		phi_r[i] = GetSphericalPotential((tw::Float(i)+0.5)*dr);
 	tw::Float groundStateEnergy = GetSphericalGroundState(eigenvector,phi_r,dr);

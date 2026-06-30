@@ -1285,7 +1285,7 @@ void FarFieldDiagnostic::Update()
 			{
 				for (auto s : StripRange(*this,3,0,1,strongbool::no))
 				{
-					std::valarray<tw::Float> j4(4);
+					tw::vec<tw::Float> j4(4);
 					tw::vec3 rp = space->Pos(s,1);
 					rp.z = ((tp - tNow) - rp.x*n.x - rp.y*n.y)/n.z;
 					const tw::Float dS = space->dS(s,1,3)/n.z;
@@ -1328,7 +1328,7 @@ void FarFieldDiagnostic::FinalReport()
 		}
 
 		npy_writer writer;
-		std::valarray<float> gData(dims[1]*dims[2]*dims[3]);
+		tw::vec<float> gData(dims[1]*dims[2]*dims[3]);
 
 		fileName = name + "-Atheta.npy";
 		writer.write_header(fileName,dims);

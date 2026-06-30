@@ -334,7 +334,7 @@ void TextTableBase::Finish()
 		const tw::Int master = 0;
 		const tw::Int curr = task->strip[0].Get_rank();
 		const tw::Int numRanks = task->strip[0].Get_size();
-		std::valarray<tw::Float> buff;
+		tw::vec<tw::Float> buff;
 		buff.resize(values.size());
 		for (tw::Int i=0;i<values.size();i++)
 			buff[i] = values[i]/(avg[i]?numRanks:1.0);
@@ -407,7 +407,7 @@ void PointDiagnostic::ReportField(const std::string& fieldName,const Field& F,co
 	tw::vec4 x4(t,thePoint + vGalileo*t);
 	if (space->IsPointWithinInterior(x4)) // assumes uniform grid
 	{
-		std::valarray<tw::Float> ans(1);
+		tw::vec<tw::Float> ans(1);
 		weights_3D w;
 		space->GetWeights(&w,x4);
 		F.Interpolate(Rng04(n,n+1,c,c+1),ans,w);
@@ -502,7 +502,7 @@ void BoxDiagnostic::ReportField(const std::string& fieldName,const Field& F,cons
 			return;
 
 	tw::Int buffSize,ready,i0,i1;
-	std::valarray<float> buffer,gData;
+	tw::vec<float> buffer,gData;
 	std::string xname;
 	meta_writer meta(native);
 	npy_writer writer;
@@ -629,7 +629,7 @@ void BoxDiagnostic::Finish()
 			for (tw::Int ax=1;ax<=3;ax++)
 			{
 				// Message passing is needed to get the spatial points
-				std::valarray<tw::Float> X(space->GlobalDim(ax));
+				tw::vec<tw::Float> X(space->GlobalDim(ax));
 				const tw::Int offset = space->Dim(ax)*task->strip[ax].Get_rank();
 				for (tw::Int i=1;i<=space->Dim(ax);i++)
 					X[i-1+offset] = space->X(i,ax);
@@ -670,7 +670,7 @@ void ParticleOrbits::Start()
 void ParticleOrbits::Finish()
 {
 	const tw::Int master = 0;
-	std::valarray<float> parBuffer;
+	tw::vec<float> parBuffer;
 	parBuffer.resize(parData.size());
 	for (tw::Int i=0;i<parData.size();i++)
 		parBuffer[i] = parData[i];
@@ -826,7 +826,7 @@ void PhaseSpaceDiagnostic::Finish()
 		npy_writer writer;
 		fxp.ApplyBoundaryCondition();
 		std::string xname = filename + ".npy";
-		std::valarray<float> gData(dims[1]*dims[2]*dims[3]);
+		tw::vec<float> gData(dims[1]*dims[2]*dims[3]);
 		if (accumulate && dims[0]!=0)
 			writer.get_frame(xname,&gData[0],dims,0);
 		else

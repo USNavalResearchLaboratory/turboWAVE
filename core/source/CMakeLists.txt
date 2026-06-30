@@ -5,6 +5,11 @@ cmake_minimum_required(VERSION 4.0.3)
 # For MSVC, we have to specify release at build time `cmake --build . --config Release`
 # For non-MSVC, we specify release at config time `cmake [options] -DCMAKE_BUILD_TYPE=Release ..`
 # For clangd support, add -DCMAKE_EXPORT_COMPILE_COMMANDS=1 during config
+# 
+# After an OS update
+#
+# To get `import std` working we have some hard coded paths.
+# If an update breaks the build, check TW_STD_MODULE_PATH.
 #
 # Runtime Reminders
 #
@@ -37,7 +42,7 @@ if(WIN32)
         set(CMAKE_SYSTEM_LIBRARY_PATH "$ENV{ProgramFiles}/LLVM/lib")
         set(CMAKE_SYSTEM_INCLUDE_PATH "$ENV{ProgramFiles}/LLVM/include")
     endif()
-    set(TW_STD_MODULE_PATH "C:/Program Files/Microsoft Visual Studio/18/Community/VC/Tools/MSVC/14.50.35717/modules")
+    set(TW_STD_MODULE_PATH "C:/Program Files/Microsoft Visual Studio/18/Community/VC/Tools/MSVC/14.51.36231/modules")
     set(TW_STD_MODULE_FILE "std.ixx")
 elseif(APPLE)
     # Apple requires installing some things with homebrew:
@@ -101,7 +106,7 @@ elseif(UNIX)
 endif()
 
 set(CMAKE_CXX_STANDARD 23)
-# set(CMAKE_EXPERIMENTAL_CXX_IMPORT_STD "d0edc3af-4c50-42ea-a356-e2862fe7a444")
+# set(CMAKE_EXPERIMENTAL_CXX_IMPORT_STD "451f2fe2-a8a2-47c3-bc32-94786d8fc91b")
 
 project(turbowave
         VERSION "5.0.0"
@@ -161,6 +166,7 @@ target_sources(tw3d PUBLIC
         base/logger.cpp
         base/hydro_primitives.cpp
         base/pic_primitives.cpp
+        base/vec.cpp
         base/tensor.cpp
         base/StaticSpace.cpp
         base/DynSpace.cpp
@@ -234,6 +240,7 @@ target_sources(tw3d PUBLIC
         test/metric_space_test.cpp
         test/fft_test.cpp
         test/root_finder_test.cpp
+        test/ode_test.cpp
 )
 
 if (MSVC)

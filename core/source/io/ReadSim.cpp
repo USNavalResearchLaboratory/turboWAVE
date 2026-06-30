@@ -12,6 +12,46 @@ import input;
 import factory;
 import logger;
 
+Driver* Simulation::AutoCreateSupers(tw::tool_type reqType,const std::string& basename)
+{
+	logger::DEBUG("handling automatic super-driver");
+	auto inv = ComputeTool::InvMap();
+
+	// Build the abstract chain
+	std::vector<tw::tool_type> chain;
+	std::vector<std::string> super_names;
+	chain.push_back(reqType);
+	super_names.push_back(basename + "_sup");
+	while (chain.back()!=tw::tool_type::none) {
+		chain.push_back(Driver::RequiredSupermoduleType(chain.back()));
+		super_names.push_back(super_names.back() + "_sup");
+	}
+	chain.pop_back();
+	super_names.pop_back();
+
+	// Build the real chain to the extent necessary
+	Driver *curr = this;
+	Driver *super;
+	for (int i = chain.size()-1; i>=0; i--) {
+		logger::TRACE(std::format("handling super-driver {}: {}",i,inv[chain[i]]));
+		auto it = curr->most_recent.find(chain[i]);
+		if (it==curr->most_recent.end()) {
+			if (!Driver::AutoModuleType(chain[i])) {
+				throw tw::FatalError(std::format("<{}> requires super-driver <{}> which cannot be created automatically.",basename,inv[chain[i]]));
+			}
+			logger::TRACE("(create new one)");
+			super = curr->CreateDriver(super_names[i],chain[i]);
+			curr->AddDriver(super);
+			curr->most_recent[chain[i]] = super;
+		} else {
+			logger::TRACE("(use existing one)");
+			super = (*it).second;
+		}
+		curr = super;
+	}
+	return curr;
+}
+
 /// @brief main visitor callback for AST walker
 /// @param curs cursor, typically passed from walker
 /// @param inputFilePass 0=syntax, 1=grid, 2=objects
@@ -174,46 +214,6 @@ tw::input::navigation Simulation::visit(TSTreeCursor *curs) {
 	} else {
 		throw tw::FatalError("invalid number of input file passes");
 	}
-}
-
-Driver* Simulation::AutoCreateSupers(tw::tool_type reqType,const std::string& basename)
-{
-	logger::DEBUG("handling automatic super-driver");
-	auto inv = ComputeTool::InvMap();
-
-	// Build the abstract chain
-	std::vector<tw::tool_type> chain;
-	std::vector<std::string> super_names;
-	chain.push_back(reqType);
-	super_names.push_back(basename + "_sup");
-	while (chain.back()!=tw::tool_type::none) {
-		chain.push_back(Driver::RequiredSupermoduleType(chain.back()));
-		super_names.push_back(super_names.back() + "_sup");
-	}
-	chain.pop_back();
-	super_names.pop_back();
-
-	// Build the real chain to the extent necessary
-	Driver *curr = this;
-	Driver *super;
-	for (int i = chain.size()-1; i>=0; i--) {
-		logger::TRACE(std::format("handling super-driver {}: {}",i,inv[chain[i]]));
-		auto it = curr->most_recent.find(chain[i]);
-		if (it==curr->most_recent.end()) {
-			if (!Driver::AutoModuleType(chain[i])) {
-				throw tw::FatalError(std::format("<{}> requires super-driver <{}> which cannot be created automatically.",basename,inv[chain[i]]));
-			}
-			logger::TRACE("(create new one)");
-			super = curr->CreateDriver(super_names[i],chain[i]);
-			curr->AddDriver(super);
-			curr->most_recent[chain[i]] = super;
-		} else {
-			logger::TRACE("(use existing one)");
-			super = (*it).second;
-		}
-		curr = super;
-	}
-	return curr;
 }
 
 /// The first pass through the input file is used to fully initialize the `Task` and

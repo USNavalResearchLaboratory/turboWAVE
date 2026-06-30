@@ -17,8 +17,8 @@ export struct BoundElectrons:Driver
 	Field R0,R1;
 	tw::vec3 resFreq,dampFreq,oscStrength;
 	// following are rows of contracted anharmonic tensor, indexed from 1
-	std::valarray<tw::Float> a1,a2,a3; // second order anharmonic coefficients
-	std::valarray<tw::Float > packet; // packet to send to compute device
+	tw::vec<tw::Float> a1,a2,a3; // second order anharmonic coefficients
+	tw::vec<tw::Float > packet; // packet to send to compute device
 	tw::Float b,d; // third/fifth order anharmonic coefficient (isotropic)
 
 	#ifdef USE_OPENCL
@@ -379,7 +379,7 @@ bool BoundElectrons::ReadInputFileDirective(const TSTreeCursor *curs0,const std:
 		auto curs = tw::input::Cursor(curs0);
 		ts_tree_cursor_goto_first_child(curs.get());
 		if (tw::input::node_text(curs.get(),src) == "basis") {
-			std::valarray<tw::Float> components(9);
+			tw::vec<tw::Float> components(9);
 			tw::input::Numbers<tw::Float> directive(&components[0],9);
 			directive.Read(curs.get(),src,"basis",native);
 			crystalBasis.u = tw::vec3(&components[0]);

@@ -107,7 +107,8 @@ struct HydroManager:Driver
 	void ChemAdvance(tw::Float dt);
 	void DiffusionAdvance(tw::Float dt);
 	void FieldAdvance(tw::Float dt);
-	void EOSAdvance(tw::Float dt);
+	void Quasineutrality();
+	void EOSUpdate(bool init);
 	void FirstOrderAdvance(tw::Float dt,bool computeSources);
 	virtual void Update();
 
@@ -494,8 +495,8 @@ void sparc::HydroManager::Initialize()
 	nu_e = 1.0; // put arbitrary value so initial transport coefficients don't blow up
 
 	logger::TRACE("initialize EOS");
-	EOSAdvance(0.0); // gets eos0 using state1 only
-	eos1 = eos0;
+	Quasineutrality();
+	EOSUpdate(true);
 	ComputeElectronCollisionFrequency();
 }
 
@@ -504,6 +505,7 @@ void sparc::HydroManager::Reset()
 	state0 = state1;
 	eos0 = eos1;
 	rho0 = rho;
+	return;
 
 	if (!space->IsFirstStep())
 	{
@@ -515,8 +517,9 @@ void sparc::HydroManager::Reset()
 		}
 		if (didGenerate)
 		{
-			EOSAdvance(space->dX(1,0)); // gets eos0 using state0 and state1
-			eos1 = eos0;
+			Quasineutrality();
+			EOSUpdate(false);
+			eos0 = eos1;
 			state0 = state1;
 		}
 	}
@@ -1239,18 +1242,19 @@ tw::Float sparc::HydroManager::EstimateTimeStep()
 }
 
 void sparc::HydroManager::DiffusionAdvance(tw::Float dt)
-{
+{ 	
 	logger::DEBUG("diffusion advance");
 	for (auto g : group)
 	{
+		g->LoadMassDensity(scratch,state1);
+
 		// HEAT CONDUCTION
 
 		for (auto c : conductors)
 			parabolicSolver->FixTemperature(eos1,Rng(g->eidx.T),c->theRgn,c->Temperature(space->WindowPos(0)));
-		g->LoadMassDensity(scratch,state1);
 		CopyFieldData(scratch2,Rng(0),eos1,Rng(g->eidx.T));
 		parabolicSolver->Advance(eos1,g->eidx.T,fluxMask,&eos1,g->eidx.nmcv,&eos1,g->eidx.K,dt);
-		g->eosMixData->UpdateEnergy(scratch,scratch2,state1,eos1);
+		g->eosMixData->FinishHeatTransport(scratch2,state1,eos1);
 
 		// VISCOSITY
 
@@ -1387,38 +1391,12 @@ void sparc::HydroManager::ChemAdvance(tw::Float dt)
 	state0.ApplyBoundaryCondition(All(state0));
 }
 
-void sparc::HydroManager::EOSAdvance(tw::Float dt)
+/**
+ * @brief Forces electrons to move with ions, also throws error if NaN is detected anywhere
+ * 
+ */
+void sparc::HydroManager::Quasineutrality()
 {
-	// Load (P,T,Tv,K,visc) into eos using (n,np,u,x) from state.
-	// dt = 0.0 signals that we want to use a method that involves only 1 time level.
-	// Otherwise we are allowed to use different time levels per the chain rule.
-	// E.g., d(u/nm)/dT = cv --> d(u/nm)/dt = cv*dT/dt
-	// Here we also impose quasineutrality and fix electron velocity
-	// Finally, we throw an error if numerical failure is detected
-
-	// Time centering information upon entry*:
-	// Trial Step:    Full Step:
-	// qty    time    qty    time
-	// ---    ----    ---    ----
-	// state0 0      state0  1/2
-	// state1 1/2    state1  1
-	// eos0   0      eos0    0
-	// eos1   0      eos1    1/2
-	// * notice eos1 and state0 are always known at the same time.
-	//   and that state1 is always 1/2 step after state0.
-	//   We are trying to load eos0 with the time level of state1.
-
-	// Time centering information upon output*:
-	// Trial Step:    Full Step:
-	// qty    time    qty    time
-	// ---    ----    ---    ----
-	// state0 0      state0  1/2
-	// state1 1/2    state1  1
-	// eos0   1/2    eos0    1
-	// eos1   0      eos1    1/2
-	// * eos0 and eos1 are swapped after exiting function
-
-	// Quasineutrality and velocity forcing
 	#pragma omp parallel
 	{
 		tw::Float ionChargeDensity;
@@ -1451,23 +1429,6 @@ void sparc::HydroManager::EOSAdvance(tw::Float dt)
 			}
 		}
 	}
-
-	// DFG - factorized EOS loop, avoids nested tools.
-	eos0 = 0.0; // safest to explicitly reset here
-	for (auto g : group)
-	{
-		for (auto chem : g->chemical)
-			chem->eosData->AddHeatCapacity(state1,eos0);
-		// The following loads T into eos, IE into scratch, and nm into scratch2
-		// N.b. eos0 is sought at the time of state1, eos1 is known at the time of state0.
-		if (dt==0.0)
-			g->eosMixData->InitTemperature(scratch,scratch2,state1,eos0);
-		else
-			g->eosMixData->UpdateTemperature(scratch,scratch2,state0,state1,eos1,eos0);
-		for (auto chem : g->chemical)
-			chem->eosData->AddPKV(scratch,scratch2,nu_e,state1,eos0);
-	}
-
 	// Check for numerical failure, defined by NaN in the hydro state vector
 	tw::Int badCells = 0;
 	for (auto cell : EntireCellRange(*this,1))
@@ -1477,8 +1438,46 @@ void sparc::HydroManager::EOSAdvance(tw::Float dt)
 		throw tw::FatalError("Encountered NaN in hydrodynamic state");
 }
 
+/**
+ * @brief Update eos1 using state1 and reference data from eos0 and state0.
+ *        Caller must ensure that state0 and eos0 have consistent data.
+ * 
+ * @param init is this an initialization call
+ */
+void sparc::HydroManager::EOSUpdate(bool init)
+{
+	eos1 = 0;
+	for (auto g : group) {
+		std::vector<EOSComponent*> elements;
+		for (auto chem : g->chemical) {
+			elements.push_back(chem->eosData.get());
+		}
+		if (init) {
+			g->eosMixData->InitTemperature(elements,state1,eos1);
+		} else {
+			g->eosMixData->UpdateTemperature(elements,state0,state1,eos0,eos1);
+		}
+		for (auto chem : g->chemical) {
+			g->eosMixData->LoadPartialExtrinsics(chem->indexInState,scratch,scratch2,state1);
+			chem->eosData->AddPKV(scratch,scratch2,nu_e,state1,eos1);
+		}
+	}
+}
+
+/**
+ * @brief Carry out state0 += dt*f(state1); swap(state0,state1); update other states.
+ *        This is typically called twice to produce a second order estimate.
+ *        The overall input state has s0(t=0) and s1(t=0).
+ *        The first call outputs s0(t=0) and s1(t=1/2).
+ *        The second call outputs s0(t=1/2) and s1(t=1).
+ * 
+ * @param dt the time step
+ * @param computeSources whether source terms need to be recomputed
+ */
 void sparc::HydroManager::FirstOrderAdvance(tw::Float dt,bool computeSources)
 {
+	eos0 = eos1; // make eos0 consistent with state0 for either call
+
 	if (computeSources)
 	{
 		ComputeElectronCollisionFrequency();
@@ -1490,11 +1489,11 @@ void sparc::HydroManager::FirstOrderAdvance(tw::Float dt,bool computeSources)
 	ChemAdvance(dt);
 	Swap(state0,state1);
 
-	EOSAdvance(dt);
-	Swap(eos0,eos1);
+	Quasineutrality();
+	EOSUpdate(false);
 
-	DiffusionAdvance(dt);
-	FieldAdvance(dt);
+	//DiffusionAdvance(dt);
+	//FieldAdvance(dt);
 }
 
 void sparc::HydroManager::Update()
@@ -1515,7 +1514,7 @@ void sparc::HydroManager::Update()
 		FirstOrderAdvance(space->dX(1,0),true);
 	}
 
-	LaserAdvance(space->dX(1,0));
+	//LaserAdvance(space->dX(1,0));
 }
 
 bool sparc::HydroManager::ReadQuasitoolBlock(const TSTreeCursor *curs0,const std::string& src)

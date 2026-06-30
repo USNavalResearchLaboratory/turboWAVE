@@ -33,8 +33,8 @@ private:
 	tw::Int I3x3[3][3];
 	
 	// position and width are packed such that the first element for axis ax is at N00*ax
-	std::valarray<tw::Float> gpos; // global positions in parameter space
-	std::valarray<tw::Float> width; // cell sizes in parameter space
+	tw::vec<tw::Float> gpos; // global positions in parameter space
+	tw::vec<tw::Float> width; // cell sizes in parameter space
 	// Cell metrics are packed assuming separable functional forms
 	// It is assumed there is no dependence of metrics on y (true for the typical 3 systems)
 	// areas:
@@ -45,10 +45,10 @@ private:
 	// Elements 0,1,2 are from cell center to cell center
 	// Elements 3,4,5 are offset by 1/2 cell forward in arc direction, back in other 2
 	// External access of arcs is through dl and dlh, and uses spatial indexing 1,2,3
-	std::valarray<tw::Float> cell_area_x; /// x-dependent factor for any wall
-	std::valarray<tw::Float> cell_area_z; /// z-dependent factor for any wall
-	std::valarray<tw::Float> cell_arc_x; /// x-dependent factor for any arc
-	std::valarray<tw::Float> cell_arc_z; /// z-dependent factor for any arc
+	tw::vec<tw::Float> cell_area_x; /// x-dependent factor for any wall
+	tw::vec<tw::Float> cell_area_z; /// z-dependent factor for any wall
+	tw::vec<tw::Float> cell_arc_x; /// x-dependent factor for any arc
+	tw::vec<tw::Float> cell_arc_z; /// z-dependent factor for any arc
 public:
 	tw::UnitConverter unitConverter;
 	std::vector<std::shared_ptr<warp_base>> warps;

@@ -99,7 +99,7 @@ export namespace sparc
 	/// Allows packing of multiple materials in vector form
 	struct material_set
 	{
-		std::valarray<tw::Float> mass,charge,cvm,excitationEnergy,thermo_cond_cvm,k_visc_m,eps_r,eps_i;
+		tw::vec<tw::Float> mass,charge,cvm,excitationEnergy,thermo_cond_cvm,k_visc_m,eps_r,eps_i;
 		void Allocate(tw::Int num)
 		{
 			mass.resize(num);

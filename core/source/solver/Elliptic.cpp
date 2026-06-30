@@ -36,12 +36,12 @@ export struct EllipticSolver:BoundedTool
 	virtual void FixPotential(ScalarField& phi,SharedRegion theRegion,const tw::Float& thePotential);
 	virtual void ZeroModeGhostCellValues(tw::Float *phi0,tw::Float *phiN1,ScalarField& rho,tw::Float mul);
 	virtual void Solve(ScalarField& phi,ScalarField& source,tw::Float mul) = 0;
-	void FormOperatorStencil(std::valarray<tw::Float>& D,tw::Int i,tw::Int j,tw::Int k);
+	void FormOperatorStencil(tw::vec<tw::Float>& D,tw::Int i,tw::Int j,tw::Int k);
 };
 
 export struct IterativePoissonSolver:EllipticSolver
 {
-	std::valarray<char> mask1,mask2;
+	tw::vec<char> mask1,mask2;
 	tw::Int iterationsPerformed;
 	tw::Float normResidualAchieved,normSource;
 	tw::Int maxIterations;
@@ -76,7 +76,7 @@ export struct PoissonSolver:EllipticSolver
 
 export struct EigenmodePoissonSolver:EllipticSolver
 {
-	std::valarray<tw::Float> eigenvalue,hankel,inverseHankel;
+	tw::vec<tw::Float> eigenvalue,hankel,inverseHankel;
 	std::unique_ptr<GlobalIntegrator<tw::Float>> globalIntegrator;
 
 	EigenmodePoissonSolver(const std::string& name,MetricSpace *m,Task *tsk);
@@ -99,7 +99,7 @@ EllipticSolver::EllipticSolver(const std::string& name,MetricSpace *m,Task *tsk)
 	gammaBeam = 1.0;
 }
 
-void EllipticSolver::FormOperatorStencil(std::valarray<tw::Float>& D,tw::Int i,tw::Int j,tw::Int k)
+void EllipticSolver::FormOperatorStencil(tw::vec<tw::Float>& D,tw::Int i,tw::Int j,tw::Int k)
 {
 	tw::Float kx = space->Dim(1)>1 ? 1.0 : 0.0;
 	tw::Float ky = space->Dim(2)>1 ? 1.0 : 0.0;
@@ -203,7 +203,7 @@ void EllipticSolver1D::Solve(ScalarField& phi,ScalarField& source,tw::Float mul)
 
 	tw::grid::axis axis;
 	tw::Int s,sDim,ax,di,dj,dk;
-	std::valarray<tw::Float> D(7);
+	tw::vec<tw::Float> D(7);
 	const tw::Int xDim = space->Dim(1);
 	const tw::Int yDim = space->Dim(2);
 	const tw::Int zDim = space->Dim(3);
@@ -230,7 +230,7 @@ void EllipticSolver1D::Solve(ScalarField& phi,ScalarField& source,tw::Float mul)
 	ax = tw::grid::naxis(axis);
 	tw::strip strip(*space,ax,0,std_coord);
 
-	std::valarray<tw::Float> T1(sDim),T2(sDim),T3(sDim),src(sDim),ans(sDim);
+	tw::vec<tw::Float> T1(sDim),T2(sDim),T3(sDim),src(sDim),ans(sDim);
 
 	for (s=1;s<=sDim;s++)
 	{
@@ -271,8 +271,8 @@ IterativePoissonSolver::IterativePoissonSolver(const std::string& name,MetricSpa
 	const tw::Int xDim = space->Dim(1);
 	const tw::Int yDim = space->Dim(2);
 	const tw::Int zDim = space->Dim(3);
-	mask1 = std::valarray<char>(xDim*yDim*zDim);
-	mask2 = std::valarray<char>(xDim*yDim*zDim);
+	mask1 = tw::vec<char>(xDim*yDim*zDim);
+	mask2 = tw::vec<char>(xDim*yDim*zDim);
 	maxIterations = 1000;
 	tolerance = 1e-8;
 	const tw::Int SOR1 = m->GlobalDim(1) - (m->GlobalDim(1)==1 ? 1 : 0);
@@ -403,7 +403,7 @@ void IterativePoissonSolver::Solve(ScalarField& phi,ScalarField& source,tw::Floa
 {
 	// solve div(coeff*grad(phi)) = mul*source
 
-	std::valarray<char> *maskNow;
+	tw::vec<char> *maskNow;
 	tw::Int iter,i,j,k,ipass;
 	const tw::Int xDim = space->Dim(1);
 	const tw::Int yDim = space->Dim(2);
@@ -411,7 +411,7 @@ void IterativePoissonSolver::Solve(ScalarField& phi,ScalarField& source,tw::Floa
 
 	tw::Float residual,normResidual;
 	//tw::Float domega,rp1,rp2;
-	std::valarray<tw::Float> D(7);
+	tw::vec<tw::Float> D(7);
 
 	normSource = 0.0;
 	for (k=1;k<=zDim;k++)
@@ -542,7 +542,7 @@ void PoissonSolver::Solve(ScalarField& phi,ScalarField& source,tw::Float mul)
 	for (auto j=1;j<=yDim;j++)
 		for (auto i=1;i<=xDim;i++)
 		{
-			std::valarray<tw::Float> s(zDim),u(zDim),T1(zDim),T2(zDim),T3(zDim);
+			tw::vec<tw::Float> s(zDim),u(zDim),T1(zDim),T2(zDim),T3(zDim);
 			if (x0==tw::bc::fld::periodic)
 				eigenvalue = phi.RealCyclicEigenvalue(i,j,*space);
 			else
@@ -712,7 +712,7 @@ void EigenmodePoissonSolver::Solve(ScalarField& phi,ScalarField& source,tw::Floa
 	tw::Int zDim = space->Dim(3);
 	tw::Float temp,dz,dz1,dz2,phi0,phiN1;
 	tw::Float T1_lbc,T2_lbc,T3_lbc,T1_rbc,T2_rbc,T3_rbc;
-	std::valarray<tw::Float> localEig(rDim+2);
+	tw::vec<tw::Float> localEig(rDim+2);
 
 	for (i=1;i<=rDim;i++)
 		localEig[i] = eigenvalue[space->GlobalCellIndex(i,1)-1];
@@ -752,7 +752,7 @@ void EigenmodePoissonSolver::Solve(ScalarField& phi,ScalarField& source,tw::Floa
 	#pragma omp parallel for private(i,k,temp) schedule(static)
 	for (i=1;i<=rDim;i++)
 	{
-		std::valarray<tw::Float> s(zDim),u(zDim),T1(zDim),T2(zDim),T3(zDim);
+		tw::vec<tw::Float> s(zDim),u(zDim),T1(zDim),T2(zDim),T3(zDim);
 		for (k=1;k<=zDim;k++)
 		{
 			s[k-1] = mul*source(i,0,k);

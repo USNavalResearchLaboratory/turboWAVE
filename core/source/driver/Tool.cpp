@@ -33,8 +33,8 @@ export namespace tw
 		// Hyperbolic solvers
 		yeePropagatorPML, lorentzPropagator,
 		// Equation of state
-		eosData, eosIdealGas, eosHotElectrons, eosMixture, eosIdealGasMix, eosSimpleMieGruneisen, eosLinearMieGruneisen,
-		eosTillotson,
+		eosData, eosIdealGas, eosHotElectrons, eosSimpleMieGruneisen, eosLinearMieGruneisen, eosTillotson,
+		eosMixture, eosIdealGasMix, eosGenericMix,
 		// Ionization
 		mpi, adk, kyh, ppt_tunneling, ppt, pmpb,
 		// Diagnostics
@@ -46,7 +46,7 @@ export namespace tw
 		// Movers
 		borisMover,hcMover,pgcMover,unitaryMover,bohmianMover,photonMover,
 		// Testers
-		iteratorTest,metricSpaceTest,fftTest,rootFinderTest,
+		iteratorTest,metricSpaceTest,fftTest,rootFinderTest,odeTest,
 		// Drivers
 		electrostatic,
 		coulombSolver,directSolver,curvilinearDirectSolver,farFieldDiagnostic,
@@ -253,7 +253,7 @@ std::map<std::string,tw::tool_type> ComputeTool::Map()
 		{"lorentz propagator",tw::tool_type::lorentzPropagator},
 		{"eos ideal gas",tw::tool_type::eosIdealGas},
 		{"eos hot",tw::tool_type::eosHotElectrons},
-		{"eos mix",tw::tool_type::eosMixture},
+		{"eos generic mix",tw::tool_type::eosGenericMix},
 		{"eos ideal gas mix",tw::tool_type::eosIdealGasMix},
 		{"eos simple mie gruneisen",tw::tool_type::eosSimpleMieGruneisen},
 		{"eos linear mie gruneisen",tw::tool_type::eosLinearMieGruneisen},
@@ -285,7 +285,8 @@ std::map<std::string,tw::tool_type> ComputeTool::Map()
 		{"iterator test",tw::tool_type::iteratorTest},
 		{"metric space test",tw::tool_type::metricSpaceTest},
 		{"fft test",tw::tool_type::fftTest},
-		{"numerics test",tw::tool_type::rootFinderTest},
+		{"root test",tw::tool_type::rootFinderTest},
+		{"ode test",tw::tool_type::odeTest},
 
 		{"maxwell solver",tw::tool_type::directSolver},
 		{"curvilinear maxwell solver",tw::tool_type::curvilinearDirectSolver},

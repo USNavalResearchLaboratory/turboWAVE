@@ -12,7 +12,7 @@ import logger;
 export template <class T>
 struct Matrix
 {
-	std::valarray<T> array;
+	tw::vec<T> array;
 	tw::Int rows, cols;
 	Matrix()
 	{
@@ -277,7 +277,7 @@ struct Slice
 private:
 	tw::Int decodingStride[5];
 	tw::Int encodingStride[5];
-	std::valarray<T> data;
+	tw::vec<T> data;
 public:
 	Slice() { ; }
 	Slice(const tw::node5& beg, const tw::node5& end,bool zero=false) {

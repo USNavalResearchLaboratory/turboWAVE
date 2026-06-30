@@ -10,18 +10,29 @@ import driver;
 import fields;
 import functions;
 import hydro_primitives;
+import numerics;
 import logger;
 
 /// EOS Component.
 /// Maintains indexing information for accessing hydro and eos fields, and material parameters.
 /// Defaults to an ideal gas.
+
+/**
+ * @brief EOS for one component of a mixture, its main task to to compute pressure
+ * 
+ */
 export struct EOSComponent:ComputeTool
 {
+	tw::Float nm_ref; // reference mass density
+	tw::Float E_ref; // reference specific energy (energy/mass)
 	sparc::hydro_set hidx;
 	sparc::eos_set eidx;
 	sparc::material mat;
 
-	EOSComponent(const std::string& name,MetricSpace *m,Task *tsk) : ComputeTool(name,m,tsk) {}
+	EOSComponent(const std::string& name,MetricSpace *m,Task *tsk) : ComputeTool(name,m,tsk) {
+		nm_ref = 0.0;
+		E_ref = 0.0;
+	}
 	void SetupIndexing(tw::Int component_index,const sparc::hydro_set& h,const sparc::eos_set& e,const sparc::material& m)
 	{
 		hidx = h;
@@ -29,31 +40,15 @@ export struct EOSComponent:ComputeTool
 		eidx = e;
 		mat = m;
 	}
-    // virtual void SetHeatCapacity(ScalarField& nm,Field& eos)
-    // {
-    //     #pragma omp parallel
-    //     {
-    //         for (auto cell : EntireCellRange(*space,1))
-    //             eos(cell,eidx.nmcv) = nm(cell) * mat.cvm / mat.mass;
-    //     }
-    // }
-    virtual void AddHeatCapacity(Field& hydro,Field& eos)
-    {
-        #pragma omp parallel
-        {
-            for (auto cell : EntireCellRange(*space,1))
-                eos(cell,eidx.nmcv) += hydro(cell,hidx.ni) * mat.cvm;
-        }
-    }
 	/**
 	 * @brief Heat capacity (nmcv) for this component
 	 * 
 	 * @param n density to use in this calculation
-	 * @param T temperature to use in this calculation
-	 * @return heat capacity at constant volume (energy/volume/temperature)
+	 * @param IE internal energy density to use in this calculation
+	 * @return heat capacity (nmcv) at constant volume (energy/volume/temperature)
 	 */
-	virtual tw::Float HeatCapacity(tw::Float n, tw::Float T) {
-		return n * mat.cvm;
+	virtual tw::Float HeatCapacity(tw::Float nm, tw::Float IE) {
+		return nm * mat.cvm / mat.mass;
 	}
 	/**
 	 * @brief Internal energy density at absolute zero
@@ -61,7 +56,7 @@ export struct EOSComponent:ComputeTool
 	 * @param n density to use in this calculation
 	 * @return internal energy density
 	 */
-	virtual tw::Float ColdCurve(tw::Float n) {
+	virtual tw::Float ColdCurve(tw::Float nm) {
 		return 0.0;
 	}
 	/**
@@ -71,39 +66,37 @@ export struct EOSComponent:ComputeTool
 	 * @param T temperature to use in this calculation
 	 * @return internal energy density
 	 */
-	virtual tw::Float InternalEnergy(tw::Float n, tw::Float T) {
-		return ColdCurve(n) + HeatCapacity(n,T) * T;
+	virtual tw::Float InternalEnergy(tw::Float nm, tw::Float T) {
+		return ColdCurve(nm) + HeatCapacity(nm,T) * T;
 	}
 	/**
 	 * @brief Partial pressure for this component
 	 * 
 	 * @param IE internal energy density assigned to this component
-	 * @param n number density of this component
+	 * @param nm mass density of this component
 	 * @return pressure
 	 */
-	virtual tw::Float Pressure(tw::Float IE, tw::Float n) {
+	virtual tw::Float Pressure(tw::Float nm, tw::Float IE) {
 		return IE / mat.cvm;
 	}
 	/**
 	 * @brief Add pressure, heat conductivity, and viscosity to the EOS field
 	 * 
-	 * @param[in] IE aggregated internal energy density
-	 * @param[in] nm aggregated mass density
+	 * @param[in] nm partial mass density
+	 * @param[in] IE partial internal energy density
 	 * @param[in] nu_e collision frequency
 	 * @param[in] hydro hydro data to use (n,np,u)
 	 * @param[out] eos EOS field to update
 	 */
-    virtual void AddPKV(ScalarField& IE, ScalarField& nm, ScalarField& nu_e, Field& hydro, Field& eos)
+    virtual void AddPKV(ScalarField& nm, ScalarField& IE, ScalarField& nu_e, Field& hydro, Field& eos)
     {
         #pragma omp parallel
         {
             for (auto cell : EntireCellRange(*space,1))
             {
-				const tw::Float n = hydro(cell,hidx.ni);
-				const tw::Float partial_IE = IE(cell) * n * mat.mass / nm(cell);
-                eos(cell,eidx.P) += Pressure(partial_IE, n);
-                eos(cell,eidx.K) += mat.thermometricConductivity * mat.cvm * n;
-                eos(cell,eidx.visc) += mat.kinematicViscosity * mat.mass * n;
+                eos(cell,eidx.P) += Pressure(nm(cell), IE(cell));
+                eos(cell,eidx.K) += mat.thermometricConductivity * mat.cvm * nm(cell) / mat.mass;
+                eos(cell,eidx.visc) += mat.kinematicViscosity * nm(cell);
             }
         }
     }
@@ -126,15 +119,14 @@ export struct EOSIdealGas:EOSComponent
 export struct EOSHotElectrons:EOSComponent
 {
 	EOSHotElectrons(const std::string& name,MetricSpace *m,Task *tsk) : EOSComponent(name,m,tsk) {}
-	virtual void AddPKV(ScalarField& IE, ScalarField& nm, ScalarField& nu_e, Field& hydro, Field& eos)
+	virtual void AddPKV(ScalarField& nm, ScalarField& IE, ScalarField& nu_e, Field& hydro, Field& eos)
 	{
 		#pragma omp parallel
 		{
 			for (auto cell : EntireCellRange(*space,1))
 			{
 				const tw::Float ne = hydro(cell,hidx.ni);
-				const tw::Float partial_IE = IE(cell) * ne * mat.mass / nm(cell);
-				eos(cell,eidx.P) += Pressure(partial_IE, ne);
+				eos(cell,eidx.P) += Pressure(nm(cell), IE(cell));
 				eos(cell,eidx.K) += 3.2*ne*eos(cell,eidx.T)/(mat.mass*nu_e(cell));
 				//eos(cell,eidx.visc) += 0.0; // don't touch, may help caching.
 				// Braginskii has for e-viscosity 0.73*ne*eos(cell,eidx.T)/nu_e(cell)
@@ -144,72 +136,74 @@ export struct EOSHotElectrons:EOSComponent
 	}
 };
 
-/// This is the most basic implementation of the MieGruneisen EOS
-///
-/// It assumes that GRUN = GRUN0 = const. at all times
-/// This is typically not used in literature concerning MieGruneisen EOSs,
-/// as the results are rarely physicaly accurate
-/// If you produce sound waves with this model (for example with Cu),
-/// you'll notice the sound speed is off. Qualitatively, it gives a broad picture.
-export struct EOSSimpleMieGruneisen:EOSComponent
+/**
+ * @brief EOS with built-in integrator to work out the cold curve
+ * 
+ */
+export struct EOSCondensedMatter:EOSComponent
+{
+	EOSCondensedMatter(const std::string& name,MetricSpace *m,Task *tsk) : EOSComponent(name,m,tsk) {}
+	virtual tw::Float ColdCurve(tw::Float nm) {
+		auto dIEdnm = [this] (tw::Float nm,tw::Float IE) {
+			// In the variables (P,V,E) we have P = dE/dV; in variables (P,n,IE) it becomes (P+IE)/n = du/dn
+			// Here, IE = nE, V = 1/n
+			return (Pressure(nm,IE) + IE) / nm;
+		};
+		return RK4Integrate<tw::Float>(E_ref*nm_ref, nm_ref, nm, (nm-nm_ref)/8, dIEdnm, 1e-7);
+	}
+};
+
+/**
+ * @brief Bare bones Mie-Gruneisen P = GRUN*IE
+ * 
+ */
+export struct EOSSimpleMieGruneisen:EOSCondensedMatter
 {
 	tw::Float GRUN; // Gruneisen coefficient
-	EOSSimpleMieGruneisen(const std::string& name,MetricSpace *m, Task *tsk) : EOSComponent(name,m,tsk)
+	EOSSimpleMieGruneisen(const std::string& name,MetricSpace *m, Task *tsk) : EOSCondensedMatter(name,m,tsk)
 	{
 		GRUN = 2.0; // value for Cu on p. 257 of "Shock Wave Physics and Equation of State Modeling"
 		// GRUN = 0.1; // value for water in the above book.
-		directives.Add("gruneisen parameter",new tw::input::Float(&GRUN));
+		directives.Add("gruneisen parameter",new tw::input::Float(&GRUN),true);
 	}
-	virtual tw::Float Pressure(tw::Float IE, tw::Float n) {
+	virtual tw::Float Pressure(tw::Float nm, tw::Float IE) {
 		return GRUN*IE;
 	}
 };
 
-/// This is a MieGruneisen EOS that assumes \rho * GRUN = const., and a linear Hugoniot fit
-///
-/// This is what is more typically what is found in literature regarding MieGruneisen models
-/// You'll get a more accurate sound speed and shock speeds, assuming that the simulation is
-/// within the range of relevant Hugoniot data and model assumptions are properly met
-export struct EOSLinearMieGruneisen:EOSComponent
+/**
+ * @brief Mie-Gruneisen EOS that uses a linear fit to the Hugoniot
+ * 
+ */
+export struct EOSLinearMieGruneisen:EOSCondensedMatter
 {
 	tw::Float GRUN; // Gruneisen coefficient
-	tw::Float n0;   // Reference density
 	tw::Float c0;   // y - intercept of Hugoniot fit (usually approximately speed of sound)
 	tw::Float S1;   // coefficient of linear fit of Hugoniot data
-	EOSLinearMieGruneisen(const std::string& name,MetricSpace *m, Task *tsk) : EOSComponent(name,m,tsk)
+	EOSLinearMieGruneisen(const std::string& name,MetricSpace *m, Task *tsk) : EOSCondensedMatter(name,m,tsk)
 	{
-		// Hugoniot data fit for Cu
-		n0 = 3.3e3;
-		c0 = 1.3248e-5;
-		S1 = 1.5;
-
-		// Hugoniot data fit for H20
-		// n0 = 1334.0;
-		// c0 = 5.197e-6;
-		// S1 = 1.8153;
-
 		GRUN = 2.0; // value for Cu on p. 257 of "Shock Wave Physics and Equation of State Modeling"
 		// GRUN = 0.1; // value for water in the above book.
 
-		directives.Add("gruneisen parameter",new tw::input::Float(&GRUN));
-		directives.Add("reference density",new tw::input::Float(&n0));
-		directives.Add("hugoniot intercept",new tw::input::Float(&c0));
-		directives.Add("hugoniot slope", new tw::input::Float(&S1));
+		directives.Add("gruneisen parameter",new tw::input::Float(&GRUN),true);
+		directives.Add("reference mass density",new tw::input::Float(&nm_ref),true);
+		directives.Add("hugoniot intercept",new tw::input::Float(&c0),true);
+		directives.Add("hugoniot slope", new tw::input::Float(&S1),true);
 	}
-	virtual tw::Float Pressure(tw::Float IE, tw::Float n) {
+	virtual tw::Float Pressure(tw::Float nm, tw::Float IE) {
 		// Pressure from <http://bluevistasw.com/2016/02/16/mie-gruneisen-eos-implementation/>
-		const tw::Float mu = n/n0 - 1;
+		const tw::Float mu = nm/(nm_ref) - 1;
 		const tw::Float sel = tw::Float(mu>=0.0);
-		return (1-sel)*(mat.mass*n0*c0*c0*mu + GRUN*(mu+1)*IE) +
-			sel*(mat.mass*n0*c0*c0*mu*(1 + (1 - GRUN*(mu+1)/2)*mu)/(1 - (S1-1)*mu) + GRUN*(mu+1)*IE);
+		return (1-sel)*(nm_ref*c0*c0*mu + GRUN*(mu+1)*IE) +
+			sel*(nm_ref*c0*c0*mu*(1 + (1 - GRUN*(mu+1)/2)*mu)/(1 - (S1-1)*mu) + GRUN*(mu+1)*IE);
 	}
 };
 
 /// Tillotson EOS for modeling vaporization, cavitation, and shocks.
 /// Coefficients for water can be found at [A.L. Brundage, Procedia Engineering (2013)]
-export struct EOSTillotson:EOSComponent
+export struct EOSTillotson:EOSCondensedMatter
 {
-	tw::Float rho0;   // Reference density
+	// Tillotson rho0 and E0 are provided by inherited nm_ref and E_ref
 
 	tw::Float a;   // Tillotson Coefficient
 	tw::Float b;   // Tillotson Coefficient
@@ -219,14 +213,13 @@ export struct EOSTillotson:EOSComponent
 	tw::Float beta;   // Tillotson Coefficient
 
 	tw::Float rhoIV;   // Incipient vaporization density
-	tw::Float E0;   // Reference specific energy
 	tw::Float EIV;   // Incipient vaporization specific energy
 	tw::Float ECV;   // Complete vaporization specific energy
 
-	EOSTillotson(const std::string& name,MetricSpace *m, Task *tsk) : EOSComponent(name,m,tsk)
+	EOSTillotson(const std::string& name,MetricSpace *m, Task *tsk) : EOSCondensedMatter(name,m,tsk)
 	{
 		// Tillotson parameters for H20
-		rho0 = tw::dnum("0.998 [g/cm3]") >> native;
+		nm_ref = tw::dnum("0.998 [g/cm3]") >> native;
 
 		a = 0.7;   // Tillotson Coefficient
 		b = 0.15;   // Tillotson Coefficient
@@ -236,11 +229,11 @@ export struct EOSTillotson:EOSComponent
 		beta = 5.0;   // Tillotson Coefficient
 
 		rhoIV = tw::dnum("0.958 [g/cm3]") >> native;   // Incipient vaporization density
-		E0 = tw::dnum("0.07e12 [ergs/g]") >> native;   // Reference energy
+		E_ref = tw::dnum("0.07e12 [ergs/g]") >> native;   // Reference energy
 		EIV = tw::dnum("0.00419e12 [ergs/g]") >> native;   // Incipient vaporization specific energy
 		ECV = tw::dnum("0.025e12 [ergs/g]") >> native;   // Complete vaporization specific energy
 
-		directives.Add("reference mass density",new tw::input::Float(&rho0));
+		directives.Add("reference mass density",new tw::input::Float(&nm_ref));
 
 		directives.Add("parameter a",new tw::input::Float(&a));
 		directives.Add("parameter b",new tw::input::Float(&b));
@@ -250,7 +243,7 @@ export struct EOSTillotson:EOSComponent
 		directives.Add("parameter beta",new tw::input::Float(&beta));
 
 		directives.Add("incipient vaporization mass density",new tw::input::Float(&rhoIV));
-		directives.Add("reference specific energy",new tw::input::Float(&E0));
+		directives.Add("reference specific energy",new tw::input::Float(&E_ref));
 		directives.Add("incipient vaporization specific energy",new tw::input::Float(&EIV));
 		directives.Add("complete vaporization specific energy",new tw::input::Float(&ECV));
 	}
@@ -263,16 +256,16 @@ export struct EOSTillotson:EOSComponent
 	// (3) Hot Expanded States         : (\rho_0 > \rho & E >= E_{CV})
 	// (4) Low Energy Expansion States : (\rho < \rho_IV & E < E_{CV})
 	// (5) Mixed Region                : ( \rho_0 > \rho > \rho_IV & E_{CV} > E > E_{IV} )
-	virtual tw::Float Pressure(tw::Float IE, tw::Float n) {
-		const tw::Float rho = mat.mass * n;
-		const tw::Float u0 = rho*E0 + tw::small_pos;
+	virtual tw::Float Pressure(tw::Float nm, tw::Float IE) {
+		const tw::Float rho = nm;
+		const tw::Float u0 = rho*E_ref + tw::small_pos;
 
-		const tw::Float eta = rho/rho0; // compression
+		const tw::Float eta = rho/nm_ref; // compression
 		const tw::Float mew = eta - 1.0; // strain
 
 		// Determine Region
 		tw::Int region = 0; // 1, 2, 3, 4, or 5 : 0 is for error detection
-		if ( rho >= rho0 && IE > 0.0 ) region = 1; // eq. 1
+		if ( rho >= nm_ref && IE > 0.0 ) region = 1; // eq. 1
 		else if ( rho >= rhoIV && IE <= rho*EIV ) region = 2; // eq . 2
 		else if ( IE >= rho*ECV ) region = 3; // eq. 3
 		else if ( rho < rhoIV && IE < rho*ECV ) region = 4; // eq. 6
@@ -287,7 +280,7 @@ export struct EOSTillotson:EOSComponent
 
 		// Pressure Calculation
 		const tw::Float denom = IE/(u0*sqr(eta)) + 1.0;
-		const tw::Float expo = rho0/rho - 1;
+		const tw::Float expo = nm_ref/rho - 1;
 		const tw::Float P4 = (a + b/denom)*IE + A*mew;
 		switch (region)
 		{
@@ -308,7 +301,9 @@ export struct EOSTillotson:EOSComponent
 
 	virtual void RegisterTests() {
 		REGISTER(EOSTillotson,PressureTest);
+		REGISTER(EOSTillotson,ColdCurveTest);
 	}
 	std::tuple<Field,Field,ScalarField,ScalarField,ScalarField> InitTest();
 	void PressureTest();
+	void ColdCurveTest();
 };

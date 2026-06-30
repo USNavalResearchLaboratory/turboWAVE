@@ -139,7 +139,7 @@ void YeePropagatorPML::AdvanceE(Field& A,Field& PMLx,Field& PMLy,Field& PMLz,Fie
 	const tw::Int zDim = A.Dim(3);
 
 	tw::Float sx,tx,sy,ty;
-	std::valarray<tw::Float> sz(space->Num(3)),tz(space->Num(3));
+	tw::vec<tw::Float> sz(space->Num(3)),tz(space->Num(3));
 	PMLz.GetStrip(sz,tw::strip(PMLz,1,0,std_coord),0);
 	PMLz.GetStrip(tz,tw::strip(PMLz,1,0,std_coord),1);
 
@@ -180,7 +180,7 @@ void YeePropagatorPML::AdvanceB(Field& A,Field& PMLx,Field& PMLy,Field& PMLz)
 	const tw::Int zN1 = A.UNG(3);
 
 	tw::Float sx,tx,sy,ty;
-	std::valarray<tw::Float> sz(space->Num(3)),tz(space->Num(3));
+	tw::vec<tw::Float> sz(space->Num(3)),tz(space->Num(3));
 	PMLz.GetStrip(sz,tw::strip(PMLz,1,0,std_coord),3);
 	PMLz.GetStrip(tz,tw::strip(PMLz,1,0,std_coord),4);
 

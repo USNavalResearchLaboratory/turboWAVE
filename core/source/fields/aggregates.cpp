@@ -35,14 +35,14 @@ export struct ScalarField: Field
 
 	void Interpolate(tw::Float *val, const weights_3D& weights) const
 	{
-		std::valarray<tw::Float> temp(*val,1);
+		tw::vec<tw::Float> temp(*val,1);
 		Field::Interpolate(Rng(0),temp,weights);
 		*val = temp[0];
 	}
 
 	void InterpolateOnto(const tw::Float& val, const weights_3D& weights)
 	{
-		std::valarray<tw::Float> temp(val,1);
+		tw::vec<tw::Float> temp(val,1);
 		Field::InterpolateOnto(Rng(0),temp,weights);
 	}
 
@@ -72,10 +72,10 @@ export struct ScalarField: Field
 	void InverseTransverseFFT(const DynSpace& ds) {
 		Field::RealInverseTransverseFFT(Rng(0),ds);
 	}
-	void Hankel(tw::Int modes, std::valarray<tw::Float>& matrix) {
+	void Hankel(tw::Int modes, tw::vec<tw::Float>& matrix) {
 		Field::Hankel(Rng(0), modes, matrix);
 	}
-	void InverseHankel(tw::Int modes, std::valarray<tw::Float>& matrix) {
+	void InverseHankel(tw::Int modes, tw::vec<tw::Float>& matrix) {
 		Field::InverseHankel(Rng(0), modes, matrix);
 	}
 
@@ -91,7 +91,7 @@ export struct ScalarField: Field
 		Field::ApplyBoundaryCondition(Rng(0),homogeneous);
 	}
 	template <class T>
-	void AdjustTridiagonalForBoundaries(const tw::grid::axis& axis, const tw::grid::side& side, std::valarray<T>& T1, std::valarray<T>& T2, std::valarray<T>& T3, std::valarray<T>& source, T val) {
+	void AdjustTridiagonalForBoundaries(const tw::grid::axis& axis, const tw::grid::side& side, tw::vec<T>& T1, tw::vec<T>& T2, tw::vec<T>& T3, tw::vec<T>& source, T val) {
 		Field::AdjustTridiagonalForBoundaries(Rng(0), axis, side, T1, T2, T3, source, val);
 	}
 	void ZeroGhostCells() {
@@ -251,10 +251,10 @@ export struct ComplexField: Field
 	void InverseTransverseFFT(const DynSpace& ds) {
 		Field::ComplexInverseTransverseFFT(Rng(0,2),ds);
 	}
-	void Hankel(tw::Int modes, std::valarray<tw::Float>& matrix) {
+	void Hankel(tw::Int modes, tw::vec<tw::Float>& matrix) {
 		Field::Hankel(Rng(0,2), modes, matrix);
 	}
-	void InverseHankel(tw::Int modes, std::valarray<tw::Float>& matrix) {
+	void InverseHankel(tw::Int modes, tw::vec<tw::Float>& matrix) {
 		Field::InverseHankel(Rng(0,2), modes, matrix);
 	}
 
@@ -270,7 +270,7 @@ export struct ComplexField: Field
 		Field::ApplyBoundaryCondition(Rng(0,2),homogeneous);
 	}
 	template <class T>
-	void AdjustTridiagonalForBoundaries(const tw::grid::axis& axis, const tw::grid::side& side, std::valarray<T>& T1, std::valarray<T>& T2, std::valarray<T>& T3, std::valarray<T>& source, T val) {
+	void AdjustTridiagonalForBoundaries(const tw::grid::axis& axis, const tw::grid::side& side, tw::vec<T>& T1, tw::vec<T>& T2, tw::vec<T>& T3, tw::vec<T>& source, T val) {
 		Field::AdjustTridiagonalForBoundaries(Rng(0,2), axis, side, T1, T2, T3, source, val);
 	}
 	void ZeroGhostCells() {

@@ -31,7 +31,7 @@ struct LoadingData
 	tw::cell cell;
 	tw::Float C0,C1,C2,densToAdd,densNow,particleDensity;
 	tw::vec3 thermalMomentum,driftMomentum;
-	std::valarray<tw::vec3> subGrid;
+	tw::vec<tw::vec3> subGrid;
 	tw::Int pointsInSubGrid;
 	bool neutralize;
 
@@ -277,7 +277,7 @@ void Kinetics::TransferParticles()
 	tw::Int offset;
 	bool odd;
 
-	std::valarray<char> inBuffer,outBuffer;
+	tw::vec<char> inBuffer,outBuffer;
 	TransferParticle *parPtr;
 
 	std::vector<TransferParticle> accumulator;
@@ -378,7 +378,7 @@ void Kinetics::Ionize()
 
 	weights_3D weights;
 	tw::Float w0,a2,probability;
-	std::valarray<tw::Float> temp(6),Fp(8);
+	tw::vec<tw::Float> temp(6),Fp(8);
 	tw::vec3 E,vel,momentum;
 	tw::Float gamma,m0,q0;
 	Species *s1,*s2;
@@ -459,7 +459,7 @@ void Kinetics::ProcessQED()
 	weights_3D weights;
 
 	tw::vec3 E, B, vel;
-	std::valarray<tw::Float> temp(6);
+	tw::vec<tw::Float> temp(6);
 
 	tw::Float eta, chi, Py, Pf;
 	tw::Float gamma, omega, energy;
@@ -1183,7 +1183,7 @@ tw::Float Species::AddDensity(const LoadingData& theData)
 	tw::vec4 p;
 	tw::Float particleDensity;
 	tw::Int numToAdd,numNow;
-	std::valarray<tw::vec4> initialMomenta;
+	tw::vec<tw::vec4> initialMomenta;
 
 	particleDensity = theData.particleDensity;
 	if (particleDensity <= minimumDensity)

@@ -382,7 +382,7 @@ void Fluid::Update()
 	#pragma omp parallel
 	{
 		tw::Float kT_eff,temp;
-		std::valarray<tw::Float> nuColl(dim[3]+1);
+		tw::vec<tw::Float> nuColl(dim[3]+1);
 		const tw::Float nconv = 1.0*tw::dims::density >> native >> cgs;
 		const tw::Float Tconv = 1.0*tw::dims::temperature >> native >> cgs;
 		const tw::Float fconv = 1.0*tw::dims::frequency >> cgs >> native;

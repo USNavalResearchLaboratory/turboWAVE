@@ -1,6 +1,7 @@
 module;
 
 #include "tw_includes.h"
+#include "tw_logger.h"
 
 export module eos:eos_mix;
 import :eos_component;
@@ -10,6 +11,7 @@ import fields;
 import functions;
 import hydro_primitives;
 import numerics;
+import logger;
 
 /// Tool for handling non-additive quantities in a mixture.
 /// An important task is calculating temperature given various inputs.
@@ -65,99 +67,33 @@ export struct EOSMixture:ComputeTool
 		return sel*primitive + (1.0-sel)*failsafe;
 	}
 	/**
-	 * @brief Add energy needed to achieve the given temperature or pressure, internal energy should be zero on entry.
+	 * @brief load the mass density and internal energy density associated with a given component
 	 * 
-	 * @param[in] elements the EOS for each constituent of the mixture
-	 * @param[in,out] hydro field providing the density, will also receive the energy
-	 * @param[in] eos field providing the target pressure
+	 * @param[in] i index of component's density in hydro field
+	 * @param[out] nm mass density result
+	 * @param[out] IE internal energy density result
+	 * @param[in] hydro field to evaluate
 	 */
-	virtual void InitEnergyWithIntrinsics(std::vector<EOSComponent*> elements, Field& hydro, Field& eos)
-	{
-		#pragma omp parallel
-		{
-			for (auto cell : EntireCellRange(*space,1)) {
-				auto nm = tw::small_pos + MassDensity(hydro,cell);
-				auto target_press = eos(cell,eidx.P);
-				auto target_T = eos(cell,eidx.T);
-				if (target_T > 0) {
-					for (auto c : elements) {
-						auto n = hydro(cell,c->hidx.ni);
-						hydro(cell,hidx.u) += c->InternalEnergy(n,target_T);
-					}
-				} else if (target_press > 0) {
-					auto merit = [&cell,&elements,hydro,nm,target_press] (tw::Float IE) {
-						tw::Float press = 0;
-						for (auto c : elements) {
-							auto n = hydro(cell,c->hidx.ni);
-							auto partial_IE = IE * c->mat.mass * n / nm;
-							press += c->Pressure(partial_IE,n);
-						}
-						return press - target_press;
-					};
-					hydro(cell,hidx.u) += SecantMethod(merit,1.4*target_press,1.5*target_press);
-				}
-			}
-		}
-		hydro.ApplyBoundaryCondition(Rng(hidx.u));
-	}
-	/**
-	 * @brief Initialize temperature without using reference data (not always valid)
-	 * 
-	 * @param[out] IE new internal energy
-	 * @param[out] nm new mass density 
-	 * @param[in] hydro new density, momentum, energy
-	 * @param[in,out] eos new values, temperature is updated
-	 */
-	virtual void InitTemperature(ScalarField& IE, ScalarField& nm, Field& hydro, Field& eos)
-	{
+	void LoadPartialExtrinsics(tw::Int i, ScalarField& nm, ScalarField& IE, Field& hydro) {
 		#pragma omp parallel
 		{
 			for (auto cell : EntireCellRange(*space,1))
 			{
-				nm(cell) = MassDensity(hydro,cell);
-				IE(cell) = InternalEnergy(nm(cell),hydro,cell);
-				const tw::Float epsvn = MixVibrationalEnergy(hydro,cell);
-				const tw::Float nv = MixVibrationalStates(hydro,cell);
-
-				eos(cell,eidx.T) = IE(cell)/(tw::small_pos + eos(cell,eidx.nmcv));
-				eos(cell,eidx.Tv) = (epsvn/(nv+tw::small_pos))/std::log(1.0001 + epsvn/(hydro(cell,hidx.x)+tw::small_pos));
+				tw::Float nm_tot = MassDensity(hydro,cell);
+				nm(cell) = hydro(cell,i) * matset.mass[i - hidx.first];
+				IE(cell) = InternalEnergy(nm_tot,hydro,cell) * nm(cell) / nm_tot;
 			}
 		}
 	}
 	/**
-	 * @brief Update temperature using reference data (e.g. previous time level)
+	 * @brief Update the internal energy after there has been a temperature change due to heat transport.
+	 *        This is only first order accurate, but usually small.
 	 * 
-	 * @param[out] IE new internal energy
-	 * @param[out] nm new mass density 
-	 * @param[in] hydroRef reference density, momentum, energy
-	 * @param[in] hydro new density, momentum, energy
-	 * @param[in] eosRef reference temperature, pressure, heat capacity
-	 * @param[in,out] eos new values, temperature is updated
+	 * @param[in] T0 temperature before the heat transport
+	 * @param[out] hydro field to update
+	 * @param[in] eos field with the new temperature
 	 */
-	virtual void UpdateTemperature(ScalarField& IE, ScalarField& nm, Field& hydroRef, Field& hydro, Field& eosRef, Field& eos)
-	{
-		#pragma omp parallel
-		{
-			for (auto cell : EntireCellRange(*space,1))
-			{
-				const tw::Float nm1 = tw::small_pos + MassDensity(hydro,cell);
-				const tw::Float IE1 = InternalEnergy(nm1,hydro,cell);
-				const tw::Float nm0 = tw::small_pos + MassDensity(hydroRef,cell);
-				const tw::Float IE0 = InternalEnergy(nm0,hydroRef,cell);
-				const tw::Float epsvn = MixVibrationalEnergy(hydro,cell);
-				const tw::Float nv = MixVibrationalStates(hydro,cell);
-				const tw::Float nmcv_sum = tw::small_pos + eosRef(cell,eidx.nmcv) + eos(cell,eidx.nmcv);
-
-				//eos(cell,eidx.T) = eosRef(cell,eidx.T) + 2.0*(IE1 - IE0)/nmcv_sum; // wrong
-				eos(cell,eidx.T) = eosRef(cell,eidx.T) + (IE1*(1+nm0/nm1) - IE0*(1+nm1/nm0))/nmcv_sum;
-				eos(cell,eidx.Tv) = (epsvn/(nv+tw::small_pos))/std::log(1.0001 + epsvn/(hydro(cell,hidx.x)+tw::small_pos));
-				nm(cell) = nm1;
-				IE(cell) = IE1;
-			}
-		}
-	}
-	/// Add energy corresponding to a change in temperature only.
-	virtual void UpdateEnergy(ScalarField& nm,ScalarField& T0,Field& hydro,Field& eos)
+	virtual void FinishHeatTransport(ScalarField& T0,Field& hydro,Field& eos)
 	{
 		// Not centered, because cv is not updated.
 		#pragma omp parallel
@@ -167,13 +103,184 @@ export struct EOSMixture:ComputeTool
 			}
 		}
 	}
+	/**
+	 * @brief Add energy needed to achieve the given temperature or pressure, internal energy should be zero on entry.
+	 * 
+	 * @param[in] elements the EOS for each constituent of the mixture
+	 * @param[in,out] hydro field providing the density, will also receive the energy
+	 * @param[in] eos field providing the target intrinsic, the non-zero one will be used
+	 */
+	virtual void InitEnergyWithIntrinsics(std::vector<EOSComponent*> elements, Field& hydro, Field& eos)
+	{
+		#pragma omp parallel
+		{
+			for (auto cell : EntireCellRange(*space,1)) {
+				auto nm = tw::small_pos + MassDensity(hydro,cell);
+				auto target_P = eos(cell,eidx.P);
+				auto target_T = eos(cell,eidx.T);
+				if (target_T > 0) {
+					for (auto c : elements) {
+						auto nm = c->mat.mass * hydro(cell,c->hidx.ni);
+						hydro(cell,hidx.u) += c->InternalEnergy(nm,target_T);
+					}
+				} else if (target_P > 0) {
+					auto merit = [&cell,&elements,hydro,nm,target_P] (tw::Float IE) {
+						tw::Float press = 0;
+						for (auto c : elements) {
+							auto n = hydro(cell,c->hidx.ni);
+							auto partial_IE = IE * c->mat.mass * n / nm;
+							press += c->Pressure(n*c->mat.mass,partial_IE);
+						}
+						return press - target_P;
+					};
+					hydro(cell,hidx.u) += SecantMethod(merit,1.4*target_P,1.5*target_P);
+				}
+			}
+		}
+		hydro.ApplyBoundaryCondition(Rng(hidx.u));
+	}
+	/**
+	 * @brief Initialize temperature without using any reference state (not always valid).
+	 *        This will also update the aggregated heat capacity.
+	 * 
+	 * @param[in] elements constituents of this mixture
+	 * @param[in] hydro new density, momentum, energy
+	 * @param[in,out] eos new values, temperature is updated
+	 */
+	virtual void InitTemperature(std::vector<EOSComponent*> elements, Field& hydro, Field& eos)
+	{
+		#pragma omp parallel
+		{
+			for (auto cell : EntireCellRange(*space,1))
+			{
+				const tw::Float nm1 = MassDensity(hydro,cell);
+				const tw::Float IE1 = InternalEnergy(nm1,hydro,cell);
+				const tw::Float epsvn = MixVibrationalEnergy(hydro,cell);
+				const tw::Float nv = MixVibrationalStates(hydro,cell);
+
+				tw::Float nmcv = 0.0;
+				for (auto c : elements) {
+					nmcv += c->HeatCapacity(c->mat.mass*hydro(cell,c->hidx.ni),IE1);
+				}
+
+				eos(cell,eidx.nmcv) = nmcv;
+				eos(cell,eidx.T) = IE1 / (tw::small_pos + nmcv);
+				eos(cell,eidx.Tv) = (epsvn/(nv+tw::small_pos))/std::log(1.0001 + epsvn/(hydro(cell,hidx.x)+tw::small_pos));
+			}
+		}
+	}
+	/**
+	 * @brief Update temperature using reference data (e.g. previous time level).
+	 *        This will also update the aggregated heat capacity.
+	 *        The default presumes polytropic ideal gases and ignores reference states.
+	 * 
+	 * @param[in] elements constituents of this mixture
+	 * @param[in] hydroRef reference density, momentum, energy
+	 * @param[in] hydro new density, momentum, energy
+	 * @param[in] eosRef reference temperature, pressure, heat capacity
+	 * @param[in,out] eos new values, temperature is updated
+	 */
+	virtual void UpdateTemperature(std::vector<EOSComponent*> elements, Field& hydroRef, Field& hydro, Field& eosRef, Field& eos)
+	{
+		#pragma omp parallel
+		{
+			for (auto cell : EntireCellRange(*space,1))
+			{
+				const tw::Float nm1 = MassDensity(hydro,cell);
+				const tw::Float IE1 = InternalEnergy(nm1,hydro,cell);
+				const tw::Float epsvn = MixVibrationalEnergy(hydro,cell);
+				const tw::Float nv = MixVibrationalStates(hydro,cell);
+
+				tw::Float nmcv = 0.0;
+				for (auto c : elements) {
+					nmcv += c->HeatCapacity(c->mat.mass*hydro(cell,c->hidx.ni),IE1);
+				}
+
+				eos(cell,eidx.nmcv) = nmcv;
+				eos(cell,eidx.T) = IE1 / (tw::small_pos + nmcv);
+				eos(cell,eidx.Tv) = (epsvn/(nv+tw::small_pos))/std::log(1.0001 + epsvn/(hydro(cell,hidx.x)+tw::small_pos));
+			}
+		}
+	}
 };
 
-/// Mixture that uses a polytropic ideal gas caloric EOS, reference states are ignored
 export struct EOSIdealGasMix:EOSMixture
 {
 	EOSIdealGasMix(const std::string& name,MetricSpace *m,Task *tsk) : EOSMixture(name,m,tsk) {}
-	virtual void UpdateTemperature(ScalarField& IE, ScalarField& nm, Field& hydroRef, Field& hydro, Field& eosRef, Field& eos) {
-		InitTemperature(IE,nm,hydro,eos);
+	/**
+	 * @brief Update temperature assuming polytropic ideal gas mix.
+	 *        This will also update the aggregated heat capacity.
+	 * 
+	 * @param[in] elements constituents of this mixture
+	 * @param[in] hydroRef ignored
+	 * @param[in] hydro new density, momentum, energy
+	 * @param[in] eosRef ignored
+	 * @param[in,out] eos new values, temperature is updated
+	 */
+	virtual void UpdateTemperature(std::vector<EOSComponent*> elements, Field& hydroRef, Field& hydro, Field& eosRef, Field& eos)
+	{
+		EOSMixture::UpdateTemperature(elements, hydroRef, hydro, eosRef, eos);
+	}
+};
+
+export struct EOSGenericMix:EOSMixture
+{
+	EOSGenericMix(const std::string& name,MetricSpace *m,Task *tsk) : EOSMixture(name,m,tsk) {}
+	/**
+	 * @brief Update temperature using reference data (e.g. previous time level).
+	 *        This will also update the aggregated heat capacity.
+	 * 
+	 * @param[in] elements constituents of this mixture
+	 * @param[in] hydroRef reference density, momentum, energy
+	 * @param[in] hydro new density, momentum, energy
+	 * @param[in] eosRef reference temperature, pressure, heat capacity
+	 * @param[in,out] eos new values, temperature is updated
+	 */
+	virtual void UpdateTemperature(std::vector<EOSComponent*> elements, Field& hydroRef, Field& hydro, Field& eosRef, Field& eos)
+	{
+		#pragma omp parallel
+		{
+			for (auto cell : EntireCellRange(*space,1))
+			{
+				const tw::Float T0 = eosRef(cell,eidx.T);
+				const tw::Float nm0 = MassDensity(hydroRef,cell);
+				const tw::Float nm1 = MassDensity(hydro,cell);
+				const tw::Float IE0 = InternalEnergy(nm0,hydroRef,cell);
+				const tw::Float IE1 = InternalEnergy(nm1,hydro,cell);
+				const tw::Float epsvn = MixVibrationalEnergy(hydro,cell);
+				const tw::Float nv = MixVibrationalStates(hydro,cell);
+				const tw::Float dE = std::copysign(IE0*tw::tiny,IE1 - IE0) + IE1 - IE0;
+				const tw::Float small_nmcv = eosRef(cell,eidx.nmcv) * tw::tiny;
+
+				auto nmcv = [dE,IE0,IE1,hydro,hydroRef,&cell,&elements] (tw::Float IE,tw::Float T) {
+					tw::Float ans = 0.0;
+					tw::Float k = (IE - IE0) / dE;
+					for (auto c : elements) {
+						tw::Float n0 = hydroRef(cell,c->hidx.ni);
+						tw::Float n1 = hydro(cell,c->hidx.ni);
+						tw::Float nm = c->mat.mass * (n0 + (n1 - n0)) * (std::isfinite(k) && k > 0.0 && k < 1.0 ? k : 1.0);
+						ans += c->HeatCapacity(nm,IE);
+					}
+					return ans;
+				};
+				auto dTdE = [dE,nmcv,IE0,IE1,nm0,nm1,hydro,hydroRef,&cell,&elements] (tw::Float IE,tw::Float T) {
+					// the following form is designed to approximate the polytropic result when cv is constant, in particular,
+					// it comes from supposing dE/dt = d/dt(nmcvT)
+					tw::Float cv = 2 * nmcv(0.5*(IE0+IE1),T) / (nm0 + nm1);
+					tw::Float dnmcvdE = (nm1 - nm0) * cv / dE;
+					return (1 - T*dnmcvdE)/(tw::small_pos + nmcv(IE,T));
+				};
+
+				// advance dy/dt = f(t,y) where y = T and t = E
+				auto T1 = RK4Step<tw::Float>(T0, IE0, IE1 - IE0, dTdE);
+				// if (cell.dcd1()==200) {
+				// 	tw::Float poly = IE1 / nmcv(IE1,T1);
+				// 	logger::WARN(std::format("T0 = {:.5} T1 = {:.8} poly = {:.8}",T0,T1,poly));
+				// }
+				eos(cell,eidx.nmcv) = nmcv(IE1,T1);
+				eos(cell,eidx.T) = T1;
+				eos(cell,eidx.Tv) = (epsvn/(nv+tw::small_pos))/std::log(1.0001 + epsvn/(hydro(cell,hidx.x)+tw::small_pos));
+			}
+		}
 	}
 };

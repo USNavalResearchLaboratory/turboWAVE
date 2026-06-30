@@ -31,9 +31,9 @@ export struct PulseShape
 	tw::Float t1,t2,t3,t4;
 	tw::profile::shape whichProfile;
 	tw::Int samplePoints;
-	std::valarray<tw::Float> tpts,wpts;
-	std::valarray<tw::Complex> amplitude;
-	std::valarray<tw::Float> spectral_phase_coeff;
+	tw::vec<tw::Float> tpts,wpts;
+	tw::vec<tw::Complex> amplitude;
+	tw::vec<tw::Float> spectral_phase_coeff;
 
 	PulseShape();
 	void Initialize(const tw::Float time_origin);
@@ -46,7 +46,7 @@ export struct Conductor : Engine
 {
 	std::shared_ptr<Region> theRgn;
 	PulseShape pulseShape;
-	std::valarray<tw::Float> Px,Py,Pz,potential,angFreq,phase;
+	tw::vec<tw::Float> Px,Py,Pz,potential,angFreq,phase;
 	bool affectsPhi,affectsA;
 	EM::current currentType;
 	tw::vec3 gaussianRadius,ks;
@@ -208,14 +208,14 @@ export struct LindmanBoundary
 
 export struct MABoundary
 {
-	std::valarray<tw::Complex> g[10];
+	tw::vec<tw::Complex> g[10];
 	tw::Float gamma[10];
 	tw::Float sigma[10];
 	tw::Float scaleFactor;
 
 	MABoundary(tw::Int numCells);
-	void AdvanceLeft(std::valarray<tw::Complex>& amplitude,tw::Float dt);
-	void AdvanceRight(std::valarray<tw::Complex>& amplitude,tw::Float dt);
+	void AdvanceLeft(tw::vec<tw::Complex>& amplitude,tw::Float dt);
+	void AdvanceRight(tw::vec<tw::Complex>& amplitude,tw::Float dt);
 	tw::Complex NormalDerivativeLeft(tw::Int index,tw::Complex amplitude,tw::Float carrierFrequency);
 	tw::Complex NormalDerivativeRight(tw::Int index,tw::Complex amplitude,tw::Float carrierFrequency);
 };
@@ -388,7 +388,7 @@ Wave::Wave(const std::string& name,MetricSpace *m,Task *tsk) : ComputeTool(name,
 	std::map<std::string,tw::profile::shape> shape = {{"quintic",tw::profile::shape::quintic},{"sech",tw::profile::shape::sech},{"sin2",tw::profile::shape::sin2}};
 	directives.Add("shape",new tw::input::Enums<tw::profile::shape>(shape,&pulseShape.whichProfile),false);
 	directives.Add("zones",new tw::input::Int(&zones),false);
-	directives.Add("spectral phase",new tw::input::NumberList<std::valarray<tw::Float>>(&pulseShape.spectral_phase_coeff),false);
+	directives.Add("spectral phase",new tw::input::NumberList<tw::vec<tw::Float>>(&pulseShape.spectral_phase_coeff),false);
 	directives.Add("sample points",new tw::input::Int(&pulseShape.samplePoints),false);
 }
 
@@ -599,12 +599,12 @@ Conductor::Conductor(const std::string& name,MetricSpace *m,Task *tsk) : Engine(
 	f = tw::big_pos;
 	ks = 0.0;
 	temperature = 0.0;
-	directives.Add("px",new tw::input::NumberList<std::valarray<tw::Float>>(&Px),false);
-	directives.Add("py",new tw::input::NumberList<std::valarray<tw::Float>>(&Py),false);
-	directives.Add("pz",new tw::input::NumberList<std::valarray<tw::Float>>(&Pz),false);
-	directives.Add("potential",new tw::input::NumberList<std::valarray<tw::Float>>(&potential),false);
-	directives.Add("w",new tw::input::NumberList<std::valarray<tw::Float>>(&angFreq),false);
-	directives.Add("phase",new tw::input::NumberList<std::valarray<tw::Float>>(&phase),false);
+	directives.Add("px",new tw::input::NumberList<tw::vec<tw::Float>>(&Px),false);
+	directives.Add("py",new tw::input::NumberList<tw::vec<tw::Float>>(&Py),false);
+	directives.Add("pz",new tw::input::NumberList<tw::vec<tw::Float>>(&Pz),false);
+	directives.Add("potential",new tw::input::NumberList<tw::vec<tw::Float>>(&potential),false);
+	directives.Add("w",new tw::input::NumberList<tw::vec<tw::Float>>(&angFreq),false);
+	directives.Add("phase",new tw::input::NumberList<tw::vec<tw::Float>>(&phase),false);
 	directives.Add("delay",new tw::input::Float(&pulseShape.delay),false);
 	directives.Add("risetime",new tw::input::Float(&pulseShape.risetime),false);
 	directives.Add("holdtime",new tw::input::Float(&pulseShape.holdtime),false);
@@ -912,7 +912,7 @@ MABoundary::MABoundary(tw::Int numCells)
 	scaleFactor = 1.0;
 }
 
-void MABoundary::AdvanceLeft(std::valarray<tw::Complex>& amplitude,tw::Float dt)
+void MABoundary::AdvanceLeft(tw::vec<tw::Complex>& amplitude,tw::Float dt)
 {
 	const tw::Float dts = scaleFactor*dt;  // scale factor is A&M's "w"
 	tw::Int i,j;
@@ -921,7 +921,7 @@ void MABoundary::AdvanceLeft(std::valarray<tw::Complex>& amplitude,tw::Float dt)
 			g[i][j] = (g[i][j]/dts - sigma[i]*amplitude[j])/(gamma[i] + one/dts);
 }
 
-void MABoundary::AdvanceRight(std::valarray<tw::Complex>& amplitude,tw::Float dt)
+void MABoundary::AdvanceRight(tw::vec<tw::Complex>& amplitude,tw::Float dt)
 {
 	const tw::Float dts = scaleFactor*dt;  // scale factor is A&M's "w"
 	tw::Int i,j;

@@ -335,8 +335,8 @@ void Task::Initialize(const tw::node4& doms,const tw::node4& cyclic)
 	tw::Int whichDevice = -1;
 	tw::Int whichPlatform = -1;
 	std::vector<tw::Int> deviceMap;
-	std::valarray<cl_platform_id> platforms;
-	std::valarray<cl_device_id> devices;
+	tw::vec<cl_platform_id> platforms;
+	tw::vec<cl_device_id> devices;
 	std::string name;
 	std::stringstream messg;
 	char buff[1024];
@@ -486,9 +486,9 @@ void Task::InitializeCLProgram(cl_program& program,const std::string& fileName,s
 
 	cl_int err;
 	size_t buffSize;
-	std::valarray<char> buildLogBuff;
-	std::valarray<char*> sourceList(1);
-	std::valarray<char> sourceText;
+	tw::vec<char> buildLogBuff;
+	tw::vec<char*> sourceList(1);
+	tw::vec<char> sourceText;
 
 	std::ifstream theFile ( fileName.c_str() );
 	std::string	sourceString ( std::istreambuf_iterator<char>(theFile),( std::istreambuf_iterator<char>() ) );

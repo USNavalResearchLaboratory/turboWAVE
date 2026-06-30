@@ -9,19 +9,51 @@ import metric_space;
 /**
  * @brief RK4 step integrator for ODEs (from CODEX)
  * @tparam T state type (scalar/vector)
- * @param y initial value
+ * @param y0 initial value
  * @param t initial time
- * @param dt step size
- * @param f function f(t, y)
+ * @param dt step size (signed)
+ * @param f function f(t, y) = dy/dt
  * @return integrated value at t+dt
  */
 export template<typename T>
-T RK4Step(T y, double t, double dt, std::function<T(double, T)> f) {
-    T k1 = f(t, y);
-    T k2 = f(t + dt/2, y + dt*k1/2);
-    T k3 = f(t + dt/2, y + dt*k2/2);
-    T k4 = f(t + dt, y + dt*k3);
-    return y + dt * (k1 + 2*k2 + 2*k3 + k4) / 6;
+T RK4Step(T y0, double t, double dt, std::function<T(double, T)> f) {
+    T k1 = f(t, y0);
+    T k2 = f(t + dt/2, y0 + dt*k1/2);
+    T k3 = f(t + dt/2, y0 + dt*k2/2);
+    T k4 = f(t + dt, y0 + dt*k3);
+    return y0 + dt * (k1 + 2*k2 + 2*k3 + k4) / 6;
+}
+
+/**
+ * @brief RK4 adaptive step size integrator for ODEs (from Stoer & Burlisch)
+ * @tparam T state type (scalar/vector)
+ * @param y0 initial value
+ * @param t1 initial time
+ * @param t2 final time
+ * @param dt0 starting step size (sign is adjusted to match t2-t1)
+ * @param f function f(t, y) = dy/dt
+ * @return integrated value at t2
+ */
+export template<typename T>
+T RK4Integrate(T y0, double t1, double t2, double dt0, std::function<T(double, T)> f, double tol) {
+	const int max_iter = 100000;
+	T eta1,eta2;
+	tw::Float t=t1,H=std::copysign(dt0,t2-t1),merit=2;
+	for (auto iter=0; iter<max_iter; iter++) {
+		do {
+			H = 2*H/merit;
+			eta1 = RK4Step(y0,t,H,f);
+			eta2 = RK4Step(y0,t,H/2,f);
+			eta2 = RK4Step(eta2,t,H/2,f);
+			merit = std::pow((16/15)*std::fabs(eta1-eta2)/tol,0.2);
+		} while (std::fabs(merit)>2);
+		y0 = RK4Step(y0,t,H/2,f);
+		t += H/2;
+		if ((t2 > t1 && t > t2) || (t2 <= t1 && t < t2)) {
+			return RK4Step(y0,t,t2-t,f);
+		}
+	}
+	return y0;
 }
 
 /**
@@ -60,10 +92,10 @@ export tw::Float SecantMethod(std::function<tw::Float(tw::Float)> f, tw::Float x
 /// @param b diagonal
 /// @param c upper subdiagonal
 export template <class T, class U>
-void TriDiagonal(std::valarray<T>& phi, std::valarray<T>& rho, U a, U b, U c)
+void TriDiagonal(tw::vec<T>& phi, tw::vec<T>& rho, U a, U b, U c)
 {
 	tw::Int n = phi.size();
-	std::valarray<U> gam(n);
+	tw::vec<U> gam(n);
 
 	if (n == 1)
 	{
@@ -95,10 +127,10 @@ void TriDiagonal(std::valarray<T>& phi, std::valarray<T>& rho, U a, U b, U c)
 /// @param b diagonal
 /// @param c upper subdiagonal
 export template <class T, class U>
-void TriDiagonal(std::valarray<T>& phi, std::valarray<T>& rho, U a, std::valarray<U>& b, U c)
+void TriDiagonal(tw::vec<T>& phi, tw::vec<T>& rho, U a, tw::vec<U>& b, U c)
 {
 	tw::Int n = phi.size();
-	std::valarray<U> gam(n);
+	tw::vec<U> gam(n);
 
 	if (n == 1)
 	{
@@ -130,10 +162,10 @@ void TriDiagonal(std::valarray<T>& phi, std::valarray<T>& rho, U a, std::valarra
 /// @param b diagonal
 /// @param c upper subdiagonal
 export template <class T, class U>
-void TriDiagonal(std::valarray<T>& phi, std::valarray<T>& rho, std::valarray<U>& a, std::valarray<U>& b, std::valarray<U>& c)
+void TriDiagonal(tw::vec<T>& phi, tw::vec<T>& rho, tw::vec<U>& a, tw::vec<U>& b, tw::vec<U>& c)
 {
 	tw::Int n = phi.size();
-	std::valarray<U> gam(n);
+	tw::vec<U> gam(n);
 
 	if (n == 1)
 	{
@@ -156,11 +188,11 @@ void TriDiagonal(std::valarray<T>& phi, std::valarray<T>& rho, std::valarray<U>&
 		phi[i] -= gam[i + 1] * phi[i + 1];
 }
 
-export void Transform(tw::Float *array,tw::Int pts,tw::Int modes,tw::Int interval,std::valarray<tw::Float>& transform)
+export void Transform(tw::Float *array,tw::Int pts,tw::Int modes,tw::Int interval,tw::vec<tw::Float>& transform)
 {
 	// Truncation of modes assumes eigenvalues sorted with increasing *absolute* value
 	tw::Int p,m;
-	std::valarray<tw::Float> temp(modes);
+	tw::vec<tw::Float> temp(modes);
 
 	for (m=0;m<modes;m++)
 		temp[m] = 0.0;
@@ -173,12 +205,12 @@ export void Transform(tw::Float *array,tw::Int pts,tw::Int modes,tw::Int interva
 		array[m*interval] = 0.0;
 }
 
-export void ReverseTransform(tw::Float *array,tw::Int pts,tw::Int modes,tw::Int interval,std::valarray<tw::Float>& rev_transform)
+export void ReverseTransform(tw::Float *array,tw::Int pts,tw::Int modes,tw::Int interval,tw::vec<tw::Float>& rev_transform)
 {
 	// Truncation of modes assumes eigenvalues sorted with increasing *absolute* value
 	// This is the same operation as Transform only if pts=modes
 	tw::Int p,m;
-	std::valarray<tw::Float> temp(pts);
+	tw::vec<tw::Float> temp(pts);
 
 	for (p=0;p<pts;p++)
 		temp[p] = 0.0;
@@ -224,7 +256,7 @@ export void ReverseTransform(tw::Float *array,tw::Int pts,tw::Int modes,tw::Int 
 // 	tw::Int j,p,q,n;
 // 	tw::Float temp;
 // 	n = A.Dim(2);
-// 	std::valarray<tw::Float> s(n+1),c(n+1);
+// 	tw::vec<tw::Float> s(n+1),c(n+1);
 
 // 	// Form the R matrix
 // 	for (j=2+deflation;j<=n;j++)
@@ -253,7 +285,7 @@ export void ReverseTransform(tw::Float *array,tw::Int pts,tw::Int modes,tw::Int 
 // 	tw::Int i,p,q,n;
 // 	tw::Float temp;
 // 	n = A.Dim(1);
-// 	std::valarray<tw::Float> s(n+1),c(n+1);
+// 	tw::vec<tw::Float> s(n+1),c(n+1);
 
 // 	// Form the L matrix
 // 	for (i=2;i<=n-deflation;i++)
@@ -277,12 +309,12 @@ export void ReverseTransform(tw::Float *array,tw::Int pts,tw::Int modes,tw::Int 
 // 	}
 // }
 
-void GetEigenvector(tw::Float eigenvalue,std::valarray<tw::Float>& vec,std::valarray<tw::Float>& a,std::valarray<tw::Float>& b,std::valarray<tw::Float>& c)
+void GetEigenvector(tw::Float eigenvalue,tw::vec<tw::Float>& vec,tw::vec<tw::Float>& a,tw::vec<tw::Float>& b,tw::vec<tw::Float>& c)
 {
 	tw::Int i,iter;
 	tw::Float norm;
 	bool anotherIteration;
-	std::valarray<tw::Float> ans(vec.size());
+	tw::vec<tw::Float> ans(vec.size());
 	UniformDeviate ud(1); // must have same seed on all nodes
 
 	const tw::Int maxIterations = 100;
@@ -322,7 +354,7 @@ void GetEigenvector(tw::Float eigenvalue,std::valarray<tw::Float>& vec,std::vala
 	b += eigenvalue;
 }
 
-void NormalizeLeftRight(std::valarray<tw::Float>& left,std::valarray<tw::Float>& right)
+void NormalizeLeftRight(tw::vec<tw::Float>& left,tw::vec<tw::Float>& right)
 {
 	tw::Int i;
 	tw::Float norm = 0.0;
@@ -331,7 +363,7 @@ void NormalizeLeftRight(std::valarray<tw::Float>& left,std::valarray<tw::Float>&
 	left *= 1.0/norm;
 }
 
-void SortEigensystem(std::valarray<tw::Float>& eigenvalues,tw::Float *revTransform)
+void SortEigensystem(tw::vec<tw::Float>& eigenvalues,tw::Float *revTransform)
 {
 	// Sort according to absolute value using simple insertion sort
 	// Also sort revTransform matrix if it is not NULL
@@ -352,13 +384,13 @@ void SortEigensystem(std::valarray<tw::Float>& eigenvalues,tw::Float *revTransfo
 	}
 }
 
-void SymmetricTridiagonalEigensystem(std::valarray<tw::Float>& eigenvalues,tw::Float *revTransform,std::valarray<tw::Float>& T1,std::valarray<tw::Float>& T2)
+void SymmetricTridiagonalEigensystem(tw::vec<tw::Float>& eigenvalues,tw::Float *revTransform,tw::vec<tw::Float>& T1,tw::vec<tw::Float>& T2)
 {
 	// this is basically "tqli" from "numerical recipes" with zero offset inputs
 	// revTransform must contain identity matrix, or can be NULL if eigenvectors not needed
 	tw::Int m,l,i,n,k;
 	tw::Float s,r,p,g,f,c,b,dd;
-	std::valarray<tw::Float> d,e;
+	tw::vec<tw::Float> d,e;
 	n = T1.size();
 
 	d.resize(n+1);
@@ -428,7 +460,7 @@ void SymmetricTridiagonalEigensystem(std::valarray<tw::Float>& eigenvalues,tw::F
 	SortEigensystem(eigenvalues,revTransform);
 }
 
-export tw::Float GetSphericalGroundState(std::valarray<tw::Float>& vec,std::valarray<tw::Float>& phi,tw::Float dr)
+export tw::Float GetSphericalGroundState(tw::vec<tw::Float>& vec,tw::vec<tw::Float>& phi,tw::Float dr)
 {
 	// Diagonalize Hamiltonion : H0 = -0.5*del^2 - 1/std::sqrt(coreRadius^2 + r^2)
 	tw::Int i,dim;
@@ -437,7 +469,7 @@ export tw::Float GetSphericalGroundState(std::valarray<tw::Float>& vec,std::vala
 	tw::Float r0,r1,r2,r3,r4;
 	tw::Float eigenvalue,normalization;
 
-	std::valarray<tw::Float> T1,T2,T3,temp,Lambda;
+	tw::vec<tw::Float> T1,T2,T3,temp,Lambda;
 
 	vec.resize(dim);
 	T1.resize(dim);
@@ -510,7 +542,7 @@ export tw::Float GetSphericalGroundState(std::valarray<tw::Float>& vec,std::vala
 	return eigenvalue;
 }
 
-export tw::Float GetCylindricalGroundState(std::valarray<tw::Float>& vec,std::valarray<tw::Float>& phi,tw::Float dr)
+export tw::Float GetCylindricalGroundState(tw::vec<tw::Float>& vec,tw::vec<tw::Float>& phi,tw::Float dr)
 {
 	// Diagonalize Hamiltonion : H0 = -0.5*del^2 - 1/std::sqrt(coreRadius^2 + r^2)
 	tw::Int i,dim;
@@ -519,7 +551,7 @@ export tw::Float GetCylindricalGroundState(std::valarray<tw::Float>& vec,std::va
 	tw::Float r0,r1,r2,r3,r4;
 	tw::Float eigenvalue,normalization;
 
-	std::valarray<tw::Float> T1,T2,T3,temp,Lambda;
+	tw::vec<tw::Float> T1,T2,T3,temp,Lambda;
 
 	vec.resize(dim);
 	T1.resize(dim);
@@ -592,12 +624,12 @@ export tw::Float GetCylindricalGroundState(std::valarray<tw::Float>& vec,std::va
 	return eigenvalue;
 }
 
-export void ComputeTransformMatrices(tw::bc::fld radial_bc,std::valarray<tw::Float>& eigenvalue,std::valarray<tw::Float>& fwd,std::valarray<tw::Float>& rev,MetricSpace *space,Task *task)
+export void ComputeTransformMatrices(tw::bc::fld radial_bc,tw::vec<tw::Float>& eigenvalue,tw::vec<tw::Float>& fwd,tw::vec<tw::Float>& rev,MetricSpace *space,Task *task)
 {
 	tw::Int i,j,dim;
 	tw::Float dr1,dr2;
-	std::valarray<tw::Float> T1,T2,T3,vec,temp,Lambda;
-	std::valarray<tw::Float> dr,A,V;
+	tw::vec<tw::Float> T1,T2,T3,vec,temp,Lambda;
+	tw::vec<tw::Float> dr,A,V;
 
 	dim = space->GlobalDim(1);
 	eigenvalue.resize(dim);
