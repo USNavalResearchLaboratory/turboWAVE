@@ -5,6 +5,15 @@ module;
 #include "tw_test.h"
 #include "tw_logger.h"
 
+#define CHECK_STATE()\
+{\
+	auto count = CheckState();\
+	if (count) {\
+		logger::ERROR(std::format("{} NaN in hydro state",count));\
+		throw tw::FatalError("Bad State");\
+	}\
+}
+
 export module hydro;
 import input;
 import driver;
@@ -54,7 +63,8 @@ struct HydroManager:Driver
 	ScalarField rho0,rho,phi,nu_e,me_eff,radiativeLosses,radiationIntensity;
 	ComplexField laserAmplitude,refractiveIndex;
 
-	// items needed for step size control and user feedback
+	// numerical controls and user feedback
+	characteristic_values typical,tiny;
 	tw::Float epsilonFactor;
 	std::stringstream statusMessage;
 
@@ -86,6 +96,18 @@ struct HydroManager:Driver
 	{
 		destructionRate(cell,h.u) += val;
 		destructionRate(cell,h.x) += val;
+	}
+	/**
+	 * @brief count values that are NaN in hydro state
+	 * 
+	 * @return count of values that were NaN
+	 */
+	tw::Int CheckState() {
+		tw::Int count = 0;
+		for (auto cell : InteriorCellRange(*this,1))
+			for (auto c=0;c<state1.Components();c++)
+				count += std::isnan(state1(cell,c));
+		return count;
 	}
 
 	HydroManager(const std::string& name,MetricSpace *ms,Task *tsk);
@@ -127,6 +149,11 @@ sparc::HydroManager::HydroManager(const std::string& name,MetricSpace *ms, Task 
 	if (native.unit_system!=tw::units::plasma)
 		throw tw::FatalError("HydroManager module requires <native units = plasma>");
 
+	typical.n = 1;
+	typical.T = 1e-6;
+	typical.U = tiny.T;
+	typical.u = tiny.n * tiny.U;
+
 	epsilonFactor = 1e-4;
 	laserFrequency = 1.0;
 	backgroundDensity = backgroundTemperature = 0.0;
@@ -151,6 +178,8 @@ sparc::HydroManager::HydroManager(const std::string& name,MetricSpace *ms, Task 
 	electrons = NULL;
 	electrostaticHeating = false;
 
+	directives.Add("typical density",new tw::input::Float(&typical.n),false);
+	directives.Add("typical temperature",new tw::input::Float(&typical.T),false);
 	directives.Add("epsilon factor",new tw::input::Float(&epsilonFactor),false);
 	std::map<std::string,sparc::radiationModel> rad = {{"none",sparc::noRadiation},{"thin",sparc::thin},{"thick",sparc::thick}};
 	directives.Add("radiation model",new tw::input::Enums<sparc::radiationModel>(rad,&radModel),false);
@@ -202,7 +231,7 @@ void sparc::HydroManager::SetupIndexing()
 
 	// Pass indexing down to lower level objects.
 	for (auto grp : group)
-		grp->SetupIndexing();
+		grp->Setup(tiny);
 
 	// Setup lambdas to help index microscopics (photoionization is handled by groups)
 
@@ -282,6 +311,11 @@ void sparc::HydroManager::SetupIndexing()
 void sparc::HydroManager::VerifyInput()
 {
 	Driver::VerifyInput();
+
+	tiny.n = tw::eps_pos * typical.n;
+	tiny.T = tw::eps_pos * typical.T;
+	tiny.U = tiny.T;
+	tiny.u = tiny.n * tiny.U;
 
 	if (backgroundDensity!=0.0)
 	{
@@ -407,6 +441,7 @@ void sparc::HydroManager::Initialize()
 		}
 
 	logger::TRACE("setup basic boundary conditions");
+	logger::TRACE(std::format("ghost cell layers = {}",space->Layers(1)));
 	// Default boundary conditions, refine after setting up indexing.
 	state0.SetBoundaryConditions(All(state0),tw::grid::x,fld::neumannWall,fld::neumannWall);
 	state0.SetBoundaryConditions(All(state0),tw::grid::y,fld::neumannWall,fld::neumannWall);
@@ -442,8 +477,8 @@ void sparc::HydroManager::Initialize()
 		for (auto grp : group)
 			for (auto chem : grp->chemical)
 			{
-				if (chem->mat.charge < tw::small_neg) Nminus++;
-				if (chem->mat.charge > tw::small_pos) Nplus++;
+				if (chem->mat.charge < tw::eps_neg) Nminus++;
+				if (chem->mat.charge > tw::eps_pos) Nplus++;
 			}
 		for (auto grp : group)
 			for (auto chem : grp->chemical)
@@ -451,8 +486,8 @@ void sparc::HydroManager::Initialize()
 				chem->background->density = backgroundDensity;
 				chem->background->temperature = backgroundTemperature;
 				const tw::Float Q = chem->mat.charge;
-				if (Q < tw::small_neg) chem->background->density /= -Q*Nminus;
-				if (Q > tw::small_pos) chem->background->density /= Q*Nplus;
+				if (Q < tw::eps_neg) chem->background->density /= -Q*Nminus;
+				if (Q > tw::eps_pos) chem->background->density /= Q*Nplus;
 			}
 	}
 
@@ -490,13 +525,16 @@ void sparc::HydroManager::Initialize()
 		grp->forceFilter = grp->mobile ? 1.0 : 0.0;
 		grp->GenerateFluid(state1,eos1,scratch,scratch2);
 	}
+	CHECK_STATE();
 
 	me_eff = 1.0; // effective mass reserved for future use
 	nu_e = 1.0; // put arbitrary value so initial transport coefficients don't blow up
 
 	logger::TRACE("initialize EOS");
 	Quasineutrality();
+	CHECK_STATE();
 	EOSUpdate(true);
+	CHECK_STATE();
 	ComputeElectronCollisionFrequency();
 }
 
@@ -621,7 +659,7 @@ void sparc::HydroManager::ComputeCollisionalSources()
 		{
 			for (auto cell : InteriorCellRange(*this,1))
 			{
-				rateNow = rx->PrimitiveRate(eos1(cell,rx->catalyst.T));
+				rateNow = rx->PrimitiveRate(eos1(cell,rx->catalyst.T),tiny);
 				for (auto s : rx->sub) {
 					for (auto r : s->reactants) {
 						rateNow *= state1(cell,r.ni);
@@ -642,7 +680,7 @@ void sparc::HydroManager::ComputeCollisionalSources()
 						{
 							// ASSUMES NO MIXING OF VIBRATING AND NON-VIBRATING CHEMICALS IN EQUILIBRIUM GROUPS
 							// (do not confuse the "group" of reactants with the EquilibriumGroup of a particular reactant)
-							const tw::Float V = 1.0/(tw::small_pos + r.DensitySum(state1,cell)); // specific volume of reactant's EquilibriumGroup
+							const tw::Float V = 1.0/(tiny.n + r.DensitySum(state1,cell)); // specific volume of reactant's EquilibriumGroup
 							const tw::Float nFx = V*rateNow*state1(cell,r.npx);
 							const tw::Float nFy = V*rateNow*state1(cell,r.npy);
 							const tw::Float nFz = V*rateNow*state1(cell,r.npz);
@@ -736,7 +774,7 @@ void sparc::HydroManager::ComputeCollisionalSources()
 				const tw::Float Tv = eos1(cell,x->e2.Tv);
 				const tw::Float energy = x->m2.excitationEnergy;
 				const tw::Float level = x->level;
-				const tw::Float Xv = x->PrimitiveRate(std::fabs(Te));
+				const tw::Float Xv = x->PrimitiveRate(std::fabs(Te),tiny);
 				const tw::Int i1 = x->h1.ni;
 				const tw::Int i2 = x->h2.ni;
 
@@ -798,7 +836,7 @@ void sparc::HydroManager::ComputeRadiativeSources()
 
 							const tw::Float Emag = std::sqrt(norm(laserAmplitude(cell)));
 							const tw::Float photoRate = state1(cell,r.ni)*chem->ionizer->AverageRate(laserFrequency,Emag);
-							const tw::Float V = 1.0/(tw::small_pos + r.DensitySum(state1,cell)); // specific volume of reactant's EquilibriumGroup
+							const tw::Float V = 1.0/(tiny.n + r.DensitySum(state1,cell)); // specific volume of reactant's EquilibriumGroup
 							const tw::Float nFx = V*photoRate*state1(cell,r.npx);
 							const tw::Float nFy = V*photoRate*state1(cell,r.npy);
 							const tw::Float nFz = V*photoRate*state1(cell,r.npz);
@@ -829,14 +867,14 @@ void sparc::HydroManager::ComputeRadiativeSources()
 		{
 			for (auto cell : InteriorCellRange(*this,1))
 			{
-				tw::Float Ptot=tw::small_pos, ntot=tw::small_pos;
+				tw::Float Ptot=tiny.u, ntot=tiny.n;
 				for (auto grp : group)
 				{
 					Ptot += eos1(cell,grp->eidx.P);
 					ntot += grp->DensitySum(state1,cell);
 				}
 				const tw::Float TKelvin = (Ptot/ntot)*tw::dims::temperature >> native >> mks;
-				const tw::Float Lmks = tw::small_pos + 8.0e-14 * sqr(TKelvin); // mean free path in meters
+				const tw::Float Lmks = tw::min_pos + 8.0e-14 * sqr(TKelvin); // mean free path in meters
 				const tw::Float Imks = 4.0*stef_boltz*std::pow(TKelvin,4);
 				if (radModel==sparc::thin)
 					radiativeLosses(cell) = (Imks/Lmks)*tw::dims::power_density >> mks >> native;
@@ -954,8 +992,8 @@ void sparc::HydroManager::ComputeHydroSources()
 						v0 = scratch.bak(cell,0,ax);
 						v1 = scratch.fwd(cell,0,ax);
 
-						P0 = (P0*f0 + Pc*fc) / (f0 + fc + tw::small_pos);
-						P1 = (P1*f1 + Pc*fc) / (f1 + fc + tw::small_pos);
+						P0 = (P0*f0 + Pc*fc) / (f0 + fc + tw::eps_pos);
+						P1 = (P1*f1 + Pc*fc) / (f1 + fc + tw::eps_pos);
 						v0 = 0.5*f0*fc*(v0 + vc);
 						v1 = 0.5*f1*fc*(v1 + vc);
 
@@ -1179,9 +1217,9 @@ tw::Float sparc::HydroManager::EstimateTimeStep()
 		{
 			tw::Float dt_temp;
 			if (creationRate(cell,c) > creationDominance*destructionRate(cell,c))
-				dt_temp = sqrt_eps*std::fabs( (tw::small_pos+state1(cell,c)) / destructionRate(cell,c) );
+				dt_temp = sqrt_eps*std::fabs( (tw::min_pos+state1(cell,c)) / destructionRate(cell,c) );
 			else
-				dt_temp = sqrt_eps*std::fabs( (tw::small_pos+state1(cell,c)) / (creationRate(cell,c) - destructionRate(cell,c)) );
+				dt_temp = sqrt_eps*std::fabs( (tw::min_pos+state1(cell,c)) / (creationRate(cell,c) - destructionRate(cell,c)) );
 			if (dt_temp < dtMax[tid])
 				return dt_temp;
 			else
@@ -1392,11 +1430,12 @@ void sparc::HydroManager::ChemAdvance(tw::Float dt)
 }
 
 /**
- * @brief Forces electrons to move with ions, also throws error if NaN is detected anywhere
+ * @brief Forces electrons to move with ions
  * 
  */
 void sparc::HydroManager::Quasineutrality()
 {
+	logger::DEBUG("quasineutrality update");
 	#pragma omp parallel
 	{
 		tw::Float ionChargeDensity;
@@ -1429,13 +1468,6 @@ void sparc::HydroManager::Quasineutrality()
 			}
 		}
 	}
-	// Check for numerical failure, defined by NaN in the hydro state vector
-	tw::Int badCells = 0;
-	for (auto cell : EntireCellRange(*this,1))
-		for (tw::Int c=0;c<state1.Components();c++)
-			badCells += std::isnan(state1(cell,c));
-	if (badCells)
-		throw tw::FatalError("Encountered NaN in hydrodynamic state");
 }
 
 /**
@@ -1446,6 +1478,7 @@ void sparc::HydroManager::Quasineutrality()
  */
 void sparc::HydroManager::EOSUpdate(bool init)
 {
+	logger::DEBUG("EOS update");
 	eos1 = 0;
 	for (auto g : group) {
 		std::vector<EOSComponent*> elements;
@@ -1492,8 +1525,8 @@ void sparc::HydroManager::FirstOrderAdvance(tw::Float dt,bool computeSources)
 	Quasineutrality();
 	EOSUpdate(false);
 
-	//DiffusionAdvance(dt);
-	//FieldAdvance(dt);
+	DiffusionAdvance(dt);
+	FieldAdvance(dt);
 }
 
 void sparc::HydroManager::Update()
@@ -1513,8 +1546,8 @@ void sparc::HydroManager::Update()
 		FirstOrderAdvance(0.5*space->dX(1,0),false);
 		FirstOrderAdvance(space->dX(1,0),true);
 	}
-
-	//LaserAdvance(space->dX(1,0));
+	if (CheckState()) throw tw::FatalError("NaN in state");
+	LaserAdvance(space->dX(1,0));
 }
 
 bool sparc::HydroManager::ReadQuasitoolBlock(const TSTreeCursor *curs0,const std::string& src)
@@ -1660,7 +1693,8 @@ void sparc::HydroManager::Report(Diagnostic& diagnostic)
 		{
 			g->LoadVelocity(scratch,state1,ax);
 			scratch *= fluxMask;
-			diagnostic.ReportField("v"+xyz[ax]+"_"+g->name,scratch,1,0,tw::dims::velocity,"$v_"+xyz[ax]+"$");
+			diagnostic.ReportField("v" + xyz[ax] + "_" + g->name,
+				scratch,1,0,tw::dims::velocity,"$v_" + xyz[ax] + "$");
 		}
 	}
 }

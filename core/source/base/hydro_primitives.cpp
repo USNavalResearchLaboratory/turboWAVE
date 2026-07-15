@@ -12,6 +12,39 @@ export namespace sparc
 	enum radiationModel { noRadiation, thin, thick };
 	enum plasmaModel { neutral, quasineutral };
 
+	/**
+	 * @brief Values characteristic of a specific simulation.
+	 * @details We will have a set of "typical" values that are
+	 * specified, and a set of "tiny" values that are derived from them.
+	 * The tiny values are chosen to be as small as possible while still
+	 * satisfying `typical + tiny != typical`.
+	 * 
+	 */
+	struct characteristic_values
+	{
+		/// characteristic value of density for this simulation
+		tw::Float n;
+		/// characteristic value of energy density for this simulation
+		tw::Float u; 
+		/// characteristic value of temperature for this simulation
+		tw::Float T;
+		/// characteristic value of energy for this simulation (typically U=kT=T)
+		tw::Float U;
+
+		characteristic_values() {
+			n = 1.0;
+			T = 1e-6;
+			U = T;
+			u = n * T;
+		}
+		characteristic_values(tw::Float n,tw::Float T) {
+			this->n = n;
+			this->T = T;
+			this->U = T;
+			this->u = n*T;
+		}
+	};
+
 	struct hydro_set
 	{
 		// num = number of constituent chemicals
@@ -128,10 +161,10 @@ export namespace sparc
 	{
 		// temperatures in ergs
 		tw::Float rmin,rmax,rmin_alt,coulombLog;
-		rmin = std::fabs(q1*q2)/(tw::small_pos + m12*v12*v12);
-		rmin_alt = cgs::hbar/(tw::small_pos + 2*m12*v12);
+		rmin = std::fabs(q1*q2)/(sqr(tw::eps_pos) + m12*v12*v12);
+		rmin_alt = cgs::hbar/(tw::eps_pos + 2*m12*v12);
 		rmin = (rmin*rmin_alt)/(rmin+rmin_alt); // efficiently estimate the smaller of the two
-		rmax = 1/std::sqrt(tw::small_pos + 4*pi*N1*q1*q1/T1 + 4*pi*N2*q2*q2/T2);
+		rmax = 1/std::sqrt(tw::eps_pos + 4*pi*N1*q1*q1/T1 + 4*pi*N2*q2*q2/T2);
 		coulombLog = std::log((3*rmin+rmax)/rmin); // well behaved approximation of std::log(rmax/rmin)
 		return (32/pi)*std::pow(v12,-4)*sqr(q1*q2/m12)*coulombLog;
 	}

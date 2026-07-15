@@ -36,7 +36,7 @@ struct PrimitiveReaction
 	tw::Float b[9]; // janev coefficients
 	tw::Float unit_T_eV,unit_rate_cgs; // normalization help for janev
 
-	tw::Float PrimitiveRate(tw::Float T);
+	tw::Float PrimitiveRate(tw::Float T,const sparc::characteristic_values& tiny);
 	void ReadRate(TSTreeCursor *curs,const std::string& src,tw::Int numBodies,
 		const tw::UnitConverter& cgs,const tw::UnitConverter& native);
 };
@@ -78,7 +78,7 @@ export struct Collision
 	virtual void ReadInputFile(TSTreeCursor *curs,const std::string& src,const tw::UnitConverter& uc);
 };
 
-tw::Float PrimitiveReaction::PrimitiveRate(tw::Float T)
+tw::Float PrimitiveReaction::PrimitiveRate(tw::Float T,const sparc::characteristic_values& tiny)
 {
 	tw::Float rate;
 
@@ -87,7 +87,7 @@ tw::Float PrimitiveReaction::PrimitiveRate(tw::Float T)
 
 	if (c1==0.0) // use janev form
 	{
-		const tw::Float logT_eV = std::log(tw::small_pos + std::fabs(T)*unit_T_eV);
+		const tw::Float logT_eV = std::log((tiny.T + std::fabs(T))*unit_T_eV);
 		rate = 0.0;
 		for (tw::Int s=0;s<9;s++)
 			rate += b[s]*std::pow(logT_eV,tw::Float(s));
@@ -216,7 +216,7 @@ void Excitation::ReadInputFile(TSTreeCursor *curs,const std::string& src,const t
 	level = std::stod(tw::input::next_named_node_text(curs,src));
 
 	T0 = 0.0;
-	T1 = tw::big_pos;
+	T1 = tw::max_pos;
 	ts_tree_cursor_goto_next_sibling(curs);
 	ReadRate(curs,src,2,cgs,native);
 }

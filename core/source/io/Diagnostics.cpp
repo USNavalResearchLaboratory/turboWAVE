@@ -870,7 +870,7 @@ void PhaseSpaceDiagnostic::Finish()
 
 void PhaseSpaceDiagnostic::ReportParticle(const Particle& par,tw::Float m0)
 {
-	m0 = (sqr(m0)+tw::tiny)/(m0+tw::tiny);
+	m0 = (sqr(m0)+tw::eps_pos)/(m0+tw::eps_pos);
 	weights_3D weights;
 	tw::vec4 x(space->PositionFromPrimitive(par.q));
 	tw::vec4 v(par.p/m0);

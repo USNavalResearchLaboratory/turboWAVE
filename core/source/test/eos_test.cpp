@@ -18,6 +18,7 @@ std::tuple<Field,Field,ScalarField,ScalarField,ScalarField> EOSIdealGas::InitTes
     auto u0 = (cp/gamma) * (n0 >> mks) * (T0 >> mks) * tw::dims::energy_density >> mks;
 
     // create fields and setup indexing
+    auto tiny = sparc::characteristic_values(tw::eps_pos,1e-6*tw::eps_pos);
     auto hidx = sparc::hydro_set();
     auto eidx = sparc::eos_set();
     auto nm = ScalarField();
@@ -34,7 +35,7 @@ std::tuple<Field,Field,ScalarField,ScalarField,ScalarField> EOSIdealGas::InitTes
     eos.Initialize(eidx.count,*space,task);
     
     Initialize();
-    SetupIndexing(0,hidx,eidx,N2);
+    Setup(0,hidx,eidx,N2,tiny);
     nu_e = 1.0;
     for (auto cell : EntireCellRange(*space,1)) {
         hydro(cell,hidx.ni) = n0 >> native;
@@ -79,6 +80,7 @@ std::tuple<Field,Field,ScalarField,ScalarField,ScalarField> EOSTillotson::InitTe
     ECV = tw::dnum("0.141e12 [ergs/g]") >> native;   // Complete vaporization specific energy
 
     // create fields and setup indexing
+    auto tiny = sparc::characteristic_values(tw::eps_pos,1e-6*tw::eps_pos);
     auto hidx = sparc::hydro_set();
     auto eidx = sparc::eos_set();
     auto nm = ScalarField();
@@ -95,7 +97,7 @@ std::tuple<Field,Field,ScalarField,ScalarField,ScalarField> EOSTillotson::InitTe
     eos.Initialize(eidx.count,*space,task);
     
     Initialize();
-    SetupIndexing(0,hidx,eidx,al);
+    Setup(0,hidx,eidx,al,tiny);
     // This EOS does not worry about partial pressures and therefore does not use IE and nm.
     // The expected data is trivially derived from the Hugoniot table given in Tillotson's report.
     nu_e = 1.0;
@@ -129,7 +131,7 @@ void EOSTillotson::ColdCurveTest()
         for (auto i=1; i<6; i++) {
             const tw::Float rho = rho_cgs[i] * tw::dims::mass_density >> cgs >> native;
             const tw::Float expected = E_cgs[i]; // ergs/g
-            const tw::Float IE = ColdCurve(rho) * tw::dims::energy_density >> native >> cgs;
+            const tw::Float IE = ColdCurveCompute(rho) * tw::dims::energy_density >> native >> cgs;
             ASSERT_NEAR(IE/rho_cgs[i],expected,expected/100);
         }
     }

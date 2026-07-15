@@ -792,7 +792,7 @@ void MetricSpace::SetCylindricalGeometry()
 	for (i=0;i<sx;i++)
 		for (tw::Int c=0;c<8;c++)
 			if (cell_area_x[i + c*sx]==0.0)
-				cell_area_x[i + c*sx] = tw::small_pos;
+				cell_area_x[i + c*sx] = tw::eps_pos;
 }
 
 void MetricSpace::SetSphericalGeometry()
@@ -881,11 +881,11 @@ void MetricSpace::SetSphericalGeometry()
 	for (i=0;i<sx;i++)
 		for (tw::Int c=0;c<8;c++)
 			if (cell_area_x[i + c*sx]==0.0)
-				cell_area_x[i + c*sx] = tw::small_pos;
+				cell_area_x[i + c*sx] = tw::min_pos;
 	for (i=0;i<sz;i++)
 		for (tw::Int c=0;c<8;c++)
 			if (cell_area_z[i + c*sz]==0.0)
-				cell_area_z[i + c*sz] = tw::small_pos;
+				cell_area_z[i + c*sz] = tw::min_pos;
 }
 
 tw::Float MetricSpace::ToLab(tw::Float zeta,tw::Float relativeTime)

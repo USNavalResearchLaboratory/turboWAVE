@@ -80,8 +80,8 @@ public:
 		temperature = 0.0;
 		pressure = 0.0;
 		wasTriggered = false;
-		t0 = tw::big_neg;
-		t1 = tw::big_pos;
+		t0 = tw::max_neg;
+		t1 = tw::max_pos;
 		orientation.u = tw::vec3(1,0,0);
 		orientation.v = tw::vec3(0,1,0);
 		orientation.w = tw::vec3(0,0,1);
@@ -348,7 +348,7 @@ export struct PiecewiseProfile:Profile
 		{
 			t.resize(2);
 			ft.resize(2);
-			t.assign({tw::big_neg,tw::big_pos});
+			t.assign({tw::max_neg,tw::max_pos});
 			ft.assign({1,1});
 		}
 		if (x.size()<2)

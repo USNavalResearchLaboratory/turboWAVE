@@ -35,9 +35,9 @@ void conserved_current_to_dens(const tw::Int& n, Field& current, const MetricSpa
 		for (auto cell : EntireCellRange(m,n))
 		{
 			current(cell, T) /= m.dS(cell, 0);
-			current(cell, X) /= m.dS(cell, 1) + tw::small_pos;
-			current(cell, Y) /= m.dS(cell, 2) + tw::small_pos;
-			current(cell, Z) /= m.dS(cell, 3) + tw::small_pos;
+			current(cell, X) /= m.dS(cell, 1) + tw::min_pos;
+			current(cell, Y) /= m.dS(cell, 2) + tw::min_pos;
+			current(cell, Z) /= m.dS(cell, 3) + tw::min_pos;
 		}
 	}
 }

@@ -5,7 +5,8 @@
 ### New Features
 
 * hydro allows either temperature or pressure as initial condition
-* better handling of the cold curve (TODO)
+* better handling of the cold curve
+* characteristic values structure for conditioning hydro expressions
 * valarray is replaced by tw::vec which wraps std::vector
 
 ## [5.0.0-a3]

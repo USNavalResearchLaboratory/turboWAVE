@@ -279,7 +279,7 @@ IterativePoissonSolver::IterativePoissonSolver(const std::string& name,MetricSpa
 	const tw::Int SOR2 = m->GlobalDim(2) - (m->GlobalDim(2)==1 ? 1 : 0);
 	const tw::Int SOR3 = m->GlobalDim(3) - (m->GlobalDim(3)==1 ? 1 : 0);
 	overrelaxation = 2.0 - 10.0/(SOR1 + SOR2 + SOR3);
-	minimumNorm = tw::small_pos;
+	minimumNorm = tw::min_pos;
 	iterationsPerformed = 0;
 	normSource = 0.0;
 	normResidualAchieved = 0.0;

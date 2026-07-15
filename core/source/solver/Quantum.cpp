@@ -663,7 +663,7 @@ void Schroedinger::Initialize()
 	// Solve for the lowest energy s-state on a spherical grid.
 	// This is used only to print the numerical ground state energy level.
 	const tw::Float maxR = space->SphericalRadius((space->GlobalCorner()+space->GlobalPhysicalSize()).spatial());
-	const tw::Float dr = dx(1) * space->ScaleFactor(1,tw::vec3(tw::small_pos,0.0,0.0));
+	const tw::Float dr = dx(1) * space->ScaleFactor(1,tw::vec3(tw::eps_pos,0.0,0.0));
 	const tw::Float r = maxR>30.0 ? 30.0 : maxR;
 	const tw::Int dim = MyCeil(r/dr);
 	tw::vec<tw::Float> eigenvector(dim),phi_r(dim);

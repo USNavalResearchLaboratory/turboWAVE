@@ -88,10 +88,10 @@ void ParticleBundle::Append(Particle& par)
 	x[1][num] = par.q.x[1];
 	x[2][num] = par.q.x[2];
 	x[3][num] = par.q.x[3];
-	u[0][num] = par.p[0] * (m0 + tw::tiny) / (sqr(m0) + tw::tiny);
-	u[1][num] = par.p[1] * (m0 + tw::tiny) / (sqr(m0) + tw::tiny);
-	u[2][num] = par.p[2] * (m0 + tw::tiny) / (sqr(m0) + tw::tiny);
-	u[3][num] = par.p[3] * (m0 + tw::tiny) / (sqr(m0) + tw::tiny);
+	u[0][num] = par.p[0] * (m0 + tw::eps_pos) / (sqr(m0) + tw::eps_pos);
+	u[1][num] = par.p[1] * (m0 + tw::eps_pos) / (sqr(m0) + tw::eps_pos);
+	u[2][num] = par.p[2] * (m0 + tw::eps_pos) / (sqr(m0) + tw::eps_pos);
+	u[3][num] = par.p[3] * (m0 + tw::eps_pos) / (sqr(m0) + tw::eps_pos);
 	number[num] = par.number;
 	num++;
 }

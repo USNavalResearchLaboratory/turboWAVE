@@ -5,7 +5,9 @@ module;
 	#include <ranges>
 #endif
 
-/// # Module handling turboWAVE iterators
+/// @brief Module handling turboWAVE iterators
+///
+/// @details
 ///
 /// ## Classes
 ///

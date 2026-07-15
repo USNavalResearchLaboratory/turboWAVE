@@ -34,7 +34,7 @@ export struct Ionizer : ComputeTool
 		I1 = I2 = I3 = A1 = A2 = A3 = 0.0;
 		nstar = 1.0;
 		lstar = l = m = 0.0;
-		max_rate = tw::big_pos;
+		max_rate = tw::max_pos;
 		// read ionspecies and electronspecies indices in Species::Initialize
 		// setup hydro indexing during Chemical::Initialize
 		directives.Add("ionization potential",new tw::input::Float(&ionizationPotential));

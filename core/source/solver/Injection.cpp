@@ -574,7 +574,7 @@ tw::Complex Multipole::PrimitivePhasor(const tw::vec4& x) const
 tw::vec3 Multipole::PrimitiveVector(const tw::vec4& x) const
 {
 	tw::Complex Ax = PrimitivePhasor(x);
-	const tw::Float rho = tw::small_pos + std::sqrt(x[1]*x[1] + x[2]*x[2]);
+	const tw::Float rho = tw::min_pos + std::sqrt(x[1]*x[1] + x[2]*x[2]);
 	return tw::vec3( -std::real(Ax)*x[2]/rho , std::real(Ax)*x[1]/rho ,0.0 );
 }
 
@@ -595,8 +595,8 @@ Conductor::Conductor(const std::string& name,MetricSpace *m,Task *tsk) : Engine(
 	pulseShape.risetime = 0.01*m->dx(0);
 	pulseShape.holdtime = 1e10*m->dx(0);
 	pulseShape.falltime = 0.01*m->dx(0);
-	gaussianRadius = tw::big_pos;
-	f = tw::big_pos;
+	gaussianRadius = tw::max_pos;
+	f = tw::max_pos;
 	ks = 0.0;
 	temperature = 0.0;
 	directives.Add("px",new tw::input::NumberList<tw::vec<tw::Float>>(&Px),false);

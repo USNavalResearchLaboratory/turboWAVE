@@ -134,10 +134,10 @@ public:
 				for (i = 1; i < L; i++)
 				{
 					index = ss * j + ds * i;
-					source[i - 1] = k[index - ds + 5] - k[index - ds + 2] * k[index] + k[index - ds + 2] * k[index + 4] * k[index + 5] / (tw::small_pos + k[index + 2]);
+					source[i - 1] = k[index - ds + 5] - k[index - ds + 2] * k[index] + k[index - ds + 2] * k[index + 4] * k[index + 5] / (tw::min_pos + k[index + 2]);
 					a[i - 1] = k[index - ds + 1];
-					b[i - 1] = one - k[index - ds + 2] * k[index + 3] + k[index - ds + 2] * k[index + 1] * k[index + 4] / (tw::small_pos + k[index + 2]);
-					c[i - 1] = k[index - ds + 2] * k[index + 4] / (tw::small_pos + k[index + 2]);
+					b[i - 1] = one - k[index - ds + 2] * k[index + 3] + k[index - ds + 2] * k[index + 1] * k[index + 4] / (tw::min_pos + k[index + 2]);
+					c[i - 1] = k[index - ds + 2] * k[index + 4] / (tw::min_pos + k[index + 2]);
 				}
 				source[L - 1] = k[ss * j + ds * (L - 1) + 5] - k[ss * j + ds * (L - 1) + 2] * k[ss * j + ds * L];
 				a[L - 1] = k[ss * j + ds * (L - 1) + 1];
@@ -153,9 +153,9 @@ public:
 				for (i = 1; i < L; i++)
 				{
 					index = ss * j + ds * i;
-					source[i] = k[index + ds] - k[index + ds + 3] * k[index + 5] + k[index + ds + 3] * k[index + 1] * k[index] / (tw::small_pos + k[index + 3]);
-					a[i] = k[index + ds + 3] * k[index + 1] / (tw::small_pos + k[index + 3]);
-					b[i] = one - k[index + 2] * k[index + ds + 3] + k[index + ds + 3] * k[index + 1] * k[index + 4] / (tw::small_pos + k[index + 3]);
+					source[i] = k[index + ds] - k[index + ds + 3] * k[index + 5] + k[index + ds + 3] * k[index + 1] * k[index] / (tw::min_pos + k[index + 3]);
+					a[i] = k[index + ds + 3] * k[index + 1] / (tw::min_pos + k[index + 3]);
+					b[i] = one - k[index + 2] * k[index + ds + 3] + k[index + ds + 3] * k[index + 1] * k[index + 4] / (tw::min_pos + k[index + 3]);
 					c[i] = k[index + ds + 4];
 				}
 				TriDiagonal<T, T>(ans, source, a, b, c);

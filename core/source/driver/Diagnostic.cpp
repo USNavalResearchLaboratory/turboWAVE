@@ -43,8 +43,8 @@ export struct Diagnostic : Engine
 		skip[1] = skip[2] = skip[3] = 1;
 		t = 0.0;
 		t0 = 0.0;
-		t1 = tw::big_pos;
-		tRef = tw::big_neg;
+		t1 = tw::max_pos;
+		tRef = tw::max_neg;
 		timePeriod = 0.0;
 		filename = "diagnostic";
 		vGalileo = 0.0;

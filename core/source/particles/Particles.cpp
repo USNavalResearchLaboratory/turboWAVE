@@ -38,7 +38,7 @@ struct LoadingData
 	LoadingData(const MetricSpace& space,const Task& task,const tw::vec3& distributionInCell,const tw::cell& c);
 	tw::Float GeometryFactor(tw::Float r,tw::Float r0) const
 	{
-		return std::fabs(C0 + SafeDiv(C1*r,r0) + sqr(SafeDiv(std::sqrt(C2)*r,r0)));
+		return std::fabs(C0 + C1*r/(r0+tw::eps_pos) + sqr(std::sqrt(C2)*r/(r0+tw::eps_pos)));
 	}
 };
 
@@ -518,7 +518,7 @@ void Kinetics::ProcessQED()
 					} while (chi < 0.0f);
 
 					k3u = part.p.spatial();
-					k3u /= Magnitude(k3u) + tw::tiny;
+					k3u /= Magnitude(k3u) + tw::eps_pos;
 
 					energy = 2.0*chi*cub(cgs::me)*std::pow(cgs::c,5)/(cgs::qe*cgs::hbar);
 					energy /= std::sqrt(Norm(E + (k3u|B)) - sqr(k3u^E));
@@ -560,7 +560,7 @@ void Kinetics::ProcessQED()
 				Particle& part = photon[i];
 
 				k3u = part.p.spatial();
-				k3u /= Magnitude(k3u) + tw::tiny;
+				k3u /= Magnitude(k3u) + tw::eps_pos;
 
 				omega = (part.p[0] * tw::dims::energy >> native >> cgs)/cgs::hbar;
 

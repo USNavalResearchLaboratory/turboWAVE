@@ -19,6 +19,6 @@ export struct RootFinderTest: ComputeTool {
         auto f = [] (tw::Float x) {
             return x*x + 4*x + 4;
         };
-        ASSERT_NEAR(SecantMethod(f,1,2),-2,1e-6);
+        ASSERT_NEAR(SecantMethod(f,1,2,1e-12,1e-8,1000),-2,1e-6);
     }
 };

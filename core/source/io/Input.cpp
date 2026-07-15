@@ -252,7 +252,7 @@ std::string tw::input::PythonRange(TSTreeCursor *curs,const std::string& src,tw:
 	if (tw::input::next_named_node(curs,false))
 		*v1 = std::stod(tw::input::node_text(curs,src));
 	else
-		*v1 = tw::big_pos;
+		*v1 = tw::max_pos;
 	return ans;
 }
 

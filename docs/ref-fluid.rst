@@ -53,6 +53,14 @@ SPARC Hydro Modules
 
 			:param float eps: error tolerance for adaptive time step
 
+		.. py:function:: typical density = ntyp
+
+			:param float ntyp: typical number density expected in simulation (used to derive conditioning terms)
+
+		.. py:function:: typical temperature = Ttyp
+
+			:param float Ttyp: typical temperature expected in simulation (used to derive conditioning terms)
+
 		.. py:function:: background density = n0
 
 			:param float n0: automatically create a uniform background density ``n0`` for every chemical species.  Charged species are automatically weighted such that neutrality is maintained.  Defaults to zero, in which case the user is responsible for explicitly loading every chemical species.

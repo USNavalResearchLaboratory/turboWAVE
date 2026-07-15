@@ -70,10 +70,10 @@ export struct Chemical:Driver
 	/// Set EOS indexing, and return this chemical's photoionization object, which the
 	/// caller is expected to index, if it is not empty.
 	/// Assumes mat and indexInState are valid.
-	std::shared_ptr<Ionizer> SetupIndexing(const sparc::hydro_set& hidx,const sparc::eos_set& eidx)
+	std::shared_ptr<Ionizer> Setup(const sparc::hydro_set& hidx,const sparc::eos_set& eidx,const sparc::characteristic_values& tiny)
 	{
 		logger::TRACE(std::format("indexing {} EOS",name));
-		eosData->SetupIndexing(indexInState,hidx,eidx,mat);
+		eosData->Setup(indexInState,hidx,eidx,mat,tiny);
 		return ionizer;
 	}
 
@@ -96,9 +96,18 @@ export struct Chemical:Driver
 		}
 	}
 
-	/// Initial loading of mass, momentum, and energy.
-	/// Internal energy associated with a temperature or pressure specification is *not* handled herein.
-	bool LoadFluid(Field& hydro,const sparc::hydro_set& hidx)
+	/**
+	 * @brief load mass, momentum, and kinetic energy
+	 * @details Energy loading is kinetic only, other energy is added elsewhere.
+	 * The profile's time gate is analyzed to determine whether we are adding, replacing, or leaving. 
+	 * 
+	 * @param hydro field with mass, momentum and energy components
+	 * @param hidx indexing scheme for hydro
+	 * @param tiny small characteristic values
+	 * @return true if any mass was loaded
+	 * @return false if mass was not loaded
+	 */
+	bool LoadFluid(Field& hydro,const sparc::hydro_set& hidx,const sparc::characteristic_values& tiny)
 	{
 		bool massLoaded = false;
 		tw::Float add = 0.0;
@@ -122,15 +131,12 @@ export struct Chemical:Driver
 					if (prof->whichQuantity==tw::profile::quantity::density && dens>0.0)
 					{
 						massLoaded = true;
-						const tw::Float kT = prof->Temperature(mat.mass);
-						const tw::Float kinetic = 0.5*Norm(dens*p0)/(tw::small_pos + mat.mass*dens);
-						const tw::Float vibrational = dens*mat.excitationEnergy/(std::fabs(std::exp(mat.excitationEnergy/kT) - 1.0) + tw::small_pos);
+						const tw::Float kinetic = 0.5*Norm(dens*p0)/(tiny.n + mat.mass*dens);
 						hydro(cell,ns) = add*hydro(cell,ns) + dens;
 						hydro(cell,npx) = add*hydro(cell,npx) + dens*p0.x;
 						hydro(cell,npy) = add*hydro(cell,npy) + dens*p0.y;
 						hydro(cell,npz) = add*hydro(cell,npz) + dens*p0.z;
-						hydro(cell,U) = add*hydro(cell,U) + kinetic + vibrational; // internal energy added in subsequent sweep
-						hydro(cell,Xi) = add*hydro(cell,Xi) + vibrational;
+						hydro(cell,U) = add*hydro(cell,U) + kinetic; // internal energy added in subsequent sweep
 					} else if (prof->whichQuantity==tw::profile::quantity::energy) {
 						hydro(cell,U) = add*hydro(cell,U) + dens;
 					} else if (prof->whichQuantity==tw::profile::quantity::power) {

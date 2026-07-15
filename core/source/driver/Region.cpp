@@ -127,7 +127,7 @@ export struct Region : Engine
 	/// take any 8 vertices and return an aligned hull, i.e., take a box that may have been rotated
 	/// and form a box around it that is aligned to the coordinate system
 	std::array<tw::Float,6> AlignedHull(const std::vector<tw::vec4>& vertices) const {
-		std::array<tw::Float,6> ans {tw::big_pos,tw::big_neg,tw::big_pos,tw::big_neg,tw::big_pos,tw::big_neg};
+		std::array<tw::Float,6> ans {tw::max_pos,tw::max_neg,tw::max_pos,tw::max_neg,tw::max_pos,tw::max_neg};
 		for (auto i=0;i<8;i++) {
 			ans[0] = std::min(ans[0],vertices[i][1]);
 			ans[1] = std::max(ans[1],vertices[i][1]);
@@ -139,7 +139,7 @@ export struct Region : Engine
 		return ans;
 	}
     std::array<tw::Float,6> Bounds(int depth) const {
-		std::array<tw::Float,6> entire {tw::big_neg,tw::big_pos,tw::big_neg,tw::big_pos,tw::big_neg,tw::big_pos};
+		std::array<tw::Float,6> entire {tw::max_neg,tw::max_pos,tw::max_neg,tw::max_pos,tw::max_neg,tw::max_pos};
 		if (complement) {
 			// complement of something bounded is something unbounded
 			// (but what if this thing is unbounded?)

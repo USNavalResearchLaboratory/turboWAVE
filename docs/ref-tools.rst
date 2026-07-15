@@ -750,9 +750,9 @@ Equation of State Tools
 
 			:param float grun: the gruneisen parameter relating density, temperature, and pressure
 
-		.. py:function:: reference density = nref
+		.. py:function:: reference mass density = nmref
 
-			:param float nref: the reference density for the Hugoniot data
+			:param float nmref: the reference mass density for the Hugoniot data
 
 		.. py:function:: hugoniot intercept = c0
 

@@ -590,7 +590,7 @@ export namespace tw
 			// Boost in an arbitrary direction with relativistic 4-velocity gb (gamma*beta)
 			tw::vec4 v(*this);
 			tw::Float b2 = gb[1]*gb[1] + gb[2]*gb[2] + gb[3]*gb[3];
-			auto Lij = [&] (tw::Int i,tw::Int j) { return gb[i]*gb[j]*(gb[0]-1)/(tw::small_pos+b2); };
+			auto Lij = [&] (tw::Int i,tw::Int j) { return gb[i]*gb[j]*(gb[0]-1)/(tw::eps_pos+b2); };
 			tw::vec4 L0(gb[0],gb[1],gb[2],gb[3]);
 			tw::vec4 L1(gb[1],1+Lij(1,1),Lij(1,2),Lij(1,3));
 			tw::vec4 L2(gb[2],Lij(2,1),1+Lij(2,2),Lij(2,3));

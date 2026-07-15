@@ -25,6 +25,7 @@ export struct EquilibriumGroup:Driver
 	std::shared_ptr<EOSMixture> eosMixData;
 	bool mobile;
 
+	sparc::characteristic_values tiny;
 	// The hydro set contains indices into the state vector for this group.
 	// The mass density index corresponds to the first chemical in the group.
 	sparc::hydro_set hidx;
@@ -62,7 +63,7 @@ export struct EquilibriumGroup:Driver
 	tw::vec3 Velocity(const Field& f,const tw::cell& cell)
 	{
 		tw::Float nm = DensityWeightedSum(f,matset.mass,cell);
-		return tw::vec3(f(cell,hidx.npx),f(cell,hidx.npy),f(cell,hidx.npz))/(tw::small_pos + nm);
+		return tw::vec3(f(cell,hidx.npx),f(cell,hidx.npy),f(cell,hidx.npz))/(tiny.n + nm);
 	}
 	void LoadVelocity(ScalarField& vel,const Field& f,tw::Int ax)
 	{
@@ -71,7 +72,7 @@ export struct EquilibriumGroup:Driver
 		for (auto cell : EntireCellRange(*this,1))
 		{
 			nm = DensityWeightedSum(f,matset.mass,cell);
-			vel(cell) = f(cell,hidx.npx+ax-1)/(tw::small_pos + nm);
+			vel(cell) = f(cell,hidx.npx+ax-1)/(tiny.n + nm);
 		}
 	}
 
@@ -88,7 +89,7 @@ export struct EquilibriumGroup:Driver
 
 	/// Before calling this on each group, the Hydro object needs to setup
 	/// hidx and indexInState for all groups and chemicals.
-	void SetupIndexing()
+	void Setup(const sparc::characteristic_values& tiny)
 	{
 		logger::TRACE(std::format("indexing for {}",name));
 		matset.Allocate(chemical.size());
@@ -96,10 +97,10 @@ export struct EquilibriumGroup:Driver
 		for (tw::Int i=0;i<chemical.size();i++)
 			matset.AddMaterial(chemical[i]->mat,i);
 		logger::TRACE(std::format("EOS indexing for {}",name));
-		eosMixData->SetupIndexing(hidx,eidx,matset);
+		eosMixData->Setup(hidx,eidx,matset,tiny);
 		// Now we can setup indexing for all Chemical modules
 		for (auto chem : chemical) {
-			auto ionizer = chem->SetupIndexing(hidx,eidx);
+			auto ionizer = chem->Setup(hidx,eidx,tiny);
 			if (ionizer.use_count() > 0)
 			{
 				// Setup the indexing for photoionization here (ionization tool cannot do it)
@@ -146,9 +147,9 @@ export struct EquilibriumGroup:Driver
 		std::vector<bool> massLoaded(chemical.size());
 		logger::TRACE("load totals");
 		for (tw::Int i=0;i<chemical.size();i++) {
-			massLoaded[i] = chemical[i]->LoadFluid(hydro,hidx);
+			massLoaded[i] = chemical[i]->LoadFluid(hydro,hidx,tiny);
 		}
-		logger::TRACE("load internal");
+		logger::TRACE("load target parameters");
 		std::vector<EOSComponent*> elements;
 		for (tw::Int i=0;i<chemical.size();i++) {
 			if (massLoaded[i]) {
@@ -156,6 +157,7 @@ export struct EquilibriumGroup:Driver
 				chemical[i]->LoadTargetParameters(eos,eidx);
 			}
 		}
+		logger::TRACE("init internal energy");
 		if (elements.size() > 0) {
 			eosMixData->InitEnergyWithIntrinsics(elements,hydro,eos);
 		}

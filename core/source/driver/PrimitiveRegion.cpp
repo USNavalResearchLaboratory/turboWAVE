@@ -26,7 +26,7 @@ export struct EntireRegion : PrimitiveRegion
 		return true;
 	}
     virtual std::array<tw::Float,6> Bounds() const {
-		return std::array<tw::Float,6> {-tw::big_pos,tw::big_pos,-tw::big_pos,tw::big_pos,-tw::big_pos,tw::big_pos};
+		return std::array<tw::Float,6> {-tw::max_pos,tw::max_pos,-tw::max_pos,tw::max_pos,-tw::max_pos,tw::max_pos};
 	}
 	virtual void SpotCheckInsideTest();
 };

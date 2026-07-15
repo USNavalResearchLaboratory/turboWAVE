@@ -318,10 +318,10 @@ void Mover::CopyBack(MoverType *b)
 		b->refs[i]->q.x[1] = b->x[1][i];
 		b->refs[i]->q.x[2] = b->x[2][i];
 		b->refs[i]->q.x[3] = b->x[3][i];
-		b->refs[i]->p[0] = b->u[0][i]*(sqr(m0)+tw::tiny)/(m0+tw::tiny);
-		b->refs[i]->p[1] = b->u[1][i]*(sqr(m0)+tw::tiny)/(m0+tw::tiny);
-		b->refs[i]->p[2] = b->u[2][i]*(sqr(m0)+tw::tiny)/(m0+tw::tiny);
-		b->refs[i]->p[3] = b->u[3][i]*(sqr(m0)+tw::tiny)/(m0+tw::tiny);
+		b->refs[i]->p[0] = b->u[0][i]*(sqr(m0)+tw::eps_pos)/(m0+tw::eps_pos);
+		b->refs[i]->p[1] = b->u[1][i]*(sqr(m0)+tw::eps_pos)/(m0+tw::eps_pos);
+		b->refs[i]->p[2] = b->u[2][i]*(sqr(m0)+tw::eps_pos)/(m0+tw::eps_pos);
+		b->refs[i]->p[3] = b->u[3][i]*(sqr(m0)+tw::eps_pos)/(m0+tw::eps_pos);
 		// If particle left MPI domain, add to transfer list, and mark for disposal
 		if (b->domainMask[i]==0.0)
 		{

@@ -16,7 +16,7 @@ import metric_space;
  * @return integrated value at t+dt
  */
 export template<typename T>
-T RK4Step(T y0, double t, double dt, std::function<T(double, T)> f) {
+T RK4Step(T y0, tw::Float t, tw::Float dt, std::function<T(tw::Float, T)> f) {
     T k1 = f(t, y0);
     T k2 = f(t + dt/2, y0 + dt*k1/2);
     T k3 = f(t + dt/2, y0 + dt*k2/2);
@@ -35,7 +35,7 @@ T RK4Step(T y0, double t, double dt, std::function<T(double, T)> f) {
  * @return integrated value at t2
  */
 export template<typename T>
-T RK4Integrate(T y0, double t1, double t2, double dt0, std::function<T(double, T)> f, double tol) {
+T RK4Integrate(T y0, tw::Float t1, tw::Float t2, tw::Float dt0, std::function<T(tw::Float, T)> f, tw::Float tol) {
 	const int max_iter = 100000;
 	T eta1,eta2;
 	tw::Float t=t1,H=std::copysign(dt0,t2-t1),merit=2;
@@ -57,20 +57,62 @@ T RK4Integrate(T y0, double t1, double t2, double dt0, std::function<T(double, T
 }
 
 /**
- * @brief Find root by Secant method (from CODEX)
+ * @brief Performs 1D linear interpolation (from CODEX)
+ *
+ * @details Given two vectors `x` and `y` of the same length ≥ 2, representing data points
+ * (with `x` assumed sorted in ascending order), computes the interpolated (or extrapolated)
+ * y-value for a given `x_query` using linear interpolation between the nearest points.
+ *
+ * @param x         Vector of x-coordinates (must be sorted, size ≥ 2).
+ * @param y         Vector of y-coordinates (same size as x).
+ * @param x_query   The x-value at which to interpolate.
+ * @return          The interpolated (or extrapolated) y-value at `x_query`.
+ * @throws std::invalid_argument if vectors are not the same size or have <2 elements.
+ */
+ export tw::Float linear_interpolate(const std::vector<tw::Float>& x, const std::vector<tw::Float>& y, tw::Float x_query) {
+    if (x.size() != y.size() || x.size() < 2)
+        throw std::invalid_argument("Vectors must be the same size and have at least two points.");
+
+    // Find interval [x[i], x[i+1]] that contains x_query
+    auto it = std::lower_bound(x.begin(), x.end(), x_query);
+
+    if (it == x.begin()) {
+        // x_query is before the first element, extrapolate or clamp
+        size_t i = 0;
+        tw::Float slope = (y[1] - y[0]) / (x[1] - x[0]);
+        return y[0] + slope * (x_query - x[0]);
+    }
+    if (it == x.end()) {
+        // x_query is after the last element, extrapolate or clamp
+        size_t i = x.size() - 2;
+        tw::Float slope = (y[i+1] - y[i]) / (x[i+1] - x[i]);
+        return y[i] + slope * (x_query - x[i]);
+    }
+
+    size_t i = static_cast<size_t>(it - x.begin() - 1);
+    tw::Float x0 = x[i], x1 = x[i+1];
+    tw::Float y0 = y[i], y1 = y[i+1];
+
+    // Linear interpolation formula
+    return y0 + (y1 - y0) * (x_query - x0) / (x1 - x0);
+}
+
+/**
+ * @brief Find root by Secant method (adapted from CODEX)
  * 
  * @param f function whose root we seek
  * @param x0 first guess
  * @param x1 second guess
+ * @param fmin give up if function evaluations differ by this amount or less
  * @param tol tolerance
  * @param max_iter stop after iterations
  * @return estimate of the root
  */
-export tw::Float SecantMethod(std::function<tw::Float(tw::Float)> f, tw::Float x0, tw::Float x1, tw::Float tol = 1e-8, tw::Int max_iter = 100) {
+export tw::Float SecantMethod(std::function<tw::Float(tw::Float)> f, tw::Float x0, tw::Float x1, tw::Float fmin, tw::Float tol, tw::Int max_iter) {
 	for (auto i = 0; i < max_iter; i++) {
 		tw::Float f0 = f(x0);
 		tw::Float f1 = f(x1);
-		if (std::abs(f1 - f0) < 1e-12) {
+		if (std::abs(f1 - f0) < fmin) {
 			break;
 		}
 		tw::Float x2 = x1 - f1* (x1 - x0) / (f1 - f0);

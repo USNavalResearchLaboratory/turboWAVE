@@ -76,11 +76,13 @@ export namespace tw
 	const tw::Int cache_align_bytes = 64;
 	const tw::Int vec_align_bytes = VBITS/8; // if not matched to hardware can lead to failures
 	const tw::Int max_bundle_size = 16; // must be multiple of vec_align_bytes / sizeof(float)
-	const tw::Float small_neg = -1e9*std::numeric_limits<tw::Float>::min();
-	const tw::Float small_pos = 1e9*std::numeric_limits<tw::Float>::min();
-	const tw::Float big_neg = -1e-9*std::numeric_limits<tw::Float>::max();
-	const tw::Float big_pos = 1e-9*std::numeric_limits<tw::Float>::max();
-	const tw::Float tiny = std::numeric_limits<tw::Float>::epsilon();
+	const tw::Float eps_neg = -std::numeric_limits<tw::Float>::epsilon();
+	const tw::Float eps_pos = std::numeric_limits<tw::Float>::epsilon();
+	// for our local min and max we back off the machine limits by epsilon factors
+	const tw::Float min_neg = -std::numeric_limits<tw::Float>::min()/eps_pos;
+	const tw::Float min_pos = std::numeric_limits<tw::Float>::min()/eps_pos;
+	const tw::Float max_neg = -std::numeric_limits<tw::Float>::max()*eps_pos;
+	const tw::Float max_pos = std::numeric_limits<tw::Float>::max()*eps_pos;
 	#ifdef _WIN32
 	tw::Float * alloc_aligned_floats(size_t count,size_t alignment) {
 		return (tw::Float*)_aligned_malloc(count*sizeof(tw::Float),alignment);
@@ -332,12 +334,6 @@ export tw::Float cub(const tw::Float& a)
 export tw::Float quad(const tw::Float& a)
 {
 	return a*a*a*a;
-}
-
-export tw::Float SafeDiv(const tw::Float& numerator,const tw::Float& denominator)
-{
-	return numerator / (denominator + tw::small_pos);
-	//return denominator==0.0?0.0:numerator/denominator;
 }
 
 export tw::Float arcsinh(const tw::Float& a)

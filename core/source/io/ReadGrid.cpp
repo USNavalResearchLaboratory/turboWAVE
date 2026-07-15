@@ -31,11 +31,11 @@ export class GridReader
 
 	public:
 	GridReader(tw::units native,tw::Float unitDensityCGS) {
-		min_spacing = tw::vec4(tw::small_pos);
-		max_spacing = tw::vec4(tw::big_pos);
-		critical_spacing = tw::vec4(tw::small_pos);
+		min_spacing = tw::vec4(tw::min_pos);
+		max_spacing = tw::vec4(tw::max_pos);
+		critical_spacing = tw::vec4(tw::min_pos);
 		solutionVelocity = tw::vec4(1.0,0.0,0.0,0.0);
-		maxWindowPosition = tw::big_pos;
+		maxWindowPosition = tw::max_pos;
 		neutralize = false;
 		movingWindow = false;
 		bc0[1] = tw::bc::par::periodic;
