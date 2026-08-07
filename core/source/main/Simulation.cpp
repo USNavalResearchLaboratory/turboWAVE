@@ -181,6 +181,7 @@ void Simulation::Run()
 		}
 
 		std::println(std::cout,"Current status can be viewed in 'twstat' file.");
+		std::println(std::cout,"Logging level: TW_LOG = {}",logger::get_level_str());
 		if (interactive) {
 			std::println(std::cout,"Type `help` for interactive commands.");
 		} else {
@@ -403,7 +404,7 @@ void Simulation::PrepareSimulation()
 		std::println(std::cout,"(no shared tools)");
 
 	// Initialize root level drivers.
-	// Super-drivers have to explicitly initialize sub-drivers.
+	// Recursion is not automatic, drivers are expected to handle their sub-drivers.
 
 	std::println(std::cout,"\nInitialize Drivers...\n");
 	std::flush(std::cout);
@@ -420,7 +421,8 @@ void Simulation::PrepareSimulation()
 
 	std::println(std::cout,"\nShow the Driver Tree...\n");
 	std::flush(std::cout);
-	RecursiveTreeDisplay(&std::cout,0,16);
+	RecursiveTreeDisplay(&std::cout,0,16,"",true);
+	std::println(std::cout,"\nHow to fix garbled tree on PowerShell:\n[Console]::OutputEncoding = [System.Text.Encoding]::UTF8");
 
 	// Read checkpoint data
 
@@ -475,7 +477,7 @@ void Simulation::InteractiveCommand(const std::string& cmd,std::ostream *theStre
 		*theStream << "--- List of Interactive Commands ---" << std::endl;
 		*theStream << "status or /: print current step and other status indicators" << std::endl;
 		*theStream << "metrics : print grid and time step metrics for this simulation" << std::endl;
-		*theStream << "list : list modules and compute tools and their ID numbers" << std::endl;
+		*theStream << "tree : display the driver tree for this simulation" << std::endl;
 		//*theStream << "peek [x] [y] [z] : print current data at cell x,y,z" << std::endl;
 		*theStream << "Ctrl-C : abort the simulation" << std::endl;
 		*theStream << std::endl;
@@ -488,9 +490,8 @@ void Simulation::InteractiveCommand(const std::string& cmd,std::ostream *theStre
 		for (auto tool : tools)
 			tool->StatusMessage(theStream);
 		*theStream << std::endl;
-	} else if (cmd=="list") {
-		*theStream << "--- Driver Tree ---" << std::endl;
-		RecursiveTreeDisplay(theStream,0,16);
+	} else if (cmd=="tree") {
+		RecursiveTreeDisplay(theStream,0,16,"",true);
 	} else if (cmd=="metrics") {
 		*theStream << "Steps to take: " << space->StepsToTake() << std::endl;
 		*theStream << "Steps remaining: " << space->StepsToTake() - space->StepNow() << std::endl;

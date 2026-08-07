@@ -211,29 +211,30 @@ export struct Driver:StaticSpace,Engine
 
 		return false;
 	}
-	void RecursiveTreeDisplay(std::ostream *theStream,int currLevel,int maxLevel) {
+	void RecursiveTreeDisplay(std::ostream *theStream,int currLevel,int maxLevel,const std::string& prefix,bool isLast) {
 		if (currLevel > maxLevel) {
 			throw tw::FatalError("reached max recursions (probably broken driver tree)");
 		}
-		std::string indentation = "";
-		for (auto i=0; i< currLevel*2; i++) {
-			indentation += " ";
-		}
-		if (currLevel==0) {
-			*theStream << "Root Simulation" << std::endl;
-		}
+	    std::string branch = currLevel==0 ? "" : (isLast ? "└── " : "├── ");
+		*theStream << prefix << branch << name << std::endl;
+		std::string prefix2 = prefix + (currLevel==0 ? "" : (isLast ? "    " : "│   "));
+		std::string branch2 = sub_drivers.size() == 0 ? "└── " : "├── ";
+		std::string prefix3 = prefix2 + (sub_drivers.size() > 0 ? "│   " : "    ");
+		std::string prefix4 = prefix2 + "    ";
+
+		// For tools we don't need to be recursive, unless we want to break out engines sometime
 		if (tools.size() > 0) {
-			*theStream << indentation << "  ---Tools---" << std::endl;
-		}
-		for (auto i=0; i<tools.size(); i++) {
-			*theStream << indentation << "  " << i+1 << ". " << tools[i]->name << std::endl;			
+			*theStream << prefix2 << branch2 << "tools" << std::endl;
+			for (auto i=0; i<tools.size(); i++) {
+				std::string branch = i+1==tools.size() ? "└── " : "├── ";
+				*theStream << prefix3 << branch << tools[i]->name << std::endl;			
+			}
 		}
 		if (sub_drivers.size() > 0) {
-			*theStream << indentation << "  ---Drivers---" << std::endl;
-		}
-		for (auto i=0; i<sub_drivers.size(); i++) {
-			*theStream << indentation << "  " << i+1 << ". " << sub_drivers[i]->name << std::endl;
-			sub_drivers[i]->RecursiveTreeDisplay(theStream,currLevel+1,maxLevel);
+			*theStream << prefix2 << "└── " << "drivers" << std::endl;
+			for (auto i=0; i<sub_drivers.size(); i++) {
+				sub_drivers[i]->RecursiveTreeDisplay(theStream,currLevel+1,maxLevel,prefix4,i+1==sub_drivers.size());
+			}
 		}
 	}
 	static bool SingularType(tw::tool_type theType) {

@@ -3,7 +3,7 @@
 #ifndef USE_STD_MODULE
 #include <thread>
 #endif
-#ifdef _WIN64
+#ifdef _WIN32
 #include <Windows.h>
 #endif
 import base;
@@ -39,7 +39,7 @@ void start_interactive(Simulation *tw)
 
 int main(int argc,char *argv[])
 {
-	#ifdef _WIN64
+	#ifdef _WIN32
 	SetConsoleCP(CP_UTF8);
 	SetConsoleOutputCP(CP_UTF8);
 	#endif

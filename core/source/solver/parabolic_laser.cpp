@@ -70,7 +70,13 @@ export struct ForwardPropagator:ComputeTool
 		chi.SetBoundaryConditions(tw::grid::y,fld::dirichletCell,fld::dirichletCell);
 		chi.SetBoundaryConditions(tw::grid::z,fld::dirichletCell,fld::dirichletCell);
 	}
-	/// @brief ADI advance with `ua` being the implicitly treated axis (1 or 2)
+	/**
+	 * @brief advance laser envelope in 2D or 3D
+	 * 
+	 * @param ua the implicitly treated axis
+	 * @param a the complex envelope
+	 * @param chi the plasma response
+	 */
 	void AdvanceAxis(tw::Int ua,ComplexField& a,ComplexField& chi)
 	{
 		const tw::Int va = ua == 1 ? 2 : 1; // explicit axis
@@ -102,8 +108,8 @@ export struct ForwardPropagator:ComputeTool
 					const auto D2 = (A1/Vol) / space->dl(un,i+1,ua);
 					const auto dtidzi = 1/space->dl(wn,k+1,3)/dt;
 					const auto R = radialPolarizationFactor / sqr(space->X(i,ua));
-					const auto T2p = (2.0*ii*w0/dt) - 3.0*dtidzi - (D1+D2+R) + chi(uc,i); 
-					const auto T2m = (2.0*ii*w0/dt) - 3.0*dtidzi + (D1+D2+R) - chi(uc,i);
+					const auto T2p = (2.0*ii*w0/dt) - 3.0*dtidzi - (D1+D2+R) + chi(un,i);  // n.b. chi has not been shifted
+					const auto T2m = (2.0*ii*w0/dt) - 3.0*dtidzi + (D1+D2+R) - chi(un,i);  // n.b. chi has not been shifted
 					const auto lookahead = dtidzi*(4.0*a(wn,k+1) - 4.0*a(wp,k+1) + a(wp,k+2) - a(wn,k+2));
 					src[i-1] = T2m*a(up,i) - lookahead - D1*a(up,i-1) - D2*a(up,i+1);
 
@@ -139,6 +145,14 @@ export struct ForwardPropagator:ComputeTool
 		a.Field::DownwardCopy(Rng04(1,2,0,2),tw::grid::enumaxis(va),1);
 		a.Field::ApplyBoundaryCondition(Rng04(1,2,0,2));
 	}
+	/**
+	 * @brief Advance the complex laser envelope
+	 * @details The argument fields have 3 time nodes, n=1=next, n=2=current, n=3=previous.
+	 * We are passing in chi(n=1) and a(n=1,2).  Then a is shifted to n=2,3, and n=1 is worked out.
+	 * We don't bother shifting chi since it is only needed at 1 time level for now.
+	 * @param a laser envelope, possibly sampled on refined grid
+	 * @param chi plasma response, possibly sampled on refined grid
+	 */
 	void Advance(ComplexField& a,ComplexField& chi)
 	{
 		// TODO: the shift has replaced copying current data to a scratch array (aNow),
@@ -171,10 +185,10 @@ export struct ForwardPropagator:ComputeTool
 		{
 			for (auto k=zDim;k>=-1;k--) {
 				const auto dtidzi = 1/space->dl(1,1,k+1,3)/dt;
-				const auto T2p = (2.0*ii*w0/dt) - 3.0*dtidzi + chi(1,1,k); 
-				const auto T2m = (2.0*ii*w0/dt) - 3.0*dtidzi - chi(1,1,k);
-				const auto lookahead = dtidzi*(4.0*a(1,1,k+1) - 4.0*a(3,1,1,k+1) + a(3,1,1,k+2) - a(1,1,k+2));
-				a.Pack(1,1,k, (T2m*a(3,1,1,k) - lookahead) / T2p);
+				const auto T2p = (2.0*ii*w0/dt) - 3.0*dtidzi + chi(1,1,1,k); 
+				const auto T2m = (2.0*ii*w0/dt) - 3.0*dtidzi - chi(1,1,1,k);
+				const auto lookahead = dtidzi*(4.0*a(1,1,1,k+1) - 4.0*a(3,1,1,k+1) + a(3,1,1,k+2) - a(1,1,1,k+2));
+				a.Pack(1,1,1,k, (T2m*a(3,1,1,k) - lookahead) / T2p);
 			}
 		} else if ((!evenTime && xDim>1) || (yDim==1 && xDim>1)) {
 			AdvanceAxis(1,a,chi);

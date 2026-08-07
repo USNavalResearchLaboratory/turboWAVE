@@ -147,7 +147,7 @@ export struct ScalarField: Field
 
 	tw::Float& operator () (const tw::Int& i, const tw::Int& j, const tw::Int& k)
 	{
-		return Field::operator () (0,i,j,k,0);
+		return Field::operator () (1,i,j,k,0);
 	}
 	tw::Float& operator () (const tw::Int& n,const tw::Int& i, const tw::Int& j, const tw::Int& k)
 	{
@@ -361,7 +361,7 @@ export struct ComplexField: Field
 	// Access by value (important to return const to prevent assigning to it)
 
 	const tw::Complex operator () (const tw::Int& i, const tw::Int& j, const tw::Int& k) const {
-		return tw::Complex(Field::operator () (1,i,j,k,0), Field::operator () (0,i,j,k,1));
+		return tw::Complex(Field::operator () (1,i,j,k,0), Field::operator () (1,i,j,k,1));
 	}
 	const tw::Complex operator () (const tw::Int& n,const tw::Int& i, const tw::Int& j, const tw::Int& k) const {
 		return tw::Complex(Field::operator () (n,i,j,k,0), Field::operator () (n,i,j,k,1));

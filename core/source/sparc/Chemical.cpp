@@ -79,18 +79,20 @@ export struct Chemical:Driver
 
 	/// Handle external sources or sinks that have been prescribed as part of the problem
 	void PumpFluid(Field& create,Field& destroy,const sparc::hydro_set& hidx) {
-		const tw::Int ns = indexInState;
-		const tw::Int npx = hidx.npx;
-		const tw::Int npy = hidx.npy;
-		const tw::Int npz = hidx.npz;
-		const tw::Int U = hidx.u;
-		const tw::Int Xi = hidx.x;
+		std::map<tw::profile::quantity,tw::Int> idx_map = {
+			{tw::profile::quantity::power,hidx.u},
+			{tw::profile::quantity::fx,hidx.npx},
+			{tw::profile::quantity::fy,hidx.npy},
+			{tw::profile::quantity::fz,hidx.npz}
+		};
 		tw::Float add;
-
 		for (auto prof : profiles) {
-			if ( prof->whichQuantity==tw::profile::quantity::power && prof->TimeGate(space->WindowPos(0),&add) ) {
-				for (auto cell : EntireCellRange(*this,1)) {
-					create(cell,U) += prof->GetValue(space->Pos4(cell),*space);
+			if (prof->TimeGate(space->WindowPos(0),&add)) {
+				if (idx_map.find(prof->whichQuantity)!=idx_map.end()) {
+					auto c = idx_map[prof->whichQuantity];
+					for (auto cell : EntireCellRange(*this,1)) {
+						create(cell,c) += prof->GetValue(space->Pos4(cell),*space);
+					}
 				}
 			}
 		}

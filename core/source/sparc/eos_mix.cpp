@@ -146,7 +146,7 @@ export struct EOSMixture:ComputeTool
 						tw::Float press = 0;
 						for (auto c : elements) {
 							auto partial_nm = c->mat.mass * hydro(cell,c->hidx.ni);
-							auto partial_nmE = nmE * partial_nm / (tiny.n + nm);
+							auto partial_nmE = nmE * partial_nm / nm;
 							press += c->Pressure(partial_nm,partial_nmE);
 						}
 						return press - target_P;

@@ -1,6 +1,5 @@
 module;
 
-#include <algorithm>
 #include <tree_sitter/api.h>
 #include "tw_includes.h"
 #include "tw_test.h"
@@ -241,27 +240,32 @@ void Kinetics::Update()
 
 	// Assume source arrays are weighted by volume or zero
 
+	logger::TRACE("ionize particles");
 	Ionize();
+	logger::TRACE("QED processes");
 	ProcessQED();
-	for (i=0;i<species.size();i++)
+	for (auto sp : species)
 	{
-		if (space->StepNow() % species[i]->sortPeriod == 0)
-			std::sort(species[i]->particle.begin(),species[i]->particle.end());
-		species[i]->mover->Advance();
-		species[i]->ApplyGlobalBoundaryConditions();
+		logger::TRACE(std::format("advance {}",sp->name));
+		if (space->StepNow() % sp->sortPeriod == 0)
+			std::sort(sp->particle.begin(),sp->particle.end());
+		sp->mover->Advance();
+		sp->ApplyGlobalBoundaryConditions();
 	}
 	// This barrier helps keep the stack trace clean for debugging purposes.
-	// N.b. barriers are not implemented in TW_MPI.
 	task->strip[0].Barrier();
 
+	logger::TRACE("particle MPI");
 	TransferParticles();
 
-	for (i=0;i<species.size();i++)
+	logger::TRACE("new particles and cleaning");
+	for (auto sp : species)
 	{
-		species[i]->GenerateParticles(false);
-		species[i]->CleanParticleList();
+		sp->GenerateParticles(false);
+		sp->CleanParticleList();
 	}
 
+	logger::TRACE("particle neutralization");
 	if (sources && space->neutralize)
 		for (auto cell : EntireCellRange(*this,1))
 			(*sources)(cell,0) -= rho00(cell);

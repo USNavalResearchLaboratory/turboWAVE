@@ -34,6 +34,21 @@ export namespace logger {
             tw_log_level = 0;
         }
     }
+    std::string get_level_str() {
+        if (tw_log_level==1) {
+            return "error";
+        } else if (tw_log_level==2) {
+            return "warn";
+        } else if (tw_log_level==3) {
+            return "info";
+        } else if (tw_log_level==4) {
+            return "debug";
+        } else if (tw_log_level==5) {
+            return "trace";
+        } else {
+            return "none";
+        }
+    }
     void print(int level,const std::string& mess,const std::string& path,const std::string& func,int line) {
         if (tw_log_level < level) {
             return;

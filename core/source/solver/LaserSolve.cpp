@@ -384,7 +384,7 @@ void PGCSolver::MoveWindow()
 {
 	LaserSolver::MoveWindow();
 	logger::TRACE("field shift");
-	for (auto s : StripRange(*this,3,0,1,strongbool::yes))
+	for (auto s : StripRange(F,3,0,1,strongbool::yes))
 		F.Shift(Rng(0,8),s,-1,0.0);
 	F.DownwardCopy(Rng(0,8),tw::grid::z,1);
 }
@@ -429,8 +429,7 @@ void PGCSolver::Update()
 	#pragma omp parallel
 	{
 		const tw::Float dth = 0.5*dx(0);
-		for (auto s : StripRange(*this,3,0,1,strongbool::yes))
-		{
+		for (auto s : StripRange(chi,3,0,1,strongbool::yes)) {
 			for (tw::Int k=1;k<=dim[3];k++)
 				chi.Pack(s,k, space->ValueOnLightGrid<ComplexField,tw::Complex>(chi,s,k,dth));
 		}
@@ -449,14 +448,14 @@ void PGCSolver::ComputeFinalFields()
 	#pragma omp parallel
 	{
 		const tw::Float dth = 0.5*dx(0);
-		for (auto nxt : StripRange(*this,3,0,1,strongbool::yes))
-		{
-			auto prv = tw::strip(nxt,2);
-			for (tw::Int k=1;k<=dim[3];k++)
-			{
-				F(nxt,k,7) = norm(space->ValueOnLabGrid<ComplexField,tw::Complex>(a,nxt,k,dth));
-				F(nxt,k,6) = norm(space->ValueOnLabGrid<ComplexField,tw::Complex>(a,prv,k,-dth));
-				F(nxt,k,6) = 0.5*(F(nxt,k,6) + F(nxt,k,7));
+		for (auto [d,nxt,prv] : std::views::zip(
+			StripRange(F,3,0,1,strongbool::yes),
+			StripRange(a,3,0,1,strongbool::yes),
+			StripRange(a,3,0,2,strongbool::yes))) {
+			for (tw::Int k=1;k<=dim[3];k++) {
+				F(d,k,7) = std::norm(space->ValueOnLabGrid<ComplexField,tw::Complex>(a,nxt,k,dth));
+				F(d,k,6) = std::norm(space->ValueOnLabGrid<ComplexField,tw::Complex>(a,prv,k,-dth));
+				F(d,k,6) = 0.5*(F(d,k,6) + F(d,k,7));
 			}
 		}
 	}
@@ -467,7 +466,7 @@ void PGCSolver::ComputeFinalFields()
 	logger::TRACE("compute PGC forces");
 	#pragma omp parallel
 	{
-		for (auto cell : InteriorCellRange(*this,1))
+		for (auto cell : InteriorCellRange(F,1))
 		{
 			F(cell,0) = F.d1(cell,6,1);
 			F(cell,1) = F.d1(cell,6,2);
@@ -488,10 +487,10 @@ void PGCSolver::Report(Diagnostic& diagnostic)
 	LaserSolver::Report(diagnostic);
 
 	diagnostic.SwitchVariant(1);
-	diagnostic.ReportField("a_real",HRa,1,0,tw::dims::vector_potential,"$\\Re A$");
-	diagnostic.ReportField("a_imag",HRa,1,1,tw::dims::vector_potential,"$\\Im A$");
-	diagnostic.ReportField("j1_real",HRchi,1,0,tw::dims::current_density,"$\\Re j$");
-	diagnostic.ReportField("j1_imag",HRchi,1,1,tw::dims::current_density,"$\\Im j$");
+	diagnostic.ReportField("af_real",HRa,1,0,tw::dims::vector_potential,"$\\Re A$");
+	diagnostic.ReportField("af_imag",HRa,1,1,tw::dims::vector_potential,"$\\Im A$");
+	diagnostic.ReportField("chif_real",HRchi,1,0,tw::dims::none,"$\\Re \\chi$");
+	diagnostic.ReportField("chif_imag",HRchi,1,1,tw::dims::none,"$\\Im \\chi$");
 	diagnostic.SwitchVariant(0);
 
 	ComplexField temp;

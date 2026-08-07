@@ -56,6 +56,7 @@ export namespace tw
 		mass_density,
 		energy_density,
 		power_density,
+		force_density,
 		charge,
 		current,
 		current_density,
@@ -113,6 +114,8 @@ export namespace tw
 			{"[J/cm3]",tw::dnum_units(tw::dims::energy_density,tw::units::mks,1e6)},
 			{"[W/m3]",tw::dnum_units(tw::dims::power_density,tw::units::mks,1.0)},
 			{"[W/cm3]",tw::dnum_units(tw::dims::power_density,tw::units::mks,1e6)},
+			{"[N/m3]",tw::dnum_units(tw::dims::force_density,tw::units::mks,1.0)},
+			{"[N/cm3]",tw::dnum_units(tw::dims::force_density,tw::units::mks,1e6)},
 			{"[eV]",tw::dnum_units(tw::dims::temperature,tw::units::cgs,1.0)},
 			{"[K]",tw::dnum_units(tw::dims::temperature,tw::units::mks,1.0)},
 			{"[Pa]",tw::dnum_units(tw::dims::pressure,tw::units::mks,1.0)},
@@ -162,6 +165,7 @@ export namespace tw
 			{dims::mass_density,"$/m_en_c$"},
 			{dims::energy_density,"$/m_ec^2n_c$"},
 			{dims::power_density,"$/m_ec^2n_c\\omega$"},
+			{dims::force_density,"$/m_ecn_c\\omega"},
 			{dims::charge,"$/e$"},
 			{dims::current,"$\\omega^2/n_cec^3"},
 			{dims::current_density,"$/n_cec$"},
@@ -209,6 +213,7 @@ export namespace tw
 			{dims::mass_density,"kg$/$m$^3$"},
 			{dims::energy_density,"J$/$m$^3$"},
 			{dims::power_density,"W$/$m$^3$"},
+			{dims::force_density,"N$/$m$^3$"},
 			{dims::charge,"C"},
 			{dims::current,"A"},
 			{dims::current_density,"A$/$m$^2$"},
@@ -237,7 +242,7 @@ export namespace tw
 		{
 			{dims::none,"None"},
 			{dims::angle,"rad"},
-			{dims::action,"erg$\\cdot$s"},
+			{dims::action,"ergs$\\cdot$s"},
 			{dims::angular_frequency,"rad$/$s"},
 			{dims::frequency,"s$^{-1}$"},
 			{dims::time,"s"},
@@ -245,16 +250,17 @@ export namespace tw
 			{dims::velocity,"cm$/$s"},
 			{dims::number,"particles"},
 			{dims::mass,"g"},
-			{dims::energy,"erg"},
+			{dims::energy,"ergs"},
 			{dims::momentum,"g$\\cdot$cm$/$s"},
 			{dims::angular_momentum,"g$\\cdot$cm$^2/$s"},
 			{dims::density,"cm$^{-3}$"},
-			{dims::power,"erg$/$s"},
-			{dims::fluence,"erg$/$cm$^2$"},
-			{dims::intensity,"erg$/$s$\\cdot$cm$^2$"},
+			{dims::power,"ergs$/$s"},
+			{dims::fluence,"ergs$/$cm$^2$"},
+			{dims::intensity,"ergs$/$s$\\cdot$cm$^2$"},
 			{dims::mass_density,"g$/$cm$^3$"},
-			{dims::energy_density,"erg$/$cm$^3$"},
-			{dims::power_density,"erg$/$s$\\cdot$cm$^3$"},
+			{dims::energy_density,"ergs$/$cm$^3$"},
+			{dims::power_density,"ergs$/$s$\\cdot$cm$^3$"},
+			{dims::force_density,"dynes$/$cm$^3$"},
 			{dims::charge,"SC"},
 			{dims::current,"SA"},
 			{dims::current_density,"SA$/$cm$^2$"},
@@ -263,14 +269,14 @@ export namespace tw
 			{dims::magnetic_field,"G"},
 			{dims::scalar_potential,"SV"},
 			{dims::vector_potential,"G$\\cdot$cm"},
-			{dims::diffusivity,"cm$^2/$s"}, // if diffusing temperature in K we would multiply by erg/K
-			{dims::thermal_conductivity,"erg$/$cm$\\cdot$s$\\cdot$eV"},
+			{dims::diffusivity,"cm$^2/$s"}, // if diffusing temperature in K we would multiply by ergs/K
+			{dims::thermal_conductivity,"ergs$/$cm$\\cdot$s$\\cdot$eV"},
 			{dims::conductivity,"s$^{-1}$"},
 			{dims::rate_coefficient_2,"cm$^3/$s"},
 			{dims::rate_coefficient_3,"cm$^6/$s"},
 			{dims::mobility,"cm$^2/$SV$\\cdot$s"},
 			{dims::temperature,"eV"},
-			{dims::pressure,"dyne$/$cm$^2$"},
+			{dims::pressure,"dynes$/$cm$^2$"},
 			{dims::specific_energy,"ergs$/$g"},
 			{dims::cross_section,"cm$^2$"},
 		};
@@ -337,6 +343,8 @@ tw::Float FactorizedMKSValue(tw::dims dim,tw::Float m1,tw::Float w1,tw::Float l1
 			return u1*std::pow(l1,-3.0);
 		case tw::dims::power_density:
 			return u1*w1*std::pow(l1,-3.0);
+		case tw::dims::force_density:
+			return u1*std::pow(l1,-4.0);
 		case tw::dims::charge:
 			return q1;
 		case tw::dims::current:
@@ -465,6 +473,8 @@ tw::Float MKSValue(tw::dims dim,tw::units sys,tw::Float wp,tw::Float ne)
 					return me*c*c*ne;
 				case tw::dims::power_density:
 					return me*c*c*ne*wp;
+				case tw::dims::force_density:
+					return me*c*ne*wp;
 				case tw::dims::charge:
 					return qe;
 				case tw::dims::current:

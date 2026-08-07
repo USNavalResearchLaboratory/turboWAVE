@@ -21,7 +21,7 @@ export namespace tw
 {
 	namespace profile
 	{
-		enum class quantity { density,energy,power,px,py,pz };
+		enum class quantity { density,energy,power,px,py,pz,fx,fy,fz };
 		enum class timing { triggered,maintained };
 		enum class loading { statistical,deterministic };
 		enum class shape { triangle,sin2,quartic,quintic,sech };
@@ -97,20 +97,27 @@ public:
 			{ "power",tw::profile::quantity::power },
 			{ "px",tw::profile::quantity::px },
 			{ "py",tw::profile::quantity::py },
-			{ "pz",tw::profile::quantity::pz }};
+			{ "pz",tw::profile::quantity::pz },
+			{ "fx",tw::profile::quantity::fx },
+			{ "fy",tw::profile::quantity::fy },
+			{ "fz",tw::profile::quantity::fz },
+		};
 
 		std::map<std::string,tw::profile::shape> shp = {
 			{ "triangle",tw::profile::shape::triangle },
 			{ "quartic",tw::profile::shape::quartic },
-			{ "quintic",tw::profile::shape::quintic }};
+			{ "quintic",tw::profile::shape::quintic },
+		};
 
 		std::map<std::string,tw::profile::timing> tm = {
 			{ "triggered",tw::profile::timing::triggered },
-			{ "maintained",tw::profile::timing::maintained }};
+			{ "maintained",tw::profile::timing::maintained },
+		};
 
 		std::map<std::string,tw::profile::loading> ld = {
 			{ "deterministic",tw::profile::loading::deterministic },
-			{ "statistical",tw::profile::loading::statistical }};
+			{ "statistical",tw::profile::loading::statistical },
+		};
 
 		std::map<std::string,tw::grid::geometry> geo = {{"cylindrical",tw::grid::cylindrical},{"spherical",tw::grid::spherical}};
 
@@ -188,7 +195,14 @@ public:
 				gateOpen = t>=t0 && !wasTriggered;
 				break;
 			case tw::profile::timing::maintained:
-				*add = whichQuantity == tw::profile::quantity::power ? 1.0: 0.0;
+				*add = 0.0;
+				*add += whichQuantity == tw::profile::quantity::power;
+				*add += whichQuantity == tw::profile::quantity::fx;
+				*add += whichQuantity == tw::profile::quantity::fy;
+				*add += whichQuantity == tw::profile::quantity::fz;
+				if (*add != 0.0) {
+					*add = 1.0;
+				}
 				gateOpen = t>=t0 && t<=t1;
 				break;
 		}
